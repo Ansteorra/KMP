@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Cancel Gathering Modal
  *
@@ -10,7 +11,8 @@
  */
 ?>
 
-<div class="modal fade" id="cancelGatheringModal" tabindex="-1" aria-labelledby="cancelGatheringModalLabel" aria-hidden="true">
+<div class="modal fade" id="cancelGatheringModal" tabindex="-1" aria-labelledby="cancelGatheringModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header bg-warning">
@@ -51,10 +53,10 @@
                     <?= __('Keep Active') ?>
                 </button>
                 <?= $this->Form->button(
-                    '<i class="bi bi-x-circle"></i> ' . __('Cancel Gathering'),
+                    __(' Cancel Gathering'),
                     [
                         'type' => 'submit',
-                        'class' => 'btn btn-warning',
+                        'class' => 'btn btn-warning bi bi-x-circle',
                         'escape' => false,
                     ]
                 ) ?>

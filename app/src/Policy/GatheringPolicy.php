@@ -46,6 +46,16 @@ class GatheringPolicy extends BasePolicy
         return $this->_isGatheringSteward($user, $entity);
     }
 
+    public function canCancel(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        return $this->canEdit($user, $entity, ...$optionalArgs);
+    }
+
+    public function canUncancel(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        return $this->canEdit($user, $entity, ...$optionalArgs);
+    }
+
     /**
      * Check if user can view attendance information for a gathering
      *

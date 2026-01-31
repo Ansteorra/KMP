@@ -108,13 +108,19 @@ class AwardsRecommendationBulkEditForm extends Controller {
                     const option = document.createElement('option');
                     option.value = gathering.id;
                     option.textContent = gathering.display_name;
+
+                    // Disable cancelled gatherings
+                    if (gathering.cancelled) {
+                        option.disabled = true;
+                    }
+
                     this.planToGiveGatheringTarget.appendChild(option);
                 });
 
-                // Restore previous selection if it still exists
+                // Restore previous selection if it still exists and is not cancelled
                 if (currentSelection) {
                     const optionExists = Array.from(this.planToGiveGatheringTarget.options).some(
-                        opt => opt.value === currentSelection
+                        opt => opt.value === currentSelection && !opt.disabled
                     );
                     if (optionExists) {
                         this.planToGiveGatheringTarget.value = currentSelection;

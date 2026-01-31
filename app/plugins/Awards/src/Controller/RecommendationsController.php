@@ -146,7 +146,7 @@ class RecommendationsController extends AppController
                     return $q->select(['id', 'sca_name']);
                 },
                 'AssignedGathering' => function ($q) {
-                    return $q->select(['id', 'name']);
+                    return $q->select(['id', 'name', 'cancelled_at']);
                 }
             ]);
 
@@ -806,7 +806,7 @@ class RecommendationsController extends AppController
                     return $q->select(['id', 'name', 'start_date', 'end_date']);
                 },
                 'AssignedGathering' => function ($q) {
-                    return $q->select(['id', 'name']);
+                    return $q->select(['id', 'name', 'cancelled_at']);
                 },
             ]);
 
@@ -936,7 +936,7 @@ class RecommendationsController extends AppController
                     return $q->select(['id', 'sca_name']);
                 },
                 'AssignedGathering' => function ($q) {
-                    return $q->select(['id', 'name']);
+                    return $q->select(['id', 'name', 'cancelled_at']);
                 }
             ]);
 
@@ -1819,12 +1819,20 @@ class RecommendationsController extends AppController
             // Get filtered gatherings for this award
             // If status is "Given", show all gatherings (past and future) for retroactive entry
             $futureOnly = ($recommendation->status !== 'Given');
-            $gatheringList = $this->getFilteredGatheringsForAward(
+            $gatheringData = $this->getFilteredGatheringsForAward(
                 $recommendation->award_id,
                 $recommendation->member_id,
                 $futureOnly,
                 $recommendation->gathering_id  // Include the currently assigned gathering
             );
+            $gatheringList = $gatheringData['gatherings'];
+            $cancelledGatheringIds = $gatheringData['cancelledGatheringIds'];
+
+            // Check if the assigned gathering is cancelled
+            $assignedGatheringCancelled = false;
+            if ($recommendation->assigned_gathering && $recommendation->assigned_gathering->cancelled_at !== null) {
+                $assignedGatheringCancelled = true;
+            }
 
             // Format status list for dropdown
             $statusList = Recommendation::getStatuses();
@@ -1843,9 +1851,11 @@ class RecommendationsController extends AppController
                 'branches',
                 'awards',
                 'gatheringList',
+                'cancelledGatheringIds',
                 'awardsDomains',
                 'awardsLevels',
-                'statusList'
+                'statusList',
+                'assignedGatheringCancelled'
             ));
             return null;
         } catch (\Cake\Datasource\Exception\RecordNotFoundException $e) {
@@ -1907,12 +1917,20 @@ class RecommendationsController extends AppController
             // Get filtered gatherings for this award
             // If status is "Given", show all gatherings (past and future) for retroactive entry
             $futureOnly = ($recommendation->status !== 'Given');
-            $gatheringList = $this->getFilteredGatheringsForAward(
+            $gatheringData = $this->getFilteredGatheringsForAward(
                 $recommendation->award_id,
                 $recommendation->member_id,
                 $futureOnly,
                 $recommendation->gathering_id  // Include the currently assigned gathering
             );
+            $gatheringList = $gatheringData['gatherings'];
+            $cancelledGatheringIds = $gatheringData['cancelledGatheringIds'];
+
+            // Check if the assigned gathering is cancelled
+            $assignedGatheringCancelled = false;
+            if ($recommendation->assigned_gathering && $recommendation->assigned_gathering->cancelled_at !== null) {
+                $assignedGatheringCancelled = true;
+            }
 
             // Format status list for dropdown
             $statusList = Recommendation::getStatuses();
@@ -1931,9 +1949,11 @@ class RecommendationsController extends AppController
                 'branches',
                 'awards',
                 'gatheringList',
+                'cancelledGatheringIds',
                 'awardsDomains',
                 'awardsLevels',
-                'statusList'
+                'statusList',
+                'assignedGatheringCancelled'
             ));
             return null;
         } catch (\Cake\Datasource\Exception\RecordNotFoundException $e) {
@@ -1975,7 +1995,7 @@ class RecommendationsController extends AppController
                 ->contain(['Branches' => function ($q) {
                     return $q->select(['id', 'name']);
                 }])
-                ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
+                ->select(['id', 'name', 'start_date', 'end_date', 'cancelled_at', 'Branches.name'])
                 ->orderBy(['start_date' => 'ASC'])
                 ->all();
 
@@ -1989,15 +2009,21 @@ class RecommendationsController extends AppController
                 }
             }
 
-            // Format gathering list for dropdown
+            // Format gathering list for dropdown, tracking cancelled gatherings
             $gatheringList = [];
+            $cancelledGatheringIds = [];
             foreach ($gatheringsData as $gathering) {
-                $gatheringList[$gathering->id] = $gathering->name . ' in ' . $gathering->branch->name . ' on '
+                $label = $gathering->name . ' in ' . $gathering->branch->name . ' on '
                     . $gathering->start_date->toDateString() . ' - ' . $gathering->end_date->toDateString();
+                if ($gathering->cancelled_at !== null) {
+                    $label = '[CANCELLED] ' . $label;
+                    $cancelledGatheringIds[] = $gathering->id;
+                }
+                $gatheringList[$gathering->id] = $label;
             }
 
             $rules = StaticHelpers::getAppSetting('Awards.RecommendationStateRules');
-            $this->set(compact('rules', 'branches', 'gatheringList', 'statusList'));
+            $this->set(compact('rules', 'branches', 'gatheringList', 'statusList', 'cancelledGatheringIds'));
             return null;
         } catch (\Exception $e) {
             Log::error('Error in bulk edit form: ' . $e->getMessage());
@@ -2041,7 +2067,7 @@ class RecommendationsController extends AppController
                     return $q->select(['id', 'name']);
                 }
             ])
-            ->select(['id', 'name', 'start_date', 'end_date', 'Gatherings.branch_id'])
+            ->select(['id', 'name', 'start_date', 'end_date', 'Gatherings.branch_id', 'Gatherings.cancelled_at'])
             ->orderBy(['start_date' => 'DESC']);
 
         // Only filter by date if futureOnly is true
@@ -2075,8 +2101,12 @@ class RecommendationsController extends AppController
         }
 
         // Build the response array
+        // Simple format: [id => display_name]
+        // Also track cancelled gathering IDs for disabling in form
         $gatherings = [];
+        $cancelledGatheringIds = [];
         foreach ($gatheringsData as $gathering) {
+            $isCancelled = $gathering->cancelled_at !== null;
             $displayName = $gathering->name . ' in ' . $gathering->branch->name . ' on '
                 . $gathering->start_date->toDateString() . ' - ' . $gathering->end_date->toDateString();
 
@@ -2088,6 +2118,12 @@ class RecommendationsController extends AppController
                 $displayName .= ' *';
             }
 
+            // Add cancelled indicator
+            if ($isCancelled) {
+                $displayName = '[CANCELLED] ' . $displayName;
+                $cancelledGatheringIds[] = $gathering->id;
+            }
+            
             $gatherings[$gathering->id] = $displayName;
         }
 
@@ -2100,10 +2136,11 @@ class RecommendationsController extends AppController
                     return $q->select(['id', 'name']);
                 }])
                 ->where(['Gatherings.id' => $includeGatheringId])
-                ->select(['id', 'name', 'start_date', 'end_date', 'Gatherings.branch_id'])
+                ->select(['id', 'name', 'start_date', 'end_date', 'Gatherings.branch_id', 'Gatherings.cancelled_at'])
                 ->first();
 
             if ($specificGathering) {
+                $isCancelled = $specificGathering->cancelled_at !== null;
                 $displayName = $specificGathering->name . ' in ' . $specificGathering->branch->name . ' on '
                     . $specificGathering->start_date->toDateString() . ' - ' . $specificGathering->end_date->toDateString();
 
@@ -2114,12 +2151,19 @@ class RecommendationsController extends AppController
                     $displayName .= ' *';
                 }
 
+                // Cancelled gatherings that are already assigned: show but mark as cancelled
+                // Don't add to disabled list - allow keeping the existing assignment
+                if ($isCancelled) {
+                    $displayName = '[CANCELLED] ' . $displayName;
+                    // Note: Not adding to cancelledGatheringIds to allow keeping existing assignment
+                }
+                
                 // Add to the beginning of the array so it appears first
                 $gatherings = [$specificGathering->id => $displayName] + $gatherings;
             }
         }
 
-        return $gatherings;
+        return ['gatherings' => $gatherings, 'cancelledGatheringIds' => $cancelledGatheringIds];
     }
 
     /**
@@ -2171,7 +2215,7 @@ class RecommendationsController extends AppController
                         return $q->select(['id', 'name']);
                     }
                 ])
-                ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date', 'Gatherings.end_date', 'Gatherings.branch_id']);
+                ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date', 'Gatherings.end_date', 'Gatherings.branch_id', 'Gatherings.cancelled_at']);
 
             // Only filter by date if futureOnly is true
             if ($futureOnly) {
@@ -2224,6 +2268,7 @@ class RecommendationsController extends AppController
             // Build the response array
             $gatherings = [];
             foreach ($gatheringsData as $gathering) {
+                $isCancelled = $gathering->cancelled_at !== null;
                 $displayName = $gathering->name . ' in ' . $gathering->branch->name . ' on '
                     . $gathering->start_date->toDateString() . ' - ' . $gathering->end_date->toDateString();
 
@@ -2235,12 +2280,18 @@ class RecommendationsController extends AppController
                     $displayName .= ' *';
                 }
 
+                // Add cancelled indicator
+                if ($isCancelled) {
+                    $displayName = '[CANCELLED] ' . $displayName;
+                }
+
                 $gatherings[] = [
                     'id' => $gathering->id,
                     'name' => $gathering->name,
                     'display' => $displayName,
                     'has_attendance' => $hasAttendance,
-                    'share_with_crown' => $shareWithCrown
+                    'share_with_crown' => $shareWithCrown,
+                    'cancelled' => $isCancelled
                 ];
             }
 
@@ -2370,7 +2421,7 @@ class RecommendationsController extends AppController
                         return $q->select(['id', 'name']);
                     }
                 ])
-                ->select(['id', 'name', 'start_date', 'end_date', 'Gatherings.branch_id'])
+                ->select(['id', 'name', 'start_date', 'end_date', 'Gatherings.branch_id', 'Gatherings.cancelled_at'])
                 ->orderBy(['start_date' => 'DESC']);
 
             // Only filter by date if futureOnly is true
@@ -2410,6 +2461,7 @@ class RecommendationsController extends AppController
             // Build the response array
             $gatherings = [];
             foreach ($gatheringsData as $gathering) {
+                $isCancelled = $gathering->cancelled_at !== null;
                 $displayName = $gathering->name . ' in ' . $gathering->branch->name . ' on '
                     . $gathering->start_date->toDateString() . ' - ' . $gathering->end_date->toDateString();
 
@@ -2419,11 +2471,17 @@ class RecommendationsController extends AppController
                     $displayName .= ' *(' . $count . ')';
                 }
 
+                // Add cancelled indicator
+                if ($isCancelled) {
+                    $displayName = '[CANCELLED] ' . $displayName;
+                }
+
                 $gatherings[] = [
                     'id' => $gathering->id,
                     'name' => $gathering->name,
                     'display_name' => $displayName,
-                    'attendance_count' => $attendanceMap[$gathering->id] ?? 0
+                    'attendance_count' => $attendanceMap[$gathering->id] ?? 0,
+                    'cancelled' => $isCancelled
                 ];
             }
 

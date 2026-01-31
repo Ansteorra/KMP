@@ -1673,28 +1673,19 @@ class GatheringWaiversController extends AppController
         }
 
         // Find gatherings with:
-        // 1. end_date >= today (or null which defaults to start_date) - ongoing or future
-        // 2. If future event: start_date <= one week from now (only show gatherings within the next 7 days)
-        // 3. In branches user has permission for OR user is a steward
-        // 4. Have required waivers configured (checked via activities)
-        // 5. Not cancelled
+        // 1. Past gatherings (already started) OR future gatherings starting within 7 days
+        // 2. In branches user has permission for OR user is a steward
+        // 3. Have required waivers configured (checked via activities)
+        // 4. Not cancelled
+        // Note: Past gatherings remain visible until waiver secretary closes them
         $query = $Gatherings->find()
-            ->where([
-                'OR' => [
-                    'Gatherings.end_date >=' => $today,
-                    'AND' => [
-                        'Gatherings.end_date IS' => null,
-                        'Gatherings.start_date >=' => $today,
-                    ]
-                ],
-                'Gatherings.deleted IS' => null,
-                'Gatherings.cancelled_at IS' => null,
-            ])
             ->where([
                 'OR' => [
                     'Gatherings.start_date <' => $today, // Already started (past or ongoing)
                     'Gatherings.start_date <=' => $oneWeekFromNow, // Starts within next 7 days
                 ],
+                'Gatherings.deleted IS' => null,
+                'Gatherings.cancelled_at IS' => null,
             ])
             ->where(['OR' => $accessConditions])
             ->contain([
@@ -1719,7 +1710,7 @@ class GatheringWaiversController extends AppController
         // Process gatherings to determine waiver status for each
         $GatheringActivityWaivers = $this->fetchTable('Waivers.GatheringActivityWaivers');
         $gatherings = [];
-        $gatheringsNeedingWaivers = [];
+        $incompleteCount = 0;
 
         foreach ($allGatherings as $gathering) {
             // Default: no waivers needed/missing
@@ -1776,15 +1767,16 @@ class GatheringWaiversController extends AppController
                         $gathering->missing_waiver_count = count($missingWaiverTypes);
                         $gathering->missing_waiver_names = $missingWaiverNames;
                         $gathering->is_waiver_complete = false;
-                        $gatheringsNeedingWaivers[] = $gathering;
+                        $incompleteCount++;
                     }
+
+                    // Include all gatherings with waiver requirements (complete or not)
+                    $gatherings[] = $gathering;
                 }
             }
-
-            $gatherings[] = $gathering;
         }
 
-        $this->set(compact('gatherings', 'gatheringsNeedingWaivers'));
+        $this->set(compact('gatherings', 'incompleteCount'));
     }
 
     /**
