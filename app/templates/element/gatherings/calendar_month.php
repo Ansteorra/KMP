@@ -108,6 +108,7 @@ $today->setTime(0, 0, 0);
                             // Compare dates in the event's timezone, not UTC
                             $isMultiDay = $startInUserTz->format('Y-m-d') !== $endInUserTz->format('Y-m-d');
                             $hasLocation = !empty($gathering->location);
+                            $isCancelled = $gathering->is_cancelled ?? false;
                             $itemClasses = ['gathering-item'];
 
                             if ($isMultiDay) {
@@ -116,11 +117,18 @@ $today->setTime(0, 0, 0);
                             if ($isAttending) {
                                 $itemClasses[] = 'attending';
                             }
+                            if ($isCancelled) {
+                                $itemClasses[] = 'cancelled';
+                            }
 
-                            // Use gathering type color if available
-                            $bgColor = $gathering->gathering_type->color ?? '#0d6efd';
+                            // Use gathering type color if available, grey for cancelled
+                            $bgColor = $isCancelled ? '#6c757d' : ($gathering->gathering_type->color ?? '#0d6efd');
 
-                            $gatheringContent = '<div class="fw-bold text-truncate">' . h($gathering->name) . '</div>';
+                            $gatheringContent = '';
+                            if ($isCancelled) {
+                                $gatheringContent .= '<div class="badge bg-danger mb-1 w-100"><i class="bi bi-x-circle"></i> CANCELLED</div>';
+                            }
+                            $gatheringContent .= '<div class="fw-bold text-truncate' . ($isCancelled ? ' text-decoration-line-through' : '') . '">' . h($gathering->name) . '</div>';
                             $gatheringContent .= '<div class="text-muted small text-truncate">' . h($gathering->branch->name) . '</div>';
                             $gatheringContent .= '<div class="gathering-badges">';
                             if ($isAttending) {

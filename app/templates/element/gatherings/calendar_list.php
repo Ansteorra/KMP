@@ -52,20 +52,26 @@ $today = new DateTime('now', new \DateTimeZone($userTimezone));
                     $isMultiDay = $startInUserTz->format('Y-m-d') !== $endInUserTz->format('Y-m-d');
                     $hasLocation = !empty($gathering->location);
                     $isPast = $endInUserTz < $today;
-                    $bgColor = $gathering->gathering_type->color ?? '#0d6efd';
+                    $isCancelled = $gathering->is_cancelled ?? false;
+                    $bgColor = $isCancelled ? '#6c757d' : ($gathering->gathering_type->color ?? '#0d6efd');
                     ?>
-                    <div class="list-group-item list-group-item-action"
-                        style="border-left: 4px solid <?= h($bgColor) ?>;">
+                    <div class="list-group-item list-group-item-action <?= $isCancelled ? 'bg-light' : '' ?>"
+                        style="border-left: 4px solid <?= h($bgColor) ?>; <?= $isCancelled ? 'opacity: 0.8;' : '' ?>">
                         <div class="row">
                             <div class="col-md-8">
                                 <div class="d-flex w-100 justify-content-between align-items-start">
                                     <h5 class="mb-1">
+                                        <?php if ($isCancelled): ?>
+                                            <span class="badge bg-danger me-2">
+                                                <i class="bi bi-x-circle"></i> CANCELLED
+                                            </span>
+                                        <?php endif; ?>
                                         <?= $this->Html->link(
                                             h($gathering->name),
                                             ['action' => 'view', $gathering->public_id],
-                                            ['class' => 'text-decoration-none']
+                                            ['class' => 'text-decoration-none' . ($isCancelled ? ' text-decoration-line-through text-muted' : '')]
                                         ) ?>
-                                        <?php if ($isAttending): ?>
+                                        <?php if ($isAttending && !$isCancelled): ?>
                                             <span class="badge bg-success ms-2">
                                                 <i class="bi bi-check-circle"></i> Attending
                                             </span>
