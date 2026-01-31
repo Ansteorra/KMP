@@ -27,6 +27,8 @@ use Cake\ORM\Entity;
  * @property int $created_by
  * @property \Cake\I18n\DateTime $created
  * @property \Cake\I18n\DateTime $modified
+ * @property \Cake\I18n\DateTime|null $cancelled_at
+ * @property string|null $cancellation_reason
  *
  * @property \App\Model\Entity\Branch $branch
  * @property \App\Model\Entity\GatheringType $gathering_type
@@ -56,6 +58,8 @@ class Gathering extends BaseEntity
         'latitude' => true,
         'longitude' => true,
         'public_page_enabled' => true,
+        'cancelled_at' => true,
+        'cancellation_reason' => true,
         'created_by' => true,
         'created' => true,
         'modified' => true,
@@ -117,5 +121,15 @@ class Gathering extends BaseEntity
 
         // Compare calendar dates (not datetime equality) in the event's timezone
         return $startInTz->format('Y-m-d') !== $endInTz->format('Y-m-d');
+    }
+
+    /**
+     * Virtual field to check if gathering is cancelled
+     *
+     * @return bool
+     */
+    protected function _getIsCancelled(): bool
+    {
+        return $this->cancelled_at !== null;
     }
 }

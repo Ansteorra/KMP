@@ -242,6 +242,27 @@ class GatheringsGridColumns extends BaseGridColumns
                 'width' => '170px',
                 'alignment' => 'left',
             ],
+
+            'cancelled_at' => [
+                'key' => 'cancelled_at',
+                'label' => 'Status',
+                'type' => 'badge',
+                'sortable' => true,
+                'filterable' => true,
+                'filterType' => 'dropdown',
+                'filterOptions' => [
+                    '' => 'All',
+                    'active' => 'Active',
+                    'cancelled' => 'Cancelled',
+                ],
+                'defaultVisible' => true,
+                'width' => '100px',
+                'alignment' => 'center',
+                'badgeConfig' => [
+                    'nullValue' => ['text' => 'Active', 'class' => 'bg-success'],
+                    'hasValue' => ['text' => 'Cancelled', 'class' => 'bg-danger'],
+                ],
+            ],
         ];
     }
 

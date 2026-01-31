@@ -14,9 +14,20 @@ $this->KMP->endBlock();
 
 echo $this->KMP->startBlock('pageTitle') ?>
 <?= h($gathering->name) ?>
+<?php if ($gathering->is_cancelled): ?>
+    <span class="badge bg-danger ms-2"><?= __('CANCELLED') ?></span>
+<?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 
 <?= $this->KMP->startBlock('recordActions') ?>
+<?php if ($gathering->is_cancelled): ?>
+<div class="alert alert-danger w-100 mb-0" role="alert">
+    <strong><i class="bi bi-exclamation-triangle-fill"></i> <?= __('CANCELLED') ?></strong>
+    <?php if (!empty($gathering->cancellation_reason)): ?>
+        - <?= h($gathering->cancellation_reason) ?>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
 <?php
 
 use Cake\I18n\Date;
@@ -96,6 +107,27 @@ $publicLandingUrl = $this->Url->build([
 <?php if ($user->checkCan('edit', $gathering)) : ?>
 <?= $this->Html->link(__('Edit'), ['action' => 'edit', $gathering->id], ['class' => 'btn btn-primary btn-sm']) ?>
 <?php endif; ?>
+
+<?php if ($user->checkCan('edit', $gathering)) : ?>
+    <?php if (!$gathering->is_cancelled): ?>
+        <!-- Cancel Gathering Button -->
+        <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#cancelGatheringModal">
+            <i class="bi bi-x-circle"></i> <?= __('Cancel Gathering') ?>
+        </button>
+    <?php else: ?>
+        <!-- Restore Cancelled Gathering -->
+        <?= $this->Form->postLink(
+            '<i class="bi bi-arrow-counterclockwise"></i> ' . __('Restore Gathering'),
+            ['action' => 'uncancel', $gathering->id],
+            [
+                'confirm' => __('Are you sure you want to restore "{0}"?', $gathering->name),
+                'class' => 'btn btn-success btn-sm',
+                'escape' => false,
+            ]
+        ) ?>
+    <?php endif; ?>
+<?php endif; ?>
+
 <?php if ($gathering->gathering_type->clonable && $user->checkCan('add', $gathering)) : ?>
 
 <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#cloneGatheringModal">
@@ -207,6 +239,22 @@ $publicLandingUrl = $this->Url->build([
         <?php endif; ?>
     </td>
 </tr>
+<?php if ($gathering->is_cancelled): ?>
+<tr scope="row" class="table-danger">
+    <th class="col"><?= __('Status') ?></th>
+    <td class="col-10">
+        <span class="badge bg-danger"><i class="bi bi-x-circle"></i> <?= __('CANCELLED') ?></span>
+        <small class="text-muted ms-2">
+            <?= __('Cancelled on {0}', $this->Timezone->format($gathering->cancelled_at, 'F j, Y g:i A', true)) ?>
+        </small>
+        <?php if (!empty($gathering->cancellation_reason)): ?>
+            <div class="mt-1">
+                <strong><?= __('Reason:') ?></strong> <?= h($gathering->cancellation_reason) ?>
+            </div>
+        <?php endif; ?>
+    </td>
+</tr>
+<?php endif; ?>
 <tr scope="row">
     <th class="col"><?= __('Created') ?></th>
     <td class="col-10">
@@ -435,6 +483,14 @@ if ($user->checkCan('edit', $gathering) && !$hasWaivers) {
 // Clone Gathering Modal
 if ($gathering->gathering_type->clonable && $user->checkCan('add', $gathering)) {
     echo $this->element('gatherings/cloneModal', [
+        'gathering' => $gathering,
+        'user' => $user,
+    ]);
+}
+
+// Cancel Gathering Modal
+if ($user->checkCan('edit', $gathering) && !$gathering->is_cancelled) {
+    echo $this->element('gatherings/cancelModal', [
         'gathering' => $gathering,
         'user' => $user,
     ]);
