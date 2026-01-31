@@ -261,6 +261,7 @@ class GatheringWaiversTable extends Table
         // Find gatherings in user's branches that are:
         // - Not yet ended (ongoing or future)
         // - Either already started OR starting within next 7 days
+        // - Not cancelled
         $gatherings = $gatheringsTable->find()
             ->where([
                 'OR' => [
@@ -276,6 +277,7 @@ class GatheringWaiversTable extends Table
                 ],
                 'Gatherings.branch_id IN' => $branchIds,
                 'Gatherings.deleted IS' => null,
+                'Gatherings.cancelled_at IS' => null,
             ])
             ->contain(['GatheringActivities' => function ($q) {
                 return $q->select(['id']);

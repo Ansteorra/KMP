@@ -1,10 +1,10 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\KMP\GridColumns;
 
 use App\KMP\TimezoneHelper;
+use Cake\ORM\Query\SelectQuery;
 use DateTime;
 use DateTimeZone;
 
@@ -15,7 +15,6 @@ use DateTimeZone;
  */
 class GatheringsGridColumns extends BaseGridColumns
 {
-
     /**
      * Compute key month boundaries in both local and UTC timezones.
      *
@@ -294,11 +293,10 @@ class GatheringsGridColumns extends BaseGridColumns
      * @return \Cake\ORM\Query\SelectQuery The filtered query
      */
     public static function filterByCancelledStatus(
-        \Cake\ORM\Query\SelectQuery $query,
+        SelectQuery $query,
         mixed $filterValue,
-        array $context
-    ): \Cake\ORM\Query\SelectQuery
-    {
+        array $context,
+    ): SelectQuery {
         $tableName = $context['tableName'] ?? 'Gatherings';
         $field = $tableName . '.cancelled_at';
 

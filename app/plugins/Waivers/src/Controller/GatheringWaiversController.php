@@ -475,6 +475,25 @@ class GatheringWaiversController extends AppController
             ],
         ]);
 
+        // Check if gathering is cancelled
+        if ($gathering->cancelled_at !== null) {
+            $message = __('This gathering has been cancelled. Waivers are not required.');
+            if ($this->request->is('ajax')) {
+                $this->viewBuilder()->setClassName('Json');
+                $this->response = $this->response->withStatus(403);
+                $this->set('message', $message);
+                $this->viewBuilder()->setOption('serialize', ['message']);
+                return;
+            }
+            $this->Flash->error($message);
+            return $this->redirect([
+                'plugin' => false,
+                'controller' => 'Gatherings',
+                'action' => 'view',
+                $gathering->public_id,
+            ]);
+        }
+
         $GatheringWaiverClosures = $this->fetchTable('Waivers.GatheringWaiverClosures');
         $waiverClosure = $GatheringWaiverClosures->getClosureForGathering((int)$gatheringId);
         if ($waiverClosure) {
@@ -1510,6 +1529,7 @@ class GatheringWaiversController extends AppController
         // 2. If future event: start_date <= one week from now (only show gatherings within the next 7 days)
         // 3. In branches user has permission for
         // 4. Have required waivers configured (checked via activities)
+        // 5. Not cancelled
         $query = $Gatherings->find()
             ->where([
                 'OR' => [
@@ -1525,6 +1545,7 @@ class GatheringWaiversController extends AppController
                 ],
                 'Gatherings.branch_id IN' => $branchIds,
                 'Gatherings.deleted IS' => null,
+                'Gatherings.cancelled_at IS' => null,
             ])
             ->contain([
                 'Branches',
@@ -1831,7 +1852,7 @@ class GatheringWaiversController extends AppController
         // Get compliance days from settings (default: 2 days)
         $complianceDays = (int)StaticHelpers::getAppSetting('Waivers.ComplianceDays', '2', 'int', false);
 
-        // Find all gatherings in extended date range (including past events)
+        // Find all gatherings in extended date range (including past events, excluding cancelled)
         $query = $Gatherings->find()
             ->where([
                 'OR' => [
@@ -1848,6 +1869,7 @@ class GatheringWaiversController extends AppController
                 'Gatherings.start_date <=' => $futureDate,
                 'Gatherings.branch_id IN' => $branchIds,
                 'Gatherings.deleted IS' => null,
+                'Gatherings.cancelled_at IS' => null,
             ])
             ->contain([
                 'Branches',
@@ -2112,6 +2134,7 @@ class GatheringWaiversController extends AppController
                 'GatheringActivityWaivers.deleted IS' => null,
                 'GatheringActivities.deleted IS' => null,
                 'Gatherings.deleted IS' => null,
+                'Gatherings.cancelled_at IS' => null,
                 'OR' => [
                     'Gatherings.start_date <=' => $startDate,
                     'Gatherings.end_date >=' => $endDate
@@ -2187,6 +2210,21 @@ class GatheringWaiversController extends AppController
                 'GatheringActivities',
             ],
         ]);
+
+        // Check if gathering is cancelled
+        if ($gathering->cancelled_at !== null) {
+            $message = __('This gathering has been cancelled. Waivers are not required.');
+            if ($this->request->is('ajax')) {
+                $this->viewBuilder()->setClassName('Json');
+                $this->response = $this->response->withStatus(403);
+                $this->set('message', $message);
+                $this->viewBuilder()->setOption('serialize', ['message']);
+                return;
+            }
+            $this->Flash->error($message);
+            return $this->redirect(['action' => 'mobileSelectGathering']);
+        }
+
         $GatheringWaiverClosures = $this->fetchTable('Waivers.GatheringWaiverClosures');
         $waiverClosure = $GatheringWaiverClosures->getClosureForGathering((int)$gatheringId);
         if ($waiverClosure) {

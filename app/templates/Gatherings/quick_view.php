@@ -216,16 +216,25 @@ $showAttendanceControls = isset($canAttend)
                     <i class="bi bi-info-circle me-2"></i>
                     <?= __('This gathering has already ended.') ?>
                 </div>
+            <?php elseif ($isCancelled && !$userAttendance): ?>
+                <div class="alert alert-warning" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <?= __('This gathering has been cancelled. New attendance registrations are not accepted.') ?>
+                </div>
             <?php elseif ($userAttendance): ?>
-                <div class="alert alert-success d-flex align-items-center" role="alert">
-                    <i class="bi bi-check-circle-fill me-2"></i>
+                <div class="alert <?= $isCancelled ? 'alert-warning' : 'alert-success' ?> d-flex align-items-center" role="alert">
+                    <i class="bi bi-<?= $isCancelled ? 'exclamation-triangle' : 'check-circle' ?>-fill me-2"></i>
                     <div class="flex-grow-1">
-                        <strong><?= __('You\'re attending this gathering!') ?></strong>
+                        <?php if ($isCancelled): ?>
+                            <strong><?= __('You were registered for this cancelled gathering.') ?></strong>
+                        <?php else: ?>
+                            <strong><?= __('You\'re attending this gathering!') ?></strong>
+                        <?php endif; ?>
                         <?php if (!empty($userAttendance->notes)): ?>
                             <br><small><?= h($userAttendance->notes) ?></small>
                         <?php endif; ?>
                     </div>
-                    <button type="button" class="btn btn-sm btn-outline-success ms-2"
+                    <button type="button" class="btn btn-sm btn-outline-<?= $isCancelled ? 'secondary' : 'success' ?> ms-2"
                         data-action="click->gatherings-calendar#showAttendanceModal"
                         data-attendance-id="<?= $userAttendance->id ?>" data-gathering-id="<?= $gathering->id ?>"
                         data-attendance-action="edit" data-attendance-notes="<?= h($userAttendance->notes ?? '') ?>"

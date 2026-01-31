@@ -21,7 +21,43 @@
  */
 
 $user = $this->getRequest()->getAttribute('identity');
+$isCancelled = $gathering->cancelled_at !== null;
 ?>
+
+<?php if ($isCancelled): ?>
+<div class="gathering-waivers p-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5><?= __('Waivers') ?></h5>
+    </div>
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <strong><?= __('Gathering Cancelled') ?></strong>
+        <p class="mb-0 mt-2">
+            <?= __('This gathering has been cancelled. Waivers are not required for cancelled gatherings.') ?>
+        </p>
+        <?php if (!empty($gathering->cancellation_reason)): ?>
+        <hr>
+        <small><strong><?= __('Reason:') ?></strong> <?= h($gathering->cancellation_reason) ?></small>
+        <?php endif; ?>
+    </div>
+    <?php if ($totalWaiverCount > 0): ?>
+    <div class="alert alert-secondary">
+        <i class="bi bi-info-circle"></i>
+        <?= __('There are {0} waiver(s) on file from before this gathering was cancelled.', $totalWaiverCount) ?>
+        <?= $this->Html->link(
+            __('View Waivers'),
+            [
+                'plugin' => 'Waivers',
+                'controller' => 'GatheringWaivers',
+                'action' => 'index',
+                '?' => ['gathering_id' => $gathering->id]
+            ],
+            ['class' => 'btn btn-sm btn-outline-secondary ms-2']
+        ) ?>
+    </div>
+    <?php endif; ?>
+</div>
+<?php else: ?>
 
 <div class="gathering-waivers p-3" data-controller="waivers-waiver-attestation">
     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -266,3 +302,4 @@ $user = $this->getRequest()->getAttribute('identity');
     <!-- Include Attestation Modal (must be inside controller scope) -->
     <?= $this->element('Waivers.waiver_attestation_modal') ?>
 </div>
+<?php endif; ?>

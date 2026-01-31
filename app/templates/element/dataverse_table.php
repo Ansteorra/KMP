@@ -158,11 +158,23 @@ $showActionsColumn = $enableColumnPicker || !empty($rowActions);
                                                 '<i class="bi bi-x-circle-fill text-danger"></i>';
                                             break;
                                         case 'badge':
-                                            // Render boolean values as colored badges (typically for status columns)
-                                            if ($value) {
-                                                echo '<span class="badge bg-success">Active</span>';
+                                            // Render as colored badges using badgeConfig
+                                            $badgeConfig = $column['badgeConfig'] ?? null;
+                                            if ($badgeConfig) {
+                                                // Use configured badge rendering
+                                                if ($value === null || $value === '') {
+                                                    $config = $badgeConfig['nullValue'] ?? ['text' => 'None', 'class' => 'bg-secondary'];
+                                                } else {
+                                                    $config = $badgeConfig['hasValue'] ?? ['text' => 'Set', 'class' => 'bg-primary'];
+                                                }
+                                                echo '<span class="badge ' . h($config['class']) . '">' . h($config['text']) . '</span>';
                                             } else {
-                                                echo '<span class="badge bg-secondary">Inactive</span>';
+                                                // Fallback: boolean-style badge
+                                                if ($value) {
+                                                    echo '<span class="badge bg-success">Active</span>';
+                                                } else {
+                                                    echo '<span class="badge bg-secondary">Inactive</span>';
+                                                }
                                             }
                                             break;
                                         case 'date':
