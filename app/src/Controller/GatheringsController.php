@@ -1099,6 +1099,97 @@ class GatheringsController extends AppController
     }
 
     /**
+     * Cancel method
+     *
+     * Marks a gathering as cancelled without deleting it.
+     * Preserves all associated data (waivers, attendances, etc.)
+     *
+     * @param string|null $id Gathering id.
+     * @return \Cake\Http\Response|null Redirects to view.
+     * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
+     */
+    public function cancel($id = null)
+    {
+        $this->request->allowMethod(['post']);
+        $gathering = $this->Gatherings->get($id);
+        $this->Authorization->authorize($gathering, 'edit');
+
+        $gatheringName = $gathering->name;
+
+        // Check if already cancelled
+        if ($gathering->cancelled_at !== null) {
+            $this->Flash->warning(__(
+                'The gathering "{0}" is already cancelled.',
+                $gatheringName
+            ));
+            return $this->redirect(['action' => 'view', $gathering->public_id]);
+        }
+
+        // Mark as cancelled
+        $gathering->cancelled_at = \Cake\I18n\DateTime::now();
+        $gathering->cancellation_reason = $this->request->getData('cancellation_reason');
+
+        if ($this->Gatherings->save($gathering)) {
+            $this->Flash->success(__(
+                'The gathering "{0}" has been cancelled.',
+                $gatheringName
+            ));
+        } else {
+            $this->Flash->error(__(
+                'The gathering "{0}" could not be cancelled. Please try again.',
+                $gatheringName
+            ));
+        }
+
+        return $this->redirect(['action' => 'view', $gathering->public_id]);
+    }
+
+    /**
+     * Uncancel method
+     *
+     * Removes the cancelled status from a gathering.
+     *
+     * @param string|null $id Gathering id.
+     * @return \Cake\Http\Response|null Redirects to view.
+     * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
+     */
+    public function uncancel($id = null)
+    {
+        $this->request->allowMethod(['post']);
+        $gathering = $this->Gatherings->get($id);
+        $this->Authorization->authorize($gathering, 'edit');
+
+        $gatheringName = $gathering->name;
+
+        // Check if not cancelled
+        if ($gathering->cancelled_at === null) {
+            $this->Flash->warning(__(
+                'The gathering "{0}" is not cancelled.',
+                $gatheringName
+            ));
+            return $this->redirect(['action' => 'view', $gathering->public_id]);
+        }
+
+        // Remove cancellation
+        $gathering->cancelled_at = null;
+        $gathering->cancellation_reason = null;
+
+        if ($this->Gatherings->save($gathering)) {
+            $this->Flash->success(__(
+                'The gathering "{0}" has been restored.',
+                $gatheringName
+            ));
+        } else {
+            $this->Flash->error(__(
+                'The gathering "{0}" could not be restored. Please try again.',
+                $gatheringName
+            ));
+        }
+
+        return $this->redirect(['action' => 'view', $gathering->public_id]);
+    }
+
+    /**
      * Add Activity method
      *
      * Adds one or more activities to a gathering via modal.

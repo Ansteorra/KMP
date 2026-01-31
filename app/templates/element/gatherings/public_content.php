@@ -46,10 +46,26 @@ if (!isset($durationDays)) {
 if (!isset($scheduleByDate)) {
     $scheduleByDate = [];
 }
+
+// Check if gathering is cancelled
+$isCancelled = $gathering->is_cancelled ?? false;
 ?>
 
+<?php if ($isCancelled): ?>
+<!-- Cancelled Banner -->
+<div class="alert alert-danger text-center py-4 mb-0" role="alert" style="border-radius: 0; border: none; background: linear-gradient(135deg, #dc3545 0%, #8B0000 100%); color: white;">
+    <h2 class="mb-2">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <?= __('THIS EVENT HAS BEEN CANCELLED') ?>
+    </h2>
+    <?php if (!empty($gathering->cancellation_reason)): ?>
+        <p class="mb-0" style="font-size: 1.1rem;"><?= h($gathering->cancellation_reason) ?></p>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
+
 <!-- Hero Banner with Medieval Aesthetic -->
-<div class="hero-banner fade-in">
+<div class="hero-banner fade-in" <?php if ($isCancelled): ?>style="opacity: 0.7;"<?php endif; ?>>
     <div class="hero-banner-ornament hero-banner-ornament-left" aria-hidden="true">⚜</div>
     <div class="hero-banner-ornament hero-banner-ornament-right" aria-hidden="true">⚜</div>
 

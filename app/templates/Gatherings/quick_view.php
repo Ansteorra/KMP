@@ -16,18 +16,32 @@ use Cake\I18n\Date;
 $today = Date::now();
 $endDate = Date::parse($gathering->end_date->format('Y-m-d'));
 $isPastEvent = $endDate < $today; // Event has ended
+$isCancelled = $gathering->is_cancelled ?? false;
 $showAttendanceControls = isset($canAttend)
-    ? (bool)$canAttend
-    : !$isPastEvent;
+    ? (bool)$canAttend && !$isCancelled
+    : !$isPastEvent && !$isCancelled;
 ?>
 
 <turbo-frame id="gatheringQuickView">
     <div class="gathering-quick-view">
+        <?php if ($isCancelled): ?>
+        <!-- Cancelled Banner -->
+        <div class="alert alert-danger mb-3" role="alert">
+            <h5 class="alert-heading mb-1">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <?= __('EVENT CANCELLED') ?>
+            </h5>
+            <?php if (!empty($gathering->cancellation_reason)): ?>
+                <p class="mb-0 small"><?= h($gathering->cancellation_reason) ?></p>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+
         <!-- Gathering Header -->
         <div class="mb-3">
             <div class="d-flex align-items-start justify-content-between">
                 <div class="flex-grow-1">
-                    <h4 class="mb-1"><?= h($gathering->name) ?></h4>
+                    <h4 class="mb-1 <?= $isCancelled ? 'text-decoration-line-through text-muted' : '' ?>"><?= h($gathering->name) ?></h4>
                     <span class="badge" style="background-color: <?= h($gathering->gathering_type->color) ?>;">
                         <?= h($gathering->gathering_type->name) ?>
                     </span>
