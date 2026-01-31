@@ -99,6 +99,7 @@ class GatheringsController extends AppController
                 'Gatherings.start_date',
                 'Gatherings.end_date',
                 'Gatherings.location',
+                'Gatherings.cancelled_at',
                 'Gatherings.created',
                 'Gatherings.modified',
             ])
@@ -338,6 +339,7 @@ class GatheringsController extends AppController
                 'Gatherings.start_date',
                 'Gatherings.end_date',
                 'Gatherings.location',
+                'Gatherings.cancelled_at',
                 'Gatherings.created',
                 'Gatherings.modified',
             ])

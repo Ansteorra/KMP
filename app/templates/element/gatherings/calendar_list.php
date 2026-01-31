@@ -144,7 +144,7 @@ $today = new DateTime('now', new \DateTimeZone($userTimezone));
                                         ]
                                     ) ?>
 
-                                    <?php if (!$isPast): ?>
+                                    <?php if (!$isPast && !$isCancelled): ?>
                                         <?php
                                         $attendanceRecord = $isAttending
                                             ? ($gathering->gathering_attendances[0] ?? null)
@@ -160,6 +160,20 @@ $today = new DateTime('now', new \DateTimeZone($userTimezone));
                                             <?php endif; ?>>
                                             <i class="bi bi-calendar-check"></i>
                                             <?= $isAttending ? 'Update' : 'Mark' ?> Attendance
+                                        </button>
+                                    <?php elseif (!$isPast && $isCancelled && $isAttending): ?>
+                                        <?php
+                                        $attendanceRecord = $gathering->gathering_attendances[0] ?? null;
+                                        ?>
+                                        <button type="button"
+                                            class="btn btn-sm btn-outline-secondary"
+                                            data-action="click->gatherings-calendar#showAttendanceModal"
+                                            data-gathering-id="<?= $gathering->id ?>"
+                                            data-attendance-action="edit"
+                                            <?php if ($attendanceRecord): ?>
+                                            data-attendance-id="<?= $attendanceRecord->id ?>"
+                                            <?php endif; ?>>
+                                            <i class="bi bi-pencil"></i> Edit Attendance
                                         </button>
                                     <?php endif; ?>
 

@@ -111,6 +111,29 @@ class GatheringAttendancesGridColumns extends BaseGridColumns
                 'queryField' => 'GatheringTypes.name',
             ],
 
+            'gathering_status' => [
+                'key' => 'gathering_status',
+                'label' => 'Status',
+                'type' => 'custom',
+                'sortable' => true,
+                'filterable' => false,
+                'defaultVisible' => true,
+                'width' => '100px',
+                'alignment' => 'center',
+                'queryField' => 'Gatherings.cancelled_at',
+                'cellRenderer' => function ($value, $row, $view) {
+                    $gathering = $row['gathering'] ?? null;
+                    if (!$gathering) {
+                        return '<span class="text-muted">—</span>';
+                    }
+                    $cancelledAt = $gathering['cancelled_at'] ?? null;
+                    if ($cancelledAt !== null) {
+                        return '<span class="badge bg-danger">' . __('Cancelled') . '</span>';
+                    }
+                    return '<span class="badge bg-success">' . __('Active') . '</span>';
+                },
+            ],
+
             'gathering_date' => [
                 'key' => 'gathering_date',
                 'label' => 'Date',

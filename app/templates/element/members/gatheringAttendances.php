@@ -101,6 +101,9 @@ $canManage = $canManageOwn || $canManageOthers;
                                             h($attendance->gathering->name),
                                             ['controller' => 'Gatherings', 'action' => 'view', $attendance->gathering->public_id]
                                         ) ?>
+                                <?php if ($attendance->gathering->is_cancelled): ?>
+                                    <span class="badge bg-danger ms-1"><?= __('CANCELLED') ?></span>
+                                <?php endif; ?>
                             </td>
                             <td><?= h($attendance->gathering->branch->name) ?></td>
                             <td><?= h($attendance->gathering->gathering_type->name) ?></td>
@@ -177,6 +180,9 @@ $canManage = $canManageOwn || $canManageOthers;
                                             h($attendance->gathering->name),
                                             ['controller' => 'Gatherings', 'action' => 'view', $attendance->gathering->public_id]
                                         ) ?>
+                                <?php if ($attendance->gathering->is_cancelled): ?>
+                                    <span class="badge bg-danger ms-1"><?= __('CANCELLED') ?></span>
+                                <?php endif; ?>
                             </td>
                             <td><?= h($attendance->gathering->branch->name) ?></td>
                             <td><?= h($attendance->gathering->gathering_type->name) ?></td>

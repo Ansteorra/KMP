@@ -783,7 +783,7 @@ class MembersController extends AppController
         ];
         $publicInfo = $member->publicData();
 
-        // Get available gatherings for attendance registration (started or future only)
+        // Get available gatherings for attendance registration (started or future only, not cancelled)
         $now = new DateTime();
 
         // Get IDs of gatherings the member is already registered for
@@ -792,12 +792,15 @@ class MembersController extends AppController
             $registeredGatheringIds[] = $attendance->gathering_id;
         }
 
-        // Build query for available gatherings, excluding already registered ones
+        // Build query for available gatherings, excluding already registered ones and cancelled gatherings
         $query = $this->Members->GatheringAttendances->Gatherings
             ->find('list', keyField: 'id', valueField: function ($entity) {
                 return $entity->name . ' (' . $entity->start_date->format('M d, Y') . ')';
             })
-            ->where(['Gatherings.end_date >=' => $now])
+            ->where([
+                'Gatherings.end_date >=' => $now,
+                'Gatherings.cancelled_at IS' => null,
+            ])
             ->contain(['Branches', 'GatheringTypes'])
             ->orderBy(['Gatherings.start_date' => 'ASC']);
 

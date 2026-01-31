@@ -90,17 +90,20 @@ $today->setTime(0, 0, 0);
                             $isAttending = !empty($gathering->gathering_attendances);
                             $hasLocation = !empty($gathering->location);
                             $bgColor = $gathering->gathering_type->color ?? '#0d6efd';
+                            $isCancelled = $gathering->cancelled_at !== null;
                             ?>
-                            <div class="list-group-item" style="border-left: 4px solid <?= h($bgColor) ?>;">
+                            <div class="list-group-item <?= $isCancelled ? 'bg-light' : '' ?>" style="border-left: 4px solid <?= h($bgColor) ?>;">
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div>
-                                        <h6 class="mb-1">
+                                        <h6 class="mb-1 <?= $isCancelled ? 'text-decoration-line-through text-muted' : '' ?>">
                                             <?= $this->Html->link(
                                                 h($gathering->name),
                                                 ['action' => 'view', $gathering->public_id],
                                                 ['data-turbo-frame' => '_top']
                                             ) ?>
-                                            <?php if ($isAttending): ?>
+                                            <?php if ($isCancelled): ?>
+                                                <span class="badge bg-danger ms-2"><?= __('CANCELLED') ?></span>
+                                            <?php elseif ($isAttending): ?>
                                                 <span class="badge bg-success ms-2">
                                                     <i class="bi bi-check-circle"></i>
                                                 </span>

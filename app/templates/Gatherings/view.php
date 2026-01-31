@@ -20,14 +20,6 @@ echo $this->KMP->startBlock('pageTitle') ?>
 <?php $this->KMP->endBlock() ?>
 
 <?= $this->KMP->startBlock('recordActions') ?>
-<?php if ($gathering->is_cancelled): ?>
-<div class="alert alert-danger w-100 mb-0" role="alert">
-    <strong><i class="bi bi-exclamation-triangle-fill"></i> <?= __('CANCELLED') ?></strong>
-    <?php if (!empty($gathering->cancellation_reason)): ?>
-        - <?= h($gathering->cancellation_reason) ?>
-    <?php endif; ?>
-</div>
-<?php endif; ?>
 <?php
 
 use Cake\I18n\Date;
@@ -98,7 +90,7 @@ $publicLandingUrl = $this->Url->build([
     <?php endif; ?>
 </div>
 
-<?php if ($canAttend): ?>
+<?php if ($canAttend && (!$gathering->is_cancelled || $userAttendance)): ?>
 <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#attendGatheringModal">
     <i class="bi bi-calendar-check"></i>
     <?= $userAttendance ? __('Update Attendance') : __('Attend This Gathering') ?>
@@ -496,8 +488,10 @@ if ($user->checkCan('edit', $gathering) && !$gathering->is_cancelled) {
     ]);
 }
 
-// Attend Gathering Modal
-if ($canAttend) {
+// Attend Gathering Modal - only show if:
+// - Event is still open for attendance AND not cancelled, OR
+// - User already has an attendance record (can edit even if cancelled)
+if ($canAttend && (!$gathering->is_cancelled || $userAttendance)) {
     echo $this->element('gatherings/attendGatheringModal', [
         'gathering' => $gathering,
         'userAttendance' => $userAttendance,

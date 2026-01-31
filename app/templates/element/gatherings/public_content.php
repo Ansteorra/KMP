@@ -32,8 +32,14 @@ $endInGatheringTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date
 $isPast = $endInGatheringTz < $nowInGatheringTz;
 $isOngoing = $startInGatheringTz <= $nowInGatheringTz && $endInGatheringTz >= $nowInGatheringTz;
 
-// Check if user can attend (gathering hasn't ended)
+// Check if gathering is cancelled
+$isCancelled = $gathering->is_cancelled ?? false;
+
+// Check if user can attend (gathering hasn't ended and not cancelled)
+// Allow editing existing attendance even if cancelled
 $canAttend = !$isPast && $isAuthenticated;
+$canCreateAttendance = $canAttend && !$isCancelled;
+$canEditAttendance = $canAttend && !empty($userAttendance);
 
 // Calculate duration if not provided (date-only comparison for day count)
 if (!isset($durationDays)) {
@@ -46,9 +52,6 @@ if (!isset($durationDays)) {
 if (!isset($scheduleByDate)) {
     $scheduleByDate = [];
 }
-
-// Check if gathering is cancelled
-$isCancelled = $gathering->is_cancelled ?? false;
 ?>
 
 <?php if ($isCancelled): ?>
@@ -528,7 +531,7 @@ $isCancelled = $gathering->is_cancelled ?? false;
             </p>
 
             <div class="cta-buttons">
-                <?php if ($isAuthenticated && $canAttend): ?>
+                <?php if ($isAuthenticated && ($canCreateAttendance || $canEditAttendance)): ?>
                     <!-- Authenticated user - show Attend/Update button -->
                     <button type="button" class="btn-medieval btn-medieval-cta" data-bs-toggle="modal"
                         data-bs-target="#attendGatheringModal">
@@ -566,7 +569,8 @@ $isCancelled = $gathering->is_cancelled ?? false;
 
 <?php
 // Include Attend Gathering Modal for authenticated users
-if ($isAuthenticated && $canAttend):
+// Show modal if user can create new attendance OR edit existing attendance
+if ($isAuthenticated && ($canCreateAttendance || $canEditAttendance)):
     echo $this->element('gatherings/attendGatheringModal', [
         'gathering' => $gathering,
         'userAttendance' => $userAttendance ?? null,

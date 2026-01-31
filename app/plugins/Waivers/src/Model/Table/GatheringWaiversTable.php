@@ -293,6 +293,7 @@ class GatheringWaiversTable extends Table
         // Find gatherings that are:
         // - Not yet ended (ongoing or future)
         // - Either already started OR starting within next 7 days
+        // - Not cancelled
         $gatherings = $gatheringsTable->find()
             ->where([
                 'OR' => [
@@ -303,6 +304,7 @@ class GatheringWaiversTable extends Table
                     ]
                 ],
                 'Gatherings.deleted IS' => null,
+                'Gatherings.cancelled_at IS' => null,
             ])
             ->where([
                 'OR' => [
