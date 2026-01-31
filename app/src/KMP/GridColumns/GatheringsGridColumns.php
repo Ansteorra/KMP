@@ -293,7 +293,11 @@ class GatheringsGridColumns extends BaseGridColumns
      * @param array $context Context including tableName, columnKey, columnMeta
      * @return \Cake\ORM\Query\SelectQuery The filtered query
      */
-    public static function filterByCancelledStatus($query, $filterValue, array $context)
+    public static function filterByCancelledStatus(
+        \Cake\ORM\Query\SelectQuery $query,
+        mixed $filterValue,
+        array $context
+    ): \Cake\ORM\Query\SelectQuery
     {
         $tableName = $context['tableName'] ?? 'Gatherings';
         $field = $tableName . '.cancelled_at';
