@@ -8712,7 +8712,7 @@ class MemberMobileCardMenu extends _mobile_controller_base_js__WEBPACK_IMPORTED_
     if (!this.hasMenuItemTarget) return;
 
     // Items that should remain enabled when offline
-    const offlineAllowedLabels = ['Auth Card', 'My RSVPs', 'Calendar', 'Events'];
+    const offlineAllowedLabels = ['Auth Card', 'My RSVPs'];
     this.menuItemTargets.forEach(item => {
       const itemUrl = item.dataset.itemUrl;
       const itemLabel = item.dataset.itemLabel;

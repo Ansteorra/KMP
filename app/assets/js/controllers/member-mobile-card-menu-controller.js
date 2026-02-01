@@ -246,7 +246,7 @@ class MemberMobileCardMenu extends MobileControllerBase {
         if (!this.hasMenuItemTarget) return;
 
         // Items that should remain enabled when offline
-        const offlineAllowedLabels = ['Auth Card', 'My RSVPs', 'Calendar', 'Events'];
+        const offlineAllowedLabels = ['Auth Card', 'My RSVPs'];
 
         this.menuItemTargets.forEach(item => {
             const itemUrl = item.dataset.itemUrl;
