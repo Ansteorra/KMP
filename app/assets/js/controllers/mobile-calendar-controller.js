@@ -91,8 +91,8 @@ class MobileCalendarController extends MobileControllerBase {
             const yearNum = parseInt(year, 10);
             
             if (monthNum >= 1 && monthNum <= 12 && yearNum >= 2000 && yearNum <= 2100) {
-                this.currentMonth = monthNum - 1; // Convert to 0-indexed
-                this.currentYear = yearNum;
+                this.monthValue = monthNum;
+                this.yearValue = yearNum;
                 
                 // Clean up URL without reloading
                 const newUrl = window.location.pathname;
@@ -563,7 +563,7 @@ class MobileCalendarController extends MobileControllerBase {
                             </div>
                             ${activitiesHtml}
                             ${event.public_page_enabled ? `
-                                <a href="/gatherings/public-landing/${event.public_id}?from=mobile&month=${this.currentMonth + 1}&year=${this.currentYear}" 
+                                <a href="/gatherings/public-landing/${event.public_id}?from=mobile&month=${this.monthValue}&year=${this.yearValue}" 
                                    class="btn btn-sm btn-outline-secondary mt-2">
                                     <i class="bi bi-info-circle me-1"></i>View Details
                                 </a>
