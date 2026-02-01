@@ -11031,9 +11031,14 @@ class MyRsvpsController extends _mobile_controller_base__WEBPACK_IMPORTED_MODULE
       console.warn('[MyRsvps] Failed to init RSVP cache:', err);
     });
 
-    // Only show offline content if actually offline
-    // The HTML defaults to showing online content (server-rendered)
-    if (!navigator.onLine) {
+    // Ensure correct visibility based on online status
+    if (navigator.onLine) {
+      // Explicitly hide offline elements when online
+      if (this.hasOfflineBannerTarget) this.offlineBannerTarget.hidden = true;
+      if (this.hasOfflineListTarget) this.offlineListTarget.hidden = true;
+      if (this.hasOnlineContentTarget) this.onlineContentTarget.hidden = false;
+    } else {
+      // Show cached content when offline
       this.updateOfflineState();
     }
 
