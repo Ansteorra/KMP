@@ -9936,11 +9936,18 @@ class MobileCalendarController extends _mobile_controller_base_js__WEBPACK_IMPOR
    * Render list of events for a day
    */
   renderEventList(events) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     return events.map(event => {
       const typeStyle = event.type?.color ? `background-color: ${event.type.color}; color: white;` : '';
       const nameClass = event.is_cancelled ? 'mobile-event-name cancelled' : 'mobile-event-name';
       const rsvpBtnClass = event.user_attending ? 'btn btn-outline-primary mobile-event-rsvp-btn' : 'btn btn-success mobile-event-rsvp-btn';
       const rsvpBtnText = event.user_attending ? 'Edit RSVP' : 'RSVP';
+
+      // Check if event is in the past (end_date < today)
+      const eventEndDate = new Date(event.end_date + 'T23:59:59');
+      const isPastEvent = eventEndDate < today;
+      const showRsvpButton = !event.is_cancelled && !isPastEvent;
       return `
                 <div class="mobile-event-item">
                     <div class="mobile-event-time">
@@ -9953,7 +9960,7 @@ class MobileCalendarController extends _mobile_controller_base_js__WEBPACK_IMPOR
                     </div>
                     <div class="mobile-event-badge">
                         ${event.type ? `<span class="mobile-event-type badge" style="${typeStyle}">${this.escapeHtml(event.type.name)}</span>` : ''}
-                        ${!event.is_cancelled ? `
+                        ${showRsvpButton ? `
                             <button type="button" 
                                     class="${rsvpBtnClass}"
                                     data-event-id="${event.id}"
