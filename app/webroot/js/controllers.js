@@ -9991,6 +9991,9 @@ class MobileCalendarController extends _mobile_controller_base_js__WEBPACK_IMPOR
         month: 'short',
         day: 'numeric'
       });
+
+      // Render activities
+      const activitiesHtml = this.renderActivities(event.activities);
       return `
                 <div class="${cardClasses.join(' ')}">
                     <div class="mobile-event-header">
@@ -10007,6 +10010,7 @@ class MobileCalendarController extends _mobile_controller_base_js__WEBPACK_IMPOR
                                 ${event.branch ? `<span><i class="bi bi-building"></i> ${this.escapeHtml(event.branch)}</span>` : ''}
                                 ${event.location ? `<span><i class="bi bi-geo-alt"></i> ${this.escapeHtml(event.location)}</span>` : ''}
                             </div>
+                            ${activitiesHtml}
                         </div>
                         <div class="mobile-event-actions">
                             ${event.type ? `<span class="mobile-event-type-badge" style="${typeStyle}">${this.escapeHtml(event.type.name)}</span>` : ''}
@@ -10024,6 +10028,26 @@ class MobileCalendarController extends _mobile_controller_base_js__WEBPACK_IMPOR
                 </div>
             `;
     }).join('');
+  }
+
+  /**
+   * Render activities list for an event
+   */
+  renderActivities(activities) {
+    if (!activities || activities.length === 0) return '';
+    const activityLinks = activities.map(activity => {
+      return `<a href="/gathering-activities/view/${activity.id}" 
+                       class="mobile-activity-link text-decoration-none"
+                       title="${this.escapeHtml(activity.name)}">
+                       ${this.escapeHtml(activity.name)}
+                    </a>`;
+    }).join(', ');
+    return `
+            <div class="mobile-event-activities">
+                <i class="bi bi-list-check"></i>
+                <span class="activities-list">${activityLinks}</span>
+            </div>
+        `;
   }
 
   /**

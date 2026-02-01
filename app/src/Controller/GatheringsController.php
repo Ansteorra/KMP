@@ -2047,6 +2047,7 @@ class GatheringsController extends AppController
             ->contain([
                 'Branches' => ['fields' => ['id', 'name']],
                 'GatheringTypes' => ['fields' => ['id', 'name', 'color']],
+                'GatheringActivities' => ['fields' => ['id', 'name']],
                 'GatheringAttendances' => function ($q) use ($currentUser) {
                     return $q->where(['GatheringAttendances.member_id' => $currentUser->id]);
                 },
@@ -2093,6 +2094,12 @@ class GatheringsController extends AppController
                     'name' => $gathering->gathering_type->name,
                     'color' => $gathering->gathering_type->color,
                 ] : null,
+                'activities' => array_map(function ($activity) {
+                    return [
+                        'id' => $activity->id,
+                        'name' => $activity->name,
+                    ];
+                }, $gathering->gathering_activities ?? []),
                 'user_attending' => !empty($gathering->gathering_attendances),
                 'attendance_id' => !empty($gathering->gathering_attendances) 
                     ? $gathering->gathering_attendances[0]->id 

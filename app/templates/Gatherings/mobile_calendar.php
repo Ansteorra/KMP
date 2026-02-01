@@ -284,6 +284,36 @@ $updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'act
     width: 16px;
 }
 
+.mobile-event-activities {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--bs-primary);
+    margin-top: 4px;
+    flex-wrap: wrap;
+}
+
+.mobile-event-activities i {
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.mobile-event-activities .activities-list {
+    flex: 1;
+    line-height: 1.4;
+}
+
+.mobile-activity-link {
+    color: var(--bs-primary);
+    transition: color 0.2s;
+}
+
+.mobile-activity-link:hover {
+    color: var(--bs-primary-emphasis);
+    text-decoration: underline !important;
+}
+
 .mobile-event-actions {
     display: flex;
     flex-direction: column;
