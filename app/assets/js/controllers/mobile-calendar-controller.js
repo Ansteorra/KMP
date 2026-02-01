@@ -1,5 +1,6 @@
 import MobileControllerBase from "./mobile-controller-base.js";
 import offlineQueueService from "../services/offline-queue-service.js";
+import rsvpCacheService from "../services/rsvp-cache-service.js";
 
 /**
  * Mobile Events Controller
@@ -21,7 +22,8 @@ class MobileCalendarController extends MobileControllerBase {
         "searchInput", "filterPanel", "filterToggle",
         "typeFilter", "activityFilter", "branchFilter", "rsvpFilter",
         "monthSelect", "yearSelect",
-        "rsvpSheet", "rsvpContent"
+        "rsvpSheet", "rsvpContent",
+        "pendingBanner", "pendingCount", "syncBtn"
     ]
     
     static values = {
@@ -52,6 +54,11 @@ class MobileCalendarController extends MobileControllerBase {
      */
     onConnect() {
         console.log("Mobile Events connected");
+        
+        // Initialize RSVP cache service
+        rsvpCacheService.init().catch(err => {
+            console.warn('[Calendar] Failed to init RSVP cache:', err);
+        });
         
         // Check for month/year in URL params (for returning from public page)
         this.restoreFromUrlParams();
@@ -162,8 +169,22 @@ class MobileCalendarController extends MobileControllerBase {
      * Called when connection state changes
      */
     onConnectionStateChanged(isOnline) {
-        if (isOnline && !this.calendarData) {
-            this.loadCalendarData();
+        if (isOnline) {
+            // Re-render to show/hide online-only buttons
+            if (this.calendarData) {
+                this.showEventList();
+            } else {
+                this.loadCalendarData();
+            }
+            // Update pending banner (show sync button)
+            this.updatePendingBanner();
+        } else {
+            // Re-render to hide online-only buttons
+            if (this.calendarData) {
+                this.showEventList();
+            }
+            // Update pending banner (hide sync button)
+            this.updatePendingBanner();
         }
     }
 
@@ -181,15 +202,92 @@ class MobileCalendarController extends MobileControllerBase {
             
             if (data.success) {
                 this.calendarData = data.data;
+                
+                // Cache user's RSVPs when online
+                if (navigator.onLine && data.data.events) {
+                    rsvpCacheService.cacheUserRsvps(data.data.events).catch(err => {
+                        console.warn('[Calendar] Failed to cache RSVPs:', err);
+                    });
+                }
+                
                 this.populateFilters();
                 this.applyFilters();
                 this.showEventList();
+                
+                // Check for pending RSVPs
+                this.updatePendingBanner();
             } else {
                 this.showError('Failed to load events');
             }
         } catch (error) {
             console.error('Calendar load error:', error);
             this.showError(this.online ? 'Failed to load events' : 'You\'re offline');
+        }
+    }
+
+    /**
+     * Update the pending RSVPs banner visibility
+     */
+    async updatePendingBanner() {
+        if (!this.hasPendingBannerTarget) return;
+        
+        try {
+            const count = await rsvpCacheService.getPendingCount();
+            
+            if (count > 0) {
+                this.pendingBannerTarget.hidden = false;
+                if (this.hasPendingCountTarget) {
+                    this.pendingCountTarget.textContent = count;
+                }
+                // Hide sync button when offline
+                if (this.hasSyncBtnTarget) {
+                    this.syncBtnTarget.hidden = !navigator.onLine;
+                }
+            } else {
+                this.pendingBannerTarget.hidden = true;
+            }
+        } catch (error) {
+            console.warn('[Calendar] Failed to check pending RSVPs:', error);
+            this.pendingBannerTarget.hidden = true;
+        }
+    }
+
+    /**
+     * Sync pending RSVPs to server
+     */
+    async syncPendingRsvps() {
+        if (!navigator.onLine) {
+            this.showToast('Cannot sync while offline', 'warning');
+            return;
+        }
+        
+        if (this.hasSyncBtnTarget) {
+            this.syncBtnTarget.disabled = true;
+            this.syncBtnTarget.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        }
+        
+        try {
+            const result = await rsvpCacheService.syncPendingRsvps();
+            
+            if (result.success > 0) {
+                this.showToast(`Synced ${result.success} RSVP(s)!`, 'success');
+            }
+            if (result.failed > 0) {
+                this.showToast(`${result.failed} RSVP(s) failed to sync`, 'warning');
+            }
+            
+            // Refresh the calendar data
+            await this.loadCalendarData();
+            
+        } catch (error) {
+            console.error('Sync failed:', error);
+            this.showToast('Failed to sync RSVPs', 'danger');
+        } finally {
+            if (this.hasSyncBtnTarget) {
+                this.syncBtnTarget.disabled = false;
+                this.syncBtnTarget.innerHTML = '<i class="bi bi-arrow-repeat"></i> Sync';
+            }
+            this.updatePendingBanner();
         }
     }
 
@@ -551,6 +649,7 @@ class MobileCalendarController extends MobileControllerBase {
     renderWeekEvents(events) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
+        const isOnline = navigator.onLine;
         
         return events.map(event => {
             const eventDate = new Date(event.start_date + 'T00:00:00');
@@ -565,7 +664,13 @@ class MobileCalendarController extends MobileControllerBase {
                 ? `background-color: ${event.type.color}; color: white;` 
                 : 'background-color: var(--bs-secondary); color: white;';
             
-            const showRsvpButton = !event.is_cancelled && !isPast;
+            // Show RSVP button for future events; when offline only show for new RSVPs (not edit)
+            const canRsvpOffline = !event.user_attending;
+            const showRsvpButton = !event.is_cancelled && !isPast && (isOnline || canRsvpOffline);
+            
+            // For edit mode when attending - only show when online
+            const showEditButton = !event.is_cancelled && !isPast && event.user_attending && isOnline;
+            
             const rsvpBtnClass = event.user_attending 
                 ? 'btn btn-outline-success mobile-event-rsvp-btn' 
                 : 'btn btn-success mobile-event-rsvp-btn';
@@ -580,6 +685,9 @@ class MobileCalendarController extends MobileControllerBase {
             
             // Render activities
             const activitiesHtml = this.renderActivities(event.activities);
+            
+            // Only show View Details when online
+            const showViewDetails = event.public_page_enabled && isOnline;
             
             return `
                 <div class="${cardClasses.join(' ')}">
@@ -598,7 +706,7 @@ class MobileCalendarController extends MobileControllerBase {
                                 ${event.location ? `<span><i class="bi bi-geo-alt"></i> ${this.escapeHtml(event.location)}</span>` : ''}
                             </div>
                             ${activitiesHtml}
-                            ${event.public_page_enabled ? `
+                            ${showViewDetails ? `
                                 <a href="/gatherings/public-landing/${event.public_id}?from=mobile&month=${this.monthValue}&year=${this.yearValue}" 
                                    class="btn btn-sm btn-outline-secondary mt-2">
                                     <i class="bi bi-info-circle me-1"></i>View Details
@@ -607,12 +715,20 @@ class MobileCalendarController extends MobileControllerBase {
                         </div>
                         <div class="mobile-event-actions">
                             ${event.type ? `<span class="mobile-event-type-badge" style="${typeStyle}">${this.escapeHtml(event.type.name)}</span>` : ''}
-                            ${showRsvpButton ? `
+                            ${showEditButton ? `
                                 <button type="button" 
                                         class="${rsvpBtnClass}"
                                         data-event-id="${event.id}"
                                         data-action="click->mobile-calendar#showRsvpSheet">
-                                    ${rsvpBtnText}
+                                    Edit
+                                </button>
+                            ` : ''}
+                            ${(showRsvpButton && !event.user_attending) ? `
+                                <button type="button" 
+                                        class="${rsvpBtnClass}"
+                                        data-event-id="${event.id}"
+                                        data-action="click->mobile-calendar#handleRsvpClick">
+                                    RSVP
                                 </button>
                             ` : ''}
                             ${event.user_attending ? '<i class="bi bi-check-circle-fill text-success"></i>' : ''}
@@ -751,6 +867,70 @@ class MobileCalendarController extends MobileControllerBase {
     }
 
     /**
+     * Handle RSVP button click - online uses modal, offline queues RSVP
+     */
+    async handleRsvpClick(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        const button = event.currentTarget;
+        const eventId = button.dataset.eventId;
+        const eventData = this.filteredEvents.find(e => e.id == eventId) 
+            || this.calendarData?.events?.find(e => e.id == eventId);
+        
+        if (!eventData) return;
+        
+        if (navigator.onLine) {
+            // When online, show the modal for full RSVP options
+            this.showRsvpSheet(event);
+        } else {
+            // When offline, queue a simple RSVP
+            await this.queueOfflineRsvp(eventData, button);
+        }
+    }
+
+    /**
+     * Queue an RSVP for sync when back online
+     */
+    async queueOfflineRsvp(eventData, button) {
+        try {
+            // Disable button and show loading
+            const originalHtml = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            
+            await rsvpCacheService.queueOfflineRsvp({
+                gathering_id: eventData.id,
+                gathering_name: eventData.name,
+                share_with_kingdom: false,
+                share_with_hosting_group: false,
+                share_with_crown: false,
+                public_note: ''
+            });
+            
+            // Update local state to show as attending
+            eventData.user_attending = true;
+            
+            // Update button to show success
+            button.innerHTML = '<i class="bi bi-check"></i> Queued';
+            button.classList.remove('btn-success');
+            button.classList.add('btn-outline-success');
+            
+            this.showToast('RSVP queued - will sync when online', 'info');
+            
+            // Re-render after short delay
+            setTimeout(() => {
+                this.showEventList();
+            }, 1000);
+            
+        } catch (error) {
+            console.error('Failed to queue offline RSVP:', error);
+            this.showToast('Failed to queue RSVP', 'danger');
+            button.disabled = false;
+        }
+    }
+
+    /**
      * Show RSVP modal by loading attendance modal content from server
      */
     async showRsvpSheet(event) {
@@ -860,6 +1040,16 @@ class MobileCalendarController extends MobileControllerBase {
             });
             
             if (response.ok || response.redirected) {
+                // Update RSVP cache with new data
+                if (this.currentRsvpEvent) {
+                    rsvpCacheService.updateCachedRsvp(this.currentRsvpEvent.id, {
+                        share_with_kingdom: formData.get('share_with_kingdom') === '1',
+                        share_with_hosting_group: formData.get('share_with_hosting_group') === '1',
+                        share_with_crown: formData.get('share_with_crown') === '1',
+                        public_note: formData.get('public_note') || ''
+                    }).catch(err => console.warn('[Calendar] Failed to update RSVP cache:', err));
+                }
+                
                 this.showToast('Attendance saved!', 'success');
                 bootstrap.Modal.getInstance(document.getElementById('mobileRsvpModal'))?.hide();
             } else {
@@ -888,6 +1078,12 @@ class MobileCalendarController extends MobileControllerBase {
             });
             
             if (response.ok || response.redirected) {
+                // Remove from RSVP cache
+                if (this.currentRsvpEvent) {
+                    rsvpCacheService.removeCachedRsvp(this.currentRsvpEvent.id)
+                        .catch(err => console.warn('[Calendar] Failed to remove from RSVP cache:', err));
+                }
+                
                 this.showToast('Attendance removed!', 'success');
                 bootstrap.Modal.getInstance(document.getElementById('mobileRsvpModal'))?.hide();
             } else {

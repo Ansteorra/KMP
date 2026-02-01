@@ -9503,7 +9503,9 @@ window.Controllers["member-verify-form"] = MemberVerifyForm;
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _mobile_controller_base_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./mobile-controller-base.js */ "./assets/js/controllers/mobile-controller-base.js");
 /* harmony import */ var _services_offline_queue_service_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../services/offline-queue-service.js */ "./assets/js/services/offline-queue-service.js");
+/* harmony import */ var _services_rsvp_cache_service_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../services/rsvp-cache-service.js */ "./assets/js/services/rsvp-cache-service.js");
 /* provided dependency */ var bootstrap = __webpack_require__(/*! bootstrap */ "./node_modules/bootstrap/dist/js/bootstrap.esm.js");
+
 
 
 
@@ -9521,7 +9523,7 @@ __webpack_require__.r(__webpack_exports__);
  * - Pull-to-refresh support
  */
 class MobileCalendarController extends _mobile_controller_base_js__WEBPACK_IMPORTED_MODULE_0__["default"] {
-  static targets = ["loading", "error", "errorMessage", "eventList", "emptyState", "emptyMessage", "resultsCount", "searchInput", "filterPanel", "filterToggle", "typeFilter", "activityFilter", "branchFilter", "rsvpFilter", "monthSelect", "yearSelect", "rsvpSheet", "rsvpContent"];
+  static targets = ["loading", "error", "errorMessage", "eventList", "emptyState", "emptyMessage", "resultsCount", "searchInput", "filterPanel", "filterToggle", "typeFilter", "activityFilter", "branchFilter", "rsvpFilter", "monthSelect", "yearSelect", "rsvpSheet", "rsvpContent", "pendingBanner", "pendingCount", "syncBtn"];
   static values = {
     year: Number,
     month: Number,
@@ -9549,6 +9551,11 @@ class MobileCalendarController extends _mobile_controller_base_js__WEBPACK_IMPOR
    */
   onConnect() {
     console.log("Mobile Events connected");
+
+    // Initialize RSVP cache service
+    _services_rsvp_cache_service_js__WEBPACK_IMPORTED_MODULE_2__["default"].init().catch(err => {
+      console.warn('[Calendar] Failed to init RSVP cache:', err);
+    });
 
     // Check for month/year in URL params (for returning from public page)
     this.restoreFromUrlParams();
@@ -9657,8 +9664,22 @@ class MobileCalendarController extends _mobile_controller_base_js__WEBPACK_IMPOR
    * Called when connection state changes
    */
   onConnectionStateChanged(isOnline) {
-    if (isOnline && !this.calendarData) {
-      this.loadCalendarData();
+    if (isOnline) {
+      // Re-render to show/hide online-only buttons
+      if (this.calendarData) {
+        this.showEventList();
+      } else {
+        this.loadCalendarData();
+      }
+      // Update pending banner (show sync button)
+      this.updatePendingBanner();
+    } else {
+      // Re-render to hide online-only buttons
+      if (this.calendarData) {
+        this.showEventList();
+      }
+      // Update pending banner (hide sync button)
+      this.updatePendingBanner();
     }
   }
 
@@ -9673,15 +9694,85 @@ class MobileCalendarController extends _mobile_controller_base_js__WEBPACK_IMPOR
       const data = await response.json();
       if (data.success) {
         this.calendarData = data.data;
+
+        // Cache user's RSVPs when online
+        if (navigator.onLine && data.data.events) {
+          _services_rsvp_cache_service_js__WEBPACK_IMPORTED_MODULE_2__["default"].cacheUserRsvps(data.data.events).catch(err => {
+            console.warn('[Calendar] Failed to cache RSVPs:', err);
+          });
+        }
         this.populateFilters();
         this.applyFilters();
         this.showEventList();
+
+        // Check for pending RSVPs
+        this.updatePendingBanner();
       } else {
         this.showError('Failed to load events');
       }
     } catch (error) {
       console.error('Calendar load error:', error);
       this.showError(this.online ? 'Failed to load events' : 'You\'re offline');
+    }
+  }
+
+  /**
+   * Update the pending RSVPs banner visibility
+   */
+  async updatePendingBanner() {
+    if (!this.hasPendingBannerTarget) return;
+    try {
+      const count = await _services_rsvp_cache_service_js__WEBPACK_IMPORTED_MODULE_2__["default"].getPendingCount();
+      if (count > 0) {
+        this.pendingBannerTarget.hidden = false;
+        if (this.hasPendingCountTarget) {
+          this.pendingCountTarget.textContent = count;
+        }
+        // Hide sync button when offline
+        if (this.hasSyncBtnTarget) {
+          this.syncBtnTarget.hidden = !navigator.onLine;
+        }
+      } else {
+        this.pendingBannerTarget.hidden = true;
+      }
+    } catch (error) {
+      console.warn('[Calendar] Failed to check pending RSVPs:', error);
+      this.pendingBannerTarget.hidden = true;
+    }
+  }
+
+  /**
+   * Sync pending RSVPs to server
+   */
+  async syncPendingRsvps() {
+    if (!navigator.onLine) {
+      this.showToast('Cannot sync while offline', 'warning');
+      return;
+    }
+    if (this.hasSyncBtnTarget) {
+      this.syncBtnTarget.disabled = true;
+      this.syncBtnTarget.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    }
+    try {
+      const result = await _services_rsvp_cache_service_js__WEBPACK_IMPORTED_MODULE_2__["default"].syncPendingRsvps();
+      if (result.success > 0) {
+        this.showToast(`Synced ${result.success} RSVP(s)!`, 'success');
+      }
+      if (result.failed > 0) {
+        this.showToast(`${result.failed} RSVP(s) failed to sync`, 'warning');
+      }
+
+      // Refresh the calendar data
+      await this.loadCalendarData();
+    } catch (error) {
+      console.error('Sync failed:', error);
+      this.showToast('Failed to sync RSVPs', 'danger');
+    } finally {
+      if (this.hasSyncBtnTarget) {
+        this.syncBtnTarget.disabled = false;
+        this.syncBtnTarget.innerHTML = '<i class="bi bi-arrow-repeat"></i> Sync';
+      }
+      this.updatePendingBanner();
     }
   }
 
@@ -10033,6 +10124,7 @@ class MobileCalendarController extends _mobile_controller_base_js__WEBPACK_IMPOR
   renderWeekEvents(events) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const isOnline = navigator.onLine;
     return events.map(event => {
       const eventDate = new Date(event.start_date + 'T00:00:00');
       const isPast = eventDate < today;
@@ -10041,7 +10133,13 @@ class MobileCalendarController extends _mobile_controller_base_js__WEBPACK_IMPOR
       if (event.is_cancelled) cardClasses.push('cancelled');
       if (event.user_attending) cardClasses.push('attending');
       const typeStyle = event.type?.color ? `background-color: ${event.type.color}; color: white;` : 'background-color: var(--bs-secondary); color: white;';
-      const showRsvpButton = !event.is_cancelled && !isPast;
+
+      // Show RSVP button for future events; when offline only show for new RSVPs (not edit)
+      const canRsvpOffline = !event.user_attending;
+      const showRsvpButton = !event.is_cancelled && !isPast && (isOnline || canRsvpOffline);
+
+      // For edit mode when attending - only show when online
+      const showEditButton = !event.is_cancelled && !isPast && event.user_attending && isOnline;
       const rsvpBtnClass = event.user_attending ? 'btn btn-outline-success mobile-event-rsvp-btn' : 'btn btn-success mobile-event-rsvp-btn';
       const rsvpBtnText = event.user_attending ? 'Edit' : 'RSVP';
 
@@ -10054,6 +10152,9 @@ class MobileCalendarController extends _mobile_controller_base_js__WEBPACK_IMPOR
 
       // Render activities
       const activitiesHtml = this.renderActivities(event.activities);
+
+      // Only show View Details when online
+      const showViewDetails = event.public_page_enabled && isOnline;
       return `
                 <div class="${cardClasses.join(' ')}">
                     <div class="mobile-event-header">
@@ -10071,7 +10172,7 @@ class MobileCalendarController extends _mobile_controller_base_js__WEBPACK_IMPOR
                                 ${event.location ? `<span><i class="bi bi-geo-alt"></i> ${this.escapeHtml(event.location)}</span>` : ''}
                             </div>
                             ${activitiesHtml}
-                            ${event.public_page_enabled ? `
+                            ${showViewDetails ? `
                                 <a href="/gatherings/public-landing/${event.public_id}?from=mobile&month=${this.monthValue}&year=${this.yearValue}" 
                                    class="btn btn-sm btn-outline-secondary mt-2">
                                     <i class="bi bi-info-circle me-1"></i>View Details
@@ -10080,12 +10181,20 @@ class MobileCalendarController extends _mobile_controller_base_js__WEBPACK_IMPOR
                         </div>
                         <div class="mobile-event-actions">
                             ${event.type ? `<span class="mobile-event-type-badge" style="${typeStyle}">${this.escapeHtml(event.type.name)}</span>` : ''}
-                            ${showRsvpButton ? `
+                            ${showEditButton ? `
                                 <button type="button" 
                                         class="${rsvpBtnClass}"
                                         data-event-id="${event.id}"
                                         data-action="click->mobile-calendar#showRsvpSheet">
-                                    ${rsvpBtnText}
+                                    Edit
+                                </button>
+                            ` : ''}
+                            ${showRsvpButton && !event.user_attending ? `
+                                <button type="button" 
+                                        class="${rsvpBtnClass}"
+                                        data-event-id="${event.id}"
+                                        data-action="click->mobile-calendar#handleRsvpClick">
+                                    RSVP
                                 </button>
                             ` : ''}
                             ${event.user_attending ? '<i class="bi bi-check-circle-fill text-success"></i>' : ''}
@@ -10214,6 +10323,63 @@ class MobileCalendarController extends _mobile_controller_base_js__WEBPACK_IMPOR
   }
 
   /**
+   * Handle RSVP button click - online uses modal, offline queues RSVP
+   */
+  async handleRsvpClick(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    const button = event.currentTarget;
+    const eventId = button.dataset.eventId;
+    const eventData = this.filteredEvents.find(e => e.id == eventId) || this.calendarData?.events?.find(e => e.id == eventId);
+    if (!eventData) return;
+    if (navigator.onLine) {
+      // When online, show the modal for full RSVP options
+      this.showRsvpSheet(event);
+    } else {
+      // When offline, queue a simple RSVP
+      await this.queueOfflineRsvp(eventData, button);
+    }
+  }
+
+  /**
+   * Queue an RSVP for sync when back online
+   */
+  async queueOfflineRsvp(eventData, button) {
+    try {
+      // Disable button and show loading
+      const originalHtml = button.innerHTML;
+      button.disabled = true;
+      button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+      await _services_rsvp_cache_service_js__WEBPACK_IMPORTED_MODULE_2__["default"].queueOfflineRsvp({
+        gathering_id: eventData.id,
+        gathering_name: eventData.name,
+        share_with_kingdom: false,
+        share_with_hosting_group: false,
+        share_with_crown: false,
+        public_note: ''
+      });
+
+      // Update local state to show as attending
+      eventData.user_attending = true;
+
+      // Update button to show success
+      button.innerHTML = '<i class="bi bi-check"></i> Queued';
+      button.classList.remove('btn-success');
+      button.classList.add('btn-outline-success');
+      this.showToast('RSVP queued - will sync when online', 'info');
+
+      // Re-render after short delay
+      setTimeout(() => {
+        this.showEventList();
+      }, 1000);
+    } catch (error) {
+      console.error('Failed to queue offline RSVP:', error);
+      this.showToast('Failed to queue RSVP', 'danger');
+      button.disabled = false;
+    }
+  }
+
+  /**
    * Show RSVP modal by loading attendance modal content from server
    */
   async showRsvpSheet(event) {
@@ -10310,6 +10476,15 @@ class MobileCalendarController extends _mobile_controller_base_js__WEBPACK_IMPOR
         }
       });
       if (response.ok || response.redirected) {
+        // Update RSVP cache with new data
+        if (this.currentRsvpEvent) {
+          _services_rsvp_cache_service_js__WEBPACK_IMPORTED_MODULE_2__["default"].updateCachedRsvp(this.currentRsvpEvent.id, {
+            share_with_kingdom: formData.get('share_with_kingdom') === '1',
+            share_with_hosting_group: formData.get('share_with_hosting_group') === '1',
+            share_with_crown: formData.get('share_with_crown') === '1',
+            public_note: formData.get('public_note') || ''
+          }).catch(err => console.warn('[Calendar] Failed to update RSVP cache:', err));
+        }
         this.showToast('Attendance saved!', 'success');
         bootstrap.Modal.getInstance(document.getElementById('mobileRsvpModal'))?.hide();
       } else {
@@ -10337,6 +10512,10 @@ class MobileCalendarController extends _mobile_controller_base_js__WEBPACK_IMPOR
         }
       });
       if (response.ok || response.redirected) {
+        // Remove from RSVP cache
+        if (this.currentRsvpEvent) {
+          _services_rsvp_cache_service_js__WEBPACK_IMPORTED_MODULE_2__["default"].removeCachedRsvp(this.currentRsvpEvent.id).catch(err => console.warn('[Calendar] Failed to remove from RSVP cache:', err));
+        }
         this.showToast('Attendance removed!', 'success');
         bootstrap.Modal.getInstance(document.getElementById('mobileRsvpModal'))?.hide();
       } else {
@@ -13958,6 +14137,507 @@ const offlineQueueService = new OfflineQueueService();
 
 // Also expose globally for non-module scripts
 window.OfflineQueueService = offlineQueueService;
+
+/***/ }),
+
+/***/ "./assets/js/services/rsvp-cache-service.js":
+/*!**************************************************!*\
+  !*** ./assets/js/services/rsvp-cache-service.js ***!
+  \**************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _babel_runtime_helpers_objectSpread2__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @babel/runtime/helpers/objectSpread2 */ "./node_modules/@babel/runtime/helpers/esm/objectSpread2.js");
+
+/**
+ * RsvpCacheService - IndexedDB-backed service for caching user RSVPs
+ * 
+ * Provides local storage for user's RSVPs to enable offline viewing
+ * and offline RSVP creation. Syncs with server when online.
+ * 
+ * Features:
+ * - Cache user's RSVPs for offline access
+ * - Store pending RSVPs when offline
+ * - Sync pending RSVPs when coming online
+ * - Update cache when user changes RSVPs
+ */
+
+const DB_NAME = 'kmp-rsvp-cache';
+const DB_VERSION = 1;
+const RSVPS_STORE = 'user-rsvps';
+const PENDING_STORE = 'pending-rsvps';
+class RsvpCacheService {
+  constructor() {
+    this.db = null;
+    this.isInitialized = false;
+    this.syncInProgress = false;
+
+    // Bind methods
+    this._handleOnline = this._handleOnline.bind(this);
+  }
+
+  /**
+   * Initialize the IndexedDB database
+   * @returns {Promise<void>}
+   */
+  async init() {
+    if (this.isInitialized) return;
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      request.onerror = () => {
+        console.error('[RsvpCache] Failed to open database:', request.error);
+        reject(request.error);
+      };
+      request.onsuccess = () => {
+        this.db = request.result;
+        this.isInitialized = true;
+
+        // Set up online listener for auto-sync
+        window.addEventListener('online', this._handleOnline);
+        console.log('[RsvpCache] Service initialized');
+        resolve();
+      };
+      request.onupgradeneeded = event => {
+        const db = event.target.result;
+
+        // Create store for cached RSVPs
+        if (!db.objectStoreNames.contains(RSVPS_STORE)) {
+          const rsvpStore = db.createObjectStore(RSVPS_STORE, {
+            keyPath: 'gathering_id'
+          });
+          rsvpStore.createIndex('updatedAt', 'updatedAt', {
+            unique: false
+          });
+        }
+
+        // Create store for pending (offline) RSVPs
+        if (!db.objectStoreNames.contains(PENDING_STORE)) {
+          const pendingStore = db.createObjectStore(PENDING_STORE, {
+            keyPath: 'id',
+            autoIncrement: true
+          });
+          pendingStore.createIndex('gathering_id', 'gathering_id', {
+            unique: false
+          });
+          pendingStore.createIndex('createdAt', 'createdAt', {
+            unique: false
+          });
+          pendingStore.createIndex('status', 'status', {
+            unique: false
+          });
+        }
+      };
+    });
+  }
+
+  /**
+   * Handle coming online - trigger sync
+   */
+  async _handleOnline() {
+    console.log('[RsvpCache] Network online - syncing pending RSVPs');
+    try {
+      await this.syncPendingRsvps();
+    } catch (error) {
+      console.error('[RsvpCache] Auto-sync failed:', error);
+    }
+  }
+
+  /**
+   * Ensure the database is initialized
+   */
+  async ensureInitialized() {
+    if (!this.isInitialized) {
+      await this.init();
+    }
+  }
+
+  // ==================== RSVP Cache Methods ====================
+
+  /**
+   * Cache user's RSVPs from API response
+   * @param {Array} events - Events array from mobileCalendarData API
+   */
+  async cacheUserRsvps(events) {
+    await this.ensureInitialized();
+    const rsvps = events.filter(e => e.user_attending).map(e => ({
+      gathering_id: e.id,
+      public_id: e.public_id,
+      name: e.name,
+      start_date: e.start_date,
+      start_time: e.start_time,
+      end_date: e.end_date,
+      location: e.location,
+      branch: e.branch,
+      attendance_id: e.attendance_id,
+      share_with_kingdom: e.share_with_kingdom,
+      share_with_hosting_group: e.share_with_hosting_group,
+      share_with_crown: e.share_with_crown,
+      public_note: e.public_note,
+      updatedAt: new Date().toISOString()
+    }));
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([RSVPS_STORE], 'readwrite');
+      const store = transaction.objectStore(RSVPS_STORE);
+      let completed = 0;
+      let errors = 0;
+      if (rsvps.length === 0) {
+        resolve({
+          saved: 0,
+          errors: 0
+        });
+        return;
+      }
+      rsvps.forEach(rsvp => {
+        const request = store.put(rsvp);
+        request.onsuccess = () => {
+          completed++;
+          if (completed + errors === rsvps.length) {
+            console.log(`[RsvpCache] Cached ${completed} RSVPs`);
+            resolve({
+              saved: completed,
+              errors
+            });
+          }
+        };
+        request.onerror = () => {
+          errors++;
+          if (completed + errors === rsvps.length) {
+            resolve({
+              saved: completed,
+              errors
+            });
+          }
+        };
+      });
+    });
+  }
+
+  /**
+   * Get cached RSVP for a specific gathering
+   * @param {number} gatheringId - Gathering ID
+   * @returns {Promise<Object|null>} Cached RSVP or null
+   */
+  async getCachedRsvp(gatheringId) {
+    await this.ensureInitialized();
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([RSVPS_STORE], 'readonly');
+      const store = transaction.objectStore(RSVPS_STORE);
+      const request = store.get(gatheringId);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  /**
+   * Get all cached RSVPs
+   * @returns {Promise<Array>} Array of cached RSVPs
+   */
+  async getAllCachedRsvps() {
+    await this.ensureInitialized();
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([RSVPS_STORE], 'readonly');
+      const store = transaction.objectStore(RSVPS_STORE);
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  /**
+   * Check if user has RSVP'd to a gathering (from cache)
+   * @param {number} gatheringId - Gathering ID
+   * @returns {Promise<boolean>}
+   */
+  async hasRsvp(gatheringId) {
+    const rsvp = await this.getCachedRsvp(gatheringId);
+    return rsvp !== null;
+  }
+
+  /**
+   * Update cached RSVP after successful online save
+   * @param {number} gatheringId - Gathering ID
+   * @param {Object} data - Updated RSVP data
+   */
+  async updateCachedRsvp(gatheringId, data) {
+    await this.ensureInitialized();
+    const existing = await this.getCachedRsvp(gatheringId);
+    const rsvp = (0,_babel_runtime_helpers_objectSpread2__WEBPACK_IMPORTED_MODULE_0__["default"])((0,_babel_runtime_helpers_objectSpread2__WEBPACK_IMPORTED_MODULE_0__["default"])((0,_babel_runtime_helpers_objectSpread2__WEBPACK_IMPORTED_MODULE_0__["default"])({}, existing), data), {}, {
+      gathering_id: gatheringId,
+      updatedAt: new Date().toISOString()
+    });
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([RSVPS_STORE], 'readwrite');
+      const store = transaction.objectStore(RSVPS_STORE);
+      const request = store.put(rsvp);
+      request.onsuccess = () => {
+        console.log(`[RsvpCache] Updated RSVP for gathering ${gatheringId}`);
+        resolve();
+      };
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  /**
+   * Remove cached RSVP (after user cancels)
+   * @param {number} gatheringId - Gathering ID
+   */
+  async removeCachedRsvp(gatheringId) {
+    await this.ensureInitialized();
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([RSVPS_STORE], 'readwrite');
+      const store = transaction.objectStore(RSVPS_STORE);
+      const request = store.delete(gatheringId);
+      request.onsuccess = () => {
+        console.log(`[RsvpCache] Removed RSVP for gathering ${gatheringId}`);
+        resolve();
+      };
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // ==================== Pending RSVP Methods ====================
+
+  /**
+   * Queue an RSVP for later sync (when offline)
+   * @param {Object} rsvpData - RSVP data
+   * @returns {Promise<number>} ID of queued RSVP
+   */
+  async queueOfflineRsvp(rsvpData) {
+    await this.ensureInitialized();
+    const pending = {
+      gathering_id: rsvpData.gathering_id,
+      gathering_name: rsvpData.gathering_name,
+      share_with_kingdom: rsvpData.share_with_kingdom || false,
+      share_with_hosting_group: rsvpData.share_with_hosting_group || false,
+      share_with_crown: rsvpData.share_with_crown || false,
+      public_note: rsvpData.public_note || '',
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      attempts: 0
+    };
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([PENDING_STORE], 'readwrite');
+      const store = transaction.objectStore(PENDING_STORE);
+      const request = store.add(pending);
+      request.onsuccess = () => {
+        console.log(`[RsvpCache] Queued offline RSVP: ${pending.gathering_name}`);
+        this.dispatchEvent('rsvp-queued', {
+          id: request.result,
+          data: pending
+        });
+        resolve(request.result);
+      };
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  /**
+   * Get all pending RSVPs
+   * @returns {Promise<Array>} Array of pending RSVPs
+   */
+  async getPendingRsvps() {
+    await this.ensureInitialized();
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([PENDING_STORE], 'readonly');
+      const store = transaction.objectStore(PENDING_STORE);
+      const index = store.index('status');
+      const request = index.getAll('pending');
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  /**
+   * Get count of pending RSVPs
+   * @returns {Promise<number>}
+   */
+  async getPendingCount() {
+    await this.ensureInitialized();
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([PENDING_STORE], 'readonly');
+      const store = transaction.objectStore(PENDING_STORE);
+      const index = store.index('status');
+      const request = index.count('pending');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  /**
+   * Remove a pending RSVP
+   * @param {number} id - Pending RSVP ID
+   */
+  async removePendingRsvp(id) {
+    await this.ensureInitialized();
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([PENDING_STORE], 'readwrite');
+      const store = transaction.objectStore(PENDING_STORE);
+      const request = store.delete(id);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  /**
+   * Sync all pending RSVPs to the server
+   * @returns {Promise<Object>} Sync result
+   */
+  async syncPendingRsvps() {
+    if (this.syncInProgress) {
+      return {
+        success: 0,
+        failed: 0,
+        skipped: true
+      };
+    }
+    if (!navigator.onLine) {
+      return {
+        success: 0,
+        failed: 0,
+        offline: true
+      };
+    }
+    this.syncInProgress = true;
+    this.dispatchEvent('sync-started');
+    try {
+      const csrfToken = this.getCsrfToken();
+      const pending = await this.getPendingRsvps();
+      let success = 0;
+      let failed = 0;
+      for (const rsvp of pending) {
+        try {
+          const response = await fetch('/gathering-attendances/mobile-rsvp', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest',
+              'X-CSRF-Token': csrfToken
+            },
+            body: JSON.stringify({
+              gathering_id: rsvp.gathering_id,
+              share_with_kingdom: rsvp.share_with_kingdom,
+              share_with_hosting_group: rsvp.share_with_hosting_group,
+              share_with_crown: rsvp.share_with_crown,
+              public_note: rsvp.public_note
+            })
+          });
+          if (response.ok) {
+            await this.removePendingRsvp(rsvp.id);
+            // Update the RSVP cache
+            await this.updateCachedRsvp(rsvp.gathering_id, rsvp);
+            success++;
+          } else {
+            await this.updatePendingError(rsvp.id, `HTTP ${response.status}`);
+            failed++;
+          }
+        } catch (error) {
+          await this.updatePendingError(rsvp.id, error.message);
+          failed++;
+        }
+      }
+      this.dispatchEvent('sync-complete', {
+        success,
+        failed,
+        total: pending.length
+      });
+      return {
+        success,
+        failed
+      };
+    } finally {
+      this.syncInProgress = false;
+    }
+  }
+
+  /**
+   * Update pending RSVP with error
+   * @param {number} id - Pending RSVP ID
+   * @param {string} error - Error message
+   */
+  async updatePendingError(id, error) {
+    await this.ensureInitialized();
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([PENDING_STORE], 'readwrite');
+      const store = transaction.objectStore(PENDING_STORE);
+      const getRequest = store.get(id);
+      getRequest.onsuccess = () => {
+        const rsvp = getRequest.result;
+        if (rsvp) {
+          rsvp.attempts = (rsvp.attempts || 0) + 1;
+          rsvp.lastError = error;
+          rsvp.lastAttempt = new Date().toISOString();
+          if (rsvp.attempts >= 3) {
+            rsvp.status = 'failed';
+          }
+          const updateRequest = store.put(rsvp);
+          updateRequest.onsuccess = () => resolve();
+          updateRequest.onerror = () => reject(updateRequest.error);
+        } else {
+          resolve();
+        }
+      };
+      getRequest.onerror = () => reject(getRequest.error);
+    });
+  }
+
+  // ==================== Utilities ====================
+
+  /**
+   * Get CSRF token from meta tag
+   */
+  getCsrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]') || document.querySelector('meta[name="csrfToken"]');
+    return meta?.getAttribute('content') || '';
+  }
+
+  /**
+   * Dispatch a custom event
+   */
+  dispatchEvent(eventName, detail = {}) {
+    const event = new CustomEvent(`rsvp-cache:${eventName}`, {
+      bubbles: true,
+      detail
+    });
+    window.dispatchEvent(event);
+  }
+
+  /**
+   * Clear all cached data
+   */
+  async clearAll() {
+    await this.ensureInitialized();
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([RSVPS_STORE, PENDING_STORE], 'readwrite');
+      transaction.objectStore(RSVPS_STORE).clear();
+      transaction.objectStore(PENDING_STORE).clear();
+      transaction.oncomplete = () => {
+        console.log('[RsvpCache] Cleared all cached data');
+        resolve();
+      };
+      transaction.onerror = () => reject(transaction.error);
+    });
+  }
+
+  /**
+   * Destroy the service
+   */
+  destroy() {
+    window.removeEventListener('online', this._handleOnline);
+    if (this.db) {
+      this.db.close();
+      this.db = null;
+    }
+    this.isInitialized = false;
+  }
+}
+
+// Create singleton instance
+const rsvpCacheService = new RsvpCacheService();
+/* harmony default export */ __webpack_exports__["default"] = (rsvpCacheService);
+
+// Expose globally for non-module scripts
+window.RsvpCacheService = rsvpCacheService;
 
 /***/ }),
 
@@ -59116,7 +59796,7 @@ window.Controllers["waiver-upload-wizard"] = WaiverUploadWizardController;
 },
 /******/ function(__webpack_require__) { // webpackRuntimeModules
 /******/ var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId); }
-/******/ __webpack_require__.O(0, ["js/core","css/app","css/waivers","css/dashboard","css/cover","css/signin","css/waiver-upload"], function() { return __webpack_exec__("./assets/js/controllers/activity-toggle-controller.js"), __webpack_exec__("./assets/js/controllers/activity-waiver-manager-controller.js"), __webpack_exec__("./assets/js/controllers/add-activity-modal-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-modal-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/base-gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/code-editor-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/delete-confirmation-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/edit-activity-description-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-editor-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-form-controller.js"), __webpack_exec__("./assets/js/controllers/file-size-validator-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-clone-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-location-autocomplete-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-map-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-public-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-schedule-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-type-form-controller.js"), __webpack_exec__("./assets/js/controllers/gatherings-calendar-controller.js"), __webpack_exec__("./assets/js/controllers/grid-view-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/markdown-editor-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-menu-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-calendar-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-hub-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-offline-overlay-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/my-rsvps-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-import-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/popover-controller.js"), __webpack_exec__("./assets/js/controllers/qrcode-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/security-debug-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./assets/js/controllers/sortable-list-controller.js"), __webpack_exec__("./assets/js/controllers/timezone-input-controller.js"), __webpack_exec__("./assets/js/controllers/turbo-modal-controller.js"), __webpack_exec__("./assets/js/controllers/variable-insert-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/mobile-request-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./plugins/Template/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/add-requirement-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/camera-capture-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/exemption-reasons-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-attestation-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-template-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-wizard-controller.js"), __webpack_exec__("./assets/js/services/offline-queue-service.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"), __webpack_exec__("./plugins/Waivers/assets/css/waivers.css"), __webpack_exec__("./plugins/Waivers/assets/css/waiver-upload.css"); });
+/******/ __webpack_require__.O(0, ["js/core","css/app","css/waivers","css/dashboard","css/cover","css/signin","css/waiver-upload"], function() { return __webpack_exec__("./assets/js/controllers/activity-toggle-controller.js"), __webpack_exec__("./assets/js/controllers/activity-waiver-manager-controller.js"), __webpack_exec__("./assets/js/controllers/add-activity-modal-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-modal-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/base-gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/code-editor-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/delete-confirmation-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/edit-activity-description-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-editor-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-form-controller.js"), __webpack_exec__("./assets/js/controllers/file-size-validator-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-clone-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-location-autocomplete-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-map-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-public-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-schedule-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-type-form-controller.js"), __webpack_exec__("./assets/js/controllers/gatherings-calendar-controller.js"), __webpack_exec__("./assets/js/controllers/grid-view-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/markdown-editor-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-menu-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-calendar-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-hub-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-offline-overlay-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/my-rsvps-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-import-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/popover-controller.js"), __webpack_exec__("./assets/js/controllers/qrcode-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/security-debug-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./assets/js/controllers/sortable-list-controller.js"), __webpack_exec__("./assets/js/controllers/timezone-input-controller.js"), __webpack_exec__("./assets/js/controllers/turbo-modal-controller.js"), __webpack_exec__("./assets/js/controllers/variable-insert-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/mobile-request-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./plugins/Template/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/add-requirement-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/camera-capture-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/exemption-reasons-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-attestation-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-template-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-wizard-controller.js"), __webpack_exec__("./assets/js/services/offline-queue-service.js"), __webpack_exec__("./assets/js/services/rsvp-cache-service.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"), __webpack_exec__("./plugins/Waivers/assets/css/waivers.css"), __webpack_exec__("./plugins/Waivers/assets/css/waiver-upload.css"); });
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);

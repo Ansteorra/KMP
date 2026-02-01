@@ -162,6 +162,22 @@ $updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'act
         </div>
     </div>
     
+    <!-- Pending RSVPs Banner (shown when offline RSVPs are queued) -->
+    <div class="mobile-pending-rsvps mx-3 mb-2" data-mobile-calendar-target="pendingBanner" hidden>
+        <div class="alert alert-info d-flex align-items-center justify-content-between py-2 mb-0">
+            <div>
+                <i class="bi bi-cloud-arrow-up me-2"></i>
+                <span data-mobile-calendar-target="pendingCount">0</span> RSVP(s) pending sync
+            </div>
+            <button type="button" 
+                    class="btn btn-sm btn-info"
+                    data-action="click->mobile-calendar#syncPendingRsvps"
+                    data-mobile-calendar-target="syncBtn">
+                <i class="bi bi-arrow-repeat"></i> Sync
+            </button>
+        </div>
+    </div>
+    
     <!-- Loading State -->
     <div class="mobile-events-loading text-center py-5" 
          data-mobile-calendar-target="loading"
