@@ -1,9 +1,9 @@
 <?php
 /**
- * Mobile Calendar View Template
+ * Mobile Events View Template
  * 
- * Touch-optimized calendar for viewing gatherings on mobile devices.
- * Features swipe navigation, event indicators, and day expansion.
+ * Touch-optimized weekly event list for viewing gatherings on mobile devices.
+ * Features filtering, quick month navigation, and RSVP functionality.
  * 
  * @var \App\View\AppView $this
  * @var int $defaultYear
@@ -12,16 +12,16 @@
  */
 
 // Set mobile layout variables
-$this->set('mobileTitle', 'Calendar');
+$this->set('mobileTitle', 'Events');
 $this->set('mobileBackUrl', $authCardUrl);
-$this->set('mobileHeaderColor', '#198754'); // Green for calendar
+$this->set('mobileHeaderColor', '#198754'); // Green for events
 
 $rsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'action' => 'mobileRsvp']);
 $unrsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'action' => 'mobileUnrsvp']);
 $updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'action' => 'mobileUpdateRsvp']);
 ?>
 
-<div class="mobile-calendar-container" 
+<div class="mobile-events-container" 
      data-controller="mobile-calendar"
      data-mobile-calendar-year-value="<?= $defaultYear ?>"
      data-mobile-calendar-month-value="<?= $defaultMonth ?>"
@@ -30,417 +30,323 @@ $updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'act
      data-mobile-calendar-unrsvp-url-value="<?= h($unrsvpUrl) ?>"
      data-mobile-calendar-update-rsvp-url-value="<?= h($updateRsvpUrl) ?>"
      role="application"
-     aria-label="Calendar - Swipe left or right to change months">
+     aria-label="Events list">
     
-    <!-- Calendar Header -->
-    <div class="mobile-calendar-header card mx-3 mt-3 mb-2">
-        <div class="card-body py-2 px-3">
-            <div class="d-flex justify-content-between align-items-center">
-                <button type="button" 
-                        class="btn btn-outline-secondary btn-sm"
-                        data-action="click->mobile-calendar#previousMonth"
-                        aria-label="Go to previous month">
-                    <i class="bi bi-chevron-left" aria-hidden="true"></i>
-                </button>
+    <!-- Search and Filter Header -->
+    <div class="mobile-events-search mx-3 mt-3 mb-2">
+        <div class="input-group">
+            <span class="input-group-text bg-white border-end-0">
+                <i class="bi bi-search text-muted"></i>
+            </span>
+            <input type="text" 
+                   class="form-control border-start-0" 
+                   placeholder="Search events..."
+                   data-mobile-calendar-target="searchInput"
+                   data-action="input->mobile-calendar#handleSearch">
+            <button type="button" 
+                    class="btn btn-outline-secondary"
+                    data-action="click->mobile-calendar#toggleFilters"
+                    data-mobile-calendar-target="filterToggle"
+                    aria-label="Toggle filters">
+                <i class="bi bi-funnel"></i>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Filter Panel (collapsible) -->
+    <div class="mobile-events-filters mx-3 mb-2" data-mobile-calendar-target="filterPanel" hidden>
+        <div class="card">
+            <div class="card-body py-2">
+                <!-- Event Type Filter -->
+                <div class="mb-2">
+                    <label class="form-label small mb-1">Event Type</label>
+                    <select class="form-select form-select-sm" 
+                            data-mobile-calendar-target="typeFilter"
+                            data-action="change->mobile-calendar#applyFilters">
+                        <option value="">All Types</option>
+                    </select>
+                </div>
                 
-                <h2 class="mb-0 fs-5" 
-                    data-mobile-calendar-target="monthTitle"
-                    aria-live="polite"
-                    aria-atomic="true">
-                    Loading...
-                </h2>
+                <!-- Branch Filter -->
+                <div class="mb-2">
+                    <label class="form-label small mb-1">Branch</label>
+                    <select class="form-select form-select-sm" 
+                            data-mobile-calendar-target="branchFilter"
+                            data-action="change->mobile-calendar#applyFilters">
+                        <option value="">All Branches</option>
+                    </select>
+                </div>
                 
-                <button type="button" 
-                        class="btn btn-outline-secondary btn-sm"
-                        data-action="click->mobile-calendar#nextMonth"
-                        aria-label="Go to next month">
-                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
-                </button>
+                <!-- My RSVPs Only -->
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" 
+                           id="myRsvpsOnly"
+                           data-mobile-calendar-target="rsvpFilter"
+                           data-action="change->mobile-calendar#applyFilters">
+                    <label class="form-check-label small" for="myRsvpsOnly">
+                        My RSVPs only
+                    </label>
+                </div>
+                
+                <div class="mt-2 text-end">
+                    <button type="button" 
+                            class="btn btn-sm btn-link text-decoration-none"
+                            data-action="click->mobile-calendar#clearFilters">
+                        Clear filters
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Month Quick Navigation -->
+    <div class="mobile-events-nav mx-3 mb-3">
+        <div class="d-flex align-items-center justify-content-between">
+            <button type="button" 
+                    class="btn btn-sm btn-outline-secondary"
+                    data-action="click->mobile-calendar#previousMonth"
+                    aria-label="Previous month">
+                <i class="bi bi-chevron-left"></i>
+            </button>
+            
+            <div class="d-flex align-items-center gap-2">
+                <select class="form-select form-select-sm" 
+                        data-mobile-calendar-target="monthSelect"
+                        data-action="change->mobile-calendar#jumpToMonth"
+                        style="width: auto;">
+                    <option value="1">January</option>
+                    <option value="2">February</option>
+                    <option value="3">March</option>
+                    <option value="4">April</option>
+                    <option value="5">May</option>
+                    <option value="6">June</option>
+                    <option value="7">July</option>
+                    <option value="8">August</option>
+                    <option value="9">September</option>
+                    <option value="10">October</option>
+                    <option value="11">November</option>
+                    <option value="12">December</option>
+                </select>
+                
+                <select class="form-select form-select-sm" 
+                        data-mobile-calendar-target="yearSelect"
+                        data-action="change->mobile-calendar#jumpToMonth"
+                        style="width: auto;">
+                </select>
             </div>
             
-            <div class="text-center mt-2">
-                <button type="button" 
-                        class="btn btn-link btn-sm text-decoration-none"
-                        data-action="click->mobile-calendar#goToToday"
-                        aria-label="Go to today's date">
-                    Today
-                </button>
-            </div>
+            <button type="button" 
+                    class="btn btn-sm btn-outline-secondary"
+                    data-action="click->mobile-calendar#nextMonth"
+                    aria-label="Next month">
+                <i class="bi bi-chevron-right"></i>
+            </button>
+        </div>
+        
+        <div class="text-center mt-2">
+            <button type="button" 
+                    class="btn btn-link btn-sm text-decoration-none p-0"
+                    data-action="click->mobile-calendar#goToToday">
+                <i class="bi bi-calendar-event me-1"></i>Jump to Today
+            </button>
         </div>
     </div>
     
     <!-- Loading State -->
-    <div class="mobile-calendar-loading text-center py-5" 
+    <div class="mobile-events-loading text-center py-5" 
          data-mobile-calendar-target="loading"
-         role="status"
-         aria-label="Loading calendar">
-        <div class="spinner-border text-success" aria-hidden="true">
-            <span class="visually-hidden">Loading...</span>
-        </div>
-        <p class="mt-2 text-muted" aria-hidden="true">Loading calendar...</p>
+         role="status">
+        <div class="spinner-border text-success"></div>
+        <p class="mt-2 text-muted">Loading events...</p>
     </div>
     
     <!-- Error State -->
-    <div class="mobile-calendar-error mx-3" data-mobile-calendar-target="error" hidden>
+    <div class="mobile-events-error mx-3" data-mobile-calendar-target="error" hidden>
         <div class="alert alert-warning d-flex align-items-center">
             <i class="bi bi-exclamation-triangle me-2"></i>
-            <span data-mobile-calendar-target="errorMessage">Unable to load calendar</span>
+            <span data-mobile-calendar-target="errorMessage">Unable to load events</span>
         </div>
         <button type="button" 
                 class="btn btn-outline-warning w-100"
-                data-action="click->mobile-calendar#reload"
-                aria-label="Retry loading calendar">
-            <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i> Retry
+                data-action="click->mobile-calendar#reload">
+            <i class="bi bi-arrow-clockwise me-1"></i> Retry
         </button>
     </div>
     
-    <!-- Calendar Grid -->
-    <div class="mobile-calendar-grid mx-3" 
-         data-mobile-calendar-target="grid" 
-         role="grid"
-         aria-label="Calendar"
-         hidden>
-        <!-- Week Day Headers -->
-        <div class="mobile-calendar-weekdays d-flex justify-content-around text-center mb-2" role="row">
-            <div class="mobile-calendar-weekday text-muted" role="columnheader" abbr="Sunday">S</div>
-            <div class="mobile-calendar-weekday text-muted" role="columnheader" abbr="Monday">M</div>
-            <div class="mobile-calendar-weekday text-muted" role="columnheader" abbr="Tuesday">T</div>
-            <div class="mobile-calendar-weekday text-muted" role="columnheader" abbr="Wednesday">W</div>
-            <div class="mobile-calendar-weekday text-muted" role="columnheader" abbr="Thursday">T</div>
-            <div class="mobile-calendar-weekday text-muted" role="columnheader" abbr="Friday">F</div>
-            <div class="mobile-calendar-weekday text-muted" role="columnheader" abbr="Saturday">S</div>
-        </div>
-        
-        <!-- Calendar Weeks (populated by JavaScript) -->
-        <div class="mobile-calendar-weeks" data-mobile-calendar-target="weeks" role="rowgroup">
-            <!-- Weeks will be rendered here -->
-        </div>
+    <!-- Events List -->
+    <div class="mobile-events-list mx-3" data-mobile-calendar-target="eventList" hidden>
+        <!-- Events grouped by week will be rendered here -->
     </div>
     
-    <!-- Selected Day Events -->
-    <div class="mobile-calendar-events mx-3 mt-3" 
-         data-mobile-calendar-target="events" 
-         role="region"
-         aria-live="polite"
-         aria-label="Events for selected day"
-         hidden>
-        <div class="card">
-            <div class="card-header bg-success text-white py-2">
-                <h3 class="mb-0 fs-6" data-mobile-calendar-target="selectedDate">
-                    Events
-                </h3>
-            </div>
-            <div class="card-body p-0" data-mobile-calendar-target="eventList">
-                <!-- Events will be rendered here -->
-            </div>
-        </div>
-    </div>
-    
-    <!-- Empty Day Message -->
-    <div class="mobile-calendar-empty mx-3 mt-3" data-mobile-calendar-target="emptyDay" hidden>
-        <div class="alert alert-light text-center mb-0">
+    <!-- No Events Message -->
+    <div class="mobile-events-empty mx-3" data-mobile-calendar-target="emptyState" hidden>
+        <div class="alert alert-light text-center">
             <i class="bi bi-calendar-x text-muted d-block fs-1 mb-2"></i>
-            <p class="mb-0 text-muted">No events on this day</p>
+            <p class="mb-1">No events found</p>
+            <small class="text-muted" data-mobile-calendar-target="emptyMessage">
+                Try adjusting your filters or selecting a different month.
+            </small>
         </div>
+    </div>
+    
+    <!-- Results Count -->
+    <div class="mobile-events-count mx-3 mb-2" data-mobile-calendar-target="resultsCount" hidden>
+        <small class="text-muted"></small>
     </div>
 </div>
 
 <style>
-/* Mobile Calendar Styles */
-.mobile-calendar-container {
-    padding-bottom: 80px; /* Space for potential bottom nav */
+/* Mobile Events Styles */
+.mobile-events-container {
+    padding-bottom: 100px;
 }
 
-.mobile-calendar-weekdays {
-    font-weight: 600;
-    font-size: 12px;
-    padding: 8px 0;
-    background-color: rgba(255, 255, 255, 0.8);
+/* Search Bar */
+.mobile-events-search .input-group {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     border-radius: 8px;
-}
-
-.mobile-calendar-weekday {
-    width: 14.28%;
-    flex: 0 0 14.28%;
-}
-
-.mobile-calendar-weeks {
-    background-color: rgba(255, 255, 255, 0.9);
-    border-radius: 12px;
     overflow: hidden;
 }
 
-.mobile-calendar-week {
-    display: flex;
-    justify-content: space-around;
+.mobile-events-search .form-control:focus {
+    box-shadow: none;
 }
 
-.mobile-calendar-day {
-    width: 14.28%;
-    flex: 0 0 14.28%;
-    aspect-ratio: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    position: relative;
-    border: 1px solid transparent;
-    transition: all 0.2s ease;
-}
-
-.mobile-calendar-day:active {
-    background-color: rgba(25, 135, 84, 0.1);
-}
-
-.mobile-calendar-day.other-month {
-    opacity: 0.4;
-}
-
-.mobile-calendar-day.today {
-    background-color: rgba(25, 135, 84, 0.15);
+/* Filter Panel */
+.mobile-events-filters .card {
     border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
-.mobile-calendar-day.today .mobile-calendar-day-number {
-    font-weight: 700;
-    color: #198754;
-}
-
-.mobile-calendar-day.selected {
-    background-color: #198754;
+/* Month Navigation */
+.mobile-events-nav {
+    background: var(--bs-light);
     border-radius: 8px;
+    padding: 12px;
 }
 
-.mobile-calendar-day.selected .mobile-calendar-day-number {
-    color: white;
-    font-weight: 700;
+/* Event Cards */
+.mobile-event-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    margin-bottom: 12px;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.mobile-calendar-day.selected .mobile-calendar-event-dot {
-    background-color: white !important;
+.mobile-event-card:active {
+    transform: scale(0.98);
 }
 
-.mobile-calendar-day-number {
-    font-size: 14px;
-    font-weight: 500;
-    line-height: 1;
+.mobile-event-card.cancelled {
+    opacity: 0.6;
 }
 
-.mobile-calendar-event-dots {
-    display: flex;
-    gap: 2px;
-    margin-top: 4px;
-    height: 6px;
+.mobile-event-card.attending {
+    border-left: 4px solid var(--bs-success);
 }
 
-.mobile-calendar-event-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background-color: #198754;
-}
-
-.mobile-calendar-event-dot.attending {
-    background-color: #0d6efd;
-}
-
-.mobile-calendar-event-dot.cancelled {
-    background-color: #dc3545;
-}
-
-/* Event List Styles */
-.mobile-event-item {
+.mobile-event-header {
     padding: 12px 16px;
-    border-bottom: 1px solid #e9ecef;
     display: flex;
+    justify-content: space-between;
     align-items: flex-start;
     gap: 12px;
-    text-decoration: none;
-    color: inherit;
-    transition: background-color 0.2s;
 }
 
-.mobile-event-item:last-child {
-    border-bottom: none;
-}
-
-.mobile-event-item:active {
-    background-color: #f8f9fa;
-}
-
-.mobile-event-time {
-    min-width: 50px;
-    font-size: 12px;
-    color: #6c757d;
-    text-align: center;
-}
-
-.mobile-event-time .time {
-    font-weight: 600;
-}
-
-.mobile-event-details {
+.mobile-event-info {
     flex: 1;
+    min-width: 0;
 }
 
 .mobile-event-name {
     font-weight: 600;
-    font-size: 14px;
-    margin-bottom: 2px;
+    font-size: 16px;
+    margin-bottom: 4px;
+    color: var(--bs-dark);
 }
 
 .mobile-event-name.cancelled {
     text-decoration: line-through;
-    color: #dc3545;
+    color: var(--bs-secondary);
 }
 
-.mobile-event-location {
-    font-size: 12px;
-    color: #6c757d;
+.mobile-event-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--bs-secondary);
 }
 
-.mobile-event-badge {
+.mobile-event-meta i {
+    width: 16px;
+}
+
+.mobile-event-actions {
     display: flex;
     flex-direction: column;
-    gap: 4px;
     align-items: flex-end;
+    gap: 8px;
 }
 
-.mobile-event-type {
-    font-size: 10px;
-    padding: 2px 6px;
-    border-radius: 4px;
+.mobile-event-type-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    white-space: nowrap;
 }
 
-.mobile-event-attending {
-    font-size: 10px;
-    color: #0d6efd;
-}
-
-/* Pull to refresh hint */
-.mobile-calendar-pull-hint {
-    text-align: center;
-    padding: 8px;
-    color: #6c757d;
+.mobile-event-rsvp-btn {
     font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 16px;
 }
 
-/* Bottom Sheet Styles */
-.mobile-rsvp-sheet {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 9998;
-    visibility: hidden;
-    opacity: 0;
-    transition: visibility 0s 0.3s, opacity 0.3s;
-}
-
-.mobile-rsvp-sheet.open {
-    visibility: visible;
-    opacity: 1;
-    transition: visibility 0s, opacity 0.3s;
-}
-
-.rsvp-sheet-backdrop {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-}
-
-.rsvp-sheet-panel {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: white;
-    border-radius: 20px 20px 0 0;
-    max-height: 80vh;
-    overflow-y: auto;
-    transform: translateY(100%);
-    transition: transform 0.3s ease-out;
-}
-
-.mobile-rsvp-sheet.open .rsvp-sheet-panel {
-    transform: translateY(0);
-}
-
-.rsvp-sheet-handle {
-    padding: 12px;
-    text-align: center;
-    cursor: pointer;
-}
-
-.handle-bar {
-    width: 40px;
-    height: 4px;
-    background: #dee2e6;
-    border-radius: 2px;
-    margin: 0 auto;
-}
-
-.rsvp-sheet-body {
-    padding: 0 20px 30px;
-}
-
-.rsvp-sheet-header {
-    margin-bottom: 16px;
-}
-
-.rsvp-sheet-title {
-    font-size: 20px;
+/* Week Separator */
+.mobile-week-header {
+    background: var(--bs-success);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 8px;
+    margin-bottom: 12px;
     font-weight: 600;
-    margin-bottom: 8px;
-}
-
-.rsvp-sheet-details {
-    color: #6c757d;
-    margin-bottom: 20px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid #e9ecef;
-}
-
-.rsvp-sheet-details p {
-    margin-bottom: 4px;
-}
-
-.rsvp-sharing-options .form-check {
-    margin-bottom: 8px;
-}
-
-.rsvp-attending-status {
+    font-size: 14px;
     display: flex;
+    justify-content: space-between;
     align-items: center;
 }
 
-/* Toast notifications */
-.mobile-toast {
-    max-width: 90%;
-    animation: slideUp 0.3s ease-out;
+.mobile-week-count {
+    background: rgba(255,255,255,0.2);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
 }
 
-@keyframes slideUp {
-    from {
-        transform: translate(-50%, 100%);
-        opacity: 0;
-    }
-    to {
-        transform: translate(-50%, 0);
-        opacity: 1;
-    }
+/* Day Header */
+.mobile-day-header {
+    color: var(--bs-success);
+    font-weight: 600;
+    font-size: 13px;
+    padding: 8px 0 4px;
+    border-bottom: 1px solid var(--bs-border-color);
+    margin-bottom: 8px;
 }
 
-/* RSVP button in event list */
-.mobile-event-rsvp-btn {
-    padding: 4px 8px;
-    font-size: 11px;
-    white-space: nowrap;
+.mobile-day-header .day-name {
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.mobile-day-header.today {
+    color: var(--bs-primary);
+}
+
+.mobile-day-header.today::after {
+    content: " • Today";
+    font-weight: normal;
 }
 
 /* Pull to Refresh */
@@ -459,11 +365,6 @@ $updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'act
 .pull-spinner {
     font-size: 24px;
     color: var(--bs-success);
-    transition: transform 0.3s;
-}
-
-.pull-to-refresh-indicator.ready .pull-spinner {
-    transform: rotate(180deg);
 }
 
 .pull-spinner .spin {
@@ -475,9 +376,84 @@ $updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'act
     to { transform: rotate(360deg); }
 }
 
-.pull-text {
-    font-size: 12px;
+/* RSVP Bottom Sheet */
+.mobile-rsvp-sheet {
+    position: fixed;
+    inset: 0;
+    z-index: 1050;
+    display: none;
+}
+
+.mobile-rsvp-sheet.open {
+    display: block;
+}
+
+.rsvp-sheet-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+}
+
+.rsvp-sheet-panel {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    border-radius: 16px 16px 0 0;
+    max-height: 80vh;
+    overflow-y: auto;
+    transform: translateY(100%);
+    animation: slideUp 0.3s ease forwards;
+}
+
+@keyframes slideUp {
+    to { transform: translateY(0); }
+}
+
+.rsvp-sheet-handle {
+    padding: 12px;
+    text-align: center;
+    cursor: pointer;
+}
+
+.rsvp-sheet-handle::before {
+    content: '';
+    display: inline-block;
+    width: 40px;
+    height: 4px;
+    background: var(--bs-border-color);
+    border-radius: 2px;
+}
+
+.rsvp-sheet-body {
+    padding: 0 20px 20px;
+}
+
+.rsvp-sheet-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.rsvp-sheet-date {
     color: var(--bs-secondary);
-    margin-top: 4px;
+    font-size: 14px;
+}
+
+/* Active filter indicator */
+.filter-active {
+    position: relative;
+}
+
+.filter-active::after {
+    content: '';
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 8px;
+    height: 8px;
+    background: var(--bs-danger);
+    border-radius: 50%;
 }
 </style>
