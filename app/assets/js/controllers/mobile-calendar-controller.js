@@ -19,7 +19,7 @@ class MobileCalendarController extends MobileControllerBase {
         "loading", "error", "errorMessage", 
         "eventList", "emptyState", "emptyMessage", "resultsCount",
         "searchInput", "filterPanel", "filterToggle",
-        "typeFilter", "branchFilter", "rsvpFilter",
+        "typeFilter", "activityFilter", "branchFilter", "rsvpFilter",
         "monthSelect", "yearSelect",
         "rsvpSheet", "rsvpContent"
     ]
@@ -41,6 +41,7 @@ class MobileCalendarController extends MobileControllerBase {
         this.filters = {
             search: '',
             type: '',
+            activity: '',
             branch: '',
             rsvpOnly: false
         };
@@ -274,8 +275,9 @@ class MobileCalendarController extends MobileControllerBase {
     populateFilters() {
         if (!this.calendarData?.events) return;
         
-        // Collect unique types and branches
+        // Collect unique types, activities, and branches
         const types = new Map();
+        const activities = new Map();
         const branches = new Map();
         
         this.calendarData.events.forEach(event => {
@@ -284,6 +286,14 @@ class MobileCalendarController extends MobileControllerBase {
             }
             if (event.branch) {
                 branches.set(event.branch, event.branch);
+            }
+            // Collect activity types from gathering_activities
+            if (event.gathering_activities && Array.isArray(event.gathering_activities)) {
+                event.gathering_activities.forEach(ga => {
+                    if (ga.activity?.name) {
+                        activities.set(ga.activity.name, ga.activity);
+                    }
+                });
             }
         });
         
@@ -295,6 +305,18 @@ class MobileCalendarController extends MobileControllerBase {
             });
             this.typeFilterTarget.innerHTML = html;
             this.typeFilterTarget.value = this.filters.type;
+        }
+        
+        // Populate activity filter
+        if (this.hasActivityFilterTarget) {
+            let html = '<option value="">All Activities</option>';
+            // Sort activities alphabetically
+            const sortedActivities = Array.from(activities.keys()).sort();
+            sortedActivities.forEach(name => {
+                html += `<option value="${this.escapeHtml(name)}">${this.escapeHtml(name)}</option>`;
+            });
+            this.activityFilterTarget.innerHTML = html;
+            this.activityFilterTarget.value = this.filters.activity;
         }
         
         // Populate branch filter
@@ -337,6 +359,9 @@ class MobileCalendarController extends MobileControllerBase {
         if (this.hasTypeFilterTarget) {
             this.filters.type = this.typeFilterTarget.value;
         }
+        if (this.hasActivityFilterTarget) {
+            this.filters.activity = this.activityFilterTarget.value;
+        }
         if (this.hasBranchFilterTarget) {
             this.filters.branch = this.branchFilterTarget.value;
         }
@@ -359,6 +384,16 @@ class MobileCalendarController extends MobileControllerBase {
                 return false;
             }
             
+            // Activity filter - check if event has the selected activity
+            if (this.filters.activity) {
+                const hasActivity = event.gathering_activities?.some(
+                    ga => ga.activity?.name === this.filters.activity
+                );
+                if (!hasActivity) {
+                    return false;
+                }
+            }
+            
             // Branch filter
             if (this.filters.branch && event.branch !== this.filters.branch) {
                 return false;
@@ -374,7 +409,7 @@ class MobileCalendarController extends MobileControllerBase {
         
         // Update filter indicator
         if (this.hasFilterToggleTarget) {
-            const hasActiveFilters = this.filters.type || this.filters.branch || this.filters.rsvpOnly;
+            const hasActiveFilters = this.filters.type || this.filters.activity || this.filters.branch || this.filters.rsvpOnly;
             this.filterToggleTarget.classList.toggle('filter-active', hasActiveFilters);
         }
         
@@ -401,10 +436,11 @@ class MobileCalendarController extends MobileControllerBase {
     clearFilters() {
         if (this.hasSearchInputTarget) this.searchInputTarget.value = '';
         if (this.hasTypeFilterTarget) this.typeFilterTarget.value = '';
+        if (this.hasActivityFilterTarget) this.activityFilterTarget.value = '';
         if (this.hasBranchFilterTarget) this.branchFilterTarget.value = '';
         if (this.hasRsvpFilterTarget) this.rsvpFilterTarget.checked = false;
         
-        this.filters = { search: '', type: '', branch: '', rsvpOnly: false };
+        this.filters = { search: '', type: '', activity: '', branch: '', rsvpOnly: false };
         this.applyFilters();
     }
 

@@ -67,6 +67,16 @@ $updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'act
                     </select>
                 </div>
                 
+                <!-- Activity Type Filter -->
+                <div class="mb-2">
+                    <label class="form-label small mb-1">Activity</label>
+                    <select class="form-select form-select-sm" 
+                            data-mobile-calendar-target="activityFilter"
+                            data-action="change->mobile-calendar#applyFilters">
+                        <option value="">All Activities</option>
+                    </select>
+                </div>
+                
                 <!-- Branch Filter -->
                 <div class="mb-2">
                     <label class="form-label small mb-1">Branch</label>
