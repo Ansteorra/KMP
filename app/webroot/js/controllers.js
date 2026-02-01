@@ -11023,7 +11023,7 @@ __webpack_require__.r(__webpack_exports__);
  * Handles RSVP editing using the attendance modal on the My RSVPs page.
  */
 class MyRsvpsController extends _mobile_controller_base__WEBPACK_IMPORTED_MODULE_0__["default"] {
-  static targets = ["modal", "modalBody"];
+  static targets = ["modal", "modalBody", "actionButtons"];
   onConnect() {
     this.modal = null;
     this.currentGatheringId = null;
@@ -11033,12 +11033,42 @@ class MyRsvpsController extends _mobile_controller_base__WEBPACK_IMPORTED_MODULE
       console.warn('[MyRsvps] Failed to init RSVP cache:', err);
     });
 
+    // Update button states based on online status
+    this.updateOnlineButtons();
+
     // Set up modal event listener
     if (this.hasModalTarget) {
       this.modalTarget.addEventListener('hidden.bs.modal', () => {
         this.onModalHidden();
       });
     }
+  }
+
+  /**
+   * Called when connection state changes
+   */
+  onConnectionStateChanged(isOnline) {
+    this.updateOnlineButtons();
+  }
+
+  /**
+   * Update online-only buttons based on connection state
+   */
+  updateOnlineButtons() {
+    const buttons = this.element.querySelectorAll('.online-only-btn');
+    buttons.forEach(btn => {
+      if (navigator.onLine) {
+        btn.classList.remove('disabled');
+        btn.style.opacity = '1';
+        btn.style.pointerEvents = 'auto';
+        btn.removeAttribute('aria-disabled');
+      } else {
+        btn.classList.add('disabled');
+        btn.style.opacity = '0.5';
+        btn.style.pointerEvents = 'none';
+        btn.setAttribute('aria-disabled', 'true');
+      }
+    });
   }
 
   /**

@@ -96,15 +96,15 @@ $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
                         <?php endif; ?>
                         
                         <?php if (!$gathering->cancelled_at): ?>
-                            <div class="rsvp-actions mt-3 d-flex gap-2">
+                            <div class="rsvp-actions mt-3 d-flex gap-2" data-my-rsvps-target="actionButtons">
                                 <?php if ($gathering->public_page_enabled): ?>
                                     <a href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'publicLanding', $gathering->public_id, '?' => ['from' => 'mobile']]) ?>" 
-                                       class="btn btn-outline-primary btn-sm flex-grow-1">
+                                       class="btn btn-outline-primary btn-sm flex-grow-1 online-only-btn">
                                         <i class="bi bi-eye me-1"></i>View Details
                                     </a>
                                 <?php endif; ?>
                                 <button type="button" 
-                                        class="btn btn-outline-secondary btn-sm flex-grow-1"
+                                        class="btn btn-outline-secondary btn-sm flex-grow-1 online-only-btn"
                                         data-action="click->my-rsvps#editRsvp"
                                         data-gathering-id="<?= h($gathering->id) ?>"
                                         data-attendance-id="<?= h($attendance->id) ?>">
