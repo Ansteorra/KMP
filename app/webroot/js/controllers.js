@@ -10011,6 +10011,10 @@ class MobileCalendarController extends _mobile_controller_base_js__WEBPACK_IMPOR
                                 ${event.location ? `<span><i class="bi bi-geo-alt"></i> ${this.escapeHtml(event.location)}</span>` : ''}
                             </div>
                             ${activitiesHtml}
+                            <a href="/gatherings/view/${event.public_id}" 
+                               class="btn btn-sm btn-outline-secondary mt-2">
+                                <i class="bi bi-info-circle me-1"></i>View Details
+                            </a>
                         </div>
                         <div class="mobile-event-actions">
                             ${event.type ? `<span class="mobile-event-type-badge" style="${typeStyle}">${this.escapeHtml(event.type.name)}</span>` : ''}
