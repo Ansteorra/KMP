@@ -18,7 +18,7 @@ $currentUser = $this->request->getAttribute('identity');
 $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
 ?>
 
-<div class="my-rsvps-container mx-3 mt-3">
+<div class="my-rsvps-container mx-3 mt-3" data-controller="my-rsvps">
     <?php if ($attendances->isEmpty()): ?>
         <!-- Empty State -->
         <div class="card">
@@ -97,20 +97,19 @@ $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
                         
                         <?php if (!$gathering->cancelled_at): ?>
                             <div class="rsvp-actions mt-3 d-flex gap-2">
-                                <a href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'view', $gathering->public_id]) ?>" 
-                                   class="btn btn-outline-primary btn-sm flex-grow-1">
-                                    <i class="bi bi-eye me-1"></i>View Details
-                                </a>
-                                <form method="post" 
-                                      action="<?= $this->Url->build(['controller' => 'GatheringAttendances', 'action' => 'delete', $attendance->id]) ?>"
-                                      onsubmit="return confirm('Are you sure you want to cancel your RSVP?');"
-                                      class="flex-grow-1">
-                                    <?= $this->Form->hidden('_method', ['value' => 'DELETE']) ?>
-                                    <?= $this->Form->hidden('_csrfToken', ['value' => $this->request->getAttribute('csrfToken')]) ?>
-                                    <button type="submit" class="btn btn-outline-danger btn-sm w-100">
-                                        <i class="bi bi-x-circle me-1"></i>Cancel RSVP
-                                    </button>
-                                </form>
+                                <?php if ($gathering->public_page_enabled): ?>
+                                    <a href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'publicLanding', $gathering->public_id]) ?>" 
+                                       class="btn btn-outline-primary btn-sm flex-grow-1">
+                                        <i class="bi bi-eye me-1"></i>View Details
+                                    </a>
+                                <?php endif; ?>
+                                <button type="button" 
+                                        class="btn btn-outline-secondary btn-sm flex-grow-1"
+                                        data-action="click->my-rsvps#editRsvp"
+                                        data-gathering-id="<?= h($gathering->id) ?>"
+                                        data-attendance-id="<?= h($attendance->id) ?>">
+                                    <i class="bi bi-pencil me-1"></i>Edit RSVP
+                                </button>
                             </div>
                         <?php endif; ?>
                     </div>
@@ -154,3 +153,22 @@ $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
     padding: 8px 12px;
 }
 </style>
+
+<!-- RSVP Modal -->
+<div class="modal fade" id="rsvpModal" tabindex="-1" aria-labelledby="rsvpModalLabel" aria-hidden="true" data-my-rsvps-target="modal">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="rsvpModalLabel">Edit RSVP</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" data-my-rsvps-target="modalBody">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
