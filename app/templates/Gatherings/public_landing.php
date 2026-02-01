@@ -718,6 +718,38 @@ body {
 }
 </style>
 
+<?php
+// Show mobile back button when coming from mobile app
+$fromMobile = $this->request->getQuery('from') === 'mobile';
+if ($fromMobile): ?>
+<div class="mobile-back-bar" style="
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: linear-gradient(135deg, var(--medieval-crimson) 0%, var(--medieval-crimson-dark) 100%);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+">
+    <a href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'mobileCalendar']) ?>" 
+       style="
+           color: white;
+           text-decoration: none;
+           display: flex;
+           align-items: center;
+           font-family: var(--font-sans);
+           font-weight: 500;
+       ">
+        <i class="bi bi-arrow-left me-2" style="font-size: 1.25rem;"></i>
+        Back to Events
+    </a>
+</div>
+<div style="height: 52px;"></div>
+<?php endif; ?>
+
 <?= $this->element('gatherings/public_content', [
     'gathering' => $gathering,
     'scheduleByDate' => $scheduleByDate,

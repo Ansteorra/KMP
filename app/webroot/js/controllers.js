@@ -10013,7 +10013,7 @@ class MobileCalendarController extends _mobile_controller_base_js__WEBPACK_IMPOR
                             </div>
                             ${activitiesHtml}
                             ${event.public_page_enabled ? `
-                                <a href="/gatherings/public-landing/${event.public_id}" 
+                                <a href="/gatherings/public-landing/${event.public_id}?from=mobile" 
                                    class="btn btn-sm btn-outline-secondary mt-2">
                                     <i class="bi bi-info-circle me-1"></i>View Details
                                 </a>

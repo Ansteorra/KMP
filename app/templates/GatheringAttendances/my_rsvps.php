@@ -98,7 +98,7 @@ $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
                         <?php if (!$gathering->cancelled_at): ?>
                             <div class="rsvp-actions mt-3 d-flex gap-2">
                                 <?php if ($gathering->public_page_enabled): ?>
-                                    <a href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'publicLanding', $gathering->public_id]) ?>" 
+                                    <a href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'publicLanding', $gathering->public_id, '?' => ['from' => 'mobile']]) ?>" 
                                        class="btn btn-outline-primary btn-sm flex-grow-1">
                                         <i class="bi bi-eye me-1"></i>View Details
                                     </a>
