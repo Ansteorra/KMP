@@ -1,76 +1,69 @@
-import { Controller } from "@hotwired/stimulus";
+import MobileControllerBase from "./mobile-controller-base.js";
 
 /**
  * MobileOfflineOverlay Stimulus Controller
  * 
  * Manages offline state overlay for mobile pages that require internet connection.
- * Shows a blocking overlay when offline with option to return to the auth card.
- * The auth card page itself doesn't use this controller as it works offline.
+ * Extends MobileControllerBase for centralized connection handling.
  * 
  * Features:
- * - Detects offline state from PWA controller
- * - Shows blocking overlay with message
+ * - Shows blocking overlay when offline
  * - Provides "Return to Auth Card" button
  * - Automatically hides when back online
- * - Only active on non-auth-card pages
- * 
- * Values:
- * - authCardUrl: String - URL to navigate to auth card
- * 
- * Usage:
- * <div data-controller="mobile-offline-overlay"
- *      data-mobile-offline-overlay-auth-card-url-value="/members/view-mobile-card/token">
- * </div>
  */
-class MobileOfflineOverlayController extends Controller {
+class MobileOfflineOverlayController extends MobileControllerBase {
     static values = {
         authCardUrl: String
     }
 
-    /**
-     * Initialize controller
-     */
     initialize() {
-        this.isOnline = navigator.onLine;
+        super.initialize();
         this.overlay = null;
-        this._handleConnectionStatusChanged = this.handleConnectionStatusChanged.bind(this);
     }
 
     /**
-     * Connect controller to DOM
+     * Called after base class connect
      */
-    connect() {
+    onConnect() {
         console.log("MobileOfflineOverlayController connected");
         
-        // Listen for connection status changes
-        document.addEventListener('connection-status-changed', this._handleConnectionStatusChanged);
+        // Listen for connection status events for auth card URL
+        this._handleConnectionStatus = this.bindHandler('connectionStatus', this.handleConnectionStatusEvent);
+        document.addEventListener('connection-status-changed', this._handleConnectionStatus);
         
         // Check initial state
-        if (!this.isOnline) {
+        if (!this.online) {
             this.showOverlay();
         }
     }
 
     /**
-     * Handle connection status changes from PWA controller
-     * 
-     * @param {CustomEvent} event Connection status event
+     * Called when connection state changes (from base class)
      */
-    handleConnectionStatusChanged(event) {
-        const wasOnline = this.isOnline;
-        this.isOnline = event.detail.isOnline;
-        
-        // Update auth card URL if provided
+    onConnectionStateChanged(isOnline) {
+        if (!isOnline) {
+            this.showOverlay();
+        } else {
+            this.hideOverlay();
+        }
+    }
+
+    /**
+     * Handle connection status event from PWA controller
+     */
+    handleConnectionStatusEvent(event) {
         if (event.detail.authCardUrl) {
             this.authCardUrlValue = event.detail.authCardUrl;
         }
-        
-        // Show overlay when going offline, hide when coming online
-        if (!this.isOnline && wasOnline) {
-            this.showOverlay();
-        } else if (this.isOnline && !wasOnline) {
-            this.hideOverlay();
-        }
+    }
+
+    /**
+     * Called after base class disconnect
+     */
+    onDisconnect() {
+        document.removeEventListener('connection-status-changed', this._handleConnectionStatus);
+        this.hideOverlay();
+        console.log("MobileOfflineOverlayController disconnected");
     }
 
     /**
@@ -125,21 +118,6 @@ class MobileOfflineOverlayController extends Controller {
         
         // Re-enable page interaction
         document.body.style.overflow = '';
-    }
-
-    /**
-     * Disconnect controller from DOM
-     */
-    disconnect() {
-        // Remove event listener
-        if (this._handleConnectionStatusChanged) {
-            document.removeEventListener('connection-status-changed', this._handleConnectionStatusChanged);
-        }
-        
-        // Remove overlay if present
-        this.hideOverlay();
-        
-        console.log("MobileOfflineOverlayController disconnected");
     }
 }
 

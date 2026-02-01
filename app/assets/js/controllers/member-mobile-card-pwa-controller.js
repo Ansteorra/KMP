@@ -1,113 +1,94 @@
-import { Controller } from "@hotwired/stimulus";
+import MobileControllerBase from "./mobile-controller-base.js";
 
 /**
  * MemberMobileCardPWA Stimulus Controller
  * 
- * Manages Progressive Web App (PWA) functionality for mobile member cards with
- * service worker management, offline capability, and connection monitoring.
- * Provides seamless online/offline experience with automatic cache management.
+ * Manages Progressive Web App (PWA) functionality for mobile member cards.
+ * Extends MobileControllerBase for centralized connection handling.
  * 
  * Features:
- * - Service worker registration and management
+ * - Service worker registration with version management
+ * - SW update detection and user notification
  * - Online/offline status detection and display
  * - URL caching for offline access
- * - Automatic page refresh when online
  * - Visual status indicators with Bootstrap styling
- * - PWA readiness state management
- * - Connection monitoring with periodic refresh
- * 
- * Values:
- * - swUrl: String - Service worker script URL for registration
- * 
- * Targets:
- * - urlCache: Hidden element containing URLs to cache (JSON format)
- * - status: Status display element for online/offline indication
- * - refreshBtn: Button for manual page refresh
- * 
- * Usage:
- * <div data-controller="member-mobile-card-pwa" 
- *      data-member-mobile-card-pwa-sw-url-value="/sw.js">
- *   <script data-member-mobile-card-pwa-target="urlCache" type="application/json">
- *     ["/api/member/123", "/css/app.css"]
- *   </script>
- *   <div data-member-mobile-card-pwa-target="status" class="badge">Status</div>
- *   <button data-member-mobile-card-pwa-target="refreshBtn">Refresh</button>
- * </div>
  */
-class MemberMobileCardPWA extends Controller {
-    static targets = ["urlCache", "status", "refreshBtn"]
-    
-    // Make refreshBtn optional
-    static optionalTargets = ["refreshBtn"]
+class MemberMobileCardPWA extends MobileControllerBase {
+    static targets = ["urlCache", "status", "refreshBtn", "updateToast"]
     
     static values = {
         swUrl: String,
-        authCardUrl: String,  // URL to the auth card page
-        isAuthCard: Boolean   // Whether current page is the auth card
+        authCardUrl: String,
+        isAuthCard: Boolean
     }
 
     initialize() {
-        this.boundUpdateOnlineStatus = this.updateOnlineStatus.bind(this);
-        this.boundManageOnlineStatus = this.manageOnlineStatus.bind(this);
+        super.initialize();
+        this.sw = null;
+        this.swVersion = null;
+        this.updateDismissed = false;
+        this.refreshIntervalId = null;
     }
 
     /**
      * Handle URL cache target connection
-     * Parses JSON cache configuration from DOM element
      */
     urlCacheTargetConnected() {
         this.urlCacheValue = JSON.parse(this.urlCacheTarget.textContent);
     }
 
     /**
-     * Update online/offline status display and service worker communication
-     * Changes visual indicators and manages service worker state
-     * Dispatches custom events for other controllers to respond to offline state
+     * Called when connection state changes (from base class)
      */
-    updateOnlineStatus() {
-        const statusDiv = this.statusTarget;
-        const refreshButton = this.hasRefreshBtnTarget ? this.refreshBtnTarget : null;
-
-        if (navigator.onLine) {
-            statusDiv.textContent = 'Online';
-            statusDiv.classList.remove('bg-danger');
-            statusDiv.classList.add('bg-success');
-            if (refreshButton) {
-                refreshButton.hidden = false;
-            }
-            if (this.sw) {
-                this.sw.active.postMessage({
-                    type: 'ONLINE'
-                });
-            }
-            if (refreshButton) {
-                refreshButton.click();
-            }
-            
-            // Dispatch custom event for online state
-            this.dispatchStatusEvent('online');
-        } else {
-            statusDiv.textContent = 'Offline';
-            statusDiv.classList.remove('bg-success');
-            statusDiv.classList.add('bg-danger');
-            if (refreshButton) {
-                refreshButton.hidden = true;
-            }
-            if (this.sw) {
-                this.sw.active.postMessage({
-                    type: 'OFFLINE'
-                });
-            }
-            
-            // Dispatch custom event for offline state
-            this.dispatchStatusEvent('offline');
+    onConnectionStateChanged(isOnline) {
+        this.updateStatusDisplay(isOnline);
+        this.notifyServiceWorker(isOnline);
+        this.dispatchStatusEvent(isOnline ? 'online' : 'offline');
+        
+        // Auto-refresh when coming back online
+        if (isOnline && this.hasRefreshBtnTarget) {
+            this.refreshBtnTarget.click();
         }
     }
 
     /**
-     * Dispatch connection status event
-     * 
-     * @param {string} status - 'online' or 'offline'
+     * Update the status display badge
+     */
+    updateStatusDisplay(isOnline) {
+        if (!this.hasStatusTarget) return;
+        
+        const statusDiv = this.statusTarget;
+        
+        if (isOnline) {
+            statusDiv.textContent = 'Online';
+            statusDiv.classList.remove('bg-danger');
+            statusDiv.classList.add('bg-success');
+            if (this.hasRefreshBtnTarget) {
+                this.refreshBtnTarget.hidden = false;
+            }
+        } else {
+            statusDiv.textContent = 'Offline';
+            statusDiv.classList.remove('bg-success');
+            statusDiv.classList.add('bg-danger');
+            if (this.hasRefreshBtnTarget) {
+                this.refreshBtnTarget.hidden = true;
+            }
+        }
+    }
+
+    /**
+     * Notify service worker of connection state
+     */
+    notifyServiceWorker(isOnline) {
+        if (this.sw && this.sw.active) {
+            this.sw.active.postMessage({
+                type: isOnline ? 'ONLINE' : 'OFFLINE'
+            });
+        }
+    }
+
+    /**
+     * Dispatch connection status event for other controllers
      */
     dispatchStatusEvent(status) {
         const event = new CustomEvent('connection-status-changed', {
@@ -123,118 +104,198 @@ class MemberMobileCardPWA extends Controller {
     }
 
     /**
-     * Initialize online status monitoring and service worker registration
-     * Sets up event listeners and registers service worker with cache URLs
+     * Handle service worker messages (e.g., SW_UPDATED)
      */
-    manageOnlineStatus() {
-        this.updateOnlineStatus();
-        window.addEventListener('online', this.boundUpdateOnlineStatus);
-        window.addEventListener('offline', this.boundUpdateOnlineStatus);
+    handleSwMessage(event) {
+        if (!event.data) return;
         
-        // Register service worker with a slight delay to ensure all controllers are connected
-        setTimeout(() => {
-            navigator.serviceWorker.register(this.swUrlValue)
-                .then(registration => {
-                    this.sw = registration;
-                    
-                    // Wait for service worker to be active
-                    const waitForActive = () => {
-                        if (registration.active) {
-                            registration.active.postMessage({
-                                type: 'CACHE_URLS',
-                                payload: this.urlCacheValue
-                            });
-                            
-                            // Dispatch custom event to notify profile controller PWA is ready
-                            const event = new CustomEvent('pwa-ready', { bubbles: true });
-                            this.element.dispatchEvent(event);
-                        } else if (registration.installing) {
-                            registration.installing.addEventListener('statechange', (e) => {
-                                if (e.target.state === 'activated') {
-                                    waitForActive();
-                                }
-                            });
-                        } else if (registration.waiting) {
-                            // Attach statechange listener to avoid synchronous recursion
-                            registration.waiting.addEventListener('statechange', (e) => {
-                                if (e.target.state === 'activated') {
-                                    waitForActive();
-                                }
-                            });
-                            // Also set a timeout fallback in case state doesn't change
-                            setTimeout(waitForActive, 100);
-                        } else {
-                            setTimeout(waitForActive, 100);
-                        }
-                    };
-                    
-                    waitForActive();
-                }, error => {
-                    console.error('Service Worker registration failed:', error);
-                });
-        }, 100);
+        switch (event.data.type) {
+            case 'SW_UPDATED':
+                console.log('[PWA] Service worker updated to version:', event.data.version);
+                this.swVersion = event.data.version;
+                if (!this.updateDismissed) {
+                    this.showUpdateToast();
+                }
+                break;
+        }
     }
 
     /**
-     * Refresh page if online connection is available
-     * Used for periodic updates to ensure fresh content
+     * Show update available toast
+     */
+    showUpdateToast() {
+        // Create toast if target doesn't exist
+        if (!this.hasUpdateToastTarget) {
+            this.createUpdateToast();
+        }
+        
+        if (this.hasUpdateToastTarget) {
+            this.updateToastTarget.hidden = false;
+            
+            // Auto-dismiss after 10 seconds
+            setTimeout(() => {
+                if (this.hasUpdateToastTarget) {
+                    this.updateToastTarget.hidden = true;
+                    this.updateDismissed = true;
+                }
+            }, 10000);
+        }
+    }
+
+    /**
+     * Create update toast element
+     */
+    createUpdateToast() {
+        const toast = document.createElement('div');
+        toast.className = 'mobile-update-toast alert alert-info alert-dismissible fade show position-fixed bottom-0 start-50 translate-middle-x mb-3';
+        toast.style.zIndex = '9999';
+        toast.setAttribute('data-member-mobile-card-pwa-target', 'updateToast');
+        toast.innerHTML = `
+            <i class="bi bi-arrow-repeat me-2"></i>
+            Update available - tap to refresh
+            <button type="button" class="btn-close" data-action="click->member-mobile-card-pwa#dismissUpdate"></button>
+        `;
+        toast.addEventListener('click', (e) => {
+            if (!e.target.classList.contains('btn-close')) {
+                this.applyUpdate();
+            }
+        });
+        this.element.appendChild(toast);
+    }
+
+    /**
+     * Apply the service worker update
+     */
+    applyUpdate() {
+        window.location.reload();
+    }
+
+    /**
+     * Dismiss update toast
+     */
+    dismissUpdate(event) {
+        event.stopPropagation();
+        if (this.hasUpdateToastTarget) {
+            this.updateToastTarget.hidden = true;
+        }
+        this.updateDismissed = true;
+    }
+
+    /**
+     * Register service worker and set up message handling
+     */
+    async registerServiceWorker() {
+        try {
+            const registration = await navigator.serviceWorker.register(this.swUrlValue);
+            this.sw = registration;
+            
+            // Listen for messages from service worker
+            navigator.serviceWorker.addEventListener('message', this.bindHandler('swMessage', this.handleSwMessage));
+            
+            // Wait for service worker to be active
+            await this.waitForActive(registration);
+            
+            // Send URLs to cache
+            if (this.urlCacheValue && registration.active) {
+                registration.active.postMessage({
+                    type: 'CACHE_URLS',
+                    payload: this.urlCacheValue
+                });
+            }
+            
+            // Dispatch PWA ready event
+            const event = new CustomEvent('pwa-ready', { bubbles: true });
+            this.element.dispatchEvent(event);
+            
+            console.log('[PWA] Service worker registered successfully');
+        } catch (error) {
+            console.error('[PWA] Service worker registration failed:', error);
+            // Still dispatch ready event so app works without SW
+            const event = new CustomEvent('pwa-ready', { bubbles: true });
+            this.element.dispatchEvent(event);
+        }
+    }
+
+    /**
+     * Wait for service worker to become active
+     */
+    waitForActive(registration) {
+        return new Promise((resolve) => {
+            if (registration.active) {
+                resolve();
+                return;
+            }
+            
+            const worker = registration.installing || registration.waiting;
+            if (worker) {
+                worker.addEventListener('statechange', function handler(e) {
+                    if (e.target.state === 'activated') {
+                        worker.removeEventListener('statechange', handler);
+                        resolve();
+                    }
+                });
+            } else {
+                // Fallback - resolve after short delay
+                setTimeout(resolve, 100);
+            }
+        });
+    }
+
+    /**
+     * Refresh page if online
      */
     refreshPageIfOnline() {
-        if (navigator.onLine) {
+        if (this.online) {
             window.location.reload();
         }
     }
 
     /**
-     * Connect controller to DOM
-     * Initializes service worker support and sets up periodic refresh
-     * Falls back to basic online detection if Service Workers not available
+     * Connect controller - called after base class connect
      */
-    connect() {
+    onConnect() {
+        // Initialize status display
+        this.updateStatusDisplay(this.online);
+        this.dispatchStatusEvent(this.online ? 'online' : 'offline');
+        
         if ('serviceWorker' in navigator) {
-            // Start PWA initialization immediately or on DOMContentLoaded/load
+            // Register service worker
             if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', this.boundManageOnlineStatus, { once: true });
+                document.addEventListener('DOMContentLoaded', () => this.registerServiceWorker(), { once: true });
             } else {
-                // readyState is 'interactive' or 'complete', safe to initialize
-                this.manageOnlineStatus();
+                this.registerServiceWorker();
             }
         } else {
-            // Service Workers not available (likely HTTP on IP address)
-            // Fall back to basic online/offline detection without PWA features
-            console.warn('Service Workers not available - PWA features disabled. Access via localhost or HTTPS for full functionality.');
-            this.updateOnlineStatus();
-            window.addEventListener('online', this.boundUpdateOnlineStatus);
-            window.addEventListener('offline', this.boundUpdateOnlineStatus);
-            
-            // Dispatch PWA ready event even without Service Workers
-            // This allows the profile controller to load data
+            console.warn('[PWA] Service Workers not available');
+            // Dispatch ready event even without SW
             setTimeout(() => {
                 const event = new CustomEvent('pwa-ready', { bubbles: true });
                 this.element.dispatchEvent(event);
             }, 100);
         }
-    this.refreshIntervalId = setInterval(() => this.refreshPageIfOnline(), 300000);
+        
+        // Set up periodic refresh (5 minutes)
+        this.refreshIntervalId = setInterval(() => this.refreshPageIfOnline(), 300000);
     }
 
     /**
-     * Disconnect controller from DOM
-     * Cleans up event listeners and intervals to prevent memory leaks
+     * Disconnect controller - called after base class disconnect
      */
-    disconnect() {
-        // Clear refresh interval
+    onDisconnect() {
         if (this.refreshIntervalId) {
             clearInterval(this.refreshIntervalId);
             this.refreshIntervalId = null;
         }
         
-        // Remove online/offline listeners
-        window.removeEventListener('online', this.boundUpdateOnlineStatus);
-        window.removeEventListener('offline', this.boundUpdateOnlineStatus);
+        // Remove SW message listener
+        const swMessageHandler = this.getHandler('swMessage');
+        if (swMessageHandler) {
+            navigator.serviceWorker?.removeEventListener('message', swMessageHandler);
+        }
     }
-
 }
+
 if (!window.Controllers) {
-    window.Controllers = {}
+    window.Controllers = {};
 }
 window.Controllers["member-mobile-card-pwa"] = MemberMobileCardPWA;

@@ -36,9 +36,20 @@ getJsFilesFromDir('./plugins', skipList, '-controller.js', (filename) => {
     files.push(filename);
 });
 
+// Also include service files
+const serviceFiles = [];
+getJsFilesFromDir('./assets/js/services', skipList, '-service.js', (filename) => {
+    serviceFiles.push(filename);
+});
+
 console.log('Files to mix:', files);
+console.log('Service files:', serviceFiles);
+
+// Combine controllers and services
+const allJsFiles = [...files, ...serviceFiles];
+
 mix.setPublicPath('./webroot')
-    .js(files, 'webroot/js/controllers.js')
+    .js(allJsFiles, 'webroot/js/controllers.js')
     .js('assets/js/index.js', 'webroot/js')
     .extract(['bootstrap', 'popper.js', '@hotwired/turbo', '@hotwired/stimulus', '@hotwired/stimulus-webpack-helpers'], 'webroot/js/core.js')
     .webpackConfig({
