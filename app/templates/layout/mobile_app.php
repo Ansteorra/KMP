@@ -296,6 +296,12 @@ if ($currentUser && $currentUser->mobile_card_token) {
     $currentAction = $this->request->getParam('action');
     $currentPlugin = $this->request->getParam('plugin');
     $isAuthCard = ($currentController === 'Members' && $currentAction === 'viewMobileCard' && $currentPlugin === null);
+    
+    // My RSVPs also works offline (uses cached data)
+    $isMyRsvps = ($currentController === 'GatheringAttendances' && $currentAction === 'myRsvps' && $currentPlugin === null);
+    
+    // Pages that don't need the offline overlay
+    $skipOfflineOverlay = $isAuthCard || $isMyRsvps;
 
     $authCardUrl = ['controller' => 'Members', 'action' => 'viewMobileCard', 'plugin' => null];
     if ($currentUser && $currentUser->mobile_card_token) {
@@ -303,14 +309,14 @@ if ($currentUser && $currentUser->mobile_card_token) {
     }
     $authCardUrlBuilt = $this->Url->build($authCardUrl);
     ?>
-    <div data-controller="member-mobile-card-pwa<?= isset($cardUrl) ? ' member-mobile-card-profile' : '' ?><?= !$isAuthCard ? ' mobile-offline-overlay' : '' ?>" <?php if (isset($cardUrl)): ?>
+    <div data-controller="member-mobile-card-pwa<?= isset($cardUrl) ? ' member-mobile-card-profile' : '' ?><?= !$skipOfflineOverlay ? ' mobile-offline-overlay' : '' ?>" <?php if (isset($cardUrl)): ?>
         data-member-mobile-card-profile-url-value="<?= h($cardUrl) ?>"
         data-member-mobile-card-profile-pwa-ready-value="false" <?php endif; ?>
         data-member-mobile-card-pwa-sw-url-value="<?= $swUrl ?>"
         data-member-mobile-card-pwa-pwa-ready-value="false"
         data-member-mobile-card-pwa-auth-card-url-value="<?= h($authCardUrlBuilt) ?>"
         data-member-mobile-card-pwa-is-auth-card-value="<?= $isAuthCard ? 'true' : 'false' ?>"
-        <?php if (!$isAuthCard): ?>
+        <?php if (!$skipOfflineOverlay): ?>
         data-mobile-offline-overlay-auth-card-url-value="<?= h($authCardUrlBuilt) ?>"
         <?php endif; ?>>
         <div class="row">
