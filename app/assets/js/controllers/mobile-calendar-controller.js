@@ -561,18 +561,12 @@ class MobileCalendarController extends MobileControllerBase {
     renderActivities(activities) {
         if (!activities || activities.length === 0) return '';
         
-        const activityLinks = activities.map(activity => {
-            return `<a href="/gathering-activities/view/${activity.id}" 
-                       class="mobile-activity-link text-decoration-none"
-                       title="${this.escapeHtml(activity.name)}">
-                       ${this.escapeHtml(activity.name)}
-                    </a>`;
-        }).join(', ');
+        const activityNames = activities.map(a => this.escapeHtml(a.name)).join(', ');
         
         return `
             <div class="mobile-event-activities">
                 <i class="bi bi-list-check"></i>
-                <span class="activities-list">${activityLinks}</span>
+                <span>${activityNames}</span>
             </div>
         `;
     }
