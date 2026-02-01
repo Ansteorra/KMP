@@ -19,9 +19,23 @@ $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
 ?>
 
 <div class="my-rsvps-container mx-3 mt-3" data-controller="my-rsvps">
+    <!-- Offline Indicator -->
+    <div class="offline-banner alert alert-warning d-flex align-items-center mb-3" 
+         data-my-rsvps-target="offlineBanner" hidden>
+        <i class="bi bi-wifi-off me-2"></i>
+        <span>You're offline. Showing cached RSVPs.</span>
+    </div>
+    
+    <!-- Offline RSVP List (rendered from cache when offline) -->
+    <div class="offline-rsvp-list" data-my-rsvps-target="offlineList" hidden>
+        <!-- Will be populated by JavaScript from cache -->
+    </div>
+    
+    <!-- Online Content (server-rendered) -->
+    <div class="online-content" data-my-rsvps-target="onlineContent">
     <?php if ($attendances->isEmpty()): ?>
         <!-- Empty State -->
-        <div class="card">
+        <div class="card" data-my-rsvps-target="emptyState">
             <div class="card-body text-center py-5">
                 <i class="bi bi-calendar-check text-muted d-block fs-1 mb-3"></i>
                 <h3 class="h5 mb-2">No Upcoming RSVPs</h3>
@@ -117,6 +131,7 @@ $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
             <?php endforeach; ?>
         </div>
     <?php endif; ?>
+    </div><!-- /.online-content -->
     
     <!-- Quick Link to Calendar -->
     <div class="text-center mt-4 mb-5">

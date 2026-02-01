@@ -23,7 +23,8 @@ const PRECACHE_URLS = [
     '/css/app.css',
     '/js/core.js',
     '/js/index.js',
-    '/js/controllers.js'
+    '/js/controllers.js',
+    '/gathering-attendances/my-rsvps'
 ];
 
 /**
