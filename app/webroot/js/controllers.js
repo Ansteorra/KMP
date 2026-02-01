@@ -9549,6 +9549,9 @@ class MobileCalendarController extends _mobile_controller_base_js__WEBPACK_IMPOR
   onConnect() {
     console.log("Mobile Events connected");
 
+    // Check for month/year in URL params (for returning from public page)
+    this.restoreFromUrlParams();
+
     // Set up swipe handlers for navigation
     this._handleTouchStart = this.bindHandler('touchStart', this.handleTouchStart);
     this._handleTouchEnd = this.bindHandler('touchEnd', this.handleTouchEnd);
@@ -9573,6 +9576,27 @@ class MobileCalendarController extends _mobile_controller_base_js__WEBPACK_IMPOR
 
     // Load initial data
     this.loadCalendarData();
+  }
+
+  /**
+   * Restore month/year from URL parameters
+   */
+  restoreFromUrlParams() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const month = urlParams.get('month');
+    const year = urlParams.get('year');
+    if (month && year) {
+      const monthNum = parseInt(month, 10);
+      const yearNum = parseInt(year, 10);
+      if (monthNum >= 1 && monthNum <= 12 && yearNum >= 2000 && yearNum <= 2100) {
+        this.currentMonth = monthNum - 1; // Convert to 0-indexed
+        this.currentYear = yearNum;
+
+        // Clean up URL without reloading
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+      }
+    }
   }
 
   /**
@@ -10013,7 +10037,7 @@ class MobileCalendarController extends _mobile_controller_base_js__WEBPACK_IMPOR
                             </div>
                             ${activitiesHtml}
                             ${event.public_page_enabled ? `
-                                <a href="/gatherings/public-landing/${event.public_id}?from=mobile" 
+                                <a href="/gatherings/public-landing/${event.public_id}?from=mobile&month=${this.currentMonth + 1}&year=${this.currentYear}" 
                                    class="btn btn-sm btn-outline-secondary mt-2">
                                     <i class="bi bi-info-circle me-1"></i>View Details
                                 </a>

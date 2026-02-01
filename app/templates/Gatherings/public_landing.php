@@ -721,7 +721,15 @@ body {
 <?php
 // Show mobile back button when coming from mobile app
 $fromMobile = $this->request->getQuery('from') === 'mobile';
-if ($fromMobile): ?>
+if ($fromMobile): 
+    // Build back URL with month/year to restore calendar position
+    $backParams = ['controller' => 'Gatherings', 'action' => 'mobileCalendar'];
+    $month = $this->request->getQuery('month');
+    $year = $this->request->getQuery('year');
+    if ($month && $year) {
+        $backParams['?'] = ['month' => $month, 'year' => $year];
+    }
+?>
 <div class="mobile-back-bar" style="
     position: fixed;
     top: 0;
@@ -734,7 +742,7 @@ if ($fromMobile): ?>
     align-items: center;
     box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 ">
-    <a href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'mobileCalendar']) ?>" 
+    <a href="<?= $this->Url->build($backParams) ?>" 
        style="
            color: white;
            text-decoration: none;
