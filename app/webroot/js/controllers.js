@@ -8710,20 +8710,23 @@ class MemberMobileCardMenu extends _mobile_controller_base_js__WEBPACK_IMPORTED_
    */
   updateOfflineState() {
     if (!this.hasMenuItemTarget) return;
+
+    // Items that should remain enabled when offline
+    const offlineAllowedLabels = ['Auth Card', 'My RSVPs', 'Calendar', 'Events'];
     this.menuItemTargets.forEach(item => {
       const itemUrl = item.dataset.itemUrl;
       const itemLabel = item.dataset.itemLabel;
 
-      // Check if this is the Auth Card item
-      const isAuthCard = itemLabel === 'Auth Card' || this.authCardUrl && itemUrl && itemUrl.includes('viewMobileCard');
-      if (!this.online && !isAuthCard) {
-        // Offline and not auth card - disable
+      // Check if this item should be allowed offline
+      const isAllowedOffline = offlineAllowedLabels.includes(itemLabel) || this.authCardUrl && itemUrl && itemUrl.includes('viewMobileCard');
+      if (!this.online && !isAllowedOffline) {
+        // Offline and not allowed - disable
         item.classList.add('disabled');
         item.style.opacity = '0.5';
         item.style.pointerEvents = 'none';
         item.setAttribute('aria-disabled', 'true');
       } else {
-        // Online or is auth card - enable
+        // Online or allowed offline - enable
         item.classList.remove('disabled');
         item.style.opacity = '1';
         item.style.pointerEvents = 'auto';
