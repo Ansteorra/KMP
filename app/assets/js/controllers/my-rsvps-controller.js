@@ -5,10 +5,9 @@ import rsvpCacheService from "../services/rsvp-cache-service.js";
  * My RSVPs Controller
  * 
  * Handles RSVP editing using the attendance modal on the My RSVPs page.
- * Supports offline mode by displaying cached RSVPs.
  */
 class MyRsvpsController extends MobileControllerBase {
-    static targets = ["modal", "modalBody", "offlineBanner", "offlineList", "onlineContent", "emptyState"];
+    static targets = ["modal", "modalBody"];
 
     onConnect() {
         this.modal = null;
@@ -19,192 +18,12 @@ class MyRsvpsController extends MobileControllerBase {
             console.warn('[MyRsvps] Failed to init RSVP cache:', err);
         });
         
-        // Ensure correct visibility based on online status
-        if (navigator.onLine) {
-            // Explicitly hide offline elements when online
-            if (this.hasOfflineBannerTarget) this.offlineBannerTarget.hidden = true;
-            if (this.hasOfflineListTarget) this.offlineListTarget.hidden = true;
-            if (this.hasOnlineContentTarget) this.onlineContentTarget.hidden = false;
-        } else {
-            // Show cached content when offline
-            this.updateOfflineState();
-        }
-        
         // Set up modal event listener
         if (this.hasModalTarget) {
             this.modalTarget.addEventListener('hidden.bs.modal', () => {
                 this.onModalHidden();
             });
         }
-    }
-
-    /**
-     * Called when connection state changes
-     */
-    onConnectionStateChanged(isOnline) {
-        this.updateOfflineState();
-    }
-
-    /**
-     * Update UI based on offline status
-     */
-    async updateOfflineState() {
-        const isOnline = navigator.onLine;
-        
-        if (isOnline) {
-            // Online - show server content, hide offline content
-            if (this.hasOfflineBannerTarget) this.offlineBannerTarget.hidden = true;
-            if (this.hasOfflineListTarget) this.offlineListTarget.hidden = true;
-            if (this.hasOnlineContentTarget) this.onlineContentTarget.hidden = false;
-        } else {
-            // Offline - show cached RSVPs
-            if (this.hasOfflineBannerTarget) this.offlineBannerTarget.hidden = false;
-            if (this.hasOnlineContentTarget) this.onlineContentTarget.hidden = true;
-            
-            await this.renderCachedRsvps();
-        }
-    }
-
-    /**
-     * Render cached RSVPs when offline
-     */
-    async renderCachedRsvps() {
-        if (!this.hasOfflineListTarget) return;
-        
-        try {
-            const cachedRsvps = await rsvpCacheService.getAllCachedRsvps();
-            
-            if (cachedRsvps.length === 0) {
-                this.offlineListTarget.innerHTML = `
-                    <div class="card">
-                        <div class="card-body text-center py-5">
-                            <i class="bi bi-cloud-slash text-muted d-block fs-1 mb-3"></i>
-                            <h3 class="h5 mb-2">No Cached RSVPs</h3>
-                            <p class="text-muted mb-0">
-                                Connect to the internet to view and manage your RSVPs.
-                            </p>
-                        </div>
-                    </div>
-                `;
-            } else {
-                // Filter to only future events
-                const now = new Date();
-                now.setHours(0, 0, 0, 0);
-                
-                const futureRsvps = cachedRsvps.filter(rsvp => {
-                    const eventDate = new Date(rsvp.start_date + 'T00:00:00');
-                    return eventDate >= now;
-                }).sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
-                
-                if (futureRsvps.length === 0) {
-                    this.offlineListTarget.innerHTML = `
-                        <div class="card">
-                            <div class="card-body text-center py-5">
-                                <i class="bi bi-calendar-check text-muted d-block fs-1 mb-3"></i>
-                                <h3 class="h5 mb-2">No Upcoming RSVPs</h3>
-                                <p class="text-muted mb-0">
-                                    Your cached RSVPs are all in the past.
-                                </p>
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    this.offlineListTarget.innerHTML = `
-                        <div class="rsvp-list">
-                            ${futureRsvps.map(rsvp => this.renderCachedRsvpCard(rsvp)).join('')}
-                        </div>
-                    `;
-                }
-            }
-            
-            this.offlineListTarget.hidden = false;
-            
-        } catch (error) {
-            console.error('[MyRsvps] Failed to load cached RSVPs:', error);
-            this.offlineListTarget.innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                    Failed to load cached RSVPs.
-                </div>
-            `;
-            this.offlineListTarget.hidden = false;
-        }
-    }
-
-    /**
-     * Render a single cached RSVP card
-     */
-    renderCachedRsvpCard(rsvp) {
-        const eventDate = new Date(rsvp.start_date + 'T00:00:00');
-        const dateStr = eventDate.toLocaleDateString('en-US', {
-            weekday: 'short',
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric'
-        });
-        
-        const timeStr = rsvp.start_time ? this.formatTime(rsvp.start_time) : '';
-        
-        return `
-            <div class="rsvp-card card mb-3">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <div>
-                            <h4 class="rsvp-event-name h6 mb-1">${this.escapeHtml(rsvp.name)}</h4>
-                        </div>
-                        <span class="badge bg-secondary">
-                            <i class="bi bi-cloud-slash me-1"></i>Cached
-                        </span>
-                    </div>
-                    
-                    <div class="rsvp-event-details text-muted small">
-                        <p class="mb-1">
-                            <i class="bi bi-calendar me-2"></i>
-                            ${dateStr}${timeStr ? ` at ${timeStr}` : ''}
-                        </p>
-                        ${rsvp.location ? `
-                            <p class="mb-1">
-                                <i class="bi bi-geo-alt me-2"></i>
-                                ${this.escapeHtml(rsvp.location)}
-                            </p>
-                        ` : ''}
-                        ${rsvp.branch ? `
-                            <p class="mb-1">
-                                <i class="bi bi-building me-2"></i>
-                                ${this.escapeHtml(rsvp.branch)}
-                            </p>
-                        ` : ''}
-                    </div>
-                    
-                    <div class="mt-2 text-muted small">
-                        <i class="bi bi-info-circle me-1"></i>
-                        Connect to internet to edit this RSVP.
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    /**
-     * Format time string
-     */
-    formatTime(timeStr) {
-        if (!timeStr) return '';
-        const [hours, minutes] = timeStr.split(':');
-        const h = parseInt(hours, 10);
-        const suffix = h >= 12 ? 'PM' : 'AM';
-        const displayHour = h === 0 ? 12 : h > 12 ? h - 12 : h;
-        return `${displayHour}:${minutes} ${suffix}`;
-    }
-
-    /**
-     * Escape HTML
-     */
-    escapeHtml(str) {
-        if (!str) return '';
-        const div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
     }
 
     /**
