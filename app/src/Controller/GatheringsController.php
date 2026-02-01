@@ -2043,6 +2043,7 @@ class GatheringsController extends AppController
                 'Gatherings.end_date',
                 'Gatherings.location',
                 'Gatherings.cancelled_at',
+                'Gatherings.public_page_enabled',
             ])
             ->contain([
                 'Branches' => ['fields' => ['id', 'name']],
@@ -2090,6 +2091,7 @@ class GatheringsController extends AppController
                 'is_cancelled' => $gathering->cancelled_at !== null,
                 'is_multi_day' => $startLocal->format('Y-m-d') !== $endLocal->format('Y-m-d'),
                 'branch' => $gathering->branch ? $gathering->branch->name : null,
+                'public_page_enabled' => (bool)$gathering->public_page_enabled,
                 'type' => $gathering->gathering_type ? [
                     'name' => $gathering->gathering_type->name,
                     'color' => $gathering->gathering_type->color,
