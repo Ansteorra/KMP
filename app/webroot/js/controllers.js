@@ -9771,11 +9771,11 @@ class MobileCalendarController extends _mobile_controller_base_js__WEBPACK_IMPOR
       if (event.branch) {
         branches.set(event.branch, event.branch);
       }
-      // Collect activity types from gathering_activities
-      if (event.gathering_activities && Array.isArray(event.gathering_activities)) {
-        event.gathering_activities.forEach(ga => {
-          if (ga.activity?.name) {
-            activities.set(ga.activity.name, ga.activity);
+      // Collect activity types from activities array
+      if (event.activities && Array.isArray(event.activities)) {
+        event.activities.forEach(activity => {
+          if (activity?.name) {
+            activities.set(activity.name, activity);
           }
         });
       }
@@ -9870,7 +9870,7 @@ class MobileCalendarController extends _mobile_controller_base_js__WEBPACK_IMPOR
 
       // Activity filter - check if event has the selected activity
       if (this.filters.activity) {
-        const hasActivity = event.gathering_activities?.some(ga => ga.activity?.name === this.filters.activity);
+        const hasActivity = event.activities?.some(activity => activity?.name === this.filters.activity);
         if (!hasActivity) {
           return false;
         }
