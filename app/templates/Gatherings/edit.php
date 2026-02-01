@@ -5,7 +5,10 @@
  * @var \App\Model\Entity\Gathering $gathering
  * @var \App\Model\Entity\Branch[] $branches
  * @var \App\Model\Entity\GatheringType[] $gatheringTypes
+ * @var bool $lockBranch Whether the branch field should be locked (non-editable)
  */
+
+$lockBranch = $lockBranch ?? false;
 ?>
 <?php
 $this->extend("/layout/TwitterBootstrap/dashboard");
@@ -35,10 +38,17 @@ $this->KMP->endBlock();
             <div class="col-md-6 mb-3">
                 <?= $this->Form->control('branch_id', [
                     'options' => $branches,
-                    'empty' => __('-- Select Branch --'),
+                    'empty' => $lockBranch ? false : __('-- Select Branch --'),
                     'required' => true,
-                    'class' => 'form-select'
+                    'class' => 'form-select',
+                    'disabled' => $lockBranch
                 ]) ?>
+                <?php if ($lockBranch): ?>
+                    <?= $this->Form->hidden('branch_id', ['value' => $gathering->branch_id]) ?>
+                    <small class="form-text text-muted">
+                        <?= __('Branch cannot be changed based on your permissions.') ?>
+                    </small>
+                <?php endif; ?>
             </div>
             <div class="col-md-6 mb-3">
                 <?= $this->Form->control('gathering_type_id', [

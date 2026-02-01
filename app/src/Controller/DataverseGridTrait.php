@@ -48,6 +48,9 @@ trait DataverseGridTrait
      *       Locked filters will not show remove (×) buttons and their values cannot be
      *       cleared via query string parameters. Useful for embedded grids where context
      *       filters (e.g., member_id) must always be applied.
+     *   - enableBulkSelection (bool): Whether row selection checkboxes are shown (default: false)
+     *   - bulkActions (array): Array of bulk action button configurations when enableBulkSelection is true.
+     *       Each action is an array with keys: label, icon, modalTarget, permission.
      *
      * NOTE: Authorization scope must be applied to baseQuery BEFORE calling this method.
      * Use `$baseQuery = $this->Authorization->applyScope($baseQuery, 'index');` in your
@@ -75,6 +78,8 @@ trait DataverseGridTrait
         $showViewTabs = $config['showViewTabs'] ?? true;
         $enableColumnPicker = $config['enableColumnPicker'] ?? true;
         $lockedFilters = $config['lockedFilters'] ?? [];
+        $enableBulkSelection = $config['enableBulkSelection'] ?? false;
+        $bulkActions = $config['bulkActions'] ?? [];
 
         // Load column metadata
         $columnsMetadata = $gridColumnsClass::getColumns();
@@ -736,7 +741,9 @@ trait DataverseGridTrait
             showFilterPills: $showFilterPills,
             showViewTabs: $showViewTabs,
             enableColumnPicker: $enableColumnPicker,
-            lockedFilters: $lockedFilters
+            lockedFilters: $lockedFilters,
+            enableBulkSelection: $enableBulkSelection,
+            bulkActions: $bulkActions
         );
 
         // Return all results
@@ -814,7 +821,9 @@ trait DataverseGridTrait
         bool $showFilterPills,
         bool $showViewTabs,
         bool $enableColumnPicker,
-        array $lockedFilters = []
+        array $lockedFilters = [],
+        bool $enableBulkSelection = false,
+        array $bulkActions = []
     ): array {
         // Format views based on whether we're using system or saved views
         $formattedViews = [];
@@ -964,6 +973,8 @@ trait DataverseGridTrait
                 'showViewTabs' => $showViewTabs,
                 'enableColumnPicker' => $enableColumnPicker,
                 'lockedFilters' => $lockedFilters,
+                'enableBulkSelection' => $enableBulkSelection,
+                'bulkActions' => $bulkActions,
             ],
             'dateRangeFilterColumns' => $dateRangeFilterColumns,
         ];

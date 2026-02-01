@@ -6,6 +6,7 @@
 
         <?php
         echo $this->Form->hidden('ids', ['value' => [], 'data-awards-rec-bulk-edit-target' => 'bulkIds']);
+        $cancelledGatheringIds = $cancelledGatheringIds ?? [];
         ?>
         <div style="margin:0 !important;" class="form-group text pb-3"><label class="form-label"
                 for="member-sca-name">Bulk Recommendations</label>
@@ -39,6 +40,7 @@
             'value' => "",
             'data-awards-rec-bulk-edit-target' => 'planToGiveGathering',
             'container' => ['data-awards-rec-bulk-edit-target' => 'planToGiveBlock'],
+            'disabled' => $cancelledGatheringIds,
         ]);
         echo $this->Form->control(
             'given',

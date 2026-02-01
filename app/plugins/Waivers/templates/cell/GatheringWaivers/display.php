@@ -16,12 +16,50 @@
  * @var int $totalWaiverCount Total number of waivers uploaded
  * @var int $declinedWaiverCount Number of declined waivers
  * @var bool $waiverCollectionClosed Whether waiver collection is closed for this gathering
- * @var \Waivers\Model\Entity\GatheringWaiverClosure|null $waiverClosure Closure details (if closed)
+ * @var bool $isReadyToClose Whether gathering is marked ready to close
+ * @var \Waivers\Model\Entity\GatheringWaiverClosure|null $waiverClosure Closure details (if exists)
  * @var bool $canCloseWaivers Whether current user can close waivers
+ * @var bool $canEditGathering Whether current user can edit the gathering
  */
 
 $user = $this->getRequest()->getAttribute('identity');
+$isCancelled = $gathering->cancelled_at !== null;
 ?>
+
+<?php if ($isCancelled): ?>
+<div class="gathering-waivers p-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5><?= __('Waivers') ?></h5>
+    </div>
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <strong><?= __('Gathering Cancelled') ?></strong>
+        <p class="mb-0 mt-2">
+            <?= __('This gathering has been cancelled. Waivers are not required for cancelled gatherings.') ?>
+        </p>
+        <?php if (!empty($gathering->cancellation_reason)): ?>
+        <hr>
+        <small><strong><?= __('Reason:') ?></strong> <?= h($gathering->cancellation_reason) ?></small>
+        <?php endif; ?>
+    </div>
+    <?php if ($totalWaiverCount > 0): ?>
+    <div class="alert alert-secondary">
+        <i class="bi bi-info-circle"></i>
+        <?= __('There are {0} waiver(s) on file from before this gathering was cancelled.', $totalWaiverCount) ?>
+        <?= $this->Html->link(
+            __('View Waivers'),
+            [
+                'plugin' => 'Waivers',
+                'controller' => 'GatheringWaivers',
+                'action' => 'index',
+                '?' => ['gathering_id' => $gathering->id]
+            ],
+            ['class' => 'btn btn-sm btn-outline-secondary ms-2']
+        ) ?>
+    </div>
+    <?php endif; ?>
+</div>
+<?php else: ?>
 
 <div class="gathering-waivers p-3" data-controller="waivers-waiver-attestation">
     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -61,6 +99,39 @@ $user = $this->getRequest()->getAttribute('identity');
                         'class' => 'btn btn-sm btn-outline-danger me-2',
                         'escape' => false,
                         'confirm' => __('Closing waivers will prevent new uploads or attestations. Continue?'),
+                    ]
+                ) ?>
+            <?php endif; ?>
+            <?php elseif ($canEditGathering && !$waiverCollectionClosed && !$isEmpty): ?>
+            <?php // Show Ready to Close buttons for editors/stewards ?>
+            <?php if ($isReadyToClose): ?>
+            <?= $this->Form->postLink(
+                    '<i class="bi bi-x-circle"></i> ' . __('Unmark Ready'),
+                    [
+                        'plugin' => 'Waivers',
+                        'controller' => 'GatheringWaivers',
+                        'action' => 'unmarkReadyToClose',
+                        $gathering->id
+                    ],
+                    [
+                        'class' => 'btn btn-sm btn-outline-secondary me-2',
+                        'escape' => false,
+                        'confirm' => __('Remove the ready-to-close status from this gathering?'),
+                    ]
+                ) ?>
+            <?php else: ?>
+            <?= $this->Form->postLink(
+                    '<i class="bi bi-check2-square"></i> ' . __('Mark Ready to Close'),
+                    [
+                        'plugin' => 'Waivers',
+                        'controller' => 'GatheringWaivers',
+                        'action' => 'markReadyToClose',
+                        $gathering->id
+                    ],
+                    [
+                        'class' => 'btn btn-sm btn-outline-primary me-2',
+                        'escape' => false,
+                        'confirm' => __('Mark this gathering as ready for the waiver secretary to review and close?'),
                     ]
                 ) ?>
             <?php endif; ?>
@@ -105,6 +176,16 @@ $user = $this->getRequest()->getAttribute('identity');
         <?php if ($waiverClosure): ?>
         <div class="small text-muted mt-1">
             <?= __('Closed {0} by {1}', $this->Timezone->format($waiverClosure->closed_at, $gathering, 'M d, Y g:i A'), h($waiverClosure->closed_by_member?->sca_name ?? __('Unknown'))) ?>
+        </div>
+        <?php endif; ?>
+    </div>
+    <?php elseif ($isReadyToClose): ?>
+    <div class="alert alert-info">
+        <i class="bi bi-check2-square"></i>
+        <?= __('This gathering is marked as ready for waiver secretary review.') ?>
+        <?php if ($waiverClosure): ?>
+        <div class="small text-muted mt-1">
+            <?= __('Marked ready {0} by {1}', $this->Timezone->format($waiverClosure->ready_to_close_at, $gathering, 'M d, Y g:i A'), h($waiverClosure->ready_to_close_by_member?->sca_name ?? __('Unknown'))) ?>
         </div>
         <?php endif; ?>
     </div>
@@ -266,3 +347,4 @@ $user = $this->getRequest()->getAttribute('identity');
     <!-- Include Attestation Modal (must be inside controller scope) -->
     <?= $this->element('Waivers.waiver_attestation_modal') ?>
 </div>
+<?php endif; ?>

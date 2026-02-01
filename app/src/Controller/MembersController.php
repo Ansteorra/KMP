@@ -783,7 +783,7 @@ class MembersController extends AppController
         ];
         $publicInfo = $member->publicData();
 
-        // Get available gatherings for attendance registration (started or future only)
+        // Get available gatherings for attendance registration (started or future only, not cancelled)
         $now = new DateTime();
 
         // Get IDs of gatherings the member is already registered for
@@ -792,12 +792,15 @@ class MembersController extends AppController
             $registeredGatheringIds[] = $attendance->gathering_id;
         }
 
-        // Build query for available gatherings, excluding already registered ones
+        // Build query for available gatherings, excluding already registered ones and cancelled gatherings
         $query = $this->Members->GatheringAttendances->Gatherings
             ->find('list', keyField: 'id', valueField: function ($entity) {
                 return $entity->name . ' (' . $entity->start_date->format('M d, Y') . ')';
             })
-            ->where(['Gatherings.end_date >=' => $now])
+            ->where([
+                'Gatherings.end_date >=' => $now,
+                'Gatherings.cancelled_at IS' => null,
+            ])
             ->contain(['Branches', 'GatheringTypes'])
             ->orderBy(['Gatherings.start_date' => 'ASC']);
 
@@ -1669,6 +1672,28 @@ class MembersController extends AppController
         if ($this->request->is('put')) {
             $file = $this->request->getData('member_card');
             if ($file->getSize() > 0) {
+                // Validate file type before saving (security fix)
+                $allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/pjpeg'];
+                $clientMediaType = $file->getClientMediaType();
+                if (!in_array($clientMediaType, $allowedTypes)) {
+                    $this->Flash->error(__('Invalid file type. Only PNG and JPEG images are allowed.'));
+                    return $this->redirect($this->referer());
+                }
+                $ext = strtolower(pathinfo($file->getClientFilename(), PATHINFO_EXTENSION));
+                if (!in_array($ext, ['png', 'jpg', 'jpeg'])) {
+                    $this->Flash->error(__('Invalid file extension. Only .png, .jpg, .jpeg are allowed.'));
+                    return $this->redirect($this->referer());
+                }
+
+                // Server-side content validation using finfo
+                $tempPath = $file->getStream()->getMetadata('uri');
+                $finfo = new \finfo(FILEINFO_MIME_TYPE);
+                $actualMimeType = $finfo->file($tempPath);
+                if (!in_array($actualMimeType, ['image/png', 'image/jpeg'])) {
+                    $this->Flash->error(__('File content does not match an allowed image type.'));
+                    return $this->redirect($this->referer());
+                }
+
                 $storageLoc = WWW_ROOT . '../images/uploaded/';
                 $fileName = StaticHelpers::generateToken(10);
                 StaticHelpers::ensureDirectoryExists($storageLoc, 0755);
@@ -1708,6 +1733,21 @@ class MembersController extends AppController
         if ($this->request->is('post')) {
             $file = $this->request->getData('member_card');
             if ($file->getSize() > 0) {
+                // Validate file type before saving (security fix)
+                $allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/pjpeg'];
+                $clientMediaType = $file->getClientMediaType();
+                if (!in_array($clientMediaType, $allowedTypes)) {
+                    $this->Flash->error(__('Invalid file type. Only PNG and JPEG images are allowed.'));
+                    $this->set(compact('member'));
+                    return;
+                }
+                $ext = strtolower(pathinfo($file->getClientFilename(), PATHINFO_EXTENSION));
+                if (!in_array($ext, ['png', 'jpg', 'jpeg'])) {
+                    $this->Flash->error(__('Invalid file extension. Only .png, .jpg, .jpeg are allowed.'));
+                    $this->set(compact('member'));
+                    return;
+                }
+
                 $storageLoc = WWW_ROOT . '../images/uploaded/';
                 $fileName = StaticHelpers::generateToken(10);
                 StaticHelpers::ensureDirectoryExists($storageLoc, 0755);
@@ -1915,7 +1955,7 @@ class MembersController extends AppController
                 $parentId = $this->request->getData('parent_id');
                 if ($parentId) {
                     if ($parentId && strlen($parentId) > 0) {
-                        $parent = $this->Members->get($parentId);
+                        $parent = $this->Members->find()->where(['public_id' => $parentId])->first();
                     }
                     if ($parentId == $member->id) {
                         $this->Flash->error('Parent cannot be the same as the member.');

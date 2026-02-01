@@ -1,10 +1,10 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\KMP\GridColumns;
 
 use App\KMP\TimezoneHelper;
+use Cake\ORM\Query\SelectQuery;
 use DateTime;
 use DateTimeZone;
 
@@ -15,7 +15,6 @@ use DateTimeZone;
  */
 class GatheringsGridColumns extends BaseGridColumns
 {
-
     /**
      * Compute key month boundaries in both local and UTC timezones.
      *
@@ -242,6 +241,32 @@ class GatheringsGridColumns extends BaseGridColumns
                 'width' => '170px',
                 'alignment' => 'left',
             ],
+
+            'cancelled_at' => [
+                'key' => 'cancelled_at',
+                'label' => 'Status',
+                'type' => 'badge',
+                'sortable' => true,
+                'filterable' => true,
+                'filterType' => 'dropdown',
+                'filterOptions' => [
+                    ['value' => '', 'label' => 'All'],
+                    ['value' => 'active', 'label' => 'Active'],
+                    ['value' => 'cancelled', 'label' => 'Cancelled'],
+                ],
+                'defaultVisible' => true,
+                'width' => '100px',
+                'alignment' => 'center',
+                'badgeConfig' => [
+                    'nullValue' => ['text' => 'Active', 'class' => 'bg-success'],
+                    'hasValue' => ['text' => 'Cancelled', 'class' => 'bg-danger'],
+                ],
+                'skipAutoFilter' => true,
+                'customFilterHandler' => [
+                    'class' => self::class,
+                    'method' => 'filterByCancelledStatus',
+                ],
+            ],
         ];
     }
 
@@ -253,6 +278,35 @@ class GatheringsGridColumns extends BaseGridColumns
     public static function getSearchableColumns(): array
     {
         return ['name', 'location'];
+    }
+
+    /**
+     * Custom filter handler for cancelled_at status column
+     *
+     * Maps 'active'/'cancelled' filter values to NULL-based conditions:
+     * - 'active' → cancelled_at IS NULL
+     * - 'cancelled' → cancelled_at IS NOT NULL
+     *
+     * @param \Cake\ORM\Query\SelectQuery $query The query to filter
+     * @param mixed $filterValue The filter value ('active' or 'cancelled')
+     * @param array $context Context including tableName, columnKey, columnMeta
+     * @return \Cake\ORM\Query\SelectQuery The filtered query
+     */
+    public static function filterByCancelledStatus(
+        SelectQuery $query,
+        mixed $filterValue,
+        array $context,
+    ): SelectQuery {
+        $tableName = $context['tableName'] ?? 'Gatherings';
+        $field = $tableName . '.cancelled_at';
+
+        if ($filterValue === 'active') {
+            $query->where([$field . ' IS' => null]);
+        } elseif ($filterValue === 'cancelled') {
+            $query->where([$field . ' IS NOT' => null]);
+        }
+
+        return $query;
     }
 
     /**

@@ -44,6 +44,7 @@ $customElementOptions = $customElementOptions ?? [];
             'gridKey' => $gridState['config']['gridKey'],
             'rowActions' => $rowActions,
             'enableColumnPicker' => $gridState['config']['enableColumnPicker'] ?? true,
+            'enableBulkSelection' => $gridState['config']['enableBulkSelection'] ?? false,
         ]) ?>
 
         <!-- Pagination -->

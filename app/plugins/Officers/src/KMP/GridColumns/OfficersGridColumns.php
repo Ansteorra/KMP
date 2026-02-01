@@ -133,6 +133,10 @@ class OfficersGridColumns extends BaseGridColumns
                 'renderField' => 'member.sca_name',
                 'queryField' => 'Members.sca_name',
                 'clickAction' => 'navigate:/members/view/:member_id',
+                'clickActionPermission' => [
+                    'ability' => 'view',
+                    'subjectField' => 'member',
+                ],
                 'description' => 'Assigned member SCA name',
             ],
 
@@ -318,6 +322,7 @@ class OfficersGridColumns extends BaseGridColumns
                 'name' => __('Current'),
                 'description' => __('Active officer assignments'),
                 'canManage' => false,
+                'canFilter' => true,
                 'config' => [
                     'filters' => [
                         ['field' => 'status', 'operator' => 'eq', 'value' => Officer::CURRENT_STATUS],
@@ -330,6 +335,7 @@ class OfficersGridColumns extends BaseGridColumns
                 'name' => __('Upcoming'),
                 'description' => __('Future officer assignments'),
                 'canManage' => false,
+                'canFilter' => true,
                 'config' => [
                     'filters' => [
                         ['field' => 'status', 'operator' => 'eq', 'value' => Officer::UPCOMING_STATUS],
@@ -342,6 +348,7 @@ class OfficersGridColumns extends BaseGridColumns
                 'name' => __('Previous'),
                 'description' => __('Past officer assignments'),
                 'canManage' => false,
+                'canFilter' => true,
                 'config' => [
                     'filters' => [
                         ['field' => 'status', 'operator' => 'in', 'value' => [

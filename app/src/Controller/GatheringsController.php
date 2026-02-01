@@ -99,6 +99,7 @@ class GatheringsController extends AppController
                 'Gatherings.start_date',
                 'Gatherings.end_date',
                 'Gatherings.location',
+                'Gatherings.cancelled_at',
                 'Gatherings.created',
                 'Gatherings.modified',
             ])
@@ -338,6 +339,7 @@ class GatheringsController extends AppController
                 'Gatherings.start_date',
                 'Gatherings.end_date',
                 'Gatherings.location',
+                'Gatherings.cancelled_at',
                 'Gatherings.created',
                 'Gatherings.modified',
             ])
@@ -966,7 +968,7 @@ class GatheringsController extends AppController
      */
     public function edit($id = null)
     {
-        $gathering = $this->Gatherings->get($id);
+        $gathering = $this->Gatherings->get($id, contain: ['Branches']);
         $this->Authorization->authorize($gathering);
 
         if ($this->request->is(['patch', 'post', 'put'])) {
@@ -1017,16 +1019,38 @@ class GatheringsController extends AppController
         $currentUser = $this->Authentication->getIdentity();
         $branchIds = $currentUser->getBranchIdsForAction('edit', $gathering);
 
-        $branchesQuery = $this->Gatherings->Branches->find('list')->orderBy(['name' => 'ASC']);
-        if ($branchIds !== null) {
-            // User has limited access - filter to specific branches
-            $branchesQuery->where(['Branches.id IN' => $branchIds]);
+        // Determine if branch should be locked (non-editable)
+        // Lock branch if:
+        // 1. User has no branch scope (empty array - e.g., stewards with no standard permissions)
+        // 2. User has branch scope but current gathering's branch is not in their scope
+        $lockBranch = false;
+        $branches = [];
+
+        if ($branchIds === null) {
+            // Global access - user can edit any branch
+            $branches = $this->Gatherings->Branches->find('list')->orderBy(['name' => 'ASC']);
+            $lockBranch = false;
+        } elseif (empty($branchIds)) {
+            // No branch scope (e.g., steward with no standard permissions)
+            // Lock to current branch
+            $lockBranch = true;
+            $branches = [$gathering->branch_id => $gathering->branch->name ?? 'Current Branch'];
+        } elseif (!in_array($gathering->branch_id, $branchIds)) {
+            // User has branch scope but gathering's branch is not in their scope
+            // Lock to current branch
+            $lockBranch = true;
+            $branches = [$gathering->branch_id => $gathering->branch->name ?? 'Current Branch'];
+        } else {
+            // User has branch scope and gathering's branch is in their scope
+            $branches = $this->Gatherings->Branches->find('list')
+                ->where(['Branches.id IN' => $branchIds])
+                ->orderBy(['name' => 'ASC']);
+            $lockBranch = false;
         }
-        $branches = $branchesQuery;
 
         $gatheringTypes = $this->Gatherings->GatheringTypes->find('list')->orderBy(['name' => 'ASC']);
 
-        $this->set(compact('gathering', 'branches', 'gatheringTypes'));
+        $this->set(compact('gathering', 'branches', 'gatheringTypes', 'lockBranch'));
     }
 
     /**
@@ -1074,6 +1098,97 @@ class GatheringsController extends AppController
         }
 
         return $this->redirect(['action' => 'index']);
+    }
+
+    /**
+     * Cancel method
+     *
+     * Marks a gathering as cancelled without deleting it.
+     * Preserves all associated data (waivers, attendances, etc.)
+     *
+     * @param string|null $id Gathering id.
+     * @return \Cake\Http\Response|null Redirects to view.
+     * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
+     */
+    public function cancel($id = null)
+    {
+        $this->request->allowMethod(['post']);
+        $gathering = $this->Gatherings->get($id);
+        $this->Authorization->authorize($gathering, 'edit');
+
+        $gatheringName = $gathering->name;
+
+        // Check if already cancelled
+        if ($gathering->cancelled_at !== null) {
+            $this->Flash->warning(__(
+                'The gathering "{0}" is already cancelled.',
+                $gatheringName
+            ));
+            return $this->redirect(['action' => 'view', $gathering->public_id]);
+        }
+
+        // Mark as cancelled
+        $gathering->cancelled_at = \Cake\I18n\DateTime::now();
+        $gathering->cancellation_reason = $this->request->getData('cancellation_reason');
+
+        if ($this->Gatherings->save($gathering)) {
+            $this->Flash->success(__(
+                'The gathering "{0}" has been cancelled.',
+                $gatheringName
+            ));
+        } else {
+            $this->Flash->error(__(
+                'The gathering "{0}" could not be cancelled. Please try again.',
+                $gatheringName
+            ));
+        }
+
+        return $this->redirect(['action' => 'view', $gathering->public_id]);
+    }
+
+    /**
+     * Uncancel method
+     *
+     * Removes the cancelled status from a gathering.
+     *
+     * @param string|null $id Gathering id.
+     * @return \Cake\Http\Response|null Redirects to view.
+     * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
+     */
+    public function uncancel($id = null)
+    {
+        $this->request->allowMethod(['post']);
+        $gathering = $this->Gatherings->get($id);
+        $this->Authorization->authorize($gathering, 'edit');
+
+        $gatheringName = $gathering->name;
+
+        // Check if not cancelled
+        if ($gathering->cancelled_at === null) {
+            $this->Flash->warning(__(
+                'The gathering "{0}" is not cancelled.',
+                $gatheringName
+            ));
+            return $this->redirect(['action' => 'view', $gathering->public_id]);
+        }
+
+        // Remove cancellation
+        $gathering->cancelled_at = null;
+        $gathering->cancellation_reason = null;
+
+        if ($this->Gatherings->save($gathering)) {
+            $this->Flash->success(__(
+                'The gathering "{0}" has been restored.',
+                $gatheringName
+            ));
+        } else {
+            $this->Flash->error(__(
+                'The gathering "{0}" could not be restored. Please try again.',
+                $gatheringName
+            ));
+        }
+
+        return $this->redirect(['action' => 'view', $gathering->public_id]);
     }
 
     /**

@@ -4,12 +4,15 @@
  * @var \App\View\AppView $this
  * @var array $statistics
  * @var array $gatheringsMissingWaivers
+ * @var array $gatheringsReadyToClose
  * @var array $branchesWithIssues
  * @var array $recentActivity
  * @var array $waiverTypesSummary
  * @var array|null $searchResults
  * @var string|null $searchTerm
  */
+
+$gatheringsReadyToClose = $gatheringsReadyToClose ?? [];
 ?>
 <?php
 $this->extend("/layout/TwitterBootstrap/dashboard");
@@ -36,7 +39,7 @@ $this->KMP->endBlock();
         <div class="col-md-12">
             <h4><i class="bi bi-bar-chart-fill"></i> <?= __('Key Statistics') ?></h4>
         </div>
-        <div class="col-lg-4 col-md-4 col-sm-6 mb-3">
+        <div class="col-lg-3 col-md-3 col-sm-6 mb-3">
             <div class="card text-white bg-success">
                 <div class="card-body text-center">
                     <h2 class="display-4"><?= number_format($statistics['recentWaivers']) ?></h2>
@@ -44,7 +47,15 @@ $this->KMP->endBlock();
                 </div>
             </div>
         </div>
-        <div class="col-lg-4 col-md-4 col-sm-6 mb-3">
+        <div class="col-lg-3 col-md-3 col-sm-6 mb-3">
+            <div class="card text-white bg-info">
+                <div class="card-body text-center">
+                    <h2 class="display-4"><?= number_format(count($gatheringsReadyToClose)) ?></h2>
+                    <p class="card-text"><?= __('Ready to Close') ?></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-3 col-sm-6 mb-3">
             <div class="card text-white bg-warning text-dark">
                 <div class="card-body text-center">
                     <h2 class="display-4"><?= number_format($statistics['gatheringsNeedingCount']) ?></h2>
@@ -52,7 +63,7 @@ $this->KMP->endBlock();
                 </div>
             </div>
         </div>
-        <div class="col-lg-4 col-md-4 col-sm-6 mb-3">
+        <div class="col-lg-3 col-md-3 col-sm-6 mb-3">
             <div class="card text-white bg-danger">
                 <div class="card-body text-center">
                     <h2 class="display-4"><?= number_format($statistics['gatheringsMissingCount']) ?></h2>
@@ -61,6 +72,104 @@ $this->KMP->endBlock();
             </div>
         </div>
     </div>
+
+    <!-- Gatherings Ready to Close -->
+    <?php if (!empty($gatheringsReadyToClose)): ?>
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card border-info">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-check2-square"></i>
+                            <?= __('Ready for Review & Close') ?>
+                            <span class="badge bg-light text-dark"><?= count($gatheringsReadyToClose) ?></span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-3">
+                            <i class="bi bi-info-circle"></i>
+                            <?= __('These gatherings have been marked as ready to close by event staff. Review the waivers and close each gathering when satisfied.') ?>
+                        </p>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th><?= __('Gathering') ?></th>
+                                        <th><?= __('Branch') ?></th>
+                                        <th><?= __('Event Dates') ?></th>
+                                        <th><?= __('Marked Ready') ?></th>
+                                        <th><?= __('Waiver Status') ?></th>
+                                        <th class="actions"><?= __('Actions') ?></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($gatheringsReadyToClose as $gathering): ?>
+                                        <tr>
+                                            <td>
+                                                <strong><?= h($gathering->name) ?></strong>
+                                            </td>
+                                            <td><?= h($gathering->branch->name) ?></td>
+                                            <td>
+                                                <?php
+                                                $startFormatted = $this->Timezone->format($gathering->start_date, $gathering, 'M d, Y');
+                                                $endFormatted = $gathering->end_date ? $this->Timezone->format($gathering->end_date, $gathering, 'M d, Y') : $startFormatted;
+                                                ?>
+                                                <?= h($startFormatted) ?>
+                                                <?php if ($startFormatted !== $endFormatted): ?>
+                                                    <br><small class="text-muted">to <?= h($endFormatted) ?></small>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td>
+                                                <?= $this->Timezone->format($gathering->ready_to_close_at, $gathering, 'M d, Y g:i A') ?>
+                                                <br>
+                                                <small class="text-muted">
+                                                    <?= __('by {0}', h($gathering->ready_to_close_by_member?->sca_name ?? __('Unknown'))) ?>
+                                                </small>
+                                            </td>
+                                            <td>
+                                                <?php if ($gathering->is_waiver_complete): ?>
+                                                    <span class="badge bg-success">
+                                                        <i class="bi bi-check-circle-fill"></i> <?= __('Complete') ?>
+                                                    </span>
+                                                <?php else: ?>
+                                                    <span class="badge bg-warning text-dark">
+                                                        <?= $gathering->missing_waiver_count ?> <?= __('Missing') ?>
+                                                    </span>
+                                                    <?php if (!empty($gathering->missing_waiver_names)): ?>
+                                                        <ul class="mb-0 mt-1 small">
+                                                            <?php foreach ($gathering->missing_waiver_names as $waiverName): ?>
+                                                                <li><?= h($waiverName) ?></li>
+                                                            <?php endforeach; ?>
+                                                        </ul>
+                                                    <?php endif; ?>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="actions">
+                                                <?= $this->Html->link(
+                                                    '<i class="bi bi-binoculars-fill"></i> ' . __('Review'),
+                                                    ['controller' => 'Gatherings', 'action' => 'view', $gathering->public_id, 'plugin' => null, '?' => ['tab' => 'gathering-waivers']],
+                                                    ['class' => 'btn btn-sm btn-info', 'escape' => false]
+                                                ) ?>
+                                                <?= $this->Form->postLink(
+                                                    '<i class="bi bi-lock-fill"></i> ' . __('Close'),
+                                                    ['action' => 'close', $gathering->id],
+                                                    [
+                                                        'class' => 'btn btn-sm btn-success',
+                                                        'escape' => false,
+                                                        'confirm' => __('Close waiver collection for "{0}"? This will prevent further uploads.', h($gathering->name)),
+                                                    ]
+                                                ) ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <!-- Gatherings with Missing Waivers (Past Due - >ComplianceDays after event ended) -->
     <?php if (!empty($gatheringsMissingWaivers)): ?>

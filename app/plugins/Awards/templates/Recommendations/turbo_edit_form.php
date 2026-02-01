@@ -122,6 +122,7 @@
                 $selectedGatherings[] = $gathering->id;
             }
         }
+        $cancelledGatheringIds = $cancelledGatheringIds ?? [];
         echo $this->Form->control('gatherings._ids', [
             'label' => 'Gatherings/Events They May Attend:',
             "type" => "select",
@@ -129,6 +130,7 @@
             'options' => $gatheringList,
             'value' => $selectedGatherings,
             'id' => 'recommendation__gathering_ids',
+            'disabled' => $cancelledGatheringIds,
         ]);
         echo $this->Form->control('contact_number', [
             'type' => 'tel',
@@ -160,6 +162,16 @@
                 'container' => ['data-awards-rec-edit-target' => 'closeReasonBlock'],
             ]
         );
+        
+        // Show warning if assigned gathering is cancelled
+        $assignedGatheringCancelled = $assignedGatheringCancelled ?? false;
+        if ($assignedGatheringCancelled): ?>
+        <div class="alert alert-danger mb-2" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <strong><?= __('Warning:') ?></strong> <?= __('This recommendation is scheduled for a cancelled gathering. Please reschedule to a different gathering.') ?>
+        </div>
+        <?php endif;
+        
         echo $this->Form->control('gathering_id', [
             'label' => 'Plan to Give At',
             "type" => "select",
@@ -168,6 +180,7 @@
             'value' => $recommendation->gathering_id,
             'data-awards-rec-edit-target' => 'planToGiveGathering',
             'container' => ['data-awards-rec-edit-target' => 'planToGiveBlock'],
+            'disabled' => $cancelledGatheringIds,
         ]);
 
         // Format given date for HTML5 date input (requires Y-m-d format)

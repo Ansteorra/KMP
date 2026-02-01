@@ -69,7 +69,18 @@ class BranchesController extends AppController
         $baseQuery = $this->Branches->find()
             ->contain(['Parent']);
         $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
-        // Get system views from GridColumns
+
+        // Support filtering to show all descendants of a branch
+        $parentId = $this->request->getQuery('parent_id');
+        if ($parentId !== null) {
+            // Get the parent branch to use its lft/rght values for descendant query
+            $parentBranch = $this->Branches->get($parentId);
+            // Find all descendants using Tree behavior's nested set (lft/rght)
+            $baseQuery = $baseQuery->where([
+                'Branches.lft >' => $parentBranch->lft,
+                'Branches.rght <' => $parentBranch->rght,
+            ]);
+        }
 
         // Use unified trait for grid processing
         // Sort by 'lft' (left value) to maintain hierarchical tree order
@@ -79,7 +90,7 @@ class BranchesController extends AppController
             'baseQuery' => $baseQuery,
             'tableName' => 'Branches',
             'defaultSort' => ['Branches.lft' => 'asc'],
-            'defaultPageSize' => 25,
+            'defaultPageSize' => 100,
             'showAllTab' => false,
             'canAddViews' => false,
             'canFilter' => true,
@@ -116,17 +127,22 @@ class BranchesController extends AppController
         // Determine which template to render based on Turbo-Frame header
         $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
 
+        // Support custom frame IDs for embedded grids
+        $frameId = $this->request->getQuery('frame_id', 'branches-grid');
+        $tableFrameId = $frameId . '-table';
+
         // Override data for grid rendering
         $this->set('data', $branches);
 
-        if ($turboFrame === 'branches-grid-table') {
+        if ($turboFrame === $tableFrameId) {
             // Inner frame request - render table data only
-            $this->set('tableFrameId', 'branches-grid-table');
+            $this->set('tableFrameId', $tableFrameId);
             $this->viewBuilder()->disableAutoLayout();
             $this->viewBuilder()->setTemplate('../element/dv_grid_table');
         } else {
             // Outer frame request (or no frame) - render toolbar + table frame
-            $this->set('frameId', 'branches-grid');
+            $this->set('frameId', $frameId);
+            $this->set('tableFrameId', $tableFrameId);
             $this->viewBuilder()->disableAutoLayout();
             $this->viewBuilder()->setTemplate('../element/dv_grid_content');
         }
@@ -143,21 +159,34 @@ class BranchesController extends AppController
      */
     protected function computeBranchPaths(iterable $branches): void
     {
-        // Build a lookup map of all branches by ID for efficient path computation
+        // Convert to array if needed for multiple passes
+        $branchArray = is_array($branches) ? $branches : iterator_to_array($branches);
+
+        // Build a lookup map of all branches by ID
         $branchMap = [];
-        foreach ($branches as $branch) {
+        foreach ($branchArray as $branch) {
             $branchMap[$branch->id] = $branch;
         }
 
-        // We need to load all parent IDs that aren't in the current page
+        // Build children lookup (which branches are visible children of which parent)
+        $childrenByParent = [];
+        foreach ($branchArray as $branch) {
+            $parentId = $branch->parent_id ?? 0;
+            if (!isset($childrenByParent[$parentId])) {
+                $childrenByParent[$parentId] = [];
+            }
+            $childrenByParent[$parentId][] = $branch->id;
+        }
+
+        // Load missing parent branches for path computation
         $missingParentIds = [];
-        foreach ($branches as $branch) {
+        foreach ($branchArray as $branch) {
             if ($branch->parent_id && !isset($branchMap[$branch->parent_id])) {
                 $missingParentIds[$branch->parent_id] = true;
             }
         }
 
-        // Load missing parents if any
+        // Load missing parents if any (for path computation only)
         if (!empty($missingParentIds)) {
             $parentBranches = $this->Branches->find()
                 ->where(['Branches.id IN' => array_keys($missingParentIds)])
@@ -166,13 +195,12 @@ class BranchesController extends AppController
 
             foreach ($parentBranches as $parent) {
                 $branchMap[$parent->id] = $parent;
-                // Also check if this parent's parent is missing
                 if ($parent->parent_id && !isset($branchMap[$parent->parent_id])) {
                     $missingParentIds[$parent->parent_id] = true;
                 }
             }
 
-            // Recursively load grandparents etc. (max 10 levels to prevent infinite loops)
+            // Recursively load grandparents (max 10 levels)
             for ($i = 0; $i < 10; $i++) {
                 $newMissing = [];
                 foreach ($missingParentIds as $parentId => $v) {
@@ -199,20 +227,46 @@ class BranchesController extends AppController
             }
         }
 
-        // Now compute paths for each branch
-        foreach ($branches as $branch) {
+        // Now compute paths, depth, and tree connectors for each branch
+        foreach ($branchArray as $branch) {
+            // Build path by walking up parent chain
             $pathParts = [$branch->name];
+            $ancestorIds = [$branch->id]; // Track ancestor IDs from current to root
             $currentId = $branch->parent_id;
 
-            // Walk up the parent chain
             while ($currentId && isset($branchMap[$currentId])) {
                 $parent = $branchMap[$currentId];
                 array_unshift($pathParts, $parent->name);
+                array_unshift($ancestorIds, $parent->id);
                 $currentId = $parent->parent_id;
             }
 
-            // Store computed path
+            // Store computed path and depth
             $branch->path = '/' . implode('/', $pathParts);
+            $branch->tree_depth = count($pathParts) - 1; // 0 for root level
+
+            // Build tree_lines array: for each depth level, is there a continuing line?
+            // A line continues if the ancestor at that level is NOT the last sibling
+            $treeLines = [];
+            for ($d = 0; $d < $branch->tree_depth; $d++) {
+                $ancestorId = $ancestorIds[$d] ?? null;
+                if ($ancestorId && isset($branchMap[$ancestorId])) {
+                    $ancestor = $branchMap[$ancestorId];
+                    $ancestorParentId = $ancestor->parent_id ?? 0;
+                    $siblings = $childrenByParent[$ancestorParentId] ?? [];
+                    // Is this ancestor the last among its siblings in the visible set?
+                    $lastSiblingId = end($siblings);
+                    $treeLines[$d] = ($ancestorId !== $lastSiblingId);
+                } else {
+                    $treeLines[$d] = false;
+                }
+            }
+            $branch->tree_lines = $treeLines;
+
+            // Is this branch the last child of its parent in the visible set?
+            $parentId = $branch->parent_id ?? 0;
+            $siblings = $childrenByParent[$parentId] ?? [];
+            $branch->tree_is_last = (end($siblings) === $branch->id);
         }
     }
 

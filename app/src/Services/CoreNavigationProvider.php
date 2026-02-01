@@ -148,9 +148,23 @@ class CoreNavigationProvider
             ],
             [
                 'type' => 'link',
+                'mergePath' => ['Members'],
+                'label' => 'Branches',
+                'order' => 20,
+                'url' => [
+                    'controller' => 'Branches',
+                    'action' => 'index',
+                ],
+                'icon' => 'bi-diagram-3',
+                'activePaths' => [
+                    'Branches/view/*',
+                ],
+            ],
+            [
+                'type' => 'link',
                 'mergePath' => ['Members', 'Members'],
                 'label' => 'Import Exp. Dates',
-                'order' => 30,
+                'order' => 50,
                 'url' => [
                     'controller' => 'Members',
                     'action' => 'importExpirationDates',
@@ -203,20 +217,6 @@ class CoreNavigationProvider
                     'action' => 'index',
                 ],
                 'icon' => 'bi-card-list',
-            ],
-            [
-                'type' => 'link',
-                'mergePath' => ['Config'],
-                'label' => 'Branches',
-                'order' => 0,
-                'url' => [
-                    'controller' => 'Branches',
-                    'action' => 'index',
-                ],
-                'icon' => 'bi-diagram-3',
-                'activePaths' => [
-                    'Branches/view/*',
-                ],
             ],
             [
                 'type' => 'link',

@@ -75,11 +75,15 @@ class AwardsRecommendationBulkEditForm extends Controller {
         const currentSelection = this.planToGiveGatheringTarget.value;
 
         try {
+            // Get CSRF token from meta tag
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+            
             const response = await fetch(this.gatheringsUrlValue, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-Token': csrfToken
                 },
                 body: JSON.stringify({
                     ids: this.bulkIdsValue,
@@ -104,13 +108,19 @@ class AwardsRecommendationBulkEditForm extends Controller {
                     const option = document.createElement('option');
                     option.value = gathering.id;
                     option.textContent = gathering.display_name;
+
+                    // Disable cancelled gatherings
+                    if (gathering.cancelled) {
+                        option.disabled = true;
+                    }
+
                     this.planToGiveGatheringTarget.appendChild(option);
                 });
 
-                // Restore previous selection if it still exists
+                // Restore previous selection if it still exists and is not cancelled
                 if (currentSelection) {
                     const optionExists = Array.from(this.planToGiveGatheringTarget.options).some(
-                        opt => opt.value === currentSelection
+                        opt => opt.value === currentSelection && !opt.disabled
                     );
                     if (optionExists) {
                         this.planToGiveGatheringTarget.value = currentSelection;
@@ -185,9 +195,24 @@ class AwardsRecommendationBulkEditForm extends Controller {
         this.updateGatherings();
     }
 
-    /** Initialize bulk edit controller. */
+    /** Initialize bulk edit controller and set up event listeners. */
     connect() {
+        // Listen for bulk action events from grid-view controller
+        this.boundHandleGridBulkAction = this.handleGridBulkAction.bind(this);
+        document.addEventListener('grid-view:bulk-action', this.boundHandleGridBulkAction);
+    }
 
+    /** Clean up event listeners on disconnect. */
+    disconnect() {
+        if (this.boundHandleGridBulkAction) {
+            document.removeEventListener('grid-view:bulk-action', this.boundHandleGridBulkAction);
+        }
+    }
+
+    /** Handle bulk action event from grid-view controller. */
+    handleGridBulkAction(event) {
+        // Create a synthetic event structure matching outlet-btn pattern
+        this.setId({ detail: event.detail });
     }
 }
 // add to window.Controllers with a name of the controller

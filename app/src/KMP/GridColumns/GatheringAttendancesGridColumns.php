@@ -46,11 +46,7 @@ class GatheringAttendancesGridColumns extends BaseGridColumns
                 'modalTarget' => '#editGatheringAttendanceModal',
                 'dataAttributes' => [
                     'attendance-id' => '{{id}}',
-                    'gathering-name' => '{{gathering.name}}',
-                    'public-note' => '{{public_note}}',
-                    'share-kingdom' => '{{share_with_kingdom}}',
-                    'share-hosting' => '{{share_with_hosting_group}}',
-                    'share-crown' => '{{share_with_crown}}',
+                    'gathering-id' => '{{gathering.id}}',
                 ],
             ],
         ];
@@ -113,6 +109,29 @@ class GatheringAttendancesGridColumns extends BaseGridColumns
                 'alignment' => 'left',
                 'renderField' => 'gathering.gathering_type.name',
                 'queryField' => 'GatheringTypes.name',
+            ],
+
+            'gathering_status' => [
+                'key' => 'gathering_status',
+                'label' => 'Status',
+                'type' => 'custom',
+                'sortable' => true,
+                'filterable' => false,
+                'defaultVisible' => true,
+                'width' => '100px',
+                'alignment' => 'center',
+                'queryField' => 'Gatherings.cancelled_at',
+                'cellRenderer' => function ($value, $row, $view) {
+                    $gathering = $row['gathering'] ?? null;
+                    if (!$gathering) {
+                        return '<span class="text-muted">—</span>';
+                    }
+                    $cancelledAt = $gathering['cancelled_at'] ?? null;
+                    if ($cancelledAt !== null) {
+                        return '<span class="badge bg-danger">' . __('Cancelled') . '</span>';
+                    }
+                    return '<span class="badge bg-success">' . __('Active') . '</span>';
+                },
             ],
 
             'gathering_date' => [

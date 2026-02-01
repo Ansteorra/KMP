@@ -42,8 +42,16 @@ $this->KMP->endBlock();
 ]) ?>
 
 <?php
-// Edit Recommendation Modal - uses existing element with proper Stimulus controller
+// Modals
 echo $this->KMP->startBlock("modals");
+
+// Edit Recommendation Modal - uses existing element with proper Stimulus controller
 echo $this->element('recommendationQuickEditModal', ['modalId' => 'editRecommendationModal']);
+
+// Bulk Edit Modal - only render if user has edit permission
+if ($user->checkCan("edit", "Awards.Recommendations") && isset($rules) && isset($statusList)):
+    echo $this->element('recommendationsBulkEditModal', ['modalId' => 'bulkEditRecommendationModal']);
+endif;
+
 $this->KMP->endBlock();
 ?>

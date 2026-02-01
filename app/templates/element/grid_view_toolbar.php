@@ -34,6 +34,8 @@ $showFilterPills = $gridState['config']['showFilterPills'] ?? true;
 $showViewTabs = $gridState['config']['showViewTabs'] ?? true;
 $enableColumnPicker = $gridState['config']['enableColumnPicker'] ?? true;
 $dateRangeFilterColumns = $gridState['dateRangeFilterColumns'] ?? [];
+$enableBulkSelection = $gridState['config']['enableBulkSelection'] ?? false;
+$bulkActions = $gridState['config']['bulkActions'] ?? [];
 
 // Build searchable columns description from column metadata
 $allColumns = $gridState['columns']['all'] ?? [];
@@ -86,8 +88,29 @@ $searchDescription = !empty($searchableLabels)
         <?php endif; ?>
 
         <!-- Right: Filter Dropdown Button and Export -->
-        <?php if ($canFilter || $canExportCsv): ?>
+        <?php if ($canFilter || $canExportCsv || ($enableBulkSelection && !empty($bulkActions))): ?>
             <div class="d-flex gap-2 align-items-center flex-shrink-0">
+                <!-- Bulk Action Buttons (enabled via JS when rows are selected) -->
+                <?php if ($enableBulkSelection && !empty($bulkActions)): ?>
+                    <?php foreach ($bulkActions as $action): ?>
+                        <button type="button" 
+                            class="btn btn-primary d-flex align-items-center gap-2"
+                            data-bs-toggle="modal"
+                            data-bs-target="<?= h($action['modalTarget'] ?? '') ?>"
+                            data-<?= h($controllerName) ?>-target="bulkActionBtn"
+                            data-action="click-><?= h($controllerName) ?>#triggerBulkAction"
+                            data-bulk-action-key="<?= h($action['key'] ?? 'default') ?>"
+                            disabled
+                            title="<?= h($action['label'] ?? 'Bulk Action') ?>">
+                            <?php if (!empty($action['icon'])): ?>
+                                <i class="bi <?= h($action['icon']) ?>"></i>
+                            <?php endif; ?>
+                            <span><?= h($action['label'] ?? 'Bulk Action') ?></span>
+                            <span class="badge bg-light text-dark" data-<?= h($controllerName) ?>-target="selectionCount" style="display: none;">0</span>
+                        </button>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+
                 <!-- CSV Export Button -->
                 <?php if ($canExportCsv): ?>
                     <button type="button" class="btn btn-outline-primary d-flex align-items-center gap-2"

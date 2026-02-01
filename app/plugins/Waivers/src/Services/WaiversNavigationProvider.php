@@ -120,6 +120,7 @@ class WaiversNavigationProvider
                     "controller" => "GatheringWaivers",
                     "action" => "needingWaivers",
                     "plugin" => "Waivers",
+                    "model" => "Waivers.GatheringWaivers",
                 ],
                 "icon" => "bi-file-earmark-check",
                 "badgeClass" => "bg-danger",

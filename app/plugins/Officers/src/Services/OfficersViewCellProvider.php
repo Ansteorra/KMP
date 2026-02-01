@@ -56,17 +56,17 @@ class OfficersViewCellProvider
         ];
 
         // Branch Required Officers Cell - shows required officers for a branch
-        $cells[] = [
-            'type' => ViewCellRegistry::PLUGIN_TYPE_DETAIL,
-            'label' => 'Officers',
-            'id' => 'branch-required-officers',
-            'order' => 1,
-            'tabBtnBadge' => null,
-            'cell' => 'Officers.BranchRequiredOfficers',
-            'validRoutes' => [
-                ['controller' => 'Branches', 'action' => 'view', 'plugin' => null],
-            ]
-        ];
+        //$cells[] = [
+        //    'type' => ViewCellRegistry::PLUGIN_TYPE_DETAIL,
+        //    'label' => 'Officers',
+        //    'id' => 'branch-required-officers',
+        //    'order' => 1,
+        //    'tabBtnBadge' => null,
+        //    'cell' => 'Officers.BranchRequiredOfficers',
+        //    'validRoutes' => [
+        //        ['controller' => 'Branches', 'action' => 'view', 'plugin' => null],
+        //    ]
+        //];
 
         // Member Officers Cell - shows offices held by a member
         $cells[] = [

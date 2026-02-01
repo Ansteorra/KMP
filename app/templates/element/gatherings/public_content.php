@@ -32,8 +32,14 @@ $endInGatheringTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date
 $isPast = $endInGatheringTz < $nowInGatheringTz;
 $isOngoing = $startInGatheringTz <= $nowInGatheringTz && $endInGatheringTz >= $nowInGatheringTz;
 
-// Check if user can attend (gathering hasn't ended)
+// Check if gathering is cancelled
+$isCancelled = $gathering->is_cancelled ?? false;
+
+// Check if user can attend (gathering hasn't ended and not cancelled)
+// Allow editing existing attendance even if cancelled
 $canAttend = !$isPast && $isAuthenticated;
+$canCreateAttendance = $canAttend && !$isCancelled;
+$canEditAttendance = $canAttend && !empty($userAttendance);
 
 // Calculate duration if not provided (date-only comparison for day count)
 if (!isset($durationDays)) {
@@ -48,8 +54,21 @@ if (!isset($scheduleByDate)) {
 }
 ?>
 
+<?php if ($isCancelled): ?>
+<!-- Cancelled Banner -->
+<div class="alert alert-danger text-center py-4 mb-0" role="alert" style="border-radius: 0; border: none; background: linear-gradient(135deg, #dc3545 0%, #8B0000 100%); color: white;">
+    <h2 class="mb-2">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <?= __('THIS EVENT HAS BEEN CANCELLED') ?>
+    </h2>
+    <?php if (!empty($gathering->cancellation_reason)): ?>
+        <p class="mb-0" style="font-size: 1.1rem;"><?= h($gathering->cancellation_reason) ?></p>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
+
 <!-- Hero Banner with Medieval Aesthetic -->
-<div class="hero-banner fade-in">
+<div class="hero-banner fade-in" <?php if ($isCancelled): ?>style="opacity: 0.7;"<?php endif; ?>>
     <div class="hero-banner-ornament hero-banner-ornament-left" aria-hidden="true">⚜</div>
     <div class="hero-banner-ornament hero-banner-ornament-right" aria-hidden="true">⚜</div>
 
@@ -512,7 +531,7 @@ if (!isset($scheduleByDate)) {
             </p>
 
             <div class="cta-buttons">
-                <?php if ($isAuthenticated && $canAttend): ?>
+                <?php if ($isAuthenticated && ($canCreateAttendance || $canEditAttendance)): ?>
                     <!-- Authenticated user - show Attend/Update button -->
                     <button type="button" class="btn-medieval btn-medieval-cta" data-bs-toggle="modal"
                         data-bs-target="#attendGatheringModal">
@@ -550,7 +569,8 @@ if (!isset($scheduleByDate)) {
 
 <?php
 // Include Attend Gathering Modal for authenticated users
-if ($isAuthenticated && $canAttend):
+// Show modal if user can create new attendance OR edit existing attendance
+if ($isAuthenticated && ($canCreateAttendance || $canEditAttendance)):
     echo $this->element('gatherings/attendGatheringModal', [
         'gathering' => $gathering,
         'userAttendance' => $userAttendance ?? null,

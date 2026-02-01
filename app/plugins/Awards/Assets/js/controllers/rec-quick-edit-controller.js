@@ -129,6 +129,11 @@ class AwardsRecommendationQuickEditForm extends Controller {
                             input.value = gathering.id;
                             input.id = `gathering-${gathering.id}`;
 
+                            // Disable cancelled gatherings
+                            if (gathering.cancelled) {
+                                input.disabled = true;
+                            }
+
                             // Restore checked state if it was previously selected
                             if (selectedValues.includes(gathering.id.toString())) {
                                 input.checked = true;
@@ -138,6 +143,11 @@ class AwardsRecommendationQuickEditForm extends Controller {
                             label.className = 'form-check-label';
                             label.htmlFor = `gathering-${gathering.id}`;
                             label.textContent = gathering.display;
+
+                            // Style cancelled gatherings
+                            if (gathering.cancelled) {
+                                label.classList.add('text-danger');
+                            }
 
                             div.appendChild(input);
                             div.appendChild(label);
@@ -166,6 +176,11 @@ class AwardsRecommendationQuickEditForm extends Controller {
                             const option = document.createElement('option');
                             option.value = gathering.id;
                             option.textContent = gathering.display;
+
+                            // Disable cancelled gatherings (unless currently selected)
+                            if (gathering.cancelled && gathering.id.toString() !== currentValue) {
+                                option.disabled = true;
+                            }
 
                             // Restore selected state if it matches current or initial value
                             if (gathering.id.toString() === currentValue) {

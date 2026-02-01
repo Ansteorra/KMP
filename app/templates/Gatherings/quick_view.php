@@ -16,18 +16,32 @@ use Cake\I18n\Date;
 $today = Date::now();
 $endDate = Date::parse($gathering->end_date->format('Y-m-d'));
 $isPastEvent = $endDate < $today; // Event has ended
+$isCancelled = $gathering->is_cancelled ?? false;
 $showAttendanceControls = isset($canAttend)
-    ? (bool)$canAttend
-    : !$isPastEvent;
+    ? (bool)$canAttend && !$isCancelled
+    : !$isPastEvent && !$isCancelled;
 ?>
 
 <turbo-frame id="gatheringQuickView">
     <div class="gathering-quick-view">
+        <?php if ($isCancelled): ?>
+        <!-- Cancelled Banner -->
+        <div class="alert alert-danger mb-3" role="alert">
+            <h5 class="alert-heading mb-1">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <?= __('EVENT CANCELLED') ?>
+            </h5>
+            <?php if (!empty($gathering->cancellation_reason)): ?>
+                <p class="mb-0 small"><?= h($gathering->cancellation_reason) ?></p>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+
         <!-- Gathering Header -->
         <div class="mb-3">
             <div class="d-flex align-items-start justify-content-between">
                 <div class="flex-grow-1">
-                    <h4 class="mb-1"><?= h($gathering->name) ?></h4>
+                    <h4 class="mb-1 <?= $isCancelled ? 'text-decoration-line-through text-muted' : '' ?>"><?= h($gathering->name) ?></h4>
                     <span class="badge" style="background-color: <?= h($gathering->gathering_type->color) ?>;">
                         <?= h($gathering->gathering_type->name) ?>
                     </span>
@@ -202,16 +216,25 @@ $showAttendanceControls = isset($canAttend)
                     <i class="bi bi-info-circle me-2"></i>
                     <?= __('This gathering has already ended.') ?>
                 </div>
+            <?php elseif ($isCancelled && !$userAttendance): ?>
+                <div class="alert alert-warning" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <?= __('This gathering has been cancelled. New attendance registrations are not accepted.') ?>
+                </div>
             <?php elseif ($userAttendance): ?>
-                <div class="alert alert-success d-flex align-items-center" role="alert">
-                    <i class="bi bi-check-circle-fill me-2"></i>
+                <div class="alert <?= $isCancelled ? 'alert-warning' : 'alert-success' ?> d-flex align-items-center" role="alert">
+                    <i class="bi bi-<?= $isCancelled ? 'exclamation-triangle' : 'check-circle' ?>-fill me-2"></i>
                     <div class="flex-grow-1">
-                        <strong><?= __('You\'re attending this gathering!') ?></strong>
+                        <?php if ($isCancelled): ?>
+                            <strong><?= __('You were registered for this cancelled gathering.') ?></strong>
+                        <?php else: ?>
+                            <strong><?= __('You\'re attending this gathering!') ?></strong>
+                        <?php endif; ?>
                         <?php if (!empty($userAttendance->notes)): ?>
                             <br><small><?= h($userAttendance->notes) ?></small>
                         <?php endif; ?>
                     </div>
-                    <button type="button" class="btn btn-sm btn-outline-success ms-2"
+                    <button type="button" class="btn btn-sm btn-outline-<?= $isCancelled ? 'secondary' : 'success' ?> ms-2"
                         data-action="click->gatherings-calendar#showAttendanceModal"
                         data-attendance-id="<?= $userAttendance->id ?>" data-gathering-id="<?= $gathering->id ?>"
                         data-attendance-action="edit" data-attendance-notes="<?= h($userAttendance->notes ?? '') ?>"

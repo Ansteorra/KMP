@@ -344,12 +344,12 @@ class OfficersController extends AppController
             'showAllTab' => false,
             'canAddViews' => false,
             'canFilter' => true,
-            'canExportCsv' => true,
+            'canExportCsv' => false,
             'showFilterPills' => false,
         ];
         if ($context = 'member') {
             $gridConfig['canExportCsv'] = false;
-            $gridConfig['canFilter'] = false;
+            $gridConfig['canFilter'] = true;
             $gridConfig['lockedFilters'] = ['status'];
             $gridConfig['enableColumnPicker'] = false;
         }

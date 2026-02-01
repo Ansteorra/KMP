@@ -136,6 +136,17 @@
                 'container' => ['data-awards-rec-quick-edit-target' => 'closeReasonBlock'],
             ]
         );
+        
+        // Show warning if assigned gathering is cancelled
+        $assignedGatheringCancelled = $assignedGatheringCancelled ?? false;
+        $cancelledGatheringIds = $cancelledGatheringIds ?? [];
+        if ($assignedGatheringCancelled): ?>
+        <div class="alert alert-danger mb-2" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <strong><?= __('Warning:') ?></strong> <?= __('This recommendation is scheduled for a cancelled gathering. Please reschedule to a different gathering.') ?>
+        </div>
+        <?php endif;
+        
         echo $this->Form->control('gathering_id', [
             'label' => 'Plan to Give At',
             "type" => "select",
@@ -144,6 +155,7 @@
             'value' => $recommendation->gathering_id,
             'data-awards-rec-quick-edit-target' => 'planToGiveGathering',
             'container' => ['data-awards-rec-quick-edit-target' => 'planToGiveBlock'],
+            'disabled' => $cancelledGatheringIds,
         ]);
 
         // Format given date for HTML5 date input (requires Y-m-d format)

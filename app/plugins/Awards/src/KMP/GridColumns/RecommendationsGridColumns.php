@@ -457,6 +457,7 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'alignment' => 'left',
                 'renderField' => 'assigned_gathering.name',
                 'queryField' => 'AssignedGathering.name',
+                'cellRenderer' => [self::class, 'renderAssignedGathering'],
                 'description' => 'Gathering where award is scheduled to be given',
             ],
 
@@ -801,7 +802,7 @@ class RecommendationsGridColumns extends BaseGridColumns
 
         // Query 1: Future gatherings (starting from today)
         $futureGatherings = $gatheringsTable->find()
-            ->select(['id', 'name', 'start_date'])
+            ->select(['id', 'name', 'start_date', 'cancelled_at'])
             ->where(['start_date >=' => $now])
             ->orderBy(['start_date' => 'ASC'])
             ->limit(100)
@@ -845,7 +846,7 @@ class RecommendationsGridColumns extends BaseGridColumns
         //    ->toArray();
         // query 4: Past gatherings with recommendations linked via the recommendation.gathering_id field
         $pastGatheringsWithRecAssigned = $gatheringsTable->find()
-            ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date'])
+            ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date', 'Gatherings.cancelled_at'])
             ->innerJoin(
                 ['Recommendations' => 'awards_recommendations'],
                 ['Recommendations.gathering_id = Gatherings.id']
@@ -915,7 +916,9 @@ class RecommendationsGridColumns extends BaseGridColumns
         $options = [];
         foreach ($allGatherings as $gathering) {
             $dateStr = $gathering->start_date ? $gathering->start_date->toDateString() : '';
-            $label = $gathering->name;
+            $isCancelled = $gathering->cancelled_at !== null;
+            $label = $isCancelled ? '[CANCELLED] ' : '';
+            $label .= $gathering->name;
             if ($dateStr) {
                 $label .= ' (' . $dateStr . ')';
             }
@@ -1013,5 +1016,31 @@ class RecommendationsGridColumns extends BaseGridColumns
         }
 
         return $query;
+    }
+
+    /**
+     * Custom cell renderer for assigned gathering display.
+     *
+     * Shows [CANCELLED] prefix for cancelled gatherings with visual warning styling.
+     *
+     * @param mixed $value The cell value (gathering name)
+     * @param object|array $row The full row data
+     * @param \App\View\AppView $view The view instance
+     * @return string Rendered HTML
+     */
+    public static function renderAssignedGathering($value, $row, $view): string
+    {
+        if (empty($row->assigned_gathering)) {
+            return '';
+        }
+
+        $name = htmlspecialchars($row->assigned_gathering->name ?? '');
+        $isCancelled = !empty($row->assigned_gathering->cancelled_at);
+
+        if ($isCancelled) {
+            return '<span class="text-danger fw-bold">[CANCELLED]</span> ' . $name;
+        }
+
+        return $name;
     }
 }

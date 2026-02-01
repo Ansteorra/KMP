@@ -3,9 +3,134 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: 008ff4cd2a90d2262de14d75776c0e12b1ff3a26 -->
-<!-- LAST_SYNCED_DATE: 2026-01-11 -->
+<!-- LAST_SYNCED_COMMIT: 0962825cb6b937def816a1bdb654612d2d74144e -->
+<!-- LAST_SYNCED_DATE: 2026-01-31 -->
 
+## January 2026
+
+### Gathering Cancellation Management
+
+Cancel and restore gatherings with clear visual indicators across public views and calendars. Cancelled gatherings remain in the system for record-keeping but are clearly marked.
+
+- Cancel gatherings while preserving history
+- Restore previously cancelled gatherings
+- Visual cancelled indicators on public and calendar views
+- Filtering support for cancelled status
+
+📅 January 31, 2026 · `New Feature`
+
+---
+
+### Branch Tree View for All Users
+
+All authenticated members can now view the branch hierarchy with an improved tree-aware display. Branches are accessible to everyone for better organizational visibility.
+
+- Tree-aware branch grid rendering
+- Branches visible to all authenticated users
+- Enhanced branch hierarchy navigation
+- Added Branches to main navigation
+
+📅 January 31, 2026 · `Improvement`
+
+---
+
+### Steward Edit Permissions for Gatherings
+
+Gathering stewards can now edit the gatherings they manage. Branch selection is locked appropriately based on user permissions.
+
+- Stewards have edit access to their gatherings
+- Branch selection locked based on permissions
+- Improved gathering management for event organizers
+
+📅 January 31, 2026 · `Improvement`
+
+---
+
+### Waiver Ready-to-Close Status
+
+Waiver managers can now mark gatherings as "ready to close" for the waiver secretary, streamlining the waiver closure workflow.
+
+- Flag gatherings as ready for waiver closure
+- Waiver secretary dashboard improvements
+- Better waiver lifecycle tracking
+- Streamlined closure workflow
+
+📅 January 31, 2026 · `New Feature`
+
+---
+
+### Bulk Selection for Grid Views
+
+Select multiple items at once in grid views for more efficient batch operations.
+
+- Bulk selection functionality in data grids
+- Works with related controllers
+- Streamlined batch workflows
+
+📅 January 24, 2026 · `Improvement`
+
+---
+
+### Mobile Card Token Generation
+
+Mobile card tokens are now automatically generated when members log in if one doesn't exist, ensuring seamless mobile card access.
+
+- Automatic token generation on login
+- No manual intervention required
+- Improved mobile card reliability
+
+📅 January 16, 2026 · `Improvement`
+
+---
+
+### Configurable Calendar Week Start
+
+The gatherings calendar now supports configurable week start day for different regional preferences.
+
+- Configure which day the calendar week starts
+- Better regional customization
+- Consistent calendar display
+
+📅 January 17, 2026 · `Improvement`
+
+---
+
+### Enhanced Gathering Timezone Handling
+
+Improved timezone handling for multi-day gatherings ensures dates display correctly across calendar views and public pages.
+
+- Better multi-day gathering detection
+- Defensive timezone conversion fallbacks
+- Consistent date display across views
+- Improved calendar date accuracy
+
+📅 January 16, 2026 · `Improvement`
+
+---
+
+### Officer Synchronization
+
+New sync functionality for officers allows bulk synchronization of officer records with authorization checks.
+
+- Sync officers across branches
+- Updated authorization controls
+- Better data consistency
+
+📅 January 15, 2026 · `New Feature`
+
+---
+
+### Gathering Waiver Closure
+
+Close gathering waivers when events are complete, with download authorization controls for completed waiver records.
+
+- Close waivers for completed gatherings
+- Download authorization for gathering waivers
+- Improved waiver lifecycle management
+
+📅 January 14, 2026 · `New Feature`
+
+---
 
 ### Permission Import Tool
 

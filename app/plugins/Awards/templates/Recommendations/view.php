@@ -79,10 +79,26 @@ echo $this->KMP->startBlock("pageTitle") ?>
         if ($recommendation->given != null) :
             // Format as date only (no timezone conversion) since it's stored as midnight UTC
             $given = $recommendation->given->format('F j, Y');
-            echo " at " . h($recommendation->assigned_gathering->name) . "  on " . $given;
+            if ($recommendation->assigned_gathering):
+                $gatheringName = h($recommendation->assigned_gathering->name);
+                $isCancelled = $recommendation->assigned_gathering->cancelled_at !== null;
+                if ($isCancelled) {
+                    echo ' at <span class="text-danger fw-bold">[CANCELLED]</span> ' . $gatheringName . ' on ' . $given;
+                } else {
+                    echo " at " . $gatheringName . " on " . $given;
+                }
+            else:
+                echo " on " . $given;
+            endif;
         endif;
         if ($recommendation->assigned_gathering && $recommendation->given == null):
-            echo "to be given at " . h($recommendation->assigned_gathering->name);
+            $gatheringName = h($recommendation->assigned_gathering->name);
+            $isCancelled = $recommendation->assigned_gathering->cancelled_at !== null;
+            if ($isCancelled) {
+                echo '<div class="alert alert-danger mt-2 mb-0 py-1 px-2"><i class="bi bi-exclamation-triangle-fill"></i> <strong>' . __('Warning:') . '</strong> ' . __('Scheduled for cancelled gathering:') . ' <span class="fw-bold">[CANCELLED]</span> ' . $gatheringName . '. ' . __('Please reschedule.') . '</div>';
+            } else {
+                echo "to be given at " . $gatheringName;
+            }
         endif; ?>
     </td>
 </tr>
@@ -112,8 +128,12 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <th scope="row"><?= __('Suggested Gatherings') ?></th>
     <td>
         <ul>
-            <?php foreach ($recommendation->gatherings as $gathering) : ?>
-                <li><?= $this->Html->link($gathering->name, ['controller' => 'Gatherings', 'action' => 'view', $gathering->public_id, 'plugin' => null]) ?>
+            <?php foreach ($recommendation->gatherings as $gathering) : 
+                $isCancelled = $gathering->cancelled_at !== null;
+            ?>
+                <li>
+                    <?php if ($isCancelled): ?><span class="text-danger fw-bold">[CANCELLED]</span> <?php endif; ?>
+                    <?= $this->Html->link($gathering->name, ['controller' => 'Gatherings', 'action' => 'view', $gathering->public_id, 'plugin' => null], $isCancelled ? ['class' => 'text-danger'] : []) ?>
                     <?php if ($recommendation->gathering_id == $gathering->id) {
                         echo " (Plan to Give)";
                     } ?>

@@ -52,20 +52,26 @@ $today = new DateTime('now', new \DateTimeZone($userTimezone));
                     $isMultiDay = $startInUserTz->format('Y-m-d') !== $endInUserTz->format('Y-m-d');
                     $hasLocation = !empty($gathering->location);
                     $isPast = $endInUserTz < $today;
-                    $bgColor = $gathering->gathering_type->color ?? '#0d6efd';
+                    $isCancelled = $gathering->is_cancelled ?? false;
+                    $bgColor = $isCancelled ? '#6c757d' : ($gathering->gathering_type->color ?? '#0d6efd');
                     ?>
-                    <div class="list-group-item list-group-item-action"
-                        style="border-left: 4px solid <?= h($bgColor) ?>;">
+                    <div class="list-group-item list-group-item-action <?= $isCancelled ? 'bg-light' : '' ?>"
+                        style="border-left: 4px solid <?= h($bgColor) ?>; <?= $isCancelled ? 'opacity: 0.8;' : '' ?>">
                         <div class="row">
                             <div class="col-md-8">
                                 <div class="d-flex w-100 justify-content-between align-items-start">
                                     <h5 class="mb-1">
+                                        <?php if ($isCancelled): ?>
+                                            <span class="badge bg-danger me-2">
+                                                <i class="bi bi-x-circle"></i> CANCELLED
+                                            </span>
+                                        <?php endif; ?>
                                         <?= $this->Html->link(
                                             h($gathering->name),
                                             ['action' => 'view', $gathering->public_id],
-                                            ['class' => 'text-decoration-none']
+                                            ['class' => 'text-decoration-none' . ($isCancelled ? ' text-decoration-line-through text-muted' : '')]
                                         ) ?>
-                                        <?php if ($isAttending): ?>
+                                        <?php if ($isAttending && !$isCancelled): ?>
                                             <span class="badge bg-success ms-2">
                                                 <i class="bi bi-check-circle"></i> Attending
                                             </span>
@@ -138,7 +144,7 @@ $today = new DateTime('now', new \DateTimeZone($userTimezone));
                                         ]
                                     ) ?>
 
-                                    <?php if (!$isPast): ?>
+                                    <?php if (!$isPast && !$isCancelled): ?>
                                         <?php
                                         $attendanceRecord = $isAttending
                                             ? ($gathering->gathering_attendances[0] ?? null)
@@ -154,6 +160,20 @@ $today = new DateTime('now', new \DateTimeZone($userTimezone));
                                             <?php endif; ?>>
                                             <i class="bi bi-calendar-check"></i>
                                             <?= $isAttending ? 'Update' : 'Mark' ?> Attendance
+                                        </button>
+                                    <?php elseif (!$isPast && $isCancelled && $isAttending): ?>
+                                        <?php
+                                        $attendanceRecord = $gathering->gathering_attendances[0] ?? null;
+                                        ?>
+                                        <button type="button"
+                                            class="btn btn-sm btn-outline-secondary"
+                                            data-action="click->gatherings-calendar#showAttendanceModal"
+                                            data-gathering-id="<?= $gathering->id ?>"
+                                            data-attendance-action="edit"
+                                            <?php if ($attendanceRecord): ?>
+                                            data-attendance-id="<?= $attendanceRecord->id ?>"
+                                            <?php endif; ?>>
+                                            <i class="bi bi-pencil"></i> Edit Attendance
                                         </button>
                                     <?php endif; ?>
 
