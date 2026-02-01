@@ -24,7 +24,7 @@ class GatheringAttendancesController extends AppController
         parent::initialize();
         
         // Authorize table-level actions
-        $this->Authorization->authorizeModel('myRsvps', 'mobileRsvp', 'mobileUnrsvp');
+        $this->Authorization->authorizeModel('myRsvps', 'mobileRsvp', 'mobileUnrsvp', 'mobileUpdateRsvp');
     }
 
     /**
@@ -315,6 +315,46 @@ class GatheringAttendancesController extends AppController
         }
         
         return $this->jsonResponse(['success' => false, 'error' => 'Failed to save RSVP'], 500);
+    }
+
+    /**
+     * Mobile update RSVP - Update attendance visibility settings
+     *
+     * @param string|null $id Attendance ID
+     * @return \Cake\Http\Response JSON response
+     */
+    public function mobileUpdateRsvp(?string $id = null)
+    {
+        $this->request->allowMethod(['post', 'patch', 'put']);
+        
+        if (!$id) {
+            return $this->jsonResponse(['success' => false, 'error' => 'Attendance ID required'], 400);
+        }
+        
+        try {
+            $gatheringAttendance = $this->GatheringAttendances->get($id, contain: ['Gatherings']);
+        } catch (\Exception $e) {
+            return $this->jsonResponse(['success' => false, 'error' => 'Attendance not found'], 404);
+        }
+        
+        $this->Authorization->authorize($gatheringAttendance, 'edit');
+        
+        $data = $this->request->getData();
+        
+        // Only allow updating visibility fields
+        $allowedFields = ['share_with_kingdom', 'share_with_hosting_group', 'share_with_crown', 'public_note'];
+        $updateData = array_intersect_key($data, array_flip($allowedFields));
+        
+        $gatheringAttendance = $this->GatheringAttendances->patchEntity($gatheringAttendance, $updateData);
+        
+        if ($this->GatheringAttendances->save($gatheringAttendance)) {
+            return $this->jsonResponse([
+                'success' => true,
+                'message' => 'RSVP updated!'
+            ]);
+        }
+        
+        return $this->jsonResponse(['success' => false, 'error' => 'Failed to update RSVP'], 500);
     }
 
     /**

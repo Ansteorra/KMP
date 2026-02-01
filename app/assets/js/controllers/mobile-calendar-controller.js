@@ -27,7 +27,8 @@ class MobileCalendarController extends MobileControllerBase {
         month: Number,
         dataUrl: String,
         rsvpUrl: String,
-        unrsvpUrl: String
+        unrsvpUrl: String,
+        updateRsvpUrl: String
     }
 
     initialize() {
@@ -729,21 +730,56 @@ class MobileCalendarController extends MobileControllerBase {
     }
 
     /**
-     * Render un-RSVP form for attending event
+     * Render edit RSVP form for attending event
      */
     renderUnrsvpForm(event) {
+        // Get current visibility settings from the event
+        const shareKingdom = event.share_with_kingdom ? 'checked' : '';
+        const shareHost = event.share_with_hosting_group ? 'checked' : '';
+        const shareCrown = event.share_with_crown ? 'checked' : '';
+        const publicNote = event.public_note || '';
+        
         return `
             <div class="rsvp-attending-status alert alert-success mb-3">
                 <i class="bi bi-check-circle-fill me-2"></i>
                 You're registered for this event!
             </div>
             
-            <form class="unrsvp-form" data-action="submit->mobile-calendar#submitUnrsvp">
+            <form class="edit-rsvp-form" data-action="submit->mobile-calendar#submitUpdateRsvp">
                 <input type="hidden" name="attendance_id" value="${event.attendance_id}">
                 
-                <button type="submit" class="btn btn-outline-danger btn-lg w-100">
-                    <i class="bi bi-x-circle me-2"></i>Cancel My RSVP
-                </button>
+                <div class="rsvp-sharing-options mb-3">
+                    <label class="form-label">Share your attendance with:</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="share_with_kingdom" id="edit_share_kingdom" value="1" ${shareKingdom}>
+                        <label class="form-check-label" for="edit_share_kingdom">Kingdom</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="share_with_hosting_group" id="edit_share_host" value="1" ${shareHost}>
+                        <label class="form-check-label" for="edit_share_host">Hosting Group</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="share_with_crown" id="edit_share_crown" value="1" ${shareCrown}>
+                        <label class="form-check-label" for="edit_share_crown">Crown</label>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label" for="edit_public_note">Note (optional)</label>
+                    <textarea class="form-control" name="public_note" id="edit_public_note" rows="2" 
+                              placeholder="Camping, daytripping, etc.">${this.escapeHtml(publicNote)}</textarea>
+                </div>
+                
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg flex-grow-1">
+                        <i class="bi bi-check-circle me-2"></i>Update RSVP
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-lg" 
+                            data-action="click->mobile-calendar#cancelRsvp"
+                            data-attendance-id="${event.attendance_id}">
+                        <i class="bi bi-x-circle"></i>
+                    </button>
+                </div>
             </form>
         `;
     }
@@ -935,6 +971,137 @@ class MobileCalendarController extends MobileControllerBase {
             this.showToast('Network error - please try again', 'danger');
             submitBtn.disabled = false;
             submitBtn.innerHTML = '<i class="bi bi-x-circle me-2"></i>Cancel My RSVP';
+        }
+    }
+
+    /**
+     * Submit update RSVP form (edit visibility settings)
+     */
+    async submitUpdateRsvp(event) {
+        event.preventDefault();
+        
+        const form = event.currentTarget;
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData);
+        
+        // Convert checkbox values
+        data.share_with_kingdom = data.share_with_kingdom === '1';
+        data.share_with_hosting_group = data.share_with_hosting_group === '1';
+        data.share_with_crown = data.share_with_crown === '1';
+        
+        const attendanceId = data.attendance_id;
+        delete data.attendance_id;
+        
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Updating...';
+        
+        if (!this.online) {
+            // Queue for offline sync
+            try {
+                await offlineQueueService.queueAction(
+                    'update-rsvp',
+                    `${this.updateRsvpUrlValue}/${attendanceId}`,
+                    'PATCH',
+                    data,
+                    { eventName: this.currentRsvpEvent?.name }
+                );
+                this.showToast('Update queued - will sync when online', 'warning');
+                this.closeBottomSheet();
+            } catch (error) {
+                this.showToast('Failed to queue update', 'danger');
+            }
+            return;
+        }
+        
+        try {
+            const response = await this.fetchWithRetry(`${this.updateRsvpUrlValue}/${attendanceId}`, {
+                method: 'PATCH',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': this.getCsrfToken()
+                },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                this.showToast('RSVP updated!', 'success');
+                this.closeBottomSheet();
+                this.loadCalendarData();
+            } else {
+                this.showToast(result.error || 'Failed to update RSVP', 'danger');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Update RSVP';
+            }
+        } catch (error) {
+            this.showToast('Network error - please try again', 'danger');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Update RSVP';
+        }
+    }
+
+    /**
+     * Cancel RSVP (from edit form cancel button)
+     */
+    async cancelRsvp(event) {
+        event.preventDefault();
+        
+        const button = event.currentTarget;
+        const attendanceId = button.dataset.attendanceId;
+        
+        button.disabled = true;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        
+        if (!this.online) {
+            try {
+                await offlineQueueService.queueAction(
+                    'unrsvp',
+                    `${this.unrsvpUrlValue}/${attendanceId}`,
+                    'DELETE',
+                    {},
+                    { eventName: this.currentRsvpEvent?.name }
+                );
+                this.showToast('Cancellation queued - will sync when online', 'warning');
+                this.closeBottomSheet();
+                
+                if (this.currentRsvpEvent) {
+                    this.currentRsvpEvent.user_attending = false;
+                    this.currentRsvpEvent.attendance_id = null;
+                    this.renderCalendar();
+                }
+            } catch (error) {
+                this.showToast('Failed to queue cancellation', 'danger');
+                button.disabled = false;
+                button.innerHTML = '<i class="bi bi-x-circle"></i>';
+            }
+            return;
+        }
+        
+        try {
+            const response = await this.fetchWithRetry(`${this.unrsvpUrlValue}/${attendanceId}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-Token': this.getCsrfToken()
+                }
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                this.showToast('RSVP cancelled', 'success');
+                this.closeBottomSheet();
+                this.loadCalendarData();
+            } else {
+                this.showToast(result.error || 'Failed to cancel RSVP', 'danger');
+                button.disabled = false;
+                button.innerHTML = '<i class="bi bi-x-circle"></i>';
+            }
+        } catch (error) {
+            this.showToast('Network error - please try again', 'danger');
+            button.disabled = false;
+            button.innerHTML = '<i class="bi bi-x-circle"></i>';
         }
     }
 

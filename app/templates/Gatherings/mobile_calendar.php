@@ -18,6 +18,7 @@ $this->set('mobileHeaderColor', '#198754'); // Green for calendar
 
 $rsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'action' => 'mobileRsvp']);
 $unrsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'action' => 'mobileUnrsvp']);
+$updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'action' => 'mobileUpdateRsvp']);
 ?>
 
 <div class="mobile-calendar-container" 
@@ -27,6 +28,7 @@ $unrsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'action'
      data-mobile-calendar-data-url-value="<?= $this->Url->build(['action' => 'mobileCalendarData']) ?>"
      data-mobile-calendar-rsvp-url-value="<?= h($rsvpUrl) ?>"
      data-mobile-calendar-unrsvp-url-value="<?= h($unrsvpUrl) ?>"
+     data-mobile-calendar-update-rsvp-url-value="<?= h($updateRsvpUrl) ?>"
      role="application"
      aria-label="Calendar - Swipe left or right to change months">
     

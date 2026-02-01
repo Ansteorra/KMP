@@ -37,4 +37,10 @@ class GatheringAttendancesTablePolicy extends BasePolicy
         // Any authenticated user can cancel their own RSVP
         return true;
     }
+
+    public function canMobileUpdateRsvp(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    {
+        // Any authenticated user can update their own RSVP
+        return true;
+    }
 }

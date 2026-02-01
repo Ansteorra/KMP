@@ -2097,6 +2097,18 @@ class GatheringsController extends AppController
                 'attendance_id' => !empty($gathering->gathering_attendances) 
                     ? $gathering->gathering_attendances[0]->id 
                     : null,
+                'share_with_kingdom' => !empty($gathering->gathering_attendances) 
+                    ? $gathering->gathering_attendances[0]->share_with_kingdom 
+                    : false,
+                'share_with_hosting_group' => !empty($gathering->gathering_attendances) 
+                    ? $gathering->gathering_attendances[0]->share_with_hosting_group 
+                    : false,
+                'share_with_crown' => !empty($gathering->gathering_attendances) 
+                    ? $gathering->gathering_attendances[0]->share_with_crown 
+                    : false,
+                'public_note' => !empty($gathering->gathering_attendances) 
+                    ? $gathering->gathering_attendances[0]->public_note 
+                    : null,
             ];
         }
 
