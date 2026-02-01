@@ -10310,7 +10310,8 @@ class MobileCalendarController extends _mobile_controller_base_js__WEBPACK_IMPOR
       const response = await this.fetchWithRetry(this.rsvpUrlValue, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': this.getCsrfToken()
         },
         body: JSON.stringify(data)
       });
@@ -10364,7 +10365,10 @@ class MobileCalendarController extends _mobile_controller_base_js__WEBPACK_IMPOR
     }
     try {
       const response = await this.fetchWithRetry(`${this.unrsvpUrlValue}/${attendanceId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: {
+          'X-CSRF-Token': this.getCsrfToken()
+        }
       });
       const result = await response.json();
       if (result.success) {
@@ -10381,6 +10385,22 @@ class MobileCalendarController extends _mobile_controller_base_js__WEBPACK_IMPOR
       submitBtn.disabled = false;
       submitBtn.innerHTML = '<i class="bi bi-x-circle me-2"></i>Cancel My RSVP';
     }
+  }
+
+  /**
+   * Get CSRF token from meta tag
+   */
+  getCsrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) {
+      return meta.getAttribute('content');
+    }
+    // Fallback to csrfToken meta name (alternative format)
+    const metaAlt = document.querySelector('meta[name="csrfToken"]');
+    if (metaAlt) {
+      return metaAlt.getAttribute('content');
+    }
+    return '';
   }
 
   /**
