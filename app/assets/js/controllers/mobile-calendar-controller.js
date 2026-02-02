@@ -692,8 +692,14 @@ class MobileCalendarController extends MobileControllerBase {
             
             return `
                 <div class="${cardClasses.join(' ')}">
+                    ${event.is_cancelled ? `
+                        <div class="mobile-event-cancelled-banner">
+                            <i class="bi bi-x-circle-fill me-2"></i>CANCELLED
+                        </div>
+                    ` : ''}
                     <div class="mobile-event-header">
                         <div class="mobile-event-info">
+                            ${event.type ? `<span class="mobile-event-type-badge mb-1" style="${typeStyle}">${this.escapeHtml(event.type.name)}</span>` : ''}
                             <a href="/gatherings/view/${event.public_id}" 
                                class="mobile-event-name ${event.is_cancelled ? 'cancelled' : ''} text-decoration-none">
                                 ${this.escapeHtml(event.name)}
@@ -715,7 +721,6 @@ class MobileCalendarController extends MobileControllerBase {
                             ` : ''}
                         </div>
                         <div class="mobile-event-actions">
-                            ${event.type ? `<span class="mobile-event-type-badge" style="${typeStyle}">${this.escapeHtml(event.type.name)}</span>` : ''}
                             ${showEditButton ? `
                                 <button type="button" 
                                         class="${rsvpBtnClass}"

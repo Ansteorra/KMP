@@ -328,11 +328,27 @@ $updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'act
 }
 
 .mobile-event-card.cancelled {
-    opacity: 0.6;
+    opacity: 0.8;
+    border-left-color: var(--mobile-danger, #dc3545) !important;
 }
 
 .mobile-event-card.attending {
     border-left: 5px solid var(--mobile-success, #1e6f50);
+}
+
+/* Cancelled Event Banner */
+.mobile-event-cancelled-banner {
+    background: linear-gradient(180deg, #dc3545, #a71d2a);
+    color: white;
+    padding: 8px 12px;
+    font-weight: 700;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-family: var(--font-display, 'Cinzel', serif);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .mobile-event-header {
