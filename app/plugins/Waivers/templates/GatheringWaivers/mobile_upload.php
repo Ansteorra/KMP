@@ -12,6 +12,55 @@
  */
 ?>
 
+<style>
+/* iOS Safari fix for fixed-bottom navigation */
+.wizard-navigation-mobile.fixed-bottom {
+    /* Use sticky positioning as fallback for iOS Safari */
+    position: -webkit-sticky;
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1030;
+    /* Safe area inset for iOS devices with home indicator */
+    padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
+}
+
+/* For iOS Safari, we need to ensure the parent container allows sticky to work */
+.mobile-waiver-wizard {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 200px);
+    min-height: calc(100dvh - 200px); /* Dynamic viewport height for iOS */
+}
+
+.wizard-container-mobile {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    /* Add padding at bottom to prevent content being hidden behind nav */
+    padding-bottom: 80px;
+}
+
+/* Ensure body doesn't have overflow issues on iOS */
+@supports (-webkit-touch-callout: none) {
+    /* iOS-specific styles */
+    .wizard-navigation-mobile.fixed-bottom {
+        position: fixed;
+        bottom: 0;
+        /* Transform hack to force GPU layer and fix iOS Safari rendering */
+        transform: translateZ(0);
+        -webkit-transform: translateZ(0);
+    }
+    
+    body.viewMobileCard {
+        /* Prevent rubber-banding that can cause fixed elements to move */
+        overscroll-behavior: none;
+        -webkit-overflow-scrolling: touch;
+    }
+}
+</style>
+
 <!-- Waiver Upload Wizard (Mobile Optimized) -->
 <div class="card cardbox mx-3">
     <div class="card-body">

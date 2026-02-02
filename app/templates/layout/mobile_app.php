@@ -85,8 +85,18 @@ if ($currentUser && $currentUser->mobile_card_token) {
             display: none;
         }
 
+        /* iOS Safari viewport fixes */
+        html, body {
+            height: 100%;
+            height: 100dvh; /* Dynamic viewport height for iOS */
+        }
+        
         .viewMobileCard {
             background-color: <?= h($mobileHeaderColor) ?>;
+            min-height: 100%;
+            min-height: 100dvh;
+            /* Prevent iOS rubber-banding issues with fixed elements */
+            overscroll-behavior: none;
         }
 
         .cardbox {
