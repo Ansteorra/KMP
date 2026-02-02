@@ -36,6 +36,16 @@ class MemberMobileCardPWA extends MobileControllerBase {
     urlCacheTargetConnected() {
         this.urlCacheValue = JSON.parse(this.urlCacheTarget.textContent);
     }
+    
+    /**
+     * Handle status target connection - ensures indicator is displayed correctly
+     * This fires when the target element is connected to the DOM, which handles
+     * Turbo page restoration where targets might connect after onConnect runs
+     */
+    statusTargetConnected() {
+        // Always update display when status target connects
+        this.updateStatusDisplay(navigator.onLine);
+    }
 
     /**
      * Called when connection state changes (from base class)
@@ -52,24 +62,24 @@ class MemberMobileCardPWA extends MobileControllerBase {
     }
 
     /**
-     * Update the status display badge
+     * Update the status display indicator (simple circle)
      */
     updateStatusDisplay(isOnline) {
         if (!this.hasStatusTarget) return;
         
-        const statusDiv = this.statusTarget;
+        const statusEl = this.statusTarget;
         
         if (isOnline) {
-            statusDiv.textContent = 'Online';
-            statusDiv.classList.remove('bg-danger');
-            statusDiv.classList.add('bg-success');
+            statusEl.title = 'Online';
+            statusEl.classList.remove('bg-danger');
+            statusEl.classList.add('bg-success');
             if (this.hasRefreshBtnTarget) {
                 this.refreshBtnTarget.hidden = false;
             }
         } else {
-            statusDiv.textContent = 'Offline';
-            statusDiv.classList.remove('bg-success');
-            statusDiv.classList.add('bg-danger');
+            statusEl.title = 'Offline';
+            statusEl.classList.remove('bg-success');
+            statusEl.classList.add('bg-danger');
             if (this.hasRefreshBtnTarget) {
                 this.refreshBtnTarget.hidden = true;
             }

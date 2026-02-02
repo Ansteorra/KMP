@@ -1,21 +1,23 @@
 /**
- * KMP Service Worker v2.0.0
+ * KMP Service Worker v2.1.0
  * 
  * Features:
  * - Versioned cache with migration support
  * - Network-first with cache fallback strategy
  * - Client notification on updates
  * - Graceful migration from v1.x caches
+ * - Bootstrap Icons precached for offline use
  */
 
-const SW_VERSION = '2.0.0';
+const SW_VERSION = '2.1.0';
 const CACHE_NAME = `kmp-mobile-v${SW_VERSION}`;
 
 // Old cache names to migrate from
 const OLD_CACHE_NAMES = [
     'offline-cache-activity-card',
     'kmp-mobile-v1.0.0',
-    'kmp-mobile-v1.1.0'
+    'kmp-mobile-v1.1.0',
+    'kmp-mobile-v2.0.0'
 ];
 
 // Critical assets to precache on install
@@ -23,7 +25,11 @@ const PRECACHE_URLS = [
     '/css/app.css',
     '/js/core.js',
     '/js/index.js',
-    '/js/controllers.js'
+    '/js/controllers.js',
+    // Bootstrap Icons for offline use
+    '/bootstrap_u_i/font/bootstrap-icons.min.css',
+    '/bootstrap_u_i/font/fonts/bootstrap-icons.woff2',
+    '/bootstrap_u_i/font/fonts/bootstrap-icons.woff'
 ];
 
 /**

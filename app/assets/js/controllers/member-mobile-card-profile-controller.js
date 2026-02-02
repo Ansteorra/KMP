@@ -60,6 +60,7 @@ class MemberMobileCardProfile extends MobileControllerBase {
         const card = document.createElement("div");
         card.classList.add("card", "cardbox", "m-3");
         card.id = "card_" + this.cardCount;
+        card.dataset.section = "auth-card";
 
         const cardDetails = document.createElement("div");
         cardDetails.classList.add("card-body");

@@ -11,31 +11,27 @@
  */
 ?>
 
-<div class="card cardbox mx-3">
+<div class="card cardbox mx-3 mt-3" data-section="approvals">
     <div class="card-body">
-        <h3 class="card-title text-center display-6 text-danger">
-            <i class="bi bi-x-circle me-2"></i>Deny Authorization
-        </h3>
-
         <!-- Authorization Request Details -->
-        <div class="alert alert-warning mb-3">
-            <h5 class="alert-heading">Authorization Request to Deny</h5>
+        <div class="alert alert-warning mb-4">
+            <h5 class="alert-heading mb-3"><i class="bi bi-exclamation-triangle me-2"></i>Authorization Request to Deny</h5>
             <dl class="row mb-0">
-                <dt class="col-5">Requester:</dt>
-                <dd class="col-7"><strong><?= h($authorizationApproval->authorization->member->sca_name) ?></strong></dd>
+                <dt class="col-4">Requester:</dt>
+                <dd class="col-8"><strong><?= h($authorizationApproval->authorization->member->sca_name) ?></strong></dd>
 
-                <dt class="col-5">Activity:</dt>
-                <dd class="col-7"><strong><?= h($authorizationApproval->authorization->activity->name) ?></strong></dd>
+                <dt class="col-4">Activity:</dt>
+                <dd class="col-8"><strong><?= h($authorizationApproval->authorization->activity->name) ?></strong></dd>
 
-                <dt class="col-5">Requested:</dt>
-                <dd class="col-7"><?= $this->Timezone->format($authorizationApproval->requested_on) ?></dd>
+                <dt class="col-4">Requested:</dt>
+                <dd class="col-8"><?= $this->Timezone->format($authorizationApproval->requested_on) ?></dd>
             </dl>
         </div>
 
         <!-- Member Details -->
-        <div class="card mb-3">
+        <div class="card mb-4 member-info-card">
             <div class="card-header">
-                <strong>Member Information</strong>
+                <i class="bi bi-person me-2"></i><strong>Member Information</strong>
             </div>
             <div class="card-body">
                 <dl class="row mb-0">
@@ -73,14 +69,14 @@
         <?= $this->Form->hidden('id', ['value' => $authorizationApproval->id]) ?>
 
         <!-- Denial Reason -->
-        <div class="mb-3">
-            <label for="denial-reason" class="form-label fw-bold text-danger">
-                <i class="bi bi-exclamation-triangle me-2"></i>Reason for Denial *
+        <div class="mb-4">
+            <label for="denial-reason" class="form-label">
+                <i class="bi bi-chat-text me-2"></i>Reason for Denial <span class="text-danger">*</span>
             </label>
             <?= $this->Form->textarea(
                 'approver_notes',
                 [
-                    'class' => 'form-control form-control-lg',
+                    'class' => 'form-control',
                     'id' => 'denial-reason',
                     'rows' => 5,
                     'required' => true,
@@ -92,13 +88,13 @@
             </div>
         </div>
 
-        <div class="alert alert-danger">
+        <div class="alert alert-danger mb-4">
             <i class="bi bi-exclamation-circle me-2"></i>
             <strong>Warning:</strong> Denying this authorization cannot be undone. The member will need to submit a new request.
         </div>
 
         <!-- Action Buttons -->
-        <div class="d-grid gap-2 mt-4">
+        <div class="d-grid gap-3 mt-4">
             <button type="submit" class="btn btn-danger btn-lg">
                 <i class="bi bi-x-circle me-2"></i>Deny Authorization
             </button>

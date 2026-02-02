@@ -10,25 +10,10 @@
  */
 ?>
 
-<div class="card cardbox mx-3"
-    data-controller="mobile-request-auth"
+<div class="card cardbox mx-3 mt-3" data-section="request" data-controller="mobile-request-auth"
     data-mobile-request-auth-approvers-url-value="<?= $this->Url->build(['controller' => 'Activities', 'action' => 'approversList', 'plugin' => 'Activities']) ?>"
     data-mobile-request-auth-member-id-value="<?= h($memberId) ?>">
     <div class="card-body">
-        <h3 class="card-title text-center display-6">
-            <i class="bi bi-file-earmark-check me-2"></i>Request Authorization
-        </h3>
-
-        <!-- Online Status Indicator -->
-        <div class="alert alert-warning d-flex align-items-center"
-            data-mobile-request-auth-target="onlineStatus"
-            hidden>
-            <i class="bi bi-wifi me-2" style="font-size: 24px;"></i>
-            <div>
-                <strong>Online Required:</strong> You must be online to request authorizations.
-            </div>
-        </div>
-
         <?= $this->Form->create(null, [
             'url' => ['controller' => 'Authorizations', 'action' => 'add', 'plugin' => 'Activities'],
             'data-mobile-request-auth-target' => 'form'
@@ -36,8 +21,8 @@
 
         <?= $this->Form->hidden('member_id', ['value' => $memberId]) ?>
 
-        <div class="mb-3">
-            <label for="activity" class="form-label fw-bold">Select Activity</label>
+        <div class="mb-4">
+            <label for="activity" class="form-label">Select Activity</label>
             <?= $this->Form->select(
                 'activity',
                 $activities,
@@ -53,7 +38,7 @@
         </div>
 
         <div class="mb-4">
-            <label for="approver" class="form-label fw-bold">Send Request To</label>
+            <label for="approver" class="form-label">Send Request To</label>
             <?= $this->Form->select(
                 'approver_id',
                 [],
@@ -71,16 +56,14 @@
             </div>
         </div>
 
-        <div class="d-grid gap-2">
-            <button type="submit"
-                class="btn btn-success btn-lg"
-                data-mobile-request-auth-target="submitBtn"
-                disabled>
+        <div class="d-grid gap-3 mt-4">
+            <button type="submit" class="btn btn-success btn-lg" data-mobile-request-auth-target="submitBtn" disabled>
+                <i class="bi bi-send me-2"></i>
                 <span data-mobile-request-auth-target="submitText">Submit Request</span>
             </button>
 
             <a href="javascript:history.back()" class="btn btn-secondary btn-lg">
-                Cancel
+                <i class="bi bi-arrow-left me-2"></i>Cancel
             </a>
         </div>
 

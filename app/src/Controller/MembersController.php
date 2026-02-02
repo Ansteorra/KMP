@@ -921,8 +921,9 @@ class MembersController extends AppController
         $cardUrl = Router::url(['controller' => 'Members', 'action' => 'viewMobileCardJson', $member->mobile_card_token], true);
 
         // Set layout variables for mobile_app layout
-        $this->set('mobileTitle', 'Mobile Activities Authorization Card');
-        $this->set('mobileHeaderColor', $message_variables['marshal_auth_header_color']);
+        $this->set('mobileTitle', 'Auth Card');
+        $this->set('mobileSection', 'auth-card');
+        $this->set('mobileIcon', 'bi-person-vcard');
         $this->set('watermarkImage', $watermarkimg);
         $this->set('showRefreshBtn', true); // Mobile card needs refresh button
         $this->set('cardUrl', $cardUrl); // For member-mobile-card-profile controller

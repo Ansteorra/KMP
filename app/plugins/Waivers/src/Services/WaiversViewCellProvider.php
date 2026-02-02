@@ -224,7 +224,7 @@ class WaiversViewCellProvider
             'icon' => 'bi-file-earmark-arrow-up',
             'url' => ['controller' => 'GatheringWaivers', 'action' => 'mobileSelectGathering', 'plugin' => 'Waivers'],
             'order' => 30,
-            'color' => 'info',
+            'color' => 'waivers',  // Section-specific color
             'badge' => null,
             'validRoutes' => [], // Empty = show everywhere
             'authCallback' => function ($urlParams, $user) {

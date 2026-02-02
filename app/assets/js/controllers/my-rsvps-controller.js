@@ -7,7 +7,7 @@ import rsvpCacheService from "../services/rsvp-cache-service.js";
  * Handles RSVP editing using the attendance modal on the My RSVPs page.
  */
 class MyRsvpsController extends MobileControllerBase {
-    static targets = ["modal", "modalBody", "actionButtons"];
+    static targets = ["modal", "modalBody", "actionButtons", "upcomingList", "pastList", "pastEmptyState", "upcomingCount", "pastCount"];
 
     onConnect() {
         this.modal = null;
@@ -18,6 +18,9 @@ class MyRsvpsController extends MobileControllerBase {
             console.warn('[MyRsvps] Failed to init RSVP cache:', err);
         });
         
+        // Filter out past events on the client side (safety net for timezone edge cases)
+        this.filterPastEvents();
+        
         // Update button states based on online status
         this.updateOnlineButtons();
         
@@ -26,6 +29,116 @@ class MyRsvpsController extends MobileControllerBase {
             this.modalTarget.addEventListener('hidden.bs.modal', () => {
                 this.onModalHidden();
             });
+        }
+    }
+
+    /**
+     * Filter out events that have ended based on client's local date.
+     * Moves them to the past tab and updates badge counts.
+     */
+    filterPastEvents() {
+        if (!this.hasUpcomingListTarget) return;
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+        
+        const cards = this.upcomingListTarget.querySelectorAll('.mobile-event-card[data-end-date]');
+        let movedCount = 0;
+        
+        cards.forEach(card => {
+            const endDate = card.dataset.endDate;
+            if (endDate && endDate < todayStr) {
+                // This event has ended - move it to past tab
+                movedCount++;
+                console.log(`[MyRsvps] Moving past event to Past tab (end: ${endDate}, today: ${todayStr})`);
+                
+                // Transform the card for past display
+                this.transformCardForPast(card);
+                
+                // Move to past list
+                if (this.hasPastListTarget) {
+                    // Remove empty state if present
+                    if (this.hasPastEmptyStateTarget) {
+                        this.pastEmptyStateTarget.remove();
+                    }
+                    // Insert at beginning of past list (most recent first)
+                    this.pastListTarget.insertBefore(card, this.pastListTarget.firstChild);
+                } else {
+                    // No past list target, just hide it
+                    card.style.display = 'none';
+                }
+            }
+        });
+        
+        if (movedCount > 0) {
+            console.log(`[MyRsvps] Moved ${movedCount} events from Upcoming to Past`);
+            
+            // Update badge counts
+            this.updateBadgeCounts();
+            
+            // Check if all upcoming events are now gone
+            const remainingUpcoming = this.upcomingListTarget.querySelectorAll('.mobile-event-card');
+            if (remainingUpcoming.length === 0) {
+                // Show empty state message
+                this.upcomingListTarget.innerHTML = `
+                    <div class="card empty-state-card">
+                        <div class="card-body text-center py-5">
+                            <i class="bi bi-calendar-check d-block fs-1 mb-3" style="color: var(--section-rsvps);"></i>
+                            <h3 class="h5 mb-2">No Upcoming RSVPs</h3>
+                            <p class="text-muted mb-4">
+                                You haven't RSVPed to any upcoming gatherings yet.
+                            </p>
+                            <a href="/gatherings/mobile-calendar" class="btn btn-primary online-only-btn">
+                                <i class="bi bi-calendar me-2"></i>Browse Calendar
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+    }
+
+    /**
+     * Transform a card from upcoming style to past style
+     */
+    transformCardForPast(card) {
+        // Remove 'attending' class and add 'past' class
+        card.classList.remove('attending');
+        card.classList.add('past');
+        
+        // Change the success check icon to muted
+        const checkIcon = card.querySelector('.bi-check-circle-fill.text-success');
+        if (checkIcon) {
+            checkIcon.classList.remove('bi-check-circle-fill', 'text-success');
+            checkIcon.classList.add('bi-check-circle', 'text-muted');
+        }
+        
+        // Remove action buttons row
+        const actionsRow = card.querySelector('.mobile-event-actions-row');
+        if (actionsRow) {
+            actionsRow.remove();
+        }
+    }
+
+    /**
+     * Update the badge counts for both tabs
+     */
+    updateBadgeCounts() {
+        // Count visible upcoming cards
+        if (this.hasUpcomingCountTarget && this.hasUpcomingListTarget) {
+            const upcomingCards = this.upcomingListTarget.querySelectorAll('.mobile-event-card:not(.past)');
+            const count = upcomingCards.length;
+            this.upcomingCountTarget.textContent = count;
+            this.upcomingCountTarget.hidden = count === 0;
+        }
+        
+        // Count past cards
+        if (this.hasPastCountTarget && this.hasPastListTarget) {
+            const pastCards = this.pastListTarget.querySelectorAll('.mobile-event-card');
+            const count = pastCards.length;
+            this.pastCountTarget.textContent = count;
+            this.pastCountTarget.hidden = count === 0;
         }
     }
 

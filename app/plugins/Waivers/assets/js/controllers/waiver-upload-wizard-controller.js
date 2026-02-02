@@ -1,4 +1,11 @@
 import { Controller } from "@hotwired/stimulus"
+import * as pdfjsLib from 'pdfjs-dist'
+
+// Set up PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+    'pdfjs-dist/build/pdf.worker.min.mjs',
+    import.meta.url
+).toString()
 
 /**
  * Waiver Upload Wizard Controller
@@ -416,8 +423,8 @@ class WaiverUploadWizardController extends Controller {
 
         files.forEach(file => {
             // Validate file type
-            if (!this.isValidImageFile(file)) {
-                this.showError(`Invalid file type: ${file.name}. Please upload raster images only (JPEG, PNG, GIF, BMP, or WEBP). SVG and TIFF files are not supported.`)
+            if (!this.isValidFile(file)) {
+                this.showError(`Invalid file type: ${file.name}. Please upload images (JPEG, PNG, GIF, BMP, WEBP) or PDF files.`)
                 return
             }
 
@@ -459,7 +466,7 @@ class WaiverUploadWizardController extends Controller {
         }
     }
 
-    isValidImageFile(file) {
+    isValidFile(file) {
         const validTypes = [
             'image/jpeg',
             'image/jpg',
@@ -468,22 +475,56 @@ class WaiverUploadWizardController extends Controller {
             'image/bmp',
             'image/webp',
             'image/x-ms-bmp', // Alternative MIME type for BMP
-            'image/x-windows-bmp' // Another BMP variant
+            'image/x-windows-bmp', // Another BMP variant
+            'application/pdf' // PDF files
         ]
-        return validTypes.includes(file.type)
+        return validTypes.includes(file.type) || file.name.toLowerCase().endsWith('.pdf')
     }
 
     addPage(file) {
         const pageNumber = this.uploadedPages.length + 1
+        const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
         const reader = new FileReader()
 
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             const page = {
                 file: file,
                 dataUrl: e.target.result,
                 number: pageNumber,
                 name: file.name,
-                size: file.size
+                size: file.size,
+                isPdf: isPdf,
+                pdfPageCount: 0,
+                thumbnailUrl: null
+            }
+
+            // Generate thumbnail for PDFs
+            if (isPdf) {
+                try {
+                    const pdfData = new Uint8Array(e.target.result.split(',')[1] ? 
+                        atob(e.target.result.split(',')[1]).split('').map(c => c.charCodeAt(0)) :
+                        [])
+                    
+                    if (pdfData.length > 0) {
+                        const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise
+                        page.pdfPageCount = pdf.numPages
+                        
+                        // Render first page as thumbnail
+                        const pdfPage = await pdf.getPage(1)
+                        const scale = 0.5
+                        const viewport = pdfPage.getViewport({ scale })
+                        
+                        const canvas = document.createElement('canvas')
+                        const context = canvas.getContext('2d')
+                        canvas.width = viewport.width
+                        canvas.height = viewport.height
+                        
+                        await pdfPage.render({ canvasContext: context, viewport }).promise
+                        page.thumbnailUrl = canvas.toDataURL('image/png')
+                    }
+                } catch (err) {
+                    console.warn('Could not generate PDF thumbnail:', err)
+                }
             }
 
             this.uploadedPages.push(page)
@@ -518,28 +559,63 @@ class WaiverUploadWizardController extends Controller {
                 <div class="text-center text-muted py-5">
                     <i class="bi bi-file-earmark-image" style="font-size: 3rem;"></i>
                     <p class="mt-3">No pages added yet</p>
-                    <p class="small">Click "Add Page" to select images</p>
+                    <p class="small">Click "Add Page" to select images or PDFs</p>
                 </div>
             `
             return
         }
 
-        const html = this.uploadedPages.map((page, index) => `
+        const html = this.uploadedPages.map((page, index) => {
+            // Generate preview: PDF thumbnail, PDF icon fallback, or image
+            let previewHtml
+            if (page.isPdf) {
+                if (page.thumbnailUrl) {
+                    // Show rendered PDF thumbnail with page count badge
+                    const pageCountBadge = page.pdfPageCount > 1 
+                        ? `<span class="badge bg-danger position-absolute top-0 end-0 m-1">${page.pdfPageCount} pages</span>` 
+                        : ''
+                    previewHtml = `<div class="position-relative">
+                        <img src="${page.thumbnailUrl}" 
+                             class="img-thumbnail" 
+                             style="width: 100px; height: 130px; object-fit: contain; background: #f8f9fa;"
+                             alt="PDF Preview">
+                        ${pageCountBadge}
+                    </div>`
+                } else {
+                    // Fallback to PDF icon
+                    previewHtml = `<div class="d-flex align-items-center justify-content-center bg-light border rounded" 
+                            style="width: 100px; height: 130px;">
+                         <div class="text-center">
+                           <i class="bi bi-file-earmark-pdf text-danger" style="font-size: 2.5rem;"></i>
+                           <div class="small text-muted mt-1">PDF</div>
+                         </div>
+                       </div>`
+                }
+            } else {
+                previewHtml = `<img src="${page.dataUrl}" 
+                        class="img-thumbnail" 
+                        style="width: 100px; height: 130px; object-fit: cover;"
+                        alt="Page ${page.number}">`
+            }
+
+            // Show page count info for multi-page PDFs
+            const pageInfo = page.isPdf && page.pdfPageCount > 1 
+                ? `<small class="text-info">${page.pdfPageCount} pages</small><br>` 
+                : ''
+
+            return `
             <div class="col-md-4 mb-3">
                 <div class="card">
                     <div class="card-body p-2">
                         <div class="d-flex align-items-start">
                             <div class="flex-shrink-0">
-                                <img src="${page.dataUrl}" 
-                                     class="img-thumbnail" 
-                                     style="width: 100px; height: 130px; object-fit: cover;"
-                                     alt="Page ${page.number}">
+                                ${previewHtml}
                             </div>
                             <div class="flex-grow-1 ms-3">
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div>
                                         <strong>Page ${page.number}</strong><br>
-                                        <small class="text-muted">${page.name}</small><br>
+                                        ${pageInfo}<small class="text-muted">${page.name}</small><br>
                                         <small class="text-muted">${this.formatFileSize(page.size)}</small>
                                     </div>
                                     <button type="button" 
@@ -554,7 +630,7 @@ class WaiverUploadWizardController extends Controller {
                     </div>
                 </div>
             </div>
-        `).join('')
+        `}).join('')
 
         this.pagesPreviewTarget.innerHTML = html
     }
@@ -610,26 +686,55 @@ class WaiverUploadWizardController extends Controller {
                 this.reviewAttestSectionTarget.classList.add('d-none')
             }
 
-            // Page Count
+            // Page Count - calculate total pages including multi-page PDFs
+            const totalPages = this.uploadedPages.reduce((sum, page) => {
+                return sum + (page.pdfPageCount > 1 ? page.pdfPageCount : 1)
+            }, 0)
+            
             if (this.hasReviewPageCountTarget) {
-                this.reviewPageCountTarget.textContent = this.uploadedPages.length
+                if (totalPages !== this.uploadedPages.length) {
+                    this.reviewPageCountTarget.textContent = `${this.uploadedPages.length} files (${totalPages} total pages)`
+                } else {
+                    this.reviewPageCountTarget.textContent = this.uploadedPages.length
+                }
             }
 
             // Pages List
             if (this.hasReviewPagesListTarget) {
-                const html = this.uploadedPages.map(page => `
+                const html = this.uploadedPages.map(page => {
+                    // Use thumbnail for PDFs, dataUrl for images
+                    const imgSrc = page.isPdf && page.thumbnailUrl ? page.thumbnailUrl : page.dataUrl
+                    const imgStyle = page.isPdf 
+                        ? 'height: 200px; object-fit: contain; background: #f8f9fa;' 
+                        : 'height: 200px; object-fit: cover;'
+                    
+                    // Show page count badge for multi-page PDFs
+                    const pageCountBadge = page.isPdf && page.pdfPageCount > 1 
+                        ? `<span class="badge bg-danger position-absolute top-0 end-0 m-2">${page.pdfPageCount} pages</span>` 
+                        : ''
+                    
+                    // PDF icon overlay if no thumbnail available
+                    const pdfFallback = page.isPdf && !page.thumbnailUrl
+                        ? `<div class="d-flex align-items-center justify-content-center" style="height: 200px; background: #f8f9fa;">
+                             <div class="text-center">
+                               <i class="bi bi-file-earmark-pdf text-danger" style="font-size: 4rem;"></i>
+                               <div class="text-muted">PDF Document</div>
+                               ${page.pdfPageCount > 1 ? `<div class="text-info">${page.pdfPageCount} pages</div>` : ''}
+                             </div>
+                           </div>`
+                        : `<img src="${imgSrc}" class="card-img-top" style="${imgStyle}" alt="Page ${page.number}">`
+                    
+                    return `
                     <div class="col-md-3 mb-3">
-                        <div class="card">
-                            <img src="${page.dataUrl}" 
-                                 class="card-img-top" 
-                                 style="height: 200px; object-fit: cover;"
-                                 alt="Page ${page.number}">
+                        <div class="card position-relative">
+                            ${pdfFallback}
+                            ${pageCountBadge}
                             <div class="card-body p-2 text-center">
-                                <small>Page ${page.number}</small>
+                                <small>${page.isPdf ? 'PDF' : 'Page'} ${page.number}</small>
                             </div>
                         </div>
                     </div>
-                `).join('')
+                `}).join('')
                 this.reviewPagesListTarget.innerHTML = html
             }
 
@@ -784,6 +889,12 @@ class WaiverUploadWizardController extends Controller {
         this.uploadedPages.forEach((page, index) => {
             formData.append('waiver_images[]', page.file)
         })
+
+        // If any PDF has a client-generated thumbnail, send the first one
+        const pdfWithThumbnail = this.uploadedPages.find(p => p.isPdf && p.thumbnailUrl)
+        if (pdfWithThumbnail) {
+            formData.append('client_thumbnail', pdfWithThumbnail.thumbnailUrl)
+        }
 
         // Get CSRF token and add to form data (CakePHP expects it in the body)
         const csrfToken = this.getCsrfToken()

@@ -397,9 +397,14 @@ class GatheringAttendancesController extends AppController
     public function myRsvps()
     {
         $currentUser = $this->Authentication->getIdentity();
-        $today = Date::now();
         
-        $attendances = $this->GatheringAttendances->find()
+        // Use user's timezone for accurate "today" comparison
+        $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
+        $todayInUserTz = new \DateTime('now', new \DateTimeZone($userTimezone));
+        $todayDate = $todayInUserTz->format('Y-m-d');
+        
+        // Upcoming RSVPs (events that haven't ended yet in user's timezone)
+        $upcomingAttendances = $this->GatheringAttendances->find()
             ->contain([
                 'Gatherings' => [
                     'Branches' => ['fields' => ['id', 'name']],
@@ -408,21 +413,69 @@ class GatheringAttendancesController extends AppController
             ])
             ->where([
                 'GatheringAttendances.member_id' => $currentUser->id,
-                'Gatherings.end_date >=' => $today->format('Y-m-d'),
+                'Gatherings.end_date >=' => $todayDate,
             ])
             ->order(['Gatherings.start_date' => 'ASC'])
             ->all();
         
+        // Past RSVPs (events that have ended) - limit to last 90 days for performance
+        $pastCutoff = (clone $todayInUserTz)->modify('-90 days')->format('Y-m-d');
+        $pastAttendances = $this->GatheringAttendances->find()
+            ->contain([
+                'Gatherings' => [
+                    'Branches' => ['fields' => ['id', 'name']],
+                    'GatheringTypes' => ['fields' => ['id', 'name', 'color']],
+                ],
+            ])
+            ->where([
+                'GatheringAttendances.member_id' => $currentUser->id,
+                'Gatherings.end_date <' => $todayDate,
+                'Gatherings.end_date >=' => $pastCutoff,
+            ])
+            ->order(['Gatherings.start_date' => 'DESC'])
+            ->all();
+        
         if ($this->wantsJson()) {
-            $data = [];
+            $data = ['upcoming' => [], 'past' => []];
             $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
             
-            foreach ($attendances as $attendance) {
+            foreach ($upcomingAttendances as $attendance) {
                 $gathering = $attendance->gathering;
                 $startLocal = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, $userTimezone);
                 $endLocal = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, $userTimezone);
                 
-                $data[] = [
+                $data['upcoming'][] = [
+                    'attendance_id' => $attendance->id,
+                    'gathering' => [
+                        'id' => $gathering->id,
+                        'public_id' => $gathering->public_id,
+                        'name' => $gathering->name,
+                        'start_date' => $startLocal->format('Y-m-d'),
+                        'start_time' => $startLocal->format('H:i'),
+                        'end_date' => $endLocal->format('Y-m-d'),
+                        'location' => $gathering->location,
+                        'is_cancelled' => $gathering->cancelled_at !== null,
+                        'branch' => $gathering->branch ? $gathering->branch->name : null,
+                        'type' => $gathering->gathering_type ? [
+                            'name' => $gathering->gathering_type->name,
+                            'color' => $gathering->gathering_type->color,
+                        ] : null,
+                    ],
+                    'sharing' => [
+                        'kingdom' => $attendance->share_with_kingdom,
+                        'hosting_group' => $attendance->share_with_hosting_group,
+                        'crown' => $attendance->share_with_crown,
+                    ],
+                    'note' => $attendance->public_note,
+                ];
+            }
+            
+            foreach ($pastAttendances as $attendance) {
+                $gathering = $attendance->gathering;
+                $startLocal = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, $userTimezone);
+                $endLocal = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, $userTimezone);
+                
+                $data['past'][] = [
                     'attendance_id' => $attendance->id,
                     'gathering' => [
                         'id' => $gathering->id,
@@ -452,7 +505,8 @@ class GatheringAttendancesController extends AppController
         }
         
         // For non-JSON requests, set view variables
-        $this->set('attendances', $attendances);
+        $this->set('upcomingAttendances', $upcomingAttendances);
+        $this->set('pastAttendances', $pastAttendances);
         $this->set('authCardUrl', '/members/view-mobile-card/' . $currentUser->mobile_card_token);
         $this->viewBuilder()->setLayout('mobile_app');
     }

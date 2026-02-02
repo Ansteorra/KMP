@@ -246,11 +246,10 @@ class AuthorizationApprovalsController extends AppController
 
         // Use mobile app layout for consistent UX
         $this->viewBuilder()->setLayout('mobile_app');
-        $this->set('mobileTitle', 'Approve Authorizations');
+        $this->set('mobileTitle', 'Approve Auths');
+        $this->set('mobileSection', 'approvals');
+        $this->set('mobileIcon', 'bi-check-circle');
         $this->set('mobileBackUrl', $this->request->referer());
-        $this->set('mobileHeaderColor', StaticHelpers::getAppSetting(
-            'Member.MobileCard.BgColor',
-        ));
         $this->set('showRefreshBtn', true);
     }
 
@@ -328,9 +327,10 @@ class AuthorizationApprovalsController extends AppController
 
         // Use mobile app layout
         $this->viewBuilder()->setLayout('mobile_app');
-        $this->set('mobileTitle', 'Approve Authorization');
+        $this->set('mobileTitle', 'Approve Auth');
+        $this->set('mobileSection', 'approvals');
+        $this->set('mobileIcon', 'bi-check-circle');
         $this->set('mobileBackUrl', ['action' => 'mobileApproveAuthorizations']);
-        $this->set('mobileHeaderColor', '#198754');
         $this->set('showRefreshBtn', false);
     }
 
@@ -405,8 +405,9 @@ class AuthorizationApprovalsController extends AppController
         // Use mobile app layout
         $this->viewBuilder()->setLayout('mobile_app');
         $this->set('mobileTitle', 'Deny Authorization');
+        $this->set('mobileSection', 'approvals');
+        $this->set('mobileIcon', 'bi-x-circle');
         $this->set('mobileBackUrl', ['action' => 'mobileApproveAuthorizations']);
-        $this->set('mobileHeaderColor', '#dc3545');
         $this->set('showRefreshBtn', false);
     }
 

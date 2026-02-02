@@ -12,34 +12,30 @@
  */
 ?>
 
-<div class="card cardbox mx-3"
+<div class="card cardbox mx-3 mt-3" data-section="approvals"
     data-controller="activities-approve-and-assign-auth"
     data-activities-approve-and-assign-auth-url-value="<?= $this->Url->build(['plugin' => 'activities', 'controller' => 'AuthorizationApprovals', 'action' => 'AvailableApproversList']) ?>"
     data-activities-approve-and-assign-auth-approval-id-value="<?= $authorizationApproval->id ?>">
     <div class="card-body">
-        <h3 class="card-title text-center display-6 text-success">
-            <i class="bi bi-check-circle me-2"></i>Approve Authorization
-        </h3>
-
         <!-- Authorization Request Details -->
-        <div class="alert alert-info mb-3">
-            <h5 class="alert-heading">Authorization Request</h5>
+        <div class="alert alert-info mb-4">
+            <h5 class="alert-heading mb-3"><i class="bi bi-file-earmark-text me-2"></i>Authorization Request</h5>
             <dl class="row mb-0">
-                <dt class="col-5">Requester:</dt>
-                <dd class="col-7"><strong><?= h($authorizationApproval->authorization->member->sca_name) ?></strong></dd>
+                <dt class="col-4">Requester:</dt>
+                <dd class="col-8"><strong><?= h($authorizationApproval->authorization->member->sca_name) ?></strong></dd>
 
-                <dt class="col-5">Activity:</dt>
-                <dd class="col-7"><strong><?= h($authorizationApproval->authorization->activity->name) ?></strong></dd>
+                <dt class="col-4">Activity:</dt>
+                <dd class="col-8"><strong><?= h($authorizationApproval->authorization->activity->name) ?></strong></dd>
 
-                <dt class="col-5">Requested:</dt>
-                <dd class="col-7"><?= $this->Timezone->format($authorizationApproval->requested_on) ?></dd>
+                <dt class="col-4">Requested:</dt>
+                <dd class="col-8"><?= $this->Timezone->format($authorizationApproval->requested_on) ?></dd>
             </dl>
         </div>
 
         <!-- Member Details -->
-        <div class="card mb-3">
+        <div class="card mb-4 member-info-card">
             <div class="card-header">
-                <strong>Member Information</strong>
+                <i class="bi bi-person me-2"></i><strong>Member Information</strong>
             </div>
             <div class="card-body">
                 <dl class="row mb-0">
@@ -78,8 +74,8 @@
 
         <?php if ($hasMoreApprovalsToGo): ?>
             <!-- Next Approver Selection -->
-            <div class="mb-3">
-                <label for="next-approver" class="form-label fw-bold">Forward To (Next Approver)</label>
+            <div class="mb-4">
+                <label for="next-approver" class="form-label">Forward To (Next Approver)</label>
                 <?= $this->Form->select(
                     'next_approver_id',
                     [],
@@ -98,14 +94,14 @@
         <?php else: ?>
             <!-- Final Approval -->
             <?= $this->Form->hidden('next_approver_id', ['value' => '']) ?>
-            <div class="alert alert-success mb-3">
-                <i class="bi bi-info-circle me-2"></i>
+            <div class="alert alert-success mb-4">
+                <i class="bi bi-check-circle-fill me-2"></i>
                 <strong>Final Approval:</strong> Your approval will complete this authorization request.
             </div>
         <?php endif; ?>
 
         <!-- Action Buttons -->
-        <div class="d-grid gap-2 mt-4">
+        <div class="d-grid gap-3 mt-4">
             <button type="submit"
                 class="btn btn-success btn-lg"
                 <?= $hasMoreApprovalsToGo ? 'data-activities-approve-and-assign-auth-target="submitBtn"' : '' ?>>

@@ -45,6 +45,18 @@ class MobileControllerBase extends Controller {
         
         MobileControllerBase.initialized = true;
     }
+    
+    /**
+     * Sync static isOnline with current navigator.onLine state
+     * Called on each controller connect to handle page loads while offline
+     */
+    static syncOnlineState() {
+        const currentState = navigator.onLine;
+        if (MobileControllerBase.isOnline !== currentState) {
+            MobileControllerBase.isOnline = currentState;
+            // Don't notify - let onConnect handle the initial display
+        }
+    }
 
     /**
      * Notify all registered controllers of connection state change
@@ -70,6 +82,9 @@ class MobileControllerBase extends Controller {
         // Ensure static listeners are set up
         MobileControllerBase.initializeConnectionListeners();
         
+        // Sync online state with current navigator.onLine (handles page loads while offline)
+        MobileControllerBase.syncOnlineState();
+        
         // Map for tracking bound event handlers for cleanup
         this._boundHandlers = new Map();
     }
@@ -79,6 +94,9 @@ class MobileControllerBase extends Controller {
      * Registers controller for connection state notifications
      */
     connect() {
+        // Sync online state again on connect (handles Turbo navigation while offline)
+        MobileControllerBase.syncOnlineState();
+        
         // Register this controller for connection notifications
         MobileControllerBase.connectionListeners.add(this);
         
