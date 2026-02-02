@@ -1599,7 +1599,13 @@ class MembersController extends AppController
                     $page == '/Members/logout' ||
                     $page == null
                 ) {
-                    // return $this->redirect(['action' => 'view', $user->id]);
+                    // Detect mobile phone and redirect to auth card if applicable
+                    $userAgent = $this->request->getHeaderLine('User-Agent');
+                    if (StaticHelpers::isMobilePhone($userAgent) && $user->mobile_card_token) {
+                        // Set view mode to mobile in session
+                        $this->request->getSession()->write('viewMode', 'mobile');
+                        return $this->redirect(['action' => 'viewMobileCard', $user->mobile_card_token]);
+                    }
                     return $this->redirect(['action' => 'profile']);
                 } else {
                     return $this->redirect($page);

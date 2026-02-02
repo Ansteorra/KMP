@@ -461,4 +461,45 @@ class StaticHelpers
     {
         return htmlspecialchars($string, ENT_QUOTES, 'UTF-8');
     }
+
+    /**
+     * Detect if request is from a mobile phone (not tablet).
+     *
+     * Checks User-Agent for mobile phone patterns (iPhone, Android phone).
+     * Excludes iPads and Android tablets.
+     *
+     * @param string $userAgent The HTTP User-Agent string
+     * @return bool True if mobile phone, false otherwise
+     */
+    static function isMobilePhone(string $userAgent): bool
+    {
+        // Must have Mobile in UA (excludes tablets)
+        if (stripos($userAgent, 'Mobile') === false) {
+            return false;
+        }
+
+        // Exclude iPads explicitly (they include 'Mobile' in some cases)
+        if (stripos($userAgent, 'iPad') !== false) {
+            return false;
+        }
+
+        // Check for mobile phone indicators
+        $mobilePatterns = [
+            'iPhone',
+            'Android',
+            'webOS',
+            'BlackBerry',
+            'Opera Mini',
+            'IEMobile',
+            'Windows Phone',
+        ];
+
+        foreach ($mobilePatterns as $pattern) {
+            if (stripos($userAgent, $pattern) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
