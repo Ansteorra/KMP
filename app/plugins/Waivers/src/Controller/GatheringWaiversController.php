@@ -675,13 +675,17 @@ class GatheringWaiversController extends AppController
             $WaiverTypes = $this->fetchTable('Waivers.WaiverTypes');
             $waiverType = $WaiverTypes->get($waiverTypeId);
 
+            // Get client-generated thumbnail if provided (from PDF.js rendering)
+            $clientThumbnail = $data['client_thumbnail'] ?? null;
+
             // Process all uploaded files as a single multi-page waiver
             try {
                 $result = $this->_processMultipleWaiverImages(
                     $uploadedFiles,
                     $gathering,
                     $waiverType,
-                    $notes
+                    $notes,
+                    $clientThumbnail
                 );
 
                 if ($result->success) {
@@ -711,18 +715,28 @@ class GatheringWaiversController extends AppController
                         }
                     }
 
+                    // Get result data for messaging
+                    $resultData = $result->getData();
+                    $pageCount = $resultData['page_count'] ?? count($uploadedFiles);
+
                     // Set Flash message (will show on redirect page)
                     $this->Flash->success(__(
                         'Waiver uploaded successfully with {0} page(s).',
-                        count($uploadedFiles)
+                        $pageCount
                     ));
+
+                    // Show warning if files were skipped
+                    if (!empty($resultData['warning'])) {
+                        $this->Flash->warning($resultData['warning']);
+                    }
 
                     // If AJAX request, return JSON response
                     if ($this->request->is('ajax')) {
                         $this->viewBuilder()->setClassName('Json');
                         $this->set('success', true);
                         $this->set('redirectUrl', $redirectUrl);
-                        $this->viewBuilder()->setOption('serialize', ['success', 'redirectUrl']);
+                        $this->set('warning', $resultData['warning'] ?? null);
+                        $this->viewBuilder()->setOption('serialize', ['success', 'redirectUrl', 'warning']);
                         return;
                     }
 
@@ -984,7 +998,8 @@ class GatheringWaiversController extends AppController
         array $uploadedFiles,
         $gathering,
         $waiverType,
-        string $notes
+        string $notes,
+        ?string $clientThumbnail = null
     ): ServiceResult {
         // Debug: Log what we received
         Log::debug('_processMultipleWaiverImages called', [
@@ -992,15 +1007,20 @@ class GatheringWaiversController extends AppController
             'gathering_id' => $gathering->id,
             'waiverType_id' => $waiverType->id,
             'notes_length' => strlen($notes),
+            'has_client_thumbnail' => $clientThumbnail !== null,
         ]);
 
-        // Extract temp paths from uploaded files
-        $tempPaths = [];
+        // Extract temp paths and original filenames from uploaded files
+        $fileInfos = [];
         $originalFilename = '';
         $totalOriginalSize = 0;
 
         foreach ($uploadedFiles as $index => $uploadedFile) {
-            $tempPaths[] = $uploadedFile->getStream()->getMetadata('uri');
+            $fileInfos[] = [
+                'path' => $uploadedFile->getStream()->getMetadata('uri'),
+                'original_name' => $uploadedFile->getClientFilename(),
+                'mime_type' => $uploadedFile->getClientMediaType(),
+            ];
             $totalOriginalSize += $uploadedFile->getSize();
 
             // Use first filename as basis for stored filename
@@ -1014,10 +1034,10 @@ class GatheringWaiversController extends AppController
         $uniqueId = uniqid('waiver_multipage_', true);
         $pdfPath = $tmpDir . DIRECTORY_SEPARATOR . $uniqueId . '.pdf';
 
-        // Convert all images to a single multi-page PDF
+        // Convert all files (images and/or PDFs) to a single multi-page PDF
         $previewPath = null;
-        $conversionResult = $this->ImageToPdfConversionService->convertMultipleImagesToPdf(
-            $tempPaths,
+        $conversionResult = $this->ImageToPdfConversionService->convertMixedToPdf(
+            $fileInfos,
             $pdfPath,
             'letter',
             $previewPath
@@ -1028,6 +1048,38 @@ class GatheringWaiversController extends AppController
         }
 
         $convertedSize = filesize($pdfPath);
+        $pageCount = $conversionResult->data['page_count'] ?? count($uploadedFiles);
+        $firstFileIsImage = $conversionResult->data['first_file_is_image'] ?? false;
+        $skippedFiles = $conversionResult->data['skipped_files'] ?? [];
+
+        // Log if any files were skipped
+        if (!empty($skippedFiles)) {
+            Log::warning('Some PDF files were skipped during waiver upload due to unsupported compression', [
+                'skipped_count' => count($skippedFiles),
+                'processed_pages' => $pageCount,
+            ]);
+        }
+
+        // Use client-generated thumbnail only if first file was a PDF
+        // (If first file was an image, the server-generated thumbnail is better quality)
+        if (!$firstFileIsImage && $clientThumbnail !== null && str_starts_with($clientThumbnail, 'data:image/')) {
+            // Decode base64 data URL and save to temp file
+            $parts = explode(',', $clientThumbnail, 2);
+            if (count($parts) === 2) {
+                $imageData = base64_decode($parts[1]);
+                if ($imageData !== false) {
+                    $clientThumbPath = $tmpDir . DIRECTORY_SEPARATOR . $uniqueId . '_thumb.png';
+                    if (file_put_contents($clientThumbPath, $imageData) !== false) {
+                        // Replace server-generated preview with client-generated one
+                        if ($previewPath !== null && file_exists($previewPath)) {
+                            @unlink($previewPath);
+                        }
+                        $previewPath = $clientThumbPath;
+                        Log::debug('Using client-generated thumbnail for PDF');
+                    }
+                }
+            }
+        }
 
         // Calculate retention date first
         // Convert DateTime to Date for retention calculation
@@ -1103,8 +1155,8 @@ class GatheringWaiversController extends AppController
                     'conversion_date' => date('Y-m-d H:i:s'),
                     'compression_ratio' => round((1 - ($convertedSize / $totalOriginalSize)) * 100, 2),
                     'source' => 'waiver_upload',
-                    'page_count' => count($uploadedFiles),
-                    'is_multipage' => true,
+                    'page_count' => $pageCount,
+                    'is_multipage' => $pageCount > 1,
                 ],
                 'waivers', // subdirectory
                 ['pdf'],   // allowed extensions
@@ -1152,11 +1204,20 @@ class GatheringWaiversController extends AppController
             return new ServiceResult(false, 'Failed to update waiver with document ID');
         }
 
-        return new ServiceResult(true, null, [
+        $resultData = [
             'waiver_id' => $gatheringWaiver->id,
             'document_id' => $documentId,
-            'page_count' => count($uploadedFiles),
-        ]);
+            'page_count' => $pageCount,
+        ];
+
+        // Include warning about skipped files with their names
+        if (!empty($skippedFiles)) {
+            $resultData['skipped_files'] = $skippedFiles;
+            $fileList = implode(', ', $skippedFiles);
+            $resultData['warning'] = __('The following file(s) could not be processed due to unsupported PDF compression and were skipped: {0}', $fileList);
+        }
+
+        return new ServiceResult(true, null, $resultData);
     }
 
     /**
@@ -2450,27 +2511,99 @@ class GatheringWaiversController extends AppController
             $gatheringIds = array_values(array_diff($gatheringIds, $closedGatheringIds));
         }
 
+        // Get gatherings that are marked ready to close
+        $readyToCloseGatheringIds = $GatheringWaiverClosures->getReadyToCloseGatheringIds($gatheringIds);
+
         // If no gatherings found, show empty state
         if (empty($gatheringIds)) {
             $authorizedGatherings = [];
         } else {
             // STEP 2: Fetch full gathering details for authorized gatherings, sorted by start date
             $Gatherings = $this->fetchTable('Gatherings');
-            $authorizedGatherings = $Gatherings->find()
+            $allGatherings = $Gatherings->find()
                 ->where(['Gatherings.id IN' => $gatheringIds])
-                ->contain(['Branches', 'GatheringTypes'])
+                ->contain(['Branches', 'GatheringTypes', 'GatheringActivities'])
                 ->orderBy(['Gatherings.start_date' => 'DESC'])
                 ->all()
                 ->toArray();
+
+            // STEP 3: Calculate waiver status for each gathering
+            $authorizedGatherings = [];
+            $now = new \DateTime();
+
+            foreach ($allGatherings as $gathering) {
+                // Default status values
+                $gathering->missing_waiver_count = 0;
+                $gathering->missing_waiver_names = [];
+                $gathering->is_waiver_complete = true;
+                $gathering->is_ready_to_close = in_array($gathering->id, $readyToCloseGatheringIds, true);
+
+                // Determine time-based status
+                $gathering->is_upcoming = $gathering->start_date > $now;
+                $gathering->is_ongoing = $gathering->start_date <= $now && $gathering->end_date >= $now;
+                $gathering->is_ended = $gathering->end_date < $now;
+
+                if (!empty($gathering->gathering_activities)) {
+                    $activityIds = collection($gathering->gathering_activities)->extract('id')->toArray();
+
+                    // Get required waiver types for this gathering's activities
+                    $requiredWaiverTypes = $GatheringActivityWaivers->find()
+                        ->where([
+                            'gathering_activity_id IN' => $activityIds,
+                            'deleted IS' => null,
+                        ])
+                        ->select(['waiver_type_id'])
+                        ->distinct(['waiver_type_id'])
+                        ->all()
+                        ->extract('waiver_type_id')
+                        ->toArray();
+
+                    if (!empty($requiredWaiverTypes)) {
+                        // Get uploaded waiver types for this gathering
+                        $uploadedWaiverTypes = $this->GatheringWaivers->find()
+                            ->where([
+                                'gathering_id' => $gathering->id,
+                                'deleted IS' => null,
+                                'declined_at IS' => null,
+                            ])
+                            ->select(['waiver_type_id'])
+                            ->distinct(['waiver_type_id'])
+                            ->all()
+                            ->extract('waiver_type_id')
+                            ->toArray();
+
+                        // Check if any required waivers are missing
+                        $missingWaiverTypes = array_diff($requiredWaiverTypes, $uploadedWaiverTypes);
+
+                        if (!empty($missingWaiverTypes)) {
+                            // Load waiver type names
+                            $WaiverTypes = $this->fetchTable('Waivers.WaiverTypes');
+                            $missingWaiverNames = $WaiverTypes->find()
+                                ->where(['id IN' => $missingWaiverTypes])
+                                ->orderBy(['name' => 'ASC'])
+                                ->all()
+                                ->extract('name')
+                                ->toArray();
+
+                            $gathering->missing_waiver_count = count($missingWaiverTypes);
+                            $gathering->missing_waiver_names = $missingWaiverNames;
+                            $gathering->is_waiver_complete = false;
+                        }
+                    }
+                }
+
+                $authorizedGatherings[] = $gathering;
+            }
         }
 
         $this->set(compact('authorizedGatherings'));
 
         // Use mobile app layout
         $this->viewBuilder()->setLayout('mobile_app');
-        $this->set('mobileTitle', 'Select Gathering');
+        $this->set('mobileTitle', 'Submit Waiver');
+        $this->set('mobileSection', 'waivers');
+        $this->set('mobileIcon', 'bi-file-earmark-text');
         $this->set('mobileBackUrl', $this->request->referer());
-        $this->set('mobileHeaderColor', '#0dcaf0'); // info color
         $this->set('showRefreshBtn', false);
     }
 
@@ -2491,6 +2624,8 @@ class GatheringWaiversController extends AppController
         }
 
         if (!$gatheringId) {
+            // Skip authorization for redirect - will be checked on the target page
+            $this->Authorization->skipAuthorization();
             return $this->redirect(['action' => 'mobileSelectGathering']);
         }
 
@@ -2503,6 +2638,12 @@ class GatheringWaiversController extends AppController
                 'GatheringActivities',
             ],
         ]);
+
+        // Check authorization first - before any other checks
+        $tempWaiver = $this->GatheringWaivers->newEmptyEntity();
+        $tempWaiver->gathering = $gathering;
+        $tempWaiver->gathering_id = $gatheringId;
+        $this->Authorization->authorize($tempWaiver, "uploadWaivers");
 
         // Check if gathering is cancelled
         if ($gathering->cancelled_at !== null) {
@@ -2532,11 +2673,6 @@ class GatheringWaiversController extends AppController
             $this->Flash->error($message);
             return $this->redirect(['action' => 'mobileSelectGathering']);
         }
-
-        $tempWaiver = $this->GatheringWaivers->newEmptyEntity();
-        $tempWaiver->gathering = $gathering;
-        $tempWaiver->gathering_id = $gatheringId;
-        $this->Authorization->authorize($tempWaiver, "uploadWaivers");
 
         // Check if gathering has required waivers
         $requiredWaiverTypes = $this->_getRequiredWaiverTypes($gathering);
@@ -2585,13 +2721,17 @@ class GatheringWaiversController extends AppController
             $WaiverTypes = $this->fetchTable('Waivers.WaiverTypes');
             $waiverType = $WaiverTypes->get($waiverTypeId);
 
+            // Get client-generated thumbnail if provided (from PDF.js rendering)
+            $clientThumbnail = $data['client_thumbnail'] ?? null;
+
             // Process all uploaded files as a single multi-page waiver
             try {
                 $result = $this->_processMultipleWaiverImages(
                     $uploadedFiles,
                     $gathering,
                     $waiverType,
-                    $notes
+                    $notes,
+                    $clientThumbnail
                 );
 
                 if ($result->success) {
@@ -2608,26 +2748,40 @@ class GatheringWaiversController extends AppController
                         $member->mobile_card_token
                     ], true); // true = full base URL
 
+                    // Get result data for messaging
+                    $resultData = $result->getData();
+                    $pageCount = $resultData['page_count'] ?? count($uploadedFiles);
+
                     // If AJAX request, return JSON response
                     if ($this->request->is('ajax')) {
-                        // Don't set Flash message for AJAX - will be set on redirect
                         $this->Flash->success(__(
                             'Waiver uploaded successfully with {0} page(s).',
-                            count($uploadedFiles)
+                            $pageCount
                         ));
+
+                        // Show warning if files were skipped
+                        if (!empty($resultData['warning'])) {
+                            $this->Flash->warning($resultData['warning']);
+                        }
 
                         $this->viewBuilder()->setClassName('Json');
                         $this->set('success', true);
                         $this->set('redirectUrl', $redirectUrl);
-                        $this->viewBuilder()->setOption('serialize', ['success', 'redirectUrl']);
+                        $this->set('warning', $resultData['warning'] ?? null);
+                        $this->viewBuilder()->setOption('serialize', ['success', 'redirectUrl', 'warning']);
                         return;
                     }
 
                     // For non-AJAX, set Flash and redirect
                     $this->Flash->success(__(
                         'Waiver uploaded successfully with {0} page(s).',
-                        count($uploadedFiles)
+                        $pageCount
                     ));
+
+                    // Show warning if files were skipped
+                    if (!empty($resultData['warning'])) {
+                        $this->Flash->warning($resultData['warning']);
+                    }
 
                     // Otherwise, regular redirect
                     return $this->redirect([
@@ -2677,8 +2831,9 @@ class GatheringWaiversController extends AppController
         // Use mobile app layout
         $this->viewBuilder()->setLayout('mobile_app');
         $this->set('mobileTitle', 'Upload Waiver');
+        $this->set('mobileSection', 'waivers');
+        $this->set('mobileIcon', 'bi-cloud-upload');
         $this->set('mobileBackUrl', ['action' => 'mobileSelectGathering']);
-        $this->set('mobileHeaderColor', '#0dcaf0'); // info color
         $this->set('showRefreshBtn', false);
     }
 

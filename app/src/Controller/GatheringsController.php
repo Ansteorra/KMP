@@ -41,7 +41,7 @@ class GatheringsController extends AppController
         parent::initialize();
 
         // Authorize model-level operations
-        $this->Authorization->authorizeModel('index', 'add', 'gridData', 'calendar', 'calendarGridData');
+        $this->Authorization->authorizeModel('index', 'add', 'gridData', 'calendar', 'calendarGridData', 'mobileCalendar', 'mobileCalendarData');
     }
 
     /**
@@ -1949,5 +1949,206 @@ class GatheringsController extends AppController
             ->withStringBody($icsContent);
 
         return $response;
+    }
+
+    /**
+     * Mobile calendar view
+     *
+     * Renders a touch-optimized calendar view for mobile devices.
+     * Uses swipe navigation and simplified event display.
+     *
+     * @return \Cake\Http\Response|null|void
+     */
+    public function mobileCalendar()
+    {
+        $securityGathering = $this->Gatherings->newEmptyEntity();
+        $this->Authorization->authorize($securityGathering, 'index');
+
+        $currentUser = $this->Authentication->getIdentity();
+        $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
+        $timezone = new DateTimeZone($userTimezone);
+        $today = new DateTime('now', $timezone);
+
+        $defaultYear = (int)$today->format('Y');
+        $defaultMonth = (int)$today->format('m');
+
+        // Get member's auth card URL for offline navigation
+        $member = $this->Authentication->getIdentity();
+        $authCardUrl = $member ? '/members/view-mobile-card/' . $member->mobile_card_token : '/';
+
+        $this->set(compact('defaultYear', 'defaultMonth', 'authCardUrl'));
+        $this->viewBuilder()->setLayout('mobile_app');
+    }
+
+    /**
+     * Mobile calendar data endpoint
+     *
+     * Returns JSON data for the mobile calendar view.
+     * Optimized for mobile with minimal data transfer.
+     *
+     * @return \Cake\Http\Response
+     */
+    public function mobileCalendarData()
+    {
+        $securityGathering = $this->Gatherings->newEmptyEntity();
+        $this->Authorization->authorize($securityGathering, 'index');
+
+        $this->request->allowMethod(['get']);
+
+        $currentUser = $this->Authentication->getIdentity();
+        $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
+        $timezone = new DateTimeZone($userTimezone);
+
+        $year = (int)$this->request->getQuery('year', date('Y'));
+        $month = (int)$this->request->getQuery('month', date('m'));
+
+        // Validate parameters
+        if ($year < 1900 || $year > 2100) {
+            $year = (int)date('Y');
+        }
+        if ($month < 1 || $month > 12) {
+            $month = (int)date('m');
+        }
+
+        // Calculate calendar boundaries (month view aligned to weeks)
+        $startDate = new DateTime(sprintf('%04d-%02d-01', $year, $month), $timezone);
+        $endDate = (clone $startDate)->modify('last day of this month')->setTime(23, 59, 59);
+
+        // Align to week boundaries (Sunday start)
+        $calendarStart = clone $startDate;
+        $dayOfWeek = (int)$calendarStart->format('w');
+        if ($dayOfWeek > 0) {
+            $calendarStart->modify("-{$dayOfWeek} days");
+        }
+        $calendarStart->setTime(0, 0, 0);
+
+        $calendarEnd = clone $endDate;
+        $endDayOfWeek = (int)$calendarEnd->format('w');
+        if ($endDayOfWeek < 6) {
+            $calendarEnd->modify('+' . (6 - $endDayOfWeek) . ' days');
+        }
+        $calendarEnd->setTime(23, 59, 59);
+
+        // Convert to UTC for query
+        $calendarStartUtc = \App\KMP\TimezoneHelper::toUtc($calendarStart->format('Y-m-d H:i:s'), $userTimezone);
+        $calendarEndUtc = \App\KMP\TimezoneHelper::toUtc($calendarEnd->format('Y-m-d H:i:s'), $userTimezone);
+
+        // Query gatherings
+        $gatherings = $this->Gatherings->find()
+            ->select([
+                'Gatherings.id',
+                'Gatherings.public_id',
+                'Gatherings.name',
+                'Gatherings.start_date',
+                'Gatherings.end_date',
+                'Gatherings.location',
+                'Gatherings.cancelled_at',
+                'Gatherings.public_page_enabled',
+            ])
+            ->contain([
+                'Branches' => ['fields' => ['id', 'name']],
+                'GatheringTypes' => ['fields' => ['id', 'name', 'color']],
+                'GatheringActivities' => ['fields' => ['id', 'name']],
+                'GatheringAttendances' => function ($q) use ($currentUser) {
+                    return $q->where(['GatheringAttendances.member_id' => $currentUser->id]);
+                },
+            ])
+            ->where([
+                'OR' => [
+                    [
+                        'Gatherings.start_date >=' => $calendarStartUtc->format('Y-m-d H:i:s'),
+                        'Gatherings.start_date <=' => $calendarEndUtc->format('Y-m-d H:i:s'),
+                    ],
+                    [
+                        'Gatherings.end_date >=' => $calendarStartUtc->format('Y-m-d H:i:s'),
+                        'Gatherings.end_date <=' => $calendarEndUtc->format('Y-m-d H:i:s'),
+                    ],
+                    [
+                        'Gatherings.start_date <=' => $calendarStartUtc->format('Y-m-d H:i:s'),
+                        'Gatherings.end_date >=' => $calendarEndUtc->format('Y-m-d H:i:s'),
+                    ],
+                ],
+            ])
+            ->order(['Gatherings.start_date' => 'ASC'])
+            ->all();
+
+        // Format for mobile display
+        $events = [];
+        foreach ($gatherings as $gathering) {
+            // Convert dates to user timezone
+            $startLocal = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, $userTimezone);
+            $endLocal = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, $userTimezone);
+
+            $events[] = [
+                'id' => $gathering->id,
+                'public_id' => $gathering->public_id,
+                'name' => $gathering->name,
+                'start_date' => $startLocal->format('Y-m-d'),
+                'start_time' => $startLocal->format('H:i'),
+                'end_date' => $endLocal->format('Y-m-d'),
+                'end_time' => $endLocal->format('H:i'),
+                'location' => $gathering->location,
+                'is_cancelled' => $gathering->cancelled_at !== null,
+                'is_multi_day' => $startLocal->format('Y-m-d') !== $endLocal->format('Y-m-d'),
+                'branch' => $gathering->branch ? $gathering->branch->name : null,
+                'public_page_enabled' => (bool)$gathering->public_page_enabled,
+                'type' => $gathering->gathering_type ? [
+                    'name' => $gathering->gathering_type->name,
+                    'color' => $gathering->gathering_type->color,
+                ] : null,
+                'activities' => array_map(function ($activity) {
+                    return [
+                        'id' => $activity->id,
+                        'name' => $activity->name,
+                    ];
+                }, $gathering->gathering_activities ?? []),
+                'user_attending' => !empty($gathering->gathering_attendances),
+                'attendance_id' => !empty($gathering->gathering_attendances) 
+                    ? $gathering->gathering_attendances[0]->id 
+                    : null,
+                'share_with_kingdom' => !empty($gathering->gathering_attendances) 
+                    ? $gathering->gathering_attendances[0]->share_with_kingdom 
+                    : false,
+                'share_with_hosting_group' => !empty($gathering->gathering_attendances) 
+                    ? $gathering->gathering_attendances[0]->share_with_hosting_group 
+                    : false,
+                'share_with_crown' => !empty($gathering->gathering_attendances) 
+                    ? $gathering->gathering_attendances[0]->share_with_crown 
+                    : false,
+                'public_note' => !empty($gathering->gathering_attendances) 
+                    ? $gathering->gathering_attendances[0]->public_note 
+                    : null,
+            ];
+        }
+
+        // Calculate navigation
+        $prevMonth = (clone $startDate)->modify('-1 month');
+        $nextMonth = (clone $startDate)->modify('+1 month');
+
+        $response = [
+            'success' => true,
+            'data' => [
+                'year' => $year,
+                'month' => $month,
+                'month_name' => $startDate->format('F'),
+                'calendar_start' => $calendarStart->format('Y-m-d'),
+                'calendar_end' => $calendarEnd->format('Y-m-d'),
+                'events' => $events,
+                'navigation' => [
+                    'prev' => [
+                        'year' => (int)$prevMonth->format('Y'),
+                        'month' => (int)$prevMonth->format('m'),
+                    ],
+                    'next' => [
+                        'year' => (int)$nextMonth->format('Y'),
+                        'month' => (int)$nextMonth->format('m'),
+                    ],
+                ],
+            ],
+        ];
+
+        return $this->response
+            ->withType('application/json')
+            ->withStringBody(json_encode($response));
     }
 }

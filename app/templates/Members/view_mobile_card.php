@@ -15,31 +15,31 @@ use Cake\I18n\Date;
 $now = Date::now();
 ?>
 
-<div class="card cardbox mx-3">
+<div class="card cardbox mx-3 mt-3" data-section="auth-card">
     <div class="card-body">
-        <h3 class="card-title text-center display-6">
-            <?= h($message_variables["kingdom"]) ?><br />
-            Activity Authorization
-        </h3>
-        <div class="text-center" data-member-mobile-card-profile-target="loading">
+        <div class="text-center mb-3">
+            <span class="fs-5 text-muted"><?= h($message_variables["kingdom"]) ?> Activity Authorization</span>
+        </div>
+        <div class="text-center py-4" data-member-mobile-card-profile-target="loading">
             <div class="spinner-border" style="width: 3rem; height: 3rem;" role="status">
                 <span class="visually-hidden">Loading...</span>
             </div>
+            <p class="mt-3 text-muted">Loading your card...</p>
         </div>
-        <dl class="row" hidden data-member-mobile-card-profile-target="memberDetails">
-            <dt class="col-6 text-end">Legal Name</dt>
-            <dd class="col-6" data-member-mobile-card-profile-target="name"></dd>
-            <dt class="col-6 text-end">Society Name</dt>
-            <dd class="col-6" data-member-mobile-card-profile-target="scaName"></dd>
-            <dt class="col-6 text-end">Branch</dt>
-            <dd class="col-6" data-member-mobile-card-profile-target="branchName"></dd>
-            <dt class="col-6 text-end">Membership</dt>
-            <dd class="col-6" data-member-mobile-card-profile-target="membershipInfo"></dd>
-            <dt class="col-6 text-end">Background Check</dt>
-            <dd class="col-6" data-member-mobile-card-profile-target="backgroundCheck"></dd>
-            <dt class="col-6 text-end">Last Refresh</dt>
-            <dd class="col-6" data-member-mobile-card-profile-target="lastUpdate"></dd>
+        <dl class="row mb-0" hidden data-member-mobile-card-profile-target="memberDetails">
+            <dt class="col-5 text-end py-2">Legal Name</dt>
+            <dd class="col-7 py-2 fw-medium" data-member-mobile-card-profile-target="name"></dd>
+            <dt class="col-5 text-end py-2">Society Name</dt>
+            <dd class="col-7 py-2 fw-medium" data-member-mobile-card-profile-target="scaName"></dd>
+            <dt class="col-5 text-end py-2">Branch</dt>
+            <dd class="col-7 py-2" data-member-mobile-card-profile-target="branchName"></dd>
+            <dt class="col-5 text-end py-2">Membership</dt>
+            <dd class="col-7 py-2" data-member-mobile-card-profile-target="membershipInfo"></dd>
+            <dt class="col-5 text-end py-2">Background Check</dt>
+            <dd class="col-7 py-2" data-member-mobile-card-profile-target="backgroundCheck"></dd>
+            <dt class="col-5 text-end py-2 text-muted small">Last Refresh</dt>
+            <dd class="col-7 py-2 text-muted small" data-member-mobile-card-profile-target="lastUpdate"></dd>
         </dl>
     </div>
 </div>
-<div id="pluginCards" data-member-mobile-card-profile-target="cardSet"></div>
+<div id="pluginCards" class="mt-3" data-member-mobile-card-profile-target="cardSet"></div>

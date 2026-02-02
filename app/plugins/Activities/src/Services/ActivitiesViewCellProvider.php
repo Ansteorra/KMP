@@ -159,11 +159,11 @@ class ActivitiesViewCellProvider
         // Request Authorization - Available to all authenticated users
         $cells[] = [
             'type' => ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU,
-            'label' => 'Request Authorization',
+            'label' => 'Request Auths',
             'icon' => 'bi-file-earmark-check',
             'url' => ['controller' => 'Authorizations', 'action' => 'mobileRequestAuthorization', 'plugin' => 'Activities'],
             'order' => 10,
-            'color' => 'success',
+            'color' => 'request',  // Section-specific color
             'badge' => null,
             'validRoutes' => [], // Empty = show everywhere
             'authCallback' => function ($urlParams, $user) {
@@ -175,11 +175,11 @@ class ActivitiesViewCellProvider
         // Approve Authorizations - Only for users with pending approvals
         $cells[] = [
             'type' => ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU,
-            'label' => 'Approve Authorizations',
+            'label' => 'Approve Auths',
             'icon' => 'bi-check-circle',
             'url' => ['controller' => 'AuthorizationApprovals', 'action' => 'mobileApproveAuthorizations', 'plugin' => 'Activities'],
             'order' => 20,
-            'color' => 'primary',
+            'color' => 'approvals',  // Section-specific color
             'badge' => null, // TODO: Add count of pending approvals
             'validRoutes' => [], // Empty = show everywhere
             'authCallback' => function ($urlParams, $user) {

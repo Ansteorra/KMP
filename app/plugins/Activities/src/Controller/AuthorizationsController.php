@@ -246,11 +246,10 @@ class AuthorizationsController extends AppController
 
         // Use mobile app layout for consistent UX
         $this->viewBuilder()->setLayout('mobile_app');
-        $this->set('mobileTitle', 'Request Authorization');
+        $this->set('mobileTitle', 'Request Auth');
+        $this->set('mobileSection', 'request');
+        $this->set('mobileIcon', 'bi-file-earmark-check');
         $this->set('mobileBackUrl', $this->request->referer());
-        $this->set('mobileHeaderColor', StaticHelpers::getAppSetting(
-            'Member.MobileCard.BgColor',
-        ));
         $this->set('showRefreshBtn', false); // No refresh button needed for form page
     }
 

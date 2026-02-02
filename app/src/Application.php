@@ -52,6 +52,8 @@ namespace App;
 
 use App\Services\NavigationRegistry;
 use App\Services\CoreNavigationProvider;
+use App\Services\ViewCellRegistry;
+use App\Services\CoreViewCellProvider;
 use App\KMP\KmpIdentityInterface; // Add this line
 use App\KMP\StaticHelpers;
 // Authorization usings
@@ -213,6 +215,13 @@ class Application extends BaseApplication implements
             function ($user, $params) {                                          // Dynamic callback for navigation generation
                 return CoreNavigationProvider::getNavigationItems($user, $params);
             }
+        );
+
+        // Register core view cells (mobile menu items, etc.)
+        ViewCellRegistry::register(
+            'core',
+            [],
+            [CoreViewCellProvider::class, 'getViewCells']
         );
 
         // Version-based application configuration management

@@ -1384,3 +1384,9 @@ time=2026-02-02T01:42:06.705Z level=INFO msg="Git ref change detected: %s" !BADK
 time=2026-02-02T01:42:07.707Z level=INFO msg="Import triggered by file change"
 time=2026-02-02T01:42:07.707Z level=INFO msg="Starting %s..." !BADKEY=auto-import
 time=2026-02-02T01:42:07.708Z level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-02T01:43:07.164Z level=INFO msg="JSONL file created: %s" !BADKEY=/workspaces/KMP/.beads/issues.jsonl
+time=2026-02-02T01:43:07.164Z level=INFO msg="File change detected: %s" !BADKEY=/workspaces/KMP/.beads/issues.jsonl
+time=2026-02-02T01:43:07.173Z level=INFO msg="Git ref change detected: %s" !BADKEY=/workspaces/KMP/.git/refs/heads/main.lock
+time=2026-02-02T01:43:08.175Z level=INFO msg="Import triggered by file change"
+time=2026-02-02T01:43:08.175Z level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-02T01:43:08.175Z level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
