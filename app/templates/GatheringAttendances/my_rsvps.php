@@ -74,8 +74,18 @@ $pastCount = $pastAttendances->count();
                         $typeColor = $gathering->gathering_type ? $gathering->gathering_type->color : '#6c757d';
                     ?>
                 <div class="mobile-event-card <?= $gathering->cancelled_at ? 'cancelled' : 'attending' ?>" data-end-date="<?= $endLocal->format('Y-m-d') ?>">
+                    <?php if ($gathering->cancelled_at): ?>
+                    <div class="mobile-event-cancelled-banner">
+                        <i class="bi bi-x-circle-fill me-2"></i>CANCELLED
+                    </div>
+                    <?php endif; ?>
                     <div class="mobile-event-header">
                         <div class="mobile-event-info">
+                            <?php if ($gathering->gathering_type): ?>
+                            <span class="mobile-event-type-badge mb-1" style="background-color: <?= h($typeColor) ?>; color: white;">
+                                <?= h($gathering->gathering_type->name) ?>
+                            </span>
+                            <?php endif; ?>
                             <a href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'view', $gathering->public_id]) ?>"
                                 class="mobile-event-name <?= $gathering->cancelled_at ? 'cancelled' : '' ?> text-decoration-none">
                                 <?= h($gathering->name) ?>
@@ -114,14 +124,7 @@ $pastCount = $pastAttendances->count();
                             <?php endif; ?>
                         </div>
                         <div class="mobile-event-actions">
-                            <?php if ($gathering->gathering_type): ?>
-                            <span class="mobile-event-type-badge" style="background-color: <?= h($typeColor) ?>; color: white;">
-                                <?= h($gathering->gathering_type->name) ?>
-                            </span>
-                            <?php endif; ?>
-                            <?php if ($gathering->cancelled_at): ?>
-                            <span class="badge bg-danger">Cancelled</span>
-                            <?php else: ?>
+                            <?php if (!$gathering->cancelled_at): ?>
                             <i class="bi bi-check-circle-fill text-success"></i>
                             <?php endif; ?>
                         </div>
@@ -155,8 +158,18 @@ $pastCount = $pastAttendances->count();
                         $typeColor = $gathering->gathering_type ? $gathering->gathering_type->color : '#6c757d';
                     ?>
                 <div class="mobile-event-card past <?= $gathering->cancelled_at ? 'cancelled' : '' ?>">
+                    <?php if ($gathering->cancelled_at): ?>
+                    <div class="mobile-event-cancelled-banner">
+                        <i class="bi bi-x-circle-fill me-2"></i>CANCELLED
+                    </div>
+                    <?php endif; ?>
                     <div class="mobile-event-header">
                         <div class="mobile-event-info">
+                            <?php if ($gathering->gathering_type): ?>
+                            <span class="mobile-event-type-badge mb-1" style="background-color: <?= h($typeColor) ?>; color: white;">
+                                <?= h($gathering->gathering_type->name) ?>
+                            </span>
+                            <?php endif; ?>
                             <a href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'view', $gathering->public_id]) ?>"
                                 class="mobile-event-name <?= $gathering->cancelled_at ? 'cancelled' : '' ?> text-decoration-none">
                                 <?= h($gathering->name) ?>
@@ -179,14 +192,7 @@ $pastCount = $pastAttendances->count();
                             <?php endif; ?>
                         </div>
                         <div class="mobile-event-actions">
-                            <?php if ($gathering->gathering_type): ?>
-                            <span class="mobile-event-type-badge" style="background-color: <?= h($typeColor) ?>; color: white;">
-                                <?= h($gathering->gathering_type->name) ?>
-                            </span>
-                            <?php endif; ?>
-                            <?php if ($gathering->cancelled_at): ?>
-                            <span class="badge bg-danger">Cancelled</span>
-                            <?php else: ?>
+                            <?php if (!$gathering->cancelled_at): ?>
                             <i class="bi bi-check-circle text-muted"></i>
                             <?php endif; ?>
                         </div>
@@ -309,7 +315,23 @@ $pastCount = $pastAttendances->count();
 }
 
 .my-rsvps-container .mobile-event-card.cancelled {
-    opacity: 0.6;
+    opacity: 0.8;
+    border-left-color: var(--mobile-danger, #dc3545) !important;
+}
+
+/* Cancelled Event Banner */
+.my-rsvps-container .mobile-event-cancelled-banner {
+    background: linear-gradient(180deg, #dc3545, #a71d2a);
+    color: white;
+    padding: 8px 12px;
+    font-weight: 700;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-family: var(--font-display, 'Cinzel', serif);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .my-rsvps-container .mobile-event-header {
