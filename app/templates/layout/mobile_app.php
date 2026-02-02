@@ -98,6 +98,12 @@ if ($currentUser && $currentUser->mobile_card_token) {
            "Where Honour Meets the Modern Age"
            ============================================ */
 
+    /* iOS Safari viewport fixes */
+    html, body {
+        height: 100%;
+        height: 100dvh; /* Dynamic viewport height for iOS */
+    }
+
     /* CSS Custom Properties - Medieval Palette */
     :root {
         /* Core Medieval Colors */
@@ -163,9 +169,12 @@ if ($currentUser && $currentUser->mobile_card_token) {
             radial-gradient(ellipse at top, #f8f4eb 0%, #f4efe4 50%, #e8dfd0 100%) !important;
         background-attachment: fixed !important;
         min-height: 100vh;
+        min-height: 100dvh; /* Dynamic viewport height for iOS Safari */
         font-family: var(--font-body);
         font-size: var(--base-font-size);
         line-height: 1.5;
+        /* iOS Safari: Prevent rubber-banding issues with fixed elements */
+        overscroll-behavior: none;
     }
 
     /* ============================================
