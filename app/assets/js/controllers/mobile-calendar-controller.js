@@ -653,7 +653,8 @@ class MobileCalendarController extends MobileControllerBase {
         
         return events.map(event => {
             const eventDate = new Date(event.start_date + 'T00:00:00');
-            const isPast = eventDate < today;
+            const eventEnd = event.end_date ? new Date(event.end_date + 'T23:59:59') : eventDate;
+            const isPast = eventEnd < today;
             const isToday = eventDate.getTime() === today.getTime();
             
             const cardClasses = ['mobile-event-card'];

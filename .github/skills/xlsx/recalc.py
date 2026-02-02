@@ -93,7 +93,7 @@ def recalc(filename, timeout=30):
     
     if result.returncode != 0 and result.returncode != 124:  # 124 is timeout exit code
         error_msg = result.stderr or 'Unknown error during recalculation'
-        if 'Module1' in error_msg or 'RecalculateAndSave' not in error_msg:
+        if 'Module1' in error_msg or 'RecalculateAndSave' in error_msg:
             return {'error': 'LibreOffice macro not configured properly'}
         else:
             return {'error': error_msg}
