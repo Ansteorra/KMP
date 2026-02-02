@@ -1,92 +1,66 @@
-import { Controller } from "@hotwired/stimulus";
+import MobileControllerBase from "./mobile-controller-base.js";
 
 /**
  * MemberMobileCardMenu Stimulus Controller
  * 
- * Manages mobile-optimized menu interface for PWA member cards with floating
- * action button (FAB) style menu system. Provides plugin-based menu item
- * registration and navigation for mobile-optimized features.
+ * Manages mobile-optimized menu interface for PWA member cards.
+ * Extends MobileControllerBase for centralized connection handling.
  * 
  * Features:
  * - Floating action button (FAB) menu interface
  * - Plugin-registered menu items with icons and badges
- * - Mobile-optimized touch interactions
+ * - Online/offline state management
  * - Expandable/collapsible menu system
- * - Bootstrap icon integration
- * - Notification badge support
- * - Smooth animations and transitions
- * - Accessible ARIA attributes
- * 
- * Values:
- * - menuItems: String (JSON) - Array of menu item configurations from plugins
- * 
- * Targets:
- * - fab: Main floating action button
- * - menu: Menu items container
- * - menuItem: Individual menu item buttons
- * - badge: Notification badge elements
- * 
- * Menu Item Structure (from plugins):
- * {
- *   label: "Submit Waiver",
- *   icon: "bi-file-earmark-text",  // Bootstrap icon class
- *   url: "/waivers/mobile-submit",
- *   order: 10,
- *   badge: null | number,  // Optional notification count
- *   color: "primary" | "success" | "danger" | etc
- * }
- * 
- * Usage:
- * <div data-controller="member-mobile-card-menu"
- *      data-member-mobile-card-menu-menu-items-value='[...]'>
- *   <button data-member-mobile-card-menu-target="fab"
- *           data-action="click->member-mobile-card-menu#toggleMenu">
- *     <i class="bi bi-three-dots"></i>
- *   </button>
- *   <div data-member-mobile-card-menu-target="menu" hidden>
- *     <!-- Menu items rendered here -->
- *   </div>
- * </div>
  */
-class MemberMobileCardMenu extends Controller {
+class MemberMobileCardMenu extends MobileControllerBase {
     static targets = ["fab", "menu", "menuItem", "badge"]
     static values = {
         menuItems: String
     }
 
-    /**
-     * Initialize controller state
-     * Sets up menu state tracking
-     */
     initialize() {
+        super.initialize();
         this.menuOpen = false;
         this.items = [];
-        this.isOnline = navigator.onLine;
         this.authCardUrl = null;
-        // Create bound handler for outside clicks
-        this._handleOutsideClick = this.handleOutsideClick.bind(this);
-        // Create bound handler for connection status changes
-        this._handleConnectionStatusChanged = this.handleConnectionStatusChanged.bind(this);
     }
 
     /**
-     * Connect controller to DOM
-     * Initializes menu with plugin-registered items
+     * Called after base class connect
      */
-    connect() {
+    onConnect() {
         console.log("MemberMobileCardMenu connected");
         this.loadMenuItems();
         this.renderMenu();
         
         // Register outside click handler
+        this._handleOutsideClick = this.bindHandler('outsideClick', this.handleOutsideClick);
         document.addEventListener('click', this._handleOutsideClick);
         document.addEventListener('touchstart', this._handleOutsideClick);
         
-        // Register connection status handler
-        document.addEventListener('connection-status-changed', this._handleConnectionStatusChanged);
+        // Register connection status handler for auth card URL
+        this._handleConnectionStatus = this.bindHandler('connectionStatus', this.handleConnectionStatusEvent);
+        document.addEventListener('connection-status-changed', this._handleConnectionStatus);
         
         // Update initial offline state
         this.updateOfflineState();
+    }
+
+    /**
+     * Called when connection state changes (from base class)
+     */
+    onConnectionStateChanged(isOnline) {
+        this.updateOfflineState();
+    }
+
+    /**
+     * Called after base class disconnect
+     */
+    onDisconnect() {
+        document.removeEventListener('click', this._handleOutsideClick);
+        document.removeEventListener('touchstart', this._handleOutsideClick);
+        document.removeEventListener('connection-status-changed', this._handleConnectionStatus);
+        console.log("MemberMobileCardMenu disconnected");
     }
 
     /**
@@ -257,64 +231,45 @@ class MemberMobileCardMenu extends Controller {
     }
 
     /**
-     * Handle connection status changes from PWA controller
-     * 
-     * @param {CustomEvent} event Connection status event
+     * Handle connection status event from PWA controller (for auth card URL)
      */
-    handleConnectionStatusChanged(event) {
-        this.isOnline = event.detail.isOnline;
+    handleConnectionStatusEvent(event) {
         this.authCardUrl = event.detail.authCardUrl;
         this.updateOfflineState();
     }
 
     /**
      * Update menu items based on offline state
-     * Disables/grays out non-auth-card items when offline
+     * Uses base class online property instead of duplicate state
      */
     updateOfflineState() {
         if (!this.hasMenuItemTarget) return;
+
+        // Items that should remain enabled when offline
+        const offlineAllowedLabels = ['Auth Card', 'My RSVPs'];
 
         this.menuItemTargets.forEach(item => {
             const itemUrl = item.dataset.itemUrl;
             const itemLabel = item.dataset.itemLabel;
             
-            // Check if this is the Auth Card item
-            const isAuthCard = itemLabel === 'Auth Card' || 
+            // Check if this item should be allowed offline
+            const isAllowedOffline = offlineAllowedLabels.includes(itemLabel) || 
                               (this.authCardUrl && itemUrl && itemUrl.includes('viewMobileCard'));
             
-            if (!this.isOnline && !isAuthCard) {
-                // Offline and not auth card - disable
+            if (!this.online && !isAllowedOffline) {
+                // Offline and not allowed - disable
                 item.classList.add('disabled');
                 item.style.opacity = '0.5';
                 item.style.pointerEvents = 'none';
                 item.setAttribute('aria-disabled', 'true');
             } else {
-                // Online or is auth card - enable
+                // Online or allowed offline - enable
                 item.classList.remove('disabled');
                 item.style.opacity = '1';
                 item.style.pointerEvents = 'auto';
                 item.removeAttribute('aria-disabled');
             }
         });
-    }
-
-    /**
-     * Disconnect controller from DOM
-     * Cleans up event listeners
-     */
-    disconnect() {
-        // Remove outside click handlers
-        if (this._handleOutsideClick) {
-            document.removeEventListener('click', this._handleOutsideClick);
-            document.removeEventListener('touchstart', this._handleOutsideClick);
-        }
-        
-        // Remove connection status handler
-        if (this._handleConnectionStatusChanged) {
-            document.removeEventListener('connection-status-changed', this._handleConnectionStatusChanged);
-        }
-        
-        console.log("MemberMobileCardMenu disconnected");
     }
 }
 

@@ -3,8 +3,39 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: 0962825cb6b937def816a1bdb654612d2d74144e -->
-<!-- LAST_SYNCED_DATE: 2026-01-31 -->
+<!-- LAST_SYNCED_COMMIT: 714850456d1351528b4f67c972fe232a30856e2e -->
+<!-- LAST_SYNCED_DATE: 2026-02-02 -->
+
+## February 2026
+
+### Mobile Experience Redesign
+
+The mobile experience has been completely redesigned with a fresh new look and improved navigation.
+
+- New Calendar page with weekly event list view
+- New My RSVPs page showing your upcoming events
+- Type and activity filtering for finding events
+- View Details and Edit RSVP buttons on event cards
+- Offline support for My RSVPs with cached data
+- Visual indicators when working offline
+
+📅 February 2, 2026 · `New Feature`
+
+---
+
+### Enhanced Document Upload Support
+
+Upload images or PDFs directly as waivers - they're automatically converted to a single PDF. New PDF processing services provide better validation and handling of uploaded documents.
+
+- Upload PDF, JPEG, PNG, GIF, BMP, and WEBP images as waivers
+- Automatic image-to-PDF conversion with proper page sizing
+- PDF validation with page counting and size limits
+- Improved waiver upload wizard interface
+- PDF merging capabilities for multi-page documents
+
+📅 February 2, 2026 · `Improvement`
+
+---
 
 ## January 2026
 

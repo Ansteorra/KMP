@@ -692,4 +692,247 @@ class ImageToPdfConversionService
         // Assemble PDF
         return "%PDF-1.4\n" . implode('', $objects) . $xref . $trailer;
     }
+
+    /**
+     * Process mixed uploads (images and PDFs) into a single PDF document.
+     * 
+     * Images are converted to PDF pages, then all PDFs are merged together.
+     * Files are processed in the order provided.
+     *
+     * @param array $fileInfos Array of file info arrays with keys: 'path', 'original_name', 'mime_type'
+     * @param string $outputPath Full path where the merged PDF should be saved
+     * @param string $pageSize Page size for image conversion: 'letter' or 'a4'
+     * @param string|null $previewPath Reference that will receive the path to a preview image
+     * @return ServiceResult Success with page count, or failure with error
+     */
+    public function convertMixedToPdf(array $fileInfos, string $outputPath, string $pageSize = 'letter', ?string &$previewPath = null): ServiceResult
+    {
+        if (empty($fileInfos)) {
+            return new ServiceResult(false, 'No files provided');
+        }
+
+        $pdfService = new PdfProcessingService();
+        $pdfPaths = [];
+        $tempFiles = [];
+        $previewPath = null;
+        $firstImagePath = null; // Track first image for thumbnail generation
+
+        try {
+            // Separate files by type and convert images to PDFs
+            foreach ($fileInfos as $fileInfo) {
+                // Support both array format and legacy string path format
+                if (is_string($fileInfo)) {
+                    $filePath = $fileInfo;
+                    $originalName = basename($filePath);
+                    $mimeType = '';
+                } else {
+                    $filePath = $fileInfo['path'] ?? '';
+                    $originalName = $fileInfo['original_name'] ?? basename($filePath);
+                    $mimeType = $fileInfo['mime_type'] ?? '';
+                }
+
+                if (!file_exists($filePath)) {
+                    Log::warning("File not found during mixed conversion: {$filePath}");
+                    continue;
+                }
+
+                // Determine file type from original filename extension or mime type
+                $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+                $isPdf = $extension === 'pdf' || $mimeType === 'application/pdf';
+
+                if ($isPdf) {
+                    // It's a PDF - track path and original name for error reporting
+                    $pdfPaths[] = ['path' => $filePath, 'name' => $originalName];
+                } elseif (in_array($extension, self::SUPPORTED_FORMATS, true) || $this->isImageMimeType($mimeType)) {
+                    // Track first image for thumbnail (only if no files processed yet)
+                    if ($firstImagePath === null && empty($pdfPaths)) {
+                        $firstImagePath = $filePath;
+                    }
+                    
+                    // It's an image - convert to PDF
+                    $tempPdf = tempnam(sys_get_temp_dir(), 'waiver_img_pdf_');
+                    if ($tempPdf === false) {
+                        throw new \Exception('Failed to create temp file for image conversion');
+                    }
+                    $tempPdfPath = $tempPdf . '.pdf';
+                    @rename($tempPdf, $tempPdfPath);
+                    $tempFiles[] = $tempPdfPath;
+
+                    $result = $this->convertImageToPdf($filePath, $tempPdfPath, $pageSize);
+                    if (!$result->success) {
+                        throw new \Exception("Failed to convert image: {$result->reason}");
+                    }
+                    // Track converted image with original name
+                    $pdfPaths[] = ['path' => $tempPdfPath, 'name' => $originalName];
+                } else {
+                    Log::warning("Unsupported file type skipped: ext={$extension}, mime={$mimeType}");
+                }
+            }
+
+            if (empty($pdfPaths)) {
+                return new ServiceResult(false, 'No valid files to process');
+            }
+
+            // Merge all PDFs into one
+            $mergeResult = $pdfService->mergePdfs($pdfPaths, $outputPath);
+            if (!$mergeResult->success) {
+                throw new \Exception("Failed to merge PDFs: {$mergeResult->reason}");
+            }
+
+            // Generate thumbnail - use first image if available, otherwise PDF placeholder
+            if ($firstImagePath !== null) {
+                // Generate thumbnail from the first image (better quality)
+                $previewPath = $this->generateThumbnailFromImage($firstImagePath);
+            } else {
+                // First file was a PDF - generate placeholder thumbnail
+                $thumbnailTemp = tempnam(sys_get_temp_dir(), 'waiver_thumb_');
+                if ($thumbnailTemp !== false) {
+                    $thumbnailPath = $thumbnailTemp . '.png';
+                    @rename($thumbnailTemp, $thumbnailPath);
+                    
+                    $thumbResult = $pdfService->generateThumbnail($outputPath, $thumbnailPath);
+                    if ($thumbResult->success) {
+                        $previewPath = $thumbnailPath;
+                    } else {
+                        @unlink($thumbnailPath);
+                    }
+                }
+            }
+
+            $pageCount = $mergeResult->data['page_count'] ?? 0;
+
+            return new ServiceResult(true, "Successfully created PDF with {$pageCount} page(s)", [
+                'page_count' => $pageCount,
+                'output_path' => $outputPath,
+                'first_file_is_image' => $firstImagePath !== null,
+                'skipped_files' => $mergeResult->data['skipped_files'] ?? [],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Mixed PDF conversion error: ' . $e->getMessage());
+            return new ServiceResult(false, 'Error during PDF conversion: ' . $e->getMessage());
+        } finally {
+            // Clean up temporary files
+            foreach ($tempFiles as $tempFile) {
+                if (file_exists($tempFile)) {
+                    @unlink($tempFile);
+                }
+            }
+        }
+    }
+
+    /**
+     * Check if a file is a supported image format
+     *
+     * @param string $filePath Path to the file
+     * @return bool True if file is a supported image
+     */
+    public function isSupportedImage(string $filePath): bool
+    {
+        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        return in_array($extension, self::SUPPORTED_FORMATS, true);
+    }
+
+    /**
+     * Generate a thumbnail from an image file
+     *
+     * @param string $imagePath Path to the source image
+     * @param int $maxWidth Maximum thumbnail width
+     * @param int $maxHeight Maximum thumbnail height
+     * @return string|null Path to the generated thumbnail, or null on failure
+     */
+    private function generateThumbnailFromImage(string $imagePath, int $maxWidth = 200, int $maxHeight = 260): ?string
+    {
+        try {
+            $imageInfo = @getimagesize($imagePath);
+            if ($imageInfo === false) {
+                return null;
+            }
+
+            $width = $imageInfo[0];
+            $height = $imageInfo[1];
+            $type = $imageInfo[2];
+
+            // Load image
+            $image = $this->loadImage($imagePath, $type);
+            if ($image === false) {
+                return null;
+            }
+
+            // Calculate scaled dimensions maintaining aspect ratio
+            $ratio = min($maxWidth / $width, $maxHeight / $height);
+            $newWidth = (int)($width * $ratio);
+            $newHeight = (int)($height * $ratio);
+
+            // Create thumbnail
+            $thumbnail = imagecreatetruecolor($newWidth, $newHeight);
+            if ($thumbnail === false) {
+                return null;
+            }
+
+            // Fill with white background
+            $white = imagecolorallocate($thumbnail, 255, 255, 255);
+            imagefill($thumbnail, 0, 0, $white);
+
+            // Resize
+            imagecopyresampled($thumbnail, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+
+            // Convert to grayscale to match the document
+            imagefilter($thumbnail, IMG_FILTER_GRAYSCALE);
+            imagefilter($thumbnail, IMG_FILTER_CONTRAST, -30);
+
+            // Save to temp file as JPEG (smaller than PNG for grayscale)
+            $thumbnailTemp = tempnam(sys_get_temp_dir(), 'waiver_thumb_');
+            if ($thumbnailTemp === false) {
+                imagedestroy($thumbnail);
+                return null;
+            }
+            $thumbnailPath = $thumbnailTemp . '.jpg';
+            @rename($thumbnailTemp, $thumbnailPath);
+
+            if (!imagejpeg($thumbnail, $thumbnailPath, 75)) {
+                imagedestroy($thumbnail);
+                @unlink($thumbnailPath);
+                return null;
+            }
+
+            imagedestroy($thumbnail);
+            return $thumbnailPath;
+        } catch (\Exception $e) {
+            Log::warning('Failed to generate image thumbnail: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Check if a MIME type is a supported image type
+     *
+     * @param string $mimeType The MIME type to check
+     * @return bool True if MIME type is a supported image
+     */
+    private function isImageMimeType(string $mimeType): bool
+    {
+        $supportedMimeTypes = [
+            'image/jpeg',
+            'image/jpg',
+            'image/png',
+            'image/gif',
+            'image/bmp',
+            'image/webp',
+            'image/x-ms-bmp',
+            'image/x-windows-bmp',
+        ];
+        return in_array($mimeType, $supportedMimeTypes, true);
+    }
+
+    /**
+     * Check if a file is a PDF
+     *
+     * @param string $filePath Path to the file
+     * @return bool True if file is a PDF
+     */
+    public function isPdf(string $filePath): bool
+    {
+        $pdfService = new PdfProcessingService();
+        return $pdfService->isPdf($filePath);
+    }
 }

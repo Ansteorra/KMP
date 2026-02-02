@@ -151,9 +151,9 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
                     <?= __('Add Page') ?>
                 </button>
 
-                <!-- Hidden file input -->
-                <input type="file" accept="image/jpeg,image/jpg,image/png,image/gif,image/bmp,image/webp" multiple
-                    capture="environment" class="d-none" data-waiver-upload-wizard-target="fileInput"
+                <!-- Hidden file input - accepts images and PDFs -->
+                <input type="file" accept="image/jpeg,image/jpg,image/png,image/gif,image/bmp,image/webp,application/pdf" multiple
+                    class="d-none" data-waiver-upload-wizard-target="fileInput"
                     data-file-size-validator-target="fileInput"
                     data-action="change->waiver-upload-wizard#handleFileSelect change->file-size-validator#validateFiles">
             </div>
@@ -162,11 +162,10 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
                 <i class="bi bi-info-circle"></i>
                 <strong><?= __('Tips:') ?></strong>
                 <ul class="mb-0 mt-2">
-                    <li><?= __('Take clear, well-lit photos') ?></li>
-                    <li><?= __('Supported formats: JPEG, PNG, GIF, BMP, WEBP') ?></li>
-                    <li><?= __('Maximum file size per image: {0}', h($uploadLimits['formatted'])) ?></li>
-                    <li><?= __('Recommended total size: {0}', h($uploadLimits['formatted'])) ?></li>
-                    <li><?= __('Images will be converted to black & white PDF') ?></li>
+                    <li><?= __('Upload images or PDF files') ?></li>
+                    <li><?= __('Supported formats: JPEG, PNG, GIF, BMP, WEBP, PDF') ?></li>
+                    <li><?= __('Maximum file size: {0}', h($uploadLimits['formatted'])) ?></li>
+                    <li><?= __('Images will be converted to B&W; PDFs kept as-is') ?></li>
                 </ul>
             </div>
         </div>

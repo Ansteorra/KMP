@@ -117,6 +117,7 @@ class MemberCardProfile extends Controller {
         var cardDetails = document.createElement("div");
         cardDetails.classList.add("cardbox");
         cardDetails.id = "cardDetails_" + this.cardCount;
+        cardDetails.dataset.section = "auth-card";
         card.appendChild(cardDetails);
         this.cardSetTarget.appendChild(card);
         this.currentCard = cardDetails;

@@ -35,4 +35,14 @@ class GatheringsTablePolicy extends BasePolicy
     {
         return $this->canIndex($user, $entity, ...$optionalArgs);
     }
+
+    public function canMobileCalendar(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    {
+        return true;
+    }
+
+    public function canMobileCalendarData(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    {
+        return $this->canMobileCalendar($user, $entity, ...$optionalArgs);
+    }
 }

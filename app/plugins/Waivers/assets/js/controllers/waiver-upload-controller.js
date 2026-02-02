@@ -36,7 +36,7 @@ class WaiverUploadController extends Controller {
     static MAX_FILE_SIZE = 25 * 1024 * 1024
 
     /**
-     * Allowed MIME types for image uploads
+     * Allowed MIME types for uploads (images and PDFs)
      */
     static ALLOWED_TYPES = [
         'image/jpeg',
@@ -46,7 +46,8 @@ class WaiverUploadController extends Controller {
         'image/bmp',
         'image/webp',
         'image/x-ms-bmp',        // Alternative MIME type for BMP
-        'image/x-windows-bmp'     // Another BMP variant
+        'image/x-windows-bmp',   // Another BMP variant
+        'application/pdf'        // PDF files
     ]
 
     /**
@@ -117,11 +118,11 @@ class WaiverUploadController extends Controller {
             }
         }
 
-        // Check file type
-        if (!WaiverUploadController.ALLOWED_TYPES.includes(file.type)) {
+        // Check file type (also allow .pdf extension as fallback)
+        if (!WaiverUploadController.ALLOWED_TYPES.includes(file.type) && !file.name.toLowerCase().endsWith('.pdf')) {
             return {
                 valid: false,
-                error: `${file.name}: Invalid file type (${file.type}). Only raster images are allowed (JPEG, PNG, GIF, BMP, WEBP). SVG and TIFF files are not supported.`
+                error: `${file.name}: Invalid file type (${file.type}). Allowed: JPEG, PNG, GIF, BMP, WEBP, or PDF.`
             }
         }
 
