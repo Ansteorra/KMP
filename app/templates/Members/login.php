@@ -12,7 +12,7 @@ echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Login';
 $this->KMP->endBlock(); ?>
 <?= $this->Form->create($Member, ["class" => "form-signin"]) ?>
 
-<div class="card" style="width: 15rem;">
+<div class="card login-card">
     <?= $this->Html->image($headerImage, [
         "class" => "card-img-top",
         "alt" => "site logo",
@@ -24,6 +24,8 @@ $this->KMP->endBlock(); ?>
                 'type' => 'email',
                 "label" => ["floating" => true],
                 "autofocus",
+                "autocomplete" => "email",
+                "inputmode" => "email",
                 "container" => ["class" => "form-group"],
             ]) ?>
             <?= $this->Form->control("password", [

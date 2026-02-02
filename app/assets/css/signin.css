@@ -17,6 +17,9 @@ body {
     max-width: 330px;
     padding: 15px;
     margin: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .form-signin .checkbox {
@@ -42,4 +45,94 @@ body {
     margin-bottom: 10px;
     border-top-left-radius: 0;
     border-top-right-radius: 0;
+}
+
+/* Mobile-friendly adjustments */
+@media (max-width: 576px) {
+    body {
+        padding-top: 20px;
+        padding-bottom: 20px;
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    .form-signin {
+        max-width: 100%;
+        padding: 10px;
+    }
+
+    .form-signin .card {
+        width: 100% !important;
+        max-width: 100%;
+    }
+
+    .form-signin .card-body {
+        padding: 1.25rem 1rem;
+    }
+
+    .form-signin .btn {
+        padding: 0.75rem 1rem;
+        font-size: 1.1rem;
+        touch-action: manipulation;
+    }
+
+    .form-signin .form-control {
+        font-size: 16px; /* Prevents iOS zoom on focus */
+        padding: 0.75rem;
+        min-height: 50px;
+    }
+
+    .form-signin .form-floating > label {
+        padding: 0.75rem;
+    }
+
+    .form-signin .btn-link {
+        display: block;
+        width: 100%;
+        padding: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    /* Footer mobile fixes */
+    footer {
+        text-align: center !important;
+    }
+
+    footer .row {
+        margin: 0;
+        width: 100%;
+    }
+
+    footer .navbar-nav {
+        flex-wrap: wrap;
+        justify-content: center;
+        padding: 0.5rem;
+    }
+
+    footer .navbar-nav .nav-item {
+        margin: 0.25rem;
+    }
+
+    footer .navbar-nav .btn {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    footer .px-5 {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        font-size: 0.85rem;
+    }
+}
+
+/* Login card responsive sizing */
+.login-card {
+    width: 15rem;
+}
+
+@media (max-width: 576px) {
+    .login-card {
+        width: 100%;
+        max-width: 20rem;
+    }
 }
