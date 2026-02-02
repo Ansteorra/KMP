@@ -25,9 +25,9 @@ The mobile experience has been completely redesigned with a fresh new look and i
 
 ### Enhanced Document Upload Support
 
-Upload images and photos directly as waivers - they're automatically converted to PDF. New PDF processing services provide better validation and handling of uploaded documents.
+Upload images or PDFs directly as waivers - they're automatically converted to a single PDF. New PDF processing services provide better validation and handling of uploaded documents.
 
-- Upload JPEG, PNG, GIF, BMP, and WEBP images as waivers
+- Upload PDF, JPEG, PNG, GIF, BMP, and WEBP images as waivers
 - Automatic image-to-PDF conversion with proper page sizing
 - PDF validation with page counting and size limits
 - Improved waiver upload wizard interface
