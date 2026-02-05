@@ -42,6 +42,30 @@ interface KMPPluginInterface
 }
 ```
 
+### KMPApiPluginInterface
+
+Plugins that publish API endpoints for service-principal consumers implement `KMPApiPluginInterface`:
+
+```php
+interface KMPApiPluginInterface
+{
+    public function registerApiRoutes(RouteBuilder $builder): void;
+}
+```
+
+Pattern:
+- Define plugin API routes inside `registerApiRoutes()`
+- Keep endpoints read-only first (`index`, `view`) for safe integration rollout
+- Delegate data shaping and query logic to plugin service classes under `src/Services/Api/`
+- Keep controllers thin and focused on auth, pagination params, and response envelopes
+
+Reference implementation:
+- `OfficersPlugin` publishes `/api/v1/officers/*` routes
+- Read-only services:
+  - `DefaultReadOnlyDepartmentService`
+  - `DefaultReadOnlyOfficeService`
+  - `DefaultReadOnlyOfficerRosterService`
+
 #### Migration Order System
 
 The migration order system ensures plugins are initialized in the correct sequence to handle:

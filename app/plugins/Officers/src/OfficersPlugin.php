@@ -11,6 +11,7 @@ use Cake\Core\PluginApplicationInterface;
 use Cake\Http\MiddlewareQueue;
 use Cake\Routing\RouteBuilder;
 use App\KMP\KMPPluginInterface;
+use App\KMP\KMPApiPluginInterface;
 use Cake\Event\EventManager;
 use Officers\Event\CallForCellsHandler;
 use App\Services\NavigationRegistry;
@@ -23,6 +24,12 @@ use App\KMP\StaticHelpers;
 use Cake\I18n\DateTime;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use App\Services\WarrantManager\WarrantManagerInterface;
+use Officers\Services\Api\ReadOnlyDepartmentServiceInterface;
+use Officers\Services\Api\ReadOnlyOfficeServiceInterface;
+use Officers\Services\Api\ReadOnlyOfficerRosterServiceInterface;
+use Officers\Services\Api\DefaultReadOnlyDepartmentService;
+use Officers\Services\Api\DefaultReadOnlyOfficeService;
+use Officers\Services\Api\DefaultReadOnlyOfficerRosterService;
 
 /**
  * Officers Plugin - Officer assignment management and hierarchical organization
@@ -32,7 +39,7 @@ use App\Services\WarrantManager\WarrantManagerInterface;
  *
  * @see /docs/5.1-officers-plugin.md
  */
-class OfficersPlugin extends BasePlugin implements KMPPluginInterface
+class OfficersPlugin extends BasePlugin implements KMPPluginInterface, KMPApiPluginInterface
 {
     /**
      * @var int Plugin migration order
@@ -110,6 +117,54 @@ class OfficersPlugin extends BasePlugin implements KMPPluginInterface
     }
 
     /**
+     * Register API endpoints for the Officers plugin.
+     *
+     * @param \Cake\Routing\RouteBuilder $builder API scope route builder
+     * @return void
+     */
+    public function registerApiRoutes(RouteBuilder $builder): void
+    {
+        $builder->connect('/officers/departments', [
+            'plugin' => 'Officers',
+            'prefix' => 'Api/V1',
+            'controller' => 'Departments',
+            'action' => 'index',
+        ]);
+        $builder->connect('/officers/departments/{id}', [
+            'plugin' => 'Officers',
+            'prefix' => 'Api/V1',
+            'controller' => 'Departments',
+            'action' => 'view',
+        ])->setPatterns(['id' => '[0-9]+'])->setPass(['id']);
+
+        $builder->connect('/officers/offices', [
+            'plugin' => 'Officers',
+            'prefix' => 'Api/V1',
+            'controller' => 'Offices',
+            'action' => 'index',
+        ]);
+        $builder->connect('/officers/offices/{id}', [
+            'plugin' => 'Officers',
+            'prefix' => 'Api/V1',
+            'controller' => 'Offices',
+            'action' => 'view',
+        ])->setPatterns(['id' => '[0-9]+'])->setPass(['id']);
+
+        $builder->connect('/officers/roster', [
+            'plugin' => 'Officers',
+            'prefix' => 'Api/V1',
+            'controller' => 'Officers',
+            'action' => 'index',
+        ]);
+        $builder->connect('/officers/roster/{id}', [
+            'plugin' => 'Officers',
+            'prefix' => 'Api/V1',
+            'controller' => 'Officers',
+            'action' => 'view',
+        ])->setPatterns(['id' => '[0-9]+'])->setPass(['id']);
+    }
+
+    /**
      * @param \Cake\Http\MiddlewareQueue $middlewareQueue The middleware queue
      * @return \Cake\Http\MiddlewareQueue
      */
@@ -142,5 +197,18 @@ class OfficersPlugin extends BasePlugin implements KMPPluginInterface
         )
             ->addArgument(ActiveWindowManagerInterface::class)
             ->addArgument(WarrantManagerInterface::class);
+
+        $container->add(
+            ReadOnlyDepartmentServiceInterface::class,
+            DefaultReadOnlyDepartmentService::class,
+        );
+        $container->add(
+            ReadOnlyOfficeServiceInterface::class,
+            DefaultReadOnlyOfficeService::class,
+        );
+        $container->add(
+            ReadOnlyOfficerRosterServiceInterface::class,
+            DefaultReadOnlyOfficerRosterService::class,
+        );
     }
 }

@@ -617,6 +617,8 @@ class Application extends BaseApplication implements
             $service->loadAuthenticator('ServicePrincipal', [
                 'header' => 'Authorization',
                 'tokenPrefix' => 'Bearer',
+                'apiKeyHeader' => 'X-API-Key',
+                'apiKeyQueryParam' => 'api_key',
             ]);
 
             // No identifier needed - authenticator handles the full lookup

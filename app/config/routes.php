@@ -55,6 +55,8 @@ declare(strict_types=1);
 
 use Cake\Routing\Route\DashedRoute;
 use Cake\Routing\RouteBuilder;
+use Cake\Core\Plugin;
+use App\KMP\KMPApiPluginInterface;
 
 /**
  * KMP Route Configuration Function
@@ -479,6 +481,13 @@ return function (RouteBuilder $routes): void {
             'action' => 'view',
             'prefix' => 'Api/V1',
         ])->setPatterns(['id' => '[0-9]+'])->setPass(['id']);
+
+        // Plugin-published API routes
+        foreach (Plugin::getCollection() as $plugin) {
+            if ($plugin instanceof KMPApiPluginInterface) {
+                $plugin->registerApiRoutes($builder);
+            }
+        }
     });
 
     /**
