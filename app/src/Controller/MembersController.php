@@ -770,6 +770,7 @@ class MembersController extends AppController
         $referer = $this->request->referer(true);
         $backUrl = [];
         $user =  $this->Authentication->getIdentity();
+        $canManageMember = $user instanceof Member ? $user->canManageMember($member) : false;
         $canViewPii = $user ? $user->checkCan('viewPii', $member) : false;
         $canViewAdditionalInformation = $user ? $user->checkCan('viewAdditionalInformation', $member) : false;
         $statusList = [
@@ -811,6 +812,25 @@ class MembersController extends AppController
 
         $availableGatherings = $query->toArray();
 
+        $children = $this->Members
+            ->find()
+            ->select([
+                'Members.id',
+                'Members.sca_name',
+                'Members.first_name',
+                'Members.last_name',
+                'Members.birth_month',
+                'Members.birth_year',
+                'Members.status',
+                'Members.parent_id',
+            ])
+            ->where(['Members.parent_id' => $member->id])
+            ->orderBy(['Members.sca_name' => 'ASC'])
+            ->toArray();
+        $children = array_values(array_filter($children, function (Member $child) {
+            return $child->age !== null && $child->age < 18;
+        }));
+
         $this->set(
             compact(
                 'member',
@@ -825,6 +845,8 @@ class MembersController extends AppController
                 'availableGatherings',
                 'canViewPii',
                 'canViewAdditionalInformation',
+                'children',
+                'canManageMember',
             ),
         );
         $this->viewBuilder()->setTemplate('view');
@@ -1671,7 +1693,11 @@ class MembersController extends AppController
     public function submitScaMemberInfo()
     {
         $user = $this->Authentication->getIdentity();
-        $member = $this->Members->get(toString($user->id));
+        $targetMemberId = $this->request->getData('member_id');
+        if (empty($targetMemberId)) {
+            $targetMemberId = $user?->id;
+        }
+        $member = $this->Members->get(toString($targetMemberId));
         if (!$member) {
             throw new NotFoundException();
         }

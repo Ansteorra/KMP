@@ -6,6 +6,7 @@ namespace App\KMP;
 
 use App\Model\Entity\Member;
 use App\Model\Entity\Permission;
+use App\Model\Entity\ServicePrincipal;
 use App\Model\Entity\Warrant;
 use Cake\Cache\Cache;
 use Cake\I18n\DateTime;
@@ -514,5 +515,218 @@ class PermissionsLoader
         }
 
         return $policyClasses; // Return complete policy class to methods mapping
+    }
+
+    /**
+     * Get complete permissions set for a service principal.
+     *
+     * Loads all permissions through ServicePrincipalRoles with role validation and 
+     * temporal boundaries. Similar to getPermissions() but for service principals.
+     * Results are cached with key `sp_permissions_{servicePrincipalId}`.
+     *
+     * @param int $servicePrincipalId The service principal ID to load permissions for
+     * @return array Associative array of permission objects indexed by permission ID
+     */
+    public static function getServicePrincipalPermissions(int $servicePrincipalId): array
+    {
+        // 1. Cache Strategy - Check for cached permissions first
+        $cacheKey = 'sp_permissions_' . $servicePrincipalId;
+        $cache = Cache::read($cacheKey, 'member_permissions');
+        if ($cache) {
+            return $cache;
+        }
+
+        // 2. Initialize Table Locators
+        $branchTable = TableRegistry::getTableLocator()->get('Branches');
+        $permissionsTable = TableRegistry::getTableLocator()->get('Permissions');
+        $now = DateTime::now();
+
+        // 3. Build Permission Query for Service Principals
+        $query = $permissionsTable->find()
+            ->innerJoinWith('Roles.ServicePrincipalRoles.ServicePrincipals')
+            ->select([
+                'Permissions.id',
+                'Permissions.name',
+                'Permissions.scoping_rule',
+                'Permissions.is_super_user',
+                'ServicePrincipalRoles.branch_id',
+                'ServicePrincipalRoles.entity_id',
+                'ServicePrincipalRoles.entity_type',
+            ])
+            ->contain(['PermissionPolicies'])
+            ->where([
+                'ServicePrincipals.id' => $servicePrincipalId,
+                'ServicePrincipals.is_active' => true,
+                // Temporal validation for role assignments
+                'ServicePrincipalRoles.start_on <=' => $now,
+                'OR' => [
+                    'ServicePrincipalRoles.expires_on IS' => null,
+                    'ServicePrincipalRoles.expires_on >=' => $now,
+                ],
+                'ServicePrincipalRoles.revoked_on IS' => null,
+            ])
+            ->distinct()
+            ->all()
+            ->toArray();
+
+        // 4. Permission Merging and Scoping Logic (same as member permissions)
+        $permissions = [];
+
+        foreach ($query as $permission) {
+            $branch_id = $permission->_matchingData['ServicePrincipalRoles']->branch_id;
+            $entity_id = $permission->_matchingData['ServicePrincipalRoles']->entity_id;
+            $entity_type = $permission->_matchingData['ServicePrincipalRoles']->entity_type;
+
+            if (isset($permissions[$permission->id])) {
+                switch ($permission->scoping_rule) {
+                    case Permission::SCOPE_GLOBAL:
+                        break;
+                    case Permission::SCOPE_BRANCH_ONLY:
+                        $permissions[$permission->id]->branch_ids[] = $branch_id;
+                        break;
+                    case Permission::SCOPE_BRANCH_AND_CHILDREN:
+                        $decendents = $branchTable->getAllDecendentIds($branch_id);
+                        $decendents[] = $branch_id;
+                        $idList = array_merge(
+                            $permissions[$permission->id]->branch_ids,
+                            $decendents,
+                        );
+                        $permissions[$permission->id]->branch_ids = array_unique($idList);
+                        break;
+                }
+            } else {
+                $permissions[$permission->id] = (object)[
+                    'id' => $permission->id,
+                    'name' => $permission->name,
+                    'scoping_rule' => $permission->scoping_rule,
+                    'is_super_user' => $permission->is_super_user,
+                    'branch_ids' => [],
+                    'entity_id' => $entity_id,
+                    'entity_type' => $entity_type,
+                ];
+
+                if ($permission->permission_policies) {
+                    foreach ($permission->permission_policies as $policy) {
+                        $permissions[$permission->id]->policies[$policy->policy_class][$policy->policy_method] = $policy->id;
+                    }
+                }
+
+                switch ($permission->scoping_rule) {
+                    case Permission::SCOPE_GLOBAL:
+                        $permissions[$permission->id]->branch_ids = null;
+                        break;
+                    case Permission::SCOPE_BRANCH_ONLY:
+                        $permissions[$permission->id]->branch_ids = [$branch_id];
+                        break;
+                    case Permission::SCOPE_BRANCH_AND_CHILDREN:
+                        $decendents = $branchTable->getAllDecendentIds($branch_id);
+                        $decendents[] = $branch_id;
+                        $permissions[$permission->id]->branch_ids = $decendents;
+                        break;
+                }
+            }
+        }
+
+        // 5. Cache Result
+        Cache::write($cacheKey, $permissions, 'member_permissions');
+
+        return $permissions;
+    }
+
+    /**
+     * Get policy framework mappings for a service principal.
+     *
+     * Similar to getPolicies() but for service principals.
+     * Results are cached with key `sp_policies_{servicePrincipalId}`.
+     *
+     * @param int $servicePrincipalId Service principal ID
+     * @param array|null $branchIds Optional branch IDs to filter policies
+     * @return array Nested array of policy classes, methods, and authorization data
+     */
+    public static function getServicePrincipalPolicies(int $servicePrincipalId, ?array $branchIds = null): array
+    {
+        // 1. Cache Strategy
+        $cacheKey = 'sp_policies_' . $servicePrincipalId;
+        $cache = Cache::read($cacheKey, 'member_permissions');
+        if ($cache) {
+            return $cache;
+        }
+
+        // 2. Load Base Permissions
+        $permissions = self::getServicePrincipalPermissions($servicePrincipalId);
+        $policies = [];
+
+        // 3. Extract Policy Mappings (same logic as member policies)
+        foreach ($permissions as $permission) {
+            if (isset($permission->policies)) {
+                foreach ($permission->policies as $policyClass => $methods) {
+                    if (!isset($policies[$policyClass])) {
+                        $policies[$policyClass] = [];
+                    }
+
+                    foreach ($methods as $method => $policyId) {
+                        if (!isset($policies[$policyClass][$method])) {
+                            $policies[$policyClass][$method] = (object)[
+                                'scoping_rule' => $permission->scoping_rule,
+                                'branch_ids' => $permission->branch_ids,
+                                'entity_id' => $permission->entity_id,
+                                'entity_type' => $permission->entity_type,
+                            ];
+                        } else {
+                            if ($permission->scoping_rule == Permission::SCOPE_GLOBAL) {
+                                $policies[$policyClass][$method]->branch_ids = null;
+                                $policies[$policyClass][$method]->scoping_rule = Permission::SCOPE_GLOBAL;
+                            } elseif ($policies[$policyClass][$method]->scoping_rule != Permission::SCOPE_GLOBAL) {
+                                $policies[$policyClass][$method]->branch_ids = array_merge(
+                                    $policies[$policyClass][$method]->branch_ids,
+                                    $permission->branch_ids
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Branch ID Cleanup
+        foreach ($policies as $policyClass => $methods) {
+            foreach ($methods as $method => $policy) {
+                if ($policy->branch_ids) {
+                    $policy->branch_ids = array_unique($policy->branch_ids);
+                }
+            }
+        }
+
+        // 5. Optional Branch Filtering
+        if ($branchIds) {
+            foreach ($policies as $policyClass => $methods) {
+                foreach ($methods as $method => $policy) {
+                    if ($policy->branch_ids) {
+                        $policy->branch_ids = array_intersect($policy->branch_ids, $branchIds);
+                    }
+                }
+            }
+        }
+
+        // 6. Remove Empty Policies
+        foreach ($policies as $policyClass => $methods) {
+            foreach ($methods as $method => $policy) {
+                if (empty($policy->branch_ids) && $policy->scoping_rule != Permission::SCOPE_GLOBAL) {
+                    unset($policies[$policyClass][$method]);
+                }
+            }
+        }
+
+        // 7. Remove Empty Policy Classes
+        foreach ($policies as $policyClass => $methods) {
+            if (empty($methods)) {
+                unset($policies[$policyClass]);
+            }
+        }
+
+        // 8. Cache Result
+        Cache::write($cacheKey, $policies, 'member_permissions');
+
+        return $policies;
     }
 }

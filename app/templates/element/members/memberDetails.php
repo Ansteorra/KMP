@@ -7,6 +7,7 @@ use Cake\I18n\Date;
 $today = new Date();
 $user = $user ?? $this->request->getAttribute('identity');
 $canViewPii = $canViewPii ?? ($user && method_exists($user, 'checkCan') ? $user->checkCan('viewPii', $member) : false);
+$canManageMember = $canManageMember ?? ($user && method_exists($user, 'canManageMember') ? $user->canManageMember($member) : false);
 $piiHiddenText = __('Hidden (requires View PII permission)');
 ?>
 <tr scope="row">
@@ -37,14 +38,14 @@ $piiHiddenText = __('Hidden (requires View PII permission)');
         <?= __('Exp:') ?>
         <?= $member->membership_expires_on ? $this->Timezone->format($member->membership_expires_on, 'Y-m-d', false) : 'N/A' ?>
         <?php if ($member->membership_expires_on && $member->membership_expires_on < $today): ?>
-        <span class="badge text-bg-warning">Expired</span> <?php if ($member->id == $user->getIdentifier()): ?>- <a
+        <span class="badge text-bg-warning">Expired</span> <?php if ($canManageMember): ?>- <a
             href="https://sca.app.neoncrm.com/login"> log into SCA
             portal to renew your membership</a><?php endif; ?>
         <?php endif; ?>
         <?php else: ?>
         <?= __('Information Not Available') ?>
         <?php endif; ?>
-        <?php if ($member->membership_card_path != null && strlen($member->membership_card_path) > 0 && $member->id == $user->getIdentifier()): ?>
+        <?php if ($member->membership_card_path != null && strlen($member->membership_card_path) > 0 && $canManageMember): ?>
         <small class="mx-1 text-muted">Your Membership Information has been received and is being processed.</small>
         <?php endif; ?>
     </td>
@@ -113,7 +114,7 @@ $piiHiddenText = __('Hidden (requires View PII permission)');
     <th class="col"><?= __("Status") ?></th>
     <td class="col-10">
         <?= $member->status ?>
-        <?php if (($member->status == Member::STATUS_ACTIVE || $member->status == Member::STATUS_MINOR_PARENT_VERIFIED) && $member->id == $user->getIdentifier()): ?>
+        <?php if (($member->status == Member::STATUS_ACTIVE || $member->status == Member::STATUS_MINOR_PARENT_VERIFIED) && $canManageMember): ?>
         <br><small class="text-secondary">To verify your account please reach out to the site Secretary at <a
                 href="mailto:<?= $this->KMP->getAppSetting("Members.AccountVerificationContactEmail") ?>"><?= $this->KMP->getAppSetting("Members.AccountVerificationContactEmail") ?></a>
             with

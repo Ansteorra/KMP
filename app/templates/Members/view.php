@@ -25,6 +25,8 @@ if (!empty($aiFormConfig)) {
     }
 }
 $canViewAdditionalInformation = $canViewAdditionalInformation ?? ($user->checkCan('viewAdditionalInformation', $member));
+$canManageMember = $canManageMember ?? ($user && method_exists($user, 'canManageMember') ? $user->canManageMember($member) : false);
+$children = $children ?? [];
 switch ($member->status) {
     case Member::STATUS_ACTIVE:
         $needVerification = true;
@@ -97,6 +99,7 @@ if (
 <?php echo $this->KMP->startBlock('recordDetails');
 echo $this->element('members/memberDetails', [
     'user' => $user,
+    'canManageMember' => $canManageMember,
 ]);
 $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock('tabButtons') ?>
@@ -115,6 +118,12 @@ $this->KMP->endBlock() ?>
     aria-controls="nav-notes" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="20"
     style="order: 20;"><?= __('Notes') ?>
 </button>
+<?php if (!empty($children)) : ?>
+<button class="nav-link" id="nav-children-tab" data-bs-toggle="tab" data-bs-target="#nav-children" type="button"
+    role="tab" aria-controls="nav-children" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="25"
+    style="order: 25;"><?= __('Children') ?>
+</button>
+<?php endif; ?>
 <?php if (!empty($aiForm) && $canViewAdditionalInformation) : ?>
 <button class="nav-link" id="nav-add-info-tab" data-bs-toggle="tab" data-bs-target="#nav-add-info" type="button"
     role="tab" aria-controls="nav-add-info" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="30"
@@ -135,7 +144,7 @@ $this->KMP->endBlock() ?>
 </div>
 <div class="related tab-pane fade m-3" id="nav-gatherings" role="tabpanel" aria-labelledby="nav-gatherings-tab"
     data-detail-tabs-target="tabContent" data-tab-order="15" style="order: 15;">
-    <?php if ($user->id == $member->id || $user->checkCan('add', 'GatheringAttendances')): ?>
+    <?php if ($canManageMember || $user->checkCan('add', 'GatheringAttendances')): ?>
     <div class="mb-3">
         <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
             data-bs-target="#addGatheringAttendanceModal">
@@ -157,6 +166,14 @@ $this->KMP->endBlock() ?>
         'viewPrivate' => $user->checkCan('viewPrivateNotes', 'Members'),
     ]) ?>
 </div>
+<?php if (!empty($children)) : ?>
+<div class="related tab-pane fade m-3" id="nav-children" role="tabpanel" aria-labelledby="nav-children-tab"
+    data-detail-tabs-target="tabContent" data-tab-order="25" style="order: 25;">
+    <?= $this->element('members/children', [
+        'children' => $children,
+    ]) ?>
+</div>
+<?php endif; ?>
 <?php if (!empty($aiForm) && $canViewAdditionalInformation) : ?>
 <div class="related tab-pane fade m-3" id="nav-add-info" role="tabpanel" aria-labelledby="nav-add-info-tab"
     data-detail-tabs-target="tabContent" data-tab-order="30" style="order: 30;">

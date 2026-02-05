@@ -16,6 +16,7 @@ if ($canPartialEdit) {
         "id" => "submit_member_card",
         "type" => "file"
     ]);
+    echo $this->Form->hidden('member_id', ['value' => $member->id]);
 }
 echo $this->Modal->create("Submit your SCA Card ", [
     "id" => "submitMemberCardModal",

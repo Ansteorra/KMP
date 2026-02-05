@@ -12,6 +12,7 @@ $isEdit = !empty($userAttendance);
 $modalId = $modalId ?? 'attendGatheringModal';
 $formId = $modalId . 'Form';
 $fromCalendar = $fromCalendar ?? false;
+$isMinor = $user && $user->age !== null && $user->age < 18;
 
 // Debug: Check if we're in edit mode
 if ($isEdit) {
@@ -92,6 +93,7 @@ if ($isEdit) {
                         SCA name and note.
                     </small>
 
+                    <?php if (!$isMinor): ?>
                     <?= $this->Form->control('share_with_kingdom', [
                         'type' => 'checkbox',
                         'label' => 'Share with Kingdom',
@@ -100,6 +102,9 @@ if ($isEdit) {
                         'checked' => $isEdit ? $userAttendance->share_with_kingdom : false,
                         'tooltip' => 'Signed-in members can see your name and note on the public gathering page, and the host group and crown can view it in AMP.'
                     ]) ?>
+                    <?php else: ?>
+                    <?= $this->Form->hidden('share_with_kingdom', ['value' => '0']) ?>
+                    <?php endif; ?>
 
                     <?= $this->Form->control('share_with_hosting_group', [
                         'type' => 'checkbox',

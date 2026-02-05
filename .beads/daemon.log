@@ -1396,3 +1396,185 @@ time=2026-02-02T01:44:54.558Z level=INFO msg="Git ref change detected: %s" !BADK
 time=2026-02-02T01:44:55.564Z level=INFO msg="Import triggered by file change"
 time=2026-02-02T01:44:55.564Z level=INFO msg="Starting %s..." !BADKEY=auto-import
 time=2026-02-02T01:44:55.564Z level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-02T17:55:43.316-06:00 level=INFO msg="Daemon started (interval: %v, auto-commit: %v, auto-push: %v)" !BADKEY=5s !BADKEY=false !BADKEY=false
+time=2026-02-02T17:55:43.319-06:00 level=INFO msg="using database" path=/Users/jhandel/code/KMP/.beads/beads.db
+time=2026-02-02T17:55:43.329-06:00 level=INFO msg="database opened" path=/Users/jhandel/code/KMP/.beads/beads.db freshness_checking=true
+time=2026-02-02T17:55:43.346-06:00 level=INFO msg="Repository fingerprint validated: %s" !BADKEY=9557f24b
+time=2026-02-02T17:55:43.347-06:00 level=WARN msg="database schema version mismatch" db_version=0.49.2 daemon_version=0.43.0
+time=2026-02-02T17:55:43.347-06:00 level=INFO msg="auto-upgrading database to daemon version"
+time=2026-02-02T17:55:43.347-06:00 level=INFO msg="database version updated" version=0.43.0
+time=2026-02-02T17:55:43.347-06:00 level=INFO msg="starting RPC server" socket=/Users/jhandel/code/KMP/.beads/bd.sock
+time=2026-02-02T17:55:43.347-06:00 level=INFO msg="RPC server ready (socket listening)"
+time=2026-02-02T17:55:43.358-06:00 level=INFO msg="registered in global registry"
+time=2026-02-02T17:55:43.358-06:00 level=INFO msg="Starting %s..." !BADKEY="sync cycle"
+time=2026-02-02T17:55:43.366-06:00 level=INFO msg="Exported to JSONL"
+time=2026-02-02T17:55:44.755-06:00 level=INFO msg="Pulled from remote"
+time=2026-02-02T17:55:45.058-06:00 level=INFO msg="Imported from JSONL"
+time=2026-02-02T17:55:45.310-06:00 level=INFO msg="Sync cycle complete"
+time=2026-02-02T17:55:45.310-06:00 level=INFO msg="monitoring parent process" pid=0
+time=2026-02-02T17:55:45.310-06:00 level=INFO msg="using event-driven mode"
+time=2026-02-02T17:55:45.422-06:00 level=INFO msg="Auto-pull disabled: use 'git pull' manually to sync remote changes"
+time=2026-02-02T17:55:45.820-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-02T17:55:46.822-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-02T17:55:46.822-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-02T17:55:46.823-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-02T18:07:13.233-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-02T18:07:14.236-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-02T18:07:14.236-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-02T18:07:14.236-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-02T18:11:44.921-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-02T18:11:45.923-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-02T18:11:45.923-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-02T18:11:45.923-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-02T18:16:26.014-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-02T18:16:27.016-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-02T18:16:27.016-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-02T18:16:27.017-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-02T18:46:05.406-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-02T18:46:06.408-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-02T18:46:06.408-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-02T18:46:06.414-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-03T08:52:48.246-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-03T08:52:49.526-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-03T08:52:49.527-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-03T08:52:49.530-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-03T08:53:34.671-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-03T08:53:35.673-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-03T08:53:35.673-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-03T08:53:35.674-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-03T08:53:37.226-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-03T08:53:38.328-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-03T08:53:38.329-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-03T08:53:38.330-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-03T08:57:30.220-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-03T08:57:31.422-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-03T08:57:31.422-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-03T08:57:31.423-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-03T08:58:21.570-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-03T08:58:22.696-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-03T08:58:22.697-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-03T08:58:22.697-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-03T09:31:16.743-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-03T09:31:18.211-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-03T09:31:18.211-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-03T09:31:18.218-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-03T09:33:15.938-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-03T09:33:16.940-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-03T09:33:16.941-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-03T09:33:16.942-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-03T09:46:15.083-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-03T09:46:16.210-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-03T09:46:16.211-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-03T09:46:16.215-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-04T18:21:34.045-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-04T18:21:35.332-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-04T18:21:35.334-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-04T18:21:35.340-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-04T18:22:01.628-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-04T18:22:02.877-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-04T18:22:02.878-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-04T18:22:02.879-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-04T18:25:06.655-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-04T18:25:08.057-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-04T18:25:08.058-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-04T18:25:08.058-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-04T18:26:05.265-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-04T18:26:06.268-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-04T18:26:06.268-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-04T18:26:06.269-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-04T18:31:59.854-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-04T18:32:00.856-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-04T18:32:00.856-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-04T18:32:00.857-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-04T18:32:24.616-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-04T18:32:25.618-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-04T18:32:25.618-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-04T18:32:25.619-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-04T18:32:47.085-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-04T18:32:48.087-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-04T18:32:48.088-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-04T18:32:48.088-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-04T18:39:50.324-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-04T18:39:51.326-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-04T18:39:51.327-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-04T18:39:51.328-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-04T18:50:23.931-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-04T18:50:25.102-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-04T18:50:25.103-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-04T18:50:25.106-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-04T18:57:19.087-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-04T18:57:20.088-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-04T18:57:20.089-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-04T18:57:20.089-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-04T19:03:11.732-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-04T19:03:12.734-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-04T19:03:12.735-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-04T19:03:12.735-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-05T12:53:36.422-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-05T12:53:37.750-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-05T12:53:37.751-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-05T12:53:37.754-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-05T12:53:53.053-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-05T12:53:54.283-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-05T12:53:54.284-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-05T12:53:54.285-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-05T12:56:48.813-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-05T12:56:49.815-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-05T12:56:49.816-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-05T12:56:49.816-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-05T12:59:59.989-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-05T13:00:00.991-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-05T13:00:00.991-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-05T13:00:00.992-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-05T13:01:01.045-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-05T13:01:02.048-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-05T13:01:02.048-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-05T13:01:02.049-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-05T13:02:49.542-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-05T13:02:50.546-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-05T13:02:50.547-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-05T13:02:50.547-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-05T13:03:14.280-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-05T13:03:15.281-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-05T13:03:15.282-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-05T13:03:15.283-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-05T13:10:48.837-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-05T13:10:49.922-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-05T13:10:49.922-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-05T13:10:49.923-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-05T13:11:38.108-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-05T13:11:39.110-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-05T13:11:39.111-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-05T13:11:39.111-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-05T13:13:42.994-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-05T13:13:43.995-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-05T13:13:43.996-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-05T13:13:43.997-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-05T13:14:03.504-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-05T13:14:04.506-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-05T13:14:04.507-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-05T13:14:04.507-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-05T13:15:26.342-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-05T13:15:27.344-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-05T13:15:27.345-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-05T13:15:27.346-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-05T13:15:56.219-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-05T13:15:57.221-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-05T13:15:57.222-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-05T13:15:57.222-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-05T13:24:43.744-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-05T13:24:44.886-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-05T13:24:44.888-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-05T13:24:44.891-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-05T13:24:50.410-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-05T13:24:51.610-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-05T13:24:51.610-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-05T13:24:51.611-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-05T13:25:47.532-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-05T13:25:48.534-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-05T13:25:48.535-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-05T13:25:48.535-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-05T13:26:01.846-06:00 level=INFO msg="File change detected: %s" !BADKEY=/Users/jhandel/code/KMP/.beads/issues.jsonl
+time=2026-02-05T13:26:02.915-06:00 level=INFO msg="Import triggered by file change"
+time=2026-02-05T13:26:02.916-06:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-05T13:26:02.916-06:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import

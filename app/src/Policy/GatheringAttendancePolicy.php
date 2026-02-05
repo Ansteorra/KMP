@@ -31,7 +31,7 @@ class GatheringAttendancePolicy extends BasePolicy
     {
         // If this is a new entity with member_id set, check if it's for the current user
         if ($entity instanceof BaseEntity && isset($entity->member_id)) {
-            if ($user->id == $entity->member_id) {
+            if ($this->canManageMemberAttendance($user, (int)$entity->member_id)) {
                 return true;
             }
         }
@@ -54,7 +54,7 @@ class GatheringAttendancePolicy extends BasePolicy
     public function canEdit(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         // Users can edit their own attendance
-        if ($entity->member_id == $user->id) {
+        if ($this->canManageMemberAttendance($user, (int)$entity->member_id)) {
             return true;
         }
 
@@ -76,7 +76,7 @@ class GatheringAttendancePolicy extends BasePolicy
     public function canDelete(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         // Users can delete their own attendance
-        if ($entity->member_id == $user->id) {
+        if ($this->canManageMemberAttendance($user, (int)$entity->member_id)) {
             return true;
         }
 
@@ -98,11 +98,35 @@ class GatheringAttendancePolicy extends BasePolicy
     public function canView(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
     {
         // Users can view their own attendance
-        if ($entity instanceof BaseEntity && $entity->member_id == $user->id) {
+        if ($entity instanceof BaseEntity && $this->canManageMemberAttendance($user, (int)$entity->member_id)) {
             return true;
         }
 
         // Otherwise check standard policy permissions
         return parent::canView($user, $entity, ...$optionalArgs);
+    }
+
+    /**
+     * Determine whether the user can manage attendance for a member.
+     *
+     * Allows self or parent-of-minor access.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user
+     * @param int $memberId
+     * @return bool
+     */
+    protected function canManageMemberAttendance(KmpIdentityInterface $user, int $memberId): bool
+    {
+        if ($memberId <= 0) {
+            return false;
+        }
+
+        if ($user instanceof \App\Model\Entity\Member) {
+            $target = new \App\Model\Entity\Member();
+            $target->id = $memberId;
+            return $user->canManageMember($target);
+        }
+
+        return false;
     }
 }

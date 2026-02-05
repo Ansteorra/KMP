@@ -153,7 +153,7 @@ class AuthorizationPolicy extends BasePolicy
      */
     public function canAdd(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
     {
-        if ($entity->member_id == $user->getIdentifier()) {
+        if ($this->canManageAuthorizationMember($user, (int)$entity->member_id)) {
             return true;
         }
         $method = __FUNCTION__;
@@ -211,7 +211,7 @@ class AuthorizationPolicy extends BasePolicy
      */
     public function canRenew(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
-        if ($entity->member_id == $user->getIdentifier()) {
+        if ($this->canManageAuthorizationMember($user, (int)$entity->member_id)) {
             return true;
         }
         $method = __FUNCTION__;
@@ -270,7 +270,7 @@ class AuthorizationPolicy extends BasePolicy
      */
     public function canMemberAuthorizations(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
-        if ($entity->member_id == $user->getIdentifier()) {
+        if ($this->canManageAuthorizationMember($user, (int)$entity->member_id)) {
             return true;
         }
         $method = __FUNCTION__;
@@ -324,7 +324,7 @@ class AuthorizationPolicy extends BasePolicy
     public function canRetract(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         // Only the member who requested the authorization can retract it
-        if ($entity->member_id == $user->getIdentifier()) {
+        if ($this->canManageAuthorizationMember($user, (int)$entity->member_id)) {
             return true;
         }
         return false;
@@ -383,10 +383,34 @@ class AuthorizationPolicy extends BasePolicy
      */
     public function activityAuthorizations(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
-        if ($entity->member_id == $user->getIdentifier()) {
+        if ($this->canManageAuthorizationMember($user, (int)$entity->member_id)) {
             return true;
         }
         $method = __FUNCTION__;
         return $this->_hasPolicy($user, $method, $entity);
+    }
+
+    /**
+     * Determine whether the user can manage authorization actions for a member.
+     *
+     * Allows self or parent-of-minor access.
+     *
+     * @param KmpIdentityInterface $user
+     * @param int $memberId
+     * @return bool
+     */
+    protected function canManageAuthorizationMember(KmpIdentityInterface $user, int $memberId): bool
+    {
+        if ($memberId <= 0) {
+            return false;
+        }
+
+        if ($user instanceof \App\Model\Entity\Member) {
+            $target = new \App\Model\Entity\Member();
+            $target->id = $memberId;
+            return $user->canManageMember($target);
+        }
+
+        return false;
     }
 }

@@ -14,3 +14,6 @@ security-reports/**/.*
 amp_no_commit.sql
 node_modules/
 test-results/.claude/settings.local.json
+
+# Docker development (keep .env.example, ignore local .env)
+.env

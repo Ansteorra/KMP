@@ -417,13 +417,18 @@ class Application extends BaseApplication implements
 
             // 6. CSRF Protection Middleware - Cross-site request forgery protection
             // Uses secure cookie settings for maximum security
+            // Skip CSRF for API routes (they use Bearer token authentication)
             // Documentation: https://book.cakephp.org/4/en/security/csrf.html#cross-site-request-forgery-csrf-middleware
             ->add(
-                new CsrfProtectionMiddleware([
+                (new CsrfProtectionMiddleware([
                     'httponly' => true,    // Prevent JavaScript access to CSRF cookie
                     'secure' => !Configure::read('debug'),      // Only send cookie over HTTPS in production/UAT (Safari requires this to be false for HTTP)
                     'sameSite' => Configure::read('debug') ? 'Lax' : 'Strict', // Lax in dev for Safari compatibility, Strict in production
-                ]),
+                ]))->skipCheckCallback(function ($request) {
+                    // Skip CSRF for API routes (Bearer token provides security)
+                    $path = $request->getUri()->getPath();
+                    return str_starts_with($path, '/api/');
+                }),
             )
 
             // 7. Authentication Middleware - User login and session management
@@ -596,7 +601,29 @@ class Application extends BaseApplication implements
         ServerRequestInterface $request,
     ): AuthenticationServiceInterface {
         $service = new AuthenticationService();
+        
+        // Check if this is an API request
+        $path = $request->getUri()->getPath();
+        $isApiRequest = str_starts_with($path, '/api/');
 
+        if ($isApiRequest) {
+            // API Authentication: Bearer token only, no redirects
+            $service->setConfig([
+                'unauthenticatedRedirect' => null,
+                'queryParam' => null,
+            ]);
+
+            // Load ServicePrincipal authenticator for API routes
+            $service->loadAuthenticator('ServicePrincipal', [
+                'header' => 'Authorization',
+                'tokenPrefix' => 'Bearer',
+            ]);
+
+            // No identifier needed - authenticator handles the full lookup
+            return $service;
+        }
+
+        // Web Authentication: Session-based with form fallback
         // Configure authentication service behavior
         // Defines where users are redirected when authentication is required
         $service->setConfig([

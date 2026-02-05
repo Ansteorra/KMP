@@ -426,6 +426,62 @@ return function (RouteBuilder $routes): void {
     });
 
     /**
+     * API v1 Routes
+     * 
+     * Dedicated scope for REST API endpoints accessed by service principals.
+     * Uses Bearer token authentication instead of session-based auth.
+     * No CSRF protection (tokens provide security).
+     * 
+     * @scope "/api/v1" API version 1
+     */
+    $routes->scope('/api/v1', function (RouteBuilder $builder): void {
+        $builder->setExtensions(['json']);
+
+        // Service Principals management (self-service)
+        $builder->connect('/service-principals/me', [
+            'controller' => 'ServicePrincipals',
+            'action' => 'me',
+            'prefix' => 'Api/V1',
+        ]);
+
+        // Members API
+        $builder->connect('/members', [
+            'controller' => 'Members',
+            'action' => 'index',
+            'prefix' => 'Api/V1',
+        ]);
+        $builder->connect('/members/{id}', [
+            'controller' => 'Members',
+            'action' => 'view',
+            'prefix' => 'Api/V1',
+        ])->setPatterns(['id' => '[0-9]+'])->setPass(['id']);
+
+        // Branches API
+        $builder->connect('/branches', [
+            'controller' => 'Branches',
+            'action' => 'index',
+            'prefix' => 'Api/V1',
+        ]);
+        $builder->connect('/branches/{id}', [
+            'controller' => 'Branches',
+            'action' => 'view',
+            'prefix' => 'Api/V1',
+        ])->setPatterns(['id' => '[0-9]+'])->setPass(['id']);
+
+        // Roles API
+        $builder->connect('/roles', [
+            'controller' => 'Roles',
+            'action' => 'index',
+            'prefix' => 'Api/V1',
+        ]);
+        $builder->connect('/roles/{id}', [
+            'controller' => 'Roles',
+            'action' => 'view',
+            'prefix' => 'Api/V1',
+        ])->setPatterns(['id' => '[0-9]+'])->setPass(['id']);
+    });
+
+    /**
      * Global Extension Configuration
      * 
      * Sets default file extensions for routes outside specific scopes.
