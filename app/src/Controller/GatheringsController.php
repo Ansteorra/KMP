@@ -344,7 +344,7 @@ class GatheringsController extends AppController
                 'Gatherings.modified',
             ])
             ->contain([
-                'Branches' => ['fields' => ['id', 'name']],
+                'Branches' => ['fields' => ['id', 'name', 'public_id']],
                 'GatheringTypes' => ['fields' => ['id', 'name', 'color']],
                 'GatheringActivities' => ['fields' => ['GatheringActivities.id', 'GatheringActivities.name']],
                 'GatheringAttendances' => [
@@ -409,7 +409,7 @@ class GatheringsController extends AppController
         if ($branchFilter) {
             $branchName = $this->Gatherings->Branches->find()
                 ->select(['name'])
-                ->where(['Branches.id' => $branchFilter])
+                ->where(['Branches.public_id' => $branchFilter])
                 ->first()
                 ?->name;
         }
@@ -888,6 +888,13 @@ class GatheringsController extends AppController
         $gathering = $this->Gatherings->newEmptyEntity();
         $this->Authorization->authorize($gathering);
 
+        // Pre-fill start_date from query param (used by calendar quick-add)
+        $startDateParam = $this->request->getQuery('start_date');
+        if ($startDateParam && !$this->request->is('post')) {
+            $gathering->start_date = new \Cake\I18n\DateTime($startDateParam);
+            $gathering->end_date = new \Cake\I18n\DateTime($startDateParam);
+        }
+
         if ($this->request->is('post')) {
             $data = $this->request->getData();
 
@@ -946,14 +953,24 @@ class GatheringsController extends AppController
 
         $branchesQuery = $this->Gatherings->Branches->find('list')->orderBy(['name' => 'ASC']);
         if ($branchIds !== null) {
-            // User has limited access - filter to specific branches
             $branchesQuery->where(['Branches.id IN' => $branchIds]);
         }
-        $branches = $branchesQuery;
+        $branches = $branchesQuery->toArray();
+        $branchCount = count($branches);
+
+        // Single branch: lock the field and pre-populate
+        $lockBranch = false;
+        if ($branchCount === 1) {
+            $lockBranch = true;
+            $singleBranchId = array_key_first($branches);
+            if (!$this->request->is('post') && empty($gathering->branch_id)) {
+                $gathering->branch_id = $singleBranchId;
+            }
+        }
 
         $gatheringTypes = $this->Gatherings->GatheringTypes->find('list')->orderBy(['name' => 'ASC']);
 
-        $this->set(compact('gathering', 'branches', 'gatheringTypes'));
+        $this->set(compact('gathering', 'branches', 'gatheringTypes', 'lockBranch', 'branchCount'));
     }
 
     /**
@@ -1028,7 +1045,7 @@ class GatheringsController extends AppController
 
         if ($branchIds === null) {
             // Global access - user can edit any branch
-            $branches = $this->Gatherings->Branches->find('list')->orderBy(['name' => 'ASC']);
+            $branches = $this->Gatherings->Branches->find('list')->orderBy(['name' => 'ASC'])->toArray();
             $lockBranch = false;
         } elseif (empty($branchIds)) {
             // No branch scope (e.g., steward with no standard permissions)
@@ -1044,13 +1061,20 @@ class GatheringsController extends AppController
             // User has branch scope and gathering's branch is in their scope
             $branches = $this->Gatherings->Branches->find('list')
                 ->where(['Branches.id IN' => $branchIds])
-                ->orderBy(['name' => 'ASC']);
+                ->orderBy(['name' => 'ASC'])
+                ->toArray();
             $lockBranch = false;
+        }
+
+        $branchCount = count($branches);
+        // Single available branch: lock it
+        if (!$lockBranch && $branchCount === 1) {
+            $lockBranch = true;
         }
 
         $gatheringTypes = $this->Gatherings->GatheringTypes->find('list')->orderBy(['name' => 'ASC']);
 
-        $this->set(compact('gathering', 'branches', 'gatheringTypes', 'lockBranch'));
+        $this->set(compact('gathering', 'branches', 'gatheringTypes', 'lockBranch', 'branchCount'));
     }
 
     /**
@@ -1447,27 +1471,79 @@ class GatheringsController extends AppController
 
         $newGathering = $this->Gatherings->newEntity($data);
 
-        if ($this->Gatherings->save($newGathering)) {
+        // Skip template activity sync — clone manages activities from the source gathering
+        if ($this->Gatherings->save($newGathering, ['skipTemplateSync' => true])) {
             $clonedActivities = 0;
             $clonedStaff = 0;
             $clonedSchedule = 0;
 
-            // Clone activities if requested
+            // Clone activities from source gathering, then backfill required template activities
             if (!empty($data['clone_activities'])) {
                 $GatheringsGatheringActivities = $this->fetchTable('GatheringsGatheringActivities');
+                $clonedActivityIds = [];
 
+                // First: copy all activities from the source gathering
                 foreach ($originalGathering->gathering_activities as $activity) {
                     $link = $GatheringsGatheringActivities->newEntity([
                         'gathering_id' => $newGathering->id,
                         'gathering_activity_id' => $activity->id,
                         'sort_order' => $activity->_joinData->sort_order ?? 999,
-                        'description' => $activity->_joinData->custom_description ?? null
+                        'description' => $activity->_joinData->custom_description ?? null,
                     ]);
 
                     if ($GatheringsGatheringActivities->save($link)) {
                         $clonedActivities++;
+                        $clonedActivityIds[$activity->id] = true;
                     }
                 }
+
+                // Second: add any required template activities missing from the source
+                $templateActivities = $this->fetchTable('GatheringTypeGatheringActivities')->find()
+                    ->where([
+                        'gathering_type_id' => $newGathering->gathering_type_id,
+                        'not_removable' => true,
+                    ])
+                    ->all();
+
+                $maxSort = 0;
+                foreach ($originalGathering->gathering_activities as $a) {
+                    $order = $a->_joinData->sort_order ?? 0;
+                    if ($order > $maxSort) {
+                        $maxSort = $order;
+                    }
+                }
+
+                foreach ($templateActivities as $tmpl) {
+                    if (isset($clonedActivityIds[$tmpl->gathering_activity_id])) {
+                        // Already cloned from source — ensure not_removable is set
+                        $existing = $GatheringsGatheringActivities->find()
+                            ->where([
+                                'gathering_id' => $newGathering->id,
+                                'gathering_activity_id' => $tmpl->gathering_activity_id,
+                            ])
+                            ->first();
+                        if ($existing && !$existing->not_removable) {
+                            $existing->not_removable = true;
+                            $GatheringsGatheringActivities->save($existing);
+                        }
+                        continue;
+                    }
+
+                    // Required activity missing from source — add it
+                    $maxSort++;
+                    $link = $GatheringsGatheringActivities->newEntity([
+                        'gathering_id' => $newGathering->id,
+                        'gathering_activity_id' => $tmpl->gathering_activity_id,
+                        'sort_order' => $maxSort,
+                    ]);
+                    $link->not_removable = true;
+                    if ($GatheringsGatheringActivities->save($link)) {
+                        $clonedActivities++;
+                    }
+                }
+            } else {
+                // Not cloning activities — let template sync run normally
+                $this->Gatherings->syncTemplateActivities($newGathering);
             }
 
             // Clone staff if requested
@@ -1889,7 +1965,7 @@ class GatheringsController extends AppController
      * Public iCalendar subscription feed.
      *
      * Returns a multi-event VCALENDAR that calendar apps can subscribe to.
-     * Supports optional filters: branch (public_id), type (gathering_type_id).
+     * Accepts the same filter[column][] query parameters as the calendar grid.
      *
      * @param \App\Services\ICalendarService $iCalendarService iCalendar service
      * @return \Cake\Http\Response iCalendar feed response
@@ -1898,10 +1974,6 @@ class GatheringsController extends AppController
     {
         $this->Authorization->skipAuthorization();
 
-        $branchPublicId = $this->request->getQuery('branch');
-        $typeId = $this->request->getQuery('type');
-
-        // Build query: non-cancelled gatherings from 30 days ago onward
         $cutoff = new \Cake\I18n\DateTime('-30 days');
         $query = $this->Gatherings->find()
             ->contain([
@@ -1913,54 +1985,72 @@ class GatheringsController extends AppController
                 ],
             ])
             ->where([
-                'Gatherings.cancelled_at IS' => null,
                 'Gatherings.end_date >=' => $cutoff,
             ])
             ->orderBy(['Gatherings.start_date' => 'ASC']);
 
-        // Filter by branch
-        $branchName = null;
-        if (!empty($branchPublicId)) {
-            $branch = $this->fetchTable('Branches')
-                ->find('byPublicId', [$branchPublicId])
-                ->select(['id', 'name', 'public_id'])
-                ->first();
-            if ($branch) {
-                $query->where(['Gatherings.branch_id' => $branch->id]);
-                $branchName = $branch->name;
+        // Apply the same grid filters the calendar UI uses
+        $columnsMetadata = \App\KMP\GridColumns\GatheringsGridColumns::getColumns();
+        $incomingFilters = $this->request->getQuery('filter', []);
+        $calendarNameParts = [];
+
+        foreach ($incomingFilters as $columnKey => $filterValue) {
+            if (empty($filterValue)) {
+                continue;
+            }
+
+            $columnMeta = $columnsMetadata[$columnKey] ?? null;
+            if (!$columnMeta || empty($columnMeta['filterable'])) {
+                continue;
+            }
+
+            // Skip custom-handler and date-range columns (feed uses its own date range)
+            if (!empty($columnMeta['customFilterHandler']) || ($columnMeta['filterType'] ?? null) === 'date-range') {
+                continue;
+            }
+
+            $fieldToFilter = $columnMeta['queryField'] ?? $columnKey;
+            $qualifiedField = strpos($fieldToFilter, '.') === false
+                ? 'Gatherings.' . $fieldToFilter
+                : $fieldToFilter;
+
+            $values = is_array($filterValue) ? $filterValue : [$filterValue];
+            $query->where([$qualifiedField . ' IN' => $values]);
+        }
+
+        // Build calendar display name from active filter values
+        if (!empty($incomingFilters['branch_id'])) {
+            $branchIds = (array)$incomingFilters['branch_id'];
+            $branchNames = $this->fetchTable('Branches')->find()
+                ->select(['name'])
+                ->where(['Branches.public_id IN' => $branchIds])
+                ->all()
+                ->extract('name')
+                ->toArray();
+            if (!empty($branchNames)) {
+                $calendarNameParts[] = implode(', ', $branchNames);
+            }
+        }
+        if (!empty($incomingFilters['gathering_type_id'])) {
+            $typeIds = array_map('intval', (array)$incomingFilters['gathering_type_id']);
+            $typeNames = $this->fetchTable('GatheringTypes')->find()
+                ->select(['name'])
+                ->where(['id IN' => $typeIds])
+                ->all()
+                ->extract('name')
+                ->toArray();
+            if (!empty($typeNames)) {
+                $calendarNameParts[] = implode(', ', $typeNames);
             }
         }
 
-        // Filter by gathering type
-        $typeName = null;
-        if (!empty($typeId)) {
-            $typeId = (int)$typeId;
-            $query->where(['Gatherings.gathering_type_id' => $typeId]);
-            $type = $this->fetchTable('GatheringTypes')->find()
-                ->select(['name'])
-                ->where(['id' => $typeId])
-                ->first();
-            if ($type) {
-                $typeName = $type->name;
-            }
+        $calendarName = 'KMP Gatherings';
+        if (!empty($calendarNameParts)) {
+            $calendarName .= ' - ' . implode(' / ', $calendarNameParts);
         }
 
         $gatherings = $query->all();
 
-        // Build calendar display name
-        $calendarName = 'KMP Gatherings';
-        $parts = [];
-        if ($branchName) {
-            $parts[] = $branchName;
-        }
-        if ($typeName) {
-            $parts[] = $typeName;
-        }
-        if (!empty($parts)) {
-            $calendarName .= ' - ' . implode(' / ', $parts);
-        }
-
-        // Build base URL for event links
         $baseUrl = $this->request->scheme() . '://' . $this->request->host()
             . $this->request->getAttribute('base');
 

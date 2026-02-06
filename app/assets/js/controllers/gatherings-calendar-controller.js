@@ -72,6 +72,15 @@ class GatheringsCalendarController extends Controller {
 
         this.updateCalendarHeader()
         this.updateCalendarNavigation()
+        this.updateFeedUrl()
+
+        // Update feed URL when browser URL changes (after filter navigation)
+        this._popstateHandler = () => this.updateFeedUrl()
+        window.addEventListener('popstate', this._popstateHandler)
+
+        // Also catch pushState calls from the grid-view controller
+        this._pushStateHandler = () => this.updateFeedUrl()
+        window.addEventListener('grid-view:navigated', this._pushStateHandler)
     }
 
     /**
@@ -243,6 +252,34 @@ class GatheringsCalendarController extends Controller {
 
         const label = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(date)
         header.textContent = label
+    }
+
+    /**
+     * Rebuild the subscribe feed URL from current browser URL filter params
+     */
+    updateFeedUrl() {
+        const feedInput = document.getElementById('calendarFeedUrl')
+        if (!feedInput) {
+            return
+        }
+
+        const baseFeedUrl = feedInput.dataset.baseFeedUrl
+        if (!baseFeedUrl) {
+            return
+        }
+
+        // Pass through all filter[*] params to the feed URL
+        const params = new URLSearchParams(window.location.search)
+        const feedParams = new URLSearchParams()
+
+        params.forEach((value, key) => {
+            if (key.startsWith('filter[')) {
+                feedParams.append(key, value)
+            }
+        })
+
+        const feedQuery = feedParams.toString()
+        feedInput.value = feedQuery ? baseFeedUrl + '?' + feedQuery : baseFeedUrl
     }
 
     updateCalendarNavigation() {
@@ -756,6 +793,15 @@ class GatheringsCalendarController extends Controller {
     disconnect() {
         // Remove event listeners attached to dynamically loaded modal content
         try {
+            if (this._popstateHandler) {
+                window.removeEventListener('popstate', this._popstateHandler)
+                this._popstateHandler = null
+            }
+            if (this._pushStateHandler) {
+                window.removeEventListener('grid-view:navigated', this._pushStateHandler)
+                this._pushStateHandler = null
+            }
+
             if (this.modalElement) {
                 const closeButton = this.modalElement.querySelector('.btn-close')
                 if (closeButton && this._closeButtonHandler) {

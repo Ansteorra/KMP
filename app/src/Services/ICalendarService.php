@@ -15,6 +15,7 @@ use Cake\I18n\DateTime;
  *
  * Implements RFC 5545 (iCalendar) format.
  * Supports single-event downloads and multi-event subscription feeds.
+ * VEVENT UIDs use the gathering's public_id for stable, non-sequential identifiers.
  */
 class ICalendarService
 {
@@ -49,7 +50,7 @@ class ICalendarService
         $lines[] = 'BEGIN:VEVENT';
 
         // Unique identifier for this event
-        $uid = 'gathering-' . $gathering->id . '@' . ($_SERVER['HTTP_HOST'] ?? 'kmp.local');
+        $uid = 'gathering-' . $gathering->public_id . '@' . ($_SERVER['HTTP_HOST'] ?? 'kmp.local');
         $lines[] = 'UID:' . $this->escapeText($uid);
 
         // Timestamps
@@ -70,7 +71,7 @@ class ICalendarService
             $lines[] = 'DTEND:' . $this->formatDateTime($gathering->end_date);
         }
 
-        // Event title
+        // Event title — calendar apps display cancellation status from STATUS:CANCELLED
         $lines[] = 'SUMMARY:' . $this->escapeText($gathering->name);
 
         // Description
@@ -93,7 +94,7 @@ class ICalendarService
         }
 
         // Status
-        $lines[] = 'STATUS:CONFIRMED';
+        $lines[] = 'STATUS:' . ($gathering->cancelled_at ? 'CANCELLED' : 'CONFIRMED');
 
         // Organizer (using branch name)
         if (!empty($gathering->branch)) {
@@ -178,7 +179,7 @@ class ICalendarService
 
         $lines[] = 'BEGIN:VEVENT';
 
-        $uid = 'gathering-' . $gathering->id . '@' . ($_SERVER['HTTP_HOST'] ?? 'kmp.local');
+        $uid = 'gathering-' . $gathering->public_id . '@' . ($_SERVER['HTTP_HOST'] ?? 'kmp.local');
         $lines[] = 'UID:' . $this->escapeText($uid);
 
         $now = DateTime::now();
@@ -195,6 +196,7 @@ class ICalendarService
             $lines[] = 'DTEND:' . $this->formatDateTime($gathering->end_date);
         }
 
+        // Event title — calendar apps display cancellation status from STATUS:CANCELLED
         $lines[] = 'SUMMARY:' . $this->escapeText($gathering->name);
 
         $eventUrl = null;
@@ -216,7 +218,7 @@ class ICalendarService
             $lines[] = 'URL:' . $eventUrl;
         }
 
-        $lines[] = 'STATUS:CONFIRMED';
+        $lines[] = 'STATUS:' . ($gathering->cancelled_at ? 'CANCELLED' : 'CONFIRMED');
 
         if (!empty($gathering->branch)) {
             $organizerName = $this->escapeText($gathering->branch->name);

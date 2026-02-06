@@ -198,14 +198,13 @@ $canAddGathering = $identity && $identity->checkCan('add', $tempGathering);
             </div>
             <div class="col-auto">
                 <?php
+                // Build feed URL with current filter params (same format the feed action accepts)
                 $feedParams = [];
-                if (!empty($queryParams['branch'])) {
-                    $feedParams['branch'] = $queryParams['branch'];
-                }
-                if (!empty($queryParams['gathering_type_id'])) {
-                    $feedParams['type'] = $queryParams['gathering_type_id'];
+                if (!empty($queryParams['filter']) && is_array($queryParams['filter'])) {
+                    $feedParams['filter'] = $queryParams['filter'];
                 }
                 $feedUrl = $this->Url->build(['controller' => 'Gatherings', 'action' => 'feed', '?' => $feedParams], ['fullBase' => true]);
+                $baseFeedUrl = $this->Url->build(['controller' => 'Gatherings', 'action' => 'feed'], ['fullBase' => true]);
                 ?>
                 <div class="dropdown">
                     <button class="btn btn-sm btn-outline-success dropdown-toggle" type="button"
@@ -220,6 +219,7 @@ $canAddGathering = $identity && $identity->checkCan('add', $tempGathering);
                         </p>
                         <div class="input-group input-group-sm">
                             <input type="text" class="form-control" id="calendarFeedUrl"
+                                data-base-feed-url="<?= h($baseFeedUrl) ?>"
                                 value="<?= h($feedUrl) ?>" readonly onclick="this.select()">
                             <button class="btn btn-outline-primary" type="button"
                                 onclick="navigator.clipboard.writeText(document.getElementById('calendarFeedUrl').value).then(() => { this.innerHTML = '<i class=\'bi bi-check\'></i>'; setTimeout(() => { this.innerHTML = '<i class=\'bi bi-clipboard\'></i>'; }, 1500); })">

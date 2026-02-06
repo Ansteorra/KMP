@@ -11,6 +11,7 @@
  * @var \DateTime $calendarEnd
  * @var \DateTime $startDate
  * @var \DateTime $endDate
+ * @var bool $canAddGathering
  */
 
 use Cake\I18n\DateTime;
@@ -53,6 +54,7 @@ foreach ($gatherings as $gathering) {
 $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
 $today = new DateTime('now', new \DateTimeZone($userTimezone));
 $today->setTime(0, 0, 0);
+$canAddGathering = $canAddGathering ?? false;
 ?>
 
 <div class="card">
@@ -158,6 +160,14 @@ $today->setTime(0, 0, 0);
                                 ]
                             ) ?>
                 <?php endforeach; ?>
+                <?php endif; ?>
+
+                <?php if ($canAddGathering): ?>
+                <a href="<?= $this->Url->build(['action' => 'add', '?' => ['start_date' => $dateKey . 'T09:00']]) ?>"
+                   class="calendar-day-add" title="<?= __('Add gathering on this date') ?>"
+                   data-turbo-frame="_top">
+                    <i class="bi bi-plus-circle"></i>
+                </a>
                 <?php endif; ?>
             </div>
             <?php

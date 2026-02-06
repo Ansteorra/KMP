@@ -17,3 +17,6 @@ test-results/.claude/settings.local.json
 
 # Docker development (keep .env.example, ignore local .env)
 .env
+app/cookie.txt
+amp_uat.sql
+uat_dump.sql
