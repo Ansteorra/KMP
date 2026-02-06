@@ -279,17 +279,16 @@ class BranchesController extends AppController
      */
     public function view(?string $id = null)
     {
-        $branch = $this->Branches->get(
-            $id,
-            contain: [
+        $branch = $this->Branches->find('byPublicId', [$id])
+            ->contain([
                 'Parent',
                 'Members' => function ($q) {
                     return $q
                         ->select(['id', 'sca_name', 'branch_id', 'membership_number', 'membership_expires_on', 'status', 'birth_month', 'birth_year'])
                         ->orderBy(['sca_name' => 'ASC']);
                 },
-            ],
-        );
+            ])
+            ->firstOrFail();
         if (!$branch) {
             throw new NotFoundException();
         }
@@ -333,7 +332,7 @@ class BranchesController extends AppController
             if ($this->Branches->save($branch)) {
                 $this->Flash->success(__('The branch has been saved.'));
 
-                return $this->redirect(['action' => 'view', $branch->id]);
+                return $this->redirect(['action' => 'view', $branch->public_id]);
             }
             $this->Flash->error(
                 __('The branch could not be saved. Please, try again.'),
@@ -361,7 +360,7 @@ class BranchesController extends AppController
      */
     public function edit(?string $id = null)
     {
-        $branch = $this->Branches->get($id);
+        $branch = $this->Branches->find('byPublicId', [$id])->firstOrFail();
         if (!$branch) {
             throw new NotFoundException();
         }
@@ -379,13 +378,13 @@ class BranchesController extends AppController
                     $branches->recover();
                     $this->Flash->success(__('The branch has been saved.'));
 
-                    return $this->redirect(['action' => 'view', $branch->id]);
+                    return $this->redirect(['action' => 'view', $branch->public_id]);
                 }
                 $this->Flash->error(
                     __('The branch could not be saved. Please, try again.'),
                 );
 
-                return $this->redirect(['action' => 'view', $branch->id]);
+                return $this->redirect(['action' => 'view', $branch->public_id]);
             } catch (DatabaseException $e) {
                 // if the error message starts with 'Cannot use node' then it is a tree error
                 if (strpos($e->getMessage(), 'Cannot use node') === 0) {
@@ -403,7 +402,7 @@ class BranchesController extends AppController
                     );
                 }
 
-                return $this->redirect(['action' => 'view', $branch->id]);
+                return $this->redirect(['action' => 'view', $branch->public_id]);
             }
         }
         $treeList = $this->Branches
@@ -435,7 +434,7 @@ class BranchesController extends AppController
     public function delete(?string $id = null)
     {
         $this->request->allowMethod(['post', 'delete']);
-        $branch = $this->Branches->get($id);
+        $branch = $this->Branches->find('byPublicId', [$id])->firstOrFail();
         if (!$branch) {
             throw new NotFoundException();
         }

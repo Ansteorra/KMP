@@ -4,7 +4,7 @@ echo $this->Form->create($branch, [
     "url" => [
         "controller" => "Branches",
         "action" => "edit",
-        $branch->id,
+        $branch->public_id,
     ],
     'data-controller' => 'branch-links'
 ]);

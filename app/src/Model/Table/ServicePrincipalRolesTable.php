@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Model\Table;
 
 use Cake\Cache\Cache;
+use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\Validation\Validator;
 
@@ -167,7 +168,7 @@ class ServicePrincipalRolesTable extends BaseTable
      * @param \Cake\ORM\Query\SelectQuery $query Query
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findCurrent($query)
+    public function findCurrent(\Cake\ORM\Query\SelectQuery $query): \Cake\ORM\Query\SelectQuery
     {
         $now = date('Y-m-d');
 

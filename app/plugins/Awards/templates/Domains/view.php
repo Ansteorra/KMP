@@ -70,7 +70,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
                                 <?= $award->hasValue('level') ? $this->Html->link($award->level->name, ['controller' => 'Levels', 'action' => 'view', $award->level->id]) : '' ?>
                             </td>
                             <td class="text-center">
-                                <?= $award->hasValue('branch') ? $this->Html->link($award->branch->name, ['plugin' => null, 'controller' => 'Branches', 'action' => 'view', $award->branch->id]) : '' ?>
+                                <?= $award->hasValue('branch') ? $this->Html->link($award->branch->name, ['plugin' => null, 'controller' => 'Branches', 'action' => 'view', $award->branch->public_id]) : '' ?>
                             </td>
                             <td class="actions text-end text-nowrap">
                                 <?= $this->Html->link(

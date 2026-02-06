@@ -5,15 +5,22 @@ declare(strict_types=1);
 namespace App\Controller\Api\V1;
 
 use App\Controller\Api\ApiController;
-use Cake\Http\Exception\NotFoundException;
+use App\Services\ApiDataRegistry;
 
 /**
  * Branches API Controller
  *
- * Provides read-only access to branch data for API clients.
+ * Provides public, read-only access to branch data.
+ * No authentication required — branch information is public.
  */
 class BranchesController extends ApiController
 {
+    public function initialize(): void
+    {
+        parent::initialize();
+        $this->Authentication->addUnauthenticatedActions(['index', 'view']);
+    }
+
     /**
      * List branches with pagination and filtering.
      *
@@ -21,21 +28,30 @@ class BranchesController extends ApiController
      */
     public function index(): void
     {
+        $this->Authorization->skipAuthorization();
+
         $this->paginate = [
             'limit' => 50,
             'maxLimit' => 200,
             'order' => ['Branches.name' => 'asc'],
         ];
 
-        $query = $this->fetchTable('Branches')->find();
+        $query = $this->fetchTable('Branches')->find()
+            ->select(['id', 'public_id', 'name', 'location', 'type', 'parent_id'])
+            ->contain(['Parent' => fn($q) => $q->select(['id', 'public_id'])])
+            ->whereNotNull('Branches.type');
 
-        // Apply authorization scope
-        $identity = $this->Authentication->getIdentity();
-        $query = $identity->applyScope('index', $query);
-
-        // Optional filters
-        if ($this->request->getQuery('parent_id')) {
-            $query->where(['Branches.parent_id' => $this->request->getQuery('parent_id')]);
+        if ($this->request->getQuery('parent')) {
+            $parentBranch = $this->fetchTable('Branches')
+                ->find('byPublicId', [$this->request->getQuery('parent')])
+                ->select(['id'])
+                ->first();
+            if ($parentBranch) {
+                $query->where(['Branches.parent_id' => $parentBranch->id]);
+            } else {
+                // Unknown parent — return empty result
+                $query->where(['1 = 0']);
+            }
         }
 
         if ($this->request->getQuery('type')) {
@@ -44,7 +60,6 @@ class BranchesController extends ApiController
 
         $branches = $this->paginate($query);
 
-        // Transform to API response format
         $data = [];
         foreach ($branches as $branch) {
             $data[] = $this->formatBranch($branch);
@@ -54,58 +69,98 @@ class BranchesController extends ApiController
     }
 
     /**
-     * View a single branch.
+     * View a single branch with all public information.
      *
-     * @param int $id Branch ID
+     * @param string $id Branch public_id
      * @return void
      */
-    public function view(int $id): void
+    public function view(string $id): void
     {
-        $branch = $this->fetchTable('Branches')->find()
-            ->where(['Branches.id' => $id])
-            ->contain(['ParentBranches'])
+        $this->Authorization->skipAuthorization();
+
+        $branchesTable = $this->fetchTable('Branches');
+
+        $branch = $branchesTable->find('byPublicId', [$id])
+            ->contain(['Parent'])
             ->first();
 
         if (!$branch) {
-            throw new NotFoundException('Branch not found');
+            $this->apiError('NOT_FOUND', 'Branch not found', [], 404);
+            return;
         }
 
-        // Check authorization
-        $this->Authorization->authorize($branch, 'view');
+        // Load direct children
+        $children = $branchesTable->find()
+            ->select(['id', 'public_id', 'name', 'type', 'location'])
+            ->where(['parent_id' => $branch->id])
+            ->orderBy(['name' => 'asc'])
+            ->all();
 
-        $this->apiSuccess($this->formatBranch($branch, true));
+        $detail = $this->formatBranchDetail($branch, $children);
+
+        // Let plugins inject additional data
+        $pluginData = ApiDataRegistry::collect('Branches', 'view', $branch);
+        $detail = array_merge($detail, $pluginData);
+
+        $this->apiSuccess($detail);
     }
 
     /**
-     * Format branch data for API response.
+     * Format branch summary for list responses.
      *
      * @param \App\Model\Entity\Branch $branch Branch entity
-     * @param bool $detailed Include detailed information
      * @return array
      */
-    protected function formatBranch($branch, bool $detailed = false): array
+    protected function formatBranch($branch): array
+    {
+        return [
+            'id' => $branch->public_id,
+            'name' => $branch->name,
+            'location' => $branch->location ?? null,
+            'type' => $branch->type,
+            'parent_id' => $branch->parent->public_id ?? null,
+        ];
+    }
+
+    /**
+     * Format branch detail with all public information.
+     *
+     * @param \App\Model\Entity\Branch $branch Branch entity with Parent contain
+     * @param iterable $children Direct child branches
+     * @return array
+     */
+    protected function formatBranchDetail($branch, iterable $children): array
     {
         $data = [
-            'id' => $branch->id,
+            'id' => $branch->public_id,
             'name' => $branch->name,
+            'location' => $branch->location ?? null,
             'type' => $branch->type ?? null,
-            'parent_id' => $branch->parent_id,
+            'domain' => $branch->domain ?? null,
+            'links' => $branch->links ?? null,
+            'can_have_members' => (bool)$branch->can_have_members,
+            'created' => $branch->created?->toIso8601String(),
+            'modified' => $branch->modified?->toIso8601String(),
         ];
 
-        if ($detailed) {
-            $data += [
-                'location' => $branch->location ?? null,
-                'domain' => $branch->domain ?? null,
-                'created' => $branch->created?->toIso8601String(),
-                'modified' => $branch->modified?->toIso8601String(),
+        if ($branch->parent ?? null) {
+            $data['parent'] = [
+                'id' => $branch->parent->public_id,
+                'name' => $branch->parent->name,
+                'type' => $branch->parent->type ?? null,
             ];
+        } else {
+            $data['parent'] = null;
+        }
 
-            if ($branch->parent_branch ?? null) {
-                $data['parent'] = [
-                    'id' => $branch->parent_branch->id,
-                    'name' => $branch->parent_branch->name,
-                ];
-            }
+        $data['children'] = [];
+        foreach ($children as $child) {
+            $data['children'][] = [
+                'id' => $child->public_id,
+                'name' => $child->name,
+                'type' => $child->type ?? null,
+                'location' => $child->location ?? null,
+            ];
         }
 
         return $data;

@@ -220,6 +220,9 @@ class NavigationRegistry
     {
         self::$navigationItems = [];
         self::$initialized = false;
+        if (isset($_SESSION['navigation_items'])) {
+            unset($_SESSION['navigation_items']);
+        }
     }
 
     /**

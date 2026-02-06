@@ -16,8 +16,10 @@ use Cake\Event\EventManager;
 use Officers\Event\CallForCellsHandler;
 use App\Services\NavigationRegistry;
 use App\Services\ViewCellRegistry;
+use App\Services\ApiDataRegistry;
 use Officers\Services\OfficersNavigationProvider;
 use Officers\Services\OfficersViewCellProvider;
+use Officers\Services\Api\OfficersBranchApiDataProvider;
 use Officers\Services\DefaultOfficerManager;
 use Officers\Services\OfficerManagerInterface;
 use App\KMP\StaticHelpers;
@@ -87,6 +89,14 @@ class OfficersPlugin extends BasePlugin implements KMPPluginInterface, KMPApiPlu
             function ($urlParams, $user) {
                 return OfficersViewCellProvider::getViewCells($urlParams, $user);
             }
+        );
+
+        ApiDataRegistry::register(
+            'Officers',
+            [OfficersBranchApiDataProvider::class, 'provide'],
+            [
+                ['controller' => 'Branches', 'action' => 'view'],
+            ]
         );
 
         $currentConfigVersion = "25.01.11.a";

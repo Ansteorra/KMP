@@ -428,6 +428,15 @@ return function (RouteBuilder $routes): void {
     });
 
     /**
+     * OpenAPI merged specification endpoint.
+     * Combines the base spec with plugin-provided fragments.
+     */
+    $routes->connect('/api-docs/openapi.json', [
+        'controller' => 'OpenApi',
+        'action' => 'spec',
+    ]);
+
+    /**
      * API v1 Routes
      * 
      * Dedicated scope for REST API endpoints accessed by service principals.
@@ -468,7 +477,7 @@ return function (RouteBuilder $routes): void {
             'controller' => 'Branches',
             'action' => 'view',
             'prefix' => 'Api/V1',
-        ])->setPatterns(['id' => '[0-9]+'])->setPass(['id']);
+        ])->setPatterns(['id' => '[a-zA-Z0-9]+'])->setPass(['id']);
 
         // Roles API
         $builder->connect('/roles', [

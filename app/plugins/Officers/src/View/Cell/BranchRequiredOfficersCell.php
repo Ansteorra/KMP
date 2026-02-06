@@ -38,15 +38,20 @@ class BranchRequiredOfficersCell extends Cell
     public function display($id)
     {
         $branch = $this->getTableLocator()->get("Branches")
-            ->find()->cache("branch_" . $id . "_id_and_parent")->select(['id', 'parent_id', 'type'])
-            ->where(['id' => $id])->first();
+            ->find('byPublicId', [$id])
+            ->select(['id', 'parent_id', 'type'])
+            ->first();
+        if (!$branch) {
+            return;
+        }
+        $branchId = $branch->id;
         $officesTbl = $this->getTableLocator()->get("Officers.Offices");
         $officesQuery = $officesTbl->find()
-            ->contain(["CurrentOfficers" => function ($q) use ($id) {
+            ->contain(["CurrentOfficers" => function ($q) use ($branchId) {
                 return $q
                     ->select(["id", "member_id", "office_id", "start_on", "expires_on", "Members.sca_name", "CurrentOfficers.email_address"])
                     ->contain(["Members"])
-                    ->where(['CurrentOfficers.branch_id' => $id]);
+                    ->where(['CurrentOfficers.branch_id' => $branchId]);
             }])
             ->where(['required_office' => true]);
         $officesQuery = $officesQuery->where(['applicable_branch_types like' => '%"' . $branch->type . '"%']);

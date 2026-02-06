@@ -155,7 +155,7 @@ RUN ln -s /usr/bin/python3 /usr/local/bin/python
 
 # Install X11 utilities for GUI debugging (e.g., Playwright)
 RUN apt-get update && \
-    apt-get install -y xauth x11-apps && \
+    apt-get install -y xauth x11-apps gh && \
     rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g @anthropic-ai/claude-code @beads/bd

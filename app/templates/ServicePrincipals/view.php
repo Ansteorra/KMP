@@ -62,7 +62,7 @@ $newToken = $this->request->getSession()->consume('ServicePrincipal.newToken');
                         <dd class="col-sm-9"><code><?= h($servicePrincipal->client_id) ?></code></dd>
 
                         <dt class="col-sm-3"><?= __('Description') ?></dt>
-                        <dd class="col-sm-9"><?= $servicePrincipal->description ?: '<em class="text-muted">' . __('No description') . '</em>' ?></dd>
+                        <dd class="col-sm-9"><?= $servicePrincipal->description ? h($servicePrincipal->description) : '<em class="text-muted">' . __('No description') . '</em>' ?></dd>
 
                         <dt class="col-sm-3"><?= __('Last Used') ?></dt>
                         <dd class="col-sm-9">
@@ -280,14 +280,15 @@ $newToken = $this->request->getSession()->consume('ServicePrincipal.newToken');
 <script>
 function copyToClipboard(elementId) {
     const input = document.getElementById(elementId);
-    input.select();
-    document.execCommand('copy');
-    
-    const btn = input.nextElementSibling;
-    const originalHtml = btn.innerHTML;
-    btn.innerHTML = '<i class="bi bi-check"></i> <?= __("Copied!") ?>';
-    setTimeout(() => {
-        btn.innerHTML = originalHtml;
-    }, 1500);
+    const text = input.value;
+
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = input.nextElementSibling;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check"></i> <?= h(__("Copied!")) ?>';
+        setTimeout(() => {
+            btn.innerHTML = originalHtml;
+        }, 1500);
+    });
 }
 </script>

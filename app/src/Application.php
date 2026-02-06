@@ -447,7 +447,7 @@ class Application extends BaseApplication implements
                     'requireAuthorizationCheck' => true,
                     // Handle unauthorized access attempts
                     'unauthorizedHandler' => [
-                        'className' => 'Authorization.Redirect',     // Redirect instead of throwing exception
+                        'className' => 'ApiAwareRedirect',            // JSON errors for API routes, redirect for web
                         'url' => '/pages/unauthorized',              // Unauthorized access page
                         'queryParam' => 'redirectUrl',               // Store original URL for post-login redirect
                         'exceptions' => [                            // Exception types that trigger redirect

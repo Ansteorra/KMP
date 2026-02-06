@@ -51,9 +51,16 @@ if ($user->checkCan("verifyMembership", "Members") && $needVerification) :
             );
         }
         if ($needsMemberCardVerification) {
-            if ($member->membership_card_path != null && strlen($member->membership_card_path) > 0) {
-                echo $this->Glide->image($member->membership_card_path, [], ['width' => '400']);
-            }
+            if ($member->membership_card_path != null && strlen($member->membership_card_path) > 0) { ?>
+                <div data-controller="image-zoom"
+                    style="max-height:400px; border:1px solid #dee2e6; border-radius:0.375rem; margin-bottom:1rem;">
+                    <?= $this->Glide->image($member->membership_card_path, ['width' => '800'], [
+                        'data-image-zoom-target' => 'image',
+                        'style' => 'max-width:100%; display:block;',
+                    ]) ?>
+                </div>
+                <small class="text-muted d-block mb-2"><?= __('Scroll to zoom · Drag to pan · Double-click to reset') ?></small>
+            <?php }
             if ($needsParentVerification) {
                 echo $this->Form->control("verify_membership", [
                     "type" => "checkbox",

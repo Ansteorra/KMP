@@ -4,11 +4,22 @@ declare(strict_types=1);
 
 namespace Officers\Controller\Api\V1;
 
-use Cake\Http\Exception\NotFoundException;
+
 use Officers\Services\Api\ReadOnlyOfficeServiceInterface;
 
+/**
+ * API controller for read-only office listing and detail.
+ *
+ * @property \Cake\ORM\Table $Offices
+ */
 class OfficesController extends AppController
 {
+    /**
+     * List offices with optional filters and pagination.
+     *
+     * @param \Officers\Services\Api\ReadOnlyOfficeServiceInterface $service
+     * @return void
+     */
     public function index(ReadOnlyOfficeServiceInterface $service): void
     {
         $identity = $this->getKmpIdentity();
@@ -26,6 +37,13 @@ class OfficesController extends AppController
         $this->apiSuccess($result['data'], $result['meta']);
     }
 
+    /**
+     * View a single office by ID.
+     *
+     * @param int $id Office ID
+     * @param \Officers\Services\Api\ReadOnlyOfficeServiceInterface $service
+     * @return void
+     */
     public function view(int $id, ReadOnlyOfficeServiceInterface $service): void
     {
         $identity = $this->getKmpIdentity();
@@ -33,7 +51,8 @@ class OfficesController extends AppController
 
         $result = $service->getById($identity, $id);
         if ($result === null) {
-            throw new NotFoundException('Office not found');
+            $this->apiError('NOT_FOUND', 'Office not found', [], 404);
+            return;
         }
 
         $this->apiSuccess($result);

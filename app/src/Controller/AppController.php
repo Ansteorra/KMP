@@ -16,6 +16,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\KMP\StaticHelpers;
+use App\Model\Entity\Member;
 use App\Services\ImpersonationService;
 use App\Services\ViewCellRegistry;
 use Cake\Controller\Controller;
@@ -172,9 +173,11 @@ class AppController extends Controller
         ];
 
         $currentUser = $this->request->getAttribute('identity');
+        // ViewCellRegistry expects a Member entity; pass null for non-Member identities (e.g. ServicePrincipal)
+        $memberUser = ($currentUser instanceof Member) ? $currentUser : null;
         $impersonationService = new ImpersonationService();
         $impersonationState = $impersonationService->getState($session);
-        $this->pluginViewCells = ViewCellRegistry::getViewCells($urlParams, $currentUser);
+        $this->pluginViewCells = ViewCellRegistry::getViewCells($urlParams, $memberUser);
         $this->set('pluginViewCells', $this->pluginViewCells);
 
         // Turbo Frame handling

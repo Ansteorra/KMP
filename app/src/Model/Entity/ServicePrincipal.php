@@ -144,8 +144,14 @@ class ServicePrincipal extends BaseEntity implements
 
         [$subnet, $bits] = explode('/', $allowed);
         $bits = (int)$bits;
+        if ($bits < 0 || $bits > 32) {
+            return false;
+        }
         $ipLong = ip2long($ip);
         $subnetLong = ip2long($subnet);
+        if ($ipLong === false || $subnetLong === false) {
+            return false;
+        }
         $mask = -1 << (32 - $bits);
 
         return ($ipLong & $mask) === ($subnetLong & $mask);
@@ -193,6 +199,10 @@ class ServicePrincipal extends BaseEntity implements
      */
     public function can(string $action, mixed $resource, ...$optionalArgs): bool
     {
+        if ($this->authorization === null) {
+            throw new \RuntimeException('Authorization service not set on ServicePrincipal');
+        }
+
         if (is_string($resource)) {
             $resource = TableRegistry::getTableLocator()
                 ->get($resource)
@@ -212,6 +222,10 @@ class ServicePrincipal extends BaseEntity implements
      */
     public function checkCan(string $action, mixed $resource, ...$optionalArgs): bool
     {
+        if ($this->authorization === null) {
+            throw new \RuntimeException('Authorization service not set on ServicePrincipal');
+        }
+
         if (is_string($resource)) {
             $resource = TableRegistry::getTableLocator()
                 ->get($resource)
@@ -231,6 +245,10 @@ class ServicePrincipal extends BaseEntity implements
      */
     public function canResult(string $action, mixed $resource, ...$optionalArgs): ResultInterface
     {
+        if ($this->authorization === null) {
+            throw new \RuntimeException('Authorization service not set on ServicePrincipal');
+        }
+
         if (is_string($resource)) {
             $resource = TableRegistry::getTableLocator()
                 ->get($resource)
@@ -250,7 +268,11 @@ class ServicePrincipal extends BaseEntity implements
      */
     public function applyScope(string $action, mixed $resource, mixed ...$optionalArgs): mixed
     {
-        return $this->authorization->applyScope($this, $action, $resource);
+        if ($this->authorization === null) {
+            throw new \RuntimeException('Authorization service not set on ServicePrincipal');
+        }
+
+        return $this->authorization->applyScope($this, $action, $resource, ...$optionalArgs);
     }
 
     /**
@@ -260,7 +282,10 @@ class ServicePrincipal extends BaseEntity implements
      */
     public function getPermissions(): array
     {
-        return PermissionsLoader::getServicePrincipalPermissions($this->id);
+        if ($this->_permissions === null) {
+            $this->_permissions = PermissionsLoader::getServicePrincipalPermissions($this->id);
+        }
+        return $this->_permissions;
     }
 
     /**

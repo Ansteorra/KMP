@@ -175,6 +175,9 @@ return [
 
     /** @see docs/7.1-security-best-practices.md */
     "Error" => [
+        /** @var string Custom renderer that returns JSON for /api/ routes */
+        "exceptionRenderer" => \App\Error\ApiExceptionRenderer::class,
+
         /** @var int PHP error reporting level */
         "errorLevel" => E_ALL & ~E_USER_DEPRECATED,
 

@@ -29,6 +29,14 @@ if ($viewMode === 'week' && $startDate instanceof \DateTimeInterface) {
         $weekStartValue->modify("-{$weekDay} days");
     }
 }
+
+// Check if current user can add gatherings
+$identity = $this->getRequest()->getAttribute('identity');
+$canAddGathering = false;
+if ($identity) {
+    $gatheringsTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Gatherings');
+    $canAddGathering = $identity->can('add', $gatheringsTable->newEmptyEntity());
+}
 ?>
 
 <div class="gatherings-calendar" data-controller="gatherings-calendar"
@@ -45,11 +53,13 @@ if ($viewMode === 'week' && $startDate instanceof \DateTimeInterface) {
                     'calendarEnd' => $calendarEnd,
                     'startDate' => $startDate,
                     'endDate' => $endDate,
+                    'canAddGathering' => $canAddGathering,
                 ]) ?>
             <?php elseif ($viewMode === 'week'): ?>
                 <?= $this->element('gatherings/calendar_week', [
                     'gatherings' => $data,
                     'startDate' => $startDate,
+                    'canAddGathering' => $canAddGathering,
                 ]) ?>
             <?php else: ?>
                 <?= $this->element('gatherings/calendar_list', [
