@@ -66,6 +66,7 @@ base + plugin fragments) and can be imported into Postman, Insomnia, or any Open
 |----------|-------------|
 | `GET /gatherings/feed` | iCalendar subscription feed for calendar apps. Optional filters: `?branch={public_id}&type={gathering_type_id}` |
 
+
 ## Developer Guides
 
 Building or extending the REST API? See the developer documentation:

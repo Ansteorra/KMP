@@ -156,6 +156,7 @@ class ServicePrincipalsController extends AppController
                     'bearer_token' => null,
                 ]);
 
+
                 // Generate initial token
                 $token = ServicePrincipalToken::generateToken();
                 $tokenEntity = $this->fetchTable('ServicePrincipalTokens')->newEntity([

@@ -107,6 +107,8 @@ New CLI command to automatically review and correct stale `warrantable` flags on
 
 ---
 
+---
+
 ### REST API with Service Principal Authentication
 
 A new REST API layer enables external systems to integrate with KMP. Authenticated via service principal tokens, the API returns JSON responses with a consistent envelope format. Interactive documentation is available via Swagger UI.

@@ -108,6 +108,7 @@ paths:
                 type: string
                 example: "BEGIN:VCALENDAR\r\nVERSION:2.0\r\n..."
 
+
   # ── Service Principals ──────────────────────────────────────────────
   /service-principals/me:
     get:
