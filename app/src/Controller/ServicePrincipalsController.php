@@ -92,9 +92,31 @@ class ServicePrincipalsController extends AppController
             }
         }
 
-        // Available roles for adding
-        $roles = $this->fetchTable('Roles')->find('list', keyField: 'id', valueField: 'name')
+        // Available roles for adding – exclude roles whose permissions
+        // require membership, age, or warrants (service principals lack these).
+        $rolesTable = $this->fetchTable('Roles');
+        $incompatibleRoleIds = $rolesTable->Permissions->find()
+            ->select(['RolesPermissions.role_id'])
+            ->innerJoinWith('Roles')
+            ->where([
+                'OR' => [
+                    'Permissions.require_active_membership' => true,
+                    'Permissions.require_active_background_check' => true,
+                    'Permissions.require_min_age >' => 0,
+                    'Permissions.requires_warrant' => true,
+                ],
+            ])
+            ->distinct()
+            ->all()
+            ->extract('_matchingData.RolesPermissions.role_id')
+            ->toArray();
+
+        $rolesQuery = $rolesTable->find('list', keyField: 'id', valueField: 'name')
             ->orderBy(['name' => 'ASC']);
+        if (!empty($incompatibleRoleIds)) {
+            $rolesQuery = $rolesQuery->where(['Roles.id NOT IN' => $incompatibleRoleIds]);
+        }
+        $roles = $rolesQuery;
 
         // Available branches for scoping
         $branches = $this->fetchTable('Branches')->find('list', keyField: 'id', valueField: 'name')
