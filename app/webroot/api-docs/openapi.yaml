@@ -1,0 +1,569 @@
+openapi: 3.0.3
+info:
+  title: KMP API
+  description: |
+    REST API for the Kingdom Management Platform (KMP).
+
+    All endpoints require **service principal authentication** via Bearer token.
+    Tokens are issued through the KMP administration interface and scoped by
+    role-based permissions.
+
+    ## Authentication
+
+    Include the token in every request using one of these methods (in order of preference):
+
+    | Method | Example |
+    |--------|---------|
+    | Authorization header | `Authorization: Bearer <token>` |
+    | API-Key header | `X-API-Key: <token>` |
+    | Query parameter | `?api_key=<token>` |
+
+    ## Response Envelope
+
+    Successful responses are wrapped in a standard envelope:
+
+    ```json
+    {
+      "data": { ... },
+      "meta": { "pagination": { ... } }
+    }
+    ```
+
+    Error responses use:
+
+    ```json
+    {
+      "error": {
+        "code": "ERROR_CODE",
+        "message": "Human-readable message",
+        "details": {}
+      }
+    }
+    ```
+  version: 1.0.0
+  license:
+    name: MIT
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Service Principals
+    description: Service principal self-service
+  - name: Members
+    description: Member records
+  - name: Branches
+    description: Organizational branches (kingdoms, baronies, shires, etc.)
+  - name: Roles
+    description: Roles and their permission grants
+
+paths:
+  # ── Service Principals ──────────────────────────────────────────────
+  /service-principals/me:
+    get:
+      operationId: getMyServicePrincipal
+      tags: [Service Principals]
+      summary: Get the authenticated service principal
+      description: Returns the service principal associated with the current Bearer token, including its active permissions.
+      responses:
+        "200":
+          description: Service principal details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ServicePrincipal"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Members ─────────────────────────────────────────────────────────
+  /members:
+    get:
+      operationId: listMembers
+      tags: [Members]
+      summary: List members
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: branch
+          in: query
+          schema:
+            type: string
+          description: Filter by branch public ID
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search by SCA name
+      responses:
+        "200":
+          description: Paginated member list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/MemberSummary"
+                  meta:
+                    $ref: "#/components/schemas/PaginationMeta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /members/{id}:
+    get:
+      operationId: getMember
+      tags: [Members]
+      summary: Get a member by ID
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Member details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/MemberDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Branches (Public — no authentication required) ───────────────────
+  /branches:
+    get:
+      operationId: listBranches
+      tags: [Branches]
+      summary: List branches
+      description: Returns all branches with a defined type. Includes parent public ID for tree reconstruction. Branches with null type are excluded.
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+        - name: parent
+          in: query
+          schema:
+            type: string
+          description: Filter by parent branch public ID
+        - name: type
+          in: query
+          schema:
+            type: string
+          description: "Filter by branch type (e.g. Kingdom, Barony, Shire)"
+      responses:
+        "200":
+          description: Paginated branch list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/BranchSummary"
+                  meta:
+                    $ref: "#/components/schemas/PaginationMeta"
+
+  /branches/{id}:
+    get:
+      operationId: getBranch
+      tags: [Branches]
+      summary: Get a branch by public ID
+      description: Returns all public information for a branch including parent, children, links, and domain.
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: MWGz3xqr
+          description: Branch public ID (8-character alphanumeric)
+      responses:
+        "200":
+          description: Full public branch details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BranchDetail"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Roles ───────────────────────────────────────────────────────────
+  /roles:
+    get:
+      operationId: listRoles
+      tags: [Roles]
+      summary: List roles
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+      responses:
+        "200":
+          description: Paginated role list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RoleSummary"
+                  meta:
+                    $ref: "#/components/schemas/PaginationMeta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /roles/{id}:
+    get:
+      operationId: getRole
+      tags: [Roles]
+      summary: Get a role by ID
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Role details with permissions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/RoleDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+# ════════════════════════════════════════════════════════════════════════
+components:
+  # ── Security ────────────────────────────────────────────────────────
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: Service principal token issued from KMP admin UI.
+
+  # ── Shared Parameters ──────────────────────────────────────────────
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    ResourceId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+
+  # ── Shared Responses ───────────────────────────────────────────────
+  responses:
+    Unauthorized:
+      description: Missing or invalid authentication token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: UNAUTHORIZED
+              message: Authentication required
+    Forbidden:
+      description: Authenticated but lacking required permissions
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: FORBIDDEN
+              message: Insufficient permissions
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: NOT_FOUND
+              message: Resource not found
+
+  # ── Schemas ────────────────────────────────────────────────────────
+  schemas:
+    # ── Envelope / Meta ──────────────────────────────────────────────
+    PaginationMeta:
+      type: object
+      properties:
+        pagination:
+          type: object
+          properties:
+            total:
+              type: integer
+              example: 42
+            page:
+              type: integer
+              example: 1
+            per_page:
+              type: integer
+              example: 50
+            total_pages:
+              type: integer
+              example: 1
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+
+    # ── Service Principal ────────────────────────────────────────────
+    ServicePrincipal:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        client_id:
+          type: string
+          example: kmp_sp_91cfe48f67948ca403edc5e1
+        is_active:
+          type: boolean
+        last_used_at:
+          type: string
+          format: date-time
+          nullable: true
+        created:
+          type: string
+          format: date-time
+        permissions:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/PermissionGrant"
+
+    PermissionGrant:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        scoping_rule:
+          type: string
+          enum: [Global, Branch]
+
+    # ── Members ──────────────────────────────────────────────────────
+    MemberSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        sca_name:
+          type: string
+        status:
+          type: string
+        branch:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: string
+              description: Branch public ID
+              example: MWGz3xqr
+            name:
+              type: string
+
+    MemberDetail:
+      allOf:
+        - $ref: "#/components/schemas/MemberSummary"
+        - type: object
+          properties:
+            first_name:
+              type: string
+            last_name:
+              type: string
+            email_address:
+              type: string
+              format: email
+            membership_number:
+              type: string
+              nullable: true
+            membership_expires_on:
+              type: string
+              format: date
+              nullable: true
+            warrantable:
+              type: boolean
+            created:
+              type: string
+              format: date-time
+            modified:
+              type: string
+              format: date-time
+
+    # ── Branches ─────────────────────────────────────────────────────
+    BranchSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Public ID (8-character alphanumeric)
+          example: MWGz3xqr
+        name:
+          type: string
+          example: Ansteorra
+        location:
+          type: string
+          example: "Texas & Oklahoma"
+        type:
+          type: string
+          example: Kingdom
+        parent_id:
+          type: string
+          nullable: true
+          description: Public ID of the parent branch, or null for top-level
+          example: BdLBXW3D
+
+    BranchDetail:
+      allOf:
+        - $ref: "#/components/schemas/BranchSummary"
+        - type: object
+          properties:
+            domain:
+              type: string
+              example: ansteorra.org
+            links:
+              type: array
+              nullable: true
+              items:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    format: uri
+                  type:
+                    type: string
+                    example: facebook
+            can_have_members:
+              type: boolean
+            created:
+              type: string
+              format: date-time
+            modified:
+              type: string
+              format: date-time
+            parent:
+              type: object
+              nullable: true
+              properties:
+                id:
+                  type: string
+                  example: MWGz3xqr
+                name:
+                  type: string
+                type:
+                  type: string
+            children:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    example: oFJE6UJc
+                  name:
+                    type: string
+                  type:
+                    type: string
+                    nullable: true
+                  location:
+                    type: string
+                    nullable: true
+          additionalProperties: true
+          description: >
+            Plugin-provided fields (e.g. `officers` from the Officers plugin)
+            are merged into the response via ApiDataRegistry.
+
+    # ── Roles ────────────────────────────────────────────────────────
+    RoleSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+
+    RoleDetail:
+      allOf:
+        - $ref: "#/components/schemas/RoleSummary"
+        - type: object
+          properties:
+            created:
+              type: string
+              format: date-time
+            modified:
+              type: string
+              format: date-time
+            permissions:
+              type: array
+              items:
+                $ref: "#/components/schemas/PermissionGrant"

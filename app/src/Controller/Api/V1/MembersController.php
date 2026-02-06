@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Api\V1;
 
 use App\Controller\Api\ApiController;
-use Cake\Http\Exception\NotFoundException;
+
 
 /**
  * Members API Controller
@@ -27,15 +27,24 @@ class MembersController extends ApiController
             'order' => ['Members.sca_name' => 'asc'],
         ];
 
-        $query = $this->fetchTable('Members')->find();
+        $query = $this->fetchTable('Members')->find()
+            ->contain(['Branches']);
 
         // Apply authorization scope
         $identity = $this->Authentication->getIdentity();
         $query = $identity->applyScope('index', $query);
 
         // Optional filters
-        if ($this->request->getQuery('branch_id')) {
-            $query->where(['Members.branch_id' => $this->request->getQuery('branch_id')]);
+        if ($this->request->getQuery('branch')) {
+            $branchesTable = $this->fetchTable('Branches');
+            $branch = $branchesTable->find('byPublicId', [$this->request->getQuery('branch')])
+                ->select(['id'])
+                ->first();
+            if ($branch) {
+                $query->where(['Members.branch_id' => $branch->id]);
+            } else {
+                $query->where(['1 = 0']);
+            }
         }
 
         if ($this->request->getQuery('status')) {
@@ -79,7 +88,8 @@ class MembersController extends ApiController
             ->first();
 
         if (!$member) {
-            throw new NotFoundException('Member not found');
+            $this->apiError('NOT_FOUND', 'Member not found', [], 404);
+            return;
         }
 
         // Check authorization
@@ -101,7 +111,10 @@ class MembersController extends ApiController
             'id' => $member->id,
             'sca_name' => $member->sca_name,
             'status' => $member->status,
-            'branch_id' => $member->branch_id,
+            'branch' => $member->branch ? [
+                'id' => $member->branch->public_id,
+                'name' => $member->branch->name,
+            ] : null,
         ];
 
         if ($detailed) {
@@ -115,13 +128,6 @@ class MembersController extends ApiController
                 'created' => $member->created?->toIso8601String(),
                 'modified' => $member->modified?->toIso8601String(),
             ];
-
-            if ($member->branch) {
-                $data['branch'] = [
-                    'id' => $member->branch->id,
-                    'name' => $member->branch->name,
-                ];
-            }
         }
 
         return $data;

@@ -201,7 +201,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
                     <?php foreach ($gatheringType->gatherings as $gathering) : ?>
                         <tr>
                             <td><?= h($gathering->name) ?></td>
-                            <td><?= $gathering->hasValue('branch') ? $this->Html->link($gathering->branch->name, ['controller' => 'Branches', 'action' => 'view', $gathering->branch->id]) : '' ?></td>
+                            <td><?= $gathering->hasValue('branch') ? $this->Html->link($gathering->branch->name, ['controller' => 'Branches', 'action' => 'view', $gathering->branch->public_id]) : '' ?></td>
                             <td><?= h($gathering->start_date) ?></td>
                             <td><?= h($gathering->end_date) ?></td>
                             <td class="actions">

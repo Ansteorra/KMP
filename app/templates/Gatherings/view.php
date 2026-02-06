@@ -151,7 +151,7 @@ $publicLandingUrl = $this->Url->build([
         <?php if ($user->can('view', $gathering->branch)) : ?>
         <?= $this->Html->link(
                     $gathering->branch->name,
-                    ['controller' => 'Branches', 'action' => 'view', $gathering->branch->id],
+                    ['controller' => 'Branches', 'action' => 'view', $gathering->branch->public_id],
                 ) ?>
         <?php else : ?>
         <?= h($gathering->branch->name) ?>

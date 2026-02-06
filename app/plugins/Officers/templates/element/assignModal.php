@@ -43,7 +43,7 @@ echo $this->Modal->create("Assign Officer", [
     <?php
     echo $this->Form->control("branch_id", [
         "type" => "hidden",
-        "value" => $id,
+        "value" => $branchId,
     ]);
     echo $this->KMP->comboBoxControl(
         $this->Form,

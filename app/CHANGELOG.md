@@ -3,10 +3,77 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: 714850456d1351528b4f67c972fe232a30856e2e -->
-<!-- LAST_SYNCED_DATE: 2026-02-02 -->
+<!-- LAST_SYNCED_COMMIT: 914ca3378c7538263cf9ba589068c970c1399b98 -->
+<!-- LAST_SYNCED_DATE: 2026-02-06 -->
 
 ## February 2026
+
+### REST API with Service Principal Authentication
+
+A new REST API layer enables external systems to integrate with KMP. Authenticated via service principal tokens, the API returns JSON responses with a consistent envelope format. Interactive documentation is available via Swagger UI.
+
+- Service principal authentication (Bearer token, X-API-Key header, or query param)
+- Public branch endpoints (no auth required) with parent IDs for tree reconstruction
+- Officers plugin API: roster, offices, and departments
+- Activities plugin API: member authorization lookup by membership#, SCA name, or email
+- Swagger UI at `/api-docs/` with auto-merged plugin spec fragments
+- Proper JSON error responses for all API endpoints
+
+📅 February 6, 2026 · `New Feature`
+
+---
+
+### Branch Public IDs
+
+Branches now use public IDs (8-character alphanumeric) in all URLs and API responses, replacing internal database IDs. This improves security and provides stable external references.
+
+- Public IDs generated for all existing and new branches
+- All web UI links updated to use public_id
+- API responses expose public_id as the branch identifier
+- Grid navigation uses public_id for branch views
+
+📅 February 6, 2026 · `Security`
+
+---
+
+### Modular OpenAPI Documentation System
+
+Plugins can now publish their own OpenAPI spec fragments that are automatically merged into a combined API specification. No changes to the core app needed when adding plugin APIs.
+
+- Base spec at `webroot/api-docs/openapi.yaml` for core endpoints
+- Plugin fragments at `plugins/{Name}/config/openapi.yaml`
+- Automatic discovery and deep merge of tags, paths, and schemas
+- Served at `/api-docs/openapi.json` for Swagger UI consumption
+
+📅 February 6, 2026 · `New Feature`
+
+---
+
+### Plugin Data Injection for API Responses
+
+New ApiDataRegistry allows plugins to enrich API responses from other controllers — the API equivalent of ViewCellRegistry. Plugins register providers that inject data into detail endpoints.
+
+- Officers plugin injects current officers into branch API view
+- Route-based matching ensures providers only run for relevant endpoints
+- Extensible pattern for future plugin API integrations
+
+📅 February 6, 2026 · `New Feature`
+
+---
+
+### Comprehensive Documentation Updates
+
+Developer and feature documentation updated across the board to reflect recent changes including API development patterns, waiver workflow features, and gathering management.
+
+- New API development guide (creating endpoints, OpenAPI docs, data injection)
+- Complete REST API endpoint reference
+- Updated waivers docs: exemptions, closure workflow, PDF download, cancel impact
+- Updated gatherings docs: cancel/restore, steward editing permissions
+- 44 pre-existing test failures fixed across the test suite
+
+📅 February 6, 2026 · `Documentation`
+
+---
 
 ### Mobile Experience Redesign
 

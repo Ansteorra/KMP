@@ -17,8 +17,16 @@ class DefaultReadOnlyOfficerRosterService implements ReadOnlyOfficerRosterServic
             ->contain(['Members', 'Branches', 'Offices'])
             ->orderBy(['Officers.id' => 'DESC']);
 
-        if (!empty($filters['branch_id'])) {
-            $query->where(['Officers.branch_id' => (int)$filters['branch_id']]);
+        if (!empty($filters['branch'])) {
+            $branchesTable = TableRegistry::getTableLocator()->get('Branches');
+            $branch = $branchesTable->find('byPublicId', [$filters['branch']])
+                ->select(['id'])
+                ->first();
+            if ($branch) {
+                $query->where(['Officers.branch_id' => $branch->id]);
+            } else {
+                $query->where(['1 = 0']);
+            }
         }
         if (!empty($filters['office_id'])) {
             $query->where(['Officers.office_id' => (int)$filters['office_id']]);
@@ -76,8 +84,10 @@ class DefaultReadOnlyOfficerRosterService implements ReadOnlyOfficerRosterServic
             'id' => $row->id,
             'member_id' => $row->member_id,
             'member_name' => $row->member?->sca_name,
-            'branch_id' => $row->branch_id,
-            'branch_name' => $row->branch?->name,
+            'branch' => $row->branch ? [
+                'id' => $row->branch->public_id,
+                'name' => $row->branch->name,
+            ] : null,
             'office_id' => $row->office_id,
             'office_name' => $row->office?->name,
             'status' => $row->status,

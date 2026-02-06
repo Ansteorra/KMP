@@ -1,0 +1,111 @@
+# Activities Plugin — OpenAPI spec fragment
+# Merged automatically into the main spec by OpenApiMergeService.
+
+tags:
+  - name: Activities - Authorizations
+    description: Member activity authorization lookups
+
+paths:
+  /activities/member-authorizations:
+    get:
+      operationId: getMemberAuthorizations
+      tags: [Activities - Authorizations]
+      summary: Get a member's current activity authorizations
+      description: |
+        Look up a member's current (approved, non-expired) activity authorizations
+        by exactly one of: membership_number, sca_name, or email.
+      parameters:
+        - name: membership_number
+          in: query
+          schema:
+            type: string
+          description: Member's membership number
+          example: "1111111"
+        - name: sca_name
+          in: query
+          schema:
+            type: string
+          description: Member's SCA name (exact match)
+          example: "Agatha Local MoAS Demoer"
+        - name: email
+          in: query
+          schema:
+            type: string
+            format: email
+          description: Member's email address
+          example: "agatha@ampdemo.com"
+      responses:
+        "200":
+          description: Member's current authorizations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/MemberAuthorizations"
+        "400":
+          description: Invalid parameters — must provide exactly one lookup field
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Member not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    MemberAuthorizations:
+      type: object
+      properties:
+        member:
+          type: object
+          properties:
+            id:
+              type: string
+              description: Member public ID
+              example: MWGz3xqr
+            sca_name:
+              type: string
+              example: Agatha Local MoAS Demoer
+            membership_number:
+              type: string
+              example: "1111111"
+        authorizations:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActivityAuthorization"
+
+    ActivityAuthorization:
+      type: object
+      properties:
+        activity:
+          type: string
+          description: Activity name
+          example: Cut And Thrust
+        activity_group:
+          type: string
+          nullable: true
+          description: Activity group name
+          example: Martial
+        status:
+          type: string
+          enum: [Approved]
+          example: Approved
+        start_on:
+          type: string
+          format: date-time
+          example: "2025-06-22T19:13:58+00:00"
+        expires_on:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2029-06-22T19:13:58+00:00"

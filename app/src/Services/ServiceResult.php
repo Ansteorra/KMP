@@ -49,6 +49,9 @@ class ServiceResult
 
     /**
      * @return bool
+     */
+    public function isSuccess(): bool
+    {
         return $this->success;
     }
 

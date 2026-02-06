@@ -47,7 +47,7 @@ class SecurityDebugTest extends BaseTestCase
 
         // Load a member
         $member = $this->Members->get(self::ADMIN_MEMBER_ID);
-        $member->loadPermissions();
+        $member->warrantableReview();
 
         // Perform some authorization checks
         $this->AuthService->checkCan($member, 'view', $member);
@@ -85,7 +85,7 @@ class SecurityDebugTest extends BaseTestCase
 
         // Load a member
         $member = $this->Members->get(self::ADMIN_MEMBER_ID);
-        $member->loadPermissions();
+        $member->warrantableReview();
 
         // Perform authorization checks
         $this->AuthService->checkCan($member, 'view', $member);
@@ -110,11 +110,11 @@ class SecurityDebugTest extends BaseTestCase
 
         // Load admin member
         $admin = $this->Members->get(self::ADMIN_MEMBER_ID);
-        $admin->loadPermissions();
+        $admin->warrantableReview();
 
         // Load regular member
-        $regularMember = $this->Members->get(self::NON_ADMIN_MEMBER_ID);
-        $regularMember->loadPermissions();
+        $regularMember = $this->Members->get(self::TEST_MEMBER_AGATHA_ID);
+        $regularMember->warrantableReview();
 
         // Admin should have access
         $grantedResult = $this->AuthService->checkCan($admin, 'view', $admin);
@@ -149,7 +149,7 @@ class SecurityDebugTest extends BaseTestCase
         Configure::write('debug', true);
 
         $member = $this->Members->get(self::ADMIN_MEMBER_ID);
-        $member->loadPermissions();
+        $member->warrantableReview();
 
         // Perform checks
         $this->AuthService->checkCan($member, 'view', $member);
@@ -170,7 +170,7 @@ class SecurityDebugTest extends BaseTestCase
         Configure::write('debug', true);
 
         $member = $this->Members->get(self::ADMIN_MEMBER_ID);
-        $member->loadPermissions();
+        $member->warrantableReview();
 
         // Check with entity
         $this->AuthService->checkCan($member, 'view', $member);

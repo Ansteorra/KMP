@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Officers\Controller\Api\V1;
 
-use Cake\Http\Exception\NotFoundException;
+
 use Officers\Services\Api\ReadOnlyOfficeServiceInterface;
 
 class OfficesController extends AppController
@@ -33,7 +33,8 @@ class OfficesController extends AppController
 
         $result = $service->getById($identity, $id);
         if ($result === null) {
-            throw new NotFoundException('Office not found');
+            $this->apiError('NOT_FOUND', 'Office not found', [], 404);
+            return;
         }
 
         $this->apiSuccess($result);

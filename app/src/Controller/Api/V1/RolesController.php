@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Api\V1;
 
 use App\Controller\Api\ApiController;
-use Cake\Http\Exception\NotFoundException;
+
 
 /**
  * Roles API Controller
@@ -58,7 +58,8 @@ class RolesController extends ApiController
             ->first();
 
         if (!$role) {
-            throw new NotFoundException('Role not found');
+            $this->apiError('NOT_FOUND', 'Role not found', [], 404);
+            return;
         }
 
         // Check authorization

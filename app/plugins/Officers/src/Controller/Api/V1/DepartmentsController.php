@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Officers\Controller\Api\V1;
 
-use Cake\Http\Exception\NotFoundException;
+
 use Officers\Services\Api\ReadOnlyDepartmentServiceInterface;
 
 class DepartmentsController extends AppController
@@ -31,7 +31,8 @@ class DepartmentsController extends AppController
 
         $result = $service->getById($identity, $id);
         if ($result === null) {
-            throw new NotFoundException('Department not found');
+            $this->apiError('NOT_FOUND', 'Department not found', [], 404);
+            return;
         }
 
         $this->apiSuccess($result);

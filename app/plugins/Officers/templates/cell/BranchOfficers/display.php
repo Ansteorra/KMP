@@ -9,6 +9,7 @@
  * 
  * @var \App\View\AppView $this
  * @var int $id Branch ID
+ * @var int $branchId Internal branch ID for grid queries and permission checks
  * @var array $offices Office tree for assignment modal
  * @var \Officers\Model\Entity\Officer $newOfficer Empty officer entity for forms
  */
@@ -17,7 +18,7 @@ $user = $this->request->getAttribute("identity");
 ?>
 
 <!-- Header with Assign Officer button -->
-<?php if ($user->checkCan("assign", "Officers.Officers", $id) && count($offices) > 0): ?>
+<?php if ($user->checkCan("assign", "Officers.Officers", $branchId) && count($offices) > 0): ?>
     <div class="mb-3">
         <button type="button" class="btn btn-primary" data-bs-toggle="modal"
             data-bs-target="#assignOfficerModal">
@@ -34,7 +35,7 @@ $user = $this->request->getAttribute("identity");
         'plugin' => 'Officers',
         'controller' => 'Officers',
         'action' => 'gridData',
-        '?' => ['branch_id' => $id]
+        '?' => ['branch_id' => $branchId]
     ]),
 ]) ?>
 

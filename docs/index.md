@@ -81,12 +81,15 @@ layout: default
 | 11.5 Best Practices | Guidelines for effective plugin development |
 | 11.6 Managing Plugin Configuration | Using AppSettings for plugin configuration |
 | 11.7 Adding Public IDs to Plugin Tables | Implementing secure public identifiers in plugins |
+| 11.8 Creating REST API Endpoints | API controllers, routes, authentication, and authorization |
+| 11.9 OpenAPI Documentation for Plugin APIs | Plugin spec fragments and Swagger UI |
+| 11.10 Injecting Data into Other API Responses | ApiDataRegistry pattern for cross-plugin data enrichment |
 
 ## API Documentation
 
 | Reference | Description |
 |-----------|-------------|
-| **[API Reference Portal](api/index.md)** | Auto-generated PHP and JavaScript API documentation |
+| **[API Reference Portal](api/index.md)** | REST API quick start, Swagger UI, and developer guides |
 | **[PHP API Reference](api/php/index.html)** | Controllers, Services, Models, Behaviors, and Plugins |
 | **[JavaScript API Reference](api/js/index.html)** | Stimulus controllers, utilities, and frontend modules |
 

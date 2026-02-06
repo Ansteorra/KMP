@@ -26,7 +26,8 @@
         "muffin/trash": "^4.0",
         "setasign/fpdf": "^1.8",
         "setasign/fpdi": "^2.6.4",
-        "smalot/pdfparser": "^2.12.3"
+        "smalot/pdfparser": "^2.12.3",
+        "symfony/yaml": "^7.4"
     },
     "require-dev": {
         "cakephp/bake": "^3.0.0",

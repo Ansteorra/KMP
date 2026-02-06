@@ -383,7 +383,7 @@ $this->KMP->endBlock();
                                             <td>
                                                 <?= $this->Html->link(
                                                     h($branchIssue['branch']->name),
-                                                    ['controller' => 'Branches', 'action' => 'view', $branchIssue['branch']->id, 'plugin' => null]
+                                                    ['controller' => 'Branches', 'action' => 'view', $branchIssue['branch']->public_id, 'plugin' => null]
                                                 ) ?>
                                             </td>
                                             <td class="text-center">

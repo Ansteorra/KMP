@@ -97,9 +97,14 @@ trait TestAuthenticationHelper
      */
     protected function getAuthenticatedMemberId(): ?int
     {
-        $session = $this->_requestSession;
+        // Check post-request session first
+        $session = $this->_requestSession ?? null;
         if ($session && $session->check('Auth.id')) {
-            return $session->read('Auth.id');
+            return (int)$session->read('Auth.id');
+        }
+        // Fall back to pre-request session data
+        if (!empty($this->_session['Auth']['id'])) {
+            return (int)$this->_session['Auth']['id'];
         }
         return null;
     }

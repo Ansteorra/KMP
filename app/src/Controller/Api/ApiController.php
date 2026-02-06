@@ -41,6 +41,16 @@ abstract class ApiController extends AppController
     {
         parent::beforeFilter($event);
 
+        // Force JSON content type on all API responses
+        $this->response = $this->response->withType('application/json');
+
+        // Skip identity check for actions marked as unauthenticated
+        $unauthActions = $this->Authentication->getUnauthenticatedActions();
+        $currentAction = $this->request->getParam('action');
+        if (in_array($currentAction, $unauthActions, true)) {
+            return null;
+        }
+
         // Ensure we have a valid identity
         $identity = $this->Authentication->getIdentity();
         if (!$identity) {

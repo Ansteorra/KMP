@@ -11,6 +11,7 @@ use Cake\Core\PluginApplicationInterface;
 use Cake\Http\MiddlewareQueue;
 use Cake\Routing\RouteBuilder;
 use App\KMP\KMPPluginInterface;
+use App\KMP\KMPApiPluginInterface;
 use Cake\Event\EventManager;
 use Activities\Event\CallForCellsHandler;
 use Activities\Services\AuthorizationManagerInterface;
@@ -38,7 +39,7 @@ use Cake\I18n\DateTime;
  * @see \Activities\Services\ActivitiesViewCellProvider Context-sensitive UI components
  * @package Activities
  */
-class ActivitiesPlugin extends BasePlugin implements KMPPluginInterface
+class ActivitiesPlugin extends BasePlugin implements KMPPluginInterface, KMPApiPluginInterface
 {
     /**
      * Plugin Migration Order
@@ -169,6 +170,22 @@ class ActivitiesPlugin extends BasePlugin implements KMPPluginInterface
             }
         );
         parent::routes($routes);
+    }
+
+    /**
+     * Register API routes for the Activities plugin.
+     *
+     * @param \Cake\Routing\RouteBuilder $builder API v1 route builder
+     * @return void
+     */
+    public function registerApiRoutes(RouteBuilder $builder): void
+    {
+        $builder->connect('/activities/member-authorizations', [
+            'controller' => 'Authorizations',
+            'action' => 'memberAuthorizations',
+            'plugin' => 'Activities',
+            'prefix' => 'Api/V1',
+        ]);
     }
 
     /**
