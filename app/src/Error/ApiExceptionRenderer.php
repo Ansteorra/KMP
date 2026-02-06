@@ -60,9 +60,17 @@ class ApiExceptionRenderer extends WebExceptionRenderer
             $message = 'An internal error has occurred.';
         }
 
+        $codeLabel = match ($code) {
+            401 => 'UNAUTHORIZED',
+            403 => 'FORBIDDEN',
+            404 => 'NOT_FOUND',
+            405 => 'METHOD_NOT_ALLOWED',
+            default => 'INTERNAL_ERROR',
+        };
+
         $body = json_encode([
             'error' => [
-                'code' => $code,
+                'code' => $codeLabel,
                 'message' => $message,
             ],
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

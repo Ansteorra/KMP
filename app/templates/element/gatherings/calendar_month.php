@@ -165,6 +165,7 @@ $canAddGathering = $canAddGathering ?? false;
                 <?php if ($canAddGathering): ?>
                 <a href="<?= $this->Url->build(['action' => 'add', '?' => ['start_date' => $dateKey . 'T09:00']]) ?>"
                    class="calendar-day-add" title="<?= __('Add gathering on this date') ?>"
+                   aria-label="<?= __('Add gathering on this date') ?>"
                    data-turbo-frame="_top">
                     <i class="bi bi-plus-circle"></i>
                 </a>

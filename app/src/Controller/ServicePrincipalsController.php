@@ -96,7 +96,6 @@ class ServicePrincipalsController extends AppController
         // require membership, age, or warrants (service principals lack these).
         $rolesTable = $this->fetchTable('Roles');
         $incompatibleRoleIds = $rolesTable->Permissions->find()
-            ->select(['RolesPermissions.role_id'])
             ->innerJoinWith('Roles')
             ->where([
                 'OR' => [
@@ -108,7 +107,7 @@ class ServicePrincipalsController extends AppController
             ])
             ->distinct()
             ->all()
-            ->extract('_matchingData.RolesPermissions.role_id')
+            ->extract('_matchingData.Roles.id')
             ->toArray();
 
         $rolesQuery = $rolesTable->find('list', keyField: 'id', valueField: 'name')
