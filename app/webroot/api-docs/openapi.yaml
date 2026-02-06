@@ -76,22 +76,28 @@ paths:
 
         **No authentication required.** Only public-safe information is included.
 
-        Supports optional filtering by branch and/or gathering type.
-        The feed includes non-cancelled gatherings from the past 30 days onward.
+        Supports optional filtering using the same `filter[column][]` query
+        parameters as the calendar grid.  Cancelled events are included with
+        `STATUS:CANCELLED` so calendar apps can display the cancellation.
+        The feed covers gatherings from the past 30 days onward.
       security: []
       parameters:
-        - name: branch
+        - name: filter[branch_id][]
           in: query
-          description: Filter by branch public ID
+          description: Filter by one or more branch public IDs
           schema:
-            type: string
-            example: "Ab3kX9pQ"
-        - name: type
+            type: array
+            items:
+              type: string
+          example: ["Ab3kX9pQ"]
+        - name: filter[gathering_type_id][]
           in: query
-          description: Filter by gathering type ID
+          description: Filter by one or more gathering type IDs
           schema:
-            type: integer
-            example: 1
+            type: array
+            items:
+              type: integer
+          example: [1]
       responses:
         '200':
           description: iCalendar feed

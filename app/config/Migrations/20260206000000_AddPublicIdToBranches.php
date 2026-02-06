@@ -82,7 +82,7 @@ class AddPublicIdToBranches extends AbstractMigration
             ));
 
             $attempt++;
-            if ($attempt >= $maxAttempts) {
+            if ($exists && $attempt >= $maxAttempts) {
                 throw new \RuntimeException(
                     'Failed to generate unique public ID for branches after ' . $maxAttempts . ' attempts'
                 );

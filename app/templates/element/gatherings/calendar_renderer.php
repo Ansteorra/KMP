@@ -35,7 +35,7 @@ $identity = $this->getRequest()->getAttribute('identity');
 $canAddGathering = false;
 if ($identity) {
     $gatheringsTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Gatherings');
-    $canAddGathering = $identity->checkCan('add', $gatheringsTable->newEmptyEntity());
+    $canAddGathering = $identity->can('add', $gatheringsTable->newEmptyEntity());
 }
 ?>
 

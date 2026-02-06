@@ -1488,7 +1488,7 @@ class GatheringsController extends AppController
                         'gathering_id' => $newGathering->id,
                         'gathering_activity_id' => $activity->id,
                         'sort_order' => $activity->_joinData->sort_order ?? 999,
-                        'description' => $activity->_joinData->custom_description ?? null,
+                        'custom_description' => $activity->_joinData->custom_description ?? null,
                     ]);
 
                     if ($GatheringsGatheringActivities->save($link)) {
