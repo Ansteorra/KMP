@@ -60,8 +60,47 @@ tags:
     description: Organizational branches (kingdoms, baronies, shires, etc.)
   - name: Roles
     description: Roles and their permission grants
+  - name: Gatherings
+    description: Gathering calendar feeds (public, no authentication required)
 
 paths:
+  # ── Gathering Calendar Feed ──────────────────────────────────────────
+  /gatherings/feed.ics:
+    get:
+      operationId: getGatheringsFeed
+      tags: [Gatherings]
+      summary: iCalendar subscription feed
+      description: |
+        Returns an iCalendar (RFC 5545) feed of gatherings suitable for
+        subscription by Google Calendar, Apple Calendar, Outlook, etc.
+
+        **No authentication required.** Only public-safe information is included.
+
+        Supports optional filtering by branch and/or gathering type.
+        The feed includes non-cancelled gatherings from the past 30 days onward.
+      security: []
+      parameters:
+        - name: branch
+          in: query
+          description: Filter by branch public ID
+          schema:
+            type: string
+            example: "Ab3kX9pQ"
+        - name: type
+          in: query
+          description: Filter by gathering type ID
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: iCalendar feed
+          content:
+            text/calendar:
+              schema:
+                type: string
+                example: "BEGIN:VCALENDAR\r\nVERSION:2.0\r\n..."
+
   # ── Service Principals ──────────────────────────────────────────────
   /service-principals/me:
     get:

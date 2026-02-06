@@ -13,7 +13,8 @@ use Cake\I18n\DateTime;
  * Generates iCalendar (.ics) files for gatherings that can be imported into
  * various calendar applications (Google Calendar, Outlook, iOS Calendar, etc.)
  *
- * Implements RFC 5545 (iCalendar) format
+ * Implements RFC 5545 (iCalendar) format.
+ * Supports single-event downloads and multi-event subscription feeds.
  */
 class ICalendarService
 {
@@ -113,6 +114,122 @@ class ICalendarService
 
         // Join with CRLF as per RFC 5545
         return implode("\r\n", $lines) . "\r\n";
+    }
+
+    /**
+     * Generate a multi-event iCalendar feed for calendar subscription.
+     *
+     * @param iterable<\App\Model\Entity\Gathering> $gatherings Gatherings to include
+     * @param string $calendarName Display name for the calendar feed
+     * @param string|null $baseUrl Base URL for building event links
+     * @return string iCalendar formatted content with multiple VEVENTs
+     */
+    public function generateFeed(iterable $gatherings, string $calendarName, ?string $baseUrl = null): string
+    {
+        $lines = [];
+
+        $lines[] = 'BEGIN:VCALENDAR';
+        $lines[] = 'VERSION:2.0';
+        $lines[] = 'PRODID:-//KMP//Gathering Calendar//EN';
+        $lines[] = 'CALSCALE:GREGORIAN';
+        $lines[] = 'METHOD:PUBLISH';
+        $lines[] = 'X-WR-CALNAME:' . $this->escapeText($calendarName);
+        // Hint to calendar apps: refresh every 6 hours
+        $lines[] = 'REFRESH-INTERVAL;VALUE=DURATION:PT6H';
+        $lines[] = 'X-PUBLISHED-TTL:PT6H';
+
+        // Collect unique timezones across all events
+        $timezones = [];
+        $events = [];
+        foreach ($gatherings as $gathering) {
+            $tz = !empty($gathering->timezone) ? $gathering->timezone : 'UTC';
+            if ($tz !== 'UTC' && !isset($timezones[$tz])) {
+                $timezones[$tz] = $this->generateVTimezone($tz);
+            }
+            $events[] = $this->generateVEvent($gathering, $baseUrl);
+        }
+
+        // Add all VTIMEZONE components
+        foreach ($timezones as $tzLines) {
+            $lines = array_merge($lines, $tzLines);
+        }
+
+        // Add all VEVENT components
+        foreach ($events as $eventLines) {
+            $lines = array_merge($lines, $eventLines);
+        }
+
+        $lines[] = 'END:VCALENDAR';
+
+        return implode("\r\n", $lines) . "\r\n";
+    }
+
+    /**
+     * Generate VEVENT lines for a single gathering.
+     *
+     * @param \App\Model\Entity\Gathering $gathering The gathering
+     * @param string|null $baseUrl Base URL for event link
+     * @return array<string> iCalendar lines for one VEVENT
+     */
+    protected function generateVEvent(Gathering $gathering, ?string $baseUrl = null): array
+    {
+        $lines = [];
+        $timezone = !empty($gathering->timezone) ? $gathering->timezone : 'UTC';
+
+        $lines[] = 'BEGIN:VEVENT';
+
+        $uid = 'gathering-' . $gathering->id . '@' . ($_SERVER['HTTP_HOST'] ?? 'kmp.local');
+        $lines[] = 'UID:' . $this->escapeText($uid);
+
+        $now = DateTime::now();
+        $lines[] = 'DTSTAMP:' . $this->formatDateTime($now);
+
+        $startInTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, null, null, $gathering);
+        $endInTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, null, null, $gathering);
+
+        if ($timezone !== 'UTC') {
+            $lines[] = 'DTSTART;TZID=' . $timezone . ':' . $startInTz->format('Ymd\THis');
+            $lines[] = 'DTEND;TZID=' . $timezone . ':' . $endInTz->format('Ymd\THis');
+        } else {
+            $lines[] = 'DTSTART:' . $this->formatDateTime($gathering->start_date);
+            $lines[] = 'DTEND:' . $this->formatDateTime($gathering->end_date);
+        }
+
+        $lines[] = 'SUMMARY:' . $this->escapeText($gathering->name);
+
+        $eventUrl = null;
+        if ($baseUrl && $gathering->public_page_enabled) {
+            $eventUrl = $baseUrl . '/gatherings/public-landing/' . $gathering->public_id;
+        }
+
+        $description = $this->buildDescription($gathering, $eventUrl);
+        $lines[] = 'DESCRIPTION:' . $this->escapeText($description);
+
+        if (!empty($gathering->location)) {
+            $lines[] = 'LOCATION:' . $this->escapeText($gathering->location);
+            if (!empty($gathering->latitude) && !empty($gathering->longitude)) {
+                $lines[] = 'GEO:' . $gathering->latitude . ';' . $gathering->longitude;
+            }
+        }
+
+        if ($eventUrl) {
+            $lines[] = 'URL:' . $eventUrl;
+        }
+
+        $lines[] = 'STATUS:CONFIRMED';
+
+        if (!empty($gathering->branch)) {
+            $organizerName = $this->escapeText($gathering->branch->name);
+            $lines[] = 'ORGANIZER;CN=' . $organizerName . ':noreply@' . ($_SERVER['HTTP_HOST'] ?? 'kmp.local');
+        }
+
+        if (!empty($gathering->gathering_type)) {
+            $lines[] = 'CATEGORIES:' . $this->escapeText($gathering->gathering_type->name);
+        }
+
+        $lines[] = 'END:VEVENT';
+
+        return $lines;
     }
 
     /**

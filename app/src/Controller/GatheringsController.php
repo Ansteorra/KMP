@@ -54,8 +54,8 @@ class GatheringsController extends AppController
     {
         parent::beforeFilter($event);
 
-        // Allow public access to landing page and calendar download
-        $this->Authentication->allowUnauthenticated(['publicLanding', 'downloadCalendar']);
+        // Allow public access to landing page, calendar download, and feed
+        $this->Authentication->allowUnauthenticated(['publicLanding', 'downloadCalendar', 'feed']);
     }
 
     /**
@@ -1886,6 +1886,95 @@ class GatheringsController extends AppController
     }
 
     /**
+     * Public iCalendar subscription feed.
+     *
+     * Returns a multi-event VCALENDAR that calendar apps can subscribe to.
+     * Supports optional filters: branch (public_id), type (gathering_type_id).
+     *
+     * @param \App\Services\ICalendarService $iCalendarService iCalendar service
+     * @return \Cake\Http\Response iCalendar feed response
+     */
+    public function feed(ICalendarService $iCalendarService)
+    {
+        $this->Authorization->skipAuthorization();
+
+        $branchPublicId = $this->request->getQuery('branch');
+        $typeId = $this->request->getQuery('type');
+
+        // Build query: non-cancelled gatherings from 30 days ago onward
+        $cutoff = new \Cake\I18n\DateTime('-30 days');
+        $query = $this->Gatherings->find()
+            ->contain([
+                'Branches',
+                'GatheringTypes',
+                'GatheringActivities',
+                'GatheringStaff' => [
+                    'Members' => ['fields' => ['id', 'sca_name']],
+                ],
+            ])
+            ->where([
+                'Gatherings.cancelled_at IS' => null,
+                'Gatherings.end_date >=' => $cutoff,
+            ])
+            ->orderBy(['Gatherings.start_date' => 'ASC']);
+
+        // Filter by branch
+        $branchName = null;
+        if (!empty($branchPublicId)) {
+            $branch = $this->fetchTable('Branches')
+                ->find('byPublicId', [$branchPublicId])
+                ->select(['id', 'name', 'public_id'])
+                ->first();
+            if ($branch) {
+                $query->where(['Gatherings.branch_id' => $branch->id]);
+                $branchName = $branch->name;
+            }
+        }
+
+        // Filter by gathering type
+        $typeName = null;
+        if (!empty($typeId)) {
+            $typeId = (int)$typeId;
+            $query->where(['Gatherings.gathering_type_id' => $typeId]);
+            $type = $this->fetchTable('GatheringTypes')->find()
+                ->select(['name'])
+                ->where(['id' => $typeId])
+                ->first();
+            if ($type) {
+                $typeName = $type->name;
+            }
+        }
+
+        $gatherings = $query->all();
+
+        // Build calendar display name
+        $calendarName = 'KMP Gatherings';
+        $parts = [];
+        if ($branchName) {
+            $parts[] = $branchName;
+        }
+        if ($typeName) {
+            $parts[] = $typeName;
+        }
+        if (!empty($parts)) {
+            $calendarName .= ' - ' . implode(' / ', $parts);
+        }
+
+        // Build base URL for event links
+        $baseUrl = $this->request->scheme() . '://' . $this->request->host()
+            . $this->request->getAttribute('base');
+
+        $icsContent = $iCalendarService->generateFeed($gatherings, $calendarName, $baseUrl);
+
+        return $this->response
+            ->withType('text/calendar')
+            ->withCharset('UTF-8')
+            ->withHeader('Content-Disposition', 'inline')
+            ->withHeader('Cache-Control', 'no-cache, must-revalidate')
+            ->withStringBody($icsContent);
+    }
+
+    /**
      * Download calendar file for a gathering
      *
      * Generates an iCalendar (.ics) file that can be imported into
@@ -1903,7 +1992,6 @@ class GatheringsController extends AppController
      */
     public function downloadCalendar(ICalendarService $iCalendarService, string $publicId = null)
     {
-
         if (!$publicId) {
             throw new NotFoundException(__('Gathering not found.'));
         }

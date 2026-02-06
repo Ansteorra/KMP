@@ -196,6 +196,39 @@ $canAddGathering = $identity && $identity->checkCan('add', $tempGathering);
                     ]) ?>
                 </div>
             </div>
+            <div class="col-auto">
+                <?php
+                $feedParams = [];
+                if (!empty($queryParams['branch'])) {
+                    $feedParams['branch'] = $queryParams['branch'];
+                }
+                if (!empty($queryParams['gathering_type_id'])) {
+                    $feedParams['type'] = $queryParams['gathering_type_id'];
+                }
+                $feedUrl = $this->Url->build(['controller' => 'Gatherings', 'action' => 'feed', '?' => $feedParams], ['fullBase' => true]);
+                ?>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-success dropdown-toggle" type="button"
+                        data-bs-toggle="dropdown" aria-expanded="false"
+                        title="<?= __('Subscribe to Calendar') ?>">
+                        <i class="bi bi-rss"></i> <?= __('Subscribe') ?>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end p-3" style="min-width: 350px;">
+                        <h6 class="dropdown-header px-0"><?= __('Subscribe to Calendar Feed') ?></h6>
+                        <p class="text-muted small mb-2">
+                            <?= __('Copy this URL and add it as a calendar subscription in your calendar app (Google Calendar, Apple Calendar, Outlook, etc.).') ?>
+                        </p>
+                        <div class="input-group input-group-sm">
+                            <input type="text" class="form-control" id="calendarFeedUrl"
+                                value="<?= h($feedUrl) ?>" readonly onclick="this.select()">
+                            <button class="btn btn-outline-primary" type="button"
+                                onclick="navigator.clipboard.writeText(document.getElementById('calendarFeedUrl').value).then(() => { this.innerHTML = '<i class=\'bi bi-check\'></i>'; setTimeout(() => { this.innerHTML = '<i class=\'bi bi-clipboard\'></i>'; }, 1500); })">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
         <div class="row mt-3">
             <div class="col-12 d-flex flex-wrap gap-2 align-items-center grid-view-badges"
