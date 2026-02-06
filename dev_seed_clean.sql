@@ -390,7 +390,7 @@ INSERT INTO `app_settings` VALUES
 (83,'Plugin.Waivers.ShowInNavigation','yes','2025-10-30 21:03:01','2025-10-30 21:03:01',NULL,NULL,NULL,1),
 (84,'Plugin.Waivers.HelloWorldMessage','Hello, World!','2025-10-30 21:03:01','2025-10-30 21:03:01',NULL,NULL,NULL,1),
 (85,'Waivers.ComplianceDays','2','2025-10-30 21:03:01','2025-10-30 21:03:01',NULL,NULL,NULL,1),
-(86,'GoogleMaps.ApiKey','AIzaSyD29KN6WZmsZf-QuzCqRAA337iA37asdpo','2025-10-31 19:24:29','2025-10-31 19:23:50',NULL,NULL,NULL,0),
+(86,'GoogleMaps.ApiKey','REPLACE WITH REAL','2025-10-31 19:24:29','2025-10-31 19:23:50',NULL,NULL,NULL,0),
 (87,'KMP.DefaultTimezone','America/Chicago','2025-11-06 11:46:36','2025-11-06 11:46:36',NULL,NULL,NULL,1),
 (88,'KMP.HeaderLink. Submit Award Rec','https://amp-uat.ansteorra.org/awards/recommendations/add?|btn fs-6 bi bi-megaphone-fill mb-2  btn-warning text-dark','2026-02-01 00:14:42','2026-01-29 00:56:08',NULL,NULL,NULL,0);
 /*!40000 ALTER TABLE `app_settings` ENABLE KEYS */;
