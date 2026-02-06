@@ -280,14 +280,15 @@ $newToken = $this->request->getSession()->consume('ServicePrincipal.newToken');
 <script>
 function copyToClipboard(elementId) {
     const input = document.getElementById(elementId);
-    input.select();
-    document.execCommand('copy');
-    
-    const btn = input.nextElementSibling;
-    const originalHtml = btn.innerHTML;
-    btn.innerHTML = '<i class="bi bi-check"></i> <?= __("Copied!") ?>';
-    setTimeout(() => {
-        btn.innerHTML = originalHtml;
-    }, 1500);
+    const text = input.value;
+
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = input.nextElementSibling;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check"></i> <?= h(__("Copied!")) ?>';
+        setTimeout(() => {
+            btn.innerHTML = originalHtml;
+        }, 1500);
+    });
 }
 </script>

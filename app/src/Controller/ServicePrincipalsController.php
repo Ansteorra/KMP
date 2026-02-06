@@ -77,7 +77,6 @@ class ServicePrincipalsController extends AppController
         $this->Authorization->authorize($servicePrincipal, 'view');
 
         // Get current roles only
-        $now = DateTime::now();
         $currentRoles = [];
         $expiredRoles = [];
 

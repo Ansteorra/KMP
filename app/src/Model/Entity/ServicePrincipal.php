@@ -144,6 +144,9 @@ class ServicePrincipal extends BaseEntity implements
 
         [$subnet, $bits] = explode('/', $allowed);
         $bits = (int)$bits;
+        if ($bits < 0 || $bits > 32) {
+            return false;
+        }
         $ipLong = ip2long($ip);
         $subnetLong = ip2long($subnet);
         if ($ipLong === false || $subnetLong === false) {
@@ -196,6 +199,10 @@ class ServicePrincipal extends BaseEntity implements
      */
     public function can(string $action, mixed $resource, ...$optionalArgs): bool
     {
+        if ($this->authorization === null) {
+            throw new \RuntimeException('Authorization service not set on ServicePrincipal');
+        }
+
         if (is_string($resource)) {
             $resource = TableRegistry::getTableLocator()
                 ->get($resource)
@@ -215,6 +222,10 @@ class ServicePrincipal extends BaseEntity implements
      */
     public function checkCan(string $action, mixed $resource, ...$optionalArgs): bool
     {
+        if ($this->authorization === null) {
+            throw new \RuntimeException('Authorization service not set on ServicePrincipal');
+        }
+
         if (is_string($resource)) {
             $resource = TableRegistry::getTableLocator()
                 ->get($resource)
@@ -234,6 +245,10 @@ class ServicePrincipal extends BaseEntity implements
      */
     public function canResult(string $action, mixed $resource, ...$optionalArgs): ResultInterface
     {
+        if ($this->authorization === null) {
+            throw new \RuntimeException('Authorization service not set on ServicePrincipal');
+        }
+
         if (is_string($resource)) {
             $resource = TableRegistry::getTableLocator()
                 ->get($resource)
@@ -253,6 +268,10 @@ class ServicePrincipal extends BaseEntity implements
      */
     public function applyScope(string $action, mixed $resource, mixed ...$optionalArgs): mixed
     {
+        if ($this->authorization === null) {
+            throw new \RuntimeException('Authorization service not set on ServicePrincipal');
+        }
+
         return $this->authorization->applyScope($this, $action, $resource, ...$optionalArgs);
     }
 
