@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\Error;
 
+use Authorization\Exception\ForbiddenException as AuthForbiddenException;
+use Authorization\Exception\MissingIdentityException;
 use Cake\Core\Configure;
 use Cake\Error\Renderer\WebExceptionRenderer;
 use Psr\Http\Message\ResponseInterface;
@@ -15,6 +17,11 @@ use Psr\Http\Message\ResponseInterface;
  */
 class ApiExceptionRenderer extends WebExceptionRenderer
 {
+    protected array $exceptionHttpCodes = [
+        AuthForbiddenException::class => 403,
+        MissingIdentityException::class => 401,
+    ];
+
     public function render(): ResponseInterface
     {
         if ($this->isApiRequest()) {

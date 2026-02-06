@@ -891,8 +891,12 @@ class GatheringsController extends AppController
         // Pre-fill start_date from query param (used by calendar quick-add)
         $startDateParam = $this->request->getQuery('start_date');
         if ($startDateParam && !$this->request->is('post')) {
-            $gathering->start_date = new \Cake\I18n\DateTime($startDateParam);
-            $gathering->end_date = new \Cake\I18n\DateTime($startDateParam);
+            try {
+                $gathering->start_date = new \Cake\I18n\DateTime($startDateParam);
+                $gathering->end_date = new \Cake\I18n\DateTime($startDateParam);
+            } catch (\Exception $e) {
+                // Ignore invalid date — form will show empty fields
+            }
         }
 
         if ($this->request->is('post')) {

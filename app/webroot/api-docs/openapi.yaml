@@ -4,7 +4,8 @@ info:
   description: |
     REST API for the Kingdom Management Platform (KMP).
 
-    All endpoints require **service principal authentication** via Bearer token.
+    Most endpoints require **service principal authentication** via Bearer token;
+    public endpoints (such as the gatherings feed) are noted individually.
     Tokens are issued through the KMP administration interface and scoped by
     role-based permissions.
 
