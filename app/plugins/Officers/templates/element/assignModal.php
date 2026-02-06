@@ -1,6 +1,7 @@
 <?php
 $officeOptions = [];
 
+if (!function_exists('addOptions')) {
 function addOptions($office, $depth, &$officeOptions)
 {
     if (!isset($officeOptions[$office['id']])) {
@@ -17,6 +18,7 @@ function addOptions($office, $depth, &$officeOptions)
             }
         }
     }
+}
 }
 foreach ($offices as $office) {
     if ($office['enabled']) {
