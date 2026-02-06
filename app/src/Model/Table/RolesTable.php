@@ -74,6 +74,19 @@ class RolesTable extends BaseTable
             'foreignKey' => 'role_id',
         ]);
 
+        // Service Principal role assignments for API clients
+        $this->hasMany('ServicePrincipalRoles', [
+            'className' => 'ServicePrincipalRoles',
+            'foreignKey' => 'role_id',
+        ]);
+
+        // Currently active service principal role assignments
+        $this->hasMany('CurrentServicePrincipalRoles', [
+            'className' => 'ServicePrincipalRoles',
+            'finder' => 'current',
+            'foreignKey' => 'role_id',
+        ]);
+
         // Many-to-many relationship with Permissions through roles_permissions junction
         // This defines what permissions each role grants
         $this->belongsToMany('Permissions', [

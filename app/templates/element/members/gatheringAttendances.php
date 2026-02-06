@@ -40,8 +40,8 @@ foreach ($member->gathering_attendances as $attendance) {
     }
 }
 
-$canManageOwn = $user->id == $member->id;
-$canManageOthers = $user->checkCan('add', 'GatheringAttendances');
+$canManageOwn = $user && method_exists($user, 'canManageMember') ? $user->canManageMember($member) : false;
+$canManageOthers = $user ? $user->checkCan('add', 'GatheringAttendances') : false;
 $canManage = $canManageOwn || $canManageOthers;
 ?>
 

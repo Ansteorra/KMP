@@ -334,6 +334,22 @@ class CoreNavigationProvider
                     'Permissions/view/*',
                 ],
             ],
+            [
+                'type' => 'link',
+                'mergePath' => ['Security'],
+                'label' => 'API Clients',
+                'order' => 20,
+                'url' => [
+                    'controller' => 'ServicePrincipals',
+                    'action' => 'index',
+                ],
+                'icon' => 'bi-key',
+                'activePaths' => [
+                    'ServicePrincipals/view/*',
+                    'ServicePrincipals/add',
+                    'ServicePrincipals/edit/*',
+                ],
+            ],
         ];
     }
 }

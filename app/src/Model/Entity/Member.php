@@ -814,6 +814,48 @@ class Member extends BaseEntity implements
     }
 
     /**
+     * Determine if this member can manage another member as self or parent.
+     *
+     * Parents can manage their linked children only while the child is under 18.
+     *
+     * @param \App\Model\Entity\Member $member Target member
+     * @return bool
+     */
+    public function canManageMember(Member $member): bool
+    {
+        if (empty($this->id) || empty($member->id)) {
+            return false;
+        }
+
+        if ((int)$member->id === (int)$this->id) {
+            return true;
+        }
+
+        $parentId = $member->parent_id ?? null;
+        $age = $member->age ?? null;
+
+        if ($parentId === null || $age === null) {
+            $member = TableRegistry::getTableLocator()
+                ->get('Members')
+                ->find()
+                ->select(['id', 'parent_id', 'birth_month', 'birth_year'])
+                ->where(['Members.id' => $member->id])
+                ->first();
+            if (!$member) {
+                return false;
+            }
+            $parentId = $member->parent_id;
+            $age = $member->age;
+        }
+
+        if ($parentId === null || $age === null) {
+            return false;
+        }
+
+        return (int)$parentId === (int)$this->id && $age < 18;
+    }
+
+    /**
      * Return the identity as a Member entity.
      *
      * @return \App\Model\Entity\Member This instance

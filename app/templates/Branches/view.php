@@ -22,7 +22,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
 <?php if (empty($branch->children) && empty($branch->members)) {
     echo $this->Form->postLink(
         __('Delete'),
-        ['action' => 'delete', $branch->id],
+        ['action' => 'delete', $branch->public_id],
         [
             'confirm' => __(
                 'Are you sure you want to delete {0}?',
@@ -48,7 +48,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
                             ? 'Root'
                             : $this->Html->link(
                                 __($branch->parent->name),
-                                ['action' => 'view', $branch->parent_id],
+                                ['action' => 'view', $branch->parent->public_id],
                                 ['title' => __('View')],
                             ) ?></td>
 </tr>

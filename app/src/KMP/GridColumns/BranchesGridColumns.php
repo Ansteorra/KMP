@@ -59,7 +59,7 @@ class BranchesGridColumns extends BaseGridColumns
                 'required' => true,
                 'width' => '300px',
                 'alignment' => 'left',
-                'clickAction' => 'navigate:/branches/view/:id',
+                'clickAction' => 'navigate:/branches/view/:public_id',
                 'exportable' => true,
                 'cellRenderer' => [self::class, 'renderTreePath'],
             ],

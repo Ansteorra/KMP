@@ -37,11 +37,35 @@ class RecommendationPolicy extends BasePolicy
      */
     public function canViewSubmittedByMember(KmpIdentityInterface $user, BaseEntity $entity, ...$args): bool
     {
-        if ($entity->requester_id == $user->getIdentifier()) {
+        if ($this->canManageRecommendationMember($user, (int)$entity->requester_id)) {
             return true;
         }
         $method = __FUNCTION__;
         return $this->_hasPolicy($user, $method, $entity);
+    }
+
+    /**
+     * Determine whether the user can manage recommendation actions for a member.
+     *
+     * Allows self or parent-of-minor access.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user
+     * @param int $memberId
+     * @return bool
+     */
+    protected function canManageRecommendationMember(KmpIdentityInterface $user, int $memberId): bool
+    {
+        if ($memberId <= 0) {
+            return false;
+        }
+
+        if ($user instanceof \App\Model\Entity\Member) {
+            $target = new \App\Model\Entity\Member();
+            $target->id = $memberId;
+            return $user->canManageMember($target);
+        }
+
+        return false;
     }
 
     /**

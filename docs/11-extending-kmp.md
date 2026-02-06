@@ -1052,4 +1052,488 @@ return [
 - Solution: Add public IDs gradually:
   1. Add column and generate IDs (no breaking change)
   2. Update one controller at a time
+
+---
+
+## 11.8 Creating REST API Endpoints
+
+KMP provides a REST API under `/api/v1/` authenticated via **service principal** tokens. API controllers live in the `Api/V1` namespace and extend the shared `ApiController` base class.
+
+### Architecture Overview
+
+```
+src/Controller/Api/
+├── ApiController.php          ← Base class (auth, JSON envelope, pagination)
+└── V1/
+    ├── BranchesController.php ← Core API endpoint
+    ├── MembersController.php
+    └── RolesController.php
+
+plugins/Officers/src/Controller/Api/V1/
+    ├── OfficersController.php ← Plugin API endpoint
+    ├── OfficesController.php
+    └── DepartmentsController.php
+
+plugins/Activities/src/Controller/Api/V1/
+    └── AuthorizationsController.php ← Plugin API endpoint
+```
+
+### Quick Start: Adding an API Endpoint
+
+#### Step 1: Create the Controller
+
+Place the controller under `Api/V1` in your plugin (or `src/Controller/Api/V1/` for core):
+
+```php
+<?php
+declare(strict_types=1);
+
+namespace YourPlugin\Controller\Api\V1;
+
+use App\Controller\Api\ApiController;
+
+class WidgetsController extends ApiController
+{
+    public function initialize(): void
+    {
+        parent::initialize();
+        // Optional: mark actions that don't require authentication
+        // $this->Authentication->addUnauthenticatedActions(['index']);
+    }
+
+    public function index(): void
+    {
+        // Authorize against the entity policy (not table policy)
+        $this->Authorization->authorize(
+            $this->fetchTable('YourPlugin.Widgets')->newEmptyEntity(),
+            'index'
+        );
+
+        $this->paginate = [
+            'limit' => 50,
+            'maxLimit' => 200,
+            'order' => ['Widgets.name' => 'asc'],
+        ];
+
+        $query = $this->fetchTable('YourPlugin.Widgets')->find()
+            ->select(['id', 'name', 'status']);
+
+        $widgets = $this->paginate($query);
+
+        $data = [];
+        foreach ($widgets as $widget) {
+            $data[] = [
+                'id' => $widget->id,
+                'name' => $widget->name,
+                'status' => $widget->status,
+            ];
+        }
+
+        $this->apiSuccess($data, $this->getPaginationMeta());
+    }
+
+    public function view(string $id): void
+    {
+        $widget = $this->fetchTable('YourPlugin.Widgets')->get($id);
+        $this->Authorization->authorize($widget, 'view');
+
+        $this->apiSuccess([
+            'id' => $widget->id,
+            'name' => $widget->name,
+            'description' => $widget->description,
+            'created' => $widget->created?->toIso8601String(),
+        ]);
+    }
+}
+```
+
+#### Step 2: Register Routes
+
+Your plugin must implement `KMPApiPluginInterface` and register routes in the `/api/v1` scope:
+
+```php
+<?php
+// In your Plugin.php (e.g., plugins/YourPlugin/src/YourPluginPlugin.php)
+
+use App\KMP\KMPApiPluginInterface;
+use Cake\Routing\RouteBuilder;
+
+class YourPluginPlugin extends BasePlugin implements KMPPluginInterface, KMPApiPluginInterface
+{
+    public function registerApiRoutes(RouteBuilder $builder): void
+    {
+        // List endpoint
+        $builder->connect('/your-plugin/widgets', [
+            'controller' => 'Widgets',
+            'action' => 'index',
+            'plugin' => 'YourPlugin',
+            'prefix' => 'Api/V1',
+        ]);
+
+        // Detail endpoint — use {id} placeholder with setPass
+        $builder->connect('/your-plugin/widgets/{id}', [
+            'controller' => 'Widgets',
+            'action' => 'view',
+            'plugin' => 'YourPlugin',
+            'prefix' => 'Api/V1',
+        ])->setPatterns(['id' => '[0-9]+'])->setPass(['id']);
+    }
+}
+```
+
+> 💡 **Tip:** If your entity uses public IDs, change the route pattern to `[a-zA-Z0-9]+` and use `find('byPublicId', [$id])` in the controller.
+
+The route registration is called automatically — the core `routes.php` iterates all loaded plugins that implement `KMPApiPluginInterface` and calls `registerApiRoutes()`.
+
+### Base Controller Helpers
+
+`ApiController` provides these methods for consistent responses:
+
+| Method | Purpose |
+|--------|---------|
+| `apiSuccess($data, $meta)` | Wrap data in `{"data": ...}` envelope with optional `meta` |
+| `apiError($code, $message, $details, $statusCode)` | Return `{"error": {"code": ..., "message": ...}}` |
+| `getPaginationMeta()` | Extract `{pagination: {total, page, per_page, total_pages}}` from paginator |
+| `getServicePrincipal()` | Get the authenticated `ServicePrincipal` entity |
+
+### Authentication & Authorization
+
+**Authentication** is handled automatically by `ApiController::beforeFilter()`. Requests must include a valid service principal token via one of:
+
+- `Authorization: Bearer <token>` header
+- `X-API-Key: <token>` header
+- `?api_key=<token>` query parameter
+
+**Public endpoints** (no authentication required) must be explicitly marked:
+
+```php
+$this->Authentication->addUnauthenticatedActions(['index', 'view']);
+```
+
+**Authorization** follows the same policy system as the web UI. For table-level operations where the `TablePolicy` has `SKIP_BASE = 'true'`, authorize against a new empty entity to resolve to the entity-level policy:
+
+```php
+// ✅ Correct — resolves to WidgetPolicy which has registered permissions
+$this->Authorization->authorize(
+    $this->fetchTable('Widgets')->newEmptyEntity(),
+    'index'
+);
+
+// ❌ Wrong — WidgetsTablePolicy may have SKIP_BASE and no registered methods
+$this->Authorization->authorizeModel('index');
+```
+
+---
+
+## 11.9 OpenAPI Documentation for Plugin APIs
+
+KMP uses a **modular OpenAPI** system. Each plugin publishes its own spec fragment that is automatically merged into the combined API documentation served at `/api-docs/openapi.json`.
+
+### How It Works
+
+```
+webroot/api-docs/openapi.yaml          ← Base spec (core endpoints)
+plugins/Officers/config/openapi.yaml    ← Officers plugin fragment
+plugins/Awards/config/openapi.yaml      ← Awards plugin fragment (if it had one)
+         ↓ merged by OpenApiMergeService ↓
+/api-docs/openapi.json                  ← Combined spec served to Swagger UI
+```
+
+The `OpenApiMergeService` discovers fragments by scanning each loaded plugin's `config/openapi.yaml` file. It deep-merges:
+- **Tags** — appended (deduplicated by name)
+- **Paths** — merged by path key
+- **Schemas** — merged under `components.schemas`
+- **Parameters & Responses** — merged under `components`
+
+### Adding a Plugin OpenAPI Fragment
+
+Create `plugins/YourPlugin/config/openapi.yaml`:
+
+```yaml
+# YourPlugin — OpenAPI spec fragment
+# Merged automatically into the main spec by OpenApiMergeService.
+
+tags:
+  - name: YourPlugin - Widgets
+    description: Widget management endpoints
+
+paths:
+  /your-plugin/widgets:
+    get:
+      operationId: listWidgets
+      tags: [YourPlugin - Widgets]
+      summary: List widgets with pagination
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search by widget name
+      responses:
+        "200":
+          description: Paginated widget list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/WidgetSummary"
+                  meta:
+                    $ref: "#/components/schemas/PaginationMeta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /your-plugin/widgets/{id}:
+    get:
+      operationId: getWidget
+      tags: [YourPlugin - Widgets]
+      summary: Get a widget by ID
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Widget details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/WidgetDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  schemas:
+    WidgetSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        status:
+          type: string
+          example: active
+
+    WidgetDetail:
+      allOf:
+        - $ref: "#/components/schemas/WidgetSummary"
+        - type: object
+          properties:
+            description:
+              type: string
+            created:
+              type: string
+              format: date-time
+```
+
+### Shared Schema References
+
+The base spec defines reusable components your plugin can reference:
+
+| Reference | Description |
+|-----------|-------------|
+| `#/components/schemas/PaginationMeta` | Standard pagination envelope |
+| `#/components/schemas/ErrorResponse` | Error response format |
+| `#/components/parameters/Page` | `page` query parameter |
+| `#/components/parameters/ResourceId` | `{id}` path parameter |
+| `#/components/responses/Unauthorized` | 401 response |
+| `#/components/responses/Forbidden` | 403 response |
+| `#/components/responses/NotFound` | 404 response |
+
+### Public (Unauthenticated) Endpoints
+
+For endpoints that don't require authentication, add `security: []` to the operation:
+
+```yaml
+paths:
+  /your-plugin/public-data:
+    get:
+      security: []   # Override global security requirement
+      summary: Public data endpoint
+```
+
+### Viewing the Result
+
+After adding your fragment, visit `/api-docs/` to see it in the Swagger UI. The merge is performed on every request to `/api-docs/openapi.json`, so changes are visible immediately.
+
+---
+
+## 11.10 Injecting Data into Other API Responses
+
+Plugins can enrich API responses from other controllers using the **ApiDataRegistry**. This is the API equivalent of `ViewCellRegistry` — it lets plugins add data to detail endpoints without modifying the core controller.
+
+### How It Works
+
+```
+Plugin bootstrap
+  → ApiDataRegistry::register('Source', callback, routes)
+
+API controller (e.g., BranchesController::view)
+  → ApiDataRegistry::collect('Branches', 'view', $branchEntity)
+  → Calls all matching providers → merges results as top-level keys
+```
+
+The registry uses **route matching** (controller + action) so providers only execute for endpoints they care about.
+
+### Example: Officers Plugin Injecting Branch Officers
+
+The Officers plugin adds an `officers` array to the branch detail response:
+
+**1. Create a data provider:**
+
+```php
+<?php
+// plugins/Officers/src/Services/Api/OfficersBranchApiDataProvider.php
+
+namespace Officers\Services\Api;
+
+use Cake\ORM\TableRegistry;
+
+class OfficersBranchApiDataProvider
+{
+    /**
+     * @param string $controller Controller name
+     * @param string $action Action name
+     * @param mixed $entity The primary entity (Branch in this case)
+     * @return array Keys are merged into the API response
+     */
+    public static function provide(string $controller, string $action, mixed $entity): array
+    {
+        $officers = TableRegistry::getTableLocator()->get('Officers.Officers')
+            ->find('current')
+            ->contain([
+                'Members' => fn($q) => $q->select(['id', 'sca_name', 'public_id']),
+                'Offices' => fn($q) => $q->select(['id', 'name']),
+            ])
+            ->where(['Officers.branch_id' => $entity->id])
+            ->orderBy(['Offices.name' => 'ASC'])
+            ->all();
+
+        $data = [];
+        foreach ($officers as $officer) {
+            $data[] = [
+                'office' => $officer->office->name,
+                'member' => [
+                    'id' => $officer->member->public_id,
+                    'sca_name' => $officer->member->sca_name,
+                ],
+                'start_on' => $officer->start_on?->toIso8601String(),
+                'expires_on' => $officer->expires_on?->toIso8601String(),
+            ];
+        }
+
+        return ['officers' => $data];
+    }
+}
+```
+
+**2. Register in plugin bootstrap:**
+
+```php
+// In OfficersPlugin::bootstrap()
+use App\Services\ApiDataRegistry;
+use Officers\Services\Api\OfficersBranchApiDataProvider;
+
+ApiDataRegistry::register(
+    'Officers',                                          // Source name
+    [OfficersBranchApiDataProvider::class, 'provide'],   // Callback
+    [
+        ['controller' => 'Branches', 'action' => 'view'],  // Routes to match
+    ]
+);
+```
+
+**3. The consuming controller calls `collect()`:**
+
+This is already built into the core controllers. For example, `BranchesController::view()` does:
+
+```php
+$detail = $this->formatBranchDetail($branch, $children);
+$pluginData = ApiDataRegistry::collect('Branches', 'view', $branch);
+$detail = array_merge($detail, $pluginData);
+$this->apiSuccess($detail);
+```
+
+### Adding ApiDataRegistry Support to Your Own Controller
+
+If you're building a new API controller and want plugins to be able to inject data, add the collect call to your detail action:
+
+```php
+use App\Services\ApiDataRegistry;
+
+public function view(string $id): void
+{
+    $entity = $this->fetchTable('Things')->get($id);
+
+    $data = [
+        'id' => $entity->id,
+        'name' => $entity->name,
+    ];
+
+    // Let plugins inject additional data
+    $pluginData = ApiDataRegistry::collect('Things', 'view', $entity);
+    $data = array_merge($data, $pluginData);
+
+    $this->apiSuccess($data);
+}
+```
+
+### Provider Callback Signature
+
+```php
+function (string $controller, string $action, mixed $entity): array
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `$controller` | Controller name (e.g., `'Branches'`, `'Members'`) |
+| `$action` | Action name (e.g., `'view'`) |
+| `$entity` | The primary entity being returned — use its `id` for DB queries |
+
+The callback must return an **associative array** whose keys are merged as top-level fields in the response. Choose descriptive key names to avoid collisions (e.g., `'officers'` not `'data'`).
+
+### Key Design Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| **View only, not index** | Avoids N+1 queries on list endpoints |
+| **Top-level keys** | Clean, flat API response — no `extensions` wrapper |
+| **Static callbacks** | No instantiation overhead; providers are stateless |
+| **Route matching** | Providers only run for endpoints they registered for |
+
+### Documenting Injected Fields in OpenAPI
+
+Since injected fields come from plugins, document them in the **plugin's** `config/openapi.yaml` fragment. Add a schema for the injected object and note the extension in the base schema:
+
+```yaml
+# In plugins/YourPlugin/config/openapi.yaml
+components:
+  schemas:
+    BranchWidget:
+      type: object
+      description: Widget data injected into branch detail by YourPlugin
+      properties:
+        name:
+          type: string
+        count:
+          type: integer
+```
+
+The base spec for `BranchDetail` includes `additionalProperties: true` to indicate that plugins may add fields.
+
+[← Back to Table of Contents](index.md)
   3. Keep both `id` and `public_id` working during transition

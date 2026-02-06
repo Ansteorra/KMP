@@ -1,7 +1,7 @@
 {
-  "pid": 4937,
-  "parent_pid": 4853,
-  "database": "/workspaces/KMP/.beads/beads.db",
-  "version": "0.49.2",
-  "started_at": "2026-02-01T01:10:05.989404387Z"
+  "pid": 85244,
+  "parent_pid": 85204,
+  "database": "/Users/jhandel/code/KMP/.beads/beads.db",
+  "version": "0.43.0",
+  "started_at": "2026-02-02T23:55:43.307137Z"
 }

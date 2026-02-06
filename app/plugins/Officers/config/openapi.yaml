@@ -1,0 +1,415 @@
+# Officers Plugin — OpenAPI spec fragment
+# Merged automatically into the main spec by OpenApiMergeService.
+# Only include paths, tags, and schemas owned by this plugin.
+
+tags:
+  - name: Officers - Roster
+    description: Officer assignment roster
+  - name: Officers - Offices
+    description: Office definitions
+  - name: Officers - Departments
+    description: Department groupings for offices
+
+paths:
+  # ── Roster ──────────────────────────────────────────────────────────
+  /officers/roster:
+    get:
+      operationId: listOfficerRoster
+      tags: [Officers - Roster]
+      summary: List officer assignments
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+        - name: branch
+          in: query
+          schema:
+            type: string
+          description: Filter by branch public ID
+        - name: office_id
+          in: query
+          schema:
+            type: integer
+          description: Filter by office
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [current, upcoming]
+          description: Filter by assignment status
+      responses:
+        "200":
+          description: Paginated officer roster
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/OfficerSummary"
+                  meta:
+                    $ref: "#/components/schemas/PaginationMeta"
+              example:
+                data:
+                  - id: 957
+                    member_id: 2883
+                    member_name: "Mel Local Exch and Kingdom Social Demoer"
+                    branch:
+                      id: "MWGz3xqr"
+                      name: "Ansteorra"
+                    office_id: 50
+                    office_name: "Kingdom Social Media Officer"
+                    status: "Current"
+                    start_on: "2025-08-30"
+                    expires_on: "2027-08-30"
+                meta:
+                  pagination:
+                    total: 17
+                    page: 1
+                    per_page: 50
+                    total_pages: 1
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /officers/roster/{id}:
+    get:
+      operationId: getOfficerRoster
+      tags: [Officers - Roster]
+      summary: Get an officer assignment by ID
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Officer assignment details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/OfficerDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Offices ─────────────────────────────────────────────────────────
+  /officers/offices:
+    get:
+      operationId: listOffices
+      tags: [Officers - Offices]
+      summary: List offices
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+        - name: department_id
+          in: query
+          schema:
+            type: integer
+          description: Filter by department
+        - name: requires_warrant
+          in: query
+          schema:
+            type: boolean
+          description: Filter by warrant requirement
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search by office name
+      responses:
+        "200":
+          description: Paginated office list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/OfficeSummary"
+                  meta:
+                    $ref: "#/components/schemas/PaginationMeta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /officers/offices/{id}:
+    get:
+      operationId: getOffice
+      tags: [Officers - Offices]
+      summary: Get an office by ID
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Office details with relationships
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/OfficeDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Departments ─────────────────────────────────────────────────────
+  /officers/departments:
+    get:
+      operationId: listDepartments
+      tags: [Officers - Departments]
+      summary: List departments
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search by department name
+      responses:
+        "200":
+          description: Paginated department list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DepartmentSummary"
+                  meta:
+                    $ref: "#/components/schemas/PaginationMeta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /officers/departments/{id}:
+    get:
+      operationId: getDepartment
+      tags: [Officers - Departments]
+      summary: Get a department by ID
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Department details with offices
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/DepartmentDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  schemas:
+    OfficerSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        member_id:
+          type: integer
+        member_name:
+          type: string
+        branch:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: string
+              description: Branch public ID
+              example: MWGz3xqr
+            name:
+              type: string
+        office_id:
+          type: integer
+        office_name:
+          type: string
+        status:
+          type: string
+          example: Current
+        start_on:
+          type: string
+          format: date
+        expires_on:
+          type: string
+          format: date
+          nullable: true
+
+    OfficerDetail:
+      allOf:
+        - $ref: "#/components/schemas/OfficerSummary"
+        - type: object
+          properties:
+            deputy_description:
+              type: string
+            email_address:
+              type: string
+            revoked_reason:
+              type: string
+            created:
+              type: string
+              format: date-time
+            modified:
+              type: string
+              format: date-time
+
+    OfficeSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        department_id:
+          type: integer
+        department_name:
+          type: string
+        requires_warrant:
+          type: boolean
+        required_office:
+          type: boolean
+        only_one_per_branch:
+          type: boolean
+        can_skip_report:
+          type: boolean
+        term_length:
+          type: integer
+          description: Term length in months
+        created:
+          type: string
+          format: date-time
+        modified:
+          type: string
+          format: date-time
+
+    OfficeDetail:
+      allOf:
+        - $ref: "#/components/schemas/OfficeSummary"
+        - type: object
+          properties:
+            reports_to:
+              type: object
+              nullable: true
+              properties:
+                id:
+                  type: integer
+                name:
+                  type: string
+            deputy_to:
+              type: object
+              nullable: true
+              properties:
+                id:
+                  type: integer
+                name:
+                  type: string
+            grants_role:
+              type: object
+              nullable: true
+              properties:
+                id:
+                  type: integer
+                name:
+                  type: string
+
+    DepartmentSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        domain:
+          type: string
+        created:
+          type: string
+          format: date-time
+        modified:
+          type: string
+          format: date-time
+
+    DepartmentDetail:
+      allOf:
+        - $ref: "#/components/schemas/DepartmentSummary"
+        - type: object
+          properties:
+            offices:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+
+    # ── Branch extension (injected via ApiDataRegistry) ─────────────
+    BranchOfficer:
+      type: object
+      description: Current officer assigned to a branch (injected by Officers plugin)
+      properties:
+        office:
+          type: string
+          example: Kingdom Seneschal
+        department:
+          type: string
+          nullable: true
+          example: Seneschallate
+        member:
+          type: object
+          properties:
+            id:
+              type: string
+              description: Member public ID
+              example: wPQM6g9E
+            sca_name:
+              type: string
+              example: Eirik Kingdom Seneschal Demoer
+        email_address:
+          type: string
+          nullable: true
+        start_on:
+          type: string
+          format: date-time
+        expires_on:
+          type: string
+          format: date-time
+          nullable: true

@@ -98,7 +98,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
 </tr>
 <tr>
     <th scope="row"><?= __('Branch') ?></th>
-    <td><?= $award->hasValue('branch') ? $this->Html->link($award->branch->name, ['plugin' => null, 'controller' => 'Branches', 'action' => 'view', $award->branch->id]) : '' ?>
+    <td><?= $award->hasValue('branch') ? $this->Html->link($award->branch->name, ['plugin' => null, 'controller' => 'Branches', 'action' => 'view', $award->branch->public_id]) : '' ?>
     </td>
 </tr>
 <?php $this->KMP->endBlock() ?>

@@ -55,6 +55,8 @@ declare(strict_types=1);
 
 use Cake\Routing\Route\DashedRoute;
 use Cake\Routing\RouteBuilder;
+use Cake\Core\Plugin;
+use App\KMP\KMPApiPluginInterface;
 
 /**
  * KMP Route Configuration Function
@@ -423,6 +425,78 @@ return function (RouteBuilder $routes): void {
          * @example "/images/awards/badge.png?q=80&fm=webp" → Optimized badge
          */
         $routes->connect('/*');
+    });
+
+    /**
+     * OpenAPI merged specification endpoint.
+     * Combines the base spec with plugin-provided fragments.
+     */
+    $routes->connect('/api-docs/openapi.json', [
+        'controller' => 'OpenApi',
+        'action' => 'spec',
+    ]);
+
+    /**
+     * API v1 Routes
+     * 
+     * Dedicated scope for REST API endpoints accessed by service principals.
+     * Uses Bearer token authentication instead of session-based auth.
+     * No CSRF protection (tokens provide security).
+     * 
+     * @scope "/api/v1" API version 1
+     */
+    $routes->scope('/api/v1', function (RouteBuilder $builder): void {
+        $builder->setExtensions(['json']);
+
+        // Service Principals management (self-service)
+        $builder->connect('/service-principals/me', [
+            'controller' => 'ServicePrincipals',
+            'action' => 'me',
+            'prefix' => 'Api/V1',
+        ]);
+
+        // Members API
+        $builder->connect('/members', [
+            'controller' => 'Members',
+            'action' => 'index',
+            'prefix' => 'Api/V1',
+        ]);
+        $builder->connect('/members/{id}', [
+            'controller' => 'Members',
+            'action' => 'view',
+            'prefix' => 'Api/V1',
+        ])->setPatterns(['id' => '[0-9]+'])->setPass(['id']);
+
+        // Branches API
+        $builder->connect('/branches', [
+            'controller' => 'Branches',
+            'action' => 'index',
+            'prefix' => 'Api/V1',
+        ]);
+        $builder->connect('/branches/{id}', [
+            'controller' => 'Branches',
+            'action' => 'view',
+            'prefix' => 'Api/V1',
+        ])->setPatterns(['id' => '[a-zA-Z0-9]+'])->setPass(['id']);
+
+        // Roles API
+        $builder->connect('/roles', [
+            'controller' => 'Roles',
+            'action' => 'index',
+            'prefix' => 'Api/V1',
+        ]);
+        $builder->connect('/roles/{id}', [
+            'controller' => 'Roles',
+            'action' => 'view',
+            'prefix' => 'Api/V1',
+        ])->setPatterns(['id' => '[0-9]+'])->setPass(['id']);
+
+        // Plugin-published API routes
+        foreach (Plugin::getCollection() as $plugin) {
+            if ($plugin instanceof KMPApiPluginInterface) {
+                $plugin->registerApiRoutes($builder);
+            }
+        }
     });
 
     /**

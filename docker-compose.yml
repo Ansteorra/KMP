@@ -1,0 +1,96 @@
+# KMP Development Environment - Docker Compose
+# Optimized for agentic/hosted development with local code mounting
+#
+# Usage:
+#   docker compose up -d        # Start all services
+#   docker compose down         # Stop all services
+#   docker compose logs -f app  # Follow app logs
+#   ./dev-reset-db.sh           # Reset database to clean state
+#
+# Services:
+#   - app: PHP 8.3 + Apache (your code mounted at /var/www/html)
+#   - db: MariaDB with persistent volume
+#   - mailpit: Email testing (UI at http://localhost:8025)
+
+services:
+  db:
+    image: mariadb:11
+    container_name: kmp-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DB_NAME:-KMP_DEV}
+      MYSQL_USER: ${MYSQL_USERNAME:-KMPSQLDEV}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-P@ssw0rd}
+    ports:
+      - "3306:3306"
+    volumes:
+      - kmp-db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: kmp-mailpit
+    restart: unless-stopped
+    ports:
+      - "8025:8025"  # Web UI
+      - "1025:1025"  # SMTP
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.app
+    container_name: kmp-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    ports:
+      - "8080:80"
+    volumes:
+      # Mount local code - changes reflect immediately
+      - ./app:/var/www/html:cached
+      # Persist composer cache for faster rebuilds
+      - composer-cache:/root/.composer/cache
+      # Persist node_modules to avoid reinstalling
+      - node-modules:/var/www/html/node_modules
+    environment:
+      # App identification (prevents .env loading - we use container env vars)
+      APP_NAME: KMP_DOCKER
+      # Database
+      MYSQL_HOST: db
+      MYSQL_USERNAME: ${MYSQL_USERNAME:-KMPSQLDEV}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-P@ssw0rd}
+      MYSQL_DB_NAME: ${MYSQL_DB_NAME:-KMP_DEV}
+      # Email
+      EMAIL_SMTP_HOST: mailpit
+      EMAIL_SMTP_PORT: "1025"
+      EMAIL_SMTP_USERNAME: ""
+      EMAIL_SMTP_PASSWORD: ""
+      # PHP/App settings
+      PHP_MEMORY_LIMIT: 256M
+      APACHE_DOCUMENT_ROOT: /var/www/html
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  kmp-db-data:
+    name: kmp-db-data
+  composer-cache:
+    name: kmp-composer-cache
+  node-modules:
+    name: kmp-node-modules

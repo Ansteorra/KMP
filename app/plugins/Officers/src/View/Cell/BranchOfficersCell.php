@@ -56,14 +56,18 @@ class BranchOfficersCell extends Cell
     public function display($id)
     {
 
-        $id = (int)$id;
+        $branch = $this->fetchTable("Branches")
+            ->find('byPublicId', [$id])
+            ->select(['id', 'parent_id', 'type', 'domain'])
+            ->first();
+        if (!$branch) {
+            return;
+        }
+        $branchId = $branch->id;
         $officersTable = $this->fetchTable("Officers.Officers");
 
         $newOfficer = $officersTable->newEmptyEntity();
 
-        $branch = $this->fetchTable("Branches")
-            ->find()->select(['id', 'parent_id', 'type', 'domain'])
-            ->where(['id' => $id])->first();
         $officesTbl = $this->fetchTable("Officers.Offices");
         $officeQuery = $officesTbl->find("all")
             ->contain(["Departments"])
@@ -74,10 +78,10 @@ class BranchOfficersCell extends Cell
         $hireAll = false;
         $canHireOffices = [];
         $myOffices = [];
-        if ($user->checkCan("assign", "Officers.Officers", $id) && $user->checkCan("workWithAllOfficers", "Officers.Officers", $id)) {
+        if ($user->checkCan("assign", "Officers.Officers", $branchId) && $user->checkCan("workWithAllOfficers", "Officers.Officers", $branchId)) {
             $hireAll = true;
         } else {
-            $canHireOffices = $officesTbl->officesMemberCanWork($user, $id);
+            $canHireOffices = $officesTbl->officesMemberCanWork($user, $branchId);
             $officersTbl = TableRegistry::getTableLocator()->get("Officers.Officers");
             $userOffices = $officersTbl->find("current")->where(['member_id' => $user->id])->select(['office_id'])->toArray();
             foreach ($userOffices as $userOffice) {
@@ -85,7 +89,7 @@ class BranchOfficersCell extends Cell
             }
         }
         $offices = $this->buildOfficeTree($officeSet, $branch,  $hireAll, $myOffices, $canHireOffices, null);
-        $this->set(compact('id', 'offices', 'newOfficer'));
+        $this->set(compact('id', 'branchId', 'offices', 'newOfficer'));
     }
 
     /**

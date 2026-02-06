@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use ArrayObject;
+use Cake\Datasource\EntityInterface;
+use Cake\Event\EventInterface;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
 use Cake\ORM\RulesChecker;
@@ -130,6 +133,37 @@ class GatheringAttendancesTable extends Table
         ]));
 
         return $rules;
+    }
+
+    /**
+     * Enforce minor RSVP sharing rules.
+     *
+     * Members under 18 cannot share RSVPs with the kingdom.
+     *
+     * @param \Cake\Event\EventInterface $event Event
+     * @param \Cake\Datasource\EntityInterface $entity Entity being saved
+     * @param \ArrayObject $options Save options
+     * @return void
+     */
+    public function beforeSave(EventInterface $event, EntityInterface $entity, ArrayObject $options): void
+    {
+        $memberId = $entity->member_id ?? null;
+        if (empty($memberId)) {
+            return;
+        }
+
+        $member = $entity->member ?? null;
+        if (!$member) {
+            $member = $this->Members
+                ->find()
+                ->select(['Members.id', 'Members.birth_month', 'Members.birth_year'])
+                ->where(['Members.id' => $memberId])
+                ->first();
+        }
+
+        if ($member && $member->age !== null && $member->age < 18) {
+            $entity->set('share_with_kingdom', false);
+        }
     }
 
     /**

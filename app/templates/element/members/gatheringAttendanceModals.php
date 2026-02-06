@@ -11,6 +11,8 @@
  * @var \App\Model\Entity\Member $member
  * @var array $availableGatherings
  */
+
+$isMinor = $member && $member->age !== null && $member->age < 18;
 ?>
 
 <!-- Add Gathering Attendance Modal -->
@@ -58,6 +60,7 @@
                         SCA name and note.
                     </small>
 
+                    <?php if (!$isMinor): ?>
                     <?= $this->Form->control('share_with_kingdom', [
                         'type' => 'checkbox',
                         'label' => 'Share with Kingdom',
@@ -65,6 +68,9 @@
                         'switch' => true,
                         'tooltip' => 'Signed-in members can see your name and note on the public gathering page, and the host group and crown can view it in AMP.'
                     ]) ?>
+                    <?php else: ?>
+                    <?= $this->Form->hidden('share_with_kingdom', ['value' => '0']) ?>
+                    <?php endif; ?>
 
                     <?= $this->Form->control('share_with_hosting_group', [
                         'type' => 'checkbox',

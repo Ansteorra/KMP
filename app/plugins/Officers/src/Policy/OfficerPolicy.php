@@ -45,7 +45,7 @@ class OfficerPolicy extends BasePolicy
      */
     public function canMemberOfficers(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs)
     {
-        if ($entity->member_id == $user->getIdentifier()) {
+        if ($this->canManageOfficerMember($user, (int)$entity->member_id)) {
             return true;
         }
         $method = __FUNCTION__;
@@ -200,7 +200,7 @@ class OfficerPolicy extends BasePolicy
      */
     public function canRequestWarrant(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
-        if ($user->id == $entity->member_id) {
+        if ($this->canManageOfficerMember($user, (int)$entity->member_id)) {
             return true;
         }
         $method = __FUNCTION__;
@@ -221,6 +221,30 @@ class OfficerPolicy extends BasePolicy
             }
             return true;
         }
+        return false;
+    }
+
+    /**
+     * Determine whether the user can manage officer actions for a member.
+     *
+     * Allows self or parent-of-minor access.
+     *
+     * @param KmpIdentityInterface $user
+     * @param int $memberId
+     * @return bool
+     */
+    protected function canManageOfficerMember(KmpIdentityInterface $user, int $memberId): bool
+    {
+        if ($memberId <= 0) {
+            return false;
+        }
+
+        if ($user instanceof \App\Model\Entity\Member) {
+            $target = new \App\Model\Entity\Member();
+            $target->id = $memberId;
+            return $user->canManageMember($target);
+        }
+
         return false;
     }
 
