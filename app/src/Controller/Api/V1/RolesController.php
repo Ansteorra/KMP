@@ -29,9 +29,8 @@ class RolesController extends ApiController
 
         $query = $this->fetchTable('Roles')->find();
 
-        // Apply authorization scope
-        $identity = $this->Authentication->getIdentity();
-        $query = $identity->applyScope('index', $query);
+        // Roles are global (not branch-scoped) — authorize against an empty entity
+        $this->Authorization->authorize($this->fetchTable('Roles')->newEmptyEntity(), 'index');
 
         $roles = $this->paginate($query);
 

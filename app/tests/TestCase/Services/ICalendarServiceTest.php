@@ -54,6 +54,7 @@ class ICalendarServiceTest extends TestCase
         // Create a mock gathering entity
         $gathering = new Gathering([
             'id' => 1,
+            'public_id' => 'abc123',
             'name' => 'Test Event',
             'description' => 'This is a test event description',
             'location' => '123 Main St, City, State',
@@ -97,6 +98,7 @@ class ICalendarServiceTest extends TestCase
         // Create a mock gathering entity for multi-day event
         $gathering = new Gathering([
             'id' => 2,
+            'public_id' => 'def456',
             'name' => 'Multi-Day Event',
             'description' => 'A multi-day gathering',
             'location' => 'Event Center',
@@ -148,6 +150,7 @@ class ICalendarServiceTest extends TestCase
     {
         $gathering = new Gathering([
             'id' => 3,
+            'public_id' => 'ghi789',
             'name' => 'Test; Event, With\\Special',
             'description' => "Line one\nLine two",
             'start_date' => new DateTime('2025-12-15'),

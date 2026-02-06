@@ -60,6 +60,13 @@ base + plugin fragments) and can be imported into Postman, Insomnia, or any Open
 |----------|-------------|
 | `GET /api/v1/activities/member-authorizations` | Look up a member's current activity authorizations by `membership_number`, `sca_name`, or `email` |
 
+### Public Endpoints (No Authentication)
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /gatherings/feed` | iCalendar subscription feed for calendar apps. Optional filters: `?branch={public_id}&type={gathering_type_id}` |
+
+
 ## Developer Guides
 
 Building or extending the REST API? See the developer documentation:

@@ -6,9 +6,11 @@
  * @var \App\Model\Entity\Branch[] $branches
  * @var \App\Model\Entity\GatheringType[] $gatheringTypes
  * @var bool $lockBranch Whether the branch field should be locked (non-editable)
+ * @var int $branchCount Number of branches available to the user
  */
 
 $lockBranch = $lockBranch ?? false;
+$branchCount = $branchCount ?? count($branches);
 ?>
 <?php
 $this->extend("/layout/TwitterBootstrap/dashboard");
@@ -36,18 +38,45 @@ $this->KMP->endBlock();
 
         <div class="row">
             <div class="col-md-6 mb-3">
-                <?= $this->Form->control('branch_id', [
-                    'options' => $branches,
-                    'empty' => $lockBranch ? false : __('-- Select Branch --'),
-                    'required' => true,
-                    'class' => 'form-select',
-                    'disabled' => $lockBranch
-                ]) ?>
                 <?php if ($lockBranch): ?>
+                    <?= $this->Form->control('branch_id', [
+                        'options' => $branches,
+                        'empty' => false,
+                        'required' => true,
+                        'class' => 'form-select',
+                        'disabled' => true,
+                    ]) ?>
                     <?= $this->Form->hidden('branch_id', ['value' => $gathering->branch_id]) ?>
                     <small class="form-text text-muted">
                         <?= __('Branch cannot be changed based on your permissions.') ?>
                     </small>
+                <?php elseif ($branchCount > 1): ?>
+                    <?php
+                    $acAttrs = [];
+                    if (!empty($gathering->branch_id) && !empty($gathering->branch)) {
+                        $acAttrs['data-ac-init-selection-value'] = json_encode([
+                            'value' => $gathering->branch_id,
+                            'text' => $gathering->branch->name,
+                        ]);
+                    }
+                    echo $this->KMP->comboBoxControl(
+                        $this->Form,
+                        'branch_name',
+                        'branch_id',
+                        $branches,
+                        __('Branch'),
+                        true,
+                        false,
+                        $acAttrs
+                    );
+                    ?>
+                <?php else: ?>
+                    <?= $this->Form->control('branch_id', [
+                        'options' => $branches,
+                        'empty' => __('-- Select Branch --'),
+                        'required' => true,
+                        'class' => 'form-select',
+                    ]) ?>
                 <?php endif; ?>
             </div>
             <div class="col-md-6 mb-3">

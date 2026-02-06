@@ -137,12 +137,16 @@ class GatheringsGridColumns extends BaseGridColumns
                 'sortable' => true,
                 'filterable' => true,
                 'filterType' => 'dropdown',
-                'filterOptionsSource' => 'Branches',
+                'filterOptionsSource' => [
+                    'table' => 'Branches',
+                    'valueField' => 'public_id',
+                    'labelField' => 'name',
+                ],
                 'defaultVisible' => true,
                 'width' => '220px',
                 'alignment' => 'left',
                 'renderField' => 'branch.name',
-                'queryField' => 'Branches.id',
+                'queryField' => 'Branches.public_id',
             ],
 
             'gathering_type_id' => [

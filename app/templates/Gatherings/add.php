@@ -5,7 +5,12 @@
  * @var \App\Model\Entity\Gathering $gathering
  * @var \App\Model\Entity\Branch[] $branches
  * @var \App\Model\Entity\GatheringType[] $gatheringTypes
+ * @var bool $lockBranch
+ * @var int $branchCount
  */
+
+$lockBranch = $lockBranch ?? false;
+$branchCount = $branchCount ?? count($branches);
 ?>
 <?php
 $this->extend("/layout/TwitterBootstrap/dashboard");
@@ -34,12 +39,34 @@ $this->KMP->endBlock();
 
         <div class="row">
             <div class="col-md-6 mb-3">
-                <?= $this->Form->control('branch_id', [
-                    'options' => $branches,
-                    'empty' => __('-- Select Branch --'),
-                    'required' => true,
-                    'class' => 'form-select'
-                ]) ?>
+                <?php if ($lockBranch): ?>
+                    <?= $this->Form->control('branch_id', [
+                        'options' => $branches,
+                        'empty' => false,
+                        'required' => true,
+                        'class' => 'form-select',
+                        'disabled' => true,
+                    ]) ?>
+                    <?= $this->Form->hidden('branch_id', ['value' => $gathering->branch_id]) ?>
+                <?php elseif ($branchCount > 1): ?>
+                    <?= $this->KMP->comboBoxControl(
+                        $this->Form,
+                        'branch_name',
+                        'branch_id',
+                        $branches,
+                        __('Branch'),
+                        true,
+                        false,
+                        []
+                    ) ?>
+                <?php else: ?>
+                    <?= $this->Form->control('branch_id', [
+                        'options' => $branches,
+                        'empty' => __('-- Select Branch --'),
+                        'required' => true,
+                        'class' => 'form-select',
+                    ]) ?>
+                <?php endif; ?>
             </div>
             <div class="col-md-6 mb-3">
                 <?= $this->Form->control('gathering_type_id', [

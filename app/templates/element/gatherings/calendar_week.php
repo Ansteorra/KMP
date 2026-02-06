@@ -8,6 +8,7 @@
  * @var \App\View\AppView $this
  * @var \Cake\ORM\ResultSet $gatherings
  * @var \DateTime $startDate
+ * @var bool $canAddGathering
  */
 
 use Cake\I18n\DateTime;
@@ -56,6 +57,7 @@ foreach ($gatherings as $gathering) {
 // Get current date in user's timezone
 $today = new DateTime('now', new \DateTimeZone($userTimezone));
 $today->setTime(0, 0, 0);
+$canAddGathering = $canAddGathering ?? false;
 ?>
 
 <div class="card">
@@ -76,10 +78,17 @@ $today->setTime(0, 0, 0);
             $isToday = ($current->format('Y-m-d') == $today->format('Y-m-d'));
         ?>
             <div class="mb-4">
-                <h6 class="border-bottom pb-2 <?= $isToday ? 'text-primary fw-bold' : '' ?>">
-                    <?= $this->Timezone->format($current, null, 'l, F j') ?>
+                <h6 class="border-bottom pb-2 d-flex align-items-center <?= $isToday ? 'text-primary fw-bold' : '' ?>">
+                    <span><?= $this->Timezone->format($current, null, 'l, F j') ?></span>
                     <?php if ($isToday): ?>
                         <span class="badge bg-primary ms-2">Today</span>
+                    <?php endif; ?>
+                    <?php if ($canAddGathering): ?>
+                        <a href="<?= $this->Url->build(['action' => 'add', '?' => ['start_date' => $current->format('Y-m-d') . 'T09:00']]) ?>"
+                           class="ms-auto text-success" title="<?= __('Add gathering on this date') ?>"
+                           data-turbo-frame="_top">
+                            <i class="bi bi-plus-circle"></i>
+                        </a>
                     <?php endif; ?>
                 </h6>
 

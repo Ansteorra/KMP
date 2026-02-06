@@ -2073,6 +2073,9 @@ class GridViewController extends Controller {
                 // Update browser history with the original URL (for page reload)
                 window.history.pushState({}, '', url)
 
+                // Notify other controllers that the URL has changed
+                window.dispatchEvent(new CustomEvent('grid-view:navigated'))
+
                 // Persist sticky parameters based on the navigation URL
                 this.captureStickyParamsFromUrl(finalUrl.toString())
 

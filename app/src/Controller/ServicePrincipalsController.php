@@ -92,9 +92,31 @@ class ServicePrincipalsController extends AppController
             }
         }
 
-        // Available roles for adding
-        $roles = $this->fetchTable('Roles')->find('list', keyField: 'id', valueField: 'name')
+        // Available roles for adding – exclude roles whose permissions
+        // require membership, age, or warrants (service principals lack these).
+        $rolesTable = $this->fetchTable('Roles');
+        $incompatibleRoleIds = $rolesTable->Permissions->find()
+            ->select(['RolesPermissions.role_id'])
+            ->innerJoinWith('Roles')
+            ->where([
+                'OR' => [
+                    'Permissions.require_active_membership' => true,
+                    'Permissions.require_active_background_check' => true,
+                    'Permissions.require_min_age >' => 0,
+                    'Permissions.requires_warrant' => true,
+                ],
+            ])
+            ->distinct()
+            ->all()
+            ->extract('_matchingData.RolesPermissions.role_id')
+            ->toArray();
+
+        $rolesQuery = $rolesTable->find('list', keyField: 'id', valueField: 'name')
             ->orderBy(['name' => 'ASC']);
+        if (!empty($incompatibleRoleIds)) {
+            $rolesQuery = $rolesQuery->where(['Roles.id NOT IN' => $incompatibleRoleIds]);
+        }
+        $roles = $rolesQuery;
 
         // Available branches for scoping
         $branches = $this->fetchTable('Branches')->find('list', keyField: 'id', valueField: 'name')
@@ -127,6 +149,14 @@ class ServicePrincipalsController extends AppController
             $servicePrincipal->set('client_secret_hash', ServicePrincipal::hashSecret($clientSecret));
 
             if ($this->ServicePrincipals->save($servicePrincipal)) {
+                // Store credentials in session early so they survive even if token creation fails
+                $this->request->getSession()->write('ServicePrincipal.newCredentials', [
+                    'client_id' => $clientId,
+                    'client_secret' => $clientSecret,
+                    'bearer_token' => null,
+                ]);
+
+
                 // Generate initial token
                 $token = ServicePrincipalToken::generateToken();
                 $tokenEntity = $this->fetchTable('ServicePrincipalTokens')->newEntity([
@@ -136,15 +166,13 @@ class ServicePrincipalsController extends AppController
                 $tokenEntity->set('token_hash', ServicePrincipalToken::hashToken($token));
                 if (!$this->fetchTable('ServicePrincipalTokens')->save($tokenEntity)) {
                     $this->Flash->error(__('Service principal created but initial token could not be saved. Generate a new token manually.'));
-                    return $this->redirect(['action' => 'view', $servicePrincipal->id]);
+                    return $this->redirect(['action' => 'credentials', $servicePrincipal->id]);
                 }
 
-                // Store credentials in session to display once
-                $this->request->getSession()->write('ServicePrincipal.newCredentials', [
-                    'client_id' => $clientId,
-                    'client_secret' => $clientSecret,
-                    'bearer_token' => $token,
-                ]);
+                // Update session with the bearer token now that it was created successfully
+                $credentials = $this->request->getSession()->read('ServicePrincipal.newCredentials');
+                $credentials['bearer_token'] = $token;
+                $this->request->getSession()->write('ServicePrincipal.newCredentials', $credentials);
 
                 $this->Flash->success(__('Service principal created. Save the credentials shown below - they will not be displayed again.'));
 

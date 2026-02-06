@@ -3,10 +3,111 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: 914ca3378c7538263cf9ba589068c970c1399b98 -->
+<!-- LAST_SYNCED_COMMIT: 1f3747e56f054dab4f640aac4f6d23ba295952e1 -->
 <!-- LAST_SYNCED_DATE: 2026-02-06 -->
 
 ## February 2026
+
+### iCalendar Subscription Feeds
+
+KMP now offers iCalendar subscription feeds so members can subscribe to gathering calendars directly in Google Calendar, Apple Calendar, Outlook, and other calendar apps. The feed updates automatically — no manual downloads needed.
+
+- Public `/gatherings/feed` endpoint returning RFC 5545 multi-event VCALENDAR
+- No authentication required — shareable subscribe URL
+- Accepts the same `filter[column][]` params as the calendar grid
+- Includes non-cancelled gatherings from 30 days ago onward
+- Only public-safe data (name, dates, location, description)
+- 6-hour refresh interval hint for calendar clients
+- Subscribe button in the calendar toolbar with copy-to-clipboard URL
+- Calendar display name reflects active filters
+- Full OpenAPI spec for the feed endpoint
+
+📅 February 6, 2026 · `New Feature`
+
+---
+
+### iCalendar Feed Uses Grid Filters
+
+The iCalendar (.ics) subscription feed now accepts the same `filter[column][]` query parameters as the calendar grid, so the subscribe URL always matches the user's active filters — including multiple branches, gathering types, and activity filters.
+
+- Feed URL uses `filter[branch_id][]=...&filter[gathering_type_id][]=...` format (same as the calendar grid)
+- Subscribe link updates dynamically as filters are added or removed
+- VEVENT UIDs use `gathering-{public_id}@host` for stable identifiers
+- Branch filter across all gathering grids now uses `public_id` instead of internal database ID
+
+📅 February 6, 2026 · `Improvement`
+
+---
+
+### Mobile Login Redirect
+
+Mobile phone users are now automatically redirected to their auth card after logging in, providing a more streamlined mobile experience. Tablets continue to use the standard profile view.
+
+- Detects mobile phones via `StaticHelpers::isMobilePhone()` (excludes tablets)
+- Redirects phone users to `viewMobileCard` instead of profile
+- Sets session `viewMode` to `mobile` for consistency
+- Login page is now mobile-friendly with responsive CSS and touch-friendly inputs
+
+📅 February 6, 2026 · `Improvement`
+
+---
+
+### Improved Cancelled Event Visibility
+
+Cancelled gatherings are now much easier to spot in the mobile calendar and My RSVPs views, reducing confusion about event status.
+
+- Prominent CANCELLED banner on cancelled event cards
+- Red border and adjusted opacity for cancelled events
+- Gathering type badge moved above the event title to prevent layout issues
+- Check-circle icon only shown for non-cancelled events
+
+📅 February 6, 2026 · `Improvement`
+
+---
+
+### Security Fix: fast-xml-parser
+
+Resolved a denial-of-service vulnerability (GHSA-37qj-frw5-hhjh) in the transitive dependency `fast-xml-parser` by pinning it to ≥ 5.3.4.
+
+- npm override added to force `fast-xml-parser` ≥ 5.3.4
+- Fixes RangeError DoS via numeric entities
+
+📅 February 6, 2026 · `Security`
+
+---
+
+### Bug Fixes and Code Quality
+
+Several bug fixes and security hardening changes based on code review feedback.
+
+- Fix XSS vulnerability in ServicePrincipals view (added `h()` escaping)
+- Fix `toString()` fatal error in MembersController (use `(string)` cast)
+- Prevent fatal redeclaration of `addOptions()` in assignModal template
+- Replace deprecated `document.execCommand('copy')` with Clipboard API
+- Validate CIDR bits range (0–32) and reject IPv6/invalid IPs in ServicePrincipal
+- Add null guards on authorization service in API auth methods
+- Handle token save failure in ServicePrincipalsController
+- Merge OpenAPI paths at HTTP-method level instead of overwriting
+
+📅 February 6, 2026 · `Bug Fix`
+
+---
+
+### Member Warrantable Status Sync Command
+
+New CLI command to automatically review and correct stale `warrantable` flags on member records — typically caused by expired memberships. Designed to run as a nightly cron job.
+
+- Command: `bin/cake sync_member_warrantable_statuses`
+- Scans members modified in the last 24 hours and those still marked warrantable with expired membership
+- Supports `--dry-run` / `-d` flag to preview changes without saving
+- Reports summary of scanned, changed, and errored records
+- Example cron: `1 0 * * * ... runCakeCommand.sh --workdir /path/to/app sync_member_warrantable_statuses`
+
+📅 February 6, 2026 · `New Feature`
+
+---
+
+---
 
 ### REST API with Service Principal Authentication
 

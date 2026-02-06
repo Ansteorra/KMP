@@ -70,6 +70,31 @@ $stickyDefaults = json_encode([
         border: 1px solid #dee2e6;
     }
 
+    .calendar-day .calendar-day-add {
+        position: absolute;
+        bottom: 4px;
+        right: 6px;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        font-size: 0.85rem;
+        color: #198754;
+        opacity: 0;
+        transition: opacity 0.15s;
+        text-decoration: none;
+    }
+
+    .calendar-day:hover .calendar-day-add {
+        opacity: 0.7;
+    }
+
+    .calendar-day .calendar-day-add:hover {
+        opacity: 1;
+    }
+
     .calendar-day.other-month {
         background-color: #f8f9fa;
         opacity: 0.6;

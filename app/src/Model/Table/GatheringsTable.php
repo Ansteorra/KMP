@@ -280,6 +280,11 @@ class GatheringsTable extends Table
      */
     public function afterSave(EventInterface $event, EntityInterface $entity, \ArrayObject $options): void
     {
+        // Skip template sync when cloning (clone manages activities from the source gathering)
+        if (!empty($options['skipTemplateSync'])) {
+            return;
+        }
+
         // Only sync if gathering_type_id is present and the entity is new or gathering_type_id changed
         if ($entity->has('gathering_type_id') && ($entity->isNew() || $entity->isDirty('gathering_type_id'))) {
             $this->syncTemplateActivities($entity);
@@ -297,7 +302,7 @@ class GatheringsTable extends Table
      * @param \Cake\Datasource\EntityInterface $gathering The gathering entity
      * @return void
      */
-    protected function syncTemplateActivities(EntityInterface $gathering): void
+    public function syncTemplateActivities(EntityInterface $gathering): void
     {
         $gatheringTypeGatheringActivitiesTable = TableRegistry::getTableLocator()->get('GatheringTypeGatheringActivities');
         $gatheringsGatheringActivitiesTable = TableRegistry::getTableLocator()->get('GatheringsGatheringActivities');

@@ -4,7 +4,8 @@ info:
   description: |
     REST API for the Kingdom Management Platform (KMP).
 
-    All endpoints require **service principal authentication** via Bearer token.
+    Most endpoints require **service principal authentication** via Bearer token;
+    public endpoints (such as the gatherings feed) are noted individually.
     Tokens are issued through the KMP administration interface and scoped by
     role-based permissions.
 
@@ -60,8 +61,54 @@ tags:
     description: Organizational branches (kingdoms, baronies, shires, etc.)
   - name: Roles
     description: Roles and their permission grants
+  - name: Gatherings
+    description: Gathering calendar feeds (public, no authentication required)
 
 paths:
+  # ── Gathering Calendar Feed ──────────────────────────────────────────
+  /gatherings/feed.ics:
+    get:
+      operationId: getGatheringsFeed
+      tags: [Gatherings]
+      summary: iCalendar subscription feed
+      description: |
+        Returns an iCalendar (RFC 5545) feed of gatherings suitable for
+        subscription by Google Calendar, Apple Calendar, Outlook, etc.
+
+        **No authentication required.** Only public-safe information is included.
+
+        Supports optional filtering using the same `filter[column][]` query
+        parameters as the calendar grid.  Cancelled events are included with
+        `STATUS:CANCELLED` so calendar apps can display the cancellation.
+        The feed covers gatherings from the past 30 days onward.
+      security: []
+      parameters:
+        - name: filter[branch_id][]
+          in: query
+          description: Filter by one or more branch public IDs
+          schema:
+            type: array
+            items:
+              type: string
+          example: ["Ab3kX9pQ"]
+        - name: filter[gathering_type_id][]
+          in: query
+          description: Filter by one or more gathering type IDs
+          schema:
+            type: array
+            items:
+              type: integer
+          example: [1]
+      responses:
+        '200':
+          description: iCalendar feed
+          content:
+            text/calendar:
+              schema:
+                type: string
+                example: "BEGIN:VCALENDAR\r\nVERSION:2.0\r\n..."
+
+
   # ── Service Principals ──────────────────────────────────────────────
   /service-principals/me:
     get:
