@@ -7,8 +7,19 @@ namespace Officers\Controller\Api\V1;
 
 use Officers\Services\Api\ReadOnlyOfficerRosterServiceInterface;
 
+/**
+ * API controller for read-only officer roster listing and detail.
+ *
+ * Authorizes against entity policy since OfficersTablePolicy uses SKIP_BASE.
+ */
 class OfficersController extends AppController
 {
+    /**
+     * List officers with optional filters and pagination.
+     *
+     * @param \Officers\Services\Api\ReadOnlyOfficerRosterServiceInterface $service
+     * @return void
+     */
     public function index(ReadOnlyOfficerRosterServiceInterface $service): void
     {
         $identity = $this->getKmpIdentity();
@@ -28,6 +39,13 @@ class OfficersController extends AppController
         $this->apiSuccess($result['data'], $result['meta']);
     }
 
+    /**
+     * View a single officer record by ID.
+     *
+     * @param int $id Officer ID
+     * @param \Officers\Services\Api\ReadOnlyOfficerRosterServiceInterface $service
+     * @return void
+     */
     public function view(int $id, ReadOnlyOfficerRosterServiceInterface $service): void
     {
         $identity = $this->getKmpIdentity();

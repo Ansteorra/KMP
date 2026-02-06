@@ -39,7 +39,10 @@ abstract class ApiController extends AppController
      */
     public function beforeFilter(EventInterface $event): ?Response
     {
-        parent::beforeFilter($event);
+        $parentResponse = parent::beforeFilter($event);
+        if ($parentResponse !== null) {
+            return $parentResponse;
+        }
 
         // Force JSON content type on all API responses
         $this->response = $this->response->withType('application/json');

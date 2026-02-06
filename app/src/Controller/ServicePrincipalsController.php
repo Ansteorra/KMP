@@ -135,7 +135,10 @@ class ServicePrincipalsController extends AppController
                     'name' => 'Initial Token',
                 ]);
                 $tokenEntity->set('token_hash', ServicePrincipalToken::hashToken($token));
-                $this->fetchTable('ServicePrincipalTokens')->save($tokenEntity);
+                if (!$this->fetchTable('ServicePrincipalTokens')->save($tokenEntity)) {
+                    $this->Flash->error(__('Service principal created but initial token could not be saved. Generate a new token manually.'));
+                    return $this->redirect(['action' => 'view', $servicePrincipal->id]);
+                }
 
                 // Store credentials in session to display once
                 $this->request->getSession()->write('ServicePrincipal.newCredentials', [

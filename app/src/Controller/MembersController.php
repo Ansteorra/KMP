@@ -1213,7 +1213,7 @@ class MembersController extends AppController
             throw new NotFoundException(__('User not authenticated.'));
         }
 
-        return $this->view(toString($user->id));
+        return $this->view((string)$user->id);
     }
 
     public function editAdditionalInfo($id = null)
@@ -1697,7 +1697,7 @@ class MembersController extends AppController
         if (empty($targetMemberId)) {
             $targetMemberId = $user?->id;
         }
-        $member = $this->Members->get(toString($targetMemberId));
+        $member = $this->Members->get((string)$targetMemberId);
         if (!$member) {
             throw new NotFoundException();
         }

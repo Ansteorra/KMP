@@ -146,6 +146,9 @@ class ServicePrincipal extends BaseEntity implements
         $bits = (int)$bits;
         $ipLong = ip2long($ip);
         $subnetLong = ip2long($subnet);
+        if ($ipLong === false || $subnetLong === false) {
+            return false;
+        }
         $mask = -1 << (32 - $bits);
 
         return ($ipLong & $mask) === ($subnetLong & $mask);
@@ -250,7 +253,7 @@ class ServicePrincipal extends BaseEntity implements
      */
     public function applyScope(string $action, mixed $resource, mixed ...$optionalArgs): mixed
     {
-        return $this->authorization->applyScope($this, $action, $resource);
+        return $this->authorization->applyScope($this, $action, $resource, ...$optionalArgs);
     }
 
     /**
@@ -260,7 +263,10 @@ class ServicePrincipal extends BaseEntity implements
      */
     public function getPermissions(): array
     {
-        return PermissionsLoader::getServicePrincipalPermissions($this->id);
+        if ($this->_permissions === null) {
+            $this->_permissions = PermissionsLoader::getServicePrincipalPermissions($this->id);
+        }
+        return $this->_permissions;
     }
 
     /**

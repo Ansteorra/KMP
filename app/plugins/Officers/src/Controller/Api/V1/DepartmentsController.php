@@ -7,8 +7,19 @@ namespace Officers\Controller\Api\V1;
 
 use Officers\Services\Api\ReadOnlyDepartmentServiceInterface;
 
+/**
+ * API controller for read-only department listing and detail.
+ *
+ * @property \Cake\ORM\Table $Departments
+ */
 class DepartmentsController extends AppController
 {
+    /**
+     * List departments with optional search and pagination.
+     *
+     * @param \Officers\Services\Api\ReadOnlyDepartmentServiceInterface $service
+     * @return void
+     */
     public function index(ReadOnlyDepartmentServiceInterface $service): void
     {
         $identity = $this->getKmpIdentity();
@@ -24,6 +35,13 @@ class DepartmentsController extends AppController
         $this->apiSuccess($result['data'], $result['meta']);
     }
 
+    /**
+     * View a single department by ID.
+     *
+     * @param int $id Department ID
+     * @param \Officers\Services\Api\ReadOnlyDepartmentServiceInterface $service
+     * @return void
+     */
     public function view(int $id, ReadOnlyDepartmentServiceInterface $service): void
     {
         $identity = $this->getKmpIdentity();

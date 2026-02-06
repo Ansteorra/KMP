@@ -63,10 +63,14 @@ class OpenApiMergeService
             }
         }
 
-        // Paths (merge path keys)
+        // Paths (merge at HTTP-method level to avoid overwriting)
         if (!empty($fragment['paths'])) {
             foreach ($fragment['paths'] as $path => $definition) {
-                $base['paths'][$path] = $definition;
+                if (isset($base['paths'][$path])) {
+                    $base['paths'][$path] = array_merge($base['paths'][$path], $definition);
+                } else {
+                    $base['paths'][$path] = $definition;
+                }
             }
         }
 
