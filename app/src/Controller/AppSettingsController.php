@@ -194,10 +194,7 @@ class AppSettingsController extends AppController
             $this->Flash->error(
                 __('The app setting is required and cannot be deleted.'),
             );
-
-            return $this->redirect(['action' => 'index']);
-        }
-        if ($this->AppSettings->deleteAppSetting($appSetting->name)) {
+        } elseif ($this->AppSettings->deleteAppSetting($appSetting->name)) {
             $this->Flash->success(__('The app setting has been deleted.'));
         } else {
             $this->Flash->error(
@@ -205,6 +202,15 @@ class AppSettingsController extends AppController
             );
         }
 
-        return $this->redirect(['action' => 'index']);
+        // Read and clear flash messages before rendering turbo-stream
+        $flashMessages = $this->request->getSession()->read('Flash');
+        $this->request->getSession()->delete('Flash');
+
+        // Return turbo-stream response to refresh grid in-place
+        $this->response = $this->response->withType('text/vnd.turbo-stream.html');
+        $this->viewBuilder()->disableAutoLayout();
+        $this->viewBuilder()->setTemplate('turbo_close_modal');
+        $this->set('refreshFrame', 'app-settings-grid-table');
+        $this->set('flashMessages', $flashMessages);
     }
 }
