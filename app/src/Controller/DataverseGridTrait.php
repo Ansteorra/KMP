@@ -499,15 +499,19 @@ trait DataverseGridTrait
         // Apply expression tree from system view (if present and not dirty)
         if ($selectedSystemView && !$dirtyFilters && !empty($selectedSystemView['config']['expression'])) {
             $gridViewConfig = new GridViewConfig();
+            // Only pass config/metadata-level skip columns to expression tree, NOT system view
+            // skipFilterColumns. The expression tree IS the authoritative filter for those columns;
+            // system view skipFilterColumns only prevents flat filters from duplicating them.
+            $expressionSkipColumns = array_unique(array_merge($configSkipFilterColumns, $autoSkipFilterColumns));
             $expression = $gridViewConfig->extractExpression(
                 $selectedSystemView['config'],
                 $baseQuery->clause('where') ?? $baseQuery->newExpr(),
                 $tableName,
-                $skipFilterColumns,
+                $expressionSkipColumns,
                 $columnsMetadata
             );
 
-            if ($expression !== null) {
+            if ($expression !== null && count($expression) > 0) {
                 $baseQuery->where($expression);
             }
         }
@@ -527,7 +531,7 @@ trait DataverseGridTrait
                 $columnsMetadata
             );
 
-            if ($expression !== null) {
+            if ($expression !== null && count($expression) > 0) {
                 $baseQuery->where($expression);
             } else {
                 // Fallback to legacy flat filters
