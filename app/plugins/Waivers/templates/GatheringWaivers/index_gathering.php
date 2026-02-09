@@ -9,6 +9,8 @@
  * @var array $countsMap
  * @var array $requiredWaiverTypes
  * @var bool $waiverCollectionClosed
+ * @var bool $waiverReadyToClose
+ * @var bool $canCloseWaivers
  * @var \Waivers\Model\Entity\GatheringWaiverClosure|null $waiverClosure
  */
 ?>
@@ -23,16 +25,53 @@ $this->KMP->endBlock();
 <div class="row align-items-start">
     <div class="col">
         <h3>
-            <?= $this->element('backButton') ?><?= __('Waivers for {0}', h($gathering->name)) ?>
+            <?= $this->element('backButton') ?>
+            <?= __('Waivers for {0}', h($gathering->name)) ?>
+            <small class="text-muted d-block fs-6">
+                <?= h($gathering->branch->name) ?>
+                &mdash;
+                <?= $this->Timezone->format($gathering->start_date, $gathering, 'M d, Y') ?>
+                <?php if (!empty($gathering->gathering_activities)): ?>
+                    <br><?= __('Activities: {0}', implode(', ', collection($gathering->gathering_activities)->extract('name')->toArray())) ?>
+                <?php endif; ?>
+            </small>
         </h3>
     </div>
     <div class="col text-end">
-        <?php if (!$waiverCollectionClosed): ?>
         <?= $this->Html->link(
-            '<i class="bi bi-plus-circle"></i> ' . __('Upload Waiver'),
-            ['action' => 'upload', '?' => ['gathering_id' => $gathering->id]],
-            ['class' => 'btn btn-primary', 'escape' => false]
+            '<i class="bi bi-binoculars-fill"></i> ' . __('View Gathering'),
+            ['plugin' => null, 'controller' => 'Gatherings', 'action' => 'view', $gathering->public_id],
+            ['class' => 'btn btn-outline-secondary me-2', 'escape' => false]
         ) ?>
+        <?php if (!$waiverCollectionClosed): ?>
+            <?= $this->Html->link(
+                '<i class="bi bi-plus-circle"></i> ' . __('Upload Waiver'),
+                ['action' => 'upload', '?' => ['gathering_id' => $gathering->id]],
+                ['class' => 'btn btn-primary me-2', 'escape' => false]
+            ) ?>
+            <?php if ($canCloseWaivers): ?>
+                <?= $this->Form->postLink(
+                    '<i class="bi bi-lock-fill"></i> ' . __('Close Waivers'),
+                    ['action' => 'close', $gathering->id],
+                    [
+                        'class' => 'btn btn-warning',
+                        'escape' => false,
+                        'confirm' => __('Close waiver collection for "{0}"? No further uploads will be allowed.', h($gathering->name)),
+                    ]
+                ) ?>
+            <?php endif; ?>
+        <?php else: ?>
+            <?php if ($canCloseWaivers): ?>
+                <?= $this->Form->postLink(
+                    '<i class="bi bi-unlock-fill"></i> ' . __('Reopen Waivers'),
+                    ['action' => 'reopen', $gathering->id],
+                    [
+                        'class' => 'btn btn-outline-warning',
+                        'escape' => false,
+                        'confirm' => __('Reopen waiver collection for "{0}"? This will allow further uploads.', h($gathering->name)),
+                    ]
+                ) ?>
+            <?php endif; ?>
         <?php endif; ?>
     </div>
 </div>
@@ -50,6 +89,16 @@ $this->KMP->endBlock();
         <?php if ($waiverClosure): ?>
             <div class="small text-muted mt-1">
                 <?= __('Closed {0} by {1}', $this->Timezone->format($waiverClosure->closed_at, $gathering, 'M d, Y g:i A'), h($waiverClosure->closed_by_member?->sca_name ?? __('Unknown'))) ?>
+            </div>
+        <?php endif; ?>
+    </div>
+<?php elseif ($waiverReadyToClose): ?>
+    <div class="alert alert-info" role="alert">
+        <i class="bi bi-check-circle-fill"></i>
+        <?= __('This gathering has been marked as ready to close by event staff.') ?>
+        <?php if ($waiverClosure): ?>
+            <div class="small text-muted mt-1">
+                <?= __('Marked ready {0} by {1}', $this->Timezone->format($waiverClosure->ready_to_close_at, $gathering, 'M d, Y g:i A'), h($waiverClosure->ready_to_close_by_member?->sca_name ?? __('Unknown'))) ?>
             </div>
         <?php endif; ?>
     </div>

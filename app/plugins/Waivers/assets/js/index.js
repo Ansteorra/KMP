@@ -11,6 +11,7 @@ import '../css/waivers.css';
 // Import controllers
 import './controllers/retention-policy-input-controller.js';
 import './controllers/waiver-template-controller.js';
+import './controllers/waiver-calendar-controller.js';
 
 // Controllers are automatically registered via their individual files
 // No additional registration needed here

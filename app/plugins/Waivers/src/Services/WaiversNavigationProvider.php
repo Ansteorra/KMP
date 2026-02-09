@@ -60,7 +60,7 @@ class WaiversNavigationProvider
             $items[] = [
                 "type" => "link",
                 "mergePath" => ["Waivers"],
-                "label" => "All Waivers",
+                "label" => "Waivers Uploaded",
                 "order" => 6,
                 "url" => [
                     "controller" => "GatheringWaivers",

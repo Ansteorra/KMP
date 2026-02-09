@@ -120,6 +120,22 @@ class GatheringWaiversControllerPolicy extends BasePolicy
     }
 
     /**
+     * Check if user can access calendarData action
+     *
+     * @param \App\KMP\KmpIdentityInterface $user User identity
+     * @param array $urlProps URL properties for the action
+     * @return \Authorization\Policy\ResultInterface|bool Authorization result
+     */
+    public function canCalendarData(
+        KmpIdentityInterface $user,
+        array $urlProps,
+    ): ResultInterface|bool {
+        $method = __FUNCTION__;
+
+        return $this->_hasPolicyForUrl($user, $method, $urlProps);
+    }
+
+    /**
      * Check if user can access mobileSelectGathering action
      *
      * Stewards can access mobile gathering selection for waiver uploads.
