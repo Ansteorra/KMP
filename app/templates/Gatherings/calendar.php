@@ -52,7 +52,6 @@ $stickyDefaults = json_encode([
         gap: 1px;
         background-color: #dee2e6;
         border: 1px solid #dee2e6;
-        table-layout: fixed;
     }
 
     .calendar-day-header {

@@ -179,7 +179,7 @@ class AppSettingsController extends AppController
      * Delete method
      *
      * @param string|null $id App Setting id.
-     * @return \Cake\Http\Response|null Redirects to index.
+     * @return void Renders turbo-stream to close modal and refresh grid.
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
     public function delete(?string $id = null)
