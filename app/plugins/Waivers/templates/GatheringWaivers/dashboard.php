@@ -29,127 +29,164 @@ $this->KMP->endBlock();
 ?>
 
 <style>
-/* Collapsible section caret rotation */
-.waiver-dashboard .card-header[data-bs-toggle="collapse"] {
-    cursor: pointer;
-}
-.waiver-dashboard .card-header[data-bs-toggle="collapse"] .bi-chevron-down {
-    transition: transform 0.2s ease;
-}
-.waiver-dashboard .card-header[data-bs-toggle="collapse"].collapsed .bi-chevron-down {
-    transform: rotate(-90deg);
-}
+    /* Collapsible section caret rotation */
+    .waiver-dashboard .card-header[data-bs-toggle="collapse"] {
+        cursor: pointer;
+    }
 
-/* Waiver Calendar Styles */
-.waiver-calendar-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 1px;
-    background: #dee2e6;
-    border: 1px solid #dee2e6;
-    border-radius: 0.375rem;
-    overflow: hidden;
-}
-.waiver-calendar-header {
-    background: #f8f9fa;
-    padding: 0.5rem;
-    text-align: center;
-    font-weight: 600;
-    font-size: 0.85rem;
-    color: #495057;
-}
-.waiver-calendar-day {
-    background: #fff;
-    min-height: 120px;
-    padding: 0.25rem;
-    position: relative;
-}
-.waiver-calendar-day.other-month {
-    background: #f8f9fa;
-    color: #adb5bd;
-}
-.waiver-calendar-day.today {
-    background: #fffde7;
-}
-.waiver-calendar-day-number {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #6c757d;
-    margin-bottom: 0.15rem;
-}
-.waiver-calendar-day.other-month .waiver-calendar-day-number {
-    color: #ced4da;
-}
-.waiver-calendar-item {
-    display: block;
-    font-size: 0.75rem;
-    padding: 0.25rem;
-    margin-bottom: 3px;
-    border-radius: 0.25rem;
-    border-left: 3px solid #6c757d;
-    text-decoration: none;
-    color: inherit;
-    cursor: pointer;
-    transition: transform 0.1s ease, box-shadow 0.1s ease;
-}
-.waiver-calendar-item:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
-    color: inherit;
-}
-.waiver-calendar-item .fw-bold {
-    word-wrap: break-word;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    font-size: 0.7rem;
-    line-height: 1.2;
-}
-.waiver-calendar-item.multi-day {
-    border-left-width: 3px;
-}
-.waiver-calendar-badges {
-    display: flex;
-    gap: 0.2rem;
-    flex-wrap: wrap;
-    margin-top: 0.2rem;
-}
-.waiver-calendar-badges .badge {
-    font-size: 0.6rem;
-    padding: 0.15rem 0.3rem;
-    font-weight: 500;
-}
-.waiver-calendar-item.status-none { background-color: #dc3545; }
-.waiver-calendar-item.status-partial { background-color: #ffc107; color: #212529; }
-.waiver-calendar-item.status-partial:hover { color: #212529; }
-.waiver-calendar-item.status-complete { background-color: #198754; }
-.waiver-calendar-item.status-closed { background-color: #0d6efd; }
-.waiver-calendar-nav {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 0.75rem;
-}
-.waiver-calendar-nav .btn { min-width: 100px; }
-.waiver-calendar-legend {
-    display: flex;
-    gap: 1rem;
-    flex-wrap: wrap;
-    margin-top: 0.75rem;
-    font-size: 0.8rem;
-}
-.waiver-calendar-legend-item {
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
-}
-.waiver-calendar-legend-swatch {
-    width: 14px;
-    height: 14px;
-    border-radius: 0.2rem;
-    display: inline-block;
-}
+    .waiver-dashboard .card-header[data-bs-toggle="collapse"] .bi-chevron-down {
+        transition: transform 0.2s ease;
+    }
+
+    .waiver-dashboard .card-header[data-bs-toggle="collapse"].collapsed .bi-chevron-down {
+        transform: rotate(-90deg);
+    }
+
+    /* Waiver Calendar Styles */
+    .waiver-calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 1px;
+        background: #dee2e6;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        overflow: hidden;
+    }
+
+    .waiver-calendar-header {
+        background: #f8f9fa;
+        padding: 0.5rem;
+        text-align: center;
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: #495057;
+    }
+
+    .waiver-calendar-day {
+        background: #fff;
+        min-height: 120px;
+        padding: 0.25rem;
+        position: relative;
+    }
+
+    .waiver-calendar-day.other-month {
+        background: #f8f9fa;
+        color: #adb5bd;
+    }
+
+    .waiver-calendar-day.today {
+        background: #fffde7;
+    }
+
+    .waiver-calendar-day-number {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #6c757d;
+        margin-bottom: 0.15rem;
+    }
+
+    .waiver-calendar-day.other-month .waiver-calendar-day-number {
+        color: #ced4da;
+    }
+
+    .waiver-calendar-item {
+        display: block;
+        font-size: 0.75rem;
+        padding: 0.25rem;
+        margin-bottom: 3px;
+        border-radius: 0.25rem;
+        border-left: 3px solid #6c757d;
+        text-decoration: none;
+        color: inherit;
+        cursor: pointer;
+        transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+
+    .waiver-calendar-item:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+        color: inherit;
+    }
+
+    .waiver-calendar-item .fw-bold {
+        word-wrap: break-word;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        font-size: 0.7rem;
+        line-height: 1.2;
+    }
+
+    .waiver-calendar-item.multi-day {
+        border-left-width: 3px;
+    }
+
+    .waiver-calendar-badges {
+        display: flex;
+        gap: 0.2rem;
+        flex-wrap: wrap;
+        margin-top: 0.2rem;
+    }
+
+    .waiver-calendar-badges .badge {
+        font-size: 0.6rem;
+        padding: 0.15rem 0.3rem;
+        font-weight: 500;
+    }
+
+    .waiver-calendar-item.status-none {
+        background-color: #dc3545;
+    }
+
+    .waiver-calendar-item.status-partial {
+        background-color: #ffc107;
+        color: #212529;
+    }
+
+    .waiver-calendar-item.status-partial:hover {
+        color: #212529;
+    }
+
+    .waiver-calendar-item.status-complete {
+        background-color: #198754;
+    }
+
+    .waiver-calendar-item.status-closed {
+        background-color: #0d6efd;
+    }
+
+    .waiver-calendar-nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.75rem;
+    }
+
+    .waiver-calendar-nav .btn {
+        min-width: 100px;
+    }
+
+    .waiver-calendar-legend {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-top: 0.75rem;
+        font-size: 0.8rem;
+    }
+
+    .waiver-calendar-legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+
+    .waiver-calendar-legend-swatch {
+        width: 14px;
+        height: 14px;
+        border-radius: 0.2rem;
+        display: inline-block;
+    }
 </style>
 
 <div class="waiver-dashboard content">
