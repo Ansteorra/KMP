@@ -15,7 +15,7 @@ KMP now offers iCalendar subscription feeds so members can subscribe to gatherin
 - Public `/gatherings/feed` endpoint returning RFC 5545 multi-event VCALENDAR
 - No authentication required — shareable subscribe URL
 - Accepts the same `filter[column][]` params as the calendar grid
-- Includes non-cancelled gatherings from 30 days ago onward
+- Includes gatherings from 30 days ago onward, including cancelled ones (marked with `STATUS:CANCELLED`)
 - Only public-safe data (name, dates, location, description)
 - 6-hour refresh interval hint for calendar clients
 - Subscribe button in the calendar toolbar with copy-to-clipboard URL
@@ -104,8 +104,6 @@ New CLI command to automatically review and correct stale `warrantable` flags on
 - Example cron: `1 0 * * * ... runCakeCommand.sh --workdir /path/to/app sync_member_warrantable_statuses`
 
 📅 February 6, 2026 · `New Feature`
-
----
 
 ---
 

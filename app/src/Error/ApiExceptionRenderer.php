@@ -60,16 +60,6 @@ class ApiExceptionRenderer extends WebExceptionRenderer
             $message = 'An internal error has occurred.';
         }
 
-    protected function renderApiJson(): ResponseInterface
-    {
-        $exception = $this->error;
-        $code = $this->getHttpCode($exception);
-
-        $message = $exception->getMessage();
-        if (!Configure::read('debug') && $code >= 500) {
-            $message = 'An internal error has occurred.';
-        }
-
         $codeLabel = match ($code) {
             401 => 'UNAUTHORIZED',
             403 => 'FORBIDDEN',

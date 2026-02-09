@@ -1985,17 +1985,22 @@ class GatheringsController extends AppController
                 'GatheringTypes',
                 'GatheringActivities',
                 'GatheringStaff' => [
+                    'conditions' => ['GatheringStaff.show_on_public_page' => true],
                     'Members' => ['fields' => ['id', 'sca_name']],
                 ],
             ])
             ->where([
                 'Gatherings.end_date >=' => $cutoff,
+                'Gatherings.public_page_enabled' => true,
             ])
             ->orderBy(['Gatherings.start_date' => 'ASC']);
 
         // Apply the same grid filters the calendar UI uses
         $columnsMetadata = \App\KMP\GridColumns\GatheringsGridColumns::getColumns();
         $incomingFilters = $this->request->getQuery('filter', []);
+        if (!is_array($incomingFilters)) {
+            $incomingFilters = [];
+        }
         $calendarNameParts = [];
 
         foreach ($incomingFilters as $columnKey => $filterValue) {

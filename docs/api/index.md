@@ -64,7 +64,7 @@ base + plugin fragments) and can be imported into Postman, Insomnia, or any Open
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /gatherings/feed` | iCalendar subscription feed for calendar apps. Optional filters: `?branch={public_id}&type={gathering_type_id}` |
+| `GET /gatherings/feed` | iCalendar subscription feed for calendar apps. Optional filters: `?filter[branch_id][]={public_id}&filter[gathering_type_id][]={gathering_type_id}` |
 
 
 ## Developer Guides

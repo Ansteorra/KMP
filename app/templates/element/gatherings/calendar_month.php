@@ -130,7 +130,7 @@ $canAddGathering = $canAddGathering ?? false;
                             if ($isCancelled) {
                                 $gatheringContent .= '<div class="badge bg-danger mb-1 w-100"><i class="bi bi-x-circle"></i> CANCELLED</div>';
                             }
-                            $gatheringContent .= '<div class="fw-bold text-truncate' . ($isCancelled ? ' text-decoration-line-through' : '') . '">' . h($gathering->name) . '</div>';
+                            $gatheringContent .= '<div class="fw-bold' . ($isCancelled ? ' text-decoration-line-through' : '') . '">' . h($gathering->name) . '</div>';
                             $gatheringContent .= '<div class="text-muted small text-truncate">' . h($gathering->branch->name) . '</div>';
                             $gatheringContent .= '<div class="gathering-badges">';
                             if ($isAttending) {
@@ -165,6 +165,7 @@ $canAddGathering = $canAddGathering ?? false;
                 <?php if ($canAddGathering): ?>
                 <a href="<?= $this->Url->build(['action' => 'add', '?' => ['start_date' => $dateKey . 'T09:00']]) ?>"
                    class="calendar-day-add" title="<?= __('Add gathering on this date') ?>"
+                   aria-label="<?= __('Add gathering on this date') ?>"
                    data-turbo-frame="_top">
                     <i class="bi bi-plus-circle"></i>
                 </a>

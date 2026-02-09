@@ -207,8 +207,6 @@ class ImageZoom extends Controller {
         const container = this.element;
         const cw = container.clientWidth;
         const ch = container.clientHeight;
-        const iw = img.naturalWidth || img.clientWidth;
-        const ih = img.naturalHeight || img.clientHeight;
 
         // Scaled image dimensions based on rendered size
         const renderedW = img.clientWidth * this.scale;

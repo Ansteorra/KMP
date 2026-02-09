@@ -78,10 +78,24 @@
                 <?php
                 $rawValue = $appSetting->raw_value;
                 $isMultiline = strpos($rawValue ?? '', "\n") !== false || strlen($rawValue ?? '') > 100;
-                $isBoolean = in_array(strtolower($rawValue ?? ''), ['true', 'false', '1', '0', 'yes', 'no'], true);
+                $isNumeric = is_numeric($rawValue) && !$isMultiline;
+                $isBoolean = !$isNumeric && in_array(strtolower($rawValue ?? ''), ['true', 'false', 'yes', 'no'], true);
                 ?>
 
-                <?php if ($isBoolean): ?>
+                <?php if ($isNumeric): ?>
+                    <!-- Numeric value - use number input to preserve type -->
+                    <div class="mb-3">
+                        <label for="raw_value" class="form-label"><?= __('Value') ?></label>
+                        <input
+                            type="number"
+                            name="raw_value"
+                            id="raw_value"
+                            class="form-control"
+                            value="<?= h($rawValue) ?>"
+                            step="<?= strpos($rawValue, '.') !== false ? 'any' : '1' ?>"
+                            data-app-setting-edit-target="valueInput">
+                    </div>
+                <?php elseif ($isBoolean): ?>
                     <!-- Boolean-like value - use dropdown with yes/no values -->
                     <div class="mb-3">
                         <label for="raw_value" class="form-label"><?= __('Value') ?></label>
@@ -89,7 +103,7 @@
                             'yes' => __('Yes'),
                             'no' => __('No'),
                         ], [
-                            'value' => in_array(strtolower($rawValue), ['true', '1', 'yes'], true) ? 'yes' : 'no',
+                            'value' => in_array(strtolower($rawValue), ['true', 'yes'], true) ? 'yes' : 'no',
                             'class' => 'form-select',
                             'data-app-setting-edit-target' => 'valueInput',
                         ]) ?>
