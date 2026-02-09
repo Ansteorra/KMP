@@ -5159,7 +5159,7 @@ INSERT INTO `warrant_periods` VALUES
 (2,'2022-01-01','2025-01-18','2025-01-12 17:55:25',1),
 (3,'2025-01-17','2025-07-21','2025-01-12 18:03:18',1),
 (5,'2025-07-19','2026-01-19','2025-07-15 23:15:02',1),
-(6,'2026-01-19','2026-07-19','2026-02-04 18:02:23',1);
+(6,'2026-01-01','2026-07-01','2026-02-04 18:02:23',1);
 /*!40000 ALTER TABLE `warrant_periods` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -5268,7 +5268,7 @@ INSERT INTO `warrant_rosters` VALUES
 (428,'Kingdom MoAS : Haylee Kingdom MoAS Deputy Demoer',1,NULL,'Pending','2025-12-27 21:05:53','2025-12-27 21:05:53',1,1),
 (429,'Local Landed : Kal Local Landed w Canton Demoer',1,1,'Approved','2025-12-30 18:24:14','2025-12-30 18:23:36',1,2881),
 (430,'Local Landed : Kal Local Landed w Canton Demoer',1,1,'Approved','2025-12-30 18:24:10','2025-12-30 18:23:48',1,2881),
-(434,'Seneschallate roster for 2025-07-19 ~ 2026-01-19',1,NULL,'Pending','2026-01-14 22:20:37','2026-01-14 22:20:37',1,2875),
+(434,'Seneschallate roster for 2026-01-01 ~ 2026-07-01',1,NULL,'Pending','2026-01-14 22:20:37','2026-01-14 22:20:37',1,2875),
 (436,'Principality Consort : Jael Principality Coronet Demoer',1,NULL,'Pending','2026-02-04 18:02:38','2026-02-04 18:02:38',1,1);
 /*!40000 ALTER TABLE `warrant_rosters` ENABLE KEYS */;
 UNLOCK TABLES;
@@ -5334,29 +5334,29 @@ INSERT INTO `warrants` VALUES
 (2475,'Hiring Warrant: Ansteorra - Kingdom MoAS Deputy (Demoer Deputy)',2877,402,'Officers.Officers',934,NULL,'2025-12-27 21:06:07','2025-08-07 21:09:42','2025-08-07 21:09:42','Deactivated','fixing uat office assignments',1,'2025-12-27 21:06:07','2025-06-25 02:32:54',1,1),
 (2500,'Hiring Warrant: Vindheim - Regional Rapier Marshal',2882,404,'Officers.Officers',942,NULL,'2025-08-30 21:14:38','2025-08-07 21:09:34','2025-08-07 21:09:34','Deactivated','cleaning up demo users',1073,'2025-08-30 21:14:38','2025-08-07 21:09:06',1,1073),
 (2501,'Hiring Warrant: Ansteorra - Kingdom Rapier Marshal',2882,405,'Officers.Officers',943,372,'2025-08-30 21:12:12','2025-08-07 21:11:03','2025-08-07 21:11:03','Deactivated','Replaced by new officer',1073,'2025-08-30 21:12:12','2025-08-07 21:10:56',1,1073),
-(2505,'Hiring Warrant: Barony of Stargate - Local Seneschal',2872,411,'Officers.Officers',949,374,'2026-01-19 00:00:00','2025-11-11 03:06:30','2025-11-11 03:06:30','Expired','',NULL,'2026-01-19 08:01:02','2025-08-30 21:08:09',1,1),
-(2506,'Hiring Warrant: Central Region - Regional Seneschal',2873,412,'Officers.Officers',950,375,'2026-01-19 00:00:00','2025-12-04 00:33:17','2025-12-04 00:33:17','Expired','',NULL,'2026-01-19 08:01:02','2025-08-30 21:09:16',1,NULL),
-(2507,'Hiring Warrant: Central Region - Regional Armored Marshal',2874,413,'Officers.Officers',951,NULL,'2026-01-19 00:00:00','2025-12-04 00:33:22','2025-12-04 00:33:22','Expired','',NULL,'2026-01-19 08:01:02','2025-08-30 21:10:12',1,NULL),
-(2508,'Hiring Warrant: Ansteorra - Kingdom Seneschal',2875,414,'Officers.Officers',952,376,'2026-01-19 00:00:00','2025-11-11 03:06:40','2025-11-11 03:06:40','Expired','',NULL,'2026-01-19 08:01:02','2025-08-30 21:11:04',1,1),
-(2509,'Hiring Warrant: Ansteorra - Kingdom Rapier Marshal',2876,415,'Officers.Officers',953,377,'2026-01-19 00:00:00','2025-12-04 00:33:27','2025-12-04 00:33:27','Expired','',NULL,'2026-01-19 08:01:02','2025-08-30 21:12:12',1,NULL),
-(2510,'Hiring Warrant: Shire of Seawinds - Local Treasurer',2883,416,'Officers.Officers',956,NULL,'2026-01-19 00:00:00','2025-12-04 00:33:30','2025-12-04 00:33:30','Expired','',NULL,'2026-01-19 08:01:02','2025-08-30 21:31:13',1,NULL),
-(2511,'Hiring Warrant: Ansteorra - Kingdom Social Media Officer',2883,417,'Officers.Officers',957,NULL,'2026-01-19 00:00:00','2025-12-04 00:33:35','2025-12-04 00:33:35','Expired','',NULL,'2026-01-19 08:01:02','2025-08-30 21:31:30',1,NULL),
-(2512,'Hiring Warrant: Ansteorra - At Large: Armored Authorizing Marshal',1,418,'Officers.Officers',958,380,'2026-01-19 00:00:00','2025-10-30 21:13:42','2025-10-30 21:13:42','Expired','',NULL,'2026-01-19 08:01:02','2025-09-12 02:51:12',1,NULL),
-(2515,'Manual Request Warrant: Southern Region - Regional MoAS',2874,421,'Officers.Officers',933,364,'2026-01-19 00:00:00','2025-12-04 00:35:16','2025-12-04 00:35:16','Expired','',NULL,'2026-01-19 08:01:02','2025-12-04 00:35:09',1,NULL),
-(2516,'Manual Request Warrant: Barony of Stargate - Local Landed',2880,422,'Officers.Officers',961,384,'2026-01-19 00:00:00','2025-12-04 00:39:31','2025-12-04 00:39:31','Expired','',NULL,'2026-01-19 08:01:02','2025-12-04 00:39:26',1,NULL),
+(2505,'Hiring Warrant: Barony of Stargate - Local Seneschal',2872,411,'Officers.Officers',949,374,'2026-07-01 00:00:00','2025-11-11 03:06:30','2025-11-11 03:06:30','Current','',NULL,NULL,'2025-08-30 21:08:09',1,1),
+(2506,'Hiring Warrant: Central Region - Regional Seneschal',2873,412,'Officers.Officers',950,375,'2026-07-01 00:00:00','2025-12-04 00:33:17','2025-12-04 00:33:17','Current','',NULL,NULL,'2025-08-30 21:09:16',1,NULL),
+(2507,'Hiring Warrant: Central Region - Regional Armored Marshal',2874,413,'Officers.Officers',951,NULL,'2026-07-01 00:00:00','2025-12-04 00:33:22','2025-12-04 00:33:22','Current','',NULL,NULL,'2025-08-30 21:10:12',1,NULL),
+(2508,'Hiring Warrant: Ansteorra - Kingdom Seneschal',2875,414,'Officers.Officers',952,376,'2026-07-01 00:00:00','2025-11-11 03:06:40','2025-11-11 03:06:40','Current','',NULL,NULL,'2025-08-30 21:11:04',1,1),
+(2509,'Hiring Warrant: Ansteorra - Kingdom Rapier Marshal',2876,415,'Officers.Officers',953,377,'2026-07-01 00:00:00','2025-12-04 00:33:27','2025-12-04 00:33:27','Current','',NULL,NULL,'2025-08-30 21:12:12',1,NULL),
+(2510,'Hiring Warrant: Shire of Seawinds - Local Treasurer',2883,416,'Officers.Officers',956,NULL,'2026-07-01 00:00:00','2025-12-04 00:33:30','2025-12-04 00:33:30','Current','',NULL,NULL,'2025-08-30 21:31:13',1,NULL),
+(2511,'Hiring Warrant: Ansteorra - Kingdom Social Media Officer',2883,417,'Officers.Officers',957,NULL,'2026-07-01 00:00:00','2025-12-04 00:33:35','2025-12-04 00:33:35','Current','',NULL,NULL,'2025-08-30 21:31:30',1,NULL),
+(2512,'Hiring Warrant: Ansteorra - At Large: Armored Authorizing Marshal',1,418,'Officers.Officers',958,380,'2026-07-01 00:00:00','2025-10-30 21:13:42','2025-10-30 21:13:42','Current','',NULL,NULL,'2025-09-12 02:51:12',1,NULL),
+(2515,'Manual Request Warrant: Southern Region - Regional MoAS',2874,421,'Officers.Officers',933,364,'2026-07-01 00:00:00','2025-12-04 00:35:16','2025-12-04 00:35:16','Current','',NULL,NULL,'2025-12-04 00:35:09',1,NULL),
+(2516,'Manual Request Warrant: Barony of Stargate - Local Landed',2880,422,'Officers.Officers',961,384,'2026-07-01 00:00:00','2025-12-04 00:39:31','2025-12-04 00:39:31','Current','',NULL,NULL,'2025-12-04 00:39:26',1,NULL),
 (2517,'Hiring Warrant: Ansteorra - Kingdom Chatelaine',2872,423,'Officers.Officers',962,385,'2025-12-27 20:39:52','2025-12-16 00:00:00',NULL,'Deactivated','need Bryce Local Sen to not have a Kingdom office for testing',2872,'2025-12-27 20:39:52','2025-12-16 01:54:50',1,2872),
-(2518,'Hiring Warrant: Ansteorra - At Large: C&T 2 Handed Weapons Authorizing Marshal',2886,424,'Officers.Officers',963,386,'2026-01-19 00:00:00','2025-12-30 18:24:28','2025-12-30 18:24:28','Expired','',NULL,'2026-01-19 08:01:02','2025-12-27 20:33:21',1,1),
-(2519,'Hiring Warrant: Ansteorra - At Large: C&T Authorizing Marshal',2886,425,'Officers.Officers',964,387,'2026-01-19 00:00:00','2025-12-30 18:24:21','2025-12-30 18:24:21','Expired','',NULL,'2026-01-19 08:01:02','2025-12-27 20:33:33',1,1),
-(2520,'Hiring Warrant: Shire of Rosenfeld - Local Chatelaine',2887,426,'Officers.Officers',965,NULL,'2026-01-19 00:00:00','2025-12-30 18:24:38','2025-12-30 18:24:38','Expired','',NULL,'2026-01-19 08:01:02','2025-12-27 20:51:51',1,1),
+(2518,'Hiring Warrant: Ansteorra - At Large: C&T 2 Handed Weapons Authorizing Marshal',2886,424,'Officers.Officers',963,386,'2026-07-01 00:00:00','2025-12-30 18:24:28','2025-12-30 18:24:28','Current','',NULL,NULL,'2025-12-27 20:33:21',1,1),
+(2519,'Hiring Warrant: Ansteorra - At Large: C&T Authorizing Marshal',2886,425,'Officers.Officers',964,387,'2026-07-01 00:00:00','2025-12-30 18:24:21','2025-12-30 18:24:21','Current','',NULL,NULL,'2025-12-27 20:33:33',1,1),
+(2520,'Hiring Warrant: Shire of Rosenfeld - Local Chatelaine',2887,426,'Officers.Officers',965,NULL,'2026-07-01 00:00:00','2025-12-30 18:24:38','2025-12-30 18:24:38','Current','',NULL,NULL,'2025-12-27 20:51:51',1,1),
 (2521,'Hiring Warrant: Shire of Rosenfeld - Local Armored Marshal',2887,427,'Officers.Officers',966,388,'2025-12-27 20:54:59','2025-12-27 00:00:00',NULL,'Deactivated','need olivia to only have local chatelaine, this was a test appointment',1,'2025-12-27 20:54:59','2025-12-27 20:54:24',1,1),
-(2522,'Hiring Warrant: Ansteorra - Kingdom MoAS',2877,428,'Officers.Officers',967,389,'2026-01-19 00:00:00','2025-12-27 00:00:00',NULL,'Pending','',NULL,'2025-12-27 21:05:53','2025-12-27 21:05:53',1,1),
-(2523,'Manual Request Warrant: Barony of the Steppes - Local Landed',2880,429,'Officers.Officers',936,366,'2026-01-19 00:00:00','2025-12-30 18:24:14','2025-12-30 18:24:14','Expired','',NULL,'2026-01-19 08:01:02','2025-12-30 18:23:36',1,1),
-(2524,'Manual Request Warrant: Canton of Glaslyn - Local Landed',2880,430,'Officers.Officers',939,369,'2026-01-19 00:00:00','2025-12-30 18:24:10','2025-12-30 18:24:10','Expired','',NULL,'2026-01-19 08:01:02','2025-12-30 18:23:48',1,1),
-(2528,'Renewal: Barony of Stargate Local Seneschal',2872,434,'Officers.Officers',949,381,'2026-01-19 00:00:00','2025-08-30 00:00:00',NULL,'Pending','',NULL,'2026-01-14 22:20:37','2026-01-14 22:20:37',1,2875),
-(2529,'Renewal: Central Region Regional Seneschal',2873,434,'Officers.Officers',950,375,'2026-01-19 00:00:00','2025-08-30 00:00:00',NULL,'Pending','',NULL,'2026-01-14 22:20:37','2026-01-14 22:20:37',1,2875),
-(2530,'Renewal: Ansteorra Kingdom Seneschal',2875,434,'Officers.Officers',952,376,'2026-01-19 00:00:00','2025-08-30 00:00:00',NULL,'Pending','',NULL,'2026-01-14 22:20:37','2026-01-14 22:20:37',1,2875),
-(2531,'Renewal: Ansteorra Kingdom Social Media Officer',2883,434,'Officers.Officers',957,NULL,'2026-01-19 00:00:00','2025-08-30 00:00:00',NULL,'Pending','',NULL,'2026-01-14 22:20:37','2026-01-14 22:20:37',1,2875),
-(2535,'Hiring Warrant: Vindheim - Principality Consort',2879,436,'Officers.Officers',975,395,'2026-07-19 00:00:00','2026-02-04 00:00:00',NULL,'Pending','',NULL,'2026-02-04 18:02:38','2026-02-04 18:02:38',1,1);
+(2522,'Hiring Warrant: Ansteorra - Kingdom MoAS',2877,428,'Officers.Officers',967,389,'2026-07-01 00:00:00','2025-12-27 00:00:00',NULL,'Pending','',NULL,'2025-12-27 21:05:53','2025-12-27 21:05:53',1,1),
+(2523,'Manual Request Warrant: Barony of the Steppes - Local Landed',2880,429,'Officers.Officers',936,366,'2026-07-01 00:00:00','2025-12-30 18:24:14','2025-12-30 18:24:14','Current','',NULL,NULL,'2025-12-30 18:23:36',1,1),
+(2524,'Manual Request Warrant: Canton of Glaslyn - Local Landed',2880,430,'Officers.Officers',939,369,'2026-07-01 00:00:00','2025-12-30 18:24:10','2025-12-30 18:24:10','Current','',NULL,NULL,'2025-12-30 18:23:48',1,1),
+(2528,'Renewal: Barony of Stargate Local Seneschal',2872,434,'Officers.Officers',949,381,'2026-07-01 00:00:00','2025-08-30 00:00:00',NULL,'Pending','',NULL,'2026-01-14 22:20:37','2026-01-14 22:20:37',1,2875),
+(2529,'Renewal: Central Region Regional Seneschal',2873,434,'Officers.Officers',950,375,'2026-07-01 00:00:00','2025-08-30 00:00:00',NULL,'Pending','',NULL,'2026-01-14 22:20:37','2026-01-14 22:20:37',1,2875),
+(2530,'Renewal: Ansteorra Kingdom Seneschal',2875,434,'Officers.Officers',952,376,'2026-07-01 00:00:00','2025-08-30 00:00:00',NULL,'Pending','',NULL,'2026-01-14 22:20:37','2026-01-14 22:20:37',1,2875),
+(2531,'Renewal: Ansteorra Kingdom Social Media Officer',2883,434,'Officers.Officers',957,NULL,'2026-07-01 00:00:00','2025-08-30 00:00:00',NULL,'Pending','',NULL,'2026-01-14 22:20:37','2026-01-14 22:20:37',1,2875),
+(2535,'Hiring Warrant: Vindheim - Principality Consort',2879,436,'Officers.Officers',975,395,'2026-07-01 00:00:00','2026-02-04 00:00:00',NULL,'Pending','',NULL,'2026-02-04 18:02:38','2026-02-04 18:02:38',1,1);
 /*!40000 ALTER TABLE `warrants` ENABLE KEYS */;
 UNLOCK TABLES;
 
