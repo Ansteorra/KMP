@@ -130,7 +130,7 @@ $canAddGathering = $canAddGathering ?? false;
                             if ($isCancelled) {
                                 $gatheringContent .= '<div class="badge bg-danger mb-1 w-100"><i class="bi bi-x-circle"></i> CANCELLED</div>';
                             }
-                            $gatheringContent .= '<div class="fw-bold text-truncate' . ($isCancelled ? ' text-decoration-line-through' : '') . '">' . h($gathering->name) . '</div>';
+                            $gatheringContent .= '<div class="fw-bold' . ($isCancelled ? ' text-decoration-line-through' : '') . '">' . h($gathering->name) . '</div>';
                             $gatheringContent .= '<div class="text-muted small text-truncate">' . h($gathering->branch->name) . '</div>';
                             $gatheringContent .= '<div class="gathering-badges">';
                             if ($isAttending) {

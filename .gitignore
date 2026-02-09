@@ -20,3 +20,6 @@ test-results/.claude/settings.local.json
 app/cookie.txt
 amp_uat.sql
 uat_dump.sql
+prod_dump.sql
+/test-results/
+/.playwright-cli/

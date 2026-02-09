@@ -140,18 +140,6 @@ class WarrantsGridColumns extends BaseGridColumns
                 'width' => '240px',
                 'alignment' => 'left',
             ],
-
-            'actions' => [
-                'key' => 'actions',
-                'label' => '',
-                'type' => 'actions',
-                'required' => true,
-                'defaultVisible' => true,
-                'sortable' => false,
-                'exportable' => false,
-                'width' => '160px',
-                'alignment' => 'right',
-            ],
         ];
 
         return $columns;
@@ -238,6 +226,7 @@ class WarrantsGridColumns extends BaseGridColumns
                 'description' => __('Expired or deactivated warrants'),
                 'canManage' => false,
                 'config' => [
+                    'columns' => ['name', 'member_id', 'start_on', 'expires_on', 'status'],
                     'expression' => [
                         'type' => 'OR',
                         'conditions' => [

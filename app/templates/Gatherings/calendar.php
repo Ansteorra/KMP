@@ -68,6 +68,8 @@ $stickyDefaults = json_encode([
         padding: 0.5rem;
         position: relative;
         border: 1px solid #dee2e6;
+        overflow: hidden;
+        min-width: 0;
     }
 
     .calendar-day .calendar-day-add {
@@ -116,6 +118,18 @@ $stickyDefaults = json_encode([
         border-radius: 0.25rem;
         cursor: pointer;
         transition: all 0.2s;
+        overflow: hidden;
+        min-width: 0;
+    }
+
+    .gathering-item .fw-bold {
+        white-space: normal;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
     }
 
     .gathering-item:hover {

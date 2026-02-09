@@ -403,11 +403,11 @@ class GridViewConfig
      */
     public static function extractExpression(
         array $config,
-        $queryExpression,
+        \Cake\Database\Expression\QueryExpression $queryExpression,
         string $tableName = '',
         array $skipColumns = [],
         array $columnsMetadata = []
-    ): ?object {
+    ): ?\Cake\Database\Expression\QueryExpression {
         if (!isset($config['expression']) || !is_array($config['expression'])) {
             return null;
         }
@@ -427,11 +427,11 @@ class GridViewConfig
      */
     protected static function buildExpression(
         array $expression,
-        $queryExpression,
+        \Cake\Database\Expression\QueryExpression $queryExpression,
         string $tableName,
         array $skipColumns = [],
         array $columnsMetadata = []
-    ): object {
+    ): \Cake\Database\Expression\QueryExpression {
         // Check if this is a group (OR/AND) or a single condition
         if (isset($expression['type']) && in_array(strtoupper($expression['type']), ['OR', 'AND'], true)) {
             // This is a group - create new expression with specified conjunction
