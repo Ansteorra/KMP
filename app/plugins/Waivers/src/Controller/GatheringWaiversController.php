@@ -16,6 +16,7 @@ use Cake\Http\Exception\NotFoundException;
 use Cake\I18n\Date;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
+use Cake\Routing\Router;
 use Waivers\KMP\GridColumns\GatheringWaiversGridColumns;
 
 /**
@@ -92,6 +93,7 @@ class GatheringWaiversController extends AppController
                 'contain' => [
                     'GatheringTypes',
                     'Branches',
+                    'GatheringActivities',
                 ],
             ]);
 
@@ -99,7 +101,8 @@ class GatheringWaiversController extends AppController
 
             $GatheringWaiverClosures = $this->fetchTable('Waivers.GatheringWaiverClosures');
             $waiverClosure = $GatheringWaiverClosures->getClosureForGathering((int)$gatheringId);
-            $waiverCollectionClosed = $waiverClosure !== null;
+            $waiverCollectionClosed = $waiverClosure !== null && $waiverClosure->isClosed();
+            $waiverReadyToClose = $waiverClosure !== null && $waiverClosure->isReadyToClose() && !$waiverClosure->isClosed();
 
             // Get all waivers for this gathering
             $query = $this->GatheringWaivers->find()
@@ -140,13 +143,20 @@ class GatheringWaiversController extends AppController
                 $countsMap[$count->waiver_type_id] = $count->count;
             }
 
+            // Check if user can close/reopen waivers for this gathering
+            $tempWaiver = $this->GatheringWaivers->newEmptyEntity();
+            $tempWaiver->gathering = $gathering;
+            $canCloseWaivers = $currentUser->checkCan('closeWaivers', $tempWaiver);
+
             $this->set(compact(
                 'gathering',
                 'gatheringWaivers',
                 'countsMap',
                 'requiredWaiverTypes',
                 'waiverClosure',
-                'waiverCollectionClosed'
+                'waiverCollectionClosed',
+                'waiverReadyToClose',
+                'canCloseWaivers'
             ));
             $this->render('index_gathering');
         } else {
@@ -421,6 +431,7 @@ class GatheringWaiversController extends AppController
                     'Gatherings.deleted IS' => null,
                 ]);
             })
+            ->innerJoinWith('Gatherings.Branches')
             ->contain([
                 'Gatherings' => function ($q) {
                     return $q->select(['id', 'name', 'start_date', 'end_date', 'branch_id']);
@@ -469,11 +480,11 @@ class GatheringWaiversController extends AppController
             'canAddViews' => true,
             'canFilter' => true,
             'canExportCsv' => true,
-            'additionalFilterOptions' => [
-                'branch_id' => $branchFilterOptions,
-                'waiver_type_id' => $waiverTypeFilterOptions,
-            ],
         ]);
+
+        // Merge permission-scoped filter options for dropdown filters
+        $result['filterOptions']['branch_id'] = $branchFilterOptions;
+        $result['filterOptions']['waiver_type_id'] = $waiverTypeFilterOptions;
 
         // Handle CSV export
         if (!empty($result['isCsvExport'])) {
@@ -1777,6 +1788,7 @@ class GatheringWaiversController extends AppController
             // Default: no waivers needed/missing
             $gathering->missing_waiver_count = 0;
             $gathering->missing_waiver_names = [];
+            $gathering->uploaded_waiver_count = 0;
             $gathering->has_waiver_requirements = false;
             $gathering->is_waiver_complete = true;
             $gathering->is_ready_to_close = in_array($gathering->id, $readyToCloseGatheringIds, true);
@@ -1827,8 +1839,11 @@ class GatheringWaiversController extends AppController
 
                         $gathering->missing_waiver_count = count($missingWaiverTypes);
                         $gathering->missing_waiver_names = $missingWaiverNames;
+                        $gathering->uploaded_waiver_count = count($uploadedWaiverTypes);
                         $gathering->is_waiver_complete = false;
                         $incompleteCount++;
+                    } else {
+                        $gathering->uploaded_waiver_count = count($uploadedWaiverTypes);
                     }
 
                     // Include all gatherings with waiver requirements (complete or not)
@@ -1903,11 +1918,19 @@ class GatheringWaiversController extends AppController
         // Get gatherings marked ready to close
         $gatheringsReadyToClose = $this->_getGatheringsReadyToClose($branchIds);
 
+        // Get gatherings needing closed (have waivers uploaded, not yet closed)
+        $gatheringsNeedingClosed = $this->_getGatheringsNeedingClosed($branchIds);
+
+        // Get recently closed gatherings
+        $closedGatherings = $this->_getClosedGatherings($branchIds);
+
         $this->set(compact(
             'statistics',
             'gatheringsMissingWaivers',
             'gatheringsNeedingWaivers',
             'gatheringsReadyToClose',
+            'gatheringsNeedingClosed',
+            'closedGatherings',
             'branchesWithIssues',
             'recentActivity',
             'waiverTypesSummary',
@@ -1915,6 +1938,185 @@ class GatheringWaiversController extends AppController
             'searchTerm',
             'complianceDays'
         ));
+    }
+
+    /**
+     * Return JSON calendar data for gatherings in a given month
+     *
+     * @return \Cake\Http\Response JSON response with gathering calendar data
+     */
+    public function calendarData()
+    {
+        $this->authorizeCurrentUrl();
+        $this->request->allowMethod(['get']);
+
+        $year = (int)$this->request->getQuery('year', date('Y'));
+        $month = (int)$this->request->getQuery('month', date('n'));
+
+        // Clamp values
+        if ($year < 2000 || $year > 2100) {
+            $year = (int)date('Y');
+        }
+        if ($month < 1 || $month > 12) {
+            $month = (int)date('n');
+        }
+
+        $currentUser = $this->Authentication->getIdentity();
+        $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
+        $timezone = new \DateTimeZone($userTimezone);
+        $branchIds = $currentUser->getBranchIdsForAction('add', 'Waivers.GatheringWaivers');
+        $Branches = $this->fetchTable('Branches');
+        if ($branchIds === null) {
+            $branchIds = $Branches->find()->select(['id'])->all()->extract('id')->toArray();
+        }
+        if (is_array($branchIds) && empty($branchIds)) {
+            return $this->response->withType('application/json')
+                ->withStringBody(json_encode(['events' => []]));
+        }
+
+        // Build month boundaries in user timezone, then convert to UTC for querying
+        $startOfMonth = new \DateTime(sprintf('%04d-%02d-01', $year, $month), $timezone);
+        $startOfMonth->setTime(0, 0, 0);
+        $endOfMonth = (clone $startOfMonth)->modify('last day of this month')->setTime(23, 59, 59);
+
+        $startOfMonthUtc = \App\KMP\TimezoneHelper::toUtc($startOfMonth->format('Y-m-d H:i:s'), $userTimezone);
+        $endOfMonthUtc = \App\KMP\TimezoneHelper::toUtc($endOfMonth->format('Y-m-d H:i:s'), $userTimezone);
+        $startUtcString = $startOfMonthUtc->format('Y-m-d H:i:s');
+        $endUtcString = $endOfMonthUtc->format('Y-m-d H:i:s');
+
+        $Gatherings = $this->fetchTable('Gatherings');
+        $GatheringWaiverClosures = $this->fetchTable('Waivers.GatheringWaiverClosures');
+        $GatheringActivityWaivers = $this->fetchTable('Waivers.GatheringActivityWaivers');
+
+        $closedGatheringIds = $GatheringWaiverClosures->getClosedGatheringIds();
+        $readyToCloseGatheringIds = $GatheringWaiverClosures->getReadyToCloseGatheringIds();
+
+        $gatherings = $Gatherings->find()
+            ->where([
+                'Gatherings.branch_id IN' => $branchIds,
+                'Gatherings.deleted IS' => null,
+                'Gatherings.cancelled_at IS' => null,
+                'Gatherings.start_date <=' => $endUtcString,
+                'OR' => [
+                    'Gatherings.end_date >=' => $startUtcString,
+                    'AND' => [
+                        'Gatherings.end_date IS' => null,
+                        'Gatherings.start_date >=' => $startUtcString,
+                    ],
+                ],
+            ])
+            ->contain([
+                'Branches' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'GatheringActivities' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+            ])
+            ->orderBy(['Gatherings.start_date' => 'ASC'])
+            ->all();
+
+        $events = [];
+        foreach ($gatherings as $gathering) {
+            $isClosed = in_array($gathering->id, $closedGatheringIds);
+
+            // Determine waiver requirements
+            $activityIds = collection($gathering->gathering_activities)->extract('id')->toArray();
+            $requiredCount = 0;
+            if (!empty($activityIds)) {
+                $requiredCount = $GatheringActivityWaivers->find()
+                    ->where([
+                        'gathering_activity_id IN' => $activityIds,
+                        'deleted IS' => null,
+                    ])
+                    ->select(['waiver_type_id'])
+                    ->distinct(['waiver_type_id'])
+                    ->count();
+            }
+
+            // Skip gatherings with no waiver requirements (unless closed with waivers)
+            if ($requiredCount === 0 && !$isClosed) {
+                continue;
+            }
+
+            // Get detailed waiver counts
+            $uploadedCount = $this->GatheringWaivers->find()
+                ->where([
+                    'gathering_id' => $gathering->id,
+                    'deleted IS' => null,
+                    'declined_at IS' => null,
+                    'is_exemption' => false,
+                ])
+                ->count();
+
+            $exemptedCount = $this->GatheringWaivers->find()
+                ->where([
+                    'gathering_id' => $gathering->id,
+                    'deleted IS' => null,
+                    'declined_at IS' => null,
+                    'is_exemption' => true,
+                ])
+                ->count();
+
+            $uploadedTypeCount = $this->GatheringWaivers->find()
+                ->where([
+                    'gathering_id' => $gathering->id,
+                    'deleted IS' => null,
+                    'declined_at IS' => null,
+                ])
+                ->select(['waiver_type_id'])
+                ->distinct(['waiver_type_id'])
+                ->count();
+
+            $pendingCount = max(0, $requiredCount - $uploadedTypeCount);
+
+            // Determine status and color
+            $status = 'missing';
+            $color = 'danger';
+            if ($isClosed) {
+                $status = 'closed';
+                $color = 'primary';
+            } elseif ($requiredCount > 0 && $uploadedTypeCount >= $requiredCount) {
+                $status = 'complete';
+                $color = 'success';
+            } elseif ($uploadedTypeCount > 0) {
+                $status = 'partial';
+                $color = 'warning';
+            }
+
+            $startDate = Date::parse($gathering->start_date);
+            $endDate = $gathering->end_date ? Date::parse($gathering->end_date) : $startDate;
+            $isMultiDay = $startDate->toDateString() !== $endDate->toDateString();
+
+            $events[] = [
+                'id' => $gathering->id,
+                'name' => $gathering->name,
+                'branch' => $gathering->branch ? $gathering->branch->name : '',
+                'start_date' => $startDate->toDateString(),
+                'end_date' => $endDate->toDateString(),
+                'multi_day' => $isMultiDay,
+                'status' => $status,
+                'color' => $color,
+                'uploaded' => $uploadedCount,
+                'exempted' => $exemptedCount,
+                'pending' => $pendingCount,
+                'ready_to_close' => in_array($gathering->id, $readyToCloseGatheringIds),
+                'url' => Router::url([
+                    'plugin' => 'Waivers',
+                    'controller' => 'GatheringWaivers',
+                    'action' => 'index',
+                    '?' => ['gathering_id' => $gathering->id],
+                ]),
+            ];
+        }
+
+        return $this->response->withType('application/json')
+            ->withStringBody(json_encode([
+                'year' => $year,
+                'month' => $month,
+                'monthName' => $startOfMonth->format('F Y'),
+                'events' => $events,
+            ]));
     }
 
     /**
@@ -2266,6 +2468,7 @@ class GatheringWaiversController extends AppController
 
                 $gathering->missing_waiver_count = count($missingWaiverTypes);
                 $gathering->missing_waiver_names = $missingWaiverNames;
+                $gathering->uploaded_waiver_count = count($uploadedWaiverTypes);
 
                 // Determine if this is missing (>ComplianceDays past end) or upcoming
                 $endDate = $gathering->end_date ? Date::parse($gathering->end_date) : Date::parse($gathering->start_date);
@@ -2413,6 +2616,117 @@ class GatheringWaiversController extends AppController
         }
 
         return $summary;
+    }
+
+    /**
+     * Get gatherings that need to be closed (have waivers uploaded but not yet closed)
+     *
+     * @param array $branchIds Branches to check
+     * @return array Gatherings needing closure
+     */
+    private function _getGatheringsNeedingClosed(array $branchIds): array
+    {
+        $Gatherings = $this->fetchTable('Gatherings');
+        $GatheringWaiverClosures = $this->fetchTable('Waivers.GatheringWaiverClosures');
+        $today = Date::now();
+        $pastCutoff = Date::now()->subDays(180)->toDateString();
+
+        // Get already closed gathering IDs
+        $closedGatheringIds = $GatheringWaiverClosures->getClosedGatheringIds();
+
+        // Find gatherings that have ended, have at least one uploaded waiver, and are not yet closed
+        $query = $Gatherings->find()
+            ->where([
+                'Gatherings.branch_id IN' => $branchIds,
+                'Gatherings.deleted IS' => null,
+                'Gatherings.cancelled_at IS' => null,
+                'Gatherings.end_date <' => $today->toDateString(),
+                'Gatherings.end_date >=' => $pastCutoff,
+            ])
+            ->contain([
+                'Branches' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+            ])
+            ->orderBy(['Gatherings.end_date' => 'ASC']);
+
+        if (!empty($closedGatheringIds)) {
+            $query->where(['Gatherings.id NOT IN' => $closedGatheringIds]);
+        }
+
+        $gatherings = $query->all()->toArray();
+        $result = [];
+
+        foreach ($gatherings as $gathering) {
+            // Count uploaded waivers
+            $uploadedCount = $this->GatheringWaivers->find()
+                ->where([
+                    'gathering_id' => $gathering->id,
+                    'deleted IS' => null,
+                    'declined_at IS' => null,
+                ])
+                ->count();
+
+            if ($uploadedCount > 0) {
+                $gathering->uploaded_waiver_count = $uploadedCount;
+
+                // Check if marked ready to close
+                $closureRecord = $GatheringWaiverClosures->find()
+                    ->where([
+                        'gathering_id' => $gathering->id,
+                        'closed_at IS' => null,
+                    ])
+                    ->first();
+                $gathering->ready_to_close = $closureRecord !== null;
+                $gathering->ready_to_close_at = $closureRecord ? $closureRecord->ready_to_close_at : null;
+
+                $result[] = $gathering;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Get recently closed gatherings
+     *
+     * @param array $branchIds Branches to check
+     * @return array Closed gatherings with closure details
+     */
+    private function _getClosedGatherings(array $branchIds): array
+    {
+        $GatheringWaiverClosures = $this->fetchTable('Waivers.GatheringWaiverClosures');
+        $ninetyDaysAgo = Date::now()->subDays(90)->toDateString();
+
+        $closures = $GatheringWaiverClosures->find()
+            ->where([
+                'GatheringWaiverClosures.closed_at IS NOT' => null,
+                'GatheringWaiverClosures.closed_at >=' => $ninetyDaysAgo,
+            ])
+            ->contain([
+                'Gatherings' => function ($q) use ($branchIds) {
+                    return $q->where([
+                        'Gatherings.branch_id IN' => $branchIds,
+                        'Gatherings.deleted IS' => null,
+                    ]);
+                },
+                'Gatherings.Branches' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'ClosedByMembers' => function ($q) {
+                    return $q->select(['id', 'sca_name']);
+                },
+            ])
+            ->orderBy(['GatheringWaiverClosures.closed_at' => 'DESC'])
+            ->all()
+            ->toArray();
+
+        // Filter out closures where gathering didn't match the branch filter
+        $closures = array_filter($closures, function ($closure) {
+            return $closure->gathering !== null;
+        });
+
+        return array_values($closures);
     }
 
     /**
