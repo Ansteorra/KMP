@@ -11,7 +11,7 @@ Successfully migrated extensive inline documentation from the ActivityGroupsCont
 
 ### 1. Created New Documentation File
 
-**File:** [docs/5.6.3-activity-groups-controller-reference.md](docs/5.6.3-activity-groups-controller-reference.md)
+**File:** [docs/5.6.3-activity-groups-controller-reference.md](5.6.3-activity-groups-controller-reference.md)
 
 Comprehensive technical reference documentation (645 lines) covering:
 - Complete controller architecture overview
@@ -40,7 +40,7 @@ Comprehensive technical reference documentation (645 lines) covering:
 
 ### 3. Updated Activities Plugin Documentation
 
-**File:** [docs/5.6-activities-plugin.md](docs/5.6-activities-plugin.md)
+**File:** [docs/5.6-activities-plugin.md](5.6-activities-plugin.md)
 
 **Changes:**
 - Updated "Activity Group Management" section
@@ -145,9 +145,9 @@ This bug has been documented in both the controller docblock and the comprehensi
 
 ## Related Documentation
 
-- [Activities Plugin Overview](docs/5.6-activities-plugin.md)
-- [Activities Plugin Architecture](docs/5.6.1-activities-plugin-architecture.md)
-- [Activities Controller Reference](docs/5.6.2-activities-controller-reference.md)
-- [DataverseGridTrait Documentation](docs/9.1-dataverse-grid-system.md)
-- [Authorization Helpers](docs/6.2-authorization-helpers.md)
-- [RBAC Security Architecture](docs/4.4-rbac-security-architecture.md)
+- [Activities Plugin Overview](5.6-activities-plugin.md)
+- [Activities Plugin Architecture](5.6.1-activities-plugin-architecture.md)
+- [Activities Controller Reference](5.6.2-activities-controller-reference.md)
+- [DataverseGridTrait Documentation](9.1-dataverse-grid-system.md)
+- [Authorization Helpers](6.2-authorization-helpers.md)
+- [RBAC Security Architecture](4.4-rbac-security-architecture.md)

@@ -41,7 +41,7 @@ KMP addresses these needs through a modern web application that is accessible bo
 
 To run the Kingdom Management Portal, your server should meet the following requirements:
 
-- **PHP**: Version 8.1 or higher
+- **PHP**: Version 8.3 or higher
   - Required Extensions:
     - **Core & Basics**:
       - intl (Internationalization functions)
@@ -74,8 +74,8 @@ To run the Kingdom Management Portal, your server should meet the following requ
 - **Composer**: PHP Dependency Manager (version 2.0+)
 
 - **Node.js and NPM**: For frontend asset compilation
-  - Node.js 14+ recommended
-  - NPM 6+ recommended
+  - Node.js 18+ recommended
+  - NPM 9+ recommended
 
 ### Development Environment Requirements
 

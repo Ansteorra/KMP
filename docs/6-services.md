@@ -118,14 +118,7 @@ if ($result->success) {
 
 ### Events
 
-The WarrantManager works with the ActiveWindowManager to dispatch events at key points in a warrant's lifecycle. Since warrants are processed through the ActiveWindowManager for lifecycle management, the events are typically:
-
-- `ActiveWindow.beforeStart`: Before a warrant window becomes active
-- `ActiveWindow.afterStart`: After a warrant is activated
-- `ActiveWindow.beforeStop`: Before a warrant window is terminated  
-- `ActiveWindow.afterStop`: After a warrant has been deactivated
-
-Additional warrant-specific events may be dispatched during the approval and decline processes.
+The WarrantManager delegates lifecycle management to the ActiveWindowManager for warrant start/stop operations but does not dispatch custom events itself. The warrant lifecycle is driven by direct method calls (`request`, `approve`, `decline`, `cancel`) that return `ServiceResult` objects, rather than through the event system.
 
 ## 6.2 ActiveWindowManager
 
@@ -518,6 +511,137 @@ Integrates with the CakePHP Authorization plugin to provide KMP-specific authori
 ### ViewCellRegistry
 
 Manages dynamic view cell registration and rendering for modular UI components.
+
+### ImpersonationService
+
+**Location:** `app/src/Services/ImpersonationService.php`  
+**DI Registration:** Registered in `Application::services()`
+
+Manages admin impersonation sessions, storing original administrator identity in the session and enabling safe reversion while preventing cache leakage between identities.
+
+**Key Methods:**
+- `start(Session, int $targetId)` — Initiates impersonation, saving original admin details
+- `stop(Session)` — Ends impersonation, restores original identity and clears caches
+- `getState(Session)` — Retrieves current impersonation metadata
+- `isActive(Session)` — Checks if an impersonation session is currently active
+
+### ICalendarService
+
+**Location:** `app/src/Services/ICalendarService.php`  
+**DI Registration:** Registered in `Application::services()`
+
+Generates RFC 5545 iCalendar (.ics) files for gatherings, supporting both single-event downloads and multi-event subscription feeds with timezone support.
+
+**Key Methods:**
+- `generateICalendar(Gathering)` — Creates a `.ics` file for a single gathering
+- `generateFeed(array $gatherings)` — Creates a multi-event calendar feed
+- `getFilename(Gathering)` — Generates a safe calendar filename
+
+### RetentionPolicyService
+
+**Location:** `app/src/Services/RetentionPolicyService.php`
+
+Calculates document retention dates based on JSON retention policy definitions. Supports anchor types (`gathering_end_date`, `upload_date`, `permanent`) and configurable duration fields.
+
+**Key Methods:**
+- `calculateRetentionDate(array $policy, ?Date $anchorDate)` — Computes retention date from policy
+- `validatePolicy(array $policy)` — Validates JSON policy structure
+- `isExpired(array $policy, ?Date $anchorDate)` — Checks if a retention date has passed
+- `getHumanReadableDescription(array $policy)` — Returns user-friendly policy description
+
+### DocumentService
+
+**Location:** `app/src/Services/DocumentService.php`
+
+Centralized document management for uploads, storage, and retrieval. Uses a Flysystem abstraction layer supporting both local filesystem and Azure Blob Storage adapters.
+
+**Key Methods:**
+- `createDocument(UploadedFile, string $entityType, ?int $entityId)` — Handles file upload and storage
+- `getDocumentDownloadResponse(Document)` — Streams document to client
+- `getDocumentPreviewResponse(Document)` — Returns preview image
+- `deleteDocument(Document)` — Removes document and preview from storage
+- `updateDocumentEntityId(Document, int $entityId)` — Links document to entity
+
+### MailerDiscoveryService
+
+**Location:** `app/src/Services/MailerDiscoveryService.php`
+
+Discovers all Mailer classes in the application and plugins using PHP reflection. Analyzes public methods, extracts parameters and view variables for the email template management system.
+
+**Key Methods:**
+- `discoverAllMailers()` — Finds all Mailer classes (core and plugins)
+- `getMailerInfo(string $class)` — Returns analyzed info for a specific mailer class
+- `getMailerMethodInfo(string $class, string $method)` — Extracts method details (params, view vars, subject)
+
+### EmailTemplateRendererService
+
+**Location:** `app/src/Services/EmailTemplateRendererService.php`
+
+Renders email templates with variable substitution, converting Markdown HTML templates to email-friendly HTML. Supports `{{variable}}` and `${variable}` placeholder syntax.
+
+**Key Methods:**
+- `renderTemplate(EmailTemplate, array $variables)` — Replaces variable placeholders with values
+- `renderSubject(EmailTemplate, array $variables)` — Renders subject line from template
+- `renderHtml(EmailTemplate, array $variables)` — Converts Markdown template to HTML
+- `renderText(EmailTemplate, array $variables)` — Renders plain text version
+- `preview(EmailTemplate)` — Shows preview with sample data
+
+### GridViewService
+
+**Location:** `app/src/Services/GridViewService.php`
+
+Manages saved grid views with a resolution priority chain: explicit view → user default → system default. Provides CRUD operations with ownership validation.
+
+**Key Methods:**
+- `getEffectiveView(string $gridId, ?int $memberId, ?int $viewId)` — Resolves view by priority chain
+- `getViewsForGrid(string $gridId, int $memberId)` — Lists all available views for a grid
+- `createView(array $data)` / `updateView(int $id, array $data)` / `deleteView(int $id)` — CRUD operations
+- `setUserDefault(string $gridId, int $memberId, int $viewId)` — Sets user's preferred view
+- `createSystemDefault(array $data)` — Creates admin-only system default views
+
+### PdfProcessingService
+
+**Location:** `app/src/Services/PdfProcessingService.php`
+
+Handles PDF file operations including validation, page counting, merging, and thumbnail generation using pure PHP libraries (no external binaries required).
+
+**Key Methods:**
+- `validatePdf(string $filePath)` — Validates file structure and magic bytes
+- `getPageCount(string $filePath)` — Returns page count
+- `mergePdfs(array $filePaths)` — Combines multiple PDFs into one
+- `generateThumbnail(string $filePath)` — Creates placeholder thumbnail image
+
+### ImageToPdfConversionService
+
+**Location:** `app/src/Services/ImageToPdfConversionService.php`
+
+Converts image files (JPEG, PNG, GIF, BMP, WEBP) to PDF documents, maintaining aspect ratio and fitting to standard page sizes. Supports both single and multi-image conversion.
+
+**Key Methods:**
+- `convertImageToPdf(string $imagePath)` — Converts a single image to PDF
+- `convertMultipleImagesToPdf(array $imagePaths)` — Creates multi-page PDF from images
+- `convertMixedToPdf(array $filePaths)` — Handles mixed image/PDF input files
+- `isSupportedImage(string $path)` — Checks if file format is supported
+
+### OpenApiMergeService
+
+**Location:** `app/src/Services/OpenApiMergeService.php`
+
+Deep-merges the base OpenAPI specification with plugin-provided YAML fragments (paths, tags, schemas) into a single unified spec for Swagger UI documentation.
+
+**Key Methods:**
+- `getMergedSpec()` — Returns the complete merged OpenAPI specification array
+
+### ApiDataRegistry
+
+**Location:** `app/src/Services/ApiDataRegistry.php`
+
+Static registry allowing plugins to register callbacks that inject additional data into API detail response endpoints. Enables plugins to augment core API responses without modifying core controllers.
+
+**Key Methods:**
+- `register(string $controller, string $action, callable $callback, string $name)` — Register a data provider callback
+- `collect(string $controller, string $action, Entity $entity)` — Gathers data from all matching providers
+- `getRegisteredSources(string $controller, string $action)` — Lists registered provider names
 
 ---
 

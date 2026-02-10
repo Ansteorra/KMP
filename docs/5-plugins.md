@@ -78,9 +78,7 @@ The migration order system ensures plugins are initialized in the correct sequen
 - **1**: Activities (base activity and authorization system)
 - **2**: Officers (depends on activities for event reporting)
 - **3**: Awards (depends on activities and officers for workflows)
-- **4**: Reports (reporting and analytics framework)
-- **5**: OfficerEventReporting (officer-specific reporting)
-- **10+**: Utility plugins (minimal dependencies)
+- **4**: Waivers (waiver tracking for gatherings)
 
 ### Plugin Registration Pattern
 
@@ -88,9 +86,7 @@ All KMP plugins are registered in `config/plugins.php` with standardized configu
 
 ```php
 'PluginName' => [
-    'migrationOrder' => 1,      // Database initialization order
-    'dependencies' => [],        // Optional: explicit dependencies
-    'conditional' => true,       // Optional: conditional loading
+    'migrationOrder' => 1,      // Database initialization order (domain plugins only)
 ],
 ```
 
@@ -141,17 +137,17 @@ Plugins are configured in `config/plugins.php` with comprehensive metadata:
 return [
     'Activities' => [
         'migrationOrder' => 1,
-        'description' => 'Activity authorization and participation tracking',
-        'category' => 'Core KMP Features',
-        'required' => true,
+    ],
+    'Officers' => [
+        'migrationOrder' => 2,
     ],
     'Awards' => [
-        'migrationOrder' => 2,
-        'description' => 'Award recommendation and ceremony management',
-        'category' => 'Core KMP Features',
-        'dependencies' => ['Activities'],
+        'migrationOrder' => 3,
     ],
-    // ... additional plugins
+    'Waivers' => [
+        'migrationOrder' => 4,
+    ],
+    // ... utility plugins (no migrationOrder)
 ];
 ```
 
@@ -167,7 +163,7 @@ if (env('DEBUG', false)) {
 
 // Feature flag loading
 if (StaticHelpers::getAppSetting('Plugin.Awards.Active', 'yes') === 'yes') {
-    $plugins['Awards'] = ['migrationOrder' => 2];
+    $plugins['Awards'] = ['migrationOrder' => 3];
 }
 ```
 
@@ -396,33 +392,33 @@ graph TB
 - **Dependencies**: None (base system)
 - **Integration**: Navigation, view cells, permission requirements
 
-#### Awards Plugin (`migrationOrder: 2`)
-- **Purpose**: Award recommendation and ceremony management
-- **Features**: Recommendation workflows, approval processes, ceremony planning
-- **Dependencies**: Activities (for some authorization workflows)
-- **Integration**: Kanban boards, approval workflows, court integration
-
-#### Officers Plugin (`migrationOrder: 3`)
+#### Officers Plugin (`migrationOrder: 2`)
 - **Purpose**: Officer roster and reporting chain management
 - **Features**: Officer appointments, reporting structures, event reporting
 - **Dependencies**: Activities (for event reporting integration)
 - **Integration**: Organizational charts, reporting workflows
 
+#### Awards Plugin (`migrationOrder: 3`)
+- **Purpose**: Award recommendation and ceremony management
+- **Features**: Recommendation workflows, approval processes, ceremony planning
+- **Dependencies**: Activities (for some authorization workflows)
+- **Integration**: Kanban boards, approval workflows, court integration
+
 ### Utility Plugins
 
-#### Queue Plugin (`migrationOrder: 10`)
+#### Queue Plugin
 - **Purpose**: Background job processing and bulk operations
 - **Features**: Job scheduling, progress tracking, error handling
 - **Dependencies**: Minimal (utility service)
 - **Integration**: Administrative dashboard, bulk operation triggers
 
-#### Bootstrap Plugin (`migrationOrder: 12`)
+#### Bootstrap Plugin
 - **Purpose**: UI framework and component library
 - **Features**: Responsive design, component helpers, styling consistency
 - **Dependencies**: None (presentation layer)
 - **Integration**: View helpers, component library, styling framework
 
-#### GitHubIssueSubmitter Plugin (`migrationOrder: 11`)
+#### GitHubIssueSubmitter Plugin
 - **Purpose**: External service integration for feedback collection
 - **Features**: Issue submission, feedback workflows, API integration
 - **Dependencies**: None (external service)
@@ -763,7 +759,7 @@ foreach ($timing as $provider => $duration) {
 
 - [CakePHP Plugin Development](https://book.cakephp.org/5/en/plugins.html)
 - [KMP Navigation System](./6-services.md#navigation-registry)
-- [KMP View Cell System](./6-ui-components.md#view-cells)
+- [KMP View Cell System](./9-ui-components.md#view-cells)
 - [KMP Authorization System](./4.4-rbac-security-architecture.md)
 - [KMP Configuration Management](./3-architecture.md#configuration-management)
 

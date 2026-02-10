@@ -110,6 +110,7 @@ Additional resources and references for KMP developers.
 
 ### Tools and Libraries
 
-- [Bootstrap 5 Documentation](https://getbootstrap.com/docs/5.0/) - UI framework used by KMP
-- [Font Awesome Icons](https://fontawesome.com/icons) - Icon library used in KMP
+- [Bootstrap 5.3 Documentation](https://getbootstrap.com/docs/5.3/) - UI framework used by KMP
+- [Font Awesome Icons](https://fontawesome.com/icons) - Icon library (via @fortawesome/fontawesome-free)
+- [Bootstrap Icons](https://icons.getbootstrap.com/) - Additional icon library used in KMP
 - [Laravel Mix Documentation](https://laravel-mix.com/) - Asset compilation tool

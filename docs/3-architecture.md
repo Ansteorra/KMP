@@ -39,7 +39,8 @@ app/
 │   ├── Bootstrap/      # UI components
 │   ├── GitHubIssueSubmitter/ # User feedback
 │   ├── Officers/       # Officers management
-│   └── Queue/          # Background processing
+│   ├── Queue/          # Background processing
+│   └── Waivers/        # Waiver management
 ├── templates/          # View templates
 └── tests/              # Test cases
 ```
@@ -153,6 +154,7 @@ graph TD
     PluginInterface --> Queue[Queue Plugin]
     PluginInterface --> GitHubIssue[GitHubIssueSubmitter]
     PluginInterface --> Bootstrap[Bootstrap UI]
+    PluginInterface --> Waivers[Waivers Plugin]
 ```
 
 
@@ -190,6 +192,9 @@ Plugins are registered in `config/plugins.php` and loaded in the `Application.ph
 ],
 'Awards' => [
     'migrationOrder' => 3,
+],
+'Waivers' => [
+    'migrationOrder' => 4,
 ],
 ```
 

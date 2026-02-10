@@ -114,11 +114,11 @@ $salt = env("SECURITY_SALT");              // Returns env value or throws error
 ### Generating a Security Salt
 
 ```bash
-# In the app directory
-bin/cake security generate_salt
+# Generate a random 64-character salt using OpenSSL
+php -r "echo bin2hex(random_bytes(32)) . PHP_EOL;"
 ```
 
-This command generates a cryptographically secure salt suitable for use as `SECURITY_SALT` in `.env`.
+This generates a cryptographically secure salt suitable for use as `SECURITY_SALT` in `.env`.
 
 ## 2.4 Debug Mode
 
@@ -249,7 +249,7 @@ Check that required environment variables are set before application startup to 
 The application cannot start without a security salt. Generate one with:
 
 ```bash
-bin/cake security generate_salt
+php -r "echo bin2hex(random_bytes(32)) . PHP_EOL;"
 ```
 
 Add to `.env`:

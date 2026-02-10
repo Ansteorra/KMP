@@ -31,7 +31,7 @@ Here's an example of a typical Stimulus controller:
 // app/assets/js/controllers/example-controller.js
 import { Controller } from "@hotwired/stimulus"
 
-export default class extends Controller {
+class ExampleController extends Controller {
   static targets = ["output"]
 
   connect() {
@@ -42,6 +42,12 @@ export default class extends Controller {
     this.outputTarget.textContent = "Hello, Stimulus!"
   }
 }
+
+// Register controller globally
+if (!window.Controllers) {
+    window.Controllers = {};
+}
+window.Controllers["example"] = ExampleController;
 ```
 
 In your HTML, you would connect this controller like this:
@@ -535,66 +541,6 @@ controller.setAttribute('data-modal-opener-modal-btn-value', 'hidden-modal-trigg
 - `tabBtnClicked(event)`: Handles tab clicks and updates URL state
 - `tabBtnTargetDisconnected(event)`: Cleanup event listeners
 
-#### Modal Opener Controller (`modal-opener-controller.js`)
-
-**Purpose:** Manages Bootstrap modal dialogs with dynamic content loading.
-
-*[This controller would need to be analyzed for full documentation]*
-
-#### Detail Tabs Controller (`detail-tabs-controller.js`)
-
-**Purpose:** Manages tabbed interfaces for detailed views with URL state management.
-
-**Features:**
-- URL-based tab state management
-- Browser history integration
-- Automatic first tab selection
-- Turbo frame reload integration
-- Scroll position management
-
-**Targets:**
-- `tabBtn`: Tab button elements
-- `tabContent`: Tab content areas
-
-**Values:**
-- `updateUrl`: Whether to update URL on tab changes (default: true)
-
-**Usage Example:**
-```html
-<div data-controller="detail-tabs" data-detail-tabs-update-url-value="true">
-    <ul class="nav nav-tabs">
-        <li class="nav-item">
-            <button class="nav-link" 
-                    id="nav-profile-tab"
-                    data-detail-tabs-target="tabBtn">
-                Profile
-            </button>
-        </li>
-        <li class="nav-item">
-            <button class="nav-link" 
-                    id="nav-history-tab"
-                    data-detail-tabs-target="tabBtn">
-                History
-            </button>
-        </li>
-    </ul>
-    <!-- Tab content areas -->
-    <div class="tab-content">
-        <turbo-frame id="profile-frame" data-detail-tabs-target="tabContent">
-            <!-- Profile content -->
-        </turbo-frame>
-        <turbo-frame id="history-frame" data-detail-tabs-target="tabContent">
-            <!-- History content -->
-        </turbo-frame>
-    </div>
-</div>
-```
-
-**Key Methods:**
-- `tabBtnTargetConnected(event)`: Sets up tab button and handles URL-based tab selection
-- `tabBtnClicked(event)`: Handles tab clicks and updates URL state
-- `tabBtnTargetDisconnected(event)`: Cleanup event listeners
-
 #### Guifier Controller (`guifier-controller.js`)
 
 **Purpose:** Integrates the Guifier library for dynamic form generation and JSON data editing.
@@ -861,50 +807,6 @@ controller.setAttribute('data-modal-opener-modal-btn-value', 'hidden-modal-trigg
 **Key Methods:**
 - `toggleParent(event)`: Enables/disables parent/guardian field
 - `toggleMembership(event)`: Enables/disables membership fields
-
-#### Modal Opener Controller (`modal-opener-controller.js`)
-
-**Purpose:** Programmatically opens Bootstrap modals based on value changes.
-
-**Features:**
-- Automatic modal triggering via value changes
-- Integration with Bootstrap modal system
-- Event-driven modal activation
-
-**Values:**
-- `modalBtn`: ID of modal button element to trigger
-
-**Usage Example:**
-```html
-<!-- Modal trigger controller -->
-<div data-controller="modal-opener" 
-     data-modal-opener-modal-btn-value="">
-    <!-- This controller watches for modalBtn value changes -->
-</div>
-
-<!-- Hidden modal trigger button -->
-<button id="hidden-modal-trigger" 
-        data-bs-toggle="modal" 
-        data-bs-target="#confirmModal" 
-        style="display: none;">
-</button>
-
-<!-- Modal -->
-<div class="modal fade" id="confirmModal">
-    <div class="modal-dialog">
-        <!-- Modal content -->
-    </div>
-</div>
-
-<script>
-// Trigger modal programmatically
-const controller = document.querySelector('[data-controller="modal-opener"]');
-controller.setAttribute('data-modal-opener-modal-btn-value', 'hidden-modal-trigger');
-</script>
-```
-
-**Key Methods:**
-- `modalBtnValueChanged()`: Automatically triggered when modalBtn value changes, clicks the specified modal button
 
 ### 10.5.6 Administrative Controllers
 

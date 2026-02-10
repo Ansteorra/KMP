@@ -111,8 +111,9 @@ If you need to manually reset the development environment:
 
 This script will:
 - Drop and recreate the development database
-- Apply all migrations
-- Load seed data for testing
+- Load seed data from `dev_seed_clean.sql`
+- Apply all pending migrations
+- Reset all member passwords to `TestPassword`
 
 ### Accessing the Application
 
@@ -262,14 +263,11 @@ These commands are executed within the container environment, ensuring consisten
 The development container includes additional scripts to simplify common tasks:
 
 ```bash
-# Reset development database
+# Reset development database (drops, reseeds, migrates, resets passwords)
 ./reset_dev_database.sh
 
 # Update from upstream repository
 ./merge_from_upstream.sh
-
-# Update seed data
-./update_seed_data.sh
 ```
 
 For more information on CakePHP basics, refer to the [CakePHP Documentation](https://book.cakephp.org/).
