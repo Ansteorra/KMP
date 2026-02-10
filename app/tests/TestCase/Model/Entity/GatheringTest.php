@@ -246,13 +246,16 @@ class GatheringTest extends BaseTestCase
      * Test is_multi_day with no timezone falls back to app default timezone
      *
      * When no timezone is set on a gathering, the TimezoneHelper falls back to
-     * the application's default timezone (typically America/Chicago).
+     * the application's default timezone.
      *
      * @return void
      */
     public function testIsMultiDayNoTimezoneFallsBackToAppDefault(): void
     {
-        // When no timezone is set, TimezoneHelper uses app default (America/Chicago)
+        // Temporarily set app default to America/Chicago to test fallback
+        $originalTz = \Cake\Core\Configure::read('App.defaultTimezone');
+        \Cake\Core\Configure::write('App.defaultTimezone', 'America/Chicago');
+
         // An event that spans midnight UTC but is same day in Central time
         $gathering = new Gathering([
             'name' => 'Event Without Timezone',
@@ -269,6 +272,9 @@ class GatheringTest extends BaseTestCase
             $gathering->is_multi_day,
             'Event with no timezone should use app default timezone for multi-day calculation'
         );
+
+        // Restore original timezone
+        \Cake\Core\Configure::write('App.defaultTimezone', $originalTz);
     }
 
     /**
