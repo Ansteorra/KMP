@@ -8,6 +8,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
 
     services:
       mariadb:
@@ -92,4 +95,19 @@ jobs:
         run: mysql -h 127.0.0.1 -u root -proot kmp_test < dev_seed_clean.sql
 
       - name: Run PHPUnit tests
-        run: cd app && vendor/bin/phpunit --testsuite all --no-coverage
+        run: cd app && vendor/bin/phpunit --testsuite all --no-coverage --log-junit ../test-results/junit.xml
+
+      - name: Upload test results
+        if: success() || failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phpunit-results
+          path: test-results/junit.xml
+
+      - name: Report test results
+        if: success() || failure()
+        uses: dorny/test-reporter@v1
+        with:
+          name: PHPUnit Test Results
+          path: test-results/junit.xml
+          reporter: java-junit
