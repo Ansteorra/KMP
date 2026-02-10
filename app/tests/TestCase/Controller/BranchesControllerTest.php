@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
 
-use App\Test\TestCase\BaseTestCase;
-use Cake\TestSuite\IntegrationTestTrait;
+use App\Test\TestCase\Support\HttpIntegrationTestCase;
 
-class BranchesControllerTest extends BaseTestCase
+class BranchesControllerTest extends HttpIntegrationTestCase
 {
-    use IntegrationTestTrait;
-    use SuperUserAuthenticatedTrait;
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->authenticateAsSuperUser();
+    }
 
     public function testIndex(): void
     {
@@ -84,11 +88,6 @@ class BranchesControllerTest extends BaseTestCase
         // Content assertions skipped; modal presence depends on permissions & dynamic blocks
     }
 
-    public function testEditPostCircularReferencePrevented(): void
-    {
-        $this->markTestSkipped('Complex tree mutation & circular reference scenarios tested at model level');
-    }
-
     public function testDeleteRequiresPost(): void
     {
         // Use a branch ID from seed data
@@ -107,8 +106,4 @@ class BranchesControllerTest extends BaseTestCase
         $this->assertResponseCode(404);
     }
 
-    public function testDeleteRootBranchSkipped(): void
-    {
-        $this->markTestSkipped('Root branch deletion is disallowed and tested indirectly via business rules');
-    }
 }

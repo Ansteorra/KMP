@@ -6,12 +6,12 @@ namespace App\Test\TestCase\Services;
 
 use App\Services\RetentionPolicyService;
 use Cake\I18n\Date;
-use Cake\TestSuite\TestCase;
+use App\Test\TestCase\BaseTestCase;
 
 /**
  * App\Services\RetentionPolicyService Test Case
  */
-class RetentionPolicyServiceTest extends TestCase
+class RetentionPolicyServiceTest extends BaseTestCase
 {
     /**
      * Test subject

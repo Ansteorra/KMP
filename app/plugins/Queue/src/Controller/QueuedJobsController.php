@@ -54,7 +54,7 @@ class QueuedJobsController extends AppController
 		if ($this->components()->has('Search')) {
 			return;
 		}
-		$this->loadComponent('Search.Search', [
+		$this->components()->load('Search.Search', [
 			'actions' => ['index'],
 		]);
 	}

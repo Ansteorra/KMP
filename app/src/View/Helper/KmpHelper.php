@@ -45,13 +45,17 @@ class KmpHelper extends Helper
         $view = $event->getSubject();
         assert($view instanceof AppView);
 
-        // Only store the main view once, and ignore error views
-        if (isset(self::$mainView) && $view->getTemplatePath() != 'Error') {
+        // Ignore error views
+        if ($view->getTemplatePath() == 'Error') {
             return;
         }
 
-        // Store reference to main view for block management
-        self::$mainView = $view;
+        // Update mainView when a new request context begins (new HTTP request
+        // or new test run). Cell views share the same request as their parent,
+        // so they won't overwrite the main view within a single request.
+        if (!isset(self::$mainView) || self::$mainView->getRequest() !== $view->getRequest()) {
+            self::$mainView = $view;
+        }
     }
 
     /**

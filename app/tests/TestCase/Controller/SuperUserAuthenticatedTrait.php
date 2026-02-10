@@ -8,27 +8,12 @@ use Cake\TestSuite\IntegrationTestTrait;
 
 /**
  * SuperUserAuthenticatedTrait
- * 
- * A trait that sets up tests with test super user authentication.
- * This provides full system access for tests, solving permission issues.
- * 
- * Use this trait in your test classes to automatically authenticate
- * as the test super user before each test runs.
- * 
- * Example:
- * ```php
- * class MyControllerTest extends TestCase
- * {
- *     use SuperUserAuthenticatedTrait;
- *     
- *     public function testSomething(): void
- *     {
- *         // Already authenticated as test super user
- *         $this->get('/protected/route');
- *         $this->assertResponseOk();
- *     }
- * }
- * ```
+ *
+ * @deprecated Use TestAuthenticationHelper (via HttpIntegrationTestCase) instead.
+ *   This trait writes to the database and is incompatible with transaction rollback.
+ *   Extend HttpIntegrationTestCase and call $this->authenticateAsSuperUser() instead.
+ * @see \App\Test\TestCase\TestAuthenticationHelper
+ * @see \App\Test\TestCase\Support\HttpIntegrationTestCase
  */
 trait SuperUserAuthenticatedTrait
 {

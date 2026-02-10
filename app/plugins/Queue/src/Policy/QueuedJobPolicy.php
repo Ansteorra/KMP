@@ -7,7 +7,7 @@ use App\Policy\BasePolicy;
 use App\Model\Entity\BaseEntity;
 
 /**
- * Department policy
+ * QueuedJob policy
  */
 class QueuedJobPolicy extends BasePolicy
 {
@@ -66,6 +66,14 @@ class QueuedJobPolicy extends BasePolicy
         $method = __FUNCTION__;
         return $this->_hasPolicy($user, $method, $entity);
     }
+    /**
+     * Check if $user can reset a job
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user
+     * @param \App\Model\Entity\BaseEntity $entity The entity
+     * @param mixed ...$optionalArgs Optional arguments
+     * @return bool
+     */
     public function canReset(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs)
     {
         $method = __FUNCTION__;

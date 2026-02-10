@@ -27,8 +27,12 @@ class TestMailer extends Mailer
      */
     public function testAction($debugData): void
     {
+        ob_start();
+        var_dump($debugData);
+        $output = ob_get_clean();
+
         $this->debug = [
-            'message' => var_export($debugData, true),
+            'message' => $output,
         ];
     }
 

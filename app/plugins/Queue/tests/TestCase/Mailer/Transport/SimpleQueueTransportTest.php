@@ -15,6 +15,13 @@ class SimpleQueueTransportTest extends TestCase
 {
 
 	/**
+	 * @var array<string>
+	 */
+	protected array $fixtures = [
+		'plugin.Queue.QueuedJobs',
+	];
+
+	/**
 	 * @var \Queue\Mailer\Transport\SimpleQueueTransport
 	 */
 	protected $QueueTransport;
@@ -27,6 +34,11 @@ class SimpleQueueTransportTest extends TestCase
 	public function setUp(): void
 	{
 		parent::setUp();
+
+		if (!\Cake\Mailer\TransportFactory::getConfig('queue')) {
+			\Cake\Mailer\TransportFactory::setConfig('queue', ['className' => SimpleQueueTransport::class]);
+		}
+
 		$this->QueueTransport = new SimpleQueueTransport();
 	}
 

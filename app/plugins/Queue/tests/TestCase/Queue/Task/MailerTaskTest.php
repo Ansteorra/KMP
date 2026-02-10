@@ -43,11 +43,25 @@ class MailerTaskTest extends TestCase
 	{
 		parent::setUp();
 
+		\Cake\Mailer\TransportFactory::drop('default');
+		\Cake\Mailer\TransportFactory::setConfig('default', ['className' => 'Debug']);
+
 		$this->out = new ConsoleOutput();
 		$this->err = new ConsoleOutput();
 		$io = new Io(new ConsoleIo($this->out, $this->err));
 
 		$this->Task = new MailerTask($io);
+	}
+
+	/**
+	 * @return void
+	 */
+	public function tearDown(): void
+	{
+		parent::tearDown();
+
+		\Cake\Mailer\TransportFactory::drop('default');
+		\Cake\Mailer\TransportFactory::setConfig('default', ['className' => 'Smtp', 'host' => 'localhost', 'port' => 25]);
 	}
 
 	/**

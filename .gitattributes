@@ -1,3 +1,8 @@
 
 # Use bd merge for beads JSONL files
 .beads/issues.jsonl merge=beads
+# Squad: union merge for append-only team state files
+.ai-team/decisions.md merge=union
+.ai-team/agents/*/history.md merge=union
+.ai-team/log/** merge=union
+.ai-team/orchestration-log/** merge=union

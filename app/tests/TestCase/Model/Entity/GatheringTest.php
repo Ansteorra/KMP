@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Model\Entity;
 
 use App\Model\Entity\Gathering;
-use Cake\TestSuite\TestCase;
+use App\Test\TestCase\BaseTestCase;
 
 /**
  * App\Model\Entity\Gathering Test Case
  *
  * Tests entity validation rules and virtual fields.
  */
-class GatheringTest extends TestCase
+class GatheringTest extends BaseTestCase
 {
     /**
      * Test subject

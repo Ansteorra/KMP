@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Controller;
 
 use App\Model\Entity\Member;
-use App\Test\TestCase\BaseTestCase;
-use App\Test\TestCase\Controller\SuperUserAuthenticatedTrait;
-use Cake\TestSuite\IntegrationTestTrait;
+use App\Test\TestCase\Support\HttpIntegrationTestCase;
 
 /**
  * MembersController Test Case
@@ -21,10 +19,15 @@ use Cake\TestSuite\IntegrationTestTrait;
  *
  * @uses \App\Controller\MembersController
  */
-class MembersControllerTest extends BaseTestCase
+class MembersControllerTest extends HttpIntegrationTestCase
 {
-    use IntegrationTestTrait;
-    use SuperUserAuthenticatedTrait;
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->authenticateAsSuperUser();
+    }
 
     /**
      * Test index method displays member list
@@ -191,15 +194,36 @@ class MembersControllerTest extends BaseTestCase
     /**
      * Test add method creates new member with valid data
      *
-     * NOTE: Skipped due to IntegrationTestTrait transaction isolation limitations.
-     * The member is created successfully but rolled back before assertion can verify.
-     * This functionality is tested in MembersTableTest.
-     *
      * @return void
      */
     public function testAddPostWithValidData(): void
     {
-        $this->markTestSkipped('IntegrationTestTrait transaction isolation prevents verification of created records');
+        // Branch must have can_have_members=1; KINGDOM_BRANCH_ID (2) does not
+        $branch = $this->getTableLocator()->get('Branches')
+            ->find()
+            ->where(['can_have_members' => true])
+            ->first();
+        $this->assertNotNull($branch, 'Need a branch that allows members');
+
+        $data = [
+            'sca_name' => 'Test Add Member',
+            'email_address' => 'testadd_' . time() . '@example.com',
+            'password' => 'placeholder_password',
+            'first_name' => 'Test',
+            'last_name' => 'AddMember',
+            'street_address' => '123 Test St',
+            'city' => 'Testville',
+            'state' => 'TX',
+            'zip' => '75001',
+            'phone_number' => '555-555-5555',
+            'birth_month' => 1,
+            'birth_year' => 1990,
+            'branch_id' => $branch->id,
+        ];
+
+        $this->post('/members/add', $data);
+
+        $this->assertRedirectContains('/members/view/');
     }
 
     /**
@@ -245,30 +269,19 @@ class MembersControllerTest extends BaseTestCase
     }
 
     /**
-     * Test edit method without POST data
-     * Edit functionality is handled via the view page with modals
-     *
-     * @return void
-     */
-    public function testEditGet(): void
-    {
-        // Edit GET is not a valid route - edit is POST-only
-        // Skip this test as it's testing invalid behavior
-        $this->markTestSkipped('Edit does not support GET requests - edit is POST-only');
-    }
-
-    /**
      * Test edit method updates member with valid data
-     *
-     * NOTE: Skipped due to IntegrationTestTrait transaction isolation limitations.
-     * Creating test members within integration tests fails due to foreign key constraints
-     * when transaction isolation is active. This functionality is tested in MembersTableTest.
      *
      * @return void
      */
     public function testEditPostWithValidData(): void
     {
-        $this->markTestSkipped('IntegrationTestTrait transaction isolation prevents creating test members');
+        $data = [
+            'sca_name' => 'Admin von Admin Updated',
+        ];
+
+        $this->post('/members/edit/' . self::ADMIN_MEMBER_ID, $data);
+
+        $this->assertRedirectContains('/members/view/' . self::ADMIN_MEMBER_ID);
     }
 
     /**
@@ -286,15 +299,13 @@ class MembersControllerTest extends BaseTestCase
     /**
      * Test delete method removes member
      *
-     * NOTE: Skipped due to IntegrationTestTrait transaction isolation limitations.
-     * Creating test members within integration tests fails due to foreign key constraints
-     * when transaction isolation is active. This functionality is tested in MembersTableTest.
-     *
      * @return void
      */
     public function testDelete(): void
     {
-        $this->markTestSkipped('IntegrationTestTrait transaction isolation prevents creating test members');
+        $this->post('/members/delete/' . self::TEST_MEMBER_AGATHA_ID);
+
+        $this->assertRedirectContains('/members');
     }
 
     /**
@@ -346,7 +357,10 @@ class MembersControllerTest extends BaseTestCase
      */
     public function testAutoComplete(): void
     {
-        $this->markTestSkipped('autoComplete response format needs investigation - returns non-JSON response');
+        $this->get('/members/autoComplete?q=admin');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('list-group-item');
     }
 
     /**
@@ -395,30 +409,5 @@ class MembersControllerTest extends BaseTestCase
 
         $response = json_decode((string)$this->_response->getBody(), true);
         $this->assertFalse($response);
-    }
-
-    /**
-     * Test transaction isolation - changes roll back
-     *
-     * NOTE: Skipped due to IntegrationTestTrait transaction isolation limitations.
-     * Creating test members within integration tests fails due to foreign key constraints
-     * when transaction isolation is active. Transaction isolation is tested in BaseTestCaseTest.
-     *
-     * @return void
-     */
-    public function testTransactionIsolation(): void
-    {
-        $this->markTestSkipped('IntegrationTestTrait transaction isolation prevents creating test members');
-    }
-
-    /**
-     * Test that previous test's member doesn't exist (verifying rollback)
-     *
-     * @depends testTransactionIsolation
-     * @return void
-     */
-    public function testTransactionRollback(): void
-    {
-        $this->markTestSkipped('Depends on testTransactionIsolation which is skipped');
     }
 }

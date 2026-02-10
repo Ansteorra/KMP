@@ -21,6 +21,14 @@ class ProcessorTest extends TestCase
 	use TestTrait;
 
 	/**
+	 * @var array<string>
+	 */
+	protected array $fixtures = [
+		'plugin.Queue.QueuedJobs',
+		'plugin.Queue.QueueProcesses',
+	];
+
+	/**
 	 * @var \Queue\Queue\Processor
 	 */
 	protected $Processor;

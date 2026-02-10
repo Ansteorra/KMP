@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Model\Table;
 
 use App\Model\Table\GatheringStaffTable;
-use Cake\TestSuite\TestCase;
+use App\Test\TestCase\BaseTestCase;
 
 /**
  * App\Model\Table\GatheringStaffTable Test Case
  */
-class GatheringStaffTableTest extends TestCase
+class GatheringStaffTableTest extends BaseTestCase
 {
     /**
      * Test subject

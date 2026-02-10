@@ -19,13 +19,18 @@ class JobCommandTest extends TestCase
 	use ConsoleIntegrationTestTrait;
 
 	/**
+	 * @var array<string>
+	 */
+	protected array $fixtures = [
+		'plugin.Queue.QueuedJobs',
+	];
+
+	/**
 	 * @return void
 	 */
 	public function setUp(): void
 	{
 		parent::setUp();
-
-		$this->loadPlugins(['Queue']);
 
 		Configure::write('Queue.cleanuptimeout', 10);
 	}

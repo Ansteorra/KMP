@@ -6,13 +6,13 @@ namespace App\Test\TestCase\View\Helper;
 
 use App\View\Helper\KmpHelper;
 use App\Model\Entity\Member;
-use Cake\TestSuite\TestCase;
+use App\Test\TestCase\BaseTestCase;
 use Cake\View\View;
 
 /**
  * App\View\Helper\KmpHelper Test Case
  */
-class KmpHelperTest extends TestCase
+class KmpHelperTest extends BaseTestCase
 {
     /**
      * Test subject

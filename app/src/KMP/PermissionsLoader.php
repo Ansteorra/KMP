@@ -341,6 +341,8 @@ class PermissionsLoader
                     'MemberRoles.expires_on IS ' => null,      // Permanent role assignment
                     'MemberRoles.expires_on >' => DateTime::now(), // Or hasn't expired
                 ],
+                // Revocation Check - exclude explicitly revoked roles
+                'MemberRoles.revoker_id IS' => null,
             ])
 
             // 4. Conditional Membership Status Validation

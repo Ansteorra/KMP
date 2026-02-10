@@ -90,3 +90,11 @@ The `text` column + `setColumnType('json')` in `initialize()` is correct for Mar
 📌 Team update (2026-02-10): Queue plugin code review complete — 22 issues found (2 P0 security, 10 P1, 10 P2). Full findings in decisions/inbox/kaylee-queue-code-review.md. Key: command injection in terminateProcess(), broken getFailedStatus(), cleanOldJobs timestamp bug. — decided by Kaylee
 
 📌 Team update (2026-02-10): Queue plugin ownership review — decided to own the plugin, security issues found, test triage complete
+
+### 2026-02-10: Queue Plugin Security & Code Quality Fixes
+
+Fixed 18 issues across Queue plugin production code:
+- **P0 Security:** Deleted ExecuteTask.php (arbitrary exec), deleted 8 example tasks (demo code in prod), fixed command injection in terminateProcess() (numeric validation + int cast), hardened open redirect in refererRedirect() (backslash check)
+- **P1 Code:** Fixed cleanOldJobs() timestamp (DateTime instead of time()), fixed getFailedStatus() wrong prefix, fixed configVersion not persisted, fixed QueueProcessesController auth context ("migrate"→"index"), added logging for markJobDone/Failed silent failures, added class_exists guard for Shim in JsonableBehavior, replaced deprecated loadComponent(), replaced deprecated TableRegistry in migration with raw SQL
+- **P2 Quick Wins:** Fixed policy docblock, added canReset() docblock, added explicit getBranchId() to Queue entities, improved worker key entropy (random_bytes), replaced declare(ticks=1) with pcntl_async_signals, removed broken clearDoublettes()
+- All core tests pass (183 unit, 99 feature)

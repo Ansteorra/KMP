@@ -37,6 +37,16 @@ class QueuedJob extends BaseEntity
 	];
 
 	/**
+	 * Queue jobs are not branch-scoped.
+	 *
+	 * @return int|null
+	 */
+	public function getBranchId(): ?int
+	{
+		return null;
+	}
+
+	/**
 	 * @return string[]
 	 */
 	public static function statusesForSearch(): array

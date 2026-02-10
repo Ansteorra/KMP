@@ -75,7 +75,9 @@ class JsonableBehavior extends Behavior {
 			$this->_config['encodeParams']['options'] = $options;
 		}
 
-		TypeFactory::map('array', ArrayType::class);
+		if (class_exists(ArrayType::class)) {
+			TypeFactory::map('array', ArrayType::class);
+		}
 	}
 
 	/**

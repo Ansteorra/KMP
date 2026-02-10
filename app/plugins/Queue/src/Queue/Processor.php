@@ -20,8 +20,6 @@ use Queue\Model\Table\QueueProcessesTable;
 use RuntimeException;
 use Throwable;
 
-declare(ticks=1);
-
 /**
  * Main shell to init and run queue workers.
  */
@@ -116,6 +114,7 @@ class Processor {
 			gc_enable();
 		}
 		if (function_exists('pcntl_signal')) {
+			pcntl_async_signals(true);
 			pcntl_signal(SIGTERM, [&$this, 'exit']);
 			pcntl_signal(SIGINT, [&$this, 'abort']);
 			pcntl_signal(SIGTSTP, [&$this, 'abort']);

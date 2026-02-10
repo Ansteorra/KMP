@@ -16,7 +16,7 @@ use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 use Cake\TestSuite\TestCase;
 use Queue\Model\Table\QueuedJobsTable;
-use Queue\Queue\Task\ExampleTask;
+use Queue\Queue\Task\EmailTask;
 use TestApp\Dto\MyTaskDto;
 
 /**
@@ -24,6 +24,13 @@ use TestApp\Dto\MyTaskDto;
  */
 class QueuedJobsTableTest extends TestCase
 {
+
+	/**
+	 * @var array<string>
+	 */
+	protected array $fixtures = [
+		'plugin.Queue.QueuedJobs',
+	];
 
 	/**
 	 * @var \Queue\Model\Table\QueuedJobsTable
@@ -38,6 +45,8 @@ class QueuedJobsTableTest extends TestCase
 	public function setUp(): void
 	{
 		parent::setUp();
+
+		Configure::write('Queue.skipExistenceCheck', true);
 
 		$config = TableRegistry::getTableLocator()->exists('QueuedJobs') ? [] : ['className' => QueuedJobsTable::class];
 		$this->QueuedJobs = $this->getTableLocator()->get('QueuedJobs', $config);
@@ -83,15 +92,15 @@ class QueuedJobsTableTest extends TestCase
 		$this->assertSame(1, $this->QueuedJobs->getLength());
 
 		//create some more jobs
-		$this->assertTrue((bool)$this->QueuedJobs->createJob('Queue.Example', [
+		$this->assertTrue((bool)$this->QueuedJobs->createJob('Queue.Email', [
 			'some' => 'random',
 			'test' => 'data2',
 		]));
-		$this->assertTrue((bool)$this->QueuedJobs->createJob('Queue.Example', [
+		$this->assertTrue((bool)$this->QueuedJobs->createJob('Queue.Email', [
 			'some' => 'random',
 			'test' => 'data3',
 		]));
-		$this->assertTrue((bool)$this->QueuedJobs->createJob('Queue.ExceptionExample', [
+		$this->assertTrue((bool)$this->QueuedJobs->createJob('Queue.Mailer', [
 			'some' => 'random',
 			'test' => 'data4',
 		]));
@@ -99,10 +108,10 @@ class QueuedJobsTableTest extends TestCase
 		//overall queueLength should now be 4
 		$this->assertSame(4, $this->QueuedJobs->getLength());
 
-		// there should be 1 task of type 'Foo', one of type 'Queue.ExceptionExample' and 2 of type 'Queue.Example'
+		// there should be 1 task of type 'Foo', one of type 'Queue.Mailer' and 2 of type 'Queue.Email'
 		$this->assertSame(1, $this->QueuedJobs->getLength('Foo'));
-		$this->assertSame(2, $this->QueuedJobs->getLength('Queue.Example'));
-		$this->assertSame(1, $this->QueuedJobs->getLength('Queue.ExceptionExample'));
+		$this->assertSame(2, $this->QueuedJobs->getLength('Queue.Email'));
+		$this->assertSame(1, $this->QueuedJobs->getLength('Queue.Mailer'));
 	}
 
 	/**
@@ -204,12 +213,12 @@ class QueuedJobsTableTest extends TestCase
 	 */
 	public function testCreateWithFqcn()
 	{
-		$queuedJob = $this->QueuedJobs->createJob(ExampleTask::class, [
+		$queuedJob = $this->QueuedJobs->createJob(EmailTask::class, [
 			'some' => 'random',
 			'test' => 'data',
 		]);
 		$this->assertTrue((bool)$queuedJob);
-		$this->assertSame(ExampleTask::taskName(), $queuedJob->job_task);
+		$this->assertSame(EmailTask::taskName(), $queuedJob->job_task);
 	}
 
 	/**
@@ -239,7 +248,7 @@ class QueuedJobsTableTest extends TestCase
 		];
 		$dto = new MyTaskDto($array);
 
-		$queuedJob = $this->QueuedJobs->createJob(ExampleTask::class, $dto);
+		$queuedJob = $this->QueuedJobs->createJob(EmailTask::class, $dto);
 		$this->assertTrue((bool)$queuedJob);
 		$this->assertSame($array, $queuedJob->data);
 	}
@@ -266,7 +275,7 @@ class QueuedJobsTableTest extends TestCase
 			}
 		};
 
-		$queuedJob = $this->QueuedJobs->createJob(ExampleTask::class, $dto);
+		$queuedJob = $this->QueuedJobs->createJob(EmailTask::class, $dto);
 		$this->assertTrue((bool)$queuedJob);
 		$this->assertSame($array, $queuedJob->data);
 	}
@@ -360,8 +369,8 @@ class QueuedJobsTableTest extends TestCase
 				'costs' => 0,
 				'unique' => false,
 			],
-			'Queue.Example' => [
-				'name' => 'Queue.Example',
+			'Queue.Email' => [
+				'name' => 'Queue.Email',
 				'timeout' => 100,
 				'retries' => 2,
 				'rate' => 0,
@@ -369,8 +378,8 @@ class QueuedJobsTableTest extends TestCase
 				'unique' => false,
 			],
 		];
-		$this->assertTrue((bool)$this->QueuedJobs->createJob('Queue.Example'));
-		$this->assertTrue((bool)$this->QueuedJobs->createJob('Queue.Example'));
+		$this->assertTrue((bool)$this->QueuedJobs->createJob('Queue.Email'));
+		$this->assertTrue((bool)$this->QueuedJobs->createJob('Queue.Email'));
 		// create a task with it's execution target some seconds in the past, so it should jump to the top of the list.
 		$this->assertTrue((bool)$this->QueuedJobs->createJob('Foo', ['three'], ['notBefore' => '- 3 Seconds']));
 		$this->assertTrue((bool)$this->QueuedJobs->createJob('Foo', ['two'], ['notBefore' => '- 5 Seconds']));
@@ -391,11 +400,11 @@ class QueuedJobsTableTest extends TestCase
 				'data' => ['three'],
 			],
 			[
-				'name' => 'Queue.Example',
+				'name' => 'Queue.Email',
 				'data' => null,
 			],
 			[
-				'name' => 'Queue.Example',
+				'name' => 'Queue.Email',
 				'data' => null,
 			],
 		];
@@ -438,8 +447,8 @@ class QueuedJobsTableTest extends TestCase
 				'costs' => 0,
 				'unique' => false,
 			],
-			'Queue.Example' => [
-				'name' => 'Queue.Example',
+			'Queue.Email' => [
+				'name' => 'Queue.Email',
 				'timeout' => 101,
 				'retries' => 2,
 				'costs' => 0,
@@ -456,10 +465,10 @@ class QueuedJobsTableTest extends TestCase
 		$this->assertTrue((bool)$this->QueuedJobs->createJob('Foo', $data2));
 		$data3 = ['key' => 3];
 		$this->assertTrue((bool)$this->QueuedJobs->createJob('Foo', $data3));
-		$this->assertTrue((bool)$this->QueuedJobs->createJob('Queue.Example'));
-		$this->assertTrue((bool)$this->QueuedJobs->createJob('Queue.Example'));
-		$this->assertTrue((bool)$this->QueuedJobs->createJob('Queue.Example'));
-		$this->assertTrue((bool)$this->QueuedJobs->createJob('Queue.Example'));
+		$this->assertTrue((bool)$this->QueuedJobs->createJob('Queue.Email'));
+		$this->assertTrue((bool)$this->QueuedJobs->createJob('Queue.Email'));
+		$this->assertTrue((bool)$this->QueuedJobs->createJob('Queue.Email'));
+		$this->assertTrue((bool)$this->QueuedJobs->createJob('Queue.Email'));
 
 		//At first we get Foo-1.
 		$this->QueuedJobs->clearKey();
@@ -467,17 +476,17 @@ class QueuedJobsTableTest extends TestCase
 		$this->assertSame('Foo', $tmp['job_task']);
 		$this->assertSame($data1, $tmp['data']);
 
-		//The rate limit should now skip over Foo-2 and fetch a Queue.Example.
+		//The rate limit should now skip over Foo-2 and fetch a Queue.Email.
 		$this->QueuedJobs->clearKey();
 		$tmp = $this->QueuedJobs->requestJob($capabilities);
-		$this->assertSame('Queue.Example', $tmp['job_task']);
+		$this->assertSame('Queue.Email', $tmp['job_task']);
 		$this->assertNull($tmp['data']);
 
 		usleep(100000);
 		//and again.
 		$this->QueuedJobs->clearKey();
 		$tmp = $this->QueuedJobs->requestJob($capabilities);
-		$this->assertSame('Queue.Example', $tmp['job_task']);
+		$this->assertSame('Queue.Email', $tmp['job_task']);
 		$this->assertNull($tmp['data']);
 
 		//Then some time passes
@@ -489,10 +498,10 @@ class QueuedJobsTableTest extends TestCase
 		$this->assertSame('Foo', $tmp['job_task']);
 		$this->assertSame($data2, $tmp['data']);
 
-		//and again rate limit to Queue.Example.
+		//and again rate limit to Queue.Email.
 		$this->QueuedJobs->clearKey();
 		$tmp = $this->QueuedJobs->requestJob($capabilities);
-		$this->assertSame('Queue.Example', $tmp['job_task']);
+		$this->assertSame('Queue.Email', $tmp['job_task']);
 		$this->assertNull($tmp['data']);
 
 		//Then some more time passes
@@ -504,10 +513,10 @@ class QueuedJobsTableTest extends TestCase
 		$this->assertSame('Foo', $tmp['job_task']);
 		$this->assertSame($data3, $tmp['data']);
 
-		//and again rate limit to Queue.Example.
+		//and again rate limit to Queue.Email.
 		$this->QueuedJobs->clearKey();
 		$tmp = $this->QueuedJobs->requestJob($capabilities);
-		$this->assertSame('Queue.Example', $tmp['job_task']);
+		$this->assertSame('Queue.Email', $tmp['job_task']);
 		$this->assertNull($tmp['data']);
 
 		//and now the queue is empty

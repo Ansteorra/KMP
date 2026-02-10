@@ -1,0 +1,56 @@
+name: PHPUnit Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      mariadb:
+        image: mariadb:10
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: kmp_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, intl, pdo_mysql, gd
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: cd app && composer install --no-interaction --prefer-dist
+
+      - name: Create test .env
+        run: |
+          printf "%s\n" \
+            "export MYSQL_USERNAME='root'" \
+            "export MYSQL_PASSWORD='root'" \
+            "export MYSQL_DB_NAME='kmp'" \
+            "export EMAIL_SMTP_HOST='localhost'" \
+            "export EMAIL_SMTP_PORT='1025'" \
+            "export EMAIL_SMTP_USERNAME=''" \
+            "export EMAIL_SMTP_PASSWORD=''" \
+            > app/config/.env
+
+      - name: Import seed data
+        run: mysql -h 127.0.0.1 -u root -proot kmp_test < dev_seed_clean.sql
+
+      - name: Run PHPUnit tests
+        run: cd app && vendor/bin/phpunit --testsuite all --no-coverage

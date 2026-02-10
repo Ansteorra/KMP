@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Officers\Test\TestCase\Controller;
 
-use App\Test\TestCase\BaseTestCase;
-use App\Test\TestCase\Controller\AuthenticatedTrait;
+use App\Services\ServiceResult;
+use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
-use Cake\TestSuite\IntegrationTestTrait;
 use Officers\Model\Entity\Officer;
+use Officers\Services\OfficerManagerInterface;
 
 /**
  * Officers\Controller\OfficesController Test Case
@@ -19,10 +19,8 @@ use Officers\Model\Entity\Officer;
  *
  * @uses \Officers\Controller\OfficesController
  */
-class OfficesControllerTest extends BaseTestCase
+class OfficesControllerTest extends HttpIntegrationTestCase
 {
-    use IntegrationTestTrait;
-    use AuthenticatedTrait;
 
     /**
      * Offices table
@@ -53,6 +51,9 @@ class OfficesControllerTest extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->authenticateAsSuperUser();
 
         $this->Offices = TableRegistry::getTableLocator()->get('Officers.Offices');
         $this->Officers = TableRegistry::getTableLocator()->get('Officers.Officers');
@@ -129,8 +130,7 @@ class OfficesControllerTest extends BaseTestCase
         $this->assertRedirect(['controller' => 'Offices', 'action' => 'view', $office->id]);
 
         // Assert flash message indicates officers were updated
-        $session = $this->_requestSession;
-        $flashMessages = $session->read('Flash.flash');
+        $flashMessages = $_SESSION['Flash']['flash'] ?? null;
         $this->assertNotEmpty($flashMessages, 'Should have flash message');
         $this->assertStringContainsString('officer', $flashMessages[0]['message'], 'Flash message should mention officers');
 
@@ -288,7 +288,6 @@ class OfficesControllerTest extends BaseTestCase
 
         // Create a member role
         $memberRole = $this->MemberRoles->newEntity([
-            'member_id' => self::ADMIN_MEMBER_ID,
             'role_id' => self::ADMIN_ROLE_ID,
             'start_on' => DateTime::now()->subDays(30),
             'expires_on' => DateTime::now()->addMonths(6),
@@ -297,6 +296,7 @@ class OfficesControllerTest extends BaseTestCase
             'entity_type' => 'Officers.Officers',
             'branch_id' => self::KINGDOM_BRANCH_ID,
         ]);
+        $memberRole->member_id = self::ADMIN_MEMBER_ID;
         $this->MemberRoles->save($memberRole);
 
         // Create a current officer with the role
@@ -388,8 +388,7 @@ class OfficesControllerTest extends BaseTestCase
         $this->assertRedirect(['controller' => 'Offices', 'action' => 'view', $office->id]);
 
         // Assert flash message is standard success (no officer mention)
-        $session = $this->_requestSession;
-        $flashMessages = $session->read('Flash.flash');
+        $flashMessages = $_SESSION['Flash']['flash'] ?? null;
         $this->assertNotEmpty($flashMessages, 'Should have flash message');
         $this->assertEquals('The office has been saved.', $flashMessages[0]['message'], 'Should have standard message');
     }
@@ -404,9 +403,46 @@ class OfficesControllerTest extends BaseTestCase
      */
     public function testEditOfficeTransactionRollbackOnRecalculationFailure(): void
     {
-        // This test would require mocking the OfficerManagerInterface to simulate a failure
-        // For now, we'll mark it as a placeholder for future implementation
-        $this->markTestIncomplete('Requires service mocking to simulate recalculation failure');
+        // Mock OfficerManagerInterface to return failure from recalculate
+        $this->mockService(OfficerManagerInterface::class, function () {
+            $mock = $this->createMock(OfficerManagerInterface::class);
+            $mock->method('recalculateOfficersForOffice')
+                ->willReturn(new ServiceResult(false, 'Simulated recalculation failure'));
+            return $mock;
+        });
+
+        // Use existing seed office (ID 1 = Crown) to avoid nested transaction issues
+        $office = $this->Offices->get(1);
+        $originalReportsToId = $office->reports_to_id;
+
+        // Pick a different reports_to_id to trigger recalculation
+        $newReportsToId = ($originalReportsToId === 2) ? 3 : 2;
+
+        // Edit the office to change reports_to_id (triggers recalculation)
+        $data = [
+            'name' => $office->name,
+            'department_id' => $office->department_id,
+            'reports_to_id' => $newReportsToId,
+            'term_length' => $office->term_length,
+            'requires_warrant' => $office->requires_warrant,
+            'can_skip_report' => $office->can_skip_report,
+            'only_one_per_branch' => $office->only_one_per_branch,
+            'branch_types' => $office->branch_types,
+        ];
+
+        $this->post("/officers/offices/edit/{$office->id}", $data);
+
+        // Should redirect with error
+        $this->assertRedirect(['controller' => 'Offices', 'action' => 'view', $office->id]);
+
+        // Flash message should contain the failure reason
+        $flashMessages = $_SESSION['Flash']['flash'] ?? null;
+        $this->assertNotEmpty($flashMessages, 'Should have flash message');
+        $this->assertStringContainsString('Simulated recalculation failure', $flashMessages[0]['message']);
+
+        // Office should NOT have been changed (transaction rolled back)
+        $unchangedOffice = $this->Offices->get($office->id);
+        $this->assertEquals($originalReportsToId, $unchangedOffice->reports_to_id, 'Office should be unchanged after rollback');
     }
 
     /**
@@ -476,8 +512,7 @@ class OfficesControllerTest extends BaseTestCase
         $this->post("/officers/offices/edit/{$office->id}", $data);
 
         // Assert flash message mentions both current and upcoming
-        $session = $this->_requestSession;
-        $flashMessages = $session->read('Flash.flash');
+        $flashMessages = $_SESSION['Flash']['flash'] ?? null;
         $this->assertNotEmpty($flashMessages, 'Should have flash message');
         $this->assertStringContainsString('current', $flashMessages[0]['message'], 'Should mention current officers');
         $this->assertStringContainsString('upcoming', $flashMessages[0]['message'], 'Should mention upcoming officers');

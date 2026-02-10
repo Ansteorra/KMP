@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Queue\Test\TestCase\Controller\Admin;
 
+use App\Test\TestCase\TestAuthenticationHelper;
 use Cake\Datasource\ConnectionManager;
 use Cake\Http\ServerRequest;
 use Cake\I18n\DateTime;
@@ -13,12 +14,21 @@ use Shim\TestSuite\TestCase;
 use Tools\I18n\DateTime as ToolsDateTime;
 
 /**
- * @uses \Queue\Controller\Admin\QueueController
+ * @uses \Queue\Controller\QueueController
  */
 class QueueControllerTest extends TestCase
 {
 
 	use IntegrationTestTrait;
+	use TestAuthenticationHelper;
+
+	/**
+	 * @var array<string>
+	 */
+	protected array $fixtures = [
+		'plugin.Queue.QueuedJobs',
+		'plugin.Queue.QueueProcesses',
+	];
 
 	/**
 	 * @return void
@@ -27,9 +37,10 @@ class QueueControllerTest extends TestCase
 	{
 		parent::setUp();
 
-		$this->loadPlugins(['Queue']);
-
 		$this->disableErrorHandlerMiddleware();
+		$this->authenticateAsSuperUser();
+		$this->enableCsrfToken();
+		$this->enableSecurityToken();
 	}
 
 	/**
@@ -52,7 +63,7 @@ class QueueControllerTest extends TestCase
 	 */
 	public function testIndex()
 	{
-		$this->get(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'Queue', 'action' => 'index']);
+		$this->get(['plugin' => 'Queue', 'controller' => 'Queue', 'action' => 'index']);
 
 		$this->assertResponseCode(200);
 	}
@@ -62,7 +73,7 @@ class QueueControllerTest extends TestCase
 	 */
 	public function testProcesses()
 	{
-		$this->get(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'Queue', 'action' => 'processes']);
+		$this->get(['plugin' => 'Queue', 'controller' => 'Queue', 'action' => 'processes']);
 
 		$this->assertResponseCode(200);
 	}
@@ -80,7 +91,7 @@ class QueueControllerTest extends TestCase
 		]);
 		$queueProcessesTable->saveOrFail($queueProcess);
 
-		$this->post(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'Queue', 'action' => 'processes', '?' => ['end' => $queueProcess->pid]]);
+		$this->post(['plugin' => 'Queue', 'controller' => 'Queue', 'action' => 'processes', '?' => ['end' => $queueProcess->pid]]);
 
 		$this->assertResponseCode(302);
 
@@ -95,13 +106,15 @@ class QueueControllerTest extends TestCase
 	{
 		$jobsTable = $this->getTableLocator()->get('Queue.QueuedJobs');
 
-		$this->post(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'Queue', 'action' => 'addJob', '?' => ['task' => 'Queue.Example']]);
+		\Cake\Core\Configure::write('Config.adminEmail', 'test@test.de');
+		$this->post(['plugin' => 'Queue', 'controller' => 'Queue', 'action' => 'addJob', '?' => ['task' => 'Queue.Email']]);
+		\Cake\Core\Configure::delete('Config.adminEmail');
 
 		$this->assertResponseCode(302);
 
 		/** @var \Queue\Model\Entity\QueuedJob $job */
 		$job = $jobsTable->find()->orderByDesc('id')->firstOrFail();
-		$this->assertSame('Queue.Example', $job->job_task);
+		$this->assertSame('Queue.Email', $job->job_task);
 	}
 
 	/**
@@ -116,7 +129,7 @@ class QueueControllerTest extends TestCase
 		]);
 		$jobsTable->saveOrFail($job);
 
-		$this->post(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'Queue', 'action' => 'removeJob', $job->id]);
+		$this->post(['plugin' => 'Queue', 'controller' => 'Queue', 'action' => 'removeJob', $job->id]);
 
 		$this->assertResponseCode(302);
 
@@ -136,7 +149,7 @@ class QueueControllerTest extends TestCase
 		]);
 		$jobsTable->saveOrFail($job);
 
-		$this->post(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'Queue', 'action' => 'resetJob', $job->id]);
+		$this->post(['plugin' => 'Queue', 'controller' => 'Queue', 'action' => 'resetJob', $job->id]);
 
 		$this->assertResponseCode(302);
 
@@ -158,7 +171,7 @@ class QueueControllerTest extends TestCase
 		$jobsTable->saveOrFail($job);
 
 		$query = ['redirect' => '/foo/bar/baz'];
-		$this->post(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'Queue', 'action' => 'resetJob', $job->id, '?' => $query]);
+		$this->post(['plugin' => 'Queue', 'controller' => 'Queue', 'action' => 'resetJob', $job->id, '?' => $query]);
 
 		$this->assertResponseCode(302);
 		$this->assertHeader('Location', 'http://localhost/foo/bar/baz');
@@ -181,10 +194,10 @@ class QueueControllerTest extends TestCase
 		$jobsTable->saveOrFail($job);
 
 		$query = ['redirect' => 'http://x.y.z/foo/bar/baz'];
-		$this->post(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'Queue', 'action' => 'resetJob', $job->id, '?' => $query]);
+		$this->post(['plugin' => 'Queue', 'controller' => 'Queue', 'action' => 'resetJob', $job->id, '?' => $query]);
 
 		$this->assertResponseCode(302);
-		$this->assertHeader('Location', 'http://localhost/admin/queue');
+		$this->assertHeader('Location', 'http://localhost/queue/queue');
 
 		/** @var \Queue\Model\Entity\QueuedJob $job */
 		$job = $jobsTable->find()->where(['id' => $job->id])->firstOrFail();
@@ -205,10 +218,10 @@ class QueueControllerTest extends TestCase
 
 		$this->configRequest([
 			'headers' => [
-				'referer' => '/foo/bar/baz',
+				'referer' => 'http://localhost/foo/bar/baz',
 			],
 		]);
-		$this->post(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'Queue', 'action' => 'resetJob', $job->id]);
+		$this->post(['plugin' => 'Queue', 'controller' => 'Queue', 'action' => 'resetJob', $job->id]);
 
 		$this->assertResponseCode(302);
 		$this->assertHeader('Location', 'http://localhost/foo/bar/baz');
@@ -230,7 +243,7 @@ class QueueControllerTest extends TestCase
 		]);
 		$jobsTable->saveOrFail($job);
 
-		$this->post(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'Queue', 'action' => 'reset']);
+		$this->post(['plugin' => 'Queue', 'controller' => 'Queue', 'action' => 'reset']);
 
 		$this->assertResponseCode(302);
 
@@ -252,7 +265,7 @@ class QueueControllerTest extends TestCase
 		]);
 		$jobsTable->saveOrFail($job);
 
-		$this->post(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'Queue', 'action' => 'flush']);
+		$this->post(['plugin' => 'Queue', 'controller' => 'Queue', 'action' => 'flush']);
 
 		$this->assertResponseCode(302);
 
@@ -274,7 +287,7 @@ class QueueControllerTest extends TestCase
 		$count = $jobsTable->find()->count();
 		$this->assertSame(1, $count);
 
-		$this->post(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'Queue', 'action' => 'hardReset']);
+		$this->post(['plugin' => 'Queue', 'controller' => 'Queue', 'action' => 'hardReset']);
 
 		$this->assertResponseCode(302);
 

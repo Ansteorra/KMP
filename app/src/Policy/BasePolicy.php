@@ -31,6 +31,20 @@ class BasePolicy implements BeforePolicyInterface
             return true;
         }
 
+        // Handle URL-based authorization (array resources from authorizeCurrentUrl).
+        // Only intercept when the target can* method is inherited from BasePolicy
+        // (whose type hints don't accept arrays). Subclass overrides that accept
+        // arrays are left to run normally.
+        if (is_array($resource) && $user instanceof KmpIdentityInterface) {
+            $method = 'can' . ucfirst($action);
+            if (method_exists($this, $method)) {
+                $ref = new \ReflectionMethod($this, $method);
+                if ($ref->getDeclaringClass()->getName() === self::class) {
+                    return $this->_hasPolicyForUrl($user, $method, $resource);
+                }
+            }
+        }
+
         return null;
     }
 

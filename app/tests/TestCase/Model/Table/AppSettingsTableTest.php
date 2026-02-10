@@ -8,13 +8,13 @@ use App\Model\Table\AppSettingsTable;
 use Cake\Cache\Cache;
 use Cake\Datasource\EntityInterface;
 use Cake\Datasource\Exception\RecordNotFoundException;
-use Cake\TestSuite\TestCase;
+use App\Test\TestCase\BaseTestCase;
 use Exception;
 
 /**
  * App\Model\Table\AppSettingsTable Test Case
  */
-class AppSettingsTableTest extends TestCase
+class AppSettingsTableTest extends BaseTestCase
 {
     /**
      * Test subject

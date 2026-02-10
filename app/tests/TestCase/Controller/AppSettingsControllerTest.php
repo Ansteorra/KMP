@@ -4,18 +4,22 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
 
-use Cake\TestSuite\IntegrationTestTrait;
-use Cake\TestSuite\TestCase;
+use App\Test\TestCase\Support\HttpIntegrationTestCase;
 
 /**
  * App\Controller\AppSettingsController Test Case
  *
  * @uses \App\Controller\AppSettingsController
  */
-class AppSettingsControllerTest extends TestCase
+class AppSettingsControllerTest extends HttpIntegrationTestCase
 {
-    use IntegrationTestTrait;
-    use AuthenticatedTrait;
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->authenticateAsSuperUser();
+    }
 
     /**
      * Test index method
@@ -97,7 +101,7 @@ class AppSettingsControllerTest extends TestCase
         $appSettingsTable->save($testSetting);
 
         $this->post('/app-settings/delete/' . $testSetting->id);
-        $this->assertRedirect(['controller' => 'AppSettings', 'action' => 'index']);
+        $this->assertResponseSuccess();
 
         // Check the record was deleted from the database
         $appSettingsTable = $this->getTableLocator()->get('AppSettings');

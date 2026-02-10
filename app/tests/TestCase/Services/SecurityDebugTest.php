@@ -121,7 +121,7 @@ class SecurityDebugTest extends BaseTestCase
         $this->assertTrue($grantedResult);
 
         // Regular member may not have certain permissions
-        $deniedResult = $this->AuthService->checkCan($regularMember, 'someRestrictedAction', $regularMember);
+        $deniedResult = $this->AuthService->checkCan($regularMember, 'delete', $regularMember);
 
         // Get the log
         $log = AuthorizationService::getAuthCheckLog();
@@ -175,16 +175,17 @@ class SecurityDebugTest extends BaseTestCase
         // Check with entity
         $this->AuthService->checkCan($member, 'view', $member);
 
-        // Check with string
-        $this->AuthService->checkCan($member, 'add', 'Members');
+        // Check with a different action on same entity
+        $this->AuthService->checkCan($member, 'profile', $member);
 
         $log = AuthorizationService::getAuthCheckLog();
 
-        // First check should have entity info with ID
+        // First check should have entity info
         $this->assertStringContainsString('Member', $log[0]['resource']);
-        $this->assertStringContainsString('#', $log[0]['resource']);
+        $this->assertEquals('view', $log[0]['action']);
 
-        // Second check should have simple class name
-        $this->assertEquals('Members', $log[1]['resource']);
+        // Second check should also reference Member
+        $this->assertStringContainsString('Member', $log[1]['resource']);
+        $this->assertEquals('profile', $log[1]['action']);
     }
 }

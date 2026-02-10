@@ -27,6 +27,13 @@ class EmailTaskTest extends TestCase
 	 * @var array<string>
 	 */
 	/**
+	 * @var array<string>
+	 */
+	protected array $fixtures = [
+		'plugin.Queue.QueuedJobs',
+	];
+
+	/**
 	 * @var \Queue\Queue\Task\EmailTask|\PHPUnit\Framework\MockObject\MockObject
 	 */
 	protected $Task;
@@ -50,11 +57,25 @@ class EmailTaskTest extends TestCase
 	{
 		parent::setUp();
 
+		TransportFactory::drop('default');
+		TransportFactory::setConfig('default', ['className' => 'Debug']);
+
 		$this->out = new ConsoleOutput();
 		$this->err = new ConsoleOutput();
 		$io = new Io(new ConsoleIo($this->out, $this->err));
 
 		$this->Task = new EmailTask($io);
+	}
+
+	/**
+	 * @return void
+	 */
+	public function tearDown(): void
+	{
+		parent::tearDown();
+
+		TransportFactory::drop('default');
+		TransportFactory::setConfig('default', ['className' => 'Smtp', 'host' => 'localhost', 'port' => 25]);
 	}
 
 	/**
@@ -82,6 +103,8 @@ class EmailTaskTest extends TestCase
 	{
 		$message = new Message();
 		$message
+			->setTo('test@test.de')
+			->setFrom('test@test.de')
 			->setSubject('I haz Cake')
 			->setEmailFormat(Message::MESSAGE_BOTH)
 			->setBody([
@@ -124,6 +147,8 @@ class EmailTaskTest extends TestCase
 	{
 		$message = new Message();
 		$message
+			->setTo('test@test.de')
+			->setFrom('test@test.de')
 			->setSubject('I haz Cake')
 			->setEmailFormat(Message::MESSAGE_BOTH)
 			->setBody([

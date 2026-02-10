@@ -19,12 +19,14 @@
             <directory>tests/TestCase/Model</directory>
             <directory>tests/TestCase/Services</directory>
             <directory>tests/TestCase/KMP</directory>
+            <file>tests/TestCase/ApplicationTest.php</file>
         </testsuite>
 
         <!-- HTTP-oriented feature and controller tests -->
         <testsuite name="core-feature">
             <directory>tests/TestCase/Core/Feature</directory>
             <directory>tests/TestCase/Controller</directory>
+            <directory>tests/TestCase/Command</directory>
             <directory>tests/TestCase/Middleware</directory>
             <directory>tests/TestCase/View</directory>
         </testsuite>

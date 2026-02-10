@@ -24,15 +24,13 @@ use Cake\Error\Middleware\ErrorHandlerMiddleware;
 use Cake\Http\MiddlewareQueue;
 use Cake\Routing\Middleware\AssetMiddleware;
 use Cake\Routing\Middleware\RoutingMiddleware;
-use Cake\TestSuite\IntegrationTestTrait;
-use Cake\TestSuite\TestCase;
+use App\Test\TestCase\Support\HttpIntegrationTestCase;
 
 /**
  * ApplicationTest class
  */
-class ApplicationTest extends TestCase
+class ApplicationTest extends HttpIntegrationTestCase
 {
-    use IntegrationTestTrait;
 
     /**
      * Test bootstrap in production.
