@@ -98,3 +98,5 @@ Fixed 18 issues across Queue plugin production code:
 - **P1 Code:** Fixed cleanOldJobs() timestamp (DateTime instead of time()), fixed getFailedStatus() wrong prefix, fixed configVersion not persisted, fixed QueueProcessesController auth context ("migrate"→"index"), added logging for markJobDone/Failed silent failures, added class_exists guard for Shim in JsonableBehavior, replaced deprecated loadComponent(), replaced deprecated TableRegistry in migration with raw SQL
 - **P2 Quick Wins:** Fixed policy docblock, added canReset() docblock, added explicit getBranchId() to Queue entities, improved worker key entropy (random_bytes), replaced declare(ticks=1) with pcntl_async_signals, removed broken clearDoublettes()
 - All core tests pass (183 unit, 99 feature)
+
+📌 Team update (2026-02-10): Documentation accuracy review completed — all 4 agents reviewed 96 docs against codebase

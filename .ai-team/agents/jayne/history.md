@@ -88,3 +88,5 @@ Fixed all root causes from the triage:
 **Auth update:** Controller auth works via `TestAuthenticationHelper::authenticateAsSuperUser()` — no issues with Queue controllers + authorization once authenticated.
 
 Full report: `.ai-team/decisions/inbox/jayne-queue-test-fixes.md`
+
+📌 Team update (2026-02-10): Documentation accuracy review completed — all 4 agents reviewed 96 docs against codebase
