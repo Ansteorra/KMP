@@ -140,3 +140,41 @@ The authorization subsystem is well-tested. Everything else is skeletal at best.
 📌 Team update (2026-02-10): Architecture overview documented — 6 plugins, 37 policy classes, PermissionsLoader is security backbone, 8 dangerous-to-change areas — decided by Mal
 📌 Team update (2026-02-10): Backend patterns documented — 14 critical conventions to follow, transaction ownership split (AWM=caller, WM=self), termYears is actually months — decided by Kaylee
 📌 Team update (2026-02-10): Frontend patterns documented — 81 Stimulus controllers, asset pipeline via webpack.mix.js, no frontend test infrastructure exists — decided by Wash
+
+### 2026-02-10: Test Infrastructure Deep Dive — Hands-On Execution
+
+**Ran all 4 test suites. Here's what actually happened.**
+
+#### Suite Execution Results
+- **core-unit**: 183 tests — 160 pass, 2 errors, 7 failures, 14 incomplete. Deterministic on back-to-back runs.
+- **core-feature**: 97 tests — 70 pass, 15 failures, 9 skipped, 3 incomplete. Deterministic.
+- **plugins**: ❌ FATAL — namespace collision. `Waivers/HelloWorldControllerTest.php` uses `Template\Test\TestCase\Controller` namespace. Kills entire suite.
+- **all**: ❌ FATAL — same collision.
+
+#### Critical Findings
+
+1. **73% of test files (64/88) lack transaction wrapping** — extend raw `TestCase` instead of `BaseTestCase`. 17 of those files write data to the DB without cleanup. State leakage is real but currently masked by idempotent writes and failing tests.
+
+2. **BaseTestCase has 2 wrong constants** — `KINGDOM_BRANCH_ID=1` (no branch ID 1 exists; Ansteorra is ID 2) and `TEST_BRANCH_LOCAL_ID=1073` (max branch ID is 42). Any test using these silently gets wrong results.
+
+3. **Authentication traits write to DB in setUp** — `AuthenticatedTrait` and `SuperUserAuthenticatedTrait` call `$membersTable->save()` without transaction wrapping when used with raw `TestCase`. Safe by accident (saves same data each time).
+
+4. **37 of 54 markTestIncomplete stubs are cop-outs** — auto-generated View/Cell stubs that were never implemented. 17 are genuine (need Imagick, service mocking, policy implementation).
+
+5. **7 authorization test failures are consistent** — revoked roles still grant permissions, expired membership check has wrong date, warrantable flag wrong. Need triage: bugs in code vs bugs in tests.
+
+6. **Duplicate files**: `ImageToPdfConversionServiceTest` exists in both core and Waivers plugin. `HelloWorldControllerTest` copied from Template to Waivers with same namespace.
+
+#### Priority Fix Order
+1. Fix namespace collision (unblocks plugins/all suites)
+2. Fix BaseTestCase constants (unblocks branch-related tests)
+3. Migrate 17 data-writing test files to BaseTestCase (fixes cleanup)
+4. Consolidate authentication traits (stop saving admin in setUp)
+5. Triage 7 authorization failures (code bugs vs test bugs)
+6. Delete dead stubs or implement them
+7. Add PHPUnit to CI pipeline
+
+#### Key Insight
+The infrastructure DESIGN (BaseTestCase + transactions + SeedManager) is solid. The problem is ADOPTION — most tests predate the infrastructure and were never migrated. Decision logged to `.ai-team/decisions/inbox/jayne-test-infrastructure-deep-dive.md`.
+
+📌 Team update (2026-02-10): Test infrastructure attack plan created — 6 phases, Jayne owns Phases 1-3, 4.1, 4.2a, 5, 6. No new features until testing is solid. — decided by Mal, Josh Handel

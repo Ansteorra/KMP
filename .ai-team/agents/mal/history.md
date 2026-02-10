@@ -172,3 +172,20 @@ KMP is a CakePHP 5.x application with a plugin-based architecture. The app lives
 📌 Team update (2026-02-10): Backend patterns documented — 14 critical conventions including ServiceResult, transaction ownership, entity/table hierarchy, and authorization flow — decided by Kaylee
 📌 Team update (2026-02-10): Frontend patterns documented — 81 Stimulus controllers cataloged, asset pipeline, tab ordering, inter-controller communication via outlet-btn — decided by Wash
 📌 Team update (2026-02-10): Test suite audited — 88 files but ~15-20% real coverage, 36/37 policies untested, no CI pipeline, recommend adding CI test runner as Priority 1 — decided by Jayne
+
+### 2026-02-10: Test Infrastructure Attack Plan
+
+**Decision:** Josh directed all new feature work paused until testing is solid. Created 6-phase attack plan.
+
+**Key architectural decisions made:**
+1. **Auth trait consolidation:** Standardize on `TestAuthenticationHelper` (array-based, no DB writes). Deprecate `AuthenticatedTrait` and `SuperUserAuthenticatedTrait` — they write to DB which conflicts with transaction wrapping.
+2. **BaseTestCase migration priority:** The 17 files that write data get migrated first (Phase 2.1). Read-only tests migrated second (Phase 2.2). Queue plugin's 31 tests are explicitly excluded — they have their own fixture system and work.
+3. **Auth failure triage:** 7 authorization test failures need investigation before fix. Do NOT assume test bug vs code bug. Jayne investigates, Mal reviews classification, then Kaylee fixes any production code bugs.
+4. **ViewCell stubs:** Delete all 12 auto-generated `markTestIncomplete` stubs. They inflate counts while testing nothing. Coverage expansion is separate future work.
+5. **Constants verified:** `KINGDOM_BRANCH_ID` must be 2 (Ansteorra), `TEST_BRANCH_LOCAL_ID` must be 14 (Shire of Adlersruhe). Current values (1 and 1073) reference nonexistent records.
+
+**Phase order:** Runnable → Reliable → Auth consolidation → Auth failure investigation → Dead weight removal → CI pipeline. Estimated 6-8 working days.
+
+**Plan location:** `.ai-team/decisions/inbox/mal-test-attack-plan.md`
+
+📌 Team update (2026-02-10): Josh directive — no new features until testing is solid. Test assessment consolidated with deep dive findings into single decision block. — decided by Josh Handel

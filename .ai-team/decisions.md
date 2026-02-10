@@ -202,52 +202,221 @@ The `outlet-btn` controller is the standard pattern for controller-to-controller
 - Empty controller files exist: `gathering-public-controller.js`, `mobile-hub-controller.js`
 - Base classes exist but aren't registered: `BaseGatheringFormController`
 - Two duplicate `hello-world-controller.js` exist (Template and Waivers plugins)
-### 2026-02-10: Test suite assessment (existing)
+### 2026-02-10: Test infrastructure assessment (consolidated)
 **By:** Jayne
-**What:** Audited existing test suite and documented patterns and gaps
-**Why:** New team needs to understand test conventions and coverage before adding tests
+**What:** Audited and ran the full test suite; documented patterns, gaps, infrastructure blockers, and quality assessment
+**Why:** New team needs reliable test infrastructure before writing new tests or features. Initial audit identified patterns and gaps; hands-on execution revealed deeper infrastructure problems.
+
+---
+
+#### Test Run Results
+
+**Environment:** PHP 8.3.30, PHPUnit 10.5.45, MariaDB 10.11.14
+
+| Suite | Status | Tests | Pass | Error | Fail | Incomplete | Skipped |
+|-------|--------|-------|------|-------|------|------------|---------|
+| core-unit | ✅ Runs | 183 | 160 | 2 | 7 | 14 | 0 |
+| core-feature | ✅ Runs | 97 | 70 | 0 | 15 | 3 | 9 |
+| plugins | ❌ FATAL | — | — | — | — | — | — |
+| all | ❌ FATAL | — | — | — | — | — | — |
+
+Plugins and all suites crash due to namespace collision: `Waivers/HelloWorldControllerTest.php` uses `Template\Test\TestCase\Controller` namespace. Results are deterministic on consecutive runs.
 
 #### Test Patterns to Follow
 
 1. **Always extend `BaseTestCase`** for any test that touches the database. It provides transaction wrapping (begin/rollback) so tests don't mutate shared seed data. Do NOT use CakePHP fixture classes — this project uses a seeded database approach with `dev_seed_clean.sql`.
-
 2. **For HTTP/controller tests**, extend `HttpIntegrationTestCase` (or `PluginIntegrationTestCase` for plugin controllers). Use `SuperUserAuthenticatedTrait` for tests that need full admin access. Use `TestAuthenticationHelper` trait when you need lighter-weight auth without DB lookups.
-
 3. **Reference seed data via `BaseTestCase` constants** — `ADMIN_MEMBER_ID`, `TEST_MEMBER_AGATHA_ID`, `TEST_MEMBER_BRYCE_ID`, `TEST_MEMBER_DEVON_ID`, `TEST_MEMBER_EIRIK_ID`, `KINGDOM_BRANCH_ID`, etc. Do NOT hardcode IDs.
+4. **Prefer `SuperUserAuthenticatedTrait`** for new tests (newer, cleaner than `AuthenticatedTrait`).
+5. **PHPUnit 10.x** with 4 test suites: `core-unit`, `core-feature`, `plugins`, `all`. Run with: `cd app && composer test` or `cd app && vendor/bin/phpunit --testsuite <suite-name>`.
 
-4. **Two auth trait patterns exist** — `AuthenticatedTrait` (older, loads from DB) and `SuperUserAuthenticatedTrait` (newer, cleaner). Prefer `SuperUserAuthenticatedTrait` for new tests.
+#### Infrastructure Blockers
 
-5. **PHPUnit 10.x** with 4 test suites: `core-unit`, `core-feature`, `plugins`, `all`. Place new tests in directories that match these suite definitions.
+1. **Namespace collision kills plugins + all suites** — `plugins/Waivers/tests/TestCase/Controller/HelloWorldControllerTest.php` is an exact copy of Template's test with namespace `Template\Test\TestCase\Controller`. Fatal error.
+2. **73% of test files lack transaction wrapping** — 64 of 88 test files extend raw `TestCase` instead of `BaseTestCase`. 17 of those write data without cleanup. State leakage is real but currently masked by idempotent writes.
+3. **Duplicate test file** — `ImageToPdfConversionServiceTest` exists in both core and Waivers plugin.
+4. **Wrong constants in BaseTestCase** — `KINGDOM_BRANCH_ID = 1` (no branch with ID 1; Ansteorra is ID 2) and `TEST_BRANCH_LOCAL_ID = 1073` (max branch ID is 42).
+5. **Bootstrap warnings** — `session_id()`, file permission warnings, `apcu` module warning. Non-fatal but noisy.
+6. **7 authorization tests fail consistently** — revoked roles still granting permissions, expired membership not losing permissions, warrantable flag wrong, view-other-member too permissive. Could be code bugs or test bugs — needs investigation.
 
-6. **Run tests with:** `cd app && composer test` or `cd app && vendor/bin/phpunit --testsuite <suite-name>`.
+#### Database Cleanup Assessment
 
-#### Gaps Identified
+- `BaseTestCase` transaction wrapping (BEGIN/ROLLBACK) works correctly but only covers 24% of test files (24 of 88).
+- 17 test files extend raw `TestCase` AND write data to the database without cleanup.
+- Idempotency passes on consecutive runs — but only because failing tests don't persist writes, and passing tests mostly don't write data.
+- Seed database (`SeedManager::bootstrap('test')`) properly loaded with 17 members including all synthetic test members.
+- Authentication traits (`AuthenticatedTrait`, `SuperUserAuthenticatedTrait`) write to DB in setUp without transaction wrapping. Safe by accident (same data each time).
 
-**Critical gaps (security/data integrity):**
-- Authorization policies: 37 policy classes, 1 test (and it's trivial). Database-driven auth via `BasePolicy._hasPolicy()` needs integration testing.
-- Warrant workflow: 0 tests for WarrantsController, WarrantRostersController, WarrantPeriodsController, or any warrant tables/entities.
-- Service principals: 0 tests for ServicePrincipalsController or related tables — this is API key management.
-- Impersonation: 0 tests for ImpersonationService or audit logs.
+#### Test Quality Assessment
 
-**Major gaps (core functionality):**
-- 20 of 26 core controllers untested
-- 26 of 32 core tables untested
-- 29 of 34 core entities untested
-- 6 of 7 commands untested
-- All mailers untested
-- Activities plugin: 7 test files exist but ALL are `markTestIncomplete` stubs
-- Awards plugin: 2 test stubs, 0 real tests; missing controller/table/policy tests
-- No API endpoint tests (`src/Controller/Api/`)
+- **54 markTestIncomplete tests total:** 37 are auto-generated cop-out stubs (ViewCell tests), 17 are genuine (need Imagick, service mocking, policy implementation).
+- **Assertion quality mixed:** Authorization tests have strong assertions; many controller tests only check `assertResponseOk()`. Some empty test methods pass trivially with zero assertions.
+- **Misplaced file:** `tests/ViewCellRegistryTest.php` is a standalone script, not a PHPUnit test.
 
-**Infrastructure gaps:**
-- No CI pipeline runs tests — only JS build in GitHub Actions
-- `app/tests/ViewCellRegistryTest.php` is a standalone script, not a proper PHPUnit test — should be moved or deleted
-- Known issue: CakePHP `IntegrationTestTrait` has transaction isolation conflicts with the seed-based approach, causing some controller tests to skip record-creation scenarios
+#### Coverage Gaps
+
+**Critical (security/data integrity):** Authorization policies (37 classes, 1 trivial test), warrant workflow (0 tests), service principals (0 tests), impersonation (0 tests).
+
+**Major (core functionality):** 20 of 26 core controllers untested, 26 of 32 core tables untested, 29 of 34 core entities untested, 6 of 7 commands untested, all mailers untested, no API endpoint tests. Activities plugin has 7 stub-only test files. Awards plugin has 2 stubs, 0 real tests.
+
+**Estimated real coverage: ~15-20% of application code.**
 
 #### Recommendations
 
-1. **Priority 1:** Add CI test runner to GitHub Actions. Tests are useless if they don't run on every PR.
-2. **Priority 2:** Test warrant and authorization policy workflows — these are the security backbone.
-3. **Priority 3:** Either implement or delete the `markTestIncomplete` stubs in plugin Cell tests. They inflate test counts while testing nothing.
-4. **Priority 4:** Add controller integration tests for the remaining 20 untested controllers, starting with WarrantsController, RolesController, and PermissionsController.
-5. Clean up `app/tests/ViewCellRegistryTest.php` — it's not a real test and shouldn't be in the test directory.
+1. Fix namespace collision (unblocks plugins/all suites)
+2. Fix BaseTestCase constants (KINGDOM_BRANCH_ID → 2, TEST_BRANCH_LOCAL_ID → 14)
+3. Migrate 17 data-writing test files to BaseTestCase
+4. Consolidate authentication traits
+5. Triage 7 authorization failures
+6. Delete dead stubs or implement them
+7. Add PHPUnit to CI pipeline
+
+**Key insight:** The infrastructure DESIGN (BaseTestCase + transactions + SeedManager) is solid. The problem is ADOPTION — most tests predate the infrastructure and were never migrated.
+### 2026-02-10: User directive
+**By:** Josh Handel (via Copilot)
+**What:** Before starting any new feature work, get the test suite into a solid state. Testing infrastructure is the priority.
+**Why:** User request — captured for team memory
+
+### 2026-02-10: Test Infrastructure Attack Plan
+**By:** Mal
+**What:** Prioritized work plan to make the test suite reliable before new feature work
+**Why:** Josh directive — testing must be solid before any new features. Jayne's deep dive exposed infrastructure-level blockers that make test results unreliable and two suites completely unrunnable.
+
+**Guiding Principles:**
+1. Runnability first, reliability second, coverage third
+2. Don't touch Queue plugin's 31 tests — they have their own fixture system and work fine
+3. The 17 files that write data without transaction wrapping are the #1 database-cleanup risk
+4. Auth failures need investigation before fix — don't assume test vs code bug
+5. Smallest changes possible — no rewrites, no framework upgrades
+
+---
+
+#### Phase 1: Make All Suites Runnable
+**Goal:** `phpunit --testsuite all` completes without FATAL errors
+**Parallel?** Yes — all three tasks are independent
+
+| Task | Owner | Size | Deps | Details |
+|------|-------|------|------|---------|
+| 1.1 Delete Waivers HelloWorld copy | Jayne | S | None | Delete `app/plugins/Waivers/tests/TestCase/Controller/HelloWorldControllerTest.php`. This is an exact copy of Template's test with same namespace `Template\Test\TestCase\Controller` — causes fatal namespace collision that kills `plugins` and `all` suites. The Template plugin version stays (it's the reference implementation). |
+| 1.2 Delete duplicate ImageToPdfConversionServiceTest | Jayne | S | None | Delete `app/plugins/Waivers/tests/TestCase/Services/ImageToPdfConversionServiceTest.php`. Near-duplicate of `app/tests/TestCase/Services/ImageToPdfConversionServiceTest.php`. The core version tests `convertImageToPdf()`, the Waivers copy tests `validateImage()` — but `validateImage()` is tested by the core version already. If there's Waivers-specific PDF behavior, write a dedicated test later; don't duplicate the entire class. |
+| 1.3 Fix BaseTestCase constants | Jayne | S | None | In `app/tests/TestCase/BaseTestCase.php`: change `KINGDOM_BRANCH_ID = 1` → `KINGDOM_BRANCH_ID = 2` (Ansteorra is ID 2 in seed data, no branch with ID 1 exists). Change `TEST_BRANCH_LOCAL_ID = 1073` → `TEST_BRANCH_LOCAL_ID = 14` (Shire of Adlersruhe, a real local group in the seed data; max branch ID is 42). Update docblocks to match. |
+
+**Risks:**
+- Deleting HelloWorld test could mask a gap if someone actually relies on it in Waivers — but it's identical to Template's test, so no unique coverage is lost.
+- Changing constants could break tests that depend on the old (wrong) values — but those tests are already wrong. Run full suite after to catch cascading failures.
+
+**Done when:** `vendor/bin/phpunit --testsuite plugins` and `vendor/bin/phpunit --testsuite all` complete without FATAL errors. May still have failures, but no crashes.
+
+---
+
+#### Phase 2: Make Database Tests Reliable (State Leakage Fix)
+**Goal:** Tests clean up after themselves — no test can corrupt seed data for subsequent tests
+**Parallel?** Partially — 2.1 and 2.2 can be parallelized, then 2.3 depends on both
+
+| Task | Owner | Size | Deps | Details |
+|------|-------|------|------|---------|
+| 2.1 Migrate high-risk write tests to BaseTestCase | Jayne | M | Phase 1 | Migrate the 17 test files that actually write data to extend `BaseTestCase` (or `HttpIntegrationTestCase`/`PluginIntegrationTestCase` for controller tests). These are the files causing state leakage. **Priority order — controllers first** (they POST data): `MembersControllerTest`, `AppSettingsControllerTest`, `GatheringsControllerTest`, `GatheringTypesControllerTest`, `GatheringActivitiesControllerTest`, `WaiverTypesControllerTest`, `GatheringWaiversControllerTest`. **Then tables**: `AppSettingsTableTest`, `BranchesTableTest`, `MembersTableTest`, `GatheringStaffTableTest`, `WaiverTypesTableTest`. **Do NOT touch Queue plugin tests** — they have their own isolation. For controller tests that currently use `AuthenticatedTrait` or `SuperUserAuthenticatedTrait`, switch to extending `HttpIntegrationTestCase` (which provides transaction wrapping via BaseTestCase) and use `TestAuthenticationHelper` for auth. |
+| 2.2 Migrate read-only tests (batch) | Jayne | M | Phase 1 | Migrate remaining ~47 non-Queue test files from `TestCase` to `BaseTestCase`. Even read-only tests should use transaction wrapping for safety — if someone adds a write later, it'll be protected. This is mechanical: change `extends TestCase` to `extends BaseTestCase`, update imports, verify `setUp()`/`tearDown()` call `parent::`. Can be done in batches of 10-15 files. **Skip Queue plugin tests entirely** (31 files, own system). |
+| 2.3 Verify no state leakage | Jayne | S | 2.1, 2.2 | Run `vendor/bin/phpunit --testsuite all` twice in sequence. Compare results. If the same tests pass/fail both times, state leakage is fixed. Run individual suites in different orders to confirm no cross-suite contamination. |
+
+**Risks:**
+- Some tests may have implicit dependencies on prior test writes (test A writes data, test B reads it). The transaction rollback will expose these. Fix them by adding proper test setup within each test.
+- CakePHP's `IntegrationTestTrait` is known to have transaction isolation conflicts. Tests that POST data and then read it back may see different behavior with transaction wrapping. `HttpIntegrationTestCase` already handles this, but watch for new failures.
+- Controller tests using `AuthenticatedTrait`/`SuperUserAuthenticatedTrait` write admin permissions to DB during setup. After migration to BaseTestCase, those writes roll back — which is correct, but verify auth still works within the transaction scope.
+
+**Done when:** All 4 suites produce identical results on consecutive runs. No test depends on side effects from another test.
+
+---
+
+#### Phase 3: Consolidate Auth Test Patterns
+**Goal:** One clear auth pattern for tests, documented, used everywhere
+**Parallel?** No — architectural decision first, then implementation
+
+| Task | Owner | Size | Deps | Details |
+|------|-------|------|------|---------|
+| 3.1 Decide auth trait strategy | Mal | S | Phase 2 | **Decision:** Standardize on `TestAuthenticationHelper` (array-based, no DB writes) for new tests. `HttpIntegrationTestCase` already uses it. **Deprecate** `AuthenticatedTrait` and `SuperUserAuthenticatedTrait` — they write admin permissions to DB which conflicts with transaction wrapping. Don't delete the old traits yet (existing tests use them), but mark them `@deprecated` and document the migration path. The entity-based traits exist because some tests need actual permission records in DB — those tests should set up their own data within the transaction. |
+| 3.2 Migrate tests off deprecated traits | Jayne | M | 3.1 | Update tests currently using `AuthenticatedTrait` (MembersControllerTest, AppSettingsControllerTest) and `SuperUserAuthenticatedTrait` (6 controller tests) to use `TestAuthenticationHelper` via `HttpIntegrationTestCase`. This may require adjusting how tests set up auth context. Add `@deprecated` annotation to both old traits. |
+
+**Risks:**
+- Tests using `AuthenticatedTrait` may depend on having real permission records in the DB for authorization checks to pass. Switching to array-based auth could cause authorization failures if the controller actions check permissions through `PermissionsLoader`. **Mitigation:** Test each migration individually. If a test needs real DB permissions, keep using the old trait but document why.
+
+**Done when:** No test uses `AuthenticatedTrait` or `SuperUserAuthenticatedTrait` (or they're documented exceptions with clear rationale). All controller tests extend `HttpIntegrationTestCase` or `PluginIntegrationTestCase`.
+
+---
+
+#### Phase 4: Investigate Authorization Test Failures
+**Goal:** Determine whether 7 auth failures are test bugs or production code bugs, then fix whichever is wrong
+**Parallel?** 4.1 is serial (investigation), then 4.2a/4.2b can parallelize
+
+| Task | Owner | Size | Deps | Details |
+|------|-------|------|------|---------|
+| 4.1 Triage auth failures | Jayne + Mal | M | Phase 2 | Investigate each of the 7 authorization test failures. For each one, determine: (a) is the test expectation correct? (b) is the production code behaving correctly? **Specific failures to investigate:** (1) `AuthorizationEdgeCasesTest::testRevokedRoleNoLongerGrants...` — revoked roles still granting permissions. Check if `PermissionsLoader` filters on role status. (2) `testExpiredMembershipLosesAuth` — Eirik's membership expires 2029, test assumes current year matters. Check if test uses hardcoded dates. (3) `testNonWarrantableMemberMarked...` — warrantable flag not cleared. Check `SyncMemberWarrantableStatusesCommand`. (4) `AuthorizationServiceTest::testViewOtherMember...` — view-other-member too permissive. Check `MemberPolicy`. (5) `BranchScopedAuthorizationTest::testDevonMultiRegional...` — regional scoping wrong. Check `_getBranchIdsForPolicy()`. (6-7) `PermissionsLoaderTest` — branch scopes not loaded. Check cache logic. Jayne investigates and classifies each as TEST_BUG or CODE_BUG. Mal reviews the classifications. |
+| 4.2a Fix test bugs | Jayne | S-M | 4.1 | For failures classified as TEST_BUG: fix test expectations, hardcoded dates, or incorrect assumptions. |
+| 4.2b Fix code bugs | Kaylee | S-M | 4.1 | For failures classified as CODE_BUG: fix production code. These are likely in `PermissionsLoader`, `BasePolicy._getBranchIdsForPolicy()`, or entity status checks. **These are security-relevant** — authorization bugs mean incorrect access control. Kaylee fixes with test verification. Each fix needs Mal review before merge. |
+
+**Risks:**
+- Auth failures could cascade — fixing one bug in `PermissionsLoader` might change behavior for many tests. Run full suite after each fix.
+- Some failures might be both: test has wrong expectation AND code has a bug. Investigate without assumptions.
+- Production code fixes in authorization are high-risk changes. Apply the "Dangerous to Change" guidance from decisions.md — changes to `PermissionsLoader` and the permission chain require extra scrutiny.
+
+**Done when:** All 7 authorization tests pass. Each failure has a documented root cause (test bug or code bug). Any code fixes have been reviewed by Mal.
+
+---
+
+#### Phase 5: Remove Dead Weight
+**Goal:** Delete tests that provide no value — reduce noise, make test counts meaningful
+**Parallel?** Yes — all tasks are independent
+
+| Task | Owner | Size | Deps | Details |
+|------|-------|------|------|---------|
+| 5.1 Delete or implement ViewCell stubs | Jayne | M | Phase 2 | 12 ViewCell test stubs across Activities (7), Officers (3), Awards (2) are all `markTestIncomplete("Not implemented yet")`. **Decision:** Delete them. They were auto-generated by `bake` and never implemented. They inflate test counts (14 "incomplete" results) while testing nothing. If we need ViewCell tests later, we'll write them from scratch with actual assertions. Generate a tracking issue or note for future coverage. |
+| 5.2 Move ViewCellRegistryTest.php | Jayne | S | None | `app/tests/ViewCellRegistryTest.php` is a standalone PHP script (not a PHPUnit test) that checks if `ViewCellRegistry` class can be autoloaded. Move it to `app/tests/scripts/` or delete it entirely. It's not integrated into any test suite and provides no CI value. **Decision:** Delete it — the autoloader either works or it doesn't; a manual script adds nothing. |
+| 5.3 Fix bootstrap warnings | Jayne | S | None | Address bootstrap warnings: (1) `session_id` warning — the bootstrap already sets `session_id('cli')` but may fire after session auto-start. Ensure `session_id()` is called before any session operations. (2) File permissions — ensure `app/tmp/` and `app/logs/` are writable in test context (add to bootstrap or Docker setup). (3) `apcu` module warning — add `apc.enable_cli=1` to test php.ini or suppress the warning in bootstrap. These are noise that obscure real failures. |
+
+**Risks:**
+- Deleting ViewCell stubs loses the "reminder" that these cells are untested. Mitigate by documenting the gap in the test audit (already in Jayne's assessment in decisions.md).
+- Bootstrap warning fixes might affect Docker container configuration — coordinate with deployment setup.
+
+**Done when:** `vendor/bin/phpunit --testsuite all` output has zero warnings, zero incomplete tests (except genuine WIP), and every reported test is either passing or failing for a real reason.
+
+---
+
+#### Phase 6: Establish CI Pipeline
+**Goal:** Tests run automatically on every PR — no more manual test runs
+**Parallel?** No — sequential build
+
+| Task | Owner | Size | Deps | Details |
+|------|-------|------|------|---------|
+| 6.1 Create GitHub Actions test workflow | Jayne | M | Phases 1-5 | Create `.github/workflows/test.yml` that: (1) Sets up PHP 8.2+ with required extensions (apcu, pdo_mysql, etc.), (2) Starts MariaDB service container, (3) Loads `dev_seed_clean.sql` into test DB, (4) Runs `composer install`, (5) Runs `vendor/bin/phpunit --testsuite all`. Should run on push to main and on all PRs. Use the existing `docker/Dockerfile.app` as reference for PHP extensions needed. |
+| 6.2 Validate CI in a test PR | Jayne | S | 6.1 | Create a test PR that adds a trivial passing test. Verify CI runs, passes, and reports results. Fix any environment differences between Docker dev and CI. |
+
+**Risks:**
+- CI environment may differ from Docker dev environment (different MariaDB version, missing PHP extensions, file paths). Budget time for debugging.
+- Seed data load time could make CI slow. Consider caching the seeded database state if test runtime exceeds 5 minutes.
+
+**Done when:** CI runs on every PR, tests pass, and a failing test blocks merge.
+
+---
+
+### Execution Timeline
+
+```
+Phase 1 (Day 1)     ████  Make suites runnable
+Phase 2 (Days 2-3)  ████████  Fix state leakage (biggest effort)
+Phase 3 (Days 3-4)  ██████  Consolidate auth patterns
+Phase 4 (Days 4-6)  ████████████  Investigate + fix auth failures
+Phase 5 (Day 6-7)   ████  Remove dead weight
+Phase 6 (Day 7-8)   ██████  CI pipeline
+```
+
+**Total estimate:** 6-8 working days across team members
+
+### Resource Allocation
+- **Jayne** (primary): Phases 1-3, 4.1, 4.2a, 5, 6 — this is test infrastructure work
+- **Kaylee** (secondary): Phase 4.2b only — production code bug fixes
+- **Mal** (review): Phase 3.1 decision, Phase 4.1 triage review, Phase 4.2b code review
+
+### Open Questions
+1. Should we add test coverage reporting to CI (Phase 6)? I say not yet — get green first, measure later.
+2. The 31 Queue plugin tests with their own fixture system — do we eventually want to migrate them to BaseTestCase? I say no unless they start causing problems. Different plugin, different isolation strategy, and it works.
+3. Do we want to add policy tests (37 untested policy classes) as Phase 7? Yes, but not in this plan. This plan is about infrastructure; coverage expansion is separate work.
