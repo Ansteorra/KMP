@@ -471,3 +471,40 @@ Phase 6 (Day 7-8)   ██████  CI pipeline
 1. Include permission data in the session array
 2. Store a mock/stub `Member` entity implementing `KmpIdentityInterface`
 3. Load the real member entity from DB within the test transaction (recommended — rolls back cleanly while providing proper identity)
+
+### 2026-02-10: User directive — Own the Queue plugin
+**By:** Josh Handel (via Copilot)
+**What:** The Queue plugin is 3rd party code but since KMP hosts the source, the team should "own it" — review it, identify issues, and plan tweaks/updates to bring it into KMP's conventions and fix any oversights.
+**Why:** User request — the Queue plugin has been treated as untouchable 3rd party code, but since the source is in-repo, it should be maintained to KMP standards.
+
+### 2026-02-10: Queue plugin ownership review (consolidated)
+**By:** Mal, Kaylee, Jayne
+**What:** Full review of Queue plugin (forked from dereuromark/cakephp-queue). Architecture review, deep code review (22 issues), and test triage (81/119 failures) completed.
+**Why:** Josh directed team to own the plugin. Three-pronged review to assess architecture, code quality, and test health.
+
+**Architecture (Mal):** Own it, slim it down. Plugin is infrastructure-critical — all email flows through it (8 callsites, all via QueuedMailerAwareTrait). Already heavily diverged from upstream (BaseEntity/BaseTable, KMPPluginInterface, authorization). 47 source files, 7,628 lines. Recommend removing ExecuteTask (arbitrary shell execution), example tasks (8 demo files), unused transport classes, and stale vendor directory.
+
+**Security (Kaylee — P0):**
+- Command injection in `terminateProcess()` — unsanitized PID passed to `exec('kill')` (QueueProcessesTable.php:319)
+- Open redirect in `refererRedirect()` — incomplete URL validation (QueueController.php:232)
+- ExecuteTask runs arbitrary shell commands via `exec()` — must be disabled/removed
+
+**Code Quality (Kaylee — P1/P2):** 10 P1 issues: broken `getFailedStatus()` task name lookup, deprecated `loadComponent()`/`TableRegistry`, timestamp-vs-DateTime comparison in `cleanOldJobs()`, missing `workerkey` index, wrong authorization context in QueueProcessesController, silent `markJobDone()`/`markJobFailed()` failures, missing Shim dependency, configVersion never written back, SQL string interpolation in `requestJob()`. 10 P2 cleanup items (coding style, entity overrides, dead code).
+
+**Tests (Jayne):** 119 total, 81 failures, 38 pass. Zero code bugs found — all failures are infrastructure damage from dropping Queue into KMP without adapting test harness. 5 root causes:
+1. "Plugin already loaded" — 16 errors (loadPlugins in setUp, trivial fix)
+2. Missing Admin prefix routes — 29 errors (test URLs reference removed Admin namespace, medium fix)
+3. TestApp/Foo autoload not registered — 15 errors (KMP composer.json missing dev paths, small fix)
+4. Fixtures removed without replacement — 16 failures (commit 6e25eea4 bulk-deleted fixtures, medium fix)
+5. Email transport config mismatch — 3 failures (KMP uses Smtp, tests expect Debug, small fix)
+Silver bullets: fixing #1 + #2 resolves 45 of 68 errors (66%).
+
+**Correction to Attack Plan:** The Test Infrastructure Attack Plan stated "Don't touch Queue plugin's 31 tests — they have their own fixture system and work fine." Queue tests do NOT work fine — 81/119 fail. However, the directive to not migrate them to BaseTestCase remains valid; they should keep their fixture-based isolation strategy.
+
+**Decisions:**
+- Own the plugin permanently; do not re-sync with upstream
+- Remove ExecuteTask and example tasks from production immediately
+- Fix P0 security issues (command injection, open redirect) before other work
+- Fix Queue test infrastructure in phases: silver bullets → autoloading → fixtures → config
+- Do NOT migrate Queue tests to BaseTestCase pattern
+- Periodically review upstream releases for critical fixes only

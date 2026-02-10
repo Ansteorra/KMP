@@ -49,3 +49,26 @@ Key decisions: Standardize TestAuthenticationHelper (deprecate old traits). Queu
 📌 Team update (2026-02-10): Josh directive — no new features until testing is solid. Test infrastructure is the priority. — decided by Josh Handel
 📌 Team update (2026-02-10): Auth triage complete — 15 TEST_BUGs, 2 CODE_BUGs. Kaylee fixed both CODE_BUGs. All 370 project-owned tests now pass (was 121 failures + 76 errors). — decided by Jayne, Kaylee
 📌 Team update (2026-02-10): Auth strategy gap identified — authenticateAsSuperUser() does not set permissions. Must be fixed before Phase 3.2 test migration. — decided by Mal
+
+### 2026-02-10: Queue Plugin Architectural Review
+
+Josh directed us to "own" the Queue plugin — it's a forked copy of `dereuromark/cakephp-queue` (MIT, CakePHP 5.x) that's been in-repo and already significantly modified to fit KMP patterns (BaseEntity/BaseTable, KMPPluginInterface, authorization, NavigationRegistry).
+
+#### Key Findings
+- **47 source files, 7,628 lines** — medium-sized plugin, core engine is ~1,500 lines
+- **Only integration point:** `QueuedMailerAwareTrait` → `MailerTask` for async email (8 callsites across MembersController, WarrantManager, OfficerManager)
+- **Already diverged from upstream** — entities extend BaseEntity, tables extend BaseTable, policy system integrated, navigation registered
+- **Cron-driven:** `bin/cake queue run` every 2 minutes via Docker entrypoint
+- **Security concern:** `ExecuteTask` allows arbitrary `exec()` from queued data — must be disabled/removed
+- **Dead weight:** 8 example tasks, 2 unused mail transports, stale vendor directory
+
+#### Decision
+Own it. The divergence is too deep to re-sync, and we use a tiny fraction of its features. Slim it down, remove security risks, and treat as stable infrastructure.
+
+#### P0 Actions
+1. Disable/remove `ExecuteTask` (arbitrary command execution)
+2. Remove/ignore example tasks from production
+
+📌 Full review: `.ai-team/decisions/inbox/mal-queue-architecture-review.md`
+
+📌 Team update (2026-02-10): Queue plugin ownership review — decided to own the plugin, security issues found, test triage complete

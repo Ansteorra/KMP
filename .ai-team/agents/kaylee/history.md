@@ -60,3 +60,33 @@ Permission chain: Members → MemberRoles (temporal) → Roles → Permissions �
 📌 Team update (2026-02-10): Test infrastructure attack plan created — Kaylee owns Phase 4.2b (fix production auth code bugs found by Jayne). No new features until testing is solid. — decided by Mal, Josh Handel
 📌 Team update (2026-02-10): Auth triage complete — Kaylee's 2 CODE_BUG fixes (PermissionsLoader revoker_id filter, ControllerResolver string resource handling) verified. All 370 project-owned tests pass. — decided by Jayne, Kaylee
 📌 Team update (2026-02-10): Auth strategy decided — standardize on TestAuthenticationHelper, deprecate old traits. ⚠️ Gap: authenticateAsSuperUser() does not set permissions — needs fix (Option 3: load real member entity in test transaction recommended). — decided by Mal
+
+### 2026-02-10: Queue Plugin Deep Code Review
+
+#### Plugin Origin & Status
+Queue plugin is a fork of `dereuromark/cakephp-queue` v8 (MIT license). KMP team has partially adapted it: entities extend BaseEntity, tables extend BaseTable, controllers use AppController with authorization, Plugin class implements KMPPluginInterface. Now KMP-owned.
+
+#### Key Architecture
+- **Job lifecycle:** `createJob()` → `requestJob()` (FOR UPDATE row locking in transaction) → `runJob()` → `markJobDone()`/`markJobFailed()`
+- **Task discovery:** `TaskFinder` scans `Queue/Task/` dirs in app and all plugins, builds `[name => className]` map
+- **Worker process:** `Processor::run()` loops, fetching jobs via `requestJob()`, with PCNTL signal handling for graceful shutdown
+- **Email integration:** KMP uses `MailerTask` via `QueuedMailerAwareTrait::queueMail()` — all email is async through Queue
+- **DI support:** Tasks can use `ServicesTrait` to access the DI container for service injection
+
+#### Critical Findings (22 issues total)
+- **P0 (2):** Command injection in `terminateProcess()` (unsanitized PID to exec()), open redirect in `refererRedirect()`
+- **P1 (10):** Broken `getFailedStatus()` (wrong task name prefix), `cleanOldJobs()` passes unix timestamp instead of DateTime, missing index on `queued_jobs.workerkey`, deprecated `TableRegistry` in migration, deprecated `loadComponent()`, silent save failures in markJobDone/markJobFailed, wrong auth context in QueueProcessesController, missing Shim dependency for JsonableBehavior, configVersion never written back
+- **P2 (10):** Various cleanup — broken `clearDoublettes()`, missing strict_types in 2 files, weak worker key entropy, declare(ticks=1) should be pcntl_async_signals, missing docblocks, copy-paste policy docblock
+
+#### MariaDB/JSON Pattern
+The `text` column + `setColumnType('json')` in `initialize()` is correct for MariaDB. No changes needed — CakePHP ORM handles serialization transparently.
+
+#### Dead Code Candidates
+- `clearDoublettes()` — broken, never called in KMP
+- 8 example task files — upstream examples, not used in production
+- `EmailTask` — KMP uses `MailerTask` instead
+- `SimpleQueueTransport` — appears unused
+
+📌 Team update (2026-02-10): Queue plugin code review complete — 22 issues found (2 P0 security, 10 P1, 10 P2). Full findings in decisions/inbox/kaylee-queue-code-review.md. Key: command injection in terminateProcess(), broken getFailedStatus(), cleanOldJobs timestamp bug. — decided by Kaylee
+
+📌 Team update (2026-02-10): Queue plugin ownership review — decided to own the plugin, security issues found, test triage complete
