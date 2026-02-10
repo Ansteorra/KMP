@@ -1,0 +1,21 @@
+{
+  "universe_usage_history": [
+    {
+      "assignment_id": "2026-02-10T13-36-kmp",
+      "universe": "Firefly",
+      "timestamp": "2026-02-10T13:36:43Z"
+    }
+  ],
+  "assignment_cast_snapshots": {
+    "2026-02-10T13-36-kmp": {
+      "universe": "Firefly",
+      "agent_map": {
+        "mal": "Mal",
+        "kaylee": "Kaylee",
+        "wash": "Wash",
+        "jayne": "Jayne"
+      },
+      "created_at": "2026-02-10T13:36:43Z"
+    }
+  }
+}
