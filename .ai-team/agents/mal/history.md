@@ -74,3 +74,16 @@ Own it. The divergence is too deep to re-sync, and we use a tiny fraction of its
 📌 Team update (2026-02-10): Queue plugin ownership review — decided to own the plugin, security issues found, test triage complete
 
 📌 Team update (2026-02-10): Documentation accuracy review completed — all 4 agents reviewed 96 docs against codebase
+
+### 2026-02-10: Documentation Modernization Pass
+
+Completed 8 documentation tasks fixing cross-references, data models, interface signatures, and migration orders across plugin docs.
+
+#### Key Findings
+- **Waivers plugin doc was severely outdated** — only covered ~half the plugin. Full rewrite from source code covering 4 entities, 4 tables, 8 policies, 9 JS controllers, 3 services, 2 view cells, 13 migrations.
+- **Awards data model had phantom `active` fields** — Award, Domain, Level, and Event entities all had `active: bool` in the Mermaid diagram that doesn't exist in any entity. Award was also missing 6 real fields (abbreviation, insignia, badge, charter, open_date, close_date).
+- **Migration orders were wrong in 5-plugins.md** — Officers/Awards were swapped in the Categories section. Queue, Bootstrap, GitHubIssueSubmitter had fabricated migrationOrder values (10, 12, 11) when they have no migrationOrder in plugins.php. Reports and OfficerEventReporting plugins were listed but don't exist. Example config had nonexistent keys (dependencies, conditional, description, category, required).
+- **OfficerManagerInterface.release() had wrong param count** — doc showed 5 params (with `$releaseStatus`), interface actually has 4. The 5th param is implementation-only.
+- **RecommendationsTablePolicy used `matching()` not `contain()`** — doc showed `contain(['Awards.Levels'])->where()`, actual code uses `matching('Awards.Levels', ...)`. Also undocumented: global access sentinel value `-10000000` that bypasses branch scoping.
+- **Cross-reference rot** — `5.2.2-awards-event-entity.md` and `5.2.3-awards-domains-table.md` never existed.
+- **Section number mismatch** — 5.4 filename but 5.5 title for GitHubIssueSubmitter.

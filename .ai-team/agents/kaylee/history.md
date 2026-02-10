@@ -100,3 +100,29 @@ Fixed 18 issues across Queue plugin production code:
 - All core tests pass (183 unit, 99 feature)
 
 📌 Team update (2026-02-10): Documentation accuracy review completed — all 4 agents reviewed 96 docs against codebase
+
+### 2026-02-10: Documentation Modernization — Backend Docs Fixed
+
+Completed 13 documentation tasks fixing inaccuracies found during codebase review:
+
+#### Key Corrections Made
+- **DI Container:** Removed phantom `NavigationRegistry` and `KmpAuthorizationService` from services() doc; added actual registrations (ICalendarService, ImpersonationService)
+- **Session Config:** Fixed timeout (30 not 240), cookie name (PHPSESSID not KMP_SESSION), and structure (uses `ini` block, not nested `cookie` object)
+- **PermissionsLoader:** Fixed property name (`scoping_rule` not `scope`) and values (`Permission::SCOPE_*` constants not lowercase strings)
+- **findUpcoming SQL:** Fixed top-level OR → AND to match actual CakePHP query builder behavior
+- **Entity hierarchy:** Fixed `ActivityAuthorization` → `Authorization` (Activities plugin entity name), added `Warrant` entity
+- **WarrantManager events:** Removed fictional `ActiveWindow.before/afterStart/Stop` events — no events are dispatched
+- **Warrant expiry:** Replaced reference to non-existent `expireOldWarrants()` with actual `SyncActiveWindowStatusesCommand`
+- **File paths:** Fixed `src/Service/` → `src/Services/` (plural) in email template docs
+- **Plugin listing:** Added Waivers plugin to architecture docs
+- **Branch schema:** Removed non-existent `deleted_date` column
+- **Migration scoping:** Fixed colon-delimited scope values to `Permission::SCOPE_*` constants
+
+#### New Documentation Created
+- `docs/7.7-console-commands.md` — Documented 5 CLI commands (generate_public_ids, migrate_award_events, reset_database, sync_member_warrantable_statuses, update_database)
+- Added PublicIdBehavior section to `docs/3.2-model-behaviors.md`
+- Added 11 service descriptions to `docs/6-services.md`
+- Added `warrant_rosters` and `warrant_roster_approvals` tables to `docs/3.3-database-schema.md`
+
+#### Pattern Observed
+Docs were consistently wrong about: DI registrations (showing services that aren't registered), session config structure (CakePHP uses flat `ini` block not nested objects), and event names (fictional ActiveWindow events). These likely came from AI-generated docs that assumed patterns rather than reading actual source.

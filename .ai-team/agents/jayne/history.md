@@ -90,3 +90,29 @@ Fixed all root causes from the triage:
 Full report: `.ai-team/decisions/inbox/jayne-queue-test-fixes.md`
 
 📌 Team update (2026-02-10): Documentation accuracy review completed — all 4 agents reviewed 96 docs against codebase
+
+### 2026-02-10: Documentation Modernization — 13 Tasks Completed
+
+Fixed 13 documentation issues across 12 files by verifying each claim against actual source code.
+
+**Key corrections:**
+- Deleted duplicate `8-development-workflow.md`
+- Rewrote `7-development-workflow.md` from scratch with correct test suites (`core-unit`/`core-feature`/`plugins`), correct base classes (`BaseTestCase`/`HttpIntegrationTestCase`/`PluginIntegrationTestCase`), correct data strategy (seed SQL + transactions, NOT fixtures)
+- Fixed `KINGDOM_BRANCH_ID` from 1 → 2, `TEST_BRANCH_LOCAL_ID` from 1073 → 14 in testing docs
+- Fixed session timeout from "4 hours" → "30 minutes" in security docs
+- Corrected session config location from `app_local.php` → `app.php`
+- Removed non-existent `bin/cake security generate_salt` command references (replaced with `php -r`)
+- Removed non-existent `npm run lint` / `npm run lint:fix` references
+- Removed non-existent `StaticHelpers::logVar()` reference
+- Removed non-existent `update_seed_data.sh` reference
+- Removed non-existent `DOCUMENTS_STORAGE_ADAPTER` env var reference
+- Fixed PHP version from 8.0/8.1 → 8.3 across 4 docs (1-introduction, 8-deployment, index)
+- Fixed PHP-FPM socket path from `php8.0-fpm.sock` → `php8.3-fpm.sock`
+- Fixed Bootstrap docs link from 5.0 → 5.3
+- Fixed session type from "database-backed" → "PHP file-based" in ER diagrams
+- Fixed config loading hierarchy in environment setup docs
+- Replaced deprecated `SuperUserAuthenticatedTrait` guidance with `HttpIntegrationTestCase`
+- Removed false "fact-checked" claims from index.md
+
+**Files modified:** `docs/index.md`, `docs/1-introduction.md`, `docs/2-configuration.md`, `docs/2-getting-started.md`, `docs/3.5-er-diagrams.md`, `docs/7-development-workflow.md`, `docs/7.1-security-best-practices.md`, `docs/7.3-testing-infrastructure.md`, `docs/8-deployment.md`, `docs/8.1-environment-setup.md`, `docs/appendices.md`
+**Files deleted:** `docs/8-development-workflow.md`
