@@ -420,3 +420,54 @@ Phase 6 (Day 7-8)   ██████  CI pipeline
 1. Should we add test coverage reporting to CI (Phase 6)? I say not yet — get green first, measure later.
 2. The 31 Queue plugin tests with their own fixture system — do we eventually want to migrate them to BaseTestCase? I say no unless they start causing problems. Different plugin, different isolation strategy, and it works.
 3. Do we want to add policy tests (37 untested policy classes) as Phase 7? Yes, but not in this plan. This plan is about infrastructure; coverage expansion is separate work.
+
+### 2026-02-10: Auth Test Failure Triage Results
+**By:** Jayne
+**What:** Triaged 17 auth-related test failures — classified each as TEST_BUG or CODE_BUG with root cause analysis
+**Why:** Phase 4.1 of the test infrastructure attack plan required investigation before fixes
+
+**Summary:** 15 TEST_BUG, 2 CODE_BUG, 0 OTHER
+
+**Root Cause Taxonomy:**
+
+| Category | Count | Description |
+|----------|-------|-------------|
+| Infrastructure: Wrong DB connection | 10 | Tests query `KMP_DEV` instead of `KMP_DEV_test` |
+| Stale seed data assumptions | 3 | Test hardcodes dates/flags that don't match seed data |
+| Test code errors | 2 | Tests call non-existent policy methods or pass wrong types |
+| Deprecated test trait | 2 | `SuperUserAuthenticatedTrait` incompatible with auth system |
+| Missing revoker_id filter | 1 | `validPermissionClauses` security gap (CODE_BUG) |
+| API inconsistency | 1 | `AuthorizationService::checkCan` doesn't convert strings (CODE_BUG) |
+
+**Critical Finding — Database Connection:** All auth tests queried the PRODUCTION database (`KMP_DEV`) instead of the test database (`KMP_DEV_test`). Fix: `ConnectionManager::alias('test', 'default')` in `tests/bootstrap.php`.
+
+**CODE_BUG #1 — PermissionsLoader revoker_id:** `validPermissionClauses` did not filter `MemberRoles.revoker_id IS NULL`. Revoked roles with future expiration could grant permissions. Fix: Added the filter clause. Security-relevant.
+
+**CODE_BUG #2 — AuthorizationService string resources:** `checkCan()` passed raw strings to `performCheck()` which requires objects. Fix: Added string-to-entity conversion consistent with `Member::checkCan()`.
+
+**Priority Recommendations:**
+1. P0 — Fix test DB connection aliasing (resolves 10 of 17)
+2. P1 — Update seed membership dates to far-future (prevents time-dependent failures)
+3. P1 — Add revoker_id filter (defense-in-depth) ✅ DONE
+4. P2 — Fix SecurityDebugTest (use real policy actions/objects)
+5. P2 — Migrate ExampleSuperUserTest off deprecated trait
+6. P2 — Fix stale test assertions
+7. P3 — Renew production admin membership
+
+### 2026-02-10: Auth Strategy Decision
+**By:** Mal
+**What:** Standardize on `TestAuthenticationHelper` for all test authentication; deprecate `AuthenticatedTrait` and `SuperUserAuthenticatedTrait`
+**Why:** Array-based identity (no DB writes) works with transaction rollback and is already integrated into `HttpIntegrationTestCase`
+
+**Migration path:** Tests using deprecated traits should switch to extending `HttpIntegrationTestCase` and call `$this->authenticateAsSuperUser()`.
+
+**Files using deprecated traits (must migrate):**
+- `AuthenticatedTrait`: AppSettingsControllerTest, ExampleSuperUserTest, BranchesControllerTest, GatheringActivitiesControllerTest, GatheringTypesControllerTest, GatheringsControllerTest, MembersControllerTest, GatheringWaiversControllerTest, WaiverTypesControllerTest, OfficesControllerTest
+- `SuperUserAuthenticatedTrait`: ExampleSuperUserTest, BranchesControllerTest, GatheringActivitiesControllerTest, GatheringTypesControllerTest, GatheringsControllerTest, MembersControllerTest, GatheringWaiversControllerTest, WaiverTypesControllerTest
+
+**⚠️ Gap: `authenticateAsSuperUser()` does NOT set permissions.** The current helper sets a plain array in the session without a `permissions` key. The authorization layer requires `KmpIdentityInterface::getPermissions()` to return Permission entities with `is_super_user = true`. Tests requiring authorization checks will fail when migrated unless this gap is addressed.
+
+**Recommended fix options:**
+1. Include permission data in the session array
+2. Store a mock/stub `Member` entity implementing `KmpIdentityInterface`
+3. Load the real member entity from DB within the test transaction (recommended — rolls back cleanly while providing proper identity)

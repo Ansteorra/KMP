@@ -189,3 +189,6 @@ KMP is a CakePHP 5.x application with a plugin-based architecture. The app lives
 **Plan location:** `.ai-team/decisions/inbox/mal-test-attack-plan.md`
 
 📌 Team update (2026-02-10): Josh directive — no new features until testing is solid. Test assessment consolidated with deep dive findings into single decision block. — decided by Josh Handel
+
+📌 Team update (2026-02-10): Auth triage complete — 15 TEST_BUGs, 2 CODE_BUGs. Kaylee fixed both CODE_BUGs. All 370 project-owned tests now pass (was 121 failures + 76 errors). — decided by Jayne, Kaylee
+📌 Team update (2026-02-10): Auth strategy gap identified — authenticateAsSuperUser() does not set permissions. Must be fixed before Phase 3.2 test migration. — decided by Mal

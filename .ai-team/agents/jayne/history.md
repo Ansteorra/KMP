@@ -178,3 +178,39 @@ The authorization subsystem is well-tested. Everything else is skeletal at best.
 The infrastructure DESIGN (BaseTestCase + transactions + SeedManager) is solid. The problem is ADOPTION — most tests predate the infrastructure and were never migrated. Decision logged to `.ai-team/decisions/inbox/jayne-test-infrastructure-deep-dive.md`.
 
 📌 Team update (2026-02-10): Test infrastructure attack plan created — 6 phases, Jayne owns Phases 1-3, 4.1, 4.2a, 5, 6. No new features until testing is solid. — decided by Mal, Josh Handel
+
+### 2026-02-10: Fixed 5 Controller Test Failures — KmpHelper Static State Bug
+
+**Root Cause:** `KmpHelper::$mainView` is a `static` property that persists across all test runs in a single PHPUnit process. The `beforeRender()` method stored the first View instance and never updated it, so all subsequent HTTP requests in tests wrote their view blocks (pageTitle, recordDetails, recordActions, etc.) to the stale View from the first request. This caused response bodies to shrink from ~42KB to ~15KB after the first test, with all block content missing.
+
+**Fix:** Changed the `beforeRender()` condition in `KmpHelper` (line 49) from checking `isset(self::$mainView)` to comparing `self::$mainView->getRequest() !== $view->getRequest()`. Cell views share the same request as their parent view, so they still won't overwrite the main view within a single request. But a new test/request gets a fresh View stored.
+
+**Tests Fixed (all 5 had the same root cause):**
+1. `GatheringActivitiesControllerTest::testViewShowsAssociatedWaivers` — 'Armored Combat' missing
+2. `GatheringActivitiesControllerTest::testWaiverRequirementMarkingDisplayed` — 'Armored Combat' missing
+3. `GatheringTypesControllerTest::testView` — 'Kingdom Calendar Event' missing
+4. `MembersControllerTest::testViewShowsImpersonateButtonForSuperUsers` — 'Impersonate Member' missing
+5. `WaiverTypesControllerTest::testView` — 'Participation Roster Waiver' missing
+
+**File changed:** `app/src/View/Helper/KmpHelper.php` — 4 lines changed in `beforeRender()`
+
+**No production impact** — in production, each HTTP request is a separate PHP process, so static state never persists between requests. This only affects multi-request scenarios like PHPUnit test suites.
+
+### 2026-02-10: Template HelloWorldControllerTest — Fixed 14 Failures + 5 Risky
+
+#### Root Causes (3 issues)
+
+1. **MissingControllerException (14 failures):** Test extended `HttpIntegrationTestCase` instead of `PluginIntegrationTestCase`. The Template plugin is commented out in `config/plugins.php`, so its routes aren't loaded by default. Without explicit plugin loading, CakePHP interpreted `/template/hello-world` as controller=Template (which doesn't exist in the core app). Fix: Changed base class to `PluginIntegrationTestCase` with `PLUGIN_NAME = 'Template'`.
+
+2. **Missing authentication/authorization:** The controller calls `$this->authorizeCurrentUrl()` on every action. Without `authenticateAsSuperUser()` and CSRF/security tokens in setUp, all requests would fail authorization. Fix: Added `enableCsrfToken()`, `enableSecurityToken()`, and `authenticateAsSuperUser()` to setUp.
+
+3. **Flash message assertions (3 failures after routing fix):** CakePHP's `assertFlashMessage()` reads from `$this->_requestSession` which is empty in KMP's test environment. Flash messages are stored in `$_SESSION['Flash']['flash']` instead (same pattern as `OfficesControllerTest`). Fix: Replaced `assertFlashMessage()` with direct `$_SESSION` reads.
+
+4. **Risky tests (5 empty test bodies):** Five stub methods had all code commented out and no assertions, triggering PHPUnit's "risky test" warning. Fix: Added `markTestIncomplete()` with descriptive messages explaining what each stub needs to become a real test.
+
+#### Final Result
+- 14 tests: 9 passing, 5 incomplete (stubs), 0 failures, 0 risky
+- (28 total when counting the Waivers namespace-collision copy)
+
+📌 Team update (2026-02-10): Auth triage complete — 15 TEST_BUGs, 2 CODE_BUGs classified. Kaylee fixed both CODE_BUGs (PermissionsLoader revoker_id, ControllerResolver string handling). All 370 project-owned tests now pass. — decided by Jayne, Kaylee
+📌 Team update (2026-02-10): Auth strategy decided — standardize on TestAuthenticationHelper, deprecate old traits. ⚠️ Gap: authenticateAsSuperUser() does not set permissions — must be fixed before migrating tests. — decided by Mal
