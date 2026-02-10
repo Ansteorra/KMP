@@ -106,8 +106,7 @@ jobs:
 
       - name: Report test results
         if: success() || failure()
-        uses: dorny/test-reporter@v1
+        uses: EnricoMi/publish-unit-test-result-action@v2
         with:
-          name: PHPUnit Test Results
-          path: test-results/junit.xml
-          reporter: java-junit
+          files: test-results/junit.xml
+          check_name: PHPUnit Test Results
