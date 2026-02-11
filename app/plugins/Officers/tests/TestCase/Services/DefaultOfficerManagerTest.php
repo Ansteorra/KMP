@@ -664,9 +664,70 @@ class DefaultOfficerManagerTest extends BaseTestCase
      */
     public function testRecalculateOfficersForOfficeFailFastOnSaveFailure(): void
     {
-        // This test would require mocking the Officers table to simulate a save failure
-        // For now, we'll mark it as a placeholder for future implementation
-        $this->markTestIncomplete('Requires table mocking to simulate save failure');
+        // Create office for recalculation
+        $office = $this->Offices->newEntity([
+            'name' => 'Test FailFast ' . uniqid(),
+            'department_id' => 1,
+            'reports_to_id' => 1,
+            'term_length' => 12,
+            'requires_warrant' => false,
+            'can_skip_report' => false,
+            'only_one_per_branch' => false,
+            'applicable_branch_types' => '["kingdom"]',
+        ]);
+        $this->Offices->saveOrFail($office);
+
+        // Create two current officers
+        $officer1 = $this->Officers->newEntity([
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'office_id' => $office->id,
+            'branch_id' => $this->testBranch->id,
+            'approver_id' => self::ADMIN_MEMBER_ID,
+            'approval_date' => DateTime::now(),
+            'start_on' => DateTime::now()->subDays(30),
+            'expires_on' => DateTime::now()->addMonths(6),
+            'status' => Officer::CURRENT_STATUS,
+            'reports_to_office_id' => 1,
+            'reports_to_branch_id' => $this->testBranch->id,
+        ]);
+        $this->Officers->saveOrFail($officer1);
+
+        $officer2 = $this->Officers->newEntity([
+            'member_id' => self::TEST_MEMBER_AGATHA_ID,
+            'office_id' => $office->id,
+            'branch_id' => $this->testBranch->id,
+            'approver_id' => self::ADMIN_MEMBER_ID,
+            'approval_date' => DateTime::now(),
+            'start_on' => DateTime::now()->subDays(15),
+            'expires_on' => DateTime::now()->addMonths(6),
+            'status' => Officer::CURRENT_STATUS,
+            'reports_to_office_id' => 1,
+            'reports_to_branch_id' => $this->testBranch->id,
+        ]);
+        $this->Officers->saveOrFail($officer2);
+
+        // Attach a beforeSave listener that forces save failure on officer updates
+        $this->Officers->getEventManager()->on(
+            'Model.beforeSave',
+            function ($event, $entity) {
+                if ($entity->isDirty('reports_to_office_id')) {
+                    return false;
+                }
+            }
+        );
+
+        // Change reports_to_id on the office to trigger recalculation
+        $office->reports_to_id = 2;
+        $this->Offices->saveOrFail($office);
+
+        // Attempt recalculation — should fail fast on first officer save
+        $result = $this->officerManager->recalculateOfficersForOffice(
+            $office->id,
+            self::ADMIN_MEMBER_ID
+        );
+
+        $this->assertFalse($result->success, 'Recalculation should fail when officer save fails');
+        $this->assertStringContainsString('Failed to update officer', $result->reason);
     }
 
     // ============================================================================
@@ -747,10 +808,30 @@ class DefaultOfficerManagerTest extends BaseTestCase
      */
     public function testAssignNonWarrantableMemberToWarrantRequiredOfficeFails(): void
     {
-        $this->markTestIncomplete(
-            'Cannot easily test warrantability validation since warrantable is a calculated virtual field. ' .
-                'Validation logic exists in DefaultOfficerManager::assign() lines 228-233.'
+        // Set admin member as non-warrantable via direct SQL (bypasses beforeSave recalculation)
+        $this->Members->getConnection()->execute(
+            'UPDATE members SET warrantable = 0 WHERE id = ?',
+            [self::ADMIN_MEMBER_ID]
         );
+
+        // Office 2 (Kingdom Earl Marshal) requires_warrant = true in seed data
+        $warrantOffice = $this->Offices->get(2);
+        $this->assertTrue((bool)$warrantOffice->requires_warrant, 'Office should require warrant');
+
+        // Attempt to assign non-warrantable member to warrant-required office
+        $result = $this->officerManager->assign(
+            $warrantOffice->id,
+            self::ADMIN_MEMBER_ID,
+            $this->testBranch->id,
+            DateTime::now(),
+            DateTime::now()->addMonths(12),
+            null,
+            self::ADMIN_MEMBER_ID,
+            'test@example.com'
+        );
+
+        $this->assertFalse($result->success, 'Assignment should fail for non-warrantable member');
+        $this->assertStringContainsString('not warrantable', $result->reason);
     }
 
     /**

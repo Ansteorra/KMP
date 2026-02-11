@@ -16,6 +16,13 @@ class QueueProgressHelperTest extends TestCase
 {
 
 	/**
+	 * @var array<string>
+	 */
+	protected array $fixtures = [
+		'plugin.Queue.QueuedJobs',
+	];
+
+	/**
 	 * @var \Queue\View\Helper\QueueProgressHelper
 	 */
 	protected QueueProgressHelper $QueueProgressHelper;
@@ -85,7 +92,7 @@ class QueueProgressHelperTest extends TestCase
 	public function testProgressCalculatedEmpty()
 	{
 		$queuedJob = new QueuedJob([
-			'job_task' => 'Queue.Example',
+			'job_task' => 'Queue.Email',
 			'fetched' => (new DateTime())->subMinutes(1),
 		]);
 		$result = $this->QueueProgressHelper->progress($queuedJob);
@@ -98,7 +105,7 @@ class QueueProgressHelperTest extends TestCase
 	public function testProgressCalculated()
 	{
 		$queuedJob = new QueuedJob([
-			'job_task' => 'Queue.Example',
+			'job_task' => 'Queue.Email',
 			'created' => (new DateTime())->subMinutes(2),
 			'fetched' => (new DateTime())->subMinutes(1),
 			'completed' => (new DateTime())->subSeconds(2),
@@ -106,7 +113,7 @@ class QueueProgressHelperTest extends TestCase
 		$this->getTableLocator()->get('Queue.QueuedJobs')->saveOrFail($queuedJob);
 
 		$queuedJob = new QueuedJob([
-			'job_task' => 'Queue.Example',
+			'job_task' => 'Queue.Email',
 			'fetched' => (new DateTime())->subMinutes(1),
 		]);
 

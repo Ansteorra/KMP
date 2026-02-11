@@ -7,9 +7,13 @@ namespace App\Test\TestCase\Controller;
 use Cake\TestSuite\IntegrationTestTrait;
 
 /**
- * App\Controller\AppSettingsController Test Case
+ * AuthenticatedTrait
  *
- * @uses \App\Controller\AppSettingsController
+ * @deprecated Use TestAuthenticationHelper (via HttpIntegrationTestCase) instead.
+ *   This trait writes to the database and is incompatible with transaction rollback.
+ *   Extend HttpIntegrationTestCase and call $this->authenticateAsSuperUser() instead.
+ * @see \App\Test\TestCase\TestAuthenticationHelper
+ * @see \App\Test\TestCase\Support\HttpIntegrationTestCase
  */
 
 trait AuthenticatedTrait

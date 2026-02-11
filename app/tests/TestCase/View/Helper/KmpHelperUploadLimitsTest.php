@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Test\TestCase\View\Helper;
 
 use App\View\Helper\KmpHelper;
-use Cake\TestSuite\TestCase;
+use App\Test\TestCase\BaseTestCase;
 use Cake\View\View;
 
 /**
  * App\View\Helper\KmpHelper Test Case - Upload Limits
  */
-class KmpHelperUploadLimitsTest extends TestCase
+class KmpHelperUploadLimitsTest extends BaseTestCase
 {
     /**
      * Test subject

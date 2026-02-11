@@ -74,6 +74,9 @@ class ControllerResolver implements ResolverInterface
         if ($resource instanceof ServerRequest) {
             return $this->getControllerPolicyByRequest($resource);
         }
+        if (is_string($resource)) {
+            return $this->getControllerPolicyByName($resource);
+        }
         if (Is_Array($resource)) {
             $controller = $resource['controller'];
             // Handle plugin parameter - convert false to null

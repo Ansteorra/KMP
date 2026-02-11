@@ -47,11 +47,49 @@ ConnectionManager::setConfig('test_debug_kit', [
 ]);
 
 ConnectionManager::alias('test_debug_kit', 'debug_kit');
+ConnectionManager::alias('test', 'default');
+
+// Ensure tmp and logs directories exist and are writable for tests
+@mkdir(LOGS, 0777, true);
+@mkdir(TMP, 0777, true);
+@mkdir(TMP . 'cache', 0777, true);
+@mkdir(TMP . 'sessions', 0777, true);
+@mkdir(TMP . 'tests', 0777, true);
 
 // Fixate sessionid early on, as php7.2+
 // does not allow the sessionid to be set after stdout
 // has been written to.
-session_id('cli');
+if (session_status() === PHP_SESSION_NONE) {
+    session_id('cli');
+}
 
 // Ensure the test schema is seeded with the shared dev dataset
 SeedManager::bootstrap('test');
+
+// Fix stale seed data dates: extend expired test member roles to far-future dates
+// so time-sensitive tests remain stable across environments.
+$conn = ConnectionManager::get('test');
+$farFuture = '2100-01-01 00:00:00';
+
+// Extend membership expiration for all synthetic test members so permission queries work
+$conn->execute(
+    "UPDATE members SET membership_expires_on = ? WHERE id IN (2871, 2872, 2874, 2875) AND membership_expires_on < NOW()",
+    [$farFuture]
+);
+
+// Devon (2874) needs active Regional Officer Management role at Central Region (branch 12)
+// for multi-region permission tests. Role 363 was revoked, so create a replacement if needed.
+$existingActive = $conn->execute(
+    "SELECT COUNT(*) as cnt FROM member_roles WHERE member_id = 2874 AND role_id = 1118 AND branch_id = 12 AND revoker_id IS NULL AND expires_on > NOW()"
+)->fetch('assoc');
+if ($existingActive && (int)$existingActive['cnt'] === 0) {
+    $conn->execute(
+        "INSERT INTO member_roles (member_id, role_id, branch_id, start_on, expires_on, approver_id, entity_type, created, modified, created_by, modified_by) VALUES (2874, 1118, 12, NOW(), ?, 1, 'Officers.Officers', NOW(), NOW(), 1, 1)",
+        [$farFuture]
+    );
+}
+// Devon (2874) roles at local branches (370, 371) - extend if expired
+$conn->execute(
+    "UPDATE member_roles SET expires_on = ? WHERE id IN (370, 371) AND expires_on < NOW()",
+    [$farFuture]
+);

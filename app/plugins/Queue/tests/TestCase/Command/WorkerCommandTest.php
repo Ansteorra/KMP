@@ -16,13 +16,18 @@ class WorkerCommandTest extends TestCase
 	use ConsoleIntegrationTestTrait;
 
 	/**
+	 * @var array<string>
+	 */
+	protected array $fixtures = [
+		'plugin.Queue.QueueProcesses',
+	];
+
+	/**
 	 * @return void
 	 */
 	public function setUp(): void
 	{
 		parent::setUp();
-
-		$this->loadPlugins(['Queue']);
 	}
 
 	/**

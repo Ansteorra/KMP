@@ -762,7 +762,12 @@ class QueuedJobsTable extends BaseTable
 		];
 		$job = $this->patchEntity($job, $fields);
 
-		return (bool)$this->save($job);
+		$result = (bool)$this->save($job);
+		if (!$result) {
+			\Cake\Log\Log::warning('markJobDone: Failed to save job #' . $job->id);
+		}
+
+		return $result;
 	}
 
 	/**
@@ -780,7 +785,12 @@ class QueuedJobsTable extends BaseTable
 		];
 		$job = $this->patchEntity($job, $fields);
 
-		return (bool)$this->save($job);
+		$result = (bool)$this->save($job);
+		if (!$result) {
+			\Cake\Log\Log::warning('markJobFailed: Failed to save job #' . $job->id);
+		}
+
+		return $result;
 	}
 
 	/**
@@ -960,7 +970,7 @@ class QueuedJobsTable extends BaseTable
 		}
 
 		return $this->deleteAll([
-			'completed <' => time() - (int)Configure::read('Queue.cleanuptimeout'),
+			'completed <' => (new DateTime())->subSeconds((int)Configure::read('Queue.cleanuptimeout')),
 		]);
 	}
 
@@ -974,7 +984,7 @@ class QueuedJobsTable extends BaseTable
 	{
 		$failureMessageRequeued = 'requeued';
 
-		$queuedTaskName = 'Queue' . $queuedTask->job_task;
+		$queuedTaskName = $queuedTask->job_task;
 		if (empty($taskConfiguration[$queuedTaskName])) {
 			return $failureMessageRequeued;
 		}
@@ -1000,30 +1010,6 @@ class QueuedJobsTable extends BaseTable
 	}
 
 	/**
-	 * //FIXME
-	 *
-	 * @return void
-	 */
-	public function clearDoublettes(): void
-	{
-		/** @var array<int> $x */
-		$x = $this->getConnection()->selectQuery('SELECT max(id) as id FROM `' . $this->getTable() . '`
-	WHERE completed is NULL
-	GROUP BY data
-	HAVING COUNT(id) > 1');
-
-		$start = 0;
-		$x = array_keys($x);
-		$numX = count($x);
-		while ($start <= $numX) {
-			$this->deleteAll([
-				'id' => array_slice($x, $start, 10),
-			]);
-			$start = $start + 100;
-		}
-	}
-
-	/**
 	 * Generates a unique Identifier for the current worker thread.
 	 *
 	 * Useful to identify the currently running processes for this thread.
@@ -1035,7 +1021,7 @@ class QueuedJobsTable extends BaseTable
 		if ($this->_key !== null) {
 			return $this->_key;
 		}
-		$this->_key = sha1(microtime() . mt_rand(100, 999));
+		$this->_key = bin2hex(random_bytes(20));
 		if (!$this->_key) {
 			throw new RuntimeException('Invalid key generated');
 		}

@@ -38,7 +38,7 @@ class QueueHelperTest extends TestCase {
 	 */
 	public function testHasFailed() {
 		$queuedJob = new QueuedJob([
-			'job_task' => 'Queue.Example',
+			'job_task' => 'Queue.Email',
 			'fetched' => '2019',
 			'attempts' => 0,
 		]);
@@ -65,7 +65,7 @@ class QueueHelperTest extends TestCase {
 	 */
 	public function testFails() {
 		$queuedJob = new QueuedJob([
-			'job_task' => 'Queue.Example',
+			'job_task' => 'Queue.Email',
 			'attempts' => 0,
 		]);
 		$result = $this->QueueHelper->attempts($queuedJob);
@@ -89,7 +89,7 @@ class QueueHelperTest extends TestCase {
 	 */
 	public function testFailureStatus() {
 		$queuedJob = new QueuedJob([
-			'job_task' => 'Queue.Example',
+			'job_task' => 'Queue.Email',
 			'fetched' => '2019',
 			'attempts' => 0,
 		]);

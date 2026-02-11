@@ -27,9 +27,9 @@ class KmpHelper extends Helper
     /**
      * Main view reference for block management across view cells.
      * 
-     * @var AppView
+     * @var AppView|null
      */
-    private static AppView $mainView;
+    private static ?AppView $mainView = null;
 
     /**
      * Tracks the currently open block name.
@@ -45,13 +45,17 @@ class KmpHelper extends Helper
         $view = $event->getSubject();
         assert($view instanceof AppView);
 
-        // Only store the main view once, and ignore error views
-        if (isset(self::$mainView) && $view->getTemplatePath() != 'Error') {
+        // Ignore error views
+        if ($view->getTemplatePath() == 'Error') {
             return;
         }
 
-        // Store reference to main view for block management
-        self::$mainView = $view;
+        // Update mainView when a new request context begins (new HTTP request
+        // or new test run). Cell views share the same request as their parent,
+        // so they won't overwrite the main view within a single request.
+        if (self::$mainView === null || self::$mainView->getRequest() !== $view->getRequest()) {
+            self::$mainView = $view;
+        }
     }
 
     /**
@@ -86,10 +90,11 @@ class KmpHelper extends Helper
      */
     public function startBlock(string $block): string
     {
-        self::$mainView->start($block);
+        $view = self::$mainView ?? $this->getView();
+        $view->start($block);
         self::$currentOpenBlock = $block;
 
-        return self::$mainView->fetch($block);
+        return $view->fetch($block);
     }
 
     /**
@@ -99,7 +104,8 @@ class KmpHelper extends Helper
      */
     public function endBlock(): void
     {
-        self::$mainView->end();
+        $view = self::$mainView ?? $this->getView();
+        $view->end();
         self::$currentOpenBlock = '';
     }
 

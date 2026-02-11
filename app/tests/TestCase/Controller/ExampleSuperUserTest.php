@@ -4,22 +4,26 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
 
-use App\Test\TestCase\BaseTestCase;
-use Cake\TestSuite\IntegrationTestTrait;
+use App\Test\TestCase\Support\HttpIntegrationTestCase;
 
 /**
  * Example Test Demonstrating Test Super User Authentication
  * 
- * This test class shows how to use the SuperUserAuthenticatedTrait
- * to solve permission issues in tests.
+ * This test class shows how to use authenticateAsSuperUser()
+ * via HttpIntegrationTestCase to solve permission issues in tests.
  */
-class ExampleSuperUserTest extends BaseTestCase
+class ExampleSuperUserTest extends HttpIntegrationTestCase
 {
-    use IntegrationTestTrait;
-    use SuperUserAuthenticatedTrait;
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->authenticateAsSuperUser();
+    }
 
     /**
-     * Test that authentication is set up via trait
+     * Test that authentication is set up via HttpIntegrationTestCase
      *
      * @return void
      */

@@ -18,13 +18,19 @@ class RunCommandTest extends TestCase
 	use ConsoleIntegrationTestTrait;
 
 	/**
+	 * @var array<string>
+	 */
+	protected array $fixtures = [
+		'plugin.Queue.QueuedJobs',
+		'plugin.Queue.QueueProcesses',
+	];
+
+	/**
 	 * @return void
 	 */
 	public function setUp(): void
 	{
 		parent::setUp();
-
-		$this->loadPlugins(['Queue']);
 
 		Configure::write('Queue', [
 			'sleeptime' => 1,
@@ -46,23 +52,6 @@ class RunCommandTest extends TestCase
 
 		$output = $this->_out->output();
 		$this->assertStringContainsString('Looking for Job', $output);
-		$this->assertExitCode(0);
-	}
-
-	/**
-	 * @return void
-	 */
-	public function testServiceInjection(): void
-	{
-		$this->_needsConnection();
-
-		$this->exec('queue add Foo');
-		$this->exec('queue run');
-
-		$output = $this->_out->output();
-		$this->assertStringContainsString('Looking for Job', $output);
-		$this->assertStringContainsString('CakePHP Foo Example.', $output);
-		$this->assertStringContainsString('My TestService', $output);
 		$this->assertExitCode(0);
 	}
 

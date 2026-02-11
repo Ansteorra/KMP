@@ -311,12 +311,17 @@ class QueueProcessesTable extends BaseTable
 			return;
 		}
 
+		if (!is_numeric($pid)) {
+			return;
+		}
+		$sig = (int)$sig;
+
 		$killed = false;
 		if (function_exists('posix_kill')) {
 			$killed = posix_kill((int)$pid, $sig);
 		}
 		if (!$killed) {
-			exec('kill -' . $sig . ' ' . $pid);
+			exec('kill -' . $sig . ' ' . (int)$pid);
 		}
 		sleep(1);
 

@@ -9,6 +9,9 @@
 /images/*
 /.phpdoc/
 
+# Phinx migration schema dumps (auto-generated on migrate)
+**/config/Migrations/schema-dump-*.lock
+
 
 # OS generated files #
 ######################

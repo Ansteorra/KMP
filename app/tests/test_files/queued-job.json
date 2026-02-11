@@ -1,0 +1,19 @@
+{
+    "queuedJob": {
+        "id": 1,
+        "job_task": "Webhook",
+        "data": null,
+        "job_group": null,
+        "reference": "web-hook-102803234",
+        "created": "2024-01-01 00:00:00",
+        "notbefore": null,
+        "fetched": null,
+        "completed": null,
+        "progress": null,
+        "attempts": 0,
+        "failure_message": null,
+        "workerkey": null,
+        "status": null,
+        "priority": 5
+    }
+}

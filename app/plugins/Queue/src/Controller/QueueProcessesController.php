@@ -44,7 +44,7 @@ class QueueProcessesController extends AppController
 	 */
 	public function index()
 	{
-		$this->Authorization->authorize("Queue.QueuedJobs", "migrate");
+		$this->Authorization->authorize("Queue.QueuedJobs", "index");
 		$queueProcesses = $this->paginate();
 
 		$this->set(compact('queueProcesses'));

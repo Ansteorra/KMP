@@ -6,12 +6,14 @@ namespace App\Test\TestCase\Services;
 
 use App\Services\ImageToPdfConversionService;
 use Cake\Core\Configure;
-use Cake\TestSuite\TestCase;
+use App\Test\TestCase\BaseTestCase;
 
 /**
  * App\Services\ImageToPdfConversionService Test Case
+ *
+ * @requires extension gd
  */
-class ImageToPdfConversionServiceTest extends TestCase
+class ImageToPdfConversionServiceTest extends BaseTestCase
 {
     /**
      * Test subject
@@ -26,6 +28,13 @@ class ImageToPdfConversionServiceTest extends TestCase
      * @var string
      */
     protected $testImagesDir;
+
+    /**
+     * Temporary files to clean up
+     *
+     * @var string[]
+     */
+    protected $tempFiles = [];
 
     /**
      * setUp method
@@ -63,7 +72,82 @@ class ImageToPdfConversionServiceTest extends TestCase
             }
         }
 
+        // Clean up tracked temp files (e.g., preview paths)
+        foreach ($this->tempFiles as $file) {
+            if (file_exists($file)) {
+                @unlink($file);
+            }
+        }
+        $this->tempFiles = [];
+
         parent::tearDown();
+    }
+
+    /**
+     * Create a test JPEG image using GD.
+     */
+    private function createTestJpeg(string $path, int $width = 100, int $height = 100): void
+    {
+        $image = imagecreatetruecolor($width, $height);
+        $white = imagecolorallocate($image, 255, 255, 255);
+        imagefill($image, 0, 0, $white);
+        $black = imagecolorallocate($image, 0, 0, 0);
+        imagefilledrectangle($image, 10, 10, $width - 10, $height - 10, $black);
+        imagejpeg($image, $path, 90);
+        imagedestroy($image);
+    }
+
+    /**
+     * Create a test PNG image using GD.
+     */
+    private function createTestPng(string $path, int $width = 100, int $height = 100): void
+    {
+        $image = imagecreatetruecolor($width, $height);
+        $white = imagecolorallocate($image, 255, 255, 255);
+        imagefill($image, 0, 0, $white);
+        $red = imagecolorallocate($image, 255, 0, 0);
+        imagefilledrectangle($image, 10, 10, $width - 10, $height - 10, $red);
+        imagepng($image, $path);
+        imagedestroy($image);
+    }
+
+    /**
+     * Create a multi-color test JPEG (for grayscale conversion testing).
+     */
+    private function createColorTestJpeg(string $path, int $width = 200, int $height = 200): void
+    {
+        $image = imagecreatetruecolor($width, $height);
+        $hw = (int)($width / 2);
+        $hh = (int)($height / 2);
+        $red = imagecolorallocate($image, 255, 0, 0);
+        $green = imagecolorallocate($image, 0, 255, 0);
+        $blue = imagecolorallocate($image, 0, 0, 255);
+        $yellow = imagecolorallocate($image, 255, 255, 0);
+        imagefilledrectangle($image, 0, 0, $hw, $hh, $red);
+        imagefilledrectangle($image, $hw, 0, $width, $hh, $green);
+        imagefilledrectangle($image, 0, $hh, $hw, $height, $blue);
+        imagefilledrectangle($image, $hw, $hh, $width, $height, $yellow);
+        imagejpeg($image, $path, 95);
+        imagedestroy($image);
+    }
+
+    /**
+     * Return an output path inside testImagesDir and register it for cleanup.
+     */
+    private function outputPath(string $name): string
+    {
+        $path = $this->testImagesDir . $name;
+        return $path;
+    }
+
+    /**
+     * Track a temporary file for cleanup in tearDown.
+     */
+    private function trackTempFile(?string $path): void
+    {
+        if ($path !== null) {
+            $this->tempFiles[] = $path;
+        }
     }
 
     /**
@@ -73,14 +157,24 @@ class ImageToPdfConversionServiceTest extends TestCase
      */
     public function testConvertJpegImage(): void
     {
-        $this->markTestIncomplete('Requires Imagick extension and test image files');
+        $jpegPath = $this->testImagesDir . 'test.jpg';
+        $this->createTestJpeg($jpegPath);
+        $outputPath = $this->outputPath('jpeg_output.pdf');
 
-        // This test would:
-        // 1. Create or load a test JPEG image
-        // 2. Call convert() method
-        // 3. Verify PDF is created
-        // 4. Verify PDF is black and white
-        // 5. Verify file size is reduced
+        $previewPath = null;
+        $result = $this->ImageToPdfConversionService->convertImageToPdf(
+            $jpegPath,
+            $outputPath,
+            'letter',
+            $previewPath
+        );
+        $this->trackTempFile($previewPath);
+
+        $this->assertTrue($result->isSuccess(), 'JPEG conversion failed: ' . ($result->getError() ?? ''));
+        $this->assertFileExists($outputPath);
+        $pdfContent = file_get_contents($outputPath);
+        $this->assertStringStartsWith('%PDF-', $pdfContent, 'Output should be a valid PDF');
+        $this->assertGreaterThan(0, filesize($outputPath));
     }
 
     /**
@@ -90,17 +184,35 @@ class ImageToPdfConversionServiceTest extends TestCase
      */
     public function testConvertPngImage(): void
     {
-        $this->markTestIncomplete('Requires Imagick extension and test image files');
+        $pngPath = $this->testImagesDir . 'test.png';
+        $this->createTestPng($pngPath);
+        $outputPath = $this->outputPath('png_output.pdf');
+
+        $result = $this->ImageToPdfConversionService->convertImageToPdf($pngPath, $outputPath);
+
+        $this->assertTrue($result->isSuccess(), 'PNG conversion failed: ' . ($result->getError() ?? ''));
+        $this->assertFileExists($outputPath);
+        $pdfContent = file_get_contents($outputPath);
+        $this->assertStringStartsWith('%PDF-', $pdfContent, 'Output should be a valid PDF');
     }
 
     /**
-     * Test convert method with valid TIFF image
+     * Test convert rejects TIFF images (unsupported format)
      *
      * @return void
      */
     public function testConvertTiffImage(): void
     {
-        $this->markTestIncomplete('Requires Imagick extension and test image files');
+        // TIFF is not in SUPPORTED_FORMATS; create a minimal TIFF-like file
+        $tiffPath = $this->testImagesDir . 'test.tiff';
+        // Little-endian TIFF header: 49 49 2A 00
+        file_put_contents($tiffPath, hex2bin('49492A00') . str_repeat("\x00", 100));
+        $outputPath = $this->outputPath('tiff_output.pdf');
+
+        $result = $this->ImageToPdfConversionService->convertImageToPdf($tiffPath, $outputPath);
+
+        $this->assertFalse($result->isSuccess(), 'TIFF should be rejected as unsupported');
+        $this->assertNotNull($result->getError());
     }
 
     /**
@@ -110,118 +222,251 @@ class ImageToPdfConversionServiceTest extends TestCase
      */
     public function testConvertRejectsInvalidFormat(): void
     {
-        $this->markTestIncomplete('Requires Imagick extension and test files');
+        $txtPath = $this->testImagesDir . 'not_an_image.txt';
+        file_put_contents($txtPath, 'This is plain text, not an image.');
+        $outputPath = $this->outputPath('invalid_output.pdf');
 
-        // This test would:
-        // 1. Try to convert a non-image file (e.g., .txt)
-        // 2. Verify error is returned
-        // 3. Verify no PDF is created
+        $result = $this->ImageToPdfConversionService->convertImageToPdf($txtPath, $outputPath);
+
+        $this->assertFalse($result->isSuccess());
+        $this->assertNotNull($result->getError());
+        $this->assertFileDoesNotExist($outputPath);
     }
 
     /**
-     * Test convert handles corrupted images
+     * Test convert handles corrupted images gracefully
      *
      * @return void
      */
     public function testConvertHandlesCorruptedImages(): void
     {
-        $this->markTestIncomplete('Requires Imagick extension and corrupted test files');
+        $corruptPath = $this->testImagesDir . 'corrupt.jpg';
+        // Valid JPEG SOI marker (FF D8 FF) followed by garbage
+        file_put_contents($corruptPath, "\xFF\xD8\xFF" . random_bytes(200));
+        $outputPath = $this->outputPath('corrupt_output.pdf');
+
+        $result = $this->ImageToPdfConversionService->convertImageToPdf($corruptPath, $outputPath);
+
+        // Should fail gracefully — no uncaught exception
+        $this->assertFalse($result->isSuccess(), 'Corrupted image should fail gracefully');
+        $this->assertNotNull($result->getError());
     }
 
     /**
-     * Test compression quality
+     * Test converted PDF has reasonable file size
      *
      * @return void
      */
     public function testCompressionQuality(): void
     {
-        $this->markTestIncomplete('Requires Imagick extension and test image files');
+        $jpegPath = $this->testImagesDir . 'large_color.jpg';
+        $this->createColorTestJpeg($jpegPath, 800, 600);
+        $outputPath = $this->outputPath('compressed_output.pdf');
 
-        // This test would:
-        // 1. Convert a high-resolution image
-        // 2. Verify resulting PDF size is 60-80% smaller
-        // 3. Verify PDF is still legible (subjective - may need manual verification)
+        $result = $this->ImageToPdfConversionService->convertImageToPdf($jpegPath, $outputPath);
+
+        $this->assertTrue($result->isSuccess(), 'Conversion failed: ' . ($result->getError() ?? ''));
+        $this->assertFileExists($outputPath);
+        $pdfSize = filesize($outputPath);
+        $this->assertGreaterThan(0, $pdfSize, 'PDF should not be empty');
+        // PDF wraps a JPEG at quality 70 with ~200 bytes of structure;
+        // it should be a reasonable size for an 800×600 grayscale image
+        $this->assertLessThan(5 * 1024 * 1024, $pdfSize, 'PDF should be under 5 MB for an 800x600 image');
     }
 
     /**
-     * Test Group4 CCITT compression is used
+     * Test PDF uses DCTDecode (JPEG) compression
+     *
+     * The GD-based service embeds images as JPEG with DCTDecode filter,
+     * not Group4/CCITT (which requires Imagick and monochrome bitmaps).
      *
      * @return void
      */
     public function testUsesGroup4Compression(): void
     {
-        $this->markTestIncomplete('Requires Imagick extension and test image files');
+        $jpegPath = $this->testImagesDir . 'compression_check.jpg';
+        $this->createTestJpeg($jpegPath);
+        $outputPath = $this->outputPath('dct_output.pdf');
 
-        // This test would verify the PDF uses Group4 (CCITT T.6) compression
+        $result = $this->ImageToPdfConversionService->convertImageToPdf($jpegPath, $outputPath);
+
+        $this->assertTrue($result->isSuccess());
+        $pdfContent = file_get_contents($outputPath);
+        $this->assertStringContainsString('/DCTDecode', $pdfContent, 'PDF should use DCTDecode (JPEG) filter');
+        $this->assertStringContainsString('/DeviceRGB', $pdfContent, 'PDF should declare RGB color space');
     }
 
     /**
-     * Test black and white conversion
+     * Test that color images are converted to grayscale
      *
      * @return void
      */
     public function testBlackAndWhiteConversion(): void
     {
-        $this->markTestIncomplete('Requires Imagick extension and test image files');
+        $colorPath = $this->testImagesDir . 'color_input.jpg';
+        $this->createColorTestJpeg($colorPath, 200, 200);
+        $outputPath = $this->outputPath('bw_output.pdf');
 
-        // This test would:
-        // 1. Convert a color image
-        // 2. Verify resulting PDF is black and white (grayscale or monochrome)
+        $previewPath = null;
+        $result = $this->ImageToPdfConversionService->convertImageToPdf(
+            $colorPath,
+            $outputPath,
+            'letter',
+            $previewPath
+        );
+        $this->trackTempFile($previewPath);
+
+        $this->assertTrue($result->isSuccess());
+        $this->assertFileExists($outputPath);
+
+        // Verify grayscale via the preview JPEG (R == G == B for every sampled pixel)
+        if ($previewPath !== null && file_exists($previewPath)) {
+            $preview = @imagecreatefromjpeg($previewPath);
+            $this->assertNotFalse($preview, 'Preview should be a loadable JPEG');
+            // Sample center pixel
+            $rgb = imagecolorat($preview, (int)(imagesx($preview) / 2), (int)(imagesy($preview) / 2));
+            $r = ($rgb >> 16) & 0xFF;
+            $g = ($rgb >> 8) & 0xFF;
+            $b = $rgb & 0xFF;
+            // JPEG compression can cause ±2 deviation in channel values
+            $this->assertEqualsWithDelta($r, $g, 3, 'R and G channels should match (grayscale)');
+            $this->assertEqualsWithDelta($r, $b, 3, 'R and B channels should match (grayscale)');
+            imagedestroy($preview);
+        }
     }
 
     /**
-     * Test conversion preserves image dimensions
+     * Test conversion preserves aspect ratio of the source image
      *
      * @return void
      */
     public function testPreservesImageDimensions(): void
     {
-        $this->markTestIncomplete('Requires Imagick extension and test image files');
+        // Landscape source: 400×200
+        $widePath = $this->testImagesDir . 'wide.jpg';
+        $this->createTestJpeg($widePath, 400, 200);
+        $outputPath = $this->outputPath('dimensions_output.pdf');
+
+        $previewPath = null;
+        $result = $this->ImageToPdfConversionService->convertImageToPdf(
+            $widePath,
+            $outputPath,
+            'letter',
+            $previewPath
+        );
+        $this->trackTempFile($previewPath);
+
+        $this->assertTrue($result->isSuccess());
+
+        // Preview should preserve landscape aspect ratio
+        if ($previewPath !== null && file_exists($previewPath)) {
+            $info = getimagesize($previewPath);
+            $this->assertNotFalse($info);
+            $this->assertGreaterThan(
+                $info[1],
+                $info[0],
+                'Preview of a landscape image should be wider than tall'
+            );
+        }
+        $this->assertFileExists($outputPath);
     }
 
     /**
-     * Test conversion preserves image orientation
+     * Test portrait and landscape images produce correct page orientations
      *
      * @return void
      */
     public function testPreservesImageOrientation(): void
     {
-        $this->markTestIncomplete('Requires Imagick extension and test image files');
+        // Portrait: 200×400
+        $portraitPath = $this->testImagesDir . 'portrait.jpg';
+        $this->createTestJpeg($portraitPath, 200, 400);
+        $portraitOutput = $this->outputPath('portrait_output.pdf');
+
+        $result = $this->ImageToPdfConversionService->convertImageToPdf($portraitPath, $portraitOutput);
+        $this->assertTrue($result->isSuccess());
+
+        // Landscape: 400×200
+        $landscapePath = $this->testImagesDir . 'landscape.jpg';
+        $this->createTestJpeg($landscapePath, 400, 200);
+        $landscapeOutput = $this->outputPath('landscape_output.pdf');
+
+        $result = $this->ImageToPdfConversionService->convertImageToPdf($landscapePath, $landscapeOutput);
+        $this->assertTrue($result->isSuccess());
+
+        // Parse MediaBox from each PDF
+        $portraitPdf = file_get_contents($portraitOutput);
+        $landscapePdf = file_get_contents($landscapeOutput);
+
+        preg_match('/\/MediaBox \[0 0 (\d+) (\d+)\]/', $portraitPdf, $pMatch);
+        preg_match('/\/MediaBox \[0 0 (\d+) (\d+)\]/', $landscapePdf, $lMatch);
+
+        $this->assertNotEmpty($pMatch, 'Portrait PDF should contain MediaBox');
+        $this->assertNotEmpty($lMatch, 'Landscape PDF should contain MediaBox');
+
+        // Portrait page: height > width
+        $this->assertGreaterThan((int)$pMatch[1], (int)$pMatch[2], 'Portrait page should be taller than wide');
+        // Landscape page: width > height
+        $this->assertGreaterThan((int)$lMatch[2], (int)$lMatch[1], 'Landscape page should be wider than tall');
     }
 
     /**
-     * Test error handling for missing Imagick extension
+     * Test service operates with GD (does not require Imagick)
      *
      * @return void
      */
     public function testErrorHandlingForMissingImagick(): void
     {
-        // This test would check graceful fallback when Imagick is not installed
-        $this->markTestIncomplete('Error handling test pending implementation');
+        // Service uses GD, not Imagick. Verify it works when only GD is present.
+        $this->assertTrue(extension_loaded('gd'), 'GD extension must be available');
+
+        $jpegPath = $this->testImagesDir . 'gd_only.jpg';
+        $this->createTestJpeg($jpegPath);
+        $outputPath = $this->outputPath('gd_output.pdf');
+
+        $result = $this->ImageToPdfConversionService->convertImageToPdf($jpegPath, $outputPath);
+
+        $this->assertTrue($result->isSuccess(), 'Service should work with GD alone');
+        $this->assertFileExists($outputPath);
     }
 
     /**
-     * Test performance for typical file sizes
+     * Test conversion completes within a reasonable time for typical images
      *
      * @return void
      */
     public function testPerformanceForTypicalFileSizes(): void
     {
-        $this->markTestIncomplete('Performance test pending implementation');
+        $jpegPath = $this->testImagesDir . 'perf_test.jpg';
+        // 1000×1000 is a realistic scanned-document resolution
+        $this->createTestJpeg($jpegPath, 1000, 1000);
+        $outputPath = $this->outputPath('perf_output.pdf');
 
-        // This test would:
-        // 1. Convert several images of typical sizes (3-5MB)
-        // 2. Verify each conversion completes within 2-5 seconds
+        $start = microtime(true);
+        $result = $this->ImageToPdfConversionService->convertImageToPdf($jpegPath, $outputPath);
+        $elapsed = microtime(true) - $start;
+
+        $this->assertTrue($result->isSuccess(), 'Conversion failed: ' . ($result->getError() ?? ''));
+        $this->assertLessThan(10.0, $elapsed, "Conversion took {$elapsed}s — should be under 10s");
     }
 
     /**
-     * Test handling of very large files (near 25MB limit)
+     * Test handling of a large image (simulated via high resolution)
      *
      * @return void
      */
     public function testHandlingOfLargeFiles(): void
     {
-        $this->markTestIncomplete('Large file test pending implementation');
+        $largePath = $this->testImagesDir . 'large.jpg';
+        // 2000×3000 simulates a high-res phone photo
+        $this->createTestJpeg($largePath, 2000, 3000);
+        $outputPath = $this->outputPath('large_output.pdf');
+
+        $result = $this->ImageToPdfConversionService->convertImageToPdf($largePath, $outputPath);
+
+        $this->assertTrue($result->isSuccess(), 'Large image conversion failed: ' . ($result->getError() ?? ''));
+        $this->assertFileExists($outputPath);
+        $this->assertGreaterThan(0, filesize($outputPath));
     }
 
     /**
@@ -242,12 +487,35 @@ class ImageToPdfConversionServiceTest extends TestCase
     }
 
     /**
-     * Test supports batch conversion
+     * Test batch conversion of multiple images into a single multi-page PDF
      *
      * @return void
      */
     public function testSupportsBatchConversion(): void
     {
-        $this->markTestIncomplete('Batch conversion test pending implementation');
+        $img1 = $this->testImagesDir . 'batch1.jpg';
+        $img2 = $this->testImagesDir . 'batch2.png';
+        $img3 = $this->testImagesDir . 'batch3.jpg';
+        $this->createTestJpeg($img1, 100, 100);
+        $this->createTestPng($img2, 150, 200);
+        $this->createTestJpeg($img3, 200, 150);
+
+        $outputPath = $this->outputPath('batch_output.pdf');
+        $previewPath = null;
+        $result = $this->ImageToPdfConversionService->convertMultipleImagesToPdf(
+            [$img1, $img2, $img3],
+            $outputPath,
+            'letter',
+            $previewPath
+        );
+        $this->trackTempFile($previewPath);
+
+        $this->assertTrue($result->isSuccess(), 'Batch conversion failed: ' . ($result->getError() ?? ''));
+        $this->assertFileExists($outputPath);
+
+        $pdfContent = file_get_contents($outputPath);
+        $this->assertStringStartsWith('%PDF-', $pdfContent);
+        // Multi-page PDF should declare 3 pages
+        $this->assertStringContainsString('/Count 3', $pdfContent, 'PDF should contain 3 pages');
     }
 }

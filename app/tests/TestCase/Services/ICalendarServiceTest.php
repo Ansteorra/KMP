@@ -7,12 +7,12 @@ namespace App\Test\TestCase\Services;
 use App\Services\ICalendarService;
 use App\Model\Entity\Gathering;
 use Cake\I18n\DateTime;
-use Cake\TestSuite\TestCase;
+use App\Test\TestCase\BaseTestCase;
 
 /**
  * ICalendarService Test Case
  */
-class ICalendarServiceTest extends TestCase
+class ICalendarServiceTest extends BaseTestCase
 {
     /**
      * Test subject

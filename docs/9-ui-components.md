@@ -233,16 +233,16 @@ Monitors session activity and prompts for session extension:
 </body>
 ```
 
-#### Autocomplete
+#### Autocomplete (`ac`)
 
-Provides typeahead search functionality:
+Provides typeahead search functionality. The controller file is `auto-complete-controller.js` but is registered as `"ac"`:
 
 ```html
-<div data-controller="autocomplete">
+<div data-controller="ac">
     <input type="text" 
-           data-autocomplete-target="input" 
-           data-action="autocomplete#search">
-    <div data-autocomplete-target="results"></div>
+           data-ac-target="input" 
+           data-action="ac#search">
+    <div data-ac-target="results"></div>
 </div>
 ```
 
@@ -311,42 +311,6 @@ class MembersController extends AppController
     "title" => "Members",
     "options" => ['canFilter' => true, 'canExportCsv' => true]
 ]) ?>
-```
-
-#### Form Handling
-
-Progressive enhancement for form submissions:
-
-```html
-<form data-controller="form-handler" 
-      data-action="submit->form-handler#submit">
-    <!-- Form fields -->
-    <button type="submit" data-form-handler-target="submitButton">Submit</button>
-    <div data-form-handler-target="spinner" class="d-none">
-        <div class="spinner-border spinner-border-sm"></div>
-        Processing...
-    </div>
-</form>
-```
-
-#### Toast Notifications
-
-Non-intrusive notifications for user feedback:
-
-```html
-<div data-controller="toasts">
-    <div class="toast-container position-fixed top-0 end-0 p-3">
-        <div class="toast" data-toasts-target="template">
-            <div class="toast-header">
-                <strong class="me-auto" data-toasts-target="title">Title</strong>
-                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
-            </div>
-            <div class="toast-body" data-toasts-target="message">
-                Message
-            </div>
-        </div>
-    </div>
-</div>
 ```
 
 ### Asset Management

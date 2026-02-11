@@ -6,12 +6,12 @@ namespace App\Test\TestCase\Services;
 
 use App\Services\NavigationRegistry;
 use App\Model\Entity\Member;
-use Cake\TestSuite\TestCase;
+use App\Test\TestCase\BaseTestCase;
 
 /**
  * NavigationRegistry Test Case
  */
-class NavigationRegistryTest extends TestCase
+class NavigationRegistryTest extends BaseTestCase
 {
     /**
      * setUp method

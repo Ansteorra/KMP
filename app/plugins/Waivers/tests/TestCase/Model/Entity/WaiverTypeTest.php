@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Waivers\Test\TestCase\Model\Entity;
 
-use Cake\TestSuite\TestCase;
+use App\Test\TestCase\BaseTestCase;
 use Waivers\Model\Entity\WaiverType;
 
 /**
  * Waivers\Model\Entity\WaiverType Test Case
  */
-class WaiverTypeTest extends TestCase
+class WaiverTypeTest extends BaseTestCase
 {
     /**
      * Test subject

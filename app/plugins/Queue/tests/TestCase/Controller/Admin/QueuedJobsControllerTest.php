@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Queue\Test\TestCase\Controller\Admin;
 
+use App\Test\TestCase\TestAuthenticationHelper;
 use Cake\Core\Configure;
 use Cake\Datasource\ConnectionManager;
 use Cake\TestSuite\IntegrationTestTrait;
@@ -11,12 +12,21 @@ use Laminas\Diactoros\UploadedFile;
 use Shim\TestSuite\TestCase;
 
 /**
- * @uses \Queue\Controller\Admin\QueuedJobsController
+ * @uses \Queue\Controller\QueuedJobsController
  */
 class QueuedJobsControllerTest extends TestCase
 {
 
 	use IntegrationTestTrait;
+	use TestAuthenticationHelper;
+
+	/**
+	 * @var array<string>
+	 */
+	protected array $fixtures = [
+		'plugin.Queue.QueuedJobs',
+		'plugin.Queue.QueueProcesses',
+	];
 
 	/**
 	 * @return void
@@ -25,9 +35,10 @@ class QueuedJobsControllerTest extends TestCase
 	{
 		parent::setUp();
 
-		$this->loadPlugins(['Queue']);
-
 		$this->disableErrorHandlerMiddleware();
+		$this->authenticateAsSuperUser();
+		$this->enableCsrfToken();
+		$this->enableSecurityToken();
 	}
 
 	/**
@@ -39,7 +50,7 @@ class QueuedJobsControllerTest extends TestCase
 	{
 		$this->createJob();
 
-		$this->get(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'index']);
+		$this->get(['plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'index']);
 
 		$this->assertResponseCode(200);
 	}
@@ -51,7 +62,7 @@ class QueuedJobsControllerTest extends TestCase
 	{
 		$job = $this->createJob();
 
-		$this->get(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'edit', $job->id]);
+		$this->get(['plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'edit', $job->id]);
 
 		$this->assertResponseCode(200);
 	}
@@ -63,7 +74,7 @@ class QueuedJobsControllerTest extends TestCase
 	{
 		$job = $this->createJob();
 
-		$this->post(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'delete', $job->id]);
+		$this->post(['plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'delete', $job->id]);
 
 		$this->assertResponseCode(302);
 
@@ -82,7 +93,7 @@ class QueuedJobsControllerTest extends TestCase
 		$data = [
 			'priority' => 8,
 		];
-		$this->post(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'edit', $job->id], $data);
+		$this->post(['plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'edit', $job->id], $data);
 
 		$this->assertResponseCode(302);
 
@@ -99,7 +110,7 @@ class QueuedJobsControllerTest extends TestCase
 	{
 		$job = $this->createJob(['data' => '{"verbose":true,"count":22,"string":"string"}']);
 
-		$this->get(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'data', $job->id]);
+		$this->get(['plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'data', $job->id]);
 
 		$this->assertResponseCode(200);
 	}
@@ -122,7 +133,7 @@ class QueuedJobsControllerTest extends TestCase
 }
 JSON,
 		];
-		$this->post(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'data', $job->id], $data);
+		$this->post(['plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'data', $job->id], $data);
 
 		$this->assertResponseCode(302);
 
@@ -141,7 +152,7 @@ JSON,
 	{
 		Configure::write('Queue.isStatisticEnabled', true);
 
-		$this->get(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'stats']);
+		$this->get(['plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'stats']);
 
 		$this->assertResponseCode(200);
 	}
@@ -153,7 +164,7 @@ JSON,
 	 */
 	public function testTest()
 	{
-		$this->get(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'test']);
+		$this->get(['plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'test']);
 
 		$this->assertResponseCode(200);
 	}
@@ -167,7 +178,7 @@ JSON,
 	{
 		$this->createJob();
 
-		$this->get(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'index', '?' => ['status' => 'completed']]);
+		$this->get(['plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'index', '?' => ['status' => 'completed']]);
 
 		$this->assertResponseCode(200);
 	}
@@ -179,7 +190,7 @@ JSON,
 	{
 		$queuedJob = $this->createJob();
 
-		$this->get(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'view', $queuedJob->id]);
+		$this->get(['plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'view', $queuedJob->id]);
 
 		$this->assertResponseCode(200);
 	}
@@ -192,7 +203,7 @@ JSON,
 		$queuedJob = $this->createJob();
 
 		$this->requestAsJson();
-		$this->get(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'view', $queuedJob->id]);
+		$this->get(['plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'view', $queuedJob->id]);
 
 		$this->assertResponseCode(200);
 
@@ -214,7 +225,7 @@ JSON,
 			'file' => new UploadedFile($jsonFile, 1, 0, 'queued-job.json', 'application/json'),
 		];
 
-		$this->post(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'import'], $data);
+		$this->post(['plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'import'], $data);
 
 		$this->assertResponseCode(302);
 

@@ -29,4 +29,14 @@ class QueueProcess extends BaseEntity
 		'*' => true,
 		'id' => false,
 	];
+
+	/**
+	 * Queue processes are not branch-scoped.
+	 *
+	 * @return int|null
+	 */
+	public function getBranchId(): ?int
+	{
+		return null;
+	}
 }

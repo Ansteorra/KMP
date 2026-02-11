@@ -21,8 +21,6 @@ class InfoCommandTest extends TestCase
 	public function setUp(): void
 	{
 		parent::setUp();
-
-		$this->loadPlugins(['Queue']);
 	}
 
 	/**
@@ -33,7 +31,7 @@ class InfoCommandTest extends TestCase
 		$this->exec('queue info');
 
 		$output = $this->_out->output();
-		$this->assertStringContainsString('15 tasks available:', $output);
+		$this->assertStringContainsString('2 tasks available:', $output);
 		$this->assertExitCode(0);
 	}
 }

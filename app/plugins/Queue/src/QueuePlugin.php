@@ -72,6 +72,7 @@ class QueuePlugin extends BasePlugin implements KMPPluginInterface
 		$configVersion = StaticHelpers::getAppSetting("Queue.configVersion", "0.0.0", null, true);
 		if ($configVersion != $currentConfigVersion) {
 			StaticHelpers::getAppSetting("Plugin.Queue.Active", "yes", null, true);
+			StaticHelpers::setAppSetting("Queue.configVersion", $currentConfigVersion);
 		}
 	}
 

@@ -16,19 +16,20 @@ KMP follows the CakePHP coding standards with some additional project-specific r
 The project uses PHP_CodeSniffer with the CakePHP ruleset to enforce coding standards:
 
 ```bash
-# Check coding standards (using composer shortcut)
 cd /workspaces/KMP/app
+
+# Check coding standards
 composer cs-check
 
-# Automatically fix some coding standards issues
+# Automatically fix coding standards issues
 composer cs-fix
 
 # Run all checks (tests + coding standards)
 composer check
 
 # Or run phpcs directly
-vendor/bin/phpcs --standard=phpcs.xml src/
-vendor/bin/phpcbf --standard=phpcs.xml src/
+vendor/bin/phpcs --colors -p
+vendor/bin/phpcbf --colors -p
 ```
 
 Key coding standards include:
@@ -41,206 +42,288 @@ Key coding standards include:
 - Constants use UPPER_CASE with underscores
 - Use type hints for method parameters and return types
 
-### JavaScript Standards
+### Static Analysis
 
-For JavaScript, the project uses ESLint with a configuration extending the Standard JS style:
+PHPStan is used for static analysis:
 
 ```bash
-# Check JavaScript coding standards
 cd /workspaces/KMP/app
-npm run lint
 
-# Automatically fix some JavaScript issues
-npm run lint:fix
+# PHPStan static analysis
+composer stan
+
+# Or run directly
+vendor/bin/phpstan analyse
 ```
 
 ### Documentation Standards
 
 - PHPDoc blocks are required for all classes, methods, and properties
 - Comments should explain "why" rather than "what" where possible
-- Complex methods should include explanatory comments
-
-Example of a well-documented method:
-
-```php
-/**
- * Creates a new warrant based on the provided request data.
- *
- * This method validates the request, checks for conflicting warrants,
- * and creates a new warrant if all validation passes.
- *
- * @param \App\Services\WarrantManager\WarrantRequest $request The warrant request
- * @return \App\Services\ServiceResult Result with the created warrant or error messages
- */
-public function createWarrant(WarrantRequest $request): ServiceResult
-{
-    // Method implementation...
-}
-```
+- Inline docs focus on maintenance; usage examples go in `/docs`
 
 ## 7.2 Testing
 
-KMP uses PHPUnit for testing, with separate test suites for unit, integration, and application tests.
+KMP uses PHPUnit 10.x with a **seed SQL + transaction wrapping** strategy — NOT CakePHP fixtures.
+
+### Test Data Strategy
+
+Test data comes from `dev_seed_clean.sql`, loaded once at bootstrap via `SeedManager`. Each test runs inside a database transaction that rolls back automatically, so tests never affect each other.
+
+**How it works:**
+
+1. `tests/bootstrap.php` calls `SeedManager::bootstrap('test')` to load `dev_seed_clean.sql`
+2. `BaseTestCase::setUp()` opens a transaction
+3. Your test runs against the full seed dataset
+4. `BaseTestCase::tearDown()` rolls the transaction back
+
+### Test Suites
+
+Test suites are defined in `phpunit.xml.dist`:
+
+| Suite | Directories | Purpose |
+|-------|------------|---------|
+| `core-unit` | `tests/TestCase/Core/Unit`, `tests/TestCase/Model`, `tests/TestCase/Services`, `tests/TestCase/KMP`, `ApplicationTest.php` | Fast unit/service tests |
+| `core-feature` | `tests/TestCase/Core/Feature`, `tests/TestCase/Controller`, `tests/TestCase/Command`, `tests/TestCase/Middleware`, `tests/TestCase/View` | HTTP and controller tests |
+| `plugins` | `tests/TestCase/Plugins`, `plugins/*/tests/TestCase` | Plugin tests |
+| `all` | Everything | Complete regression suite |
+
+### Running Tests
+
+```bash
+cd /workspaces/KMP/app
+
+# Run all tests
+composer test
+# or
+vendor/bin/phpunit
+
+# Run a specific suite
+vendor/bin/phpunit --testsuite core-unit
+vendor/bin/phpunit --testsuite core-feature
+vendor/bin/phpunit --testsuite plugins
+vendor/bin/phpunit --testsuite all
+
+# Run a specific test file
+vendor/bin/phpunit tests/TestCase/Controller/MembersControllerTest.php
+
+# Run a specific test method
+vendor/bin/phpunit --filter testIndex tests/TestCase/Controller/MembersControllerTest.php
+
+# Run with coverage
+vendor/bin/phpunit --coverage-html tmp/coverage
+```
+
+### JavaScript Tests
+
+```bash
+cd /workspaces/KMP/app
+
+# Unit tests (Jest)
+npm run test:js
+
+# UI/E2E tests (Playwright)
+npm run test:ui
+```
 
 ### Test Structure
 
 ```
 app/tests/
-├── bootstrap.php           # Test bootstrap script
-├── Fixture/                # Test fixtures
-└── TestCase/               # Test cases
-    ├── Command/            # Tests for CLI commands
-    ├── Controller/         # Tests for controllers
-    ├── Integration/        # Integration tests
-    ├── Model/              # Tests for models
-    ├── Service/            # Tests for services
-    └── View/               # Tests for view elements
-```
-
-### Running Tests
-
-```bash
-# Run all tests (using composer shortcut)
-cd /workspaces/KMP/app
-composer test
-
-# Or run phpunit directly
-vendor/bin/phpunit
-
-# Run a specific test suite
-vendor/bin/phpunit --testsuite unit
-vendor/bin/phpunit --testsuite integration
-
-# Run tests with code coverage report
-vendor/bin/phpunit --coverage-html tmp/coverage
+├── bootstrap.php                      # Loads seed SQL, configures test DB
+├── TestCase/
+│   ├── BaseTestCase.php               # Transaction wrapping + data constants
+│   ├── TestAuthenticationHelper.php    # Auth helper trait
+│   ├── Support/
+│   │   ├── HttpIntegrationTestCase.php    # Base for HTTP/controller tests
+│   │   ├── PluginIntegrationTestCase.php  # Base for plugin HTTP tests
+│   │   └── SeedManager.php                # Loads dev_seed_clean.sql
+│   ├── Controller/                    # Controller tests
+│   ├── Model/                         # Table and entity tests
+│   ├── Services/                      # Service layer tests
+│   ├── Command/                       # CLI command tests
+│   ├── Middleware/                     # Middleware tests
+│   └── View/                          # Helper and cell tests
+├── js/                                # Jest unit tests
+└── ui/                                # Playwright E2E tests
 ```
 
 ### Writing Tests
 
-Each test class should extend the appropriate base test class:
+#### Base Classes
+
+All tests extend one of these base classes (never extend `Cake\TestSuite\TestCase` directly):
+
+| Base Class | Use For |
+|-----------|---------|
+| `App\Test\TestCase\BaseTestCase` | Unit tests (models, entities, services) |
+| `App\Test\TestCase\Support\HttpIntegrationTestCase` | Controller/HTTP tests |
+| `App\Test\TestCase\Support\PluginIntegrationTestCase` | Plugin controller tests |
+
+#### Controller Test Pattern
 
 ```php
-// For controller tests
-use Cake\TestSuite\IntegrationTestTrait;
-use Cake\TestSuite\TestCase;
+<?php
+declare(strict_types=1);
 
-class MembersControllerTest extends TestCase
+namespace App\Test\TestCase\Controller;
+
+use App\Test\TestCase\Support\HttpIntegrationTestCase;
+
+class MembersControllerTest extends HttpIntegrationTestCase
 {
-    use IntegrationTestTrait;
-    
-    // Test methods...
-}
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->authenticateAsSuperUser();
+    }
 
-// For model/table tests
-use Cake\TestSuite\TestCase;
+    public function testIndex(): void
+    {
+        $this->get('/members');
+        $this->assertResponseOk();
+        $this->assertResponseContains('Members');
+    }
 
-class MembersTableTest extends TestCase
-{
-    protected $fixtures = [
-        'app.Members',
-        'app.MemberRoles',
-        'app.Roles',
-    ];
-    
-    // Test methods...
+    public function testAddWithValidData(): void
+    {
+        $data = [
+            'email_address' => 'newmember@example.com',
+            'sca_name' => 'New Member',
+        ];
+        $this->post('/members/add', $data);
+        $this->assertResponseSuccess();
+    }
 }
 ```
 
-### Test Data
-
-Fixture data is defined in the `tests/Fixture` directory. Each fixture corresponds to a database table and provides test data.
+#### Model Test Pattern
 
 ```php
-// Example of a fixture
-use Cake\TestSuite\Fixture\TestFixture;
+<?php
+declare(strict_types=1);
 
-class MembersFixture extends TestFixture
+namespace App\Test\TestCase\Model\Table;
+
+use App\Test\TestCase\BaseTestCase;
+
+class MembersTableTest extends BaseTestCase
 {
-    public $fields = [
-        'id' => ['type' => 'integer'],
-        'email_address' => ['type' => 'string', 'length' => 255],
-        'sca_name' => ['type' => 'string', 'length' => 255, 'null' => true],
-        // Other fields...
-        '_constraints' => [
-            'primary' => ['type' => 'primary', 'columns' => ['id']],
-        ],
-    ];
-    
-    public $records = [
-        [
-            'id' => 1,
-            'email_address' => 'test@example.com',
-            'sca_name' => 'Test User',
-            // Other field values...
-        ],
-        // Additional records...
-    ];
+    protected $Members;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->Members = $this->getTableLocator()->get('Members');
+    }
+
+    public function testGetAdmin(): void
+    {
+        $admin = $this->Members->get(self::ADMIN_MEMBER_ID);
+        $this->assertEquals('admin@amp.ansteorra.org', $admin->email_address);
+    }
 }
+```
+
+#### Plugin Test Pattern
+
+```php
+<?php
+declare(strict_types=1);
+
+namespace App\Test\TestCase\Plugins\Officers;
+
+use App\Test\TestCase\Support\PluginIntegrationTestCase;
+
+class OfficersControllerTest extends PluginIntegrationTestCase
+{
+    protected const PLUGIN_NAME = 'Officers';
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->authenticateAsSuperUser();
+    }
+
+    public function testIndex(): void
+    {
+        $this->get('/officers');
+        $this->assertResponseOk();
+    }
+}
+```
+
+### Test Data Constants
+
+`BaseTestCase` provides constants for stable IDs in the seed data:
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `ADMIN_MEMBER_ID` | 1 | Super user (admin@amp.ansteorra.org) |
+| `KINGDOM_BRANCH_ID` | 2 | Kingdom of Ansteorra (root branch) |
+| `TEST_MEMBER_AGATHA_ID` | 2871 | Local MoAS test member |
+| `TEST_MEMBER_BRYCE_ID` | 2872 | Local Seneschal test member |
+| `TEST_MEMBER_DEVON_ID` | 2874 | Regional Armored Marshal test member |
+| `TEST_MEMBER_EIRIK_ID` | 2875 | Kingdom Seneschal test member |
+| `TEST_BRANCH_LOCAL_ID` | 14 | Shire of Adlersruhe |
+| `TEST_BRANCH_STARGATE_ID` | 39 | Barony of Stargate |
+| `TEST_BRANCH_CENTRAL_REGION_ID` | 12 | Central Region |
+| `TEST_BRANCH_SOUTHERN_REGION_ID` | 13 | Southern Region |
+| `ADMIN_ROLE_ID` | 1 | Admin role |
+| `SUPER_USER_PERMISSION_ID` | 1 | Is Super User permission |
+
+### Authentication in Tests
+
+Use `TestAuthenticationHelper` (included automatically via `HttpIntegrationTestCase`):
+
+```php
+// Authenticate as admin/super user
+$this->authenticateAsSuperUser();
+
+// Authenticate as a specific test member
+$this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+
+// Log out
+$this->logout();
+
+// Assertions
+$this->assertAuthenticated();
+$this->assertNotAuthenticated();
+$this->assertAuthenticatedAs(self::ADMIN_MEMBER_ID);
+```
+
+### Helper Assertions (from BaseTestCase)
+
+```php
+$this->assertRecordExists('Members', ['email_address' => 'test@example.com']);
+$this->assertRecordNotExists('Members', ['id' => 999]);
+$this->assertRecordCount('Members', 5, ['status' => 'verified']);
 ```
 
 ## 7.3 Debugging
 
-KMP provides several tools and techniques for debugging application issues.
-
 ### DebugKit
 
-The CakePHP DebugKit panel is enabled in development environments and provides detailed information about:
-
-- Request parameters
-- SQL queries
-- Environment variables
-- Session and cache data
-- Rendered view elements
-- Timeline of request processing
-
-Access the DebugKit panel by clicking the toolbar icon in the corner of the page when viewing the application in development mode.
+The CakePHP DebugKit panel is enabled in development environments and provides information about request parameters, SQL queries, environment variables, session/cache data, and rendering timelines.
 
 ### Logging
 
-KMP uses CakePHP's logging system with custom log configurations:
-
 ```php
-// Log debug information
-Log::debug('Detailed information about the current operation', ['context' => $data]);
-
-// Log errors
+Log::debug('Operation details', ['context' => $data]);
 Log::error('An error occurred', ['exception' => $exception]);
 ```
 
-Log files are stored in the `logs` directory:
-- `debug.log`: General debugging information
-- `error.log`: Error messages and exceptions
-- `queries.log`: Database queries (when SQL logging is enabled)
+Log files are in `app/logs/`: `debug.log`, `error.log`, `queries.log`.
 
 ### Debug Functions
 
-The application includes several debugging helper functions:
-
 ```php
-// Dump and die - outputs variable and halts execution
-dd($variable);
-
-// Debug - outputs variable and continues execution
-debug($variable);
-
-// Pretty print an array or object with error_log
-StaticHelpers::logVar($variable, 'Label');
-```
-
-### Static Analysis
-
-For detecting potential bugs and issues without running the code, KMP uses:
-
-```bash
-# PHPStan static analysis (using composer shortcut)
-cd /workspaces/KMP/app
-composer stan
-
-# Or run phpstan directly
-vendor/bin/phpstan analyse src
-
-# Psalm static analysis
-vendor/bin/psalm
+dd($variable);       // Dump and die
+debug($variable);    // Dump and continue
 ```
 
 ## 7.4 Git Workflow
@@ -249,27 +332,21 @@ KMP uses a feature branch workflow for development.
 
 ### Branch Structure
 
-- `main`: Main branch, represents the production-ready state
-- `develop`: Development branch, contains changes for the next release
-- `feature/feature-name`: Feature branches for new functionality
+- `main`: Production-ready state
+- `develop`: Development branch for next release
+- `feature/feature-name`: Feature branches
 - `bugfix/issue-name`: Bug fix branches
-- `release/version`: Release branches for preparing releases
+- `release/version`: Release branches
 
 ### Git Commands Reference
 
 ```bash
-# Clone the repository
 git clone https://github.com/Ansteorra/KMP.git
 cd KMP
 
-# Create a new feature branch
 git checkout -b feature/new-feature-name
-
-# Add and commit changes
 git add .
 git commit -m "Descriptive commit message"
-
-# Push the branch to the remote repository
 git push -u origin feature/new-feature-name
 
 # Update from upstream (when working in a fork)
@@ -279,84 +356,53 @@ git push -u origin feature/new-feature-name
 ./reset_dev_database.sh
 ```
 
-### Pull Request Process
-
-1. Create a feature branch from `develop`
-2. Make your changes with clear, focused commits
-3. Write or update tests as needed
-4. Ensure coding standards are met (`phpcs` and `eslint`)
-5. Push your branch to the repository
-6. Create a pull request against the `develop` branch
-7. Request code review
-8. Address review feedback
-9. Once approved, the branch will be merged
-
 ### Commit Message Guidelines
-
-Follow these guidelines for commit messages:
 
 - Begin with a short (50 chars or less) summary
 - Use imperative mood ("Add feature" not "Added feature")
 - Follow with a blank line and detailed explanation if needed
 - Reference issue numbers in the detailed explanation
 
-Example:
-```
-Add warrant expiration notification system
-
-Implements a notification system that alerts members and administrators
-when warrants are approaching expiration. Includes:
-- Email notifications at 30, 14, and 7 days before expiration
-- Dashboard warning for expiring warrants
-- Option to disable notifications via app settings
-
-Fixes #123
-```
-
 ## 7.5 API Documentation Generation
 
-KMP publishes explorable API references for both PHP services and JavaScript Stimulus controllers. The docs are generated from source annotations and shipped with the main documentation site so GitHub Pages can host them directly.
+KMP publishes API references for PHP services and JavaScript Stimulus controllers.
 
-### Toolchain Overview
+### Toolchain
 
 - **PHP**: [`phpDocumentor`](https://www.phpdoc.org/) builds HTML docs from `app/src` and plugin PHP classes.
-- **JavaScript**: [`JSDoc`](https://jsdoc.app/) parses `assets/js` along with plugin JS controllers and utilities.
+- **JavaScript**: [`JSDoc`](https://jsdoc.app/) parses `assets/js` along with plugin JS controllers.
 
-### Regenerating Docs Locally
+### Regenerating Docs
 
 ```bash
 # From repository root
 ./generate_api_docs.sh
 
-# Equivalent manual steps
+# Or manually
 cd app
 composer docs:php
 npm run docs:js
 ```
 
-- Output lives in `docs/api/php` and `docs/api/js` and should be committed when interfaces change.
-- Run the script before publishing documentation so GitHub Pages serves the latest references.
+Output lives in `docs/api/php` and `docs/api/js`.
 
-### Previewing Documentation in a Browser
-
-Use the repository helper script to spin up a Jekyll server with live reload:
+### Previewing Documentation
 
 ```bash
 ./serve_docs.sh
 
-# Customize host/port if needed
+# Customize host/port
 JEKYLL_HOST=0.0.0.0 JEKYLL_PORT=4100 ./serve_docs.sh
 ```
 
-- First invocation installs Ruby gems into `docs/vendor/` (ignored by git).
-- Visit `http://127.0.0.1:4000/` (or your chosen host/port) to explore the docs, including the generated API references.
-- Set `JEKYLL_LIVERELOAD=false` if your environment cannot expose the livereload websocket.
+Visit `http://127.0.0.1:4000/` to browse the docs.
 
 ---
 
 ## Related Documentation
 
 - **[7.1 Security Best Practices](7.1-security-best-practices.md)** - Security configuration and testing
-- **[7.3 Testing Infrastructure](7.3-testing-infrastructure.md)** - Test fixtures, authentication helpers, and testing best practices
+- **[7.3 Testing Infrastructure](7.3-testing-infrastructure.md)** - Test infrastructure details and best practices
+- **[7.6 Testing Suite Overview](7.6-testing-suite.md)** - PHPUnit suite structure and run commands
 
 [← Back to Table of Contents](index.md)

@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Waivers\Test\TestCase\Model\Table;
 
-use Cake\TestSuite\TestCase;
+use App\Test\TestCase\BaseTestCase;
 use Waivers\Model\Table\WaiverTypesTable;
 
 /**
  * Waivers\Model\Table\WaiverTypesTable Test Case
  */
-class WaiverTypesTableTest extends TestCase
+class WaiverTypesTableTest extends BaseTestCase
 {
     /**
      * Test subject
@@ -110,9 +110,9 @@ class WaiverTypesTableTest extends TestCase
             $this->assertTrue($waiverType->is_active, 'All results should be active');
         }
 
-        // Should not include inactive waiver (id=4)
+        // Should not include inactive waiver (id=6)
         $ids = $results->extract('id')->toArray();
-        $this->assertNotContains(4, $ids, 'Should not include inactive waiver type');
+        $this->assertNotContains(6, $ids, 'Should not include inactive waiver type');
     }
 
     /**
@@ -173,14 +173,25 @@ class WaiverTypesTableTest extends TestCase
      */
     public function testDelete(): void
     {
-        $waiverType = $this->WaiverTypes->get(4); // Inactive test waiver
+        // Create a new inactive waiver type to delete (avoids associations on seed data)
+        $newWaiver = $this->WaiverTypes->newEntity([
+            'name' => 'Deletable Table Test Waiver',
+            'description' => 'Created for deletion test',
+            'retention_policy' => '{"anchor":"permanent"}',
+            'convert_to_pdf' => false,
+            'is_active' => false,
+        ]);
+        $saved = $this->WaiverTypes->save($newWaiver);
+        $this->assertNotFalse($saved);
+        $deletableId = $saved->id;
 
+        $waiverType = $this->WaiverTypes->get($deletableId);
         $result = $this->WaiverTypes->delete($waiverType);
 
         $this->assertTrue($result, 'Delete should succeed');
 
         // Verify it's gone
-        $query = $this->WaiverTypes->find()->where(['id' => 4]);
+        $query = $this->WaiverTypes->find()->where(['id' => $deletableId]);
         $this->assertEquals(0, $query->count(), 'Waiver type should be deleted');
     }
 
@@ -214,7 +225,7 @@ class WaiverTypesTableTest extends TestCase
     {
         // Try to create a waiver type with duplicate name
         $data = [
-            'name' => 'General Liability Waiver', // Same as fixture id=1
+            'name' => 'Participation Roster Waiver', // Same as seed data id=1
             'description' => 'Duplicate name test',
             'retention_policy' => '{"anchor":"gathering_end_date","duration":{"years":7}}',
         ];

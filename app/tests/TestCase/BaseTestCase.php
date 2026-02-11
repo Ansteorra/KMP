@@ -34,10 +34,10 @@ abstract class BaseTestCase extends TestCase
 
     /**
      * Kingdom branch (root of tree)
-     * Name: Kingdom of Ansteorra
-     * Type: kingdom
+     * Name: Ansteorra
+     * Type: Kingdom
      */
-    public const KINGDOM_BRANCH_ID = 1;
+    public const KINGDOM_BRANCH_ID = 2;
 
     /**
      * Synthetic test member - Local MoAS role
@@ -71,10 +71,11 @@ abstract class BaseTestCase extends TestCase
     public const TEST_MEMBER_EIRIK_ID = 2875;
 
     /**
-     * Test branch for demo members
-     * Branch ID used in test member role assignments
+     * Shire of Adlersruhe - a local group branch
+     * Name: Shire of Adlersruhe
+     * Type: Local Group
      */
-    public const TEST_BRANCH_LOCAL_ID = 1073;
+    public const TEST_BRANCH_LOCAL_ID = 14;
 
     /**
      * Barony of Stargate - Bryce's branch

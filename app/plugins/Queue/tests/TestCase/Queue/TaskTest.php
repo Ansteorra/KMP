@@ -4,8 +4,8 @@ declare(strict_types=1);
 namespace Queue\Test\TestCase\Queue;
 
 use Cake\TestSuite\TestCase;
-use Queue\Queue\Task\ExampleTask;
-use TestApp\Queue\Task\FooTask;
+use Queue\Queue\Task\EmailTask;
+use Queue\Queue\Task\MailerTask;
 
 class TaskTest extends TestCase {
 
@@ -13,11 +13,11 @@ class TaskTest extends TestCase {
 	 * @return void
 	 */
 	public function testTaskName() {
-		$name = FooTask::taskName();
-		$this->assertSame('Foo', $name);
+		$name = MailerTask::taskName();
+		$this->assertSame('Queue.Mailer', $name);
 
-		$name = ExampleTask::taskName();
-		$this->assertSame('Queue.Example', $name);
+		$name = EmailTask::taskName();
+		$this->assertSame('Queue.Email', $name);
 	}
 
 }

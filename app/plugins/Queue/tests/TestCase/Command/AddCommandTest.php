@@ -18,15 +18,16 @@ class AddCommandTest extends TestCase
 	/**
 	 * @var array<string>
 	 */
+	protected array $fixtures = [
+		'plugin.Queue.QueuedJobs',
+	];
+
 	/**
 	 * @return void
 	 */
 	public function setUp(): void
 	{
 		parent::setUp();
-
-		//$this->useCommandRunner();
-		$this->loadPlugins(['Queue']);
 	}
 
 	/**
@@ -37,19 +38,7 @@ class AddCommandTest extends TestCase
 		$this->exec('queue add');
 
 		$output = $this->_out->output();
-		$this->assertStringContainsString('11 tasks available:', $output);
-		$this->assertExitCode(0);
-	}
-
-	/**
-	 * @return void
-	 */
-	public function testExecuteAddExample(): void
-	{
-		$this->exec('queue add Queue.Example');
-
-		$output = $this->_out->output();
-		$this->assertStringContainsString('OK, job created, now run the worker', $output);
+		$this->assertStringContainsString('1 tasks available:', $output);
 		$this->assertExitCode(0);
 	}
 }

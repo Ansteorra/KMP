@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Waivers\Test\TestCase\Policy;
 
-use Cake\TestSuite\TestCase;
+use App\Test\TestCase\BaseTestCase;
 use Waivers\Policy\WaiverTypePolicy;
 
 /**
@@ -16,7 +16,7 @@ use Waivers\Policy\WaiverTypePolicy;
  * 
  * These tests verify the policy class exists and extends BasePolicy correctly.
  */
-class WaiverTypePolicyTest extends TestCase
+class WaiverTypePolicyTest extends BaseTestCase
 {
     /**
      * Test subject

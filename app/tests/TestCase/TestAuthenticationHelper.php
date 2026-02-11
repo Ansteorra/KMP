@@ -4,80 +4,60 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase;
 
+use Cake\ORM\TableRegistry;
+
 /**
  * TestAuthenticationHelper
  * 
  * Helper trait for authenticating test users in integration tests.
  * Provides convenient methods to authenticate as the test super user
  * or other predefined test accounts.
+ *
+ * Sessions must contain a Member entity (not a plain array) because
+ * the authorization middleware expects KmpIdentityInterface.
  */
 trait TestAuthenticationHelper
 {
     /**
      * Authenticate as the test super user
      * 
-     * This user has the "Is Super User" permission and full system access.
-     * Use this to bypass all authorization checks in tests.
+     * Loads the admin member from the database and sets it in the session.
+     * The authorization layer will check permissions via PermissionsLoader.
      *
      * @return void
      */
     protected function authenticateAsSuperUser(): void
     {
-        $this->session([
-            'Auth' => [
-                'id' => 1,
-                'email_address' => 'admin@amp.ansteorra.org',
-                'sca_name' => 'Admin von Admin',
-                'first_name' => 'Admin',
-                'last_name' => 'Admin',
-                'membership_number' => 'Admin001',
-                'branch_id' => 1,
-                'status' => 'verified',
-            ]
-        ]);
+        $membersTable = TableRegistry::getTableLocator()->get('Members');
+        $member = $membersTable->findByEmailAddress('admin@amp.ansteorra.org')->firstOrFail();
+        $this->session(['Auth' => $member]);
     }
 
     /**
      * Authenticate as the admin user
      * 
-     * The admin user has the Admin role with super user permissions.
+     * Alias for authenticateAsSuperUser() — same admin account.
      *
      * @return void
      */
     protected function authenticateAsAdmin(): void
     {
-        $this->session([
-            'Auth' => [
-                'id' => 1,
-                'email_address' => 'admin@amp.ansteorra.org',
-                'sca_name' => 'Admin von Admin',
-                'first_name' => 'Admin',
-                'last_name' => 'Admin',
-                'membership_number' => 'Admin001',
-                'branch_id' => 1,
-                'status' => 'verified',
-            ]
-        ]);
+        $this->authenticateAsSuperUser();
     }
 
     /**
      * Authenticate as a custom user by member ID
      * 
-     * Note: The member must exist in your test fixtures.
+     * Loads the member from the database. The member must exist in seed data.
      *
      * @param int $memberId The ID of the member to authenticate as
-     * @param array $additionalData Additional session data to set
      * @return void
      */
-    protected function authenticateAsMember(int $memberId, array $additionalData = []): void
+    protected function authenticateAsMember(int $memberId): void
     {
-        $sessionData = array_merge([
-            'id' => $memberId,
-        ], $additionalData);
-
-        $this->session([
-            'Auth' => $sessionData
-        ]);
+        $membersTable = TableRegistry::getTableLocator()->get('Members');
+        $member = $membersTable->get($memberId);
+        $this->session(['Auth' => $member]);
     }
 
     /**
@@ -99,12 +79,24 @@ trait TestAuthenticationHelper
     {
         // Check post-request session first
         $session = $this->_requestSession ?? null;
-        if ($session && $session->check('Auth.id')) {
-            return (int)$session->read('Auth.id');
+        if ($session && $session->check('Auth')) {
+            $auth = $session->read('Auth');
+            if (is_object($auth) && isset($auth->id)) {
+                return (int)$auth->id;
+            }
+            if (is_array($auth) && !empty($auth['id'])) {
+                return (int)$auth['id'];
+            }
         }
         // Fall back to pre-request session data
-        if (!empty($this->_session['Auth']['id'])) {
-            return (int)$this->_session['Auth']['id'];
+        if (!empty($this->_session['Auth'])) {
+            $auth = $this->_session['Auth'];
+            if (is_object($auth) && isset($auth->id)) {
+                return (int)$auth->id;
+            }
+            if (is_array($auth) && !empty($auth['id'])) {
+                return (int)$auth['id'];
+            }
         }
         return null;
     }

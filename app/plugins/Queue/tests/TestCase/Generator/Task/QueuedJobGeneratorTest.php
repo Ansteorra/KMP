@@ -35,8 +35,8 @@ class QueuedJobGeneratorTest extends TestCase {
 
 		$list = $directive->toArray()['list'];
 		$expected = [
-			'Queue.Execute' => "'Queue.Execute'",
-			'Queue.ProgressExample' => "'Queue.ProgressExample'",
+			'Queue.Email' => "'Queue.Email'",
+			'Queue.Mailer' => "'Queue.Mailer'",
 		];
 		foreach ($expected as $name => $value) {
 			$this->assertSame($value, $list[$name]);
