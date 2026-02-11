@@ -444,7 +444,7 @@ class EmailTemplatesController extends AppController
         $content = preg_replace('/\<\?=\s*h\(\s*\$([a-zA-Z_][a-zA-Z0-9_]*)\s*\)\s*\?\>/', '{{$1}}', $content);
 
         // Convert PHP conditionals to {{#if}} syntax
-        // Match: <?php if (...) : ?> → {{#if ...}}
+        // Match: PHP if blocks → {{#if ...}}
         $content = preg_replace_callback(
             '/<\?php\s+if\s*\((.+?)\)\s*:\s*\?>/s',
             function ($matches) {
@@ -455,7 +455,7 @@ class EmailTemplatesController extends AppController
             $content,
         );
 
-        // Convert <?php endif; ?> → {{/if}}
+        // Convert PHP endif blocks → {{/if}}
         $content = preg_replace('/<\?php\s+endif;\s*\?>/', '{{/if}}', $content);
 
         return $content;
