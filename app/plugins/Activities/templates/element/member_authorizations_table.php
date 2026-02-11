@@ -122,14 +122,16 @@ $hasActions = $isCurrentView || $isPendingView;
                 </td>
                 <?php elseif ($isPendingView): ?>
                 <td class="actions text-end text-nowrap">
-                    <?= $this->Form->postLink(
-                                    __("Retract"),
-                                    ["controller" => "Authorizations", "action" => "retract", $authorization->id],
-                                    [
-                                        "confirm" => __("Are you sure you want to retract this authorization request?"),
-                                        "class" => "btn-sm btn btn-warning retract-btn",
-                                    ],
-                                ) ?>
+                    <?= $this->Form->create(null, [
+                        'url' => ["controller" => "Authorizations", "action" => "retract", $authorization->id],
+                        'data-turbo-frame' => '_top',
+                        'style' => 'display:inline;',
+                    ]) ?>
+                    <button type="submit" class="btn-sm btn btn-warning retract-btn"
+                        onclick="return confirm('<?= h(__("Are you sure you want to retract this authorization request?")) ?>');">
+                        <?= __("Retract") ?>
+                    </button>
+                    <?= $this->Form->end() ?>
                 </td>
                 <?php endif; ?>
             </tr>
