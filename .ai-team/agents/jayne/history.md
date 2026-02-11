@@ -118,3 +118,5 @@ Fixed 13 documentation issues across 12 files by verifying each claim against ac
 **Files deleted:** `docs/8-development-workflow.md`
 
 📌 Team update (2026-02-11): EmailTemplateRendererService now supports safe conditional DSL (`<?php if ($var == "value") : ?>...<?php endif; ?>`) — parsed via regex, never eval()d. Supports ==, ||, && operators. All status paths (Approved/Pending/Denied) tested and passing. — decided by Kaylee
+
+📌 Team update (2026-02-11): Email template conditionals now use {{#if var == "value"}}...{{/if}} mustache-style syntax instead of PHP-style. Tests should use new syntax. — decided by Kaylee

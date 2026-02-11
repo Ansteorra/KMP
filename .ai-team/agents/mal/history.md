@@ -89,3 +89,5 @@ Completed 8 documentation tasks fixing cross-references, data models, interface 
 - **Section number mismatch** — 5.4 filename but 5.5 title for GitHubIssueSubmitter.
 
 📌 Team update (2026-02-11): EmailTemplateRendererService now supports safe conditional DSL (`<?php if ($var == "value") : ?>...<?php endif; ?>`) — parsed via regex, never eval()d. Supports ==, ||, && operators. Conditionals processed before {{variable}} substitution. — decided by Kaylee
+
+📌 Team update (2026-02-11): Email template conditionals now use {{#if var == "value"}}...{{/if}} mustache-style syntax instead of PHP-style. convertTemplateVariables() auto-converts on import. — decided by Kaylee

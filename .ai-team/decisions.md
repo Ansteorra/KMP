@@ -1633,8 +1633,9 @@ Completed 13 documentation tasks fixing factual errors across 12 files. Every fi
 3. **No `npm run lint`** exists — if linting is desired, an ESLint config + script should be added.
 
 
-### 2026-02-10: Safe conditional DSL for DB email templates
+### 2026-02-11: Mustache-style conditional DSL for DB email templates (consolidated)
 
 **By:** Kaylee
-**What:** Added conditional block processing to `EmailTemplateRendererService` that parses `<?php if ($var == "value") : ?>...<?php endif; ?>` as a safe DSL — regex-matched and evaluated, never `eval()`'d. Supports `==` equality, `||` (OR), `&&` (AND). Conditionals are processed before `{{variable}}` substitution so variables inside conditional blocks work correctly.
-**Why:** DB-stored email templates previously couldn't express conditional logic that file-based templates had (e.g., showing different content based on approval status). By using the same `<?php if ?>` syntax as file templates but parsing it safely, admins can copy template content between file and DB versions without syntax changes. The `eval()`-free approach is critical since DB template content is admin-editable — arbitrary PHP execution from user-controlled strings would be a severe security vulnerability.
+**What:** `EmailTemplateRendererService` uses `{{#if varName == "value"}}...{{/if}}` mustache-style syntax for conditional blocks in DB-stored email templates. Supports `==`, `!=`, `||`, and `&&` operators. Conditionals are regex-matched and evaluated as a safe DSL — never `eval()`'d. Processed before `{{variable}}` substitution so variables inside conditional blocks work correctly. `EmailTemplatesController::convertTemplateVariables()` auto-converts PHP conditionals to `{{#if}}` syntax when importing from file-based templates.
+**Why:** DB-stored email templates needed conditional logic (e.g., showing different content based on approval status). Initially implemented with PHP-style `<?php if ($var == "value") : ?>` syntax, but this was immediately replaced with `{{#if}}` mustache-style syntax because the PHP syntax was confusing — it looked like executable PHP but was parsed as a DSL. The `{{#if}}` syntax is clearly a template language, making it obvious this is a safe DSL, not executable code. The `eval()`-free approach is critical since DB template content is admin-editable. No backward compat was needed since no DB templates were created with the old syntax.
+**Evolution:** PHP-style syntax (2026-02-10) → mustache-style `{{#if}}` syntax (2026-02-11).

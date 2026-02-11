@@ -71,21 +71,33 @@ Permission chain: Members → MemberRoles (temporal) → Roles → Permissions �
 
 Fixed 13 doc inaccuracies: DI container (phantom services removed), session config (timeout 30 not 240, `ini` block not nested `cookie`), PermissionsLoader (`scoping_rule`/`SCOPE_*` constants), entity names (`Authorization` not `ActivityAuthorization`), WarrantManager (no events dispatched), warrant expiry (`SyncActiveWindowStatusesCommand` not `expireOldWarrants()`), file paths (`Services/` plural). Created `docs/7.7-console-commands.md`, expanded `docs/6-services.md` and `docs/3.2-model-behaviors.md`. Pattern: AI-generated docs assumed patterns rather than reading source.
 
-### 2026-02-10: Email Template Conditional Processing
+### 2026-02-10: Email Template Conditional Processing (superseded — see below)
+
+_Original PHP-style syntax replaced with `{{#if}}` mustache-like syntax. See next entry._
+
+### 2026-02-10: Email Template {{#if}} Conditional Syntax
 
 #### Architecture Decision
-Added safe conditional block processing to `EmailTemplateRendererService::renderTemplate()`. DB-stored email templates now support `<?php if ($var == "value") : ?>...<?php endif; ?>` syntax — parsed as a safe DSL, NOT executed as PHP. This makes DB templates syntax-compatible with CakePHP file-based templates for copy-paste between the two.
+Replaced the PHP-style conditional syntax (`<?php if ($var == "value") : ?>`) with a clean `{{#if}}` mustache-like DSL. The PHP-style syntax was confusing because it looked like real PHP but was never executed as PHP. The new syntax is unambiguous and admin-friendly.
+
+#### Syntax
+- `{{#if varName == "value"}}...{{/if}}` — equality check
+- `{{#if varName != "value"}}...{{/if}}` — not-equal check
+- `{{#if a == "x" || b == "y"}}...{{/if}}` — OR conditions
+- `{{#if a == "x" && b == "y"}}...{{/if}}` — AND conditions
 
 #### Implementation Pattern
-- `processConditionals()` runs BEFORE `{{variable}}` substitution — conditionals need raw var values to evaluate, and content inside true blocks still gets variable substitution afterward
-- `evaluateCondition()` handles `||` (OR) and `&&` (AND) with correct precedence — split by `||` first (lower precedence), then `&&` (higher precedence)
-- `evaluateComparison()` handles only `$var == "string_literal"` — deliberately limited to equality checks against quoted strings; no `eval()`, no arbitrary code
-- `extractVariables()` now also finds `$varName` references in conditional expressions
+- `processConditionals()` regex: `/\{\{#if\s+(.+?)\}\}(.*?)\{\{\/if\}\}/s` — runs BEFORE `{{variable}}` substitution
+- `evaluateCondition()` unchanged — still splits `||` then `&&` with correct precedence
+- `evaluateComparison()` regex: `/^\$?(\w+)\s*(==|!=)\s*["\']([^"\']*)["\']$/` — no `$` prefix required, supports `!=`, optional `$` for backward compat
+- `extractVariables()` excludes `{{#if ...}}` and `{{/if}}` control tags from variable list, finds var names from conditions via `\b(\w+)\s*(?:==|!=)`
+- `convertTemplateVariables()` in `EmailTemplatesController` now also converts PHP conditionals to `{{#if}}` syntax during file template import
 
 #### Key File Paths
 - `app/src/Services/EmailTemplateRendererService.php` — core template renderer, owns conditional processing
+- `app/src/Controller/EmailTemplatesController.php` — `convertTemplateVariables()` converts PHP file template syntax to `{{#if}}` on import
 - `app/src/Mailer/TemplateAwareMailerTrait.php` — bridge that chooses DB vs file templates; calls renderer
-- `app/plugins/Activities/templates/email/text/notify_requester.php` — canonical example of conditional template syntax
+- `app/plugins/Activities/templates/email/text/notify_requester.php` — canonical file-based template (still uses PHP syntax — gets converted on import)
 
 #### Security Constraint
-The renderer NEVER executes PHP from DB-stored templates. The `<?php if ?>` syntax is regex-parsed as a pattern language. Unsupported expressions log a warning and evaluate to false. This is critical — DB content is admin-editable and must never be `eval()`'d.
+The renderer NEVER executes PHP from DB-stored templates. The `{{#if}}` syntax is regex-parsed as a pattern language. Unsupported expressions log a warning and evaluate to false. This is critical — DB content is admin-editable and must never be `eval()`'d.
