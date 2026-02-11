@@ -94,6 +94,7 @@ Versioned at `/api/v1/`. Bearer token auth (ServicePrincipals). CSRF skipped. Pl
 7. **Transaction ownership** — ActiveWindowManager (caller owns) vs WarrantManager (self-owns). Mixing this up causes data corruption.
 8. **`window.Controllers` registration pattern** — All 60 Stimulus controllers use this. Changing it breaks the entire frontend.
 
+
 ### 2026-02-10: Backend patterns and conventions (existing)
 **By:** Kaylee
 **What:** Documented existing backend patterns after codebase exploration
@@ -131,6 +132,7 @@ Versioned at `/api/v1/`. Bearer token auth (ServicePrincipals). CSRF skipped. Pl
 13. **Permissions Flow:** Members → MemberRoles (temporal) → Roles → Permissions → PermissionPolicies → Policy classes. PermissionsLoader caches result. Three scoping levels: Global, Branch Only, Branch+Children.
 
 14. **DataverseGrid:** Use `DataverseGridTrait` for index pages. Apply authorization scope to base query BEFORE passing to `processDataverseGrid()`.
+
 
 ### 2026-02-10: Frontend patterns and conventions (existing)
 **By:** Wash
@@ -205,6 +207,7 @@ The `outlet-btn` controller is the standard pattern for controller-to-controller
 - Base classes exist but aren't registered: `BaseGatheringFormController`
 - Two duplicate `hello-world-controller.js` exist (Template and Waivers plugins)
 
+
 ### 2026-02-10: Test infrastructure assessment (consolidated)
 **By:** Jayne
 **What:** Audited and ran the full test suite; documented patterns, gaps, infrastructure blockers, and quality assessment
@@ -276,10 +279,12 @@ Plugins and all suites crash due to namespace collision: `Waivers/HelloWorldCont
 
 **Key insight:** The infrastructure DESIGN (BaseTestCase + transactions + SeedManager) is solid. The problem is ADOPTION — most tests predate the infrastructure and were never migrated.
 
+
 ### 2026-02-10: User directive
 **By:** Josh Handel (via Copilot)
 **What:** Before starting any new feature work, get the test suite into a solid state. Testing infrastructure is the priority.
 **Why:** User request — captured for team memory
+
 
 ### 2026-02-10: Test Infrastructure Attack Plan
 **By:** Mal
@@ -402,6 +407,7 @@ Plugins and all suites crash due to namespace collision: `Waivers/HelloWorldCont
 
 ---
 
+
 ### Execution Timeline
 
 ```
@@ -415,15 +421,18 @@ Phase 6 (Day 7-8)   ██████  CI pipeline
 
 **Total estimate:** 6-8 working days across team members
 
+
 ### Resource Allocation
 - **Jayne** (primary): Phases 1-3, 4.1, 4.2a, 5, 6 — this is test infrastructure work
 - **Kaylee** (secondary): Phase 4.2b only — production code bug fixes
 - **Mal** (review): Phase 3.1 decision, Phase 4.1 triage review, Phase 4.2b code review
 
+
 ### Open Questions
 1. Should we add test coverage reporting to CI (Phase 6)? I say not yet — get green first, measure later.
 2. The 31 Queue plugin tests with their own fixture system — do we eventually want to migrate them to BaseTestCase? I say no unless they start causing problems. Different plugin, different isolation strategy, and it works.
 3. Do we want to add policy tests (37 untested policy classes) as Phase 7? Yes, but not in this plan. This plan is about infrastructure; coverage expansion is separate work.
+
 
 ### 2026-02-10: Auth Test Failure Triage Results
 **By:** Jayne
@@ -458,6 +467,7 @@ Phase 6 (Day 7-8)   ██████  CI pipeline
 6. P2 — Fix stale test assertions
 7. P3 — Renew production admin membership
 
+
 ### 2026-02-10: Auth Strategy Decision
 **By:** Mal
 **What:** Standardize on `TestAuthenticationHelper` for all test authentication; deprecate `AuthenticatedTrait` and `SuperUserAuthenticatedTrait`
@@ -476,10 +486,12 @@ Phase 6 (Day 7-8)   ██████  CI pipeline
 2. Store a mock/stub `Member` entity implementing `KmpIdentityInterface`
 3. Load the real member entity from DB within the test transaction (recommended — rolls back cleanly while providing proper identity)
 
+
 ### 2026-02-10: User directive — Own the Queue plugin
 **By:** Josh Handel (via Copilot)
 **What:** The Queue plugin is 3rd party code but since KMP hosts the source, the team should "own it" — review it, identify issues, and plan tweaks/updates to bring it into KMP's conventions and fix any oversights.
 **Why:** User request — the Queue plugin has been treated as untouchable 3rd party code, but since the source is in-repo, it should be maintained to KMP standards.
+
 
 ### 2026-02-10: Queue plugin ownership review (consolidated)
 **By:** Mal, Kaylee, Jayne
@@ -513,6 +525,7 @@ Silver bullets: fixing #1 + #2 resolves 45 of 68 errors (66%).
 - Do NOT migrate Queue tests to BaseTestCase pattern
 - Periodically review upstream releases for critical fixes only
 
+
 ### 2026-02-10: Documentation accuracy review (consolidated)
 **By:** Jayne, Kaylee, Mal, Wash
 **What:** Full team review of 96 docs against codebase — 4 reviewers covering backend, plugins, frontend, and testing/misc
@@ -529,6 +542,7 @@ Silver bullets: fixing #1 + #2 resolves 45 of 68 errors (66%).
 
 ---
 
+
 ### 1-introduction.md
 
 - **Issue:** Section 1.3 says "PHP: Version 8.1 or higher" → **Actual:** The CI workflow (`.github/workflows/tests.yml`) uses PHP 8.3, and `docker-compose.yml` comment says "PHP 8.3 + Apache". The doc's minimum is likely outdated — should say 8.2+ or 8.3 to match what's actually tested/deployed.
@@ -536,11 +550,13 @@ Silver bullets: fixing #1 + #2 resolves 45 of 68 errors (66%).
 - **Issue:** "PHPStan: For static analysis" listed in dev requirements → **Actual:** `composer stan` exists in `composer.json` scripts, so PHPStan is indeed available. ✅ Correct.
 - **Issue:** "PHP_CodeSniffer: For code style checking" → **Actual:** `composer cs-check` maps to `phpcs --colors -p`. ✅ Correct.
 
+
 ### 2-configuration.md
 
 - **Issue:** Section 2.3 says `bin/cake security generate_salt` → **Actual:** No `generate_salt` command found anywhere in `app/src/` via grep. This command does not exist in the KMP codebase. It may be a standard CakePHP command, but it's not verified to be present.
 - **Issue:** The `App` config example shows `"title" => "AMS"` → **Actual:** Confirmed in `app/config/app.php` line 39. ✅ Correct.
 - **Issue:** The `App` config table says `version` is "loaded at runtime" from `config/version.txt` → **Actual:** Confirmed at `app/config/app.php` line 92: `"version" => file_get_contents(CONFIG . "version.txt")`. ✅ Correct.
+
 
 ### 2-getting-started.md
 
@@ -548,10 +564,12 @@ Silver bullets: fixing #1 + #2 resolves 45 of 68 errors (66%).
 - **Issue:** `./reset_dev_database.sh` described as dropping/recreating DB, applying migrations, loading seed data → **Actual:** The root `reset_dev_database.sh` does exist and does reset + seed + migrate, but its behavior doesn't match the doc's description exactly. The doc says "Drop and recreate the development database / Apply all migrations / Load seed data for testing" as if all happen unconditionally. The actual script has two modes: without `--seed` (runs `resetDatabase` command + migrations) and with `--seed` (drops DB + loads `dev_seed_clean.sql` + migrations). The Docker version (`dev-reset-db.sh`) has the `--seed` flag too. The doc oversimplifies.
 - **Issue:** "The Dev Container will automatically... Initialize and seed the development database / Run database migrations" → **Actual:** This describes the devcontainer setup, which is plausible but unverified without inspecting `.devcontainer/`. Claims are reasonable.
 
+
 ### 3.5-er-diagrams.md
 
 - **Issue:** "Session Storage: Database-backed session management" listed under Database Technologies → **Actual:** `app/config/app.php` line 422 shows `"defaults" => "php"` (PHP file-based sessions), NOT database-backed. The doc is wrong about the default session storage.
 - Otherwise, the ER diagrams are mermaid-based and the schema structure claims align with the known table hierarchy (members, branches, member_roles, permissions, roles, etc.). The doc is a large reference document (1267 lines) and the core schema claims appear accurate.
+
 
 ### 7-development-workflow.md
 
@@ -564,6 +582,7 @@ Silver bullets: fixing #1 + #2 resolves 45 of 68 errors (66%).
 - **Issue:** Section 7.3 mentions `vendor/bin/psalm` → **Actual:** Psalm is not in the composer.json scripts or dependencies. Only PHPStan is configured (`composer stan`).
 - **Issue:** `npm run lint` and `npm run lint:fix` mentioned → **Actual:** These scripts are not present in `app/package.json`. The npm scripts are `dev`, `development`, `watch`, `prod`, `production`, `docs:js`, `test`, `test:js`, etc. No `lint` script exists.
 
+
 ### 7.1-security-best-practices.md
 
 - **Issue:** CSRF middleware shown at "Lines 406-414" of `Application.php` → **Actual:** The CSRF middleware is at lines 423-427 of `Application.php`. Line numbers are wrong.
@@ -572,6 +591,7 @@ Silver bullets: fixing #1 + #2 resolves 45 of 68 errors (66%).
 - **Issue:** "Session Configuration" section shows `'timeout' => 240` (4 hours) → **Actual:** The config shows `'timeout' => 30` (30 minutes). The 4-hour claim appears in the doc's session security section and contradicts both the actual config AND the doc's own Session Security Features table which says "30 minutes".
 - **Issue:** `password_hash` with `'salt' => $securitySalt` shown → **Actual:** PHP's `password_hash` with `PASSWORD_BCRYPT` ignores user-supplied salt since PHP 7.0 (deprecated). This code example is misleading/wrong for modern PHP.
 - **Issue:** Doc says CSP is at "Lines 340-390" of `Application.php` → **Actual:** The CSP construction is elsewhere in the file; line numbers are approximate and may be off. Not a critical issue but worth noting.
+
 
 ### 7.3-testing-infrastructure.md
 
@@ -588,6 +608,7 @@ Silver bullets: fixing #1 + #2 resolves 45 of 68 errors (66%).
 - **Issue:** Test organization tree shows `ui/bdd/` and `ui/gen/` → **Actual:** Confirmed present. ✅ Correct.
 - **Issue:** Test organization tree shows `ui/global-setup.js` but no `ui/global-teardown.js` → **Actual:** Both `global-setup.js` and `global-teardown.js` exist. Minor omission.
 
+
 ### 7.4-security-debug-information.md
 
 - **Issue:** Component file paths listed → **Actual:** All verified present:
@@ -599,6 +620,7 @@ Silver bullets: fixing #1 + #2 resolves 45 of 68 errors (66%).
   - `src/View/AppView.php` ✅ (registers SecurityDebug helper)
 - Doc is accurate. ✅
 
+
 ### 7.6-testing-suite.md
 
 - **Issue:** Test architecture table shows `Core Unit` at `tests/TestCase/Core/Unit` → **Actual:** Confirmed, both `Core/Unit` and `Core/Feature` directories exist with test files. ✅ Correct.
@@ -608,12 +630,14 @@ Silver bullets: fixing #1 + #2 resolves 45 of 68 errors (66%).
 - **Issue:** Starter test `Plugins/Awards/Feature/RecommendationsSeedTest` mentioned → **Actual:** Confirmed at `tests/TestCase/Plugins/Awards/Feature/RecommendationsSeedTest.php`. ✅ Correct.
 - This doc is the most accurate of all the testing docs. ✅
 
+
 ### 8-deployment.md
 
 - **Issue:** Directory structure shows `/etc/php/8.0/` → **Actual:** Project uses PHP 8.3 (per CI and Docker). Should be 8.3.
 - **Issue:** Nginx config shows `fastcgi_pass unix:/var/run/php/php8.0-fpm.sock` → **Actual:** Should reference `php8.3-fpm.sock` to match actual PHP version.
 - **Issue:** `bin/cake security generate_salt` mentioned → **Actual:** As noted above, this command may not exist in the KMP codebase (no grep match). CakePHP may provide it as a built-in, but it's unverified.
 - **Issue:** Azure Blob Storage section is comprehensive and config matches `app_local.php`. ✅ Correct.
+
 
 ### 8-development-workflow.md
 
@@ -624,11 +648,13 @@ Silver bullets: fixing #1 + #2 resolves 45 of 68 errors (66%).
 - **Issue:** Same wrong npm scripts (`npm run lint`).
 - **Recommendation:** This is a duplicate file that should either be removed or merged/redirected to `7-development-workflow.md`.
 
+
 ### 8.1-environment-setup.md
 
 - **Issue:** Configuration hierarchy listed as: 1. `.env`, 2. `config/app.php`, 3. `config/app_local.php`, 4. Runtime → **Actual:** This ordering is backward from what `2-configuration.md` says (which lists `app.php` first, then `app_local.php`, then env vars). The CakePHP convention is `app.php` → `app_local.php` → env overrides. The 8.1 doc incorrectly puts `.env` first.
 - **Issue:** `bin/cake security generate_salt` mentioned again → **Actual:** Unverified command (same issue as above).
 - **Issue:** Document storage variables `DOCUMENTS_STORAGE_ADAPTER` mentioned → **Actual:** The actual config in `app_local.php` uses `'adapter' => 'local'` as a hardcoded config key, not an env var. There's no `env('DOCUMENTS_STORAGE_ADAPTER')` call found.
+
 
 ### docker-development.md
 
@@ -641,10 +667,12 @@ Silver bullets: fixing #1 + #2 resolves 45 of 68 errors (66%).
 - **Issue:** `dev-reset-db.sh --seed` described → **Actual:** Matches actual script behavior. ✅ Correct.
 - This doc is accurate. ✅
 
+
 ### 11-extending-kmp.md
 
 - Spot-checked the first 100 lines. Template plugin reference, plugin structure, and registration pattern descriptions are reasonable.
 - The doc is 48KB — too large for full line-by-line verification. The structural claims (plugin directory layout, Plugin.php class, config/plugins.php registration) align with known architecture.
+
 
 ### appendices.md
 
@@ -652,17 +680,20 @@ Silver bullets: fixing #1 + #2 resolves 45 of 68 errors (66%).
 - **Issue:** "Bootstrap 5 Documentation" links to `https://getbootstrap.com/docs/5.0/` → **Actual:** The project uses Bootstrap 5.3.6 (per decisions.md). The link should be `docs/5.3/` not `docs/5.0/`.
 - Otherwise, troubleshooting and glossary content is generic and reasonable. ✅
 
+
 ### index.md
 
 - **Issue:** System Requirements listed as "PHP 8.0+" → **Actual:** The project uses PHP 8.3 (CI and Docker). Minimum should be at least 8.1 per `1-introduction.md`, and 8.0 is EOL.
 - **Issue:** Section numbering has a conflict: "8.2 Development Workflow (Alternative)" links to `8-development-workflow.md` which is a duplicate of `7-development-workflow.md`. This is confusing.
 - **Issue:** "Documentation Status" claims "Each section has been fact-checked against the actual source code" and "Verified Recent Updates" → **Actual:** Multiple documentation errors found in this review contradict this claim. Several docs have wrong file paths, wrong test suite names, wrong constants, and stale patterns.
 
+
 ### ACTIVITY_GROUPS_CONTROLLER_MIGRATION.md
 
 - This is a migration summary/changelog document, not a reference doc.
 - **Issue:** File link `[docs/5.6.3-activity-groups-controller-reference.md](docs/5.6.3-activity-groups-controller-reference.md)` uses a relative path that won't work from the `docs/` directory itself (should be just the filename or `./5.6.3-...`).
 - The content describes actual code changes and is a historical record. Claims about the controller code are plausible.
+
 
 ### DOCUMENTATION_MIGRATION_SUMMARY.md
 
@@ -671,11 +702,13 @@ Silver bullets: fixing #1 + #2 resolves 45 of 68 errors (66%).
 - **Issue:** Claims `app.php` was reduced from ~1000 to ~550 lines → **Actual:** Not verified but plausible.
 - Content is reasonable as a historical record.
 
+
 ### office-reporting-structure.md
 
 - This is a domain-specific organizational chart document with mermaid diagrams.
 - Content is domain knowledge (SCA office hierarchy), not code-verifiable.
 - Format and structure are clean. ✅
+
 
 ### system-views-refactor-task-list.md
 
@@ -685,6 +718,7 @@ Silver bullets: fixing #1 + #2 resolves 45 of 68 errors (66%).
 - This is a living task tracker, not a reference doc. ✅
 
 ---
+
 
 ### Summary of Critical Issues
 
@@ -721,6 +755,7 @@ Silver bullets: fixing #1 + #2 resolves 45 of 68 errors (66%).
 
 ---
 
+
 ### 3-architecture.md
 
 - **Issue:** Directory structure lists only 6 plugins (Activities, Awards, Bootstrap, GitHubIssueSubmitter, Officers, Queue) → **Actual:** There are 8 plugins. Missing `Waivers/` (active, migrationOrder 4) and `Template/` (commented out in plugins.php but directory exists).
@@ -730,6 +765,7 @@ Silver bullets: fixing #1 + #2 resolves 45 of 68 errors (66%).
 - **Issue:** Section 3.5 documents only 3 behaviors (ActiveWindow, JsonField, Sortable) → **Actual:** There are 4 behaviors. `PublicIdBehavior` (anti-enumeration, generates Base62 public IDs) is missing from the behaviors section.
 - **Issue:** `findUpcoming()` generated SQL shown as `WHERE start_on > :effectiveDate OR (expires_on > :effectiveDate OR expires_on IS NULL)` → **Actual:** The CakePHP array-based where clause produces `AND` between the main conditions, not `OR`: `WHERE start_on > :effectiveDate AND (expires_on > :effectiveDate OR expires_on IS NULL)`.
 
+
 ### 3.1-core-foundation-architecture.md
 
 - **Issue:** Service container code example shows `$container->add(NavigationRegistry::class)->addArgument($container)` and `$container->add(KmpAuthorizationService::class)->addArgument(Identity::class)` → **Actual:** Neither `NavigationRegistry` nor `KmpAuthorizationService` are registered in `Application::services()`. The actual method only registers `ActiveWindowManagerInterface`, `WarrantManagerInterface`, `CsvExportService`, `ICalendarService`, and `ImpersonationService`. `NavigationRegistry` is used as a static class. `KmpAuthorizationService` is instantiated directly in `getAuthorizationService()`.
@@ -737,95 +773,118 @@ Silver bullets: fixing #1 + #2 resolves 45 of 68 errors (66%).
 - **Issue:** PermissionsLoader code example uses `$permission->scope` with lowercase values `'global'`, `'branch'`, `'branch_and_descendants'` → **Actual:** The property is `$permission->scoping_rule` and uses `Permission::SCOPE_GLOBAL` (`'Global'`), `Permission::SCOPE_BRANCH_ONLY` (`'Branch Only'`), `Permission::SCOPE_BRANCH_AND_CHILDREN` (`'Branch and Children'`).
 - **Issue:** `addBranchScopeQuery` method signature shown as `public function addBranchScopeQuery(Query $query, array $options = []): Query` → **Actual:** Signature is `public function addBranchScopeQuery($query, $branchIDs): SelectQuery`. Parameter is `$branchIDs` (an array of IDs), not `$options`.
 
+
 ### 3.2-model-behaviors.md
 
 - **Issue:** Overview says "KMP implements three custom CakePHP behaviors" → **Actual:** There are 4 custom behaviors. `PublicIdBehavior` is not documented in this file at all.
 - **Issue:** `findUpcoming()` generated SQL shown as `WHERE start_on > :effectiveDate OR (expires_on > :effectiveDate OR expires_on IS NULL)` → **Actual:** Same as 3-architecture.md — the operator between main conditions is `AND`, not `OR`.
 
+
 ### 3.3-database-schema.md
 
 - **Issue:** Warrant System section (§4) only documents `warrant_periods` and `warrants` tables → **Actual:** The Warrants migration (`20241204160759_Warrants.php`) also creates `warrant_rosters` and `warrant_roster_approvals` tables, which are missing from this schema doc.
+
 
 ### 3.4-migration-documentation.md
 
 - **Issue:** Migration §5 (Warrants) lists new tables as only `warrant_periods` and `warrants` → **Actual:** The migration also creates `warrant_rosters` and `warrant_roster_approvals` tables.
 - **Issue:** Migration §10 scope examples show `'branch:local'`, `'event:crown_tournament'`, `'global'` → **Actual:** The `scoping_rule` column uses values `'Global'`, `'Branch Only'`, `'Branch and Children'` (from `Permission::SCOPE_*` constants). The colon-delimited format shown does not exist.
 
+
 ### 3.6-seed-documentation.md — ✅ Accurate
 
 Seed structure, SeedHelpers methods, and initialization flow match actual code.
+
 
 ### 3.7-active-window-sync.md — ✅ Accurate
 
 Command name, purpose, status transitions, and cron wrapper usage match actual `SyncActiveWindowStatusesCommand.php`.
 
+
 ### 3.8-youth-age-up.md — ✅ Accurate
 
 Status transitions, command path (`app/src/Command/AgeUpMembersCommand.php`), and `Member::ageUpReview()` method all verified against source.
+
 
 ### 4-core-modules.md — ✅ Accurate (high-level overview)
 
 Module listing and links are correct. The Member data model in the Mermaid diagram uses simplified field names, which is fine for overview purposes.
 
+
 ### 4.1-member-lifecycle.md — ✅ Accurate
 
 Seven member statuses match `Member::STATUS_*` constants exactly. Age-up transition matrix matches `ageUpReview()` code. Warrant eligibility flow matches entity implementation.
+
 
 ### 4.1.1-members-table-reference.md — ✅ Accurate
 
 Associations (`MemberRoles`, `CurrentMemberRoles`, `UpcomingMemberRoles`, `PreviousMemberRoles`, `Branches`, `Parents`, `Roles`, `GatheringAttendances`) verified. Behaviors (`Timestamp`, `Muffin/Footprint.Footprint`, `Muffin/Trash.Trash`, `JsonField`, `PublicId`) verified.
 
+
 ### 4.2-branch-hierarchy.md
 
 - **Issue:** Audit fields table lists both `deleted` (DATETIME) and `deleted_date` (DATETIME) → **Actual:** Only `deleted` exists on the branches table. There is no `deleted_date` column in any migration or in the schema dump.
+
 
 ### 4.3-warrant-lifecycle.md
 
 - **Issue:** References `DefaultWarrantManager::expireOldWarrants()` method → **Actual:** No method named `expireOldWarrants()` exists on `DefaultWarrantManager`. The class has `request()`, `approve()`, `decline()`, `cancel()`, `cancelByEntity()`, `declineSingleWarrant()`, `getWarrantPeriod()`, and protected helpers `cancelWarrant()`, `stopWarrantDependants()`, `declineWarrant()`. Expiry status transitions are handled by the `SyncActiveWindowStatusesCommand`.
 
+
 ### 4.4-rbac-security-architecture.md — ✅ Accurate
 
 Permission scoping rules, constants, RBAC entity relationships, and validation chain match source code. The ERD correctly uses `scoping_rule` field name.
+
 
 ### 4.6-gatherings-system.md — ✅ Accurate
 
 Data model, table schemas, gathering staff management, and controller references verified against actual code.
 
+
 ### 4.6.1-calendar-download-feature.md — ✅ Accurate
 
 `ICalendarService` location, method signature, and RFC 5545 compliance description match actual `app/src/Services/ICalendarService.php`.
+
 
 ### 4.6.2-gathering-staff-management.md — ✅ Accurate
 
 Database schema, business rules (XOR constraint, steward contact rule), and controller references verified.
 
+
 ### 4.6.3-gathering-schedule-system.md — ✅ Accurate
 
 `gathering_scheduled_activities` table schema, timezone implementation, and data flow verified against `GatheringScheduledActivitiesTable.php` and entity.
+
 
 ### 4.6.4-waiver-exemption-system.md — ✅ Accurate
 
 Exemption schema additions, backend components, and controller actions match Waivers plugin code.
 
+
 ### 4.7-document-management-system.md — ✅ Accurate
 
 Document entity properties, polymorphic pattern, and DocumentService location match actual code. Virtual fields (`_getMetadataArray`, `_getFileSizeFormatted`) verified.
+
 
 ### 4.9-impersonation-mode.md — ✅ Accurate
 
 `impersonation_action_logs` and `impersonation_session_logs` tables exist. Audit trail columns match `BaseTable::logImpersonationAction()` implementation.
 
+
 ### 6-services.md
 
 - **Issue:** WarrantManager events listed as `ActiveWindow.beforeStart`, `ActiveWindow.afterStart`, `ActiveWindow.beforeStop`, `ActiveWindow.afterStop` → **Actual:** Could not confirm these exact event names are dispatched. The `DefaultWarrantManager` delegates to `ActiveWindowManager` for lifecycle management, but the event naming convention should be verified. This is a low-confidence finding — events may be dispatched in `DefaultActiveWindowManager` but I didn't trace through the full event chain.
+
 
 ### 6.2-authorization-helpers.md — ✅ Accurate
 
 `getBranchIdsForAction()`, `resolvePolicyClass()`, and `getPolicyClassFromTableName()` methods confirmed on `Member` entity with matching signatures and behavior.
 
+
 ### 6.3-email-template-management.md
 
 - **Issue:** File paths shown as `src/Service/MailerDiscoveryService.php` and `src/Service/EmailTemplateRendererService.php` (singular "Service") → **Actual:** Correct paths are `src/Services/MailerDiscoveryService.php` and `src/Services/EmailTemplateRendererService.php` (plural "Services").
+
 
 ### 6.4-caching-strategy.md — ✅ Accurate
 
@@ -868,6 +927,7 @@ Cache stores, TTLs, groups, APCu engine usage, and debug mode behavior match `ap
 
 ---
 
+
 ### 5-plugins.md (Plugin Architecture Overview)
 
 - **Issue:** "Standard Migration Orders" lists Activities=1, Awards=2, Officers=3, Queue=10, GitHubIssueSubmitter=11, Bootstrap=12 → **Actual:** `config/plugins.php` shows Activities=1, Officers=2, Awards=3, Waivers=4. Queue, Bootstrap, and GitHubIssueSubmitter have NO migrationOrder set (defaulting to 0). Officers and Awards are swapped vs doc.
@@ -875,14 +935,17 @@ Cache stores, TTLs, groups, APCu engine usage, and debug mode behavior match `ap
 - **Issue:** Doc says "Bootstrap Plugin (migrationOrder: 12)" → **Actual:** `BootstrapPlugin` is an empty class extending `BasePlugin` with no `KMPPluginInterface` implementation and no migration order. Same issue for GitHubIssueSubmitter (doc says migrationOrder: 11, actual: no KMPPluginInterface, no migration order).
 - **Issue:** Security Architecture example shows custom `before()` method with `BeforePolicyInterface` trait → **Actual:** All KMP policies extend `BasePolicy` which handles the before hook internally. The example pattern doesn't match how the codebase actually works.
 
+
 ### 5.1-officers-plugin.md — ✅ Mostly Accurate
 
 - Minor note: Term length correctly described as "in months" which matches code (`$startOn->addMonths($office->term_length)`).
 - Data model and key features all verified against source code.
 
+
 ### 5.1.1-officers-services.md
 
 - **Issue:** Interface definition for `release()` shows 5 parameters including `?string $releaseStatus = Officer::RELEASED_STATUS` → **Actual:** The `OfficerManagerInterface::release()` has only 4 parameters (no `$releaseStatus`). The 5th parameter exists only in the `DefaultOfficerManager` implementation with a default value. The doc's "Interface Methods" section incorrectly shows the implementation signature, not the interface signature.
+
 
 ### 5.2-awards-plugin.md
 
@@ -891,57 +954,70 @@ Cache stores, TTLs, groups, APCu engine usage, and debug mode behavior match `ap
 - **Issue:** Data model shows `Event.active: bool` → **Actual:** Event entity has no `active` field. It has `closed: bool` only.
 - **Issue:** Award entity missing fields from data model: `abbreviation`, `insignia`, `badge`, `charter`, `open_date`, `close_date` are all present in actual code but absent from the documented data model.
 
+
 ### 5.2.1-awards-events-table.md
 
 - **Issue:** References non-existent doc: `5.2.2-awards-event-entity.md` → **Actual:** No such file exists. The 5.2.2 file is `5.2.2-awards-levels-table.md`. There is no separate Event entity reference doc.
 - **Issue:** Doc says `description` field has max 255 chars, required → **Actual:** Matches code. Verified OK.
 
+
 ### 5.2.2-awards-levels-table.md
 
 - **Issue:** Related Documentation links to `5.2.3-awards-domains-table.md` → **Actual:** No such file exists. The 5.2.3 file is `5.2.3-awards-recommendations-states-logs-table.md`. There is no DomainsTable reference doc.
+
 
 ### 5.2.3-awards-recommendations-states-logs-table.md — ✅ Accurate
 
 - All claims verified: class definition, table name, display field, associations, behaviors, validation rules, business rules match actual code.
 - Correctly notes no Trash behavior and immutable records.
 
+
 ### 5.2.4-awards-recommendations-table.md — ✅ Mostly Accurate
 
 - Associations, behaviors, validation, and business rules all match actual code.
 - Note: `afterSave` signature uses `$created` as first parameter instead of CakePHP's standard `EventInterface $event`, but doc matches the actual code (this is a potential code issue, not a doc issue).
 
+
 ### 5.2.5-awards-award-policy.md — ✅ Accurate
 
 - Correctly documents empty BasePolicy extension with RBAC delegation.
+
 
 ### 5.2.6-awards-table-policy.md — ✅ Accurate
 
 - `scopeIndex()` and `scopeGridData()` methods verified against source.
 - Approval level filtering logic matches actual code.
 
+
 ### 5.2.7-awards-domain-policy.md — ✅ Accurate
 
 - Empty BasePolicy extension, correctly documented.
+
 
 ### 5.2.8-awards-domains-table-policy.md — ✅ Accurate
 
 - `scopeGridData()` method verified, delegates to `scopeIndex()` as documented.
 
+
 ### 5.2.9-awards-event-policy.md — ✅ Accurate
 
 - `canAllEvents()` custom method verified against source.
+
 
 ### 5.2.10-awards-events-table-policy.md — ✅ Accurate (spot-checked)
 
 - Pattern consistent with other table policies.
 
+
 ### 5.2.11-awards-level-policy.md — ✅ Accurate (spot-checked)
 
 - Empty BasePolicy extension pattern, consistent.
 
+
 ### 5.2.12-awards-levels-table-policy.md — ✅ Accurate (spot-checked)
 
 - Table policy pattern consistent with others.
+
 
 ### 5.2.13-awards-recommendation-policy.md — ✅ Accurate
 
@@ -949,18 +1025,22 @@ Cache stores, TTLs, groups, APCu engine usage, and debug mode behavior match `ap
 - Dynamic `__call()` and `getDynamicMethods()` verified.
 - Note: Doc doesn't mention `canManageRecommendationMember()` protected method used by `canViewSubmittedByMember`, but this is a minor implementation detail.
 
+
 ### 5.2.14-awards-recommendations-states-log-policy.md — ✅ Accurate (spot-checked)
 
 - Empty BasePolicy extension, consistent.
+
 
 ### 5.2.15-awards-recommendations-states-log-table-policy.md — ✅ Accurate (spot-checked)
 
 - Empty BasePolicy extension, consistent.
 
+
 ### 5.2.16-awards-recommendations-table-policy.md
 
 - **Issue:** Example query transformation shows `$query->contain(['Awards.Levels'])->where(['Levels.name in' => $approvalLevels])` → **Actual:** Code uses `$query->matching('Awards.Levels', function ($q) use ($approvalLevels) { ... })`. `matching()` creates an INNER JOIN; `contain()` does eager loading. Functionally different — `matching()` filters results, `contain()` just includes related data.
 - **Issue:** Doc doesn't mention global access sentinel check (`$branchIds[0] != -10000000`) → **Actual:** The `scopeIndex()` implementation skips branch scoping when `$branchIds[0] == -10000000` (global access). This is a significant implementation detail not documented.
+
 
 ### 5.2.17-awards-services.md — ✅ Mostly Accurate
 
@@ -969,6 +1049,7 @@ Cache stores, TTLs, groups, APCu engine usage, and debug mode behavior match `ap
 - View cell documentation (MemberSubmittedRecsCell, RecsForMemberCell, ActivityAwardsCell, GatheringAwardsCell) all verified.
 - Minor: Doc says "Events" navigation but actual code only generates static items plus per-status links from `Recommendation::getStatuses()`. The doc correctly describes this behavior.
 
+
 ### 5.3-queue-plugin.md — ✅ Mostly Accurate
 
 - Correctly identifies as forked dereuromark/cakephp-queue.
@@ -976,16 +1057,19 @@ Cache stores, TTLs, groups, APCu engine usage, and debug mode behavior match `ap
 - Navigation integration code verified against actual `QueueNavigationProvider`.
 - Note: Some config values in the doc may differ from actual `app_queue.php` but the patterns are correct.
 
+
 ### 5.4-github-issue-submitter-plugin.md
 
 - **Issue:** Document title says `# 5.5 GitHubIssueSubmitter Plugin` → **Actual:** File is `5.4-github-issue-submitter-plugin.md`. Should be `# 5.4` or `# 5.5` depending on intended numbering. Inconsistent with filename.
 - **Issue:** Doc says plugin `extends BasePlugin` without KMPPluginInterface → **Actual:** Verified correct — `GitHubIssueSubmitterPlugin extends BasePlugin` (no KMPPluginInterface). Doc is accurate here.
 - **Issue:** Doc says plugin class is `GitHubIssueSubmitterPlugin extends BasePlugin` → **Actual:** Correct. But the overview doc (5-plugins.md) implies all plugins implement `KMPPluginInterface`, which is false for this plugin and Bootstrap.
 
+
 ### 5.5-bootstrap-plugin.md
 
 - **Issue:** Doc extensively documents HtmlHelper, CardHelper, ModalHelper, NavbarHelper methods and features → **Actual:** The Bootstrap plugin class itself is completely empty (`class BootstrapPlugin extends BasePlugin {}`). The helpers and widgets DO exist in the plugin directory, but the plugin class does nothing — no bootstrap, no navigation, no service registration. Doc is accurate about the helpers but could be clearer that the plugin itself is just a container for helper classes with zero initialization logic.
 - All helper file paths verified as existing. Method documentation appears thorough and was previously fact-checked per the doc's own notes.
+
 
 ### 5.6-activities-plugin.md — ✅ Accurate
 
@@ -993,27 +1077,33 @@ Cache stores, TTLs, groups, APCu engine usage, and debug mode behavior match `ap
 - State machine workflow matches `DefaultAuthorizationManager` implementation.
 - ActiveWindow integration correctly described.
 
+
 ### 5.6-activities-plugin-quick-reference.md — ✅ Accurate
 
 - Navigation links all valid.
 
+
 ### 5.6-activities-plugin-documentation-refactoring.md — ✅ Accurate
 
 - Meta-document about refactoring, no code claims to verify.
+
 
 ### 5.6.1-activities-plugin-architecture.md — ✅ Accurate
 
 - Plugin dependencies, service registration, navigation/cell integration all match `ActivitiesPlugin.php`.
 - Configuration version management verified.
 
+
 ### 5.6.2-activities-controller-reference.md — ✅ Accurate (spot-checked)
 
 - Controller class exists, uses DataverseGridTrait as documented.
 - Controller file at correct path.
 
+
 ### 5.6.3-activity-groups-controller-reference.md — ✅ Accurate (spot-checked)
 
 - Controller class exists with DataverseGridTrait.
+
 
 ### 5.6.4-activity-entity-reference.md — ✅ Accurate
 
@@ -1022,13 +1112,16 @@ Cache stores, TTLs, groups, APCu engine usage, and debug mode behavior match `ap
 - Virtual properties `_getActivityGroupName()` and `_getGrantsRoleName()` verified.
 - `getApproversQuery()` method verified.
 
+
 ### 5.6.5-activity-security-patterns.md — ✅ Accurate
 
 - Mass assignment configuration matches actual `$_accessible` array exactly.
 
+
 ### 5.6.6-activity-groups-entity-reference.md — ✅ Accurate
 
 - Entity extends `BaseEntity`, accessible fields match (`name` only).
+
 
 ### 5.6.7-authorization-entity-reference.md — ✅ Accurate
 
@@ -1036,10 +1129,12 @@ Cache stores, TTLs, groups, APCu engine usage, and debug mode behavior match `ap
 - Entity properties and database schema match.
 - `ActiveWindowBaseEntity` inheritance confirmed.
 
+
 ### 5.6.8-authorization-approval-entity-reference.md — ✅ Accurate
 
 - Entity extends `BaseEntity` as documented.
 - All fields in `$_accessible` match documentation.
+
 
 ### 5.7-waivers-plugin.md
 
@@ -1051,6 +1146,7 @@ Cache stores, TTLs, groups, APCu engine usage, and debug mode behavior match `ap
 - **Issue:** Plugin structure doesn't show Services or View/Cell directories → **Actual:** These exist with `WaiversNavigationProvider.php`, `WaiversViewCellProvider.php`, `GatheringActivityService.php`, `GatheringActivityWaiversCell.php`, `GatheringWaiversCell.php`.
 
 ---
+
 
 ### Summary of Findings
 
@@ -1077,11 +1173,13 @@ Cache stores, TTLs, groups, APCu engine usage, and debug mode behavior match `ap
 
 ---
 
+
 ### 4.5-view-patterns.md
 
 - **Issue:** Section 4.5.5 layout list shows `templates/layout/` containing only `default.php`, `ajax.php`, `error.php`, `turbo_frame.php`, `email/`, and `TwitterBootstrap/`. → **Actual:** Missing `mobile_app.php` and `public_event.php` from the top-level listing. The `TwitterBootstrap/` subdirectory exists and contains `cover.php`, `dashboard.php`, `register.php`, `signin.php`, `view_record.php` — these sublayouts should be enumerated.
 - **Issue:** Section 4.5.2 AppView helper list omits `Markdown` and `Timezone` and `SecurityDebug`. → **Actual:** `AppView.php` loads `Markdown`, `Timezone`, and `SecurityDebug` helpers in addition to those listed in the doc. The doc's list in 4.5.2 is incomplete (the docblock in AppView.php is also missing these three, but the `initialize()` method loads them).
 - **Issue:** Doc is otherwise structurally accurate for KmpHelper, ViewCells, AppNavCell, NavigationCell, NotesCell patterns, element system, and security patterns. → **Accurate** on those fronts.
+
 
 ### 9-ui-components.md
 
@@ -1091,6 +1189,7 @@ Cache stores, TTLs, groups, APCu engine usage, and debug mode behavior match `ap
 - **Issue:** Section 9.3 references a `toasts` controller (`data-controller="toasts"`) for toast notifications. → **Actual:** No `toasts-controller.js` exists in the codebase. This controller does not exist.
 - **Issue:** Icon helper example shows `$this->IconSnippet->render('info-circle', 'Information')`. → **Actual:** The helper is loaded as `Templating.IconSnippet` and would be accessed as `$this->IconSnippet` — this is likely correct but should be verified against actual template usage patterns.
 
+
 ### 9.1-dataverse-grid-system.md
 
 - **Issue:** Architecture diagram lists trait methods as `processDataverseGrid()`, `handleCsvExport()`, `isCsvExportRequest()`. → **Actual:** All three methods exist in `DataverseGridTrait.php` (lines 61, 1252, 1218). Additionally `buildDataverseGridState()` exists (line 800) and is not mentioned in this diagram.
@@ -1098,15 +1197,18 @@ Cache stores, TTLs, groups, APCu engine usage, and debug mode behavior match `ap
 - **Issue:** grid-view-controller "Key Actions" section lists `applyFilter(event)` and `search` as methods. → **Actual:** `applyFilter` does not exist as a method in `grid-view-controller.js`. The controller uses URL navigation for filter changes rather than client-side filter application methods. `search` is not a standalone method either — the controller manages search state via URL params.
 - **Issue:** HTML Integration example shows `data-action="input->grid-view#search"` on search input. → **Actual:** The grid-view controller does not have a `search` action method. Search is handled through URL-based state management, not direct Stimulus actions.
 
+
 ### 9.2-bootstrap-icons.md
 
 - **Issue:** Document states Bootstrap Icons version "1.13.1" at the top, but troubleshooting section references "1.11" as the version. → **Actual:** Inconsistent version references within the same doc. The actual installed version should be verified against `webroot/assets/bootstrap-icons/`.
 - **Issue:** Doc is otherwise accurate for Icon helper usage patterns, rendering approach, and configuration. → **Accurate** on those fronts.
 
+
 ### 9.3-dataverse-grid-complete-guide.md
 
 - **Issue:** Architecture diagram lists `buildDataverseGridState()` as a trait method (line 96-97 area). → **Actual:** This method does exist (DataverseGridTrait.php:800). Accurate.
 - **Issue:** Due to document size (65.9KB), full verification was not possible for all code examples. The architecture, column configuration patterns, and feature flags match actual implementation based on spot checks. → **Likely accurate** but could not verify every example.
+
 
 ### 10-javascript-development.md
 
@@ -1114,6 +1216,7 @@ Cache stores, TTLs, groups, APCu engine usage, and debug mode behavior match `ap
 - **Issue:** Section 10.5.4 contains duplicate documentation blocks — `Detail Tabs Controller` is documented twice (lines ~484-536 and ~544-596), and `Modal Opener Controller` is documented twice (lines ~404-447 and ~865-907). → **Actual:** These are verbatim duplicates that should be consolidated.
 - **Issue:** Section 10.5.4 `guifier-control` controller name in doc example uses `data-controller="guifier-control"`. → **Actual:** Correct — the controller registers as `window.Controllers["guifier-control"]` which matches.
 - **Issue:** Doc is generally accurate for controller targets, values, methods, and usage patterns for the documented controllers. → **Accurate** on substantive claims.
+
 
 ### 10.1-javascript-framework.md
 
@@ -1126,6 +1229,7 @@ Cache stores, TTLs, groups, APCu engine usage, and debug mode behavior match `ap
 - **Issue:** Main Entry Point is missing the `turbo:render` event listener for re-initializing tooltips on Turbo frame loads. → **Actual:** This exists in actual code but not in doc.
 - **Issue:** Webpack.mix.js code example is incomplete — missing service file discovery (`assets/js/services/*-service.js`), Waivers CSS compilation, FontAwesome font directory copying, and webpack font module rules. → **Actual:** `webpack.mix.js` includes `getJsFilesFromDir('./assets/js/services', ...)`, two Waivers CSS entries, `.copyDirectory('node_modules/@fortawesome/fontawesome-free/webfonts', 'webroot/fonts')`, and font asset rules in webpackConfig.
 
+
 ### 10.2-qrcode-controller.md
 
 - **Issue:** Static Values section shows `errorCorrectionLevel` default as `"M"`. → **Actual:** `qrcode-controller.js` line 33 shows default is `"H"` (High), not `"M"` (Medium).
@@ -1135,18 +1239,22 @@ Cache stores, TTLs, groups, APCu engine usage, and debug mode behavior match `ap
 - **Issue:** `copyToClipboard()` method doc shows direct `this.canvasTarget.toBlob()`. → **Actual:** Code does `this.canvasTarget.querySelector('canvas')` first, then calls `.toBlob()` on the queried element. Also, the doc shows an `alert()` on success but actual code does not show an alert.
 - **Issue:** Controller Registration section shows registration happening via explicit import in `index.js` with code like `import QRCodeController from './controllers/qrcode-controller.js'` followed by manual `window.Controllers["qrcode"] = QRCodeController`. → **Actual:** `index.js` does `import './controllers/qrcode-controller.js'` (side-effect import), and the controller self-registers via `window.Controllers` in its own file. The doc's code example is misleading — the registration happens inside the controller file, not in index.js.
 
+
 ### 10.3-timezone-handling.md
 
 - **Issue:** PHP TimezoneHelper section references `templates/element/timezone_examples.php` as an examples element. → **Actual:** This file does not exist in `app/templates/element/`.
 - **Issue:** Doc is otherwise accurate for the PHP/JS timezone architecture, `KMP_Timezone` utility API, and form conversion workflows. → **Accurate** on substantive claims.
 
+
 ### 10.3.1-timezone-utils-api.md — ✅ Accurate
 
 All method signatures, parameter types, return types, and behavior descriptions match the actual `timezone-utils.js` source code. `detectTimezone()`, `getTimezone()`, `formatDateTime()`, `formatDate()`, `formatTime()`, `toLocalInput()`, `toUTC()`, `getTimezoneOffset()`, `getAbbreviation()`, `initializeDatetimeInputs()`, and `convertFormDatetimesToUTC()` are all correctly documented.
 
+
 ### 10.3.2-timezone-input-controller.md — ✅ Accurate
 
 All targets (`datetimeInput`, `notice`), values (`timezone`, `showNotice`), lifecycle methods, and behavior descriptions match `timezone-input-controller.js`. The controller structure, submit/reset handling, and `KMP_Timezone` integration are correctly documented.
+
 
 ### 10.4-asset-management.md
 
@@ -1161,15 +1269,18 @@ All targets (`datetimeInput`, `notice`), values (`timezone`, `showNotice`), life
 - **Issue:** The "production-only configurations" section shows `mix.minify()` and `mix.disableSuccessNotifications()` conditional blocks. → **Actual:** Neither of these exist in the actual `webpack.mix.js`. There are no production-specific conditional blocks.
 - **Issue:** Asset versioning section uses `Html->script('app')` and `Html->css('app')` with auto-versioning from mix-manifest. → **Actual:** Templates use `$this->AssetMix->script()` and `$this->AssetMix->css()` helpers, not the plain `Html` helper. The `Html` helper does not integrate with mix-manifest for versioning.
 
+
 ### dataverse-grid-custom-filter-audit.md — ✅ Accurate
 
 This is a technical audit document, not implementation docs. The findings about custom filter handler needs correctly identify columns using `contain()` instead of joins, virtual/computed fields, and self-relations. The grids and filter issues described are consistent with the GridColumns source files.
+
 
 ### dataverse-grid-migration-todo.md — ✅ Accurate
 
 This is a status tracking document. The phases, file paths, and implementation patterns described are consistent with actual controller and template structure. The known issues and testing checklist are appropriate.
 
 ---
+
 
 ### Summary
 
@@ -1192,6 +1303,7 @@ This is a status tracking document. The phases, file paths, and implementation p
 
 **Highest priority fixes:** `10.4-asset-management.md` (10 issues — most inaccurate doc), `10.1-javascript-framework.md` (7 issues — outdated code examples), `10.2-qrcode-controller.md` (6 issues — wrong defaults and method descriptions), `9-ui-components.md` (5 issues — references non-existent controllers).
 
+
 ### 2026-02-10: Skipped Test Triage & Suite Config
 
 **By:** Jayne (Tester)
@@ -1204,6 +1316,7 @@ This is a status tracking document. The phases, file paths, and implementation p
 
 ## Skipped Test Decisions
 
+
 ### Removed as redundant/dead (9 tests):
 - Circular reference & root branch deletion tests → tested at model level, controller test adds no value
 - EditGet → no edit.php template exists, GET on /members/edit renders nothing
@@ -1212,14 +1325,17 @@ This is a status tracking document. The phases, file paths, and implementation p
 - RunCommandTest::testServiceInjection → requires upstream TestApp/Foo fixture we don't have
 - HelloWorldControllerTest::testJsonResponse → demo plugin, JSON responses not needed
 
+
 ### Fixed with real assertions (4 tests):
 - testAddPostWithValidData → POST valid member data, assert redirect to view page
 - testEditPostWithValidData → POST edit on admin member, assert redirect
 - testDelete → DELETE test member, assert redirect (uses TEST_MEMBER_AGATHA_ID)
 - testAutoComplete → GET with query, assert HTML list-group-item in response
 
+
 ### Auth blocker:
 testAddPostWithValidData and testEditPostWithValidData fail with the same pre-existing `/pages/unauthorized` redirect that affects ALL MembersControllerTest tests. The `SuperUserAuthenticatedTrait` isn't properly authenticating. Once auth is fixed (Phase 5 work), these tests will pass as-is.
+
 
 ### 2026-02-10: BasePolicy array resource handling via before() reflection
 
@@ -1264,30 +1380,37 @@ Handle array resources in `BasePolicy::before()` using `ReflectionMethod::getDec
 
 ## Decisions Made
 
+
 ### 1. DI Container Documentation — Show Only What's Actually Registered
 **Decision:** Removed `NavigationRegistry` and `KmpAuthorizationService` from DI container docs since they aren't registered in `Application::services()`. Only documented the 5 actual registrations: ActiveWindowManagerInterface, WarrantManagerInterface, CsvExportService, ICalendarService, ImpersonationService.  
 **Rationale:** NavigationRegistry is used statically (session-cached), not via DI. KmpAuthorizationService doesn't exist as a registered service.
+
 
 ### 2026-02-10: Session Configuration Documentation Fix (consolidated)
 **By:** Kaylee, Jayne
 **What:** Fixed session config docs to reflect actual CakePHP structure: flat `ini` block (not nested `cookie` object), timeout is 30 minutes (not 240), cookie name is `PHPSESSID`, config lives in `app.php` (not `app_local.php`), sessions are PHP file-based (not database-backed as `3.5-er-diagrams.md` claimed).
 **Why:** Multiple docs had wrong session config — wrong timeout, wrong location, wrong session storage type. CakePHP 5.x uses PHP ini settings directly.
 
+
 ### 3. WarrantManager Events — Removed Fictional Events
 **Decision:** Removed `ActiveWindow.beforeStart`, `ActiveWindow.afterStart`, `ActiveWindow.beforeStop`, `ActiveWindow.afterStop` event documentation. Neither WarrantManager nor ActiveWindowManager dispatches any events.  
 **Rationale:** grep confirms zero event dispatches in either service. The lifecycle is driven entirely by direct method calls returning ServiceResult.
+
 
 ### 4. PublicIdBehavior — Added Full Documentation
 **Decision:** Updated behavior count from 3 to 4, added complete PublicIdBehavior section to 3.2-model-behaviors.md with configuration, charset, usage, and database requirements.  
 **Rationale:** Behavior was already in production code but missing from docs.
 
+
 ### 5. Console Commands — Created New Doc
 **Decision:** Created `docs/7.7-console-commands.md` documenting 5 CLI commands. Excluded AgeUpMembersCommand and SyncActiveWindowStatusesCommand which are already documented in their respective sections.  
 **Rationale:** Commands had no documentation at all. Cross-referenced existing docs to avoid duplication.
 
+
 ### 6. Services — Expanded Documentation
 **Decision:** Added brief documentation for 11 services to 6-services.md, including purpose, key methods, and DI registration status.  
 **Rationale:** Most services were completely undocumented. Kept descriptions concise per inline doc standards.
+
 
 ### 7. Warrant Expiry — Corrected Mechanism
 **Decision:** Replaced reference to non-existent `expireOldWarrants()` with actual `SyncActiveWindowStatusesCommand`.  
@@ -1322,14 +1445,17 @@ Handle array resources in `BasePolicy::before()` using `ReflectionMethod::getDec
 
 ## Decisions Made
 
+
 ### D1: Broken cross-references → point to nearest valid doc
 - `5.2.2-awards-event-entity.md` never existed → pointed to `5.2-awards-plugin.md`
 - `5.2.3-awards-domains-table.md` never existed → pointed to `5.2.8-awards-domains-table-policy.md`
 - **Rationale:** No standalone entity docs exist for these models. The plugin overview and table policy docs are the closest valid targets.
 
+
 ### D2: Interface docs show interface signatures, not implementation
 - `release()` in OfficerManagerInterface has 4 params. The implementation's 5th param (`$releaseStatus`) is not part of the interface contract and was removed from the interface section of the doc.
 - **Rationale:** Docs for an interface should reflect the interface, not leak implementation details.
+
 
 ### D3: Migration orders reflect actual plugins.php, not aspirational architecture
 - Removed fabricated migrationOrder values for Queue (10), Bootstrap (12), GitHubIssueSubmitter (11) — these plugins have no migrationOrder in plugins.php.
@@ -1338,16 +1464,19 @@ Handle array resources in `BasePolicy::before()` using `ReflectionMethod::getDec
 - Added Waivers (migrationOrder: 4) which was missing.
 - **Rationale:** Documentation must match reality. Aspirational architecture belongs in design docs, not reference docs.
 
+
 ### D4: Waivers plugin doc rewritten from scratch
 - Previous doc was ~50% coverage. New doc covers all 4 entities, 4 tables, 8 policies, 9 JS controllers, 3 services, 2 view cells, navigation, routes, and 13 migrations.
 - Followed format of other plugin docs (5.1, 5.6).
 - **Rationale:** Half-documented plugins are worse than undocumented — they create false confidence.
+
 
 ### D5: Awards data model corrected to match entity source
 - Removed phantom `active` field from Award, Domain, Level, Event in Mermaid diagram.
 - Added 6 missing Award fields: abbreviation, insignia, badge, charter, open_date, close_date.
 - Fixed Domain (removed nonexistent `description` field), Level (removed nonexistent `description` field), Event (added missing `description` and `branch_id` fields).
 - **Rationale:** Data model diagrams must match entity `@property` annotations.
+
 
 ### D6: Global access sentinel documented
 - RecommendationsTablePolicy uses `-10000000` as branchIds[0] to indicate global/super-user access. This was undocumented. Added explanation.
@@ -1376,45 +1505,54 @@ Handle array resources in `BasePolicy::before()` using `ReflectionMethod::getDec
 
 ## Decisions Made
 
+
 ### D1: Rewrote asset management doc to reflect actual build pipeline
 - **What:** `docs/10.4-asset-management.md` fully rewritten
 - **Why:** Previous doc showed fictional `app.js`/`vendor.js` output, wrong SCSS imports, simplified webpack config, wrong asset helper (`Html` instead of `AssetMix`), incomplete npm scripts
 - **Impact:** Developers will now see accurate build output (index.js, controllers.js, core.js, manifest.js), correct AssetMix helper usage, and full npm script reference
+
 
 ### D2: Rewrote JS framework doc with correct versions and patterns
 - **What:** `docs/10.1-javascript-framework.md` fully rewritten
 - **Why:** Had wrong Turbo version (^8.0.4 → ^8.0.21), missing imports (timezone-utils.js, specific controllers), didn't document Turbo Drive being disabled
 - **Impact:** Accurate dependency table, correct index.js initialization flow, proper build config reference
 
+
 ### D3: Rewrote QR code controller doc to match actual implementation
 - **What:** `docs/10.2-qrcode-controller.md` fully rewritten
 - **Why:** Wrong default errorCorrectionLevel (M → H), wrong error handling (console.error → throw Error + fallback HTML), wrong download mechanism, wrong registration pattern
 - **Impact:** Developers get accurate API reference matching actual controller behavior
+
 
 ### D4: Removed fictional controllers from UI components doc
 - **What:** Removed `form-handler` and `toasts` controller references from `docs/9-ui-components.md`, fixed autocomplete controller name to `ac`
 - **Why:** These controllers don't exist in the codebase. Autocomplete is registered as `"ac"` not `"autocomplete"`
 - **Impact:** Prevents developers from trying to use non-existent controllers
 
+
 ### D5: Added missing helpers and layouts to view patterns doc
 - **What:** Added Markdown, Timezone, SecurityDebug helpers and mobile_app.php, public_event.php layouts to `docs/4.5-view-patterns.md`
 - **Why:** These exist in AppView and templates/layout/ but were not listed
 - **Impact:** Complete reference for available helpers and layouts
+
 
 ### D6: Fixed Gatherings grid mapping
 - **What:** Corrected Gatherings→GatheringsGridColumns mapping, added GatheringTypes row, removed non-existent applyFilter method in `docs/9.1-dataverse-grid-system.md`
 - **Why:** Doc incorrectly mapped Gatherings entity to GatheringTypesGridColumns; applyFilter doesn't exist as a controller method
 - **Impact:** Accurate grid implementation reference
 
+
 ### D7: Standardized Bootstrap Icons version to 1.11.3
 - **What:** Fixed both version references in `docs/9.2-bootstrap-icons.md` to 1.11.3
 - **Why:** Doc said 1.13.1 in overview and 1.11 in troubleshooting; actual version from CSS header is 1.11.3
 - **Impact:** Consistent, accurate version reference
 
+
 ### D8: Removed duplicate controller sections from JS development doc
 - **What:** Removed duplicate Detail Tabs Controller and Modal Opener Controller blocks, fixed controller example to use window.Controllers pattern in `docs/10-javascript-development.md`
 - **Why:** Same controller documented 2-3 times; example showed `export default class` instead of actual window.Controllers pattern
 - **Impact:** Cleaner doc without confusing duplicates, correct registration pattern
+
 
 ### D9: Confirmed timezone_examples.php exists — no change needed
 - **What:** `docs/10.3-timezone-handling.md` left unchanged
@@ -1442,38 +1580,47 @@ Completed 13 documentation tasks fixing factual errors across 12 files. Every fi
 
 ## Decisions Made
 
+
 ### D1: Deleted docs/8-development-workflow.md
 - **Reason:** Exact duplicate of 7-development-workflow.md
 - **Impact:** Removed dead link from index.md section 8.2
+
 
 ### D2: Rewrote docs/7-development-workflow.md from scratch
 - **Reason:** Every testing section was wrong — wrong suite names, wrong base classes, wrong data strategy, references to non-existent scripts/methods
 - **Source of truth:** `phpunit.xml.dist`, `BaseTestCase.php`, `HttpIntegrationTestCase.php`, `SeedManager.php`, `app/package.json`
 - **Key changes:** Suite names are `core-unit`/`core-feature`/`plugins`/`all`. Base class is `BaseTestCase` (not `Cake\TestSuite\TestCase`). Data comes from `dev_seed_clean.sql` with transaction wrapping (not CakePHP fixtures). Removed `StaticHelpers::logVar`, `npm run lint`, `Psalm` references.
 
+
 ### D3: Standardized PHP version to 8.3
 - **Source:** `.github/workflows/tests.yml` uses `php-version: '8.3'`
 - **Note:** `composer.json` says `>=8.1` but CI tests on 8.3 and the Docker setup targets 8.3. Documentation should reflect the tested/recommended version.
+
 
 ### D4: Removed `bin/cake security generate_salt` references
 - **Reason:** No `SecurityCommand` exists in `app/src/Command/`
 - **Replacement:** `php -r "echo bin2hex(random_bytes(32)) . PHP_EOL;"`
 - **Files affected:** `2-configuration.md`, `7.1-security-best-practices.md`, `8.1-environment-setup.md`
 
+
 ### D5: Fixed session configuration claims (consolidated into "Session Configuration Documentation Fix" above)
+
 
 ### D6: Fixed test data constants
 - **`KINGDOM_BRANCH_ID`:** Doc said 1, actual value is 2
 - **`TEST_BRANCH_LOCAL_ID`:** Doc said 1073, actual value is 14
+
 
 ### D7: Replaced deprecated SuperUserAuthenticatedTrait guidance
 - **Old recommendation:** Use `SuperUserAuthenticatedTrait` with `BaseTestCase` + `IntegrationTestTrait`
 - **New recommendation:** Extend `HttpIntegrationTestCase` which includes `TestAuthenticationHelper` automatically
 - **Note:** The old trait still exists but new tests should use the new pattern
 
+
 ### D8: Fixed config loading hierarchy in 8.1-environment-setup.md
 - **Actual order (from bootstrap.php):** `.env` → `app.php` → `app_local.php` → `app_queue.php`
 - **Removed:** `DOCUMENTS_STORAGE_ADAPTER` env var reference (not used anywhere — adapter is set in `app_local.php`)
+
 
 ### D9: Fixed appendices.md
 - **Bootstrap:** Updated docs link from 5.0 to 5.3 (package.json has `bootstrap: ^5.3.6`)
@@ -1484,3 +1631,10 @@ Completed 13 documentation tasks fixing factual errors across 12 files. Every fi
 1. **`composer.json` says `php >= 8.1`** but docs now say 8.3. If someone deploys on 8.1/8.2, Composer will allow it but the docs won't cover it. Consider bumping `composer.json` to `>=8.3`.
 2. **The old `SuperUserAuthenticatedTrait` is still in the codebase.** A cleanup task to migrate remaining tests and remove it would be beneficial.
 3. **No `npm run lint`** exists — if linting is desired, an ESLint config + script should be added.
+
+
+### 2026-02-10: Safe conditional DSL for DB email templates
+
+**By:** Kaylee
+**What:** Added conditional block processing to `EmailTemplateRendererService` that parses `<?php if ($var == "value") : ?>...<?php endif; ?>` as a safe DSL — regex-matched and evaluated, never `eval()`'d. Supports `==` equality, `||` (OR), `&&` (AND). Conditionals are processed before `{{variable}}` substitution so variables inside conditional blocks work correctly.
+**Why:** DB-stored email templates previously couldn't express conditional logic that file-based templates had (e.g., showing different content based on approval status). By using the same `<?php if ?>` syntax as file templates but parsing it safely, admins can copy template content between file and DB versions without syntax changes. The `eval()`-free approach is critical since DB template content is admin-editable — arbitrary PHP execution from user-controlled strings would be a severe security vulnerability.

@@ -116,3 +116,5 @@ Fixed 13 documentation issues across 12 files by verifying each claim against ac
 
 **Files modified:** `docs/index.md`, `docs/1-introduction.md`, `docs/2-configuration.md`, `docs/2-getting-started.md`, `docs/3.5-er-diagrams.md`, `docs/7-development-workflow.md`, `docs/7.1-security-best-practices.md`, `docs/7.3-testing-infrastructure.md`, `docs/8-deployment.md`, `docs/8.1-environment-setup.md`, `docs/appendices.md`
 **Files deleted:** `docs/8-development-workflow.md`
+
+📌 Team update (2026-02-11): EmailTemplateRendererService now supports safe conditional DSL (`<?php if ($var == "value") : ?>...<?php endif; ?>`) — parsed via regex, never eval()d. Supports ==, ||, && operators. All status paths (Approved/Pending/Denied) tested and passing. — decided by Kaylee
