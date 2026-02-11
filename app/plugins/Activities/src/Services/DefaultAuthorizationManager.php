@@ -1030,13 +1030,24 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
             ])
             ->first();
 
-        if ($pendingApproval && $pendingApproval->approver_id) {
-            // Send notification to approver (non-critical, don't fail if it doesn't send)
-            $this->sendRetractedNotificationToApprover(
-                $authorization->activity_id,
-                $authorization->member_id,
-                $pendingApproval->approver_id
-            );
+        if ($pendingApproval) {
+            // Mark the pending approval as responded so it no longer appears in the approver's queue
+            $pendingApproval->responded_on = DateTime::now();
+            $pendingApproval->approved = false;
+            $pendingApproval->approver_notes = "Retracted by requester";
+            if (!$approvalsTable->save($pendingApproval)) {
+                $table->getConnection()->rollback();
+                return new ServiceResult(false, "Failed to close pending approval");
+            }
+
+            if ($pendingApproval->approver_id) {
+                // Send notification to approver (non-critical, don't fail if it doesn't send)
+                $this->sendRetractedNotificationToApprover(
+                    $authorization->activity_id,
+                    $authorization->member_id,
+                    $pendingApproval->approver_id
+                );
+            }
         }
 
         // Commit transaction
