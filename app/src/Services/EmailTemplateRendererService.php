@@ -160,16 +160,35 @@ class EmailTemplateRendererService
     {
         $pattern = '/\{\{#if\s+(.+?)\}\}(.*?)\{\{\/if\}\}/s';
 
-        return preg_replace_callback($pattern, function ($matches) use ($vars) {
-            $condition = trim($matches[1]);
-            $content = $matches[2];
+        // Loop to resolve innermost {{#if}} blocks first when nested
+        $maxIterations = 10;
+        $iteration = 0;
+        while (preg_match($pattern, $template) && $iteration < $maxIterations) {
+            $iteration++;
+            $result = preg_replace_callback($pattern, function ($matches) use ($vars) {
+                $condition = trim($matches[1]);
+                $content = $matches[2];
 
-            if ($this->evaluateCondition($condition, $vars)) {
-                return $content;
+                if (str_contains($content, '{{#if')) {
+                    Log::warning('EmailTemplateRendererService: nested {{#if}} blocks detected — innermost resolved first');
+                }
+
+                if ($this->evaluateCondition($condition, $vars)) {
+                    return $content;
+                }
+
+                return '';
+            }, $template);
+
+            if ($result === null) {
+                Log::error('EmailTemplateRendererService: preg_replace_callback returned null (PCRE error) in processConditionals');
+
+                return $template;
             }
+            $template = $result;
+        }
 
-            return '';
-        }, $template);
+        return $template;
     }
 
     /**
@@ -184,10 +203,10 @@ class EmailTemplateRendererService
      */
     protected function evaluateCondition(string $condition, array $vars): bool
     {
-        // OR: split by || — any part true means true
-        if (str_contains($condition, '||')) {
-            $parts = explode('||', $condition);
-            foreach ($parts as $part) {
+        // OR: split by || outside of quotes — any part true means true
+        $orParts = $this->splitOutsideQuotes($condition, '||');
+        if (count($orParts) > 1) {
+            foreach ($orParts as $part) {
                 if ($this->evaluateCondition(trim($part), $vars)) {
                     return true;
                 }
@@ -196,10 +215,10 @@ class EmailTemplateRendererService
             return false;
         }
 
-        // AND: split by && — all parts must be true
-        if (str_contains($condition, '&&')) {
-            $parts = explode('&&', $condition);
-            foreach ($parts as $part) {
+        // AND: split by && outside of quotes — all parts must be true
+        $andParts = $this->splitOutsideQuotes($condition, '&&');
+        if (count($andParts) > 1) {
+            foreach ($andParts as $part) {
                 if (!$this->evaluateCondition(trim($part), $vars)) {
                     return false;
                 }
@@ -243,6 +262,48 @@ class EmailTemplateRendererService
         Log::warning('EmailTemplateRendererService: unsupported conditional expression: ' . $comparison);
 
         return false;
+    }
+
+    /**
+     * Split a condition string by a logical operator, but only when the operator
+     * appears outside of quoted strings.
+     *
+     * @param string $condition The condition string to split
+     * @param string $operator The operator to split on ('||' or '&&')
+     * @return array Parts of the condition (single-element array if operator not found outside quotes)
+     */
+    protected function splitOutsideQuotes(string $condition, string $operator): array
+    {
+        $parts = [];
+        $current = '';
+        $inQuote = false;
+        $quoteChar = '';
+        $len = strlen($condition);
+        $opLen = strlen($operator);
+
+        for ($i = 0; $i < $len; $i++) {
+            $char = $condition[$i];
+
+            if ($inQuote) {
+                $current .= $char;
+                if ($char === $quoteChar) {
+                    $inQuote = false;
+                }
+            } elseif ($char === '"' || $char === "'") {
+                $inQuote = true;
+                $quoteChar = $char;
+                $current .= $char;
+            } elseif (substr($condition, $i, $opLen) === $operator) {
+                $parts[] = $current;
+                $current = '';
+                $i += $opLen - 1;
+            } else {
+                $current .= $char;
+            }
+        }
+        $parts[] = $current;
+
+        return $parts;
     }
 
     /**

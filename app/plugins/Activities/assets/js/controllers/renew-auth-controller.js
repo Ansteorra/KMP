@@ -56,7 +56,7 @@ class ActivitiesRenewAuthorization extends Controller {
                     this.approversTarget.disabled = false;
 
                     if (list.length === 1) {
-                        this.approversTarget.value = list[0];
+                        this.approversTarget.value = list[0].value;
                         this.checkReadyToSubmit();
                     }
                 });

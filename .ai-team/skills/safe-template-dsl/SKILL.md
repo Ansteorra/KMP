@@ -12,11 +12,11 @@ When templates are stored in a database and editable by users/admins, you cannot
 ## Patterns
 
 ### Safe Conditional Parsing
-Parse `<?php if ($var == "value") : ?>...<?php endif; ?>` blocks using regex, not `eval()`:
+Parse `{{#if var == "value"}}...{{/if}}` blocks using regex, not `eval()`:
 
 ```php
 // Regex to find conditional blocks (s flag for multiline content)
-$pattern = '/<\?php\s+if\s*\((.+?)\)\s*:\s*\?>(.*?)<\?php\s+endif;\s*\?>/s';
+$pattern = '/\{\{#if\s+(.+?)\}\}(.*?)\{\{\/if\}\}/s';
 
 preg_replace_callback($pattern, function ($matches) use ($vars) {
     $condition = trim($matches[1]);

@@ -8,6 +8,7 @@ use App\Services\CsvExportService;
 use App\Services\MailerDiscoveryService;
 use App\Services\EmailTemplateRendererService;
 use Cake\Http\Exception\NotFoundException;
+use Cake\Log\Log;
 
 /**
  * EmailTemplates Controller
@@ -457,6 +458,18 @@ class EmailTemplatesController extends AppController
 
         // Convert PHP endif blocks → {{/if}}
         $content = preg_replace('/<\?php\s+endif;\s*\?>/', '{{/if}}', $content);
+
+        // Convert PHP else blocks → {{else}} (or strip if DSL doesn't support else)
+        if (preg_match('/<\?php\s+else\s*:\s*\?>/', $content)) {
+            Log::warning('Email template conversion encountered <?php else : ?> block — converting to {{else}}');
+            $content = preg_replace('/<\?php\s+else\s*:\s*\?>/', '{{else}}', $content);
+        }
+
+        // Strip PHP elseif blocks and warn — not supported in the safe DSL
+        if (preg_match('/<\?php\s+elseif\s*\((.+?)\)\s*:\s*\?>/', $content)) {
+            Log::warning('Email template conversion encountered <?php elseif (...) : ?> block — stripping (not supported in safe DSL)');
+            $content = preg_replace('/<\?php\s+elseif\s*\((.+?)\)\s*:\s*\?>/', '', $content);
+        }
 
         return $content;
     }
