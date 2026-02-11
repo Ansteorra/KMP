@@ -31,13 +31,16 @@ class EmailTemplateRendererService
     /**
      * Render a template by replacing variables with values
      *
+     * Processes conditional blocks first, then substitutes variables.
+     *
      * @param string $template Template string with {{variable}} placeholders
      * @param array $vars Array of variable name => value pairs
      * @return string Rendered template
      */
     public function renderTemplate(string $template, array $vars): string
     {
-        $rendered = $template;
+        // Process conditional blocks before variable substitution
+        $rendered = $this->processConditionals($template, $vars);
 
         foreach ($vars as $key => $value) {
             $placeholder = '{{' . $key . '}}';
@@ -142,6 +145,168 @@ class EmailTemplateRendererService
     }
 
     /**
+     * Process conditional blocks in template before variable substitution.
+     *
+     * Parses {{#if condition}}...{{/if}} blocks as a safe DSL.
+     * Supports ==, !=, || (OR), and && (AND) operators.
+     *
+     * Example: {{#if status == "Approved" || status == "Revoked"}}...{{/if}}
+     *
+     * @param string $template Template with conditional blocks
+     * @param array $vars Variable values for condition evaluation
+     * @return string Template with conditionals resolved
+     */
+    protected function processConditionals(string $template, array $vars): string
+    {
+        $pattern = '/\{\{#if\s+(.+?)\}\}(.*?)\{\{\/if\}\}/s';
+
+        // Loop to resolve innermost {{#if}} blocks first when nested
+        $maxIterations = 10;
+        $iteration = 0;
+        while (preg_match($pattern, $template) && $iteration < $maxIterations) {
+            $iteration++;
+            $result = preg_replace_callback($pattern, function ($matches) use ($vars) {
+                $condition = trim($matches[1]);
+                $content = $matches[2];
+
+                if (str_contains($content, '{{#if')) {
+                    Log::warning('EmailTemplateRendererService: nested {{#if}} blocks detected — innermost resolved first');
+                }
+
+                if ($this->evaluateCondition($condition, $vars)) {
+                    return $content;
+                }
+
+                return '';
+            }, $template);
+
+            if ($result === null) {
+                Log::error('EmailTemplateRendererService: preg_replace_callback returned null (PCRE error) in processConditionals');
+
+                return $template;
+            }
+            $template = $result;
+        }
+
+        return $template;
+    }
+
+    /**
+     * Evaluate a conditional expression safely.
+     *
+     * Splits by || first (lower precedence), then && (higher precedence),
+     * then evaluates individual comparisons.
+     *
+     * @param string $condition Expression like 'var == "value" || var == "other"'
+     * @param array $vars Available variable values
+     * @return bool
+     */
+    protected function evaluateCondition(string $condition, array $vars): bool
+    {
+        // OR: split by || outside of quotes — any part true means true
+        $orParts = $this->splitOutsideQuotes($condition, '||');
+        if (count($orParts) > 1) {
+            foreach ($orParts as $part) {
+                if ($this->evaluateCondition(trim($part), $vars)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // AND: split by && outside of quotes — all parts must be true
+        $andParts = $this->splitOutsideQuotes($condition, '&&');
+        if (count($andParts) > 1) {
+            foreach ($andParts as $part) {
+                if (!$this->evaluateCondition(trim($part), $vars)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        // Single comparison
+        return $this->evaluateComparison(trim($condition), $vars);
+    }
+
+    /**
+     * Evaluate a single comparison: varName == "value" or varName != "value"
+     *
+     * Supports both == (equality) and != (not-equal) operators.
+     * Variable names do not use a $ prefix in the {{#if}} syntax.
+     *
+     * @param string $comparison Single comparison expression
+     * @param array $vars Available variable values
+     * @return bool
+     */
+    protected function evaluateComparison(string $comparison, array $vars): bool
+    {
+        // Match varName == "value" or varName != "value" (with optional $ prefix for compat)
+        $pattern = '/^\$?(\w+)\s*(==|!=)\s*["\']([^"\']*)["\']$/';
+
+        if (preg_match($pattern, $comparison, $matches)) {
+            $varName = $matches[1];
+            $operator = $matches[2];
+            $expectedValue = $matches[3];
+            $actualValue = $this->formatValue($vars[$varName] ?? null);
+
+            if ($operator === '!=') {
+                return $actualValue !== $expectedValue;
+            }
+
+            return $actualValue === $expectedValue;
+        }
+
+        Log::warning('EmailTemplateRendererService: unsupported conditional expression: ' . $comparison);
+
+        return false;
+    }
+
+    /**
+     * Split a condition string by a logical operator, but only when the operator
+     * appears outside of quoted strings.
+     *
+     * @param string $condition The condition string to split
+     * @param string $operator The operator to split on ('||' or '&&')
+     * @return array Parts of the condition (single-element array if operator not found outside quotes)
+     */
+    protected function splitOutsideQuotes(string $condition, string $operator): array
+    {
+        $parts = [];
+        $current = '';
+        $inQuote = false;
+        $quoteChar = '';
+        $len = strlen($condition);
+        $opLen = strlen($operator);
+
+        for ($i = 0; $i < $len; $i++) {
+            $char = $condition[$i];
+
+            if ($inQuote) {
+                $current .= $char;
+                if ($char === $quoteChar) {
+                    $inQuote = false;
+                }
+            } elseif ($char === '"' || $char === "'") {
+                $inQuote = true;
+                $quoteChar = $char;
+                $current .= $char;
+            } elseif (substr($condition, $i, $opLen) === $operator) {
+                $parts[] = $current;
+                $current = '';
+                $i += $opLen - 1;
+            } else {
+                $current .= $char;
+            }
+        }
+        $parts[] = $current;
+
+        return $parts;
+    }
+
+    /**
      * Format a value for display in email
      *
      * @param mixed $value
@@ -179,6 +344,8 @@ class EmailTemplateRendererService
     /**
      * Get list of variables used in a template
      *
+     * Finds {{variable}}, ${variable}, and variable references in {{#if}} conditionals.
+     *
      * @param string $template
      * @return array List of variable names
      */
@@ -186,8 +353,8 @@ class EmailTemplateRendererService
     {
         $variables = [];
 
-        // Find {{variable}} style
-        preg_match_all('/\{\{([^}]+)\}\}/', $template, $matches);
+        // Find {{variable}} style — but exclude {{#if ...}} and {{/if}} control tags
+        preg_match_all('/\{\{(?!#if\s|\/if\})([^}]+)\}\}/', $template, $matches);
         if (!empty($matches[1])) {
             $variables = array_merge($variables, $matches[1]);
         }
@@ -196,6 +363,17 @@ class EmailTemplateRendererService
         preg_match_all('/\$\{([^}]+)\}/', $template, $matches);
         if (!empty($matches[1])) {
             $variables = array_merge($variables, $matches[1]);
+        }
+
+        // Find variable references in {{#if condition}} expressions
+        preg_match_all('/\{\{#if\s+(.+?)\}\}/s', $template, $condMatches);
+        if (!empty($condMatches[1])) {
+            foreach ($condMatches[1] as $condition) {
+                preg_match_all('/\b(\w+)\s*(?:==|!=)/', $condition, $varMatches);
+                if (!empty($varMatches[1])) {
+                    $variables = array_merge($variables, $varMatches[1]);
+                }
+            }
         }
 
         return array_unique($variables);

@@ -31,6 +31,11 @@ class ActivitiesRequestAuthorization extends Controller {
                 this.approversTarget.options = list;
                 this.submitBtnTarget.disabled = true;
                 this.approversTarget.disabled = false;
+
+                if (list.length === 1) {
+                    this.approversTarget.value = list[0].value;
+                    this.checkReadyToSubmit();
+                }
             });
     }
 

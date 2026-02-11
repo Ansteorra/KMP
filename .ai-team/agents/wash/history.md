@@ -87,3 +87,7 @@ Completed 9 documentation tasks (8 modified, 1 no-change-needed):
 - Bootstrap Icons version is 1.11.3 (from CSS header), not managed via npm
 - Only Waivers plugin CSS is auto-compiled; other plugins need manual webpack.mix.js entries
 - Service files (assets/js/services/) are also bundled into controllers.js
+
+📌 Team update (2026-02-11): EmailTemplateRendererService now supports safe conditional DSL (`<?php if ($var == "value") : ?>...<?php endif; ?>`) — parsed via regex, never eval()d. Supports ==, ||, && operators. Conditionals processed before {{variable}} substitution. — decided by Kaylee
+
+📌 Team update (2026-02-11): Email template conditionals now use {{#if var == "value"}}...{{/if}} mustache-style syntax instead of PHP-style. convertTemplateVariables() auto-converts on import. — decided by Kaylee

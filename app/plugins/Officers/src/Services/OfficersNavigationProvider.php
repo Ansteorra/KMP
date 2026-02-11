@@ -39,22 +39,6 @@ class OfficersNavigationProvider
         return [
             [
                 "type" => "link",
-                "mergePath" => ["Reports"],
-                "label" => "Officers",
-                "order" => 29,
-                "url" => [
-                    "plugin" => "Officers",
-                    "controller" => "Officers",
-                    "action" => "index",
-                    "model" => "Officers.Officers",
-                ],
-                "icon" => "bi-building",
-                "activePaths" => [
-                    "officers/Officers/view/*",
-                ]
-            ],
-            [
-                "type" => "link",
                 "mergePath" => ["Config"],
                 "label" => "Departments",
                 "order" => 40,
