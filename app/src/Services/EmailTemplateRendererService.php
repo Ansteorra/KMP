@@ -31,13 +31,16 @@ class EmailTemplateRendererService
     /**
      * Render a template by replacing variables with values
      *
+     * Processes conditional blocks first, then substitutes variables.
+     *
      * @param string $template Template string with {{variable}} placeholders
      * @param array $vars Array of variable name => value pairs
      * @return string Rendered template
      */
     public function renderTemplate(string $template, array $vars): string
     {
-        $rendered = $template;
+        // Process conditional blocks before variable substitution
+        $rendered = $this->processConditionals($template, $vars);
 
         foreach ($vars as $key => $value) {
             $placeholder = '{{' . $key . '}}';
@@ -142,6 +145,107 @@ class EmailTemplateRendererService
     }
 
     /**
+     * Process conditional blocks in template before variable substitution.
+     *
+     * Parses {{#if condition}}...{{/if}} blocks as a safe DSL.
+     * Supports ==, !=, || (OR), and && (AND) operators.
+     *
+     * Example: {{#if status == "Approved" || status == "Revoked"}}...{{/if}}
+     *
+     * @param string $template Template with conditional blocks
+     * @param array $vars Variable values for condition evaluation
+     * @return string Template with conditionals resolved
+     */
+    protected function processConditionals(string $template, array $vars): string
+    {
+        $pattern = '/\{\{#if\s+(.+?)\}\}(.*?)\{\{\/if\}\}/s';
+
+        return preg_replace_callback($pattern, function ($matches) use ($vars) {
+            $condition = trim($matches[1]);
+            $content = $matches[2];
+
+            if ($this->evaluateCondition($condition, $vars)) {
+                return $content;
+            }
+
+            return '';
+        }, $template);
+    }
+
+    /**
+     * Evaluate a conditional expression safely.
+     *
+     * Splits by || first (lower precedence), then && (higher precedence),
+     * then evaluates individual comparisons.
+     *
+     * @param string $condition Expression like 'var == "value" || var == "other"'
+     * @param array $vars Available variable values
+     * @return bool
+     */
+    protected function evaluateCondition(string $condition, array $vars): bool
+    {
+        // OR: split by || — any part true means true
+        if (str_contains($condition, '||')) {
+            $parts = explode('||', $condition);
+            foreach ($parts as $part) {
+                if ($this->evaluateCondition(trim($part), $vars)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // AND: split by && — all parts must be true
+        if (str_contains($condition, '&&')) {
+            $parts = explode('&&', $condition);
+            foreach ($parts as $part) {
+                if (!$this->evaluateCondition(trim($part), $vars)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        // Single comparison
+        return $this->evaluateComparison(trim($condition), $vars);
+    }
+
+    /**
+     * Evaluate a single comparison: varName == "value" or varName != "value"
+     *
+     * Supports both == (equality) and != (not-equal) operators.
+     * Variable names do not use a $ prefix in the {{#if}} syntax.
+     *
+     * @param string $comparison Single comparison expression
+     * @param array $vars Available variable values
+     * @return bool
+     */
+    protected function evaluateComparison(string $comparison, array $vars): bool
+    {
+        // Match varName == "value" or varName != "value" (with optional $ prefix for compat)
+        $pattern = '/^\$?(\w+)\s*(==|!=)\s*["\']([^"\']*)["\']$/';
+
+        if (preg_match($pattern, $comparison, $matches)) {
+            $varName = $matches[1];
+            $operator = $matches[2];
+            $expectedValue = $matches[3];
+            $actualValue = $this->formatValue($vars[$varName] ?? null);
+
+            if ($operator === '!=') {
+                return $actualValue !== $expectedValue;
+            }
+
+            return $actualValue === $expectedValue;
+        }
+
+        Log::warning('EmailTemplateRendererService: unsupported conditional expression: ' . $comparison);
+
+        return false;
+    }
+
+    /**
      * Format a value for display in email
      *
      * @param mixed $value
@@ -179,6 +283,8 @@ class EmailTemplateRendererService
     /**
      * Get list of variables used in a template
      *
+     * Finds {{variable}}, ${variable}, and variable references in {{#if}} conditionals.
+     *
      * @param string $template
      * @return array List of variable names
      */
@@ -186,8 +292,8 @@ class EmailTemplateRendererService
     {
         $variables = [];
 
-        // Find {{variable}} style
-        preg_match_all('/\{\{([^}]+)\}\}/', $template, $matches);
+        // Find {{variable}} style — but exclude {{#if ...}} and {{/if}} control tags
+        preg_match_all('/\{\{(?!#if\s|\/if\})([^}]+)\}\}/', $template, $matches);
         if (!empty($matches[1])) {
             $variables = array_merge($variables, $matches[1]);
         }
@@ -196,6 +302,17 @@ class EmailTemplateRendererService
         preg_match_all('/\$\{([^}]+)\}/', $template, $matches);
         if (!empty($matches[1])) {
             $variables = array_merge($variables, $matches[1]);
+        }
+
+        // Find variable references in {{#if condition}} expressions
+        preg_match_all('/\{\{#if\s+(.+?)\}\}/s', $template, $condMatches);
+        if (!empty($condMatches[1])) {
+            foreach ($condMatches[1] as $condition) {
+                preg_match_all('/\b(\w+)\s*(?:==|!=)/', $condition, $varMatches);
+                if (!empty($varMatches[1])) {
+                    $variables = array_merge($variables, $varMatches[1]);
+                }
+            }
         }
 
         return array_unique($variables);

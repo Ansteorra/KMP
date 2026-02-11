@@ -428,7 +428,8 @@ class EmailTemplatesController extends AppController
 
     /**
      * Convert CakePHP template variable syntax to our variable syntax
-     * Converts from PHP echo tags to double curly braces
+     * Converts from PHP echo tags to double curly braces and
+     * PHP conditionals to {{#if}} blocks.
      *
      * @param string $content Template content
      * @return string Converted content
@@ -441,6 +442,21 @@ class EmailTemplatesController extends AppController
 
         // Also handle cases with h() helper for escaping
         $content = preg_replace('/\<\?=\s*h\(\s*\$([a-zA-Z_][a-zA-Z0-9_]*)\s*\)\s*\?\>/', '{{$1}}', $content);
+
+        // Convert PHP conditionals to {{#if}} syntax
+        // Match: <?php if (...) : ?> → {{#if ...}}
+        $content = preg_replace_callback(
+            '/<\?php\s+if\s*\((.+?)\)\s*:\s*\?>/s',
+            function ($matches) {
+                // Strip $ prefix from variable names in the condition
+                $condition = preg_replace('/\$([a-zA-Z_][a-zA-Z0-9_]*)/', '$1', $matches[1]);
+                return '{{#if ' . trim($condition) . '}}';
+            },
+            $content,
+        );
+
+        // Convert <?php endif; ?> → {{/if}}
+        $content = preg_replace('/<\?php\s+endif;\s*\?>/', '{{/if}}', $content);
 
         return $content;
     }
