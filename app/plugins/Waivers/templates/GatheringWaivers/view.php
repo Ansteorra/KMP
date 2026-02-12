@@ -17,29 +17,29 @@ echo $this->KMP->startBlock("recordActions");
 <div class="btn-group" role="group">
     <?php if (!$gatheringWaiver->is_exemption && $gatheringWaiver->document_id): ?>
     <?= $this->Html->link(
+            '<i class="bi bi-eye"></i> ' . __('View PDF'),
+            ['action' => 'inlinePdf', $gatheringWaiver->id],
+            ['class' => 'btn btn-primary', 'escape' => false, 'target' => '_blank', 'rel' => 'noopener']
+        ) ?>
+    <?= $this->Html->link(
             '<i class="bi bi-download"></i> ' . __('Download'),
             ['action' => 'download', $gatheringWaiver->id],
             ['class' => 'btn btn-success', 'escape' => false]
         ) ?>
     <?php endif; ?>
-    <?= $this->Html->link(
-        '<i class="bi bi-arrow-left"></i> ' . __('Back to List'),
-        ['action' => 'index', '?' => ['gathering_id' => $gatheringWaiver->gathering_id]],
-        ['class' => 'btn btn-secondary', 'escape' => false]
-    ) ?>
     <?php
     $user = $this->getRequest()->getAttribute('identity');
     // Only show change type/activities for actual waivers, not exemptions
     if (!$gatheringWaiver->is_exemption && $user && $user->checkCan('changeWaiverType', $gatheringWaiver)): ?>
     <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#changeTypeActivitiesModal">
-        <i class="bi bi-pencil-square"></i> <?= __('Change Type/Activities') ?>
+        <i class="bi bi-pencil-square"></i> <?= __('Change') ?>
     </button>
     <?php endif; ?>
     <?php
     // Show decline button if user can decline and waiver can be declined
     if ($user && $user->checkCan('decline', $gatheringWaiver) && $gatheringWaiver->can_be_declined): ?>
     <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#declineWaiverModal">
-        <i class="bi bi-x-circle-fill"></i> <?= __('Decline Waiver') ?>
+        <i class="bi bi-x-circle-fill"></i> <?= __('Decline') ?>
     </button>
     <?php endif; ?>
     <?php if ($gatheringWaiver->status === 'expired'): ?>
@@ -292,7 +292,7 @@ echo $this->KMP->startBlock("recordDetails");
                         alt="<?= h(__('Preview of waiver document first page')) ?>" loading="lazy" />
                     <p class="small text-muted mt-2 mb-0">
                         <i class="bi bi-eye"></i>
-                        <?= __('Displaying the first page for quick review. Download for the complete document.') ?>
+                        <?= __('Displaying the first page for quick review. Use Open Viewer for the complete document.') ?>
                     </p>
                 </div>
                 <?php endif; ?>
@@ -356,6 +356,10 @@ echo $this->KMP->startBlock("recordDetails");
             </div>
             <div class="list-group list-group-flush">
                 <?php if (!$gatheringWaiver->is_exemption && $gatheringWaiver->document_id): ?>
+                <a href="<?= $this->Url->build(['action' => 'inlinePdf', $gatheringWaiver->id]) ?>" target="_blank"
+                    rel="noopener" class="list-group-item list-group-item-action">
+                    <i class="bi bi-eye"></i> <?= __('Open Embedded PDF Viewer') ?>
+                </a>
                 <a href="<?= $this->Url->build(['action' => 'download', $gatheringWaiver->id]) ?>"
                     class="list-group-item list-group-item-action">
                     <i class="bi bi-download"></i> <?= __('Download PDF') ?>

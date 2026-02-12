@@ -604,6 +604,113 @@ class DocumentService
     }
 
     /**
+     * Get an inline response for a document (suitable for iframe/object embedding).
+     *
+     * @param \App\Model\Entity\Document $document The document entity
+     * @param string|null $inlineName Optional custom filename for inline disposition
+     * @return \Cake\Http\Response|null Response with file, or null on error
+     */
+    public function getDocumentInlineResponse(
+        Document $document,
+        ?string $inlineName = null,
+    ): ?Response {
+        // Get the filesystem instance for the adapter that was used to store this document
+        $documentAdapter = $document->storage_adapter ?? 'local';
+        $filesystem = $this->getFilesystemForAdapter($documentAdapter);
+
+        if ($filesystem === null) {
+            Log::error('Failed to initialize filesystem for inline document retrieval', [
+                'document_id' => $document->id,
+                'storage_adapter' => $documentAdapter,
+            ]);
+            return null;
+        }
+
+        // Check if file exists
+        try {
+            if (!$filesystem->fileExists($document->file_path)) {
+                Log::error('Document file not found for inline retrieval', [
+                    'document_id' => $document->id,
+                    'file_path' => $document->file_path,
+                    'adapter' => $documentAdapter,
+                ]);
+
+                return null;
+            }
+        } catch (Exception $e) {
+            Log::error('Error checking file existence for inline retrieval: ' . $e->getMessage(), [
+                'document_id' => $document->id,
+                'file_path' => $document->file_path,
+                'adapter' => $documentAdapter,
+            ]);
+
+            return null;
+        }
+
+        // Use original filename if no custom name provided
+        if ($inlineName === null) {
+            $inlineName = $document->original_filename;
+        }
+
+        // Prevent header injection through filename
+        $inlineName = str_replace(["\r", "\n", '"'], '', (string)$inlineName);
+
+        // For local adapter, use the direct file path for better performance
+        if ($documentAdapter === 'local') {
+            $config = Configure::read('Documents.storage', []);
+            $localConfig = $config['local'] ?? [];
+            $basePath = $localConfig['path'] ?? WWW_ROOT . '../' . self::STORAGE_BASE_PATH;
+
+            $sanitizedPath = $this->sanitizePath($document->file_path);
+            $relativePath = str_replace('/', DIRECTORY_SEPARATOR, $sanitizedPath);
+            $fullPath = $basePath . DIRECTORY_SEPARATOR . $relativePath;
+            $resolvedPath = realpath($fullPath);
+
+            // Security: Ensure resolved path is within the base path (prevent directory traversal)
+            if (
+                $resolvedPath !== false && file_exists($resolvedPath) &&
+                strpos($resolvedPath, realpath($basePath)) === 0
+            ) {
+                $response = new Response();
+
+                return $response->withFile(
+                    $resolvedPath,
+                    [
+                        'download' => false,
+                        'name' => $inlineName,
+                    ],
+                )->withType($document->mime_type ?: 'application/octet-stream');
+            }
+        }
+
+        // For remote storage (or if local file path failed), read through Flysystem
+        try {
+            $fileContents = $filesystem->read($document->file_path);
+
+            $response = new Response();
+            $response = $response->withStringBody($fileContents);
+            $response = $response->withType($document->mime_type ?: 'application/octet-stream');
+
+            // Explicit inline disposition helps browser PDF viewers in iframe contexts.
+            $encodedFilename = rawurlencode($inlineName);
+            $response = $response->withHeader(
+                'Content-Disposition',
+                "inline; filename=\"{$inlineName}\"; filename*=UTF-8''{$encodedFilename}"
+            );
+
+            return $response;
+        } catch (Exception $e) {
+            Log::error('Failed to read document file for inline retrieval: ' . $e->getMessage(), [
+                'document_id' => $document->id,
+                'file_path' => $document->file_path,
+                'adapter' => $documentAdapter,
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
      * Get an inline preview response for a document's generated JPEG preview.
      *
      * @param \App\Model\Entity\Document $document Document entity with stored file path

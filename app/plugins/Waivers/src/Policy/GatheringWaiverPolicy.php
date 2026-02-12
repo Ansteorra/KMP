@@ -33,6 +33,20 @@ class GatheringWaiverPolicy extends BasePolicy
         return $this->_hasPolicy($user, $method, $entity);
     }
 
+    /**
+     * Authorize inline PDF viewing for a waiver.
+     *
+     * `@param` \App\KMP\KmpIdentityInterface $user The current user.
+     * `@param` \App\Model\Entity\BaseEntity $entity The waiver entity.
+     * `@param` mixed ...$optionalArgs Optional arguments.
+     * `@return` bool True when authorized.
+     */
+    public function canInlinePdf(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        // Reuse existing download permission so no new permission seed is required.
+        return $this->canDownload($user, $entity, ...$optionalArgs);
+    }
+
     public function canPreview(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
