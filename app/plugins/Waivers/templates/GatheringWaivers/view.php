@@ -292,7 +292,7 @@ echo $this->KMP->startBlock("recordDetails");
                         alt="<?= h(__('Preview of waiver document first page')) ?>" loading="lazy" />
                     <p class="small text-muted mt-2 mb-0">
                         <i class="bi bi-eye"></i>
-                        <?= __('Displaying the first page for quick review. Use Open Viewer for the complete document.') ?>
+                        <?= __('Displaying the first page for quick review. Use View PDF to open embedded PDF Viewer for the complete document.') ?>
                     </p>
                 </div>
                 <?php endif; ?>
