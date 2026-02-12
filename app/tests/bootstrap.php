@@ -19,6 +19,7 @@ declare(strict_types=1);
 use App\Test\TestCase\Support\SeedManager;
 use Cake\Core\Configure;
 use Cake\Datasource\ConnectionManager;
+use Migrations\Migrations;
 
 /**
  * Test runner bootstrap.
@@ -28,11 +29,33 @@ use Cake\Datasource\ConnectionManager;
  */
 require dirname(__DIR__) . '/vendor/autoload.php';
 
+// Some local/dev environments run tests as a different OS user than web runtime.
+// Fall back to system temp paths when app tmp/logs aren't writable.
+$projectRoot = dirname(__DIR__);
+$runtimeRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kmp-tests' . DIRECTORY_SEPARATOR;
+$runtimeTmp = $runtimeRoot . 'tmp' . DIRECTORY_SEPARATOR;
+$runtimeLogs = $runtimeRoot . 'logs' . DIRECTORY_SEPARATOR;
+
+if (!defined('TMP') && !is_writable($projectRoot . DIRECTORY_SEPARATOR . 'tmp')) {
+    @mkdir($runtimeTmp, 0777, true);
+    define('TMP', $runtimeTmp);
+}
+
+if (!defined('LOGS') && !is_writable($projectRoot . DIRECTORY_SEPARATOR . 'logs')) {
+    @mkdir($runtimeLogs, 0777, true);
+    define('LOGS', $runtimeLogs);
+}
+
 require dirname(__DIR__) . '/config/bootstrap.php';
 
 if (empty($_SERVER['HTTP_HOST']) && !Configure::read('App.fullBaseUrl')) {
     Configure::write('App.fullBaseUrl', 'http://localhost');
 }
+
+// Keep document storage under writable test temp path.
+$testDocumentPath = TMP . 'uploaded';
+@mkdir($testDocumentPath, 0777, true);
+Configure::write('Documents.storage.local.path', $testDocumentPath);
 
 // DebugKit skips settings these connection config if PHP SAPI is CLI / PHPDBG.
 // But since PagesControllerTest is run with debug enabled and DebugKit is loaded
@@ -65,6 +88,9 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // Ensure the test schema is seeded with the shared dev dataset
 SeedManager::bootstrap('test');
+
+// Apply migrations after seeding so test schema includes recent columns.
+(new Migrations())->migrate(['connection' => 'test']);
 
 // Fix stale seed data dates: extend expired test member roles to far-future dates
 // so time-sensitive tests remain stable across environments.
