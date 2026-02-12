@@ -33,10 +33,10 @@ class BranchesControllerTest extends HttpIntegrationTestCase
 
     public function testViewBranchCreatedForTest(): void
     {
-        // Use existing root branch from seed data to avoid creation side effects
+        // Use deterministic seed branch to avoid flakiness from unordered queries.
         $branches = $this->getTableLocator()->get('Branches');
-        $branch = $branches->find()->where(['type IS NOT' => null])->first();
-        $this->assertInstanceOf(Branch::class, $branch, 'No branch with type found in seed data');
+        $branch = $branches->get(self::KINGDOM_BRANCH_ID);
+        $this->assertInstanceOf(Branch::class, $branch, 'Missing expected kingdom branch in seed data');
         $this->get('/branches/view/' . $branch->public_id);
         $this->assertResponseOk();
         // Content assertions skipped due to layout block rendering variability in test context
@@ -76,10 +76,10 @@ class BranchesControllerTest extends HttpIntegrationTestCase
 
     public function testEditGetDisplaysModalOnViewPage(): void
     {
-        // Edit action renders the view template; use an existing branch
+        // Edit action renders the view template; use deterministic seed branch.
         $branches = $this->getTableLocator()->get('Branches');
-        $branch = $branches->find()->where(['type IS NOT' => null])->first();
-        $this->assertInstanceOf(Branch::class, $branch, 'No branch with type found in seed data');
+        $branch = $branches->get(self::KINGDOM_BRANCH_ID);
+        $this->assertInstanceOf(Branch::class, $branch, 'Missing expected kingdom branch in seed data');
         $this->get('/branches/edit/' . $branch->public_id);
         $this->assertResponseOk();
         // Content assertions skipped; modal presence depends on permissions & dynamic blocks
@@ -87,10 +87,10 @@ class BranchesControllerTest extends HttpIntegrationTestCase
 
     public function testDeleteRequiresPost(): void
     {
-        // Use a branch ID from seed data
+        // Use deterministic seed branch to avoid flaky first-row selection.
         $branches = $this->getTableLocator()->get('Branches');
-        $branch = $branches->find()->first();
-        $this->assertInstanceOf(Branch::class, $branch, 'No branch found in seed data');
+        $branch = $branches->get(self::KINGDOM_BRANCH_ID);
+        $this->assertInstanceOf(Branch::class, $branch, 'Missing expected kingdom branch in seed data');
         $this->get('/branches/delete/' . $branch->public_id);
         $this->assertResponseCode(405);
     }
