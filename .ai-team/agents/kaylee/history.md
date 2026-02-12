@@ -101,3 +101,21 @@ Replaced the PHP-style conditional syntax (`<?php if ($var == "value") : ?>`) wi
 
 #### Security Constraint
 The renderer NEVER executes PHP from DB-stored templates. The `{{#if}}` syntax is regex-parsed as a pattern language. Unsupported expressions log a warning and evaluate to false. This is critical — DB content is admin-editable and must never be `eval()`'d.
+
+### 2026-02-12: AddHamletFieldsToBranches Migration
+
+Created `app/config/Migrations/20260212180000_AddHamletFieldsToBranches.php` — adds `can_have_officers` (boolean, default true, NOT NULL) and `contact_id` (integer, nullable, FK → members.id SET NULL on delete) to the `branches` table.
+
+#### Migration Pattern Details
+- All migrations extend `Migrations\AbstractMigration` with `declare(strict_types=1)`.
+- Use `up()`/`down()` pair (not `change()`) for explicit reversibility; the most recent project migrations use this pattern.
+- Guard with `hasColumn()`/`hasForeignKey()` checks for idempotency.
+- Foreign keys added via `addForeignKey()` after `update()` so the column exists first.
+- FK constraint naming convention: `fk_{table}_{descriptive_suffix}` (e.g., `fk_branches_contact_member`).
+- Timestamp-based filenames: `YYYYMMDDHHMMSS_ClassName.php`.
+
+#### Column Naming Conventions
+- Boolean capability flags use `can_have_*` prefix (e.g., `can_have_members`, `can_have_officers`).
+- Foreign key columns use `{referenced_entity}_id` suffix (e.g., `contact_id`, `branch_id`, `parent_id`).
+- Boolean columns: `"boolean"` type with explicit `"default"`, `"null" => false`, `"limit" => null`.
+- Integer FK columns: `"integer"` type with `"limit" => 11`, `"signed" => true`, `"null" => true` for optional refs.

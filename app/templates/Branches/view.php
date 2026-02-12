@@ -57,6 +57,20 @@ echo $this->KMP->startBlock('pageTitle') ?>
     <td class="col-10"><?= $this->KMP->bool($branch->can_have_members, $this->Html) ?></td>
 </tr>
 <tr scope="row">
+    <th class="col"><?= __('Can Have Officers') ?></th>
+    <td class="col-10"><?= $this->KMP->bool($branch->can_have_officers, $this->Html) ?></td>
+</tr>
+<?php if (!$branch->can_have_officers && $branch->contact) : ?>
+<tr scope="row">
+    <th class="col"><?= __('Point of Contact') ?></th>
+    <td class="col-10"><?= $this->Html->link(
+        h($branch->contact->sca_name),
+        ['controller' => 'Members', 'action' => 'view', $branch->contact->id],
+        ['title' => __('View')]
+    ) ?></td>
+</tr>
+<?php endif; ?>
+<tr scope="row">
     <th class="col"><?= __('Email Domain') ?></th>
     <td class="col-10"><?= $branch->domain ?></td>
 </tr>

@@ -276,6 +276,10 @@ class AutoComplete extends Controller {
                 this.hiddenTarget.value = this.initSelectionValue.value;
                 this.hiddenTextTarget.value = this.initSelectionValue.text;
                 this.inputTarget.value = this.initSelectionValue.text;
+                if (this.initSelectionValue.value) {
+                    this.inputTarget.disabled = true;
+                    this.clearBtnTarget.disabled = false;
+                }
             }
         }
     }

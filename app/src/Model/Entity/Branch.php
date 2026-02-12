@@ -80,7 +80,11 @@ namespace App\Model\Entity;
  * @property int|null $parent_id Parent branch ID for hierarchical structure
  * @property array|null $links JSON array of external resource links and websites
  * @property bool $can_have_members Whether this branch can directly enroll members
+ * @property bool $can_have_officers Whether this branch can have officers assigned
+ * @property int|null $contact_id FK to members.id for hamlet-mode point of contact
  * @property string|null $domain Associated domain for organization-specific access
+ *
+ * @property \App\Model\Entity\Member|null $contact Point of contact member for hamlet-mode branches
  * @property int|null $lft Left boundary for nested set model tree structure
  * @property int|null $rght Right boundary for nested set model tree structure
  * @property \Cake\I18n\DateTime $created Creation timestamp

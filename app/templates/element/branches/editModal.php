@@ -11,6 +11,7 @@ echo $this->Form->create($branch, [
 echo $this->Modal->create("Edit Branch", [
     "id" => "editModal",
     "close" => true,
+    "size" => "lg",
 ]);
 ?>
 <fieldset>
@@ -25,6 +26,36 @@ echo $this->Modal->create("Edit Branch", [
         "switch" => true,
         "label" => "Can Have Members",
     ]);
+    echo $this->Form->control("can_have_officers", [
+        "switch" => true,
+        "label" => "Can Have Officers",
+    ]);
+    ?>
+    <?php
+    $contactUrl = $this->Url->build([
+        'controller' => 'Members',
+        'action' => 'AutoComplete',
+        'plugin' => null,
+    ]);
+    $contactAttrs = [];
+    if (!empty($branch->contact)) {
+        $contactAttrs['data-ac-init-selection-value'] = json_encode([
+            'value' => $branch->contact->public_id,
+            'text' => $branch->contact->sca_name,
+        ]);
+    }
+    echo $this->KMP->autoCompleteControl(
+        $this->Form,
+        'sca_name',
+        'contact_id',
+        $contactUrl,
+        'Point of Contact',
+        false,
+        false,
+        3,
+        $contactAttrs
+    );
+    ?><?php
     echo $this->Form->control("parent_id", [
         "options" => $treeList,
         "empty" => true,
