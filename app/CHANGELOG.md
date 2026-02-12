@@ -3,10 +3,23 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: 1f3747e56f054dab4f640aac4f6d23ba295952e1 -->
-<!-- LAST_SYNCED_DATE: 2026-02-06 -->
+<!-- LAST_SYNCED_COMMIT: 169435cfa0da44e4745eeb41dbc97347bf376a00 -->
+<!-- LAST_SYNCED_DATE: 2026-02-12 -->
 
 ## February 2026
+
+### Children Tab for Parent Accounts
+
+Parents and guardians can now see and manage their linked minor accounts directly from their member profile. A new "Children" tab appears automatically when minor accounts are linked, giving parents a clear overview of their children's membership status.
+
+- View all linked children with their SCA name, age, and current membership status
+- Navigate to a child's full profile with one click
+- Minor registration notifies the Kingdom Secretary for verification and parent linking
+- Minors are automatically transitioned to adult status when they turn 18, and the parent link is removed
+
+📅 February 12, 2026 · `New Feature`
+
+---
 
 ### iCalendar Subscription Feeds
 
