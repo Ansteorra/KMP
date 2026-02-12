@@ -92,6 +92,12 @@ SeedManager::bootstrap('test');
 // Apply migrations after seeding so test schema includes recent columns.
 (new Migrations())->migrate(['connection' => 'test']);
 
+// Clear cached table metadata so CakePHP sees columns added by migrations.
+// Without this, Table objects may use stale schema from before migrate() ran.
+$testConn = ConnectionManager::get('test');
+(new \Cake\Database\SchemaCache($testConn))->clear();
+\Cake\ORM\TableRegistry::getTableLocator()->clear();
+
 // Fix stale seed data dates: extend expired test member roles to far-future dates
 // so time-sensitive tests remain stable across environments.
 $conn = ConnectionManager::get('test');

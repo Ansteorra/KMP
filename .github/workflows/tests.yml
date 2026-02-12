@@ -34,7 +34,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: mbstring, intl, pdo_mysql, gd, apcu
+          extensions: mbstring, intl, pdo_mysql, gd, apcu, yaml
           ini-values: apc.enable_cli=1
           coverage: none
 
