@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
 
+use App\Model\Entity\Branch;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 
 class BranchesControllerTest extends HttpIntegrationTestCase
@@ -35,9 +36,7 @@ class BranchesControllerTest extends HttpIntegrationTestCase
         // Use existing root branch from seed data to avoid creation side effects
         $branches = $this->getTableLocator()->get('Branches');
         $branch = $branches->find()->where(['type IS NOT' => null])->first();
-        if (!$branch) {
-            $this->markTestSkipped('No branch with type found in seed data');
-        }
+        $this->assertInstanceOf(Branch::class, $branch, 'No branch with type found in seed data');
         $this->get('/branches/view/' . $branch->public_id);
         $this->assertResponseOk();
         // Content assertions skipped due to layout block rendering variability in test context
@@ -80,9 +79,7 @@ class BranchesControllerTest extends HttpIntegrationTestCase
         // Edit action renders the view template; use an existing branch
         $branches = $this->getTableLocator()->get('Branches');
         $branch = $branches->find()->where(['type IS NOT' => null])->first();
-        if (!$branch) {
-            $this->markTestSkipped('No branch with type found in seed data');
-        }
+        $this->assertInstanceOf(Branch::class, $branch, 'No branch with type found in seed data');
         $this->get('/branches/edit/' . $branch->public_id);
         $this->assertResponseOk();
         // Content assertions skipped; modal presence depends on permissions & dynamic blocks
@@ -93,9 +90,7 @@ class BranchesControllerTest extends HttpIntegrationTestCase
         // Use a branch ID from seed data
         $branches = $this->getTableLocator()->get('Branches');
         $branch = $branches->find()->first();
-        if (!$branch) {
-            $this->markTestSkipped('No branch found in seed data');
-        }
+        $this->assertInstanceOf(Branch::class, $branch, 'No branch found in seed data');
         $this->get('/branches/delete/' . $branch->public_id);
         $this->assertResponseCode(405);
     }

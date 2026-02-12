@@ -74,6 +74,7 @@ namespace App\Model\Entity;
  * - created/modified: Timestamp tracking with user attribution
  * 
  * @property int $id Primary key identifier
+ * @property string $public_id Public-facing identifier for URL routing
  * @property string $name Unique branch name (e.g., "Kingdom of Atlantia")
  * @property string $location Geographic or administrative location description
  * @property string|null $type Branch classification (Kingdom, Principality, Barony, Shire, etc.)
