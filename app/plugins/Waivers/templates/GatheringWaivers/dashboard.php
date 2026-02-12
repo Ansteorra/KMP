@@ -406,7 +406,7 @@ $this->KMP->endBlock();
         </div>
     <?php endif; ?>
 
-    <!-- Gatherings Needing Closed -->
+    <!-- In Progress Waivers -->
     <?php if (!empty($gatheringsNeedingClosed)): ?>
         <div class="row mb-4">
             <div class="col-md-12">
@@ -416,7 +416,7 @@ $this->KMP->endBlock();
                         <h5 class="mb-0 d-flex justify-content-between align-items-center">
                             <span>
                                 <i class="bi bi-clipboard-check"></i>
-                                <?= __('Gatherings Needing Closed') ?>
+                                <?= __('In Progress Waivers') ?>
                                 <span class="badge bg-dark"><?= count($gatheringsNeedingClosed) ?></span>
                             </span>
                             <i class="bi bi-chevron-down"></i>
@@ -426,7 +426,7 @@ $this->KMP->endBlock();
                         <div class="card-body">
                             <p class="text-muted mb-3">
                                 <i class="bi bi-info-circle"></i>
-                                <?= __('These gatherings have waivers uploaded and need to be reviewed and closed by the waiver clerk.') ?>
+                                <?= __('These gatherings have waiver uploads/exemptions in progress and are not yet marked ready for review and close.') ?>
                             </p>
                             <div class="table-responsive">
                                 <table class="table table-hover">
@@ -435,8 +435,8 @@ $this->KMP->endBlock();
                                             <th><?= __('Gathering') ?></th>
                                             <th><?= __('Branch') ?></th>
                                             <th><?= __('Event Dates') ?></th>
-                                            <th><?= __('Waiver Status') ?></th>
-                                            <th><?= __('Marked Ready') ?></th>
+                                            <th><?= __('Needed Waivers') ?></th>
+                                            <th><?= __('Uploaded Waivers') ?></th>
                                             <th class="actions"><?= __('Actions') ?></th>
                                         </tr>
                                     </thead>
@@ -467,27 +467,29 @@ $this->KMP->endBlock();
                                                     <?php endif; ?>
                                                 </td>
                                                 <td>
-                                                    <?php if ($gathering->is_waiver_complete ?? false): ?>
-                                                        <span class="badge bg-success"><?= __('All Uploaded') ?></span>
-                                                    <?php else: ?>
-                                                        <span class="badge bg-warning text-dark">
-                                                            <?= ($gathering->uploaded_waiver_count ?? 0) ?> <?= __('uploaded') ?>
-                                                        </span>
-                                                        <?php if (($gathering->missing_waiver_count ?? 0) > 0): ?>
-                                                            <span class="badge bg-danger ms-1">
-                                                                <?= $gathering->missing_waiver_count ?> <?= __('needed') ?>
-                                                            </span>
+                                                    <?php if (($gathering->missing_waiver_count ?? 0) > 0): ?>
+                                                        <span class="badge bg-danger"><?= $gathering->missing_waiver_count ?></span>
+                                                        <?php if (!empty($gathering->missing_waiver_names ?? [])): ?>
+                                                            <ul class="mb-0 mt-1">
+                                                                <?php foreach ($gathering->missing_waiver_names as $waiverName): ?>
+                                                                    <li><?= h($waiverName) ?></li>
+                                                                <?php endforeach; ?>
+                                                            </ul>
                                                         <?php endif; ?>
+                                                    <?php else: ?>
+                                                        <span class="badge bg-success"><?= __('None Needed') ?></span>
                                                     <?php endif; ?>
                                                 </td>
                                                 <td>
-                                                    <?php if ($gathering->ready_to_close_at ?? null): ?>
-                                                        <?= $this->Timezone->format($gathering->ready_to_close_at, $gathering, 'M d, Y') ?>
-                                                        <br><small class="text-muted">
-                                                            <?= __('by {0}', h($gathering->ready_to_close_by_member?->sca_name ?? __('Unknown'))) ?>
-                                                        </small>
+                                                    <span class="badge bg-info"><?= $gathering->uploaded_waiver_count ?? 0 ?></span>
+                                                    <?php if (!empty($gathering->uploaded_waiver_names ?? [])): ?>
+                                                        <ul class="mb-0 mt-1">
+                                                            <?php foreach ($gathering->uploaded_waiver_names as $waiverName): ?>
+                                                                <li><?= h($waiverName) ?></li>
+                                                            <?php endforeach; ?>
+                                                        </ul>
                                                     <?php else: ?>
-                                                        <span class="text-muted"><?= __('N/A') ?></span>
+                                                        <div class="small text-muted mt-1"><?= __('None') ?></div>
                                                     <?php endif; ?>
                                                 </td>
                                                 <td class="actions">
@@ -593,6 +595,15 @@ $this->KMP->endBlock();
                                                 </td>
                                                 <td>
                                                     <span class="badge bg-info"><?= $gathering->uploaded_waiver_count ?? 0 ?></span>
+                                                    <?php if (!empty($gathering->uploaded_waiver_names ?? [])): ?>
+                                                        <ul class="mb-0 mt-1">
+                                                            <?php foreach ($gathering->uploaded_waiver_names as $waiverName): ?>
+                                                                <li><?= h($waiverName) ?></li>
+                                                            <?php endforeach; ?>
+                                                        </ul>
+                                                    <?php else: ?>
+                                                        <div class="small text-muted mt-1"><?= __('None') ?></div>
+                                                    <?php endif; ?>
                                                 </td>
                                                 <td class="actions">
                                                     <?= $this->Html->link(
@@ -640,8 +651,6 @@ $this->KMP->endBlock();
                                             <th><?= __('Event Dates') ?></th>
                                             <th><?= __('Days Until Start') ?></th>
                                             <th><?= __('Needed Waivers') ?></th>
-                                            <th><?= __('Uploaded Waivers') ?></th>
-                                            <th class="actions"><?= __('Actions') ?></th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -701,16 +710,6 @@ $this->KMP->endBlock();
                                                             <li><?= h($waiverName) ?></li>
                                                         <?php endforeach; ?>
                                                     </ul>
-                                                </td>
-                                                <td>
-                                                    <span class="badge bg-info"><?= $gathering->uploaded_waiver_count ?? 0 ?></span>
-                                                </td>
-                                                <td class="actions">
-                                                    <?= $this->Html->link(
-                                                        __('View Waivers'),
-                                                        ['action' => 'index', '?' => ['gathering_id' => $gathering->id]],
-                                                        ['class' => 'btn btn-sm btn-primary']
-                                                    ) ?>
                                                 </td>
                                             </tr>
                                         <?php endforeach; ?>

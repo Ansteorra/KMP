@@ -200,6 +200,42 @@ class GatheringWaiversControllerTest extends HttpIntegrationTestCase
     }
 
     /**
+     * Test inlinePdf method serves PDF file for embedded viewing
+     *
+     * @return void
+     * @uses \Waivers\Controller\GatheringWaiversController::inlinePdf()
+     */
+    public function testInlinePdf(): void
+    {
+        $GatheringWaivers = $this->getTableLocator()->get('Waivers.GatheringWaivers');
+        $waiver = $GatheringWaivers->find()
+            ->contain(['Documents'])
+            ->where(['GatheringWaivers.document_id IS NOT' => null])
+            ->first();
+        if (!$waiver || !$waiver->document) {
+            $this->markTestSkipped('No gathering waiver with document found in seed data');
+        }
+
+        // Create a temporary file at the expected storage path
+        $basePath = WWW_ROOT . '..' . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . 'uploaded' . DIRECTORY_SEPARATOR;
+        $filePath = $basePath . str_replace('/', DIRECTORY_SEPARATOR, $waiver->document->file_path);
+        $dir = dirname($filePath);
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+        file_put_contents($filePath, '%PDF-1.4 test inline content');
+        $this->_testFilePath = $filePath;
+
+        $this->get('/waivers/gathering-waivers/inline-pdf/' . $waiver->id);
+        $this->assertResponseOk();
+        $this->assertContentType('application/pdf');
+
+        if (file_exists($filePath)) {
+            unlink($filePath);
+        }
+    }
+
+    /**
      * Temp file path for cleanup
      */
     private ?string $_testFilePath = null;
@@ -353,6 +389,25 @@ class GatheringWaiversControllerTest extends HttpIntegrationTestCase
         // Clear authentication — simulate unauthenticated access
         $this->session(['Auth' => null]);
         $this->get('/waivers/gathering-waivers/download/' . $waiver->id);
+        $this->assertRedirect();
+    }
+
+    /**
+     * Test authorization - only authorized users can access inline PDF viewer
+     *
+     * @return void
+     */
+    public function testInlinePdfRequiresAuthorization(): void
+    {
+        $GatheringWaivers = $this->getTableLocator()->get('Waivers.GatheringWaivers');
+        $waiver = $GatheringWaivers->find()->first();
+        if (!$waiver) {
+            $this->markTestSkipped('No gathering waivers found in seed data');
+        }
+
+        // Clear authentication — simulate unauthenticated access
+        $this->session(['Auth' => null]);
+        $this->get('/waivers/gathering-waivers/inline-pdf/' . $waiver->id);
         $this->assertRedirect();
     }
 }

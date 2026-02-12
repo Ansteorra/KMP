@@ -33,6 +33,12 @@ class GatheringWaiverPolicy extends BasePolicy
         return $this->_hasPolicy($user, $method, $entity);
     }
 
+    public function canInlinePdf(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        // Reuse existing download permission so no new permission seed is required.
+        return $this->canDownload($user, $entity, ...$optionalArgs);
+    }
+
     public function canPreview(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
