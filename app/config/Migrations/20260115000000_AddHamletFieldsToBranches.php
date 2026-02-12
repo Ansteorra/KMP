@@ -5,9 +5,9 @@ declare(strict_types=1);
 use Migrations\AbstractMigration;
 
 /**
- * Add hamlet-mode fields to Branches table (retimed earlier for release order).
+ * Add hamlet-mode fields to Branches table.
  */
-class AddHamletFieldsToBranchesEarly extends AbstractMigration
+class AddHamletFieldsToBranches extends AbstractMigration
 {
     public function up(): void
     {
