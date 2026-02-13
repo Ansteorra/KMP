@@ -65,7 +65,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
     <th class="col"><?= __('Point of Contact') ?></th>
     <td class="col-10"><?= $this->Html->link(
         h($branch->contact->sca_name),
-        ['controller' => 'Members', 'action' => 'view', $branch->contact->id],
+        ['controller' => 'Members', 'action' => 'view', $branch->contact->public_id],
         ['title' => __('View')]
     ) ?></td>
 </tr>
