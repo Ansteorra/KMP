@@ -190,7 +190,6 @@ class GatheringWaiversControllerTest extends HttpIntegrationTestCase
         if (!is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
-        $createdDir = !is_dir($dir); // track if we created it
         file_put_contents($filePath, '%PDF-1.4 test content');
         $this->_testFilePath = $filePath;
 

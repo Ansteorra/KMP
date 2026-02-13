@@ -28,7 +28,7 @@ class AddHamletFieldsToBranches extends AbstractMigration
                 'default' => null,
                 'limit' => 11,
                 'null' => true,
-                'signed' => true,
+                'signed' => false,
                 'after' => 'can_have_officers',
                 'comment' => 'Point of contact member for hamlet-mode branches',
             ]);

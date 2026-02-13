@@ -108,7 +108,7 @@ class AutoComplete extends Controller {
     // Getter for the value property
     get value() {
         // if there is a hidden value return that
-        if (this.hasHiddenTarget.value != "") {
+        if (this.hasHiddenTarget && this.hiddenTarget.value != "") {
             return this.hiddenTarget.value;
         } else {
             //if we allow other values return the input value
@@ -172,10 +172,6 @@ class AutoComplete extends Controller {
         this.clearBtnTarget.disabled = true;
         this.inputTarget.disabled = false;
     }
-    get value() {
-        return this.hiddenTarget.value;
-    }
-
     get disabled() {
         return this.inputTarget.disabled;
     }
