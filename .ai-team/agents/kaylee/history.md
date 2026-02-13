@@ -119,3 +119,18 @@ Created `app/config/Migrations/20260212180000_AddHamletFieldsToBranches.php` —
 - Foreign key columns use `{referenced_entity}_id` suffix (e.g., `contact_id`, `branch_id`, `parent_id`).
 - Boolean columns: `"boolean"` type with explicit `"default"`, `"null" => false`, `"limit" => null`.
 - Integer FK columns: `"integer"` type with `"limit" => 11`, `"signed" => true`, `"null" => true` for optional refs.
+
+### 2026-02-12: Badge Count Bug Fix — countGatheringsNeedingWaivers()
+
+#### What Changed
+Fixed two bugs in `GatheringWaiversTable::countGatheringsNeedingWaivers()` that caused the "Gatherings Needing Waivers" badge count to not match the list view.
+
+**Bug 1 — Permission action mismatch:** Changed `getBranchIdsForAction('needingWaivers', ...)` to `getBranchIdsForAction('uploadWaivers', ...)` to match the list view controller (line 236). The badge was checking a different permission than the page it linked to.
+
+**Bug 2 — Date filtering inverted:** The badge was counting ongoing/future gatherings (`end_date >= today`). Josh wanted it to count ONLY past gatherings where the event has ended but waivers haven't been uploaded. Replaced with `end_date < today` (or `end_date IS NULL AND start_date < today` for single-day events). Removed the `$oneWeekFromNow` variable since future-looking logic is no longer needed. The list view is intentionally broader (shows upcoming + past) — the badge is a subset: past-only, needing action.
+
+#### Key File Paths
+- `app/plugins/Waivers/src/Model/Table/GatheringWaiversTable.php` — `countGatheringsNeedingWaivers()` static method (badge count)
+- `app/plugins/Waivers/src/Controller/GatheringWaiversController.php` — `needingWaivers()` action (list view, line ~1784) — NOT modified
+
+📌 Team update (2026-02-12): Badge count query in GatheringWaiversTable changed to past-only gatherings + aligned permission to uploadWaivers — decided by Kaylee
