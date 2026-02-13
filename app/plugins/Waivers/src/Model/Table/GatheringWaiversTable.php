@@ -233,7 +233,7 @@ class GatheringWaiversTable extends Table
         $member = $membersTable->get($memberId);
 
         // Get branches user can upload waivers for
-        $branchIds = $member->getBranchIdsForAction('needingWaivers', 'Waivers.GatheringWaivers');
+        $branchIds = $member->getBranchIdsForAction('uploadWaivers', 'Waivers.GatheringWaivers');
 
         // Get gathering IDs where user is a steward
         $gatheringStaffTable = \Cake\ORM\TableRegistry::getTableLocator()->get('GatheringStaff');
@@ -268,13 +268,8 @@ class GatheringWaiversTable extends Table
         }
 
         $gatheringsTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Gatherings');
-        $gatheringWaiversTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Waivers.GatheringWaivers');
-        $activityWaiversTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Waivers.GatheringActivityWaivers');
-        $gatheringWaiverClosuresTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Waivers.GatheringWaiverClosures');
-        $closedGatheringIds = $gatheringWaiverClosuresTable->getClosedGatheringIds();
 
         $today = Date::now()->toDateString();
-        $oneWeekFromNow = Date::now()->addDays(7)->toDateString();
 
         // Build the access condition: branch-based OR steward-based
         $accessConditions = [];
@@ -285,88 +280,73 @@ class GatheringWaiversTable extends Table
             $accessConditions[] = ['Gatherings.id IN' => $stewardGatheringIds];
         }
 
-        // If no access conditions, return 0 (shouldn't happen due to earlier check)
         if (empty($accessConditions)) {
             return 0;
         }
 
-        // Find gatherings that are:
-        // - Not yet ended (ongoing or future)
-        // - Either already started OR starting within next 7 days
-        // - Not cancelled
-        $gatherings = $gatheringsTable->find()
+        // Single query using joins:
+        // 1. Join through the pivot table to gathering_activities
+        // 2. Join to activity waivers to find required waiver types
+        // 3. Left join to uploaded waivers to find which are fulfilled
+        // 4. Left join to closures to exclude closed/ready-to-close gatherings
+        // 5. Count gatherings where at least one required waiver type has no upload
+        $query = $gatheringsTable->find()
+            ->select(['Gatherings.id'])
+            ->distinct()
+            // Join to activities via pivot table
+            ->innerJoin(
+                ['GGA' => 'gatherings_gathering_activities'],
+                ['GGA.gathering_id = Gatherings.id']
+            )
+            // Join to required waiver types per activity
+            ->innerJoin(
+                ['GAW' => 'waivers_gathering_activity_waivers'],
+                [
+                    'GAW.gathering_activity_id = GGA.gathering_activity_id',
+                    'GAW.deleted IS' => null,
+                ]
+            )
+            // Left join to uploaded waivers (matching gathering + waiver type)
+            ->leftJoin(
+                ['GW' => 'waivers_gathering_waivers'],
+                [
+                    'GW.gathering_id = Gatherings.id',
+                    'GW.waiver_type_id = GAW.waiver_type_id',
+                    'GW.deleted IS' => null,
+                    'GW.declined_at IS' => null,
+                ]
+            )
+            // Left join to closures to exclude closed or ready-to-close
+            ->leftJoin(
+                ['GWC' => 'waivers_gathering_waiver_closures'],
+                ['GWC.gathering_id = Gatherings.id']
+            )
+            // Past gatherings only
             ->where([
                 'OR' => [
-                    'Gatherings.end_date >=' => $today,
+                    'Gatherings.end_date <' => $today,
                     'AND' => [
                         'Gatherings.end_date IS' => null,
-                        'Gatherings.start_date >=' => $today,
+                        'Gatherings.start_date <' => $today,
                     ]
                 ],
                 'Gatherings.deleted IS' => null,
                 'Gatherings.cancelled_at IS' => null,
             ])
+            ->where(['OR' => $accessConditions])
+            // Exclude closed and ready-to-close gatherings
             ->where([
                 'OR' => [
-                    'Gatherings.start_date <' => $today, // Already started (past or ongoing)
-                    'Gatherings.start_date <=' => $oneWeekFromNow, // Starts within next 7 days
+                    'GWC.id IS' => null,
+                    [
+                        'GWC.closed_at IS' => null,
+                        'GWC.ready_to_close_at IS' => null,
+                    ],
                 ],
             ])
-            ->where(['OR' => $accessConditions])
-            ->contain(['GatheringActivities' => function ($q) {
-                return $q->select(['id']);
-            }])
-            ->all();
+            // Only count gatherings with at least one missing waiver (no upload match)
+            ->where(['GW.id IS' => null]);
 
-        $count = 0;
-
-        foreach ($gatherings as $gathering) {
-            if (!empty($closedGatheringIds) && in_array($gathering->id, $closedGatheringIds, true)) {
-                continue;
-            }
-            if (empty($gathering->gathering_activities)) {
-                continue;
-            }
-
-            $activityIds = collection($gathering->gathering_activities)->extract('id')->toArray();
-
-            // Get required waiver types
-            $requiredWaiverTypes = $activityWaiversTable->find()
-                ->where([
-                    'gathering_activity_id IN' => $activityIds,
-                    'deleted IS' => null,
-                ])
-                ->select(['waiver_type_id'])
-                ->distinct(['waiver_type_id'])
-                ->all()
-                ->extract('waiver_type_id')
-                ->toArray();
-
-            if (empty($requiredWaiverTypes)) {
-                continue;
-            }
-
-            // Get uploaded waiver types
-            $uploadedWaiverTypes = $gatheringWaiversTable->find()
-                ->where([
-                    'gathering_id' => $gathering->id,
-                    'deleted IS' => null,
-                    'declined_at IS' => null, // Exclude declined waivers
-                ])
-                ->select(['waiver_type_id'])
-                ->distinct(['waiver_type_id'])
-                ->all()
-                ->extract('waiver_type_id')
-                ->toArray();
-
-            // Check if any required waivers are missing
-            $missingWaiverTypes = array_diff($requiredWaiverTypes, $uploadedWaiverTypes);
-
-            if (!empty($missingWaiverTypes)) {
-                $count++;
-            }
-        }
-
-        return $count;
+        return $query->count();
     }
 }
