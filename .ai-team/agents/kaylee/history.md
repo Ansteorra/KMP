@@ -101,3 +101,36 @@ Replaced the PHP-style conditional syntax (`<?php if ($var == "value") : ?>`) wi
 
 #### Security Constraint
 The renderer NEVER executes PHP from DB-stored templates. The `{{#if}}` syntax is regex-parsed as a pattern language. Unsupported expressions log a warning and evaluate to false. This is critical — DB content is admin-editable and must never be `eval()`'d.
+
+### 2026-02-12: AddHamletFieldsToBranches Migration
+
+Created `app/config/Migrations/20260212180000_AddHamletFieldsToBranches.php` — adds `can_have_officers` (boolean, default true, NOT NULL) and `contact_id` (integer, nullable, FK → members.id SET NULL on delete) to the `branches` table.
+
+#### Migration Pattern Details
+- All migrations extend `Migrations\AbstractMigration` with `declare(strict_types=1)`.
+- Use `up()`/`down()` pair (not `change()`) for explicit reversibility; the most recent project migrations use this pattern.
+- Guard with `hasColumn()`/`hasForeignKey()` checks for idempotency.
+- Foreign keys added via `addForeignKey()` after `update()` so the column exists first.
+- FK constraint naming convention: `fk_{table}_{descriptive_suffix}` (e.g., `fk_branches_contact_member`).
+- Timestamp-based filenames: `YYYYMMDDHHMMSS_ClassName.php`.
+
+#### Column Naming Conventions
+- Boolean capability flags use `can_have_*` prefix (e.g., `can_have_members`, `can_have_officers`).
+- Foreign key columns use `{referenced_entity}_id` suffix (e.g., `contact_id`, `branch_id`, `parent_id`).
+- Boolean columns: `"boolean"` type with explicit `"default"`, `"null" => false`, `"limit" => null`.
+- Integer FK columns: `"integer"` type with `"limit" => 11`, `"signed" => true`, `"null" => true` for optional refs.
+
+### 2026-02-12: Badge Count Bug Fix — countGatheringsNeedingWaivers()
+
+#### What Changed
+Fixed two bugs in `GatheringWaiversTable::countGatheringsNeedingWaivers()` that caused the "Gatherings Needing Waivers" badge count to not match the list view.
+
+**Bug 1 — Permission action mismatch:** Changed `getBranchIdsForAction('needingWaivers', ...)` to `getBranchIdsForAction('uploadWaivers', ...)` to match the list view controller (line 236). The badge was checking a different permission than the page it linked to.
+
+**Bug 2 — Date filtering inverted:** The badge was counting ongoing/future gatherings (`end_date >= today`). Josh wanted it to count ONLY past gatherings where the event has ended but waivers haven't been uploaded. Replaced with `end_date < today` (or `end_date IS NULL AND start_date < today` for single-day events). Removed the `$oneWeekFromNow` variable since future-looking logic is no longer needed. The list view is intentionally broader (shows upcoming + past) — the badge is a subset: past-only, needing action.
+
+#### Key File Paths
+- `app/plugins/Waivers/src/Model/Table/GatheringWaiversTable.php` — `countGatheringsNeedingWaivers()` static method (badge count)
+- `app/plugins/Waivers/src/Controller/GatheringWaiversController.php` — `needingWaivers()` action (list view, line ~1784) — NOT modified
+
+📌 Team update (2026-02-12): Badge count query in GatheringWaiversTable changed to past-only gatherings + aligned permission to uploadWaivers — decided by Kaylee

@@ -1810,76 +1810,90 @@ class GatheringWaiversController extends AppController
         // Get ready-to-close gathering IDs
         $readyToCloseGatheringIds = $GatheringWaiverClosures->getReadyToCloseGatheringIds();
 
-        // Process gatherings to determine waiver status for each
-        $GatheringActivityWaivers = $this->fetchTable('Waivers.GatheringActivityWaivers');
+        // Batch-compute waiver status for all gatherings using joins (avoids N+1 queries)
+        $gatheringIds = collection($allGatherings)->extract('id')->toArray();
         $gatherings = [];
         $incompleteCount = 0;
 
-        foreach ($allGatherings as $gathering) {
-            // Default: no waivers needed/missing
-            $gathering->missing_waiver_count = 0;
-            $gathering->missing_waiver_names = [];
-            $gathering->uploaded_waiver_count = 0;
-            $gathering->has_waiver_requirements = false;
-            $gathering->is_waiver_complete = true;
-            $gathering->is_ready_to_close = in_array($gathering->id, $readyToCloseGatheringIds, true);
+        if (!empty($gatheringIds)) {
+            // 1. Batch: required waiver types per gathering (gathering_id → [waiver_type_id, ...])
+            $GatheringActivityWaivers = $this->fetchTable('Waivers.GatheringActivityWaivers');
+            $conn = $GatheringActivityWaivers->getConnection();
+            $requiredRows = $conn->execute(
+                'SELECT DISTINCT GGA.gathering_id, GAW.waiver_type_id
+                 FROM gatherings_gathering_activities GGA
+                 INNER JOIN waivers_gathering_activity_waivers GAW
+                    ON GAW.gathering_activity_id = GGA.gathering_activity_id
+                    AND GAW.deleted IS NULL
+                 WHERE GGA.gathering_id IN (' . implode(',', array_fill(0, count($gatheringIds), '?')) . ')',
+                $gatheringIds
+            )->fetchAll('assoc');
+            $requiredByGathering = [];
+            foreach ($requiredRows as $row) {
+                $requiredByGathering[(int)$row['gathering_id']][] = (int)$row['waiver_type_id'];
+            }
 
-            if (!empty($gathering->gathering_activities)) {
-                $activityIds = collection($gathering->gathering_activities)->extract('id')->toArray();
-
-                // Get required waiver types for this gathering's activities
-                $requiredWaiverTypes = $GatheringActivityWaivers->find()
+            // 2. Batch: uploaded waiver types per gathering
+            $gatheringsWithReqs = array_keys($requiredByGathering);
+            $uploadedByGathering = [];
+            if (!empty($gatheringsWithReqs)) {
+                $uploadedRows = $this->GatheringWaivers->find()
                     ->where([
-                        'gathering_activity_id IN' => $activityIds,
+                        'gathering_id IN' => $gatheringsWithReqs,
                         'deleted IS' => null,
+                        'declined_at IS' => null,
                     ])
-                    ->select(['waiver_type_id'])
-                    ->distinct(['waiver_type_id'])
-                    ->all()
-                    ->extract('waiver_type_id')
-                    ->toArray();
-
-                if (!empty($requiredWaiverTypes)) {
-                    $gathering->has_waiver_requirements = true;
-
-                    // Get uploaded waiver types for this gathering
-                    $uploadedWaiverTypes = $this->GatheringWaivers->find()
-                        ->where([
-                            'gathering_id' => $gathering->id,
-                            'deleted IS' => null,
-                            'declined_at IS' => null, // Exclude declined waivers
-                        ])
-                        ->select(['waiver_type_id'])
-                        ->distinct(['waiver_type_id'])
-                        ->all()
-                        ->extract('waiver_type_id')
-                        ->toArray();
-
-                    // Check if any required waivers are missing
-                    $missingWaiverTypes = array_diff($requiredWaiverTypes, $uploadedWaiverTypes);
-
-                    if (!empty($missingWaiverTypes)) {
-                        // Load waiver type names
-                        $WaiverTypes = $this->fetchTable('Waivers.WaiverTypes');
-                        $missingWaiverNames = $WaiverTypes->find()
-                            ->where(['id IN' => $missingWaiverTypes])
-                            ->orderBy(['name' => 'ASC'])
-                            ->all()
-                            ->extract('name')
-                            ->toArray();
-
-                        $gathering->missing_waiver_count = count($missingWaiverTypes);
-                        $gathering->missing_waiver_names = $missingWaiverNames;
-                        $gathering->uploaded_waiver_count = count($uploadedWaiverTypes);
-                        $gathering->is_waiver_complete = false;
-                        $incompleteCount++;
-                    } else {
-                        $gathering->uploaded_waiver_count = count($uploadedWaiverTypes);
-                    }
-
-                    // Include all gatherings with waiver requirements (complete or not)
-                    $gatherings[] = $gathering;
+                    ->select(['gathering_id', 'waiver_type_id'])
+                    ->distinct(['gathering_id', 'waiver_type_id'])
+                    ->disableHydration()
+                    ->all();
+                foreach ($uploadedRows as $row) {
+                    $uploadedByGathering[(int)$row['gathering_id']][] = (int)$row['waiver_type_id'];
                 }
+            }
+
+            // 3. Batch: waiver type names (load all referenced types once)
+            $allWaiverTypeIds = array_unique(array_merge(...array_values($requiredByGathering)));
+            $waiverTypeNames = [];
+            if (!empty($allWaiverTypeIds)) {
+                $WaiverTypes = $this->fetchTable('Waivers.WaiverTypes');
+                $waiverTypeNames = $WaiverTypes->find()
+                    ->where(['id IN' => $allWaiverTypeIds])
+                    ->select(['id', 'name'])
+                    ->disableHydration()
+                    ->all()
+                    ->combine('id', 'name')
+                    ->toArray();
+            }
+
+            // 4. Merge results onto gathering entities
+            foreach ($allGatherings as $gathering) {
+                $gid = $gathering->id;
+                $required = $requiredByGathering[$gid] ?? [];
+
+                // Skip gatherings with no waiver requirements
+                if (empty($required)) {
+                    continue;
+                }
+
+                $uploaded = $uploadedByGathering[$gid] ?? [];
+                $missing = array_diff($required, $uploaded);
+
+                $gathering->has_waiver_requirements = true;
+                $gathering->is_ready_to_close = in_array($gid, $readyToCloseGatheringIds, true);
+                $gathering->uploaded_waiver_count = count($uploaded);
+                $gathering->missing_waiver_count = count($missing);
+                $gathering->missing_waiver_names = array_values(array_intersect_key(
+                    $waiverTypeNames,
+                    array_flip($missing)
+                ));
+                $gathering->is_waiver_complete = empty($missing);
+
+                if (!empty($missing)) {
+                    $incompleteCount++;
+                }
+
+                $gatherings[] = $gathering;
             }
         }
 

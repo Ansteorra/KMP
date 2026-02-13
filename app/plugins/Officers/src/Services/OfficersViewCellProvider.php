@@ -52,7 +52,17 @@ class OfficersViewCellProvider
             'cell' => 'Officers.BranchOfficers',
             'validRoutes' => [
                 ['controller' => 'Branches', 'action' => 'view', 'plugin' => null],
-            ]
+            ],
+            'authCallback' => function (array $urlParams, $user) {
+                $passParams = $urlParams['pass'] ?? [];
+                if (empty($passParams[0])) {
+                    return true;
+                }
+                $branchesTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Branches');
+                $branch = $branchesTable->find('byPublicId', [$passParams[0]])->first();
+
+                return $branch ? (bool) $branch->can_have_officers : true;
+            },
         ];
 
         // Branch Required Officers Cell - shows required officers for a branch

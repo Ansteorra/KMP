@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Waivers\Test\TestCase\Controller;
 
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
+use Cake\Core\Configure;
 
 /**
  * Waivers\Controller\GatheringWaiversController Test Case
@@ -179,7 +180,11 @@ class GatheringWaiversControllerTest extends HttpIntegrationTestCase
         }
 
         // Create a temporary file at the expected storage path
-        $basePath = WWW_ROOT . '..' . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . 'uploaded' . DIRECTORY_SEPARATOR;
+        $basePath = (string)Configure::read(
+            'Documents.storage.local.path',
+            WWW_ROOT . '..' . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . 'uploaded'
+        );
+        $basePath = rtrim($basePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
         $filePath = $basePath . str_replace('/', DIRECTORY_SEPARATOR, $waiver->document->file_path);
         $dir = dirname($filePath);
         if (!is_dir($dir)) {
@@ -217,7 +222,11 @@ class GatheringWaiversControllerTest extends HttpIntegrationTestCase
         }
 
         // Create a temporary file at the expected storage path
-        $basePath = WWW_ROOT . '..' . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . 'uploaded' . DIRECTORY_SEPARATOR;
+        $basePath = (string)Configure::read(
+            'Documents.storage.local.path',
+            WWW_ROOT . '..' . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . 'uploaded'
+        );
+        $basePath = rtrim($basePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
         $filePath = $basePath . str_replace('/', DIRECTORY_SEPARATOR, $waiver->document->file_path);
         $dir = dirname($filePath);
         if (!is_dir($dir)) {

@@ -162,6 +162,12 @@ class BranchesTable extends BaseTable
             'className' => 'Members',
             'foreignKey' => 'branch_id',
         ]);
+
+        $this->BelongsTo('Contacts', [
+            'className' => 'Members',
+            'foreignKey' => 'contact_id',
+            'joinType' => 'LEFT',
+        ]);
         $this->addBehavior('Tree');
         $this->addBehavior('Timestamp');
         $this->addBehavior('Muffin/Footprint.Footprint');
@@ -315,6 +321,7 @@ class BranchesTable extends BaseTable
     public function buildRules(RulesChecker $rules): RulesChecker
     {
         $rules->add($rules->isUnique(['name']));
+        $rules->add($rules->existsIn(['contact_id'], 'Contacts'), ['errorField' => 'contact_id']);
 
         return $rules;
     }

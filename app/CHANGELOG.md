@@ -8,6 +8,20 @@ Stay up to date with the latest features, improvements, and announcements for th
 
 ## February 2026
 
+### Branch Hamlet Mode
+
+Branches can now operate in "Hamlet" mode — a lightweight configuration where a branch has members but no officers. Instead of a full officer roster, hamlet-mode branches designate a single **Point of Contact** selected from members with active membership.
+
+- New "Can Have Officers" toggle on branch settings (defaults to on for existing branches)
+- When officers are disabled, the Officers tab is automatically hidden from the branch view
+- New "Point of Contact" field with member autocomplete search for selecting a contact
+- Contact information is visible only to logged-in users — it is never exposed through the public API
+- Existing branches are unaffected; hamlet mode is opt-in per branch
+
+📅 February 12, 2026 · `New Feature`
+
+---
+
 ### Children Tab for Parent Accounts
 
 Parents and guardians can now see and manage their linked minor accounts directly from their member profile. A new "Children" tab appears automatically when minor accounts are linked, giving parents a clear overview of their children's membership status.
