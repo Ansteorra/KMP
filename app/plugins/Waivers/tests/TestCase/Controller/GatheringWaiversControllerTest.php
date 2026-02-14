@@ -244,6 +244,56 @@ class GatheringWaiversControllerTest extends HttpIntegrationTestCase
     }
 
     /**
+     * Test dashboard loads successfully
+     *
+     * Verifies the dashboard action and its internal queries work,
+     * including the _getGatheringsNeedingClosed query that joins
+     * GatheringActivityWaivers → GatheringActivities → Gatherings.
+     *
+     * @return void
+     * @uses \Waivers\Controller\GatheringWaiversController::dashboard()
+     */
+    public function testDashboard(): void
+    {
+        $this->get('/waivers/gathering-waivers/dashboard');
+        $this->assertResponseOk();
+    }
+
+    /**
+     * Test dashboard sets expected view variables
+     *
+     * @return void
+     * @uses \Waivers\Controller\GatheringWaiversController::dashboard()
+     */
+    public function testDashboardSetsViewVariables(): void
+    {
+        $this->get('/waivers/gathering-waivers/dashboard');
+        $this->assertResponseOk();
+
+        $statistics = $this->viewVariable('statistics');
+        $this->assertNotNull($statistics, 'Dashboard should set statistics');
+        $this->assertArrayHasKey('totalWaivers', $statistics);
+        $this->assertArrayHasKey('recentWaivers', $statistics);
+        $this->assertArrayHasKey('gatheringsMissingCount', $statistics);
+        $this->assertArrayHasKey('gatheringsNeedingCount', $statistics);
+
+        $this->assertNotNull($this->viewVariable('waiverTypesSummary'), 'Dashboard should set waiverTypesSummary');
+        $this->assertNotNull($this->viewVariable('complianceDays'), 'Dashboard should set complianceDays');
+    }
+
+    /**
+     * Test dashboard requires authentication
+     *
+     * @return void
+     */
+    public function testDashboardRequiresAuthentication(): void
+    {
+        $this->session(['Auth' => null]);
+        $this->get('/waivers/gathering-waivers/dashboard');
+        $this->assertRedirect();
+    }
+
+    /**
      * Temp file path for cleanup
      */
     private ?string $_testFilePath = null;

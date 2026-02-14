@@ -2809,21 +2809,23 @@ class GatheringWaiversController extends AppController
         );
 
         // Batch 1: required waiver types by gathering (via activity assignments).
+        // gathering_id lives on the join table (gatherings_gathering_activities),
+        // not on gathering_activities itself, so we must join through Gatherings.
         $requiredRows = $GatheringActivityWaivers->find()
-            ->innerJoinWith('GatheringActivities', function ($q) use ($gatheringIds) {
+            ->innerJoinWith('GatheringActivities.Gatherings', function ($q) use ($gatheringIds) {
                 return $q->where([
-                    'GatheringActivities.gathering_id IN' => $gatheringIds,
-                    'GatheringActivities.deleted IS' => null,
+                    'Gatherings.id IN' => $gatheringIds,
                 ]);
             })
             ->where([
                 'GatheringActivityWaivers.deleted IS' => null,
+                'GatheringActivities.deleted IS' => null,
             ])
             ->select([
-                'gathering_id' => 'GatheringActivities.gathering_id',
+                'gathering_id' => 'Gatherings.id',
                 'waiver_type_id' => 'GatheringActivityWaivers.waiver_type_id',
             ])
-            ->distinct(['GatheringActivities.gathering_id', 'GatheringActivityWaivers.waiver_type_id'])
+            ->distinct(['Gatherings.id', 'GatheringActivityWaivers.waiver_type_id'])
             ->all();
 
         $requiredTypeIdsByGathering = [];
