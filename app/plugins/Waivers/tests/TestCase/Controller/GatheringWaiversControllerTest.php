@@ -282,6 +282,134 @@ class GatheringWaiversControllerTest extends HttpIntegrationTestCase
     }
 
     /**
+     * Test dashboard includes gatherings that start exactly 30 days out.
+     *
+     * @return void
+     * @uses \Waivers\Controller\GatheringWaiversController::dashboard()
+     */
+    public function testDashboardIncludesThirtyDayBoundaryGathering(): void
+    {
+        $Gatherings = $this->getTableLocator()->get('Gatherings');
+        $GatheringActivityWaivers = $this->getTableLocator()->get('Waivers.GatheringActivityWaivers');
+
+        $existingGathering = $Gatherings->find()
+            ->select(['branch_id', 'gathering_type_id'])
+            ->where(['Gatherings.deleted IS' => null])
+            ->first();
+        $requiredActivity = $GatheringActivityWaivers->find()
+            ->select(['gathering_activity_id'])
+            ->where(['deleted IS' => null])
+            ->first();
+
+        if (!$existingGathering || !$requiredActivity) {
+            $this->markTestSkipped('Seed data missing required gathering/activity records');
+        }
+
+        $boundaryStart = (new \DateTimeImmutable('now'))->modify('+30 days')->setTime(12, 0, 0);
+        $boundaryEnd = $boundaryStart->modify('+1 day');
+
+        $testGathering = $Gatherings->newEntity([
+            'branch_id' => (int)$existingGathering->branch_id,
+            'gathering_type_id' => (int)$existingGathering->gathering_type_id,
+            'name' => 'Waiver Dashboard Boundary Test ' . uniqid('', true),
+            'description' => 'Boundary test gathering',
+            'start_date' => $boundaryStart->format('Y-m-d H:i:s'),
+            'end_date' => $boundaryEnd->format('Y-m-d H:i:s'),
+            'location' => 'Test Location',
+            'created_by' => self::ADMIN_MEMBER_ID,
+            'gathering_activities' => [
+                '_ids' => [(int)$requiredActivity->gathering_activity_id],
+            ],
+        ], [
+            'associated' => ['GatheringActivities'],
+        ]);
+        $savedGathering = $Gatherings->saveOrFail($testGathering);
+
+        $this->get('/waivers/gathering-waivers/dashboard');
+        $this->assertResponseOk();
+
+        $gatheringsNeedingWaivers = $this->viewVariable('gatheringsNeedingWaivers');
+        $boundaryGathering = array_filter(
+            $gatheringsNeedingWaivers,
+            fn($gathering) => (int)$gathering->id === (int)$savedGathering->id
+        );
+
+        $this->assertNotEmpty($boundaryGathering, 'Expected day-30 boundary gathering to appear in upcoming waivers.');
+    }
+
+    /**
+     * Test dashboard includes all gatherings that share the same required activity.
+     *
+     * @return void
+     * @uses \Waivers\Controller\GatheringWaiversController::dashboard()
+     */
+    public function testDashboardIncludesAllGatheringsSharingRequiredActivity(): void
+    {
+        $Gatherings = $this->getTableLocator()->get('Gatherings');
+        $GatheringActivityWaivers = $this->getTableLocator()->get('Waivers.GatheringActivityWaivers');
+
+        $existingGathering = $Gatherings->find()
+            ->select(['branch_id', 'gathering_type_id'])
+            ->where(['Gatherings.deleted IS' => null])
+            ->first();
+        $requiredActivity = $GatheringActivityWaivers->find()
+            ->select(['gathering_activity_id'])
+            ->where(['deleted IS' => null])
+            ->first();
+
+        if (!$existingGathering || !$requiredActivity) {
+            $this->markTestSkipped('Seed data missing required gathering/activity records');
+        }
+
+        $startOne = (new \DateTimeImmutable('now'))->modify('+7 days')->setTime(10, 0, 0);
+        $startTwo = (new \DateTimeImmutable('now'))->modify('+8 days')->setTime(10, 0, 0);
+
+        $firstGathering = $Gatherings->saveOrFail($Gatherings->newEntity([
+            'branch_id' => (int)$existingGathering->branch_id,
+            'gathering_type_id' => (int)$existingGathering->gathering_type_id,
+            'name' => 'Waiver Shared Activity Test A ' . uniqid('', true),
+            'description' => 'Shared activity mapping test A',
+            'start_date' => $startOne->format('Y-m-d H:i:s'),
+            'end_date' => $startOne->modify('+2 hours')->format('Y-m-d H:i:s'),
+            'location' => 'Test Location',
+            'created_by' => self::ADMIN_MEMBER_ID,
+            'gathering_activities' => [
+                '_ids' => [(int)$requiredActivity->gathering_activity_id],
+            ],
+        ], [
+            'associated' => ['GatheringActivities'],
+        ]));
+
+        $secondGathering = $Gatherings->saveOrFail($Gatherings->newEntity([
+            'branch_id' => (int)$existingGathering->branch_id,
+            'gathering_type_id' => (int)$existingGathering->gathering_type_id,
+            'name' => 'Waiver Shared Activity Test B ' . uniqid('', true),
+            'description' => 'Shared activity mapping test B',
+            'start_date' => $startTwo->format('Y-m-d H:i:s'),
+            'end_date' => $startTwo->modify('+2 hours')->format('Y-m-d H:i:s'),
+            'location' => 'Test Location',
+            'created_by' => self::ADMIN_MEMBER_ID,
+            'gathering_activities' => [
+                '_ids' => [(int)$requiredActivity->gathering_activity_id],
+            ],
+        ], [
+            'associated' => ['GatheringActivities'],
+        ]));
+
+        $this->get('/waivers/gathering-waivers/dashboard');
+        $this->assertResponseOk();
+
+        $gatheringsNeedingWaivers = $this->viewVariable('gatheringsNeedingWaivers');
+        $upcomingGatheringIds = array_map(
+            static fn($gathering) => (int)$gathering->id,
+            $gatheringsNeedingWaivers
+        );
+
+        $this->assertContains((int)$firstGathering->id, $upcomingGatheringIds);
+        $this->assertContains((int)$secondGathering->id, $upcomingGatheringIds);
+    }
+
+    /**
      * Test dashboard requires authentication
      *
      * @return void
