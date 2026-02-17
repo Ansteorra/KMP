@@ -2433,7 +2433,8 @@ class GatheringWaiversController extends AppController
         $WaiverTypes = $this->fetchTable('Waivers.WaiverTypes');
         $today = Date::now();
         $todayString = $today->toDateString();
-        $futureDate = Date::now()->addDays($daysAhead)->toDateString();
+        // Use end-of-day datetime so gatherings on the boundary day are included.
+        $futureDate = DateTime::now()->addDays($daysAhead)->endOfDay()->format('Y-m-d H:i:s');
         // Look back further to catch past due events
         $pastCutoff = Date::now()->subDays(90)->toDateString(); // Look back 90 days for missing waivers
 
@@ -2489,7 +2490,7 @@ class GatheringWaiversController extends AppController
             $gatheringIds[] = (int)$gathering->id;
 
             foreach ($gathering->gathering_activities ?? [] as $activity) {
-                $activityToGatheringMap[(int)$activity->id] = (int)$gathering->id;
+                $activityToGatheringMap[(int)$activity->id][(int)$gathering->id] = true;
             }
         }
 
@@ -2511,8 +2512,8 @@ class GatheringWaiversController extends AppController
             foreach ($requiredRows as $row) {
                 $activityId = (int)$row->get('gathering_activity_id');
                 $waiverTypeId = (int)$row->get('waiver_type_id');
-                $gatheringId = $activityToGatheringMap[$activityId] ?? null;
-                if ($gatheringId !== null) {
+                $gatheringIdsForActivity = array_keys($activityToGatheringMap[$activityId] ?? []);
+                foreach ($gatheringIdsForActivity as $gatheringId) {
                     $requiredTypeIdsByGathering[$gatheringId][$waiverTypeId] = true;
                 }
             }
