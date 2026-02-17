@@ -88,6 +88,7 @@ use Cake\Http\Middleware\BodyParserMiddleware;
 use Cake\Http\Middleware\CsrfProtectionMiddleware;
 use Cake\Http\MiddlewareQueue;
 use Cake\I18n\DateTime;
+use Cake\Log\Log;
 use Cake\ORM\Locator\TableLocator;
 use Cake\Routing\Middleware\AssetMiddleware;
 use Cake\Routing\Middleware\RoutingMiddleware;
@@ -113,14 +114,15 @@ use Psr\Http\Message\ServerRequestInterface;
  *
  * Middleware Stack (in order):
  * 1. ErrorHandlerMiddleware - Exception handling and error pages
- * 2. Security Headers - CSP, HSTS, XSS protection, frame options
- * 3. AssetMiddleware - Static asset serving with caching
- * 4. RoutingMiddleware - URL routing and route matching
- * 5. BodyParserMiddleware - Request body parsing (JSON, XML, etc.)
- * 6. CsrfProtectionMiddleware - CSRF token validation
- * 7. AuthenticationMiddleware - User authentication
- * 8. AuthorizationMiddleware - Permission checking and access control
- * 9. FootprintMiddleware - User activity tracking
+ * 2. Request performance logging middleware (optional)
+ * 3. Security Headers - CSP, HSTS, XSS protection, frame options
+ * 4. AssetMiddleware - Static asset serving with caching
+ * 5. RoutingMiddleware - URL routing and route matching
+ * 6. BodyParserMiddleware - Request body parsing (JSON, XML, etc.)
+ * 7. CsrfProtectionMiddleware - CSRF token validation
+ * 8. AuthenticationMiddleware - User authentication
+ * 9. AuthorizationMiddleware - Permission checking and access control
+ * 10. FootprintMiddleware - User activity tracking
  *
  * Security Model:
  * - Session-based authentication with secure cookie settings
@@ -299,29 +301,32 @@ class Application extends BaseApplication implements
      * 1. **ErrorHandlerMiddleware**: Catches exceptions and converts them to
      *    appropriate HTTP error responses. Must be first to catch all errors.
      *
-     * 2. **Security Headers Middleware**: Adds comprehensive security headers
+     * 2. **Request Performance Middleware**: Optionally logs request timing
+     *    metrics when PERF_REQUEST_LOG_ENABLED is enabled.
+     *
+     * 3. **Security Headers Middleware**: Adds comprehensive security headers
      *    including CSP, HSTS, XSS protection, and frame options. This is a
      *    custom inline middleware that implements defense-in-depth security.
      *
-     * 3. **AssetMiddleware**: Serves static assets (CSS, JS, images) with
+     * 4. **AssetMiddleware**: Serves static assets (CSS, JS, images) with
      *    proper caching headers. Handles plugin and theme assets.
      *
-     * 4. **RoutingMiddleware**: Matches URLs to controllers and actions.
+     * 5. **RoutingMiddleware**: Matches URLs to controllers and actions.
      *    Populates route parameters in the request object.
      *
-     * 5. **BodyParserMiddleware**: Parses request bodies (JSON, XML, form data)
+     * 6. **BodyParserMiddleware**: Parses request bodies (JSON, XML, form data)
      *    and makes them available via $request->getData().
      *
-     * 6. **CsrfProtectionMiddleware**: Validates CSRF tokens to prevent
+     * 7. **CsrfProtectionMiddleware**: Validates CSRF tokens to prevent
      *    cross-site request forgery attacks. Uses secure cookie settings.
      *
-     * 7. **AuthenticationMiddleware**: Handles user authentication using
+     * 8. **AuthenticationMiddleware**: Handles user authentication using
      *    session and form-based authentication.
      *
-     * 8. **AuthorizationMiddleware**: Checks user permissions and enforces
+     * 9. **AuthorizationMiddleware**: Checks user permissions and enforces
      *    access control policies. Requires authorization check on all requests.
      *
-     * 9. **FootprintMiddleware**: Tracks user activity for auditing purposes.
+     * 10. **FootprintMiddleware**: Tracks user activity for auditing purposes.
      *
      * Security Configuration Details:
      * - CSP headers prevent XSS attacks by restricting resource loading
@@ -350,7 +355,41 @@ class Application extends BaseApplication implements
             // Converts exceptions to appropriate HTTP error responses
             ->add(new ErrorHandlerMiddleware(Configure::read('Error'), $this))
 
-            // 2. Security Headers - Comprehensive security header implementation
+            // 2. Request performance logging (optional via env flags)
+            ->add(function ($request, $handler) {
+                if (!filter_var((string)env('PERF_REQUEST_LOG_ENABLED', false), FILTER_VALIDATE_BOOLEAN)) {
+                    return $handler->handle($request);
+                }
+
+                $thresholdMs = max(1, (int)env('PERF_SLOW_REQUEST_MS', 750));
+                $logAllRequests = filter_var((string)env('PERF_LOG_ALL_REQUESTS', false), FILTER_VALIDATE_BOOLEAN);
+
+                $startedAt = hrtime(true);
+                $response = $handler->handle($request);
+                $durationMs = (hrtime(true) - $startedAt) / 1000000;
+
+                if (!$logAllRequests && $durationMs < $thresholdMs) {
+                    return $response;
+                }
+
+                $level = $durationMs >= $thresholdMs ? 'warning' : 'info';
+                Log::write(
+                    $level,
+                    sprintf(
+                        '[request_timing] method=%s path=%s status=%d duration_ms=%.2f memory_peak_mb=%.2f',
+                        $request->getMethod(),
+                        $request->getUri()->getPath(),
+                        $response->getStatusCode(),
+                        $durationMs,
+                        memory_get_peak_usage(true) / 1048576
+                    ),
+                    ['scope' => ['app.performance']],
+                );
+
+                return $response;
+            })
+
+            // 3. Security Headers - Comprehensive security header implementation
             // Provides defense-in-depth against common web vulnerabilities
             ->add(function ($request, $handler) {
                 $response = $handler->handle($request);
@@ -397,7 +436,7 @@ class Application extends BaseApplication implements
                 return $response->withHeader('Content-Security-Policy', $csp);
             })
 
-            // 3. Asset Middleware - Static file serving with caching
+            // 4. Asset Middleware - Static file serving with caching
             // Handles CSS, JS, images, and other static assets
             ->add(
                 new AssetMiddleware([
@@ -405,17 +444,17 @@ class Application extends BaseApplication implements
                 ]),
             )
 
-            // 4. Routing Middleware - URL to controller/action mapping
+            // 5. Routing Middleware - URL to controller/action mapping
             // For large applications, consider enabling route caching in production
             // See: https://github.com/CakeDC/cakephp-cached-routing
             ->add(new RoutingMiddleware($this))
 
-            // 5. Body Parser Middleware - Request body parsing
+            // 6. Body Parser Middleware - Request body parsing
             // Parses JSON, XML, and form data into $request->getData()
             // Documentation: https://book.cakephp.org/4/en/controllers/middleware.html#body-parser-middleware
             ->add(new BodyParserMiddleware())
 
-            // 6. CSRF Protection Middleware - Cross-site request forgery protection
+            // 7. CSRF Protection Middleware - Cross-site request forgery protection
             // Uses secure cookie settings for maximum security
             // Skip CSRF for API routes (they use Bearer token authentication)
             // Documentation: https://book.cakephp.org/4/en/security/csrf.html#cross-site-request-forgery-csrf-middleware
@@ -431,11 +470,11 @@ class Application extends BaseApplication implements
                 }),
             )
 
-            // 7. Authentication Middleware - User login and session management
+            // 8. Authentication Middleware - User login and session management
             // Must be added after routing and body parser to access request data
             ->add(new AuthenticationMiddleware($this))
 
-            // 8. Authorization Middleware - Permission checking and access control
+            // 9. Authorization Middleware - Permission checking and access control
             // Enforces policy-based authorization on all requests
             ->add(
                 new AuthorizationMiddleware($this, [
@@ -458,7 +497,7 @@ class Application extends BaseApplication implements
                 ]),
             )
 
-            // 9. Footprint Middleware - User activity tracking for auditing
+            // 10. Footprint Middleware - User activity tracking for auditing
             // Tracks which user performed what actions for security and compliance
             ->add('Muffin/Footprint.Footprint');
 

@@ -410,6 +410,32 @@ return [
             /** @var array Log scopes for database queries */
             "scopes" => ["cake.database.queries"],
         ],
+
+        /**
+         * Request Performance Log Channel
+         *
+         * Captures slow request timing emitted by optional middleware instrumentation.
+         * This channel is intended for performance risk monitoring in production-like environments.
+         */
+        "performance" => [
+            /** @var string Log engine class */
+            "className" => FileLog::class,
+
+            /** @var string Log file directory path */
+            "path" => LOGS,
+
+            /** @var string Log filename */
+            "file" => "performance",
+
+            /** @var string|null External log service URL */
+            "url" => env("LOG_PERFORMANCE_URL", null),
+
+            /** @var array Log scopes for request performance instrumentation */
+            "scopes" => ["app.performance"],
+
+            /** @var array Log levels to capture */
+            "levels" => ["info", "warning"],
+        ],
     ],
 
     /*

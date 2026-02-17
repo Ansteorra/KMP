@@ -83,13 +83,21 @@ class ApplicationTest extends HttpIntegrationTestCase
             ErrorHandlerMiddleware::class,
             $middleware->current(),
         );
-        // Skip the security headers middleware (index 1) as it's a closure
-        $middleware->seek(2);
-        $this->assertInstanceOf(AssetMiddleware::class, $middleware->current());
-        $middleware->seek(3);
-        $this->assertInstanceOf(
-            RoutingMiddleware::class,
-            $middleware->current(),
-        );
+
+        $stack = iterator_to_array($middleware);
+        $assetIndex = null;
+        $routingIndex = null;
+        foreach ($stack as $index => $layer) {
+            if ($layer instanceof AssetMiddleware) {
+                $assetIndex = $index;
+            }
+            if ($layer instanceof RoutingMiddleware) {
+                $routingIndex = $index;
+            }
+        }
+
+        $this->assertNotNull($assetIndex, 'AssetMiddleware should be in middleware stack');
+        $this->assertNotNull($routingIndex, 'RoutingMiddleware should be in middleware stack');
+        $this->assertTrue($assetIndex < $routingIndex, 'AssetMiddleware should execute before RoutingMiddleware');
     }
 }

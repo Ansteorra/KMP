@@ -39,8 +39,19 @@ Resets the development database to a clean state with seed data:
 ```
 
 ### load_test.sh
-Runs load testing against the application:
+Runs performance sizing benchmarks (route latency, concurrency, and DB query profile) against the application:
 ```bash
+./load_test.sh
+```
+
+Optional environment overrides:
+```bash
+KMP_BASE_URL=http://127.0.0.1:8080 \
+KMP_LOGIN_EMAIL=admin@amp.ansteorra.org \
+KMP_LOGIN_PASSWORD=TestPassword \
+KMP_CONCURRENCY_LEVELS=1,5,10,20 \
+KMP_CPU_TARGET_UTIL_PCT=70 \
+KMP_MEMORY_TARGET_UTIL_PCT=80 \
 ./load_test.sh
 ```
 

@@ -87,6 +87,7 @@ layout: default
 | 7.5 Git Workflow | Version control workflow |
 | **7.6 [Testing Suite Overview](7.6-testing-suite.md)** | PHPUnit suite structure, seed management, and run commands |
 | **7.7 [Console Commands](7.7-console-commands.md)** | CLI console commands reference for CakePHP shell tasks |
+| **7.8 [Performance Sizing & Risk Monitoring](7.8-performance-sizing.md)** | Benchmark workflow, installer sizing guidance, and performance risk detection |
 | **8. [Deployment](8-deployment.md)** | |
 | **8.1 [Environment Setup](8.1-environment-setup.md)** | **NEW** Environment variables reference and configuration |
 | 8.2 Migrations | Database migration handling |
