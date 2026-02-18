@@ -385,16 +385,17 @@ The current application version is stored in the `app_settings` table:
 StaticHelpers::getAppSetting('App.version');
 ```
 
-## 8.4 Azure Blob Storage Configuration
+## 8.4 Cloud Object Storage Configuration
 
-The `DocumentService` uses Flysystem to abstract storage operations and supports multiple storage backends. By default, files are stored on the local filesystem, but in production environments, Azure Blob Storage is recommended for scalability, reliability, and disaster recovery.
+The `DocumentService` uses Flysystem to abstract storage operations and supports multiple storage backends. By default, files are stored on the local filesystem, but production deployments can use Azure Blob Storage or S3-compatible object storage.
 
 ### Storage Adapters
 
-KMP supports two storage adapters:
+KMP supports three storage adapters:
 
 - **Local Filesystem** (default) - Files stored on the server's local filesystem
 - **Azure Blob Storage** - Files stored in Azure cloud storage
+- **S3-Compatible Storage** - Files stored in AWS S3 or compatible providers
 
 ### Local Filesystem Configuration (Default)
 
@@ -423,6 +424,34 @@ For production deployments, configure Azure Blob Storage in `config/app_local.ph
             'connectionString' => env('AZURE_STORAGE_CONNECTION_STRING'),
             'container' => 'documents',
             'prefix' => '', // Optional: prefix all paths (e.g., 'kmp/documents/')
+        ],
+    ],
+],
+```
+
+### Amazon S3 Configuration
+
+For production deployments, configure S3-compatible storage in `config/app_local.php`:
+
+> **Prerequisite:** Install the S3 Flysystem adapter in your app container/image:
+> `composer require league/flysystem-aws-s3-v3`
+
+```php
+'Documents' => [
+    'storage' => [
+        'adapter' => 's3',
+        's3' => [
+            'bucket' => env('AWS_S3_BUCKET'),
+            'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
+            'key' => env('AWS_ACCESS_KEY_ID'),
+            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            'sessionToken' => env('AWS_SESSION_TOKEN'),
+            'prefix' => env('AWS_S3_PREFIX', ''),
+            'endpoint' => env('AWS_S3_ENDPOINT'),
+            'usePathStyleEndpoint' => filter_var(
+                env('AWS_S3_USE_PATH_STYLE_ENDPOINT', false),
+                FILTER_VALIDATE_BOOLEAN,
+            ),
         ],
     ],
 ],
@@ -503,19 +532,49 @@ You can set it directly in `config/app_local.php`, but this is less secure:
 
 Edit `config/app_local.php` and add/update the Documents configuration as shown above.
 
+### Setting up Amazon S3
+
+#### 1. Create a Bucket
+
+1. Open the AWS console and navigate to **S3**
+2. Create a bucket (for example, `kmp-documents-prod`)
+3. Enable encryption at rest (SSE-S3 or SSE-KMS)
+4. Keep block public access enabled unless you have a specific requirement
+
+#### 2. Configure Access
+
+Use one of these approaches:
+
+- **Recommended (AWS runtime)**: assign an IAM role with `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject` on the bucket
+- **Alternative**: set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` environment variables
+
+#### 3. Set Environment Variables
+
+```bash
+export AWS_S3_BUCKET="kmp-documents-prod"
+export AWS_DEFAULT_REGION="us-east-1"
+export AWS_ACCESS_KEY_ID="..."
+export AWS_SECRET_ACCESS_KEY="..."
+export AWS_SESSION_TOKEN=""
+export AWS_S3_PREFIX=""
+export AWS_S3_ENDPOINT=""
+export AWS_S3_USE_PATH_STYLE_ENDPOINT="false"
+```
+
+For S3-compatible providers (MinIO, DigitalOcean Spaces, etc.), set `AWS_S3_ENDPOINT` and enable `AWS_S3_USE_PATH_STYLE_ENDPOINT=true` when required by the provider.
+
 ### Testing the Configuration
 
-After configuring Azure Blob Storage, test it by:
+After configuring cloud storage (Azure or S3), test it by:
 
 1. Uploading a waiver document through the application
-2. Verifying the file appears in your Azure Blob Storage container
+2. Verifying the file appears in your configured storage container/bucket
 3. Downloading the document to ensure retrieval works
 
-You can view uploaded files in Azure Portal:
-- Navigate to your Storage Account
-- Click **Containers**
-- Click your container name
-- Files should appear here
+You can verify objects in the provider console:
+
+- **Azure:** Storage Account → Containers → your container
+- **S3:** S3 → Buckets → your bucket
 
 ### Troubleshooting
 
@@ -529,6 +588,17 @@ You can view uploaded files in Azure Portal:
 - Check that the account key hasn't been regenerated
 - Verify network connectivity to Azure
 - Check firewall rules on the storage account allow your application's IP
+
+#### S3 Initialization Errors
+
+**Issue**: "Failed to initialize S3 storage"
+
+**Solutions**:
+- Verify `AWS_S3_BUCKET` and `AWS_DEFAULT_REGION` are set correctly
+- If using access keys, verify `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
+- If using IAM roles, verify the runtime has S3 permissions for get/put/delete
+- For S3-compatible providers, verify `AWS_S3_ENDPOINT` and path-style setting
+- Confirm bucket policy and KMS permissions allow your runtime principal
 
 #### Container Not Found
 
@@ -605,7 +675,7 @@ To migrate existing documents from local filesystem to Azure:
 The DocumentService logs important events:
 
 - Successful initialization of storage adapters
-- Fallback to local storage when Azure fails
+- Fallback to local storage when a cloud adapter fails
 - File upload/download operations
 - Storage errors and exceptions
 

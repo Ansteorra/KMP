@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Model\Entity\Document;
 use App\Model\Table\DocumentsTable;
+use Aws\S3\S3Client;
 use AzureOss\FlysystemAzureBlobStorage\AzureBlobStorageAdapter;
 use AzureOss\Storage\Blob\BlobServiceClient;
 use Cake\Core\Configure;
@@ -14,14 +15,16 @@ use Cake\Log\Log;
 use Cake\ORM\Locator\LocatorAwareTrait;
 use Exception;
 use Laminas\Diactoros\UploadedFile;
+use League\Flysystem\AwsS3V3\AwsS3V3Adapter;
 use League\Flysystem\Filesystem as FlysystemFilesystem;
 use League\Flysystem\Local\LocalFilesystemAdapter;
 use RuntimeException;
+use Throwable;
 
 /**
  * Centralized document management service for file uploads, storage, and retrieval.
  * 
- * Uses Flysystem to abstract storage operations across local filesystem and Azure Blob Storage.
+ * Uses Flysystem to abstract storage operations across local filesystem, Azure Blob Storage, and S3.
  * Configuration via 'Documents' key in config/app_local.php.
  * 
  * @see \App\Services\ServiceResult Standard service result pattern
@@ -43,7 +46,7 @@ class DocumentService
     private FlysystemFilesystem $filesystem;
 
     /**
-     * Storage adapter type ('local' or 'azure')
+     * Storage adapter type ('local', 'azure', or 's3')
      *
      * @var string
      */
@@ -117,6 +120,79 @@ class DocumentService
                 $this->adapter = 'local';
                 $this->initializeLocalAdapter();
             }
+        } elseif ($this->adapter === 's3') {
+            // Amazon S3 configuration
+            $s3Config = $config['s3'] ?? [];
+            $bucket = $s3Config['bucket'] ?? null;
+            $region = $s3Config['region'] ?? 'us-east-1';
+            $prefix = $s3Config['prefix'] ?? '';
+            $key = $s3Config['key'] ?? null;
+            $secret = $s3Config['secret'] ?? null;
+            $endpoint = $s3Config['endpoint'] ?? null;
+            $sessionToken = $s3Config['sessionToken'] ?? null;
+            $usePathStyleEndpoint = (bool)($s3Config['usePathStyleEndpoint'] ?? false);
+
+            if (empty($bucket)) {
+                Log::error(
+                    'S3 bucket not configured. ' .
+                        'Set AWS_S3_BUCKET environment variable or configure ' .
+                        'Documents.storage.s3.bucket in app.php/app_local.php. ' .
+                        'Falling back to local storage.',
+                );
+                $this->adapter = 'local';
+                $this->initializeLocalAdapter();
+
+                return;
+            }
+
+            if (!class_exists(S3Client::class) || !class_exists(AwsS3V3Adapter::class)) {
+                Log::error(
+                    'S3 storage adapter dependencies missing. ' .
+                        'Install with: composer require league/flysystem-aws-s3-v3. ' .
+                        'Falling back to local storage.',
+                );
+                $this->adapter = 'local';
+                $this->initializeLocalAdapter();
+
+                return;
+            }
+
+            try {
+                $clientConfig = [
+                    'version' => 'latest',
+                    'region' => $region,
+                    'use_path_style_endpoint' => $usePathStyleEndpoint,
+                ];
+
+                if (!empty($endpoint)) {
+                    $clientConfig['endpoint'] = $endpoint;
+                }
+
+                if (!empty($key) && !empty($secret)) {
+                    $clientConfig['credentials'] = [
+                        'key' => $key,
+                        'secret' => $secret,
+                    ];
+
+                    if (!empty($sessionToken)) {
+                        $clientConfig['credentials']['token'] = $sessionToken;
+                    }
+                }
+
+                $s3Client = new S3Client($clientConfig);
+                $adapter = new AwsS3V3Adapter($s3Client, $bucket, $prefix);
+                $this->filesystem = new FlysystemFilesystem($adapter);
+
+                Log::info('Initialized S3 storage adapter', [
+                    'bucket' => $bucket,
+                    'region' => $region,
+                    'prefix' => $prefix,
+                ]);
+            } catch (Throwable $e) {
+                Log::error('Failed to initialize S3 storage: ' . $e->getMessage());
+                $this->adapter = 'local';
+                $this->initializeLocalAdapter();
+            }
         } else {
             // Local filesystem adapter (default)
             $this->initializeLocalAdapter();
@@ -178,7 +254,7 @@ class DocumentService
      * Used when retrieving files that may have been stored with a different adapter
      * than the currently configured one.
      *
-     * @param string $adapterType The storage adapter type ('local' or 'azure')
+     * @param string $adapterType The storage adapter type ('local', 'azure', or 's3')
      * @return \League\Flysystem\Filesystem|null Filesystem instance or null on error
      */
     private function getFilesystemForAdapter(string $adapterType): ?FlysystemFilesystem
@@ -202,6 +278,60 @@ class DocumentService
                 return new FlysystemFilesystem($adapter);
             } catch (Exception $e) {
                 Log::error('Failed to initialize Azure filesystem for retrieval: ' . $e->getMessage());
+                return null;
+            }
+        } elseif ($adapterType === 's3') {
+            $config = Configure::read('Documents.storage', []);
+            $s3Config = $config['s3'] ?? [];
+            $bucket = $s3Config['bucket'] ?? null;
+            $region = $s3Config['region'] ?? 'us-east-1';
+            $prefix = $s3Config['prefix'] ?? '';
+            $key = $s3Config['key'] ?? null;
+            $secret = $s3Config['secret'] ?? null;
+            $endpoint = $s3Config['endpoint'] ?? null;
+            $sessionToken = $s3Config['sessionToken'] ?? null;
+            $usePathStyleEndpoint = (bool)($s3Config['usePathStyleEndpoint'] ?? false);
+
+            if (empty($bucket)) {
+                Log::error('S3 bucket not configured for document retrieval');
+                return null;
+            }
+
+            if (!class_exists(S3Client::class) || !class_exists(AwsS3V3Adapter::class)) {
+                Log::error(
+                    'S3 storage adapter dependencies missing for retrieval. ' .
+                        'Install with: composer require league/flysystem-aws-s3-v3.',
+                );
+                return null;
+            }
+
+            try {
+                $clientConfig = [
+                    'version' => 'latest',
+                    'region' => $region,
+                    'use_path_style_endpoint' => $usePathStyleEndpoint,
+                ];
+
+                if (!empty($endpoint)) {
+                    $clientConfig['endpoint'] = $endpoint;
+                }
+
+                if (!empty($key) && !empty($secret)) {
+                    $clientConfig['credentials'] = [
+                        'key' => $key,
+                        'secret' => $secret,
+                    ];
+
+                    if (!empty($sessionToken)) {
+                        $clientConfig['credentials']['token'] = $sessionToken;
+                    }
+                }
+
+                $s3Client = new S3Client($clientConfig);
+                $adapter = new AwsS3V3Adapter($s3Client, $bucket, $prefix);
+                return new FlysystemFilesystem($adapter);
+            } catch (Throwable $e) {
+                Log::error('Failed to initialize S3 filesystem for retrieval: ' . $e->getMessage());
                 return null;
             }
         } elseif ($adapterType === 'local') {

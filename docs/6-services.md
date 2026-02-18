@@ -553,7 +553,7 @@ Calculates document retention dates based on JSON retention policy definitions. 
 
 **Location:** `app/src/Services/DocumentService.php`
 
-Centralized document management for uploads, storage, and retrieval. Uses a Flysystem abstraction layer supporting both local filesystem and Azure Blob Storage adapters.
+Centralized document management for uploads, storage, and retrieval. Uses a Flysystem abstraction layer supporting local filesystem, Amazon S3-compatible buckets, and Azure Blob Storage adapters.
 
 **Key Methods:**
 - `createDocument(UploadedFile, string $entityType, ?int $entityId)` — Handles file upload and storage

@@ -497,9 +497,10 @@ return [
             /**
              * Active Storage Adapter
              *
-             * Options: 'local' or 'azure'
+             * Options: 'local', 'azure', or 's3'
              * - local: Stores files in the local filesystem
              * - azure: Stores files in Azure Blob Storage
+             * - s3: Stores files in an S3-compatible bucket (AWS S3, MinIO, etc)
              */
             'adapter' => 'local',
 
@@ -547,6 +548,64 @@ return [
                  * Default: '' (no prefix)
                  */
                 'prefix' => '',
+            ],
+
+            /**
+             * S3 Adapter Configuration
+             *
+             * Used when adapter is set to 's3'.
+             */
+            's3' => [
+                /**
+                 * S3 Bucket Name
+                 *
+                 * Should be set via AWS_S3_BUCKET.
+                 */
+                'bucket' => env('AWS_S3_BUCKET'),
+
+                /**
+                 * AWS Region
+                 *
+                 * Should be set via AWS_DEFAULT_REGION.
+                 */
+                'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
+
+                /**
+                 * Access Key ID (optional)
+                 *
+                 * Leave null to use instance/task role credentials.
+                 */
+                'key' => env('AWS_ACCESS_KEY_ID'),
+
+                /**
+                 * Secret Access Key (optional)
+                 *
+                 * Leave null to use instance/task role credentials.
+                 */
+                'secret' => env('AWS_SECRET_ACCESS_KEY'),
+
+                /**
+                 * Session token (optional)
+                 */
+                'sessionToken' => env('AWS_SESSION_TOKEN'),
+
+                /**
+                 * Optional object key prefix.
+                 */
+                'prefix' => env('AWS_S3_PREFIX', ''),
+
+                /**
+                 * Optional custom endpoint (for S3-compatible providers like MinIO).
+                 */
+                'endpoint' => env('AWS_S3_ENDPOINT'),
+
+                /**
+                 * Force path-style addressing (required by some S3-compatible providers).
+                 */
+                'usePathStyleEndpoint' => filter_var(
+                    env('AWS_S3_USE_PATH_STYLE_ENDPOINT', false),
+                    FILTER_VALIDATE_BOOLEAN,
+                ),
             ],
         ],
 

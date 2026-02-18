@@ -272,36 +272,16 @@ if ($result->success) {
 
 ## Storage Adapters
 
-### Current: Local Filesystem
+### Supported Storage Adapters
 
-Files stored in `/app/images/uploaded/` with subdirectory organization.
+DocumentService currently supports these adapters via `Documents.storage.adapter`:
 
-### Future: Cloud Storage (S3, Azure)
+- `local` — Files stored in `/app/images/uploaded/`
+- `s3` — Files stored in an S3-compatible bucket (AWS S3, MinIO, etc)
+- `azure` — Files stored in Azure Blob Storage
 
-To add cloud storage support:
-
-1. Add storage adapter parameter to document records
-2. Implement adapter classes with common interface:
-   - `store(file, path)`
-   - `retrieve(path)`
-   - `delete(path)`
-3. Update `createDocument()` to select adapter based on configuration
-4. Update `getDocumentDownloadResponse()` to support signed URLs for cloud storage
-5. Add migration to move existing files if needed
-
-Example implementation:
-
-```php
-interface StorageAdapterInterface
-{
-    public function store(UploadedFile $file, string $path): bool;
-    public function getUrl(string $path): string;
-    public function delete(string $path): bool;
-}
-
-class LocalStorageAdapter implements StorageAdapterInterface { ... }
-class S3StorageAdapter implements StorageAdapterInterface { ... }
-```
+Cloud adapters are accessed through Flysystem, so upload/download/delete behavior remains
+consistent for consumer code regardless of where files are stored.
 
 ## Integration Examples
 
