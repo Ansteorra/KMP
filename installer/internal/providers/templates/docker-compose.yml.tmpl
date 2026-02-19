@@ -37,7 +37,7 @@ services:
     volumes:
       - kmp-db-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "mysql -u$MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE -e 'SELECT 1' 2>/dev/null"]
+      test: ["CMD-SHELL", "mysql -u$$MYSQL_USER -p$$MYSQL_PASSWORD $$MYSQL_DATABASE -e 'SELECT 1' 2>/dev/null"]
       interval: 10s
       timeout: 5s
       retries: 10
