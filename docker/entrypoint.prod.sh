@@ -203,6 +203,8 @@ run_migrations() {
             echo "WARNING: update_database failed, attempting migrations migrate..."
             bin/cake migrations migrate 2>&1 || true
         }
+        echo "Seeding initial data (admin user, roles, permissions)..."
+        bin/cake migrations seed --seed InitMigrationSeed 2>&1 || echo "WARNING: seed failed, skipping"
     else
         echo "Existing database detected ($table_count tables) — running incremental migrations..."
         bin/cake migrations migrate 2>&1 || true

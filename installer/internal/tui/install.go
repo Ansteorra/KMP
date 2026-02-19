@@ -2,7 +2,9 @@ package tui
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -610,6 +612,8 @@ func (m *InstallModel) viewProgress() string {
 }
 
 func (m *InstallModel) viewComplete() string {
+	deployDir := filepath.Join(os.Getenv("HOME"), ".kmp", "deployments", "default")
+
 	if m.errorMsg != "" {
 		result := fmt.Sprintf(`
   ❌ Installation failed
@@ -618,11 +622,14 @@ func (m *InstallModel) viewComplete() string {
 
   Troubleshooting:
     • Check Docker is running: docker info
-    • Check logs: docker compose logs
+    • Check container logs:
+        docker compose -f %s/docker-compose.yml logs app
+    • Check all logs:
+        docker compose -f %s/docker-compose.yml logs
     • See docs: https://github.com/jhandel/KMP/docs/deployment/
 
   Press Enter or q to exit.
-`, m.errorMsg)
+`, m.errorMsg, deployDir, deployDir)
 		return components.BoxStyle.Render(lipgloss.NewStyle().Foreground(lipgloss.Color("#FF5555")).Render(result))
 	}
 
@@ -637,23 +644,31 @@ func (m *InstallModel) viewComplete() string {
 
   ┌─────────────────────────────────────────┐
   │  URL:      %s://%s              
-  │  Admin:    %s://%s/admin        
   │  Provider: %s                           
   │  Channel:  %s                           
   │  Database: %s                           
   └─────────────────────────────────────────┘
 
+  Default login credentials:
+    Email:    admin@test.com
+    Password: Password123
+    ⚠️  Change your password immediately after first login!
+
   Next steps:
     1. Open %s://%s in your browser
-    2. Complete setup via the web installer
-    3. Run 'kmp status' to check health
-    4. Run 'kmp backup' to create your first backup
+    2. Log in with the credentials above
+    3. Go to Members → edit your profile → change password
+    4. Run 'kmp status' to check health
+    5. Run 'kmp backup' to create your first backup
 
-`, scheme, domain, scheme, domain,
+  Deployment files: %s
+
+`, scheme, domain,
 		providerChoices[m.provider].name,
 		channelValues[m.channel],
 		dbValues[m.database],
-		scheme, domain)
+		scheme, domain,
+		deployDir)
 
 	return components.BoxStyle.Render(components.SuccessStyle.Render(result))
 }
