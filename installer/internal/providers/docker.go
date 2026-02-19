@@ -262,9 +262,16 @@ func (d *DockerProvider) Backup() (*BackupResult, error) {
 	filename := fmt.Sprintf("%s.sql.gz", ts)
 	backupPath := filepath.Join(backupDir, filename)
 
-	// Dump database
-	dumpOut, err := runDockerCompose(d.dir, "exec", "-T", "db",
-		"mysqldump", "--all-databases", "--single-transaction")
+	// Read root password from .env
+	rootPass := readEnvValue(filepath.Join(d.dir, ".env"), "MYSQL_ROOT_PASSWORD")
+	dumpCmd := fmt.Sprintf(
+		"mariadb-dump -uroot -p%s --all-databases --single-transaction 2>/dev/null || "+
+			"mysqldump -uroot -p%s --all-databases --single-transaction",
+		rootPass, rootPass,
+	)
+
+	// Dump database (MariaDB 11+ uses mariadb-dump; fall back to mysqldump for older images)
+	dumpOut, err := runDockerCompose(d.dir, "exec", "-T", "db", "sh", "-c", dumpCmd)
 	if err != nil {
 		return nil, fmt.Errorf("database dump failed: %w", err)
 	}
@@ -456,6 +463,21 @@ func replaceEnvValue(envPath, oldTag, newTag string) error {
 	}
 	updated := strings.ReplaceAll(string(data), oldTag, newTag)
 	return os.WriteFile(envPath, []byte(updated), 0600)
+}
+
+// readEnvValue reads a KEY=value pair from a .env file and returns the value.
+func readEnvValue(envPath, key string) string {
+	data, err := os.ReadFile(envPath)
+	if err != nil {
+		return ""
+	}
+	prefix := key + "="
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.HasPrefix(line, prefix) {
+			return strings.TrimSpace(strings.TrimPrefix(line, prefix))
+		}
+	}
+	return ""
 }
 
 func (d *DockerProvider) waitForHealthy(domain string, timeout time.Duration) error {
