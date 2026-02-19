@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Support;
 
+use Cake\Database\Driver\Postgres;
+use Cake\Datasource\ConnectionManager;
 use Cake\TestSuite\Fixture\SchemaLoader;
 use RuntimeException;
 
@@ -37,6 +39,13 @@ final class SeedManager
             return;
         }
 
+        // dev_seed_clean.sql is a MariaDB dump — not compatible with Postgres.
+        // For Postgres, migrations create the schema; we skip the MySQL seed.
+        if (self::isPostgres($connection)) {
+            self::$seedLoaded = true;
+            return;
+        }
+
         self::loadSeed($connection);
         self::$seedLoaded = true;
     }
@@ -49,7 +58,28 @@ final class SeedManager
      */
     public static function reset(string $connection = 'test'): void
     {
+        if (self::isPostgres($connection)) {
+            return;
+        }
+
         self::loadSeed($connection);
+    }
+
+    /**
+     * Return true if the connection uses the Postgres driver.
+     *
+     * @param string $connection Connection name.
+     * @return bool
+     */
+    private static function isPostgres(string $connection): bool
+    {
+        try {
+            $conn = ConnectionManager::get($connection);
+
+            return $conn->getDriver() instanceof Postgres;
+        } catch (\Exception $e) {
+            return false;
+        }
     }
 
     /**
