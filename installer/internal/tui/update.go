@@ -3,12 +3,12 @@ package tui
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/jhandel/KMP/installer/internal/config"
+	"github.com/jhandel/KMP/installer/internal/providers"
 	"github.com/jhandel/KMP/installer/internal/registry"
 	"github.com/jhandel/KMP/installer/internal/tui/components"
 )
@@ -30,13 +30,10 @@ type updateCheckMsg struct {
 	err     error
 }
 
-// updateDoneMsg signals the simulated update is complete.
+// updateDoneMsg signals the real update is complete.
 type updateDoneMsg struct {
 	err error
 }
-
-// updateTickMsg advances the simulated update progress.
-type updateTickMsg struct{}
 
 var updateSteps = []string{
 	"Pulling new image...",
@@ -143,14 +140,6 @@ func (m *UpdateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case updateTickMsg:
-		m.updateStep++
-		if m.updateStep >= len(updateSteps) {
-			m.phase = phaseUpdateDone
-			return m, nil
-		}
-		return m, m.tickUpdate()
-
 	case updateDoneMsg:
 		m.phase = phaseUpdateDone
 		if msg.err != nil {
@@ -182,7 +171,7 @@ func (m *UpdateModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if key == "y" || key == "enter" {
 			m.phase = phaseUpdating
 			m.updateStep = 0
-			return m, tea.Batch(m.spinner.Tick, m.tickUpdate())
+			return m, tea.Batch(m.spinner.Tick, m.runUpdate())
 		} else if key == "n" || key == "esc" {
 			m.phase = phaseShowAvailable
 		}
@@ -197,10 +186,25 @@ func (m *UpdateModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *UpdateModel) tickUpdate() tea.Cmd {
-	return tea.Tick(800*time.Millisecond, func(time.Time) tea.Msg {
-		return updateTickMsg{}
-	})
+// runUpdate calls the real provider Update() in a background goroutine.
+func (m *UpdateModel) runUpdate() tea.Cmd {
+	return func() tea.Msg {
+		deploy := m.current
+		if deploy == nil {
+			return updateDoneMsg{err: fmt.Errorf("no deployment configured")}
+		}
+
+		var targetTag string
+		if m.release != nil {
+			targetTag = m.release.Tag
+		}
+
+		provider := providers.NewDockerProvider(deploy)
+		if err := provider.Update(targetTag); err != nil {
+			return updateDoneMsg{err: err}
+		}
+		return updateDoneMsg{}
+	}
 }
 
 func (m *UpdateModel) View() string {
