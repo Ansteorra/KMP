@@ -98,6 +98,14 @@ func (d *DockerProvider) Install(cfg *DeployConfig) error {
 		return fmt.Errorf("creating deployment directory: %w", err)
 	}
 
+	// Tear down any previous install (including volumes) so fresh credentials
+	// from the new .env don't conflict with stale data in existing DB volumes.
+	composeFile := filepath.Join(d.dir, "docker-compose.yml")
+	if _, err := os.Stat(composeFile); err == nil {
+		// Previous install exists — stop and remove containers + volumes
+		runDockerCompose(d.dir, "down", "--volumes", "--remove-orphans") //nolint:errcheck
+	}
+
 	// Template data shared across all templates
 	data := templateData{
 		Image:          cfg.Image,
