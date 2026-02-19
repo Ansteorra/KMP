@@ -216,28 +216,34 @@ Security::setSalt(Configure::consume("Security.salt"));
  * When debug=true (development), relaxed settings allow HTTP/localhost/IP access.
  */
 if (!Configure::read('debug')) {
-    // Production mode - verify secure settings are active
-    $sessionConfig = Configure::read('Session.ini');
+    $requireHttps = filter_var(env('REQUIRE_HTTPS', 'true'), FILTER_VALIDATE_BOOLEAN);
 
-    // Validate session cookie is secure
-    if (isset($sessionConfig['session.cookie_secure']) && $sessionConfig['session.cookie_secure'] === false) {
-        trigger_error(
-            'SECURITY WARNING: Production environment detected (debug=false) but session.cookie_secure is FALSE. ' .
-                'This allows session cookies over HTTP which is a security risk. Check app_local.php configuration.',
-            E_USER_WARNING
-        );
+    if ($requireHttps) {
+        // HTTPS-enforced production mode - verify secure settings are active
+        $sessionConfig = Configure::read('Session.ini');
+
+        // Validate session cookie is secure
+        if (isset($sessionConfig['session.cookie_secure']) && $sessionConfig['session.cookie_secure'] === false) {
+            trigger_error(
+                'SECURITY WARNING: Production environment detected (debug=false) but session.cookie_secure is FALSE. ' .
+                    'This allows session cookies over HTTP which is a security risk. Check app_local.php configuration.',
+                E_USER_WARNING
+            );
+        }
+
+        // Validate session SameSite is Strict
+        if (isset($sessionConfig['session.cookie_samesite']) && $sessionConfig['session.cookie_samesite'] === 'Lax') {
+            trigger_error(
+                'SECURITY WARNING: Production environment detected (debug=false) but session.cookie_samesite is Lax. ' .
+                    'Use Strict in production for maximum CSRF protection. Check app_local.php configuration.',
+                E_USER_WARNING
+            );
+        }
+
+        Log::info('Production mode active - secure cookie settings enforced (HTTPS required)');
+    } else {
+        Log::info('Production HTTP mode - secure cookie settings relaxed for non-HTTPS deployment (REQUIRE_HTTPS=false)');
     }
-
-    // Validate session SameSite is Strict
-    if (isset($sessionConfig['session.cookie_samesite']) && $sessionConfig['session.cookie_samesite'] === 'Lax') {
-        trigger_error(
-            'SECURITY WARNING: Production environment detected (debug=false) but session.cookie_samesite is Lax. ' .
-                'Use Strict in production for maximum CSRF protection. Check app_local.php configuration.',
-            E_USER_WARNING
-        );
-    }
-
-    Log::info('Production mode active - secure cookie settings enforced (HTTPS required)');
 } else {
     // Development mode - log that insecure settings are allowed
     Log::debug('Development mode active - relaxed cookie settings enabled (HTTP allowed for Safari/localhost compatibility)');

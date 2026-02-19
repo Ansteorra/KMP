@@ -22,6 +22,7 @@ class InitBranchesSeed extends BaseSeed
         return [
             [
                 //'id' => 1,
+                'public_id' => bin2hex(random_bytes(4)),
                 'name' => 'Kingdom',
                 'location' => 'Kingdom',
                 'parent_id' => NULL,

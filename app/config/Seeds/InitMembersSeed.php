@@ -24,6 +24,7 @@ class InitMembersSeed extends BaseSeed
         $members =  [
             [
                 // 'id' => 1, // Removed
+                'public_id' => bin2hex(random_bytes(4)),
                 'modified' => DateTime::now(),
                 'password' => md5('Password123'),
                 'sca_name' => 'Admin von Admin',

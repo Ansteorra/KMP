@@ -111,6 +111,7 @@ func (d *DockerProvider) Install(cfg *DeployConfig) error {
 		Image:          cfg.Image,
 		ImageTag:       cfg.ImageTag,
 		Domain:         cfg.Domain,
+		RequireHttps:   requireHttps(cfg.Domain),
 		DatabaseType:   dbType,
 		DatabaseDSN:    cfg.DatabaseDSN,
 		SecuritySalt:   generateRandomString(32),
@@ -404,6 +405,7 @@ type templateData struct {
 	Image          string
 	ImageTag       string
 	Domain         string
+	RequireHttps   bool   // false for localhost/IP installs that serve over plain HTTP
 	DatabaseType   string // "bundled" or "external"
 	DatabaseDSN    string
 	SecuritySalt   string
@@ -420,6 +422,18 @@ func generateRandomString(length int) string {
 	b := make([]byte, length)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+// requireHttps returns false for localhost and bare IP addresses (HTTP-only installs),
+// true for real domain names that will be served over HTTPS via Caddy + Let's Encrypt.
+func requireHttps(domain string) bool {
+	if domain == "" || domain == "localhost" {
+		return false
+	}
+	if net.ParseIP(domain) != nil {
+		return false // bare IP address — no TLS
+	}
+	return true
 }
 
 func runDockerCompose(dir string, args ...string) (string, error) {

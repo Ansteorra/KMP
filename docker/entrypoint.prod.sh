@@ -21,10 +21,17 @@ generate_app_local() {
     echo "Generating config/app_local.php from environment..."
     cat > /var/www/html/config/app_local.php << 'APPLOCAL'
 <?php
+$requireHttps = filter_var(env('REQUIRE_HTTPS', 'true'), FILTER_VALIDATE_BOOLEAN);
 return [
     'debug' => filter_var(env('DEBUG', false), FILTER_VALIDATE_BOOLEAN),
     'Security' => [
         'salt' => env('SECURITY_SALT', '__GENERATED_SALT__'),
+    ],
+    'Session' => [
+        'ini' => [
+            'session.cookie_secure' => $requireHttps,
+            'session.cookie_samesite' => $requireHttps ? 'Strict' : 'Lax',
+        ],
     ],
     'Datasources' => [
         'default' => [

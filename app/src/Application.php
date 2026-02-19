@@ -461,8 +461,8 @@ class Application extends BaseApplication implements
             ->add(
                 (new CsrfProtectionMiddleware([
                     'httponly' => true,    // Prevent JavaScript access to CSRF cookie
-                    'secure' => !Configure::read('debug'),      // Only send cookie over HTTPS in production/UAT (Safari requires this to be false for HTTP)
-                    'sameSite' => Configure::read('debug') ? 'Lax' : 'Strict', // Lax in dev for Safari compatibility, Strict in production
+                    'secure' => filter_var(env('REQUIRE_HTTPS', !Configure::read('debug') ? 'true' : 'false'), FILTER_VALIDATE_BOOLEAN),
+                    'sameSite' => filter_var(env('REQUIRE_HTTPS', !Configure::read('debug') ? 'true' : 'false'), FILTER_VALIDATE_BOOLEAN) ? 'Strict' : 'Lax',
                 ]))->skipCheckCallback(function ($request) {
                     // Skip CSRF for API routes (Bearer token provides security)
                     $path = $request->getUri()->getPath();
