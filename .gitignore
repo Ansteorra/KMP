@@ -27,3 +27,4 @@ prod_dump.sql
 installer/kmp
 installers/bin
 installer/bin/
+installer/bin/kmp
