@@ -2,13 +2,14 @@ package tui
 
 import (
 	"fmt"
+	"os/exec"
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/jhandel/KMP/installer/internal/providers"
 	"github.com/jhandel/KMP/installer/internal/tui/components"
 )
 
@@ -59,6 +60,11 @@ type progressTickMsg struct{}
 // prereqDoneMsg signals prerequisite checks are complete.
 type prereqDoneMsg struct {
 	results []prereqCheck
+}
+
+// installDoneMsg signals the background install completed.
+type installDoneMsg struct {
+	err error
 }
 
 var progressSteps = []string{
@@ -151,6 +157,9 @@ func (m *InstallModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case prereqDoneMsg:
 		m.prereqs = msg.results
 		return m, nil
+
+	case installDoneMsg:
+		return m.handleInstallDone(msg)
 	}
 
 	// Pass through to text input when on domain step
@@ -256,7 +265,7 @@ func (m *InstallModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.database = m.cursor
 			m.step = stepProgress
 			m.progressStep = 0
-			return m, tea.Batch(m.spinner.Tick, m.tickProgress())
+			return m, tea.Batch(m.spinner.Tick, m.runInstall())
 		case "esc":
 			m.step = stepChannel
 			m.cursor = m.channel
@@ -275,6 +284,19 @@ func (m *InstallModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m *InstallModel) handleInstallDone(msg installDoneMsg) (tea.Model, tea.Cmd) {
+	if msg.err != nil {
+		m.errorMsg = msg.err.Error()
+		m.progressDone = true
+		m.step = stepComplete
+		return m, nil
+	}
+	m.progressStep = len(progressSteps)
+	m.progressDone = true
+	m.step = stepComplete
+	return m, nil
+}
+
 func (m *InstallModel) handleProgressTick() (tea.Model, tea.Cmd) {
 	m.progressStep++
 	if m.progressStep >= len(progressSteps) {
@@ -282,25 +304,95 @@ func (m *InstallModel) handleProgressTick() (tea.Model, tea.Cmd) {
 		m.step = stepComplete
 		return m, nil
 	}
-	return m, m.tickProgress()
+	return m, nil
 }
 
-func (m *InstallModel) tickProgress() tea.Cmd {
-	return tea.Tick(800*time.Millisecond, func(time.Time) tea.Msg {
-		return progressTickMsg{}
-	})
+func (m *InstallModel) runInstall() tea.Cmd {
+	// Capture selections to pass into goroutine.
+	providerID := providerChoices[m.provider].id
+	channel := channelValues[m.channel]
+	domain := m.domain
+	dbType := dbValues[m.database]
+
+	return func() tea.Msg {
+		cfg := &providers.DeployConfig{
+			Name:        "default",
+			Provider:    providerID,
+			Channel:     channel,
+			Domain:      domain,
+			Image:       "ghcr.io/jhandel/kmp",
+			ImageTag:    channel, // will resolve to "release", "nightly", etc.
+			StorageType: "local",
+			StorageConfig: map[string]string{},
+			BackupConfig: providers.BackupConfig{
+				Enabled:       true,
+				Schedule:      "0 3 * * *",
+				RetentionDays: 30,
+			},
+		}
+		if dbType != "bundled" {
+			cfg.DatabaseDSN = "" // will be filled in future BYO-DSN step
+		}
+
+		var provider providers.Provider
+		switch providerID {
+		case "docker":
+			provider = providers.NewDockerProvider(nil)
+		default:
+			return installDoneMsg{err: fmt.Errorf("provider %q not yet supported — use Docker", providerID)}
+		}
+
+		if err := provider.Install(cfg); err != nil {
+			return installDoneMsg{err: err}
+		}
+		return installDoneMsg{}
+	}
 }
 
 func (m *InstallModel) runPrereqChecks() tea.Cmd {
+	providerID := providerChoices[m.provider].id
 	return func() tea.Msg {
-		// Simulate checking prerequisites
-		time.Sleep(500 * time.Millisecond)
-		results := []prereqCheck{
-			{"Docker", "pass", "Docker 24.0.7 detected"},
-			{"Docker Compose", "pass", "v2.23.3 detected"},
-			{"Port 80", "pass", "Available"},
-			{"Port 443", "pass", "Available"},
+		var results []prereqCheck
+
+		switch providerID {
+		case "docker":
+			// Check Docker
+			out, err := exec.Command("docker", "version", "--format", "{{.Server.Version}}").Output()
+			if err == nil {
+				results = append(results, prereqCheck{"Docker", "pass", "v" + strings.TrimSpace(string(out))})
+			} else {
+				results = append(results, prereqCheck{"Docker", "fail", "not found — install from https://docs.docker.com/engine/install/"})
+			}
+
+			// Check Docker Compose
+			out, err = exec.Command("docker", "compose", "version", "--short").Output()
+			if err == nil {
+				results = append(results, prereqCheck{"Docker Compose", "pass", "v" + strings.TrimSpace(string(out))})
+			} else {
+				results = append(results, prereqCheck{"Docker Compose", "fail", "not found — included with Docker Desktop"})
+			}
+
+			// Check ports (we use the provider for this)
+			p := providers.NewDockerProvider(nil)
+			for _, prereq := range p.Prerequisites() {
+				if prereq.Name == "Port 80 available" || prereq.Name == "Port 443 available" {
+					status := "pass"
+					detail := "Available"
+					if !prereq.Met {
+						status = "fail"
+						detail = prereq.InstallHint
+					}
+					results = append(results, prereqCheck{prereq.Name, status, detail})
+				}
+			}
+
+		default:
+			results = append(results, prereqCheck{
+				"Provider support", "fail",
+				fmt.Sprintf("%s provider coming soon — please select Docker for now", providerID),
+			})
 		}
+
 		return prereqDoneMsg{results: results}
 	}
 }
@@ -512,6 +604,22 @@ func (m *InstallModel) viewProgress() string {
 }
 
 func (m *InstallModel) viewComplete() string {
+	if m.errorMsg != "" {
+		result := fmt.Sprintf(`
+  ❌ Installation failed
+
+  Error: %s
+
+  Troubleshooting:
+    • Check Docker is running: docker info
+    • Check logs: docker compose logs
+    • See docs: https://github.com/jhandel/KMP/docs/deployment/
+
+  Press Enter or q to exit.
+`, m.errorMsg)
+		return components.BoxStyle.Render(lipgloss.NewStyle().Foreground(lipgloss.Color("#FF5555")).Render(result))
+	}
+
 	domain := m.domain
 	scheme := "https"
 	if domain == "localhost" {
@@ -531,7 +639,7 @@ func (m *InstallModel) viewComplete() string {
 
   Next steps:
     1. Open %s://%s in your browser
-    2. Log in with the default admin credentials
+    2. Complete setup via the web installer
     3. Run 'kmp status' to check health
     4. Run 'kmp backup' to create your first backup
 

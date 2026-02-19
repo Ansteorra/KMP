@@ -37,7 +37,10 @@ type DockerProvider struct {
 
 // NewDockerProvider creates a provider for local Docker Compose deployments.
 func NewDockerProvider(cfg *config.Deployment) *DockerProvider {
-	dir := cfg.ComposeDir
+	dir := ""
+	if cfg != nil {
+		dir = cfg.ComposeDir
+	}
 	if dir == "" {
 		dir = filepath.Join(config.DefaultConfigDir(), "deployments", "default")
 	}
