@@ -8,20 +8,44 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # Postgres may fail initially while we fix MySQL-specific SQL — don't block PRs
+    continue-on-error: ${{ matrix.database.type == 'postgres' }}
     permissions:
       contents: read
       checks: write
 
+    strategy:
+      fail-fast: false
+      matrix:
+        database:
+          - type: mysql
+            image: mariadb:10
+            port: 3306
+            driver: Cake\Database\Driver\Mysql
+            php_extensions: mbstring, intl, pdo_mysql, gd, apcu, yaml
+            health_cmd: healthcheck.sh --connect --innodb_initialized
+            env:
+              MARIADB_ROOT_PASSWORD: root
+              MARIADB_DATABASE: kmp_test
+          - type: postgres
+            image: postgres:16
+            port: 5432
+            driver: Cake\Database\Driver\Postgres
+            php_extensions: mbstring, intl, pdo_pgsql, gd, apcu, yaml
+            health_cmd: pg_isready -U root -d kmp_test
+            env:
+              POSTGRES_USER: root
+              POSTGRES_PASSWORD: root
+              POSTGRES_DB: kmp_test
+
     services:
-      mariadb:
-        image: mariadb:10
-        env:
-          MARIADB_ROOT_PASSWORD: root
-          MARIADB_DATABASE: kmp_test
+      database:
+        image: ${{ matrix.database.image }}
+        env: ${{ matrix.database.env }}
         ports:
-          - 3306:3306
+          - ${{ matrix.database.port }}:${{ matrix.database.port }}
         options: >-
-          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-cmd="${{ matrix.database.health_cmd }}"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
@@ -34,7 +58,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: mbstring, intl, pdo_mysql, gd, apcu, yaml
+          extensions: ${{ matrix.database.php_extensions }}
           ini-values: apc.enable_cli=1
           coverage: none
 
@@ -54,6 +78,7 @@ jobs:
         run: |
           cat > app/config/app_local.php << 'APPLOCAL'
           <?php
+          // CI database driver is selected via matrix: mysql or postgres
           return [
               'debug' => true,
               'Security' => [
@@ -61,14 +86,18 @@ jobs:
               ],
               'Datasources' => [
                   'default' => [
+                      'driver' => \${{ matrix.database.driver }}::class,
                       'host' => '127.0.0.1',
+                      'port' => '${{ matrix.database.port }}',
                       'username' => env('MYSQL_USERNAME'),
                       'password' => env('MYSQL_PASSWORD'),
                       'database' => env('MYSQL_DB_NAME'),
                       'url' => env('DATABASE_URL', null),
                   ],
                   'test' => [
+                      'driver' => \${{ matrix.database.driver }}::class,
                       'host' => '127.0.0.1',
+                      'port' => '${{ matrix.database.port }}',
                       'username' => env('MYSQL_USERNAME'),
                       'password' => env('MYSQL_PASSWORD'),
                       'database' => env('MYSQL_DB_NAME') . '_test',
@@ -91,8 +120,21 @@ jobs:
       - name: Install Composer dependencies
         run: cd app && composer install --no-interaction --prefer-dist
 
-      - name: Import seed data
+      - name: Import seed data (MySQL)
+        if: matrix.database.type == 'mysql'
         run: mysql -h 127.0.0.1 -u root -proot kmp_test < dev_seed_clean.sql
+
+      - name: Run migrations (Postgres)
+        if: matrix.database.type == 'postgres'
+        run: cd app && bin/cake migrations migrate --no-lock --connection test
+
+      - name: Run plugin migrations (Postgres)
+        if: matrix.database.type == 'postgres'
+        run: |
+          cd app
+          for plugin in Queue Officers Activities Awards Waivers; do
+            bin/cake migrations migrate --no-lock --connection test --plugin "$plugin" || true
+          done
 
       - name: Run PHPUnit tests
         run: cd app && vendor/bin/phpunit --testsuite all --no-coverage --log-junit ../test-results/junit.xml
@@ -101,7 +143,7 @@ jobs:
         if: success() || failure()
         uses: actions/upload-artifact@v4
         with:
-          name: phpunit-results
+          name: phpunit-results-${{ matrix.database.type }}
           path: test-results/junit.xml
 
       - name: Report test results
@@ -109,4 +151,4 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
           files: test-results/junit.xml
-          check_name: PHPUnit Test Results
+          check_name: PHPUnit Test Results (${{ matrix.database.type }})

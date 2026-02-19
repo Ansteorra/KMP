@@ -1,0 +1,64 @@
+name: Build KMP Installer
+
+on:
+  push:
+    tags:
+      - 'installer-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: installer/go.sum
+
+      - name: Extract version
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#installer-v}" >> $GITHUB_OUTPUT
+
+      - name: Build all platforms
+        working-directory: installer
+        run: make all VERSION=${{ steps.version.outputs.VERSION }}
+
+      - name: Generate checksums
+        working-directory: installer/bin
+        run: |
+          sha256sum kmp-* > checksums.txt
+          cat checksums.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "KMP Installer v${{ steps.version.outputs.VERSION }}"
+          body: |
+            ## KMP Installer v${{ steps.version.outputs.VERSION }}
+
+            ### Installation
+
+            **macOS/Linux:**
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/jhandel/KMP/main/installer/scripts/install.sh | bash
+            ```
+
+            **Windows (PowerShell):**
+            ```powershell
+            irm https://raw.githubusercontent.com/jhandel/KMP/main/installer/scripts/install.ps1 | iex
+            ```
+
+            ### Manual Download
+            Download the binary for your platform below and place it in your PATH.
+          files: |
+            installer/bin/kmp-linux-amd64
+            installer/bin/kmp-linux-arm64
+            installer/bin/kmp-darwin-amd64
+            installer/bin/kmp-darwin-arm64
+            installer/bin/kmp-windows-amd64.exe
+            installer/bin/checksums.txt

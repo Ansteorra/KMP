@@ -1,0 +1,77 @@
+# KMP Production Stack
+# Usage: docker compose up -d
+# Docs: https://github.com/jhandel/KMP/blob/main/docs/deployment/quickstart-vpc.md
+#
+# Prerequisites:
+#   1. Copy .env.example to .env and configure
+#   2. Ensure Docker and Docker Compose v2 are installed
+#
+# Environment variables are loaded from .env (see .env.example for reference)
+
+services:
+  app:
+    image: ghcr.io/jhandel/kmp:${KMP_IMAGE_TAG:-latest}
+    container_name: kmp-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8080:80"
+    volumes:
+      - kmp-uploads:/var/www/html/images/uploaded
+      - kmp-cache:/var/www/html/images/cache
+      - kmp-logs:/var/www/html/logs
+      - kmp-tmp:/var/www/html/tmp
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  db:
+    image: mariadb:11
+    container_name: kmp-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DB_NAME:-kmp}
+      MYSQL_USER: ${MYSQL_USERNAME:-kmpuser}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - kmp-db-data:/var/lib/mysql
+      - ./mariadb.cnf:/etc/mysql/conf.d/kmp.cnf:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: kmp-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+
+volumes:
+  kmp-uploads:
+  kmp-cache:
+  kmp-logs:
+  kmp-tmp:
+  kmp-db-data:
+  caddy-data:
+  caddy-config:

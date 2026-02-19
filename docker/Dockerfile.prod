@@ -1,0 +1,187 @@
+# KMP Production Container - Multi-stage build
+# Stage 1: Build frontend assets and install composer dependencies
+# Stage 2: Production-optimized PHP 8.3 + Apache runtime
+
+# =============================================================================
+# Stage 1: Builder - Node 20 + PHP 8.3 for asset compilation & dependency install
+# =============================================================================
+FROM php:8.3-cli-bookworm AS builder
+
+# Install Node.js 20
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install system dependencies needed for composer packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libfreetype6-dev \
+    libjpeg62-turbo-dev \
+    libpng-dev \
+    libwebp-dev \
+    libzip-dev \
+    libicu-dev \
+    libbz2-dev \
+    libyaml-dev \
+    libcurl4-openssl-dev \
+    libpq-dev \
+    git \
+    unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install PHP extensions needed for composer install
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+    && docker-php-ext-install -j$(nproc) \
+        bcmath bz2 intl gd mysqli pdo_mysql pdo_pgsql zip
+
+# Install Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+WORKDIR /build
+
+# Copy package files first for better layer caching
+COPY app/package.json app/package-lock.json ./
+
+# Install npm dependencies
+RUN npm ci --no-audit --no-fund
+
+# Copy composer files for dependency caching
+COPY app/composer.json app/composer.lock ./
+
+# Install composer dependencies (no dev)
+RUN composer install --no-dev --no-interaction --prefer-dist --no-scripts --no-autoloader
+
+# Copy full application source
+COPY app/ ./
+
+# Generate optimized autoloader
+RUN composer dump-autoload --optimize --no-dev
+
+# Build frontend assets
+RUN npm run prod
+
+# =============================================================================
+# Stage 2: Production runtime
+# =============================================================================
+FROM php:8.3-apache-bookworm AS runtime
+
+LABEL org.opencontainers.image.source="https://github.com/jhandel/KMP"
+LABEL org.opencontainers.image.description="Kingdom Management Portal"
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # PHP build dependencies
+    libfreetype6-dev \
+    libjpeg62-turbo-dev \
+    libpng-dev \
+    libwebp-dev \
+    libzip-dev \
+    libicu-dev \
+    libbz2-dev \
+    libyaml-dev \
+    libcurl4-openssl-dev \
+    libpq-dev \
+    # Runtime tools
+    curl \
+    default-mysql-client \
+    postgresql-client \
+    cron \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install PHP extensions
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+    && docker-php-ext-install -j$(nproc) \
+        bcmath \
+        bz2 \
+        intl \
+        gd \
+        mysqli \
+        pdo_mysql \
+        pdo_pgsql \
+        zip \
+        opcache
+
+# Install PECL extensions (no xdebug in production)
+RUN pecl install apcu yaml \
+    && docker-php-ext-enable apcu yaml
+
+# Configure PHP for production
+RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
+
+# OPcache configuration
+RUN { \
+        echo 'opcache.enable=1'; \
+        echo 'opcache.memory_consumption=256'; \
+        echo 'opcache.max_accelerated_files=20000'; \
+        echo 'opcache.validate_timestamps=0'; \
+        echo 'opcache.interned_strings_buffer=16'; \
+    } > "$PHP_INI_DIR/conf.d/opcache-prod.ini"
+
+# APCu configuration
+RUN echo 'apc.enable_cli=1' > "$PHP_INI_DIR/conf.d/apcu.ini"
+
+# Upload and memory limits
+RUN { \
+        echo 'upload_max_filesize = 5M'; \
+        echo 'post_max_size = 20M'; \
+    } > "$PHP_INI_DIR/conf.d/uploads.ini" \
+    && echo 'memory_limit = 256M' > "$PHP_INI_DIR/conf.d/memory.ini"
+
+# Security hardening
+RUN echo 'expose_php = Off' > "$PHP_INI_DIR/conf.d/security.ini"
+
+# Enable Apache modules
+RUN a2enmod rewrite headers
+
+# Configure Apache
+RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
+
+# Production Apache vhost with DocumentRoot pointing to CakePHP webroot
+RUN { \
+        echo '<VirtualHost *:80>'; \
+        echo '    ServerAdmin webmaster@localhost'; \
+        echo '    DocumentRoot /var/www/html/webroot'; \
+        echo ''; \
+        echo '    <Directory /var/www/html/webroot>'; \
+        echo '        Options FollowSymLinks'; \
+        echo '        AllowOverride All'; \
+        echo '        DirectoryIndex index.php'; \
+        echo '        Require all granted'; \
+        echo '    </Directory>'; \
+        echo ''; \
+        echo '    ErrorLog ${APACHE_LOG_DIR}/error.log'; \
+        echo '    CustomLog ${APACHE_LOG_DIR}/access.log combined'; \
+        echo '</VirtualHost>'; \
+    } > /etc/apache2/sites-available/000-default.conf
+
+WORKDIR /var/www/html
+
+# Copy application code from builder
+COPY --from=builder /build/ /var/www/html/
+
+# Copy Docker-specific config
+RUN mkdir -p /opt/docker
+COPY docker/app_local.php /opt/docker/app_local.php
+
+# Create volume mount points for runtime data
+RUN mkdir -p \
+    /var/www/html/logs \
+    /var/www/html/tmp \
+    /var/www/html/images/uploaded \
+    /var/www/html/images/cache
+
+VOLUME ["/var/www/html/logs", "/var/www/html/tmp", "/var/www/html/images/uploaded", "/var/www/html/images/cache"]
+
+# Set ownership for www-data
+RUN chown -R www-data:www-data /var/www/html
+
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=60s \
+    CMD curl -f http://localhost/health || exit 1
+
+# Production entrypoint (handles migrations, cron, graceful shutdown)
+COPY docker/entrypoint.prod.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["apache2-foreground"]

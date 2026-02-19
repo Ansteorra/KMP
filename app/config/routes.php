@@ -122,6 +122,12 @@ return function (RouteBuilder $routes): void {
          */
         $builder->setExtensions(["json", "pdf", "csv"]);
 
+        // Health check endpoint (no auth required, used by Docker/load balancers)
+        $builder->connect("/health", [
+            "controller" => "Health",
+            "action" => "index",
+        ]);
+
         /**
          * Homepage Route
          * 
