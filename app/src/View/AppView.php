@@ -149,12 +149,17 @@ class AppView extends View
         // Load additional utility helpers for formatting and display
         $helpers = [
             'Tools.Format',        // Text formatting utilities
-            'Tools.Time',          // Time/date formatting utilities  
-            'Templating.Icon',     // Icon rendering utilities
-            'Templating.IconSnippet', // Icon snippet utilities
+            'Tools.Time',          // Time/date formatting utilities
             'Timezone',            // Timezone conversion and formatting
             'SecurityDebug',       // Security debugging helper (only active in debug mode)
         ];
+
+        // Templating helpers require cakephp-templating (require dependency).
+        // Guard with class_exists so a missing package degrades gracefully.
+        if (class_exists(\Templating\View\Helper\IconHelper::class)) {
+            $helpers[] = 'Templating.Icon';
+            $helpers[] = 'Templating.IconSnippet';
+        }
 
         // Add all utility helpers to the view
         foreach ($helpers as $helper) {

@@ -315,13 +315,19 @@ func (m *InstallModel) runInstall() tea.Cmd {
 	dbType := dbValues[m.database]
 
 	return func() tea.Msg {
+		// Map channel name to the actual Docker image tag.
+		imageTag := channel
+		if channel == "release" {
+			imageTag = "latest"
+		}
+
 		cfg := &providers.DeployConfig{
 			Name:        "default",
 			Provider:    providerID,
 			Channel:     channel,
 			Domain:      domain,
 			Image:       "ghcr.io/jhandel/kmp",
-			ImageTag:    channel, // will resolve to "release", "nightly", etc.
+			ImageTag:    imageTag,
 			StorageType: "local",
 			StorageConfig: map[string]string{},
 			BackupConfig: providers.BackupConfig{

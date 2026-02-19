@@ -141,7 +141,7 @@ func (d *DockerProvider) Install(cfg *DeployConfig) error {
 	}
 
 	// Wait for health
-	if err := d.waitForHealthy(cfg.Domain, 120*time.Second); err != nil {
+	if err := d.waitForHealthy(cfg.Domain, 300*time.Second); err != nil {
 		return fmt.Errorf("health check: %w", err)
 	}
 

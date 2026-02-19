@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "8451602e398e932da41a9e103b432a18",
+    "content-hash": "b091088f8f4827c194d94db09b56697e",
     "packages": [
         {
             "name": "admad/cakephp-glide",
@@ -808,6 +808,61 @@
                 "source": "https://github.com/dereuromark/cakephp-shim"
             },
             "time": "2025-04-05T09:42:11+00:00"
+        },
+        {
+            "name": "dereuromark/cakephp-templating",
+            "version": "0.2.13",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/dereuromark/cakephp-templating.git",
+                "reference": "7660b9eb470921c9343f54bcf49e1b4d5ea4a7b7"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/dereuromark/cakephp-templating/zipball/7660b9eb470921c9343f54bcf49e1b4d5ea4a7b7",
+                "reference": "7660b9eb470921c9343f54bcf49e1b4d5ea4a7b7",
+                "shasum": ""
+            },
+            "require": {
+                "cakephp/cakephp": "^5.1.3",
+                "php": ">=8.1"
+            },
+            "require-dev": {
+                "dereuromark/cakephp-ide-helper": "^2.0.2",
+                "ext-yaml": "*",
+                "fig-r/psr2r-sniffer": "dev-master",
+                "phpunit/phpunit": "^10.5 || ^11.5 || ^12.1"
+            },
+            "type": "cakephp-plugin",
+            "autoload": {
+                "psr-4": {
+                    "Templating\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Mark Scherer",
+                    "homepage": "https://www.dereuromark.de",
+                    "role": "Maintainer"
+                }
+            ],
+            "description": "CakePHP plugin around templating and (font) icons",
+            "homepage": "https://github.com/dereuromark/cakephp-templating",
+            "keywords": [
+                "cakephp",
+                "icons",
+                "plugin",
+                "templating"
+            ],
+            "support": {
+                "issues": "https://github.com/dereuromark/cakephp-templating/issues",
+                "source": "https://github.com/dereuromark/cakephp-templating"
+            },
+            "time": "2025-11-18T12:58:47+00:00"
         },
         {
             "name": "dereuromark/cakephp-tools",
@@ -5143,61 +5198,6 @@
                 }
             ],
             "time": "2025-03-31T18:32:56+00:00"
-        },
-        {
-            "name": "dereuromark/cakephp-templating",
-            "version": "0.2.7",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/dereuromark/cakephp-templating.git",
-                "reference": "bd73c8b3c0f6a0813542a75157eb845d8aca61b6"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/dereuromark/cakephp-templating/zipball/bd73c8b3c0f6a0813542a75157eb845d8aca61b6",
-                "reference": "bd73c8b3c0f6a0813542a75157eb845d8aca61b6",
-                "shasum": ""
-            },
-            "require": {
-                "cakephp/cakephp": "^5.0.3",
-                "php": ">=8.1"
-            },
-            "require-dev": {
-                "dereuromark/cakephp-ide-helper": "^2.0.2",
-                "ext-yaml": "*",
-                "fig-r/psr2r-sniffer": "dev-master",
-                "phpunit/phpunit": "^10.2"
-            },
-            "type": "cakephp-plugin",
-            "autoload": {
-                "psr-4": {
-                    "Templating\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Mark Scherer",
-                    "homepage": "https://www.dereuromark.de",
-                    "role": "Maintainer"
-                }
-            ],
-            "description": "CakePHP plugin around templating and (font) icons",
-            "homepage": "https://github.com/dereuromark/cakephp-templating",
-            "keywords": [
-                "cakephp",
-                "icons",
-                "plugin",
-                "templating"
-            ],
-            "support": {
-                "issues": "https://github.com/dereuromark/cakephp-templating/issues",
-                "source": "https://github.com/dereuromark/cakephp-templating"
-            },
-            "time": "2025-03-03T17:40:16+00:00"
         },
         {
             "name": "doctrine/sql-formatter",

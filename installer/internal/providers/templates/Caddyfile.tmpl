@@ -1,4 +1,4 @@
-{{.Domain}} {
+{{if eq .Domain "localhost"}}http://localhost{{else}}{{.Domain}}{{end}} {
     reverse_proxy kmp-app:80
 
     header {
