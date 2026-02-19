@@ -81,17 +81,20 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
         if ($configVersion != $currentConfigVersion) {
             StaticHelpers::setAppSetting("Awards.configVersion", $currentConfigVersion, null, true);
 
-            // Migrate existing view configs: replace Event/Events with Gathering/Gatherings
-            $viewConfigs = [
-                'Awards.ViewConfig.Default',
-                'Awards.ViewConfig.In Progress',
-                'Awards.ViewConfig.Scheduling',
-                'Awards.ViewConfig.To Give',
-                'Awards.ViewConfig.Closed',
-                'Awards.ViewConfig.Event',
-                'Awards.ViewConfig.SubmittedByMember',
-                'Awards.ViewConfig.SubmittedForMember',
-            ];
+            // Migrate existing view configs: replace Event/Events with Gathering/Gatherings.
+            // Skip on fresh installs (configVersion "0.0.0") — settings don't exist yet
+            // and will be seeded with defaults by the getAppSetting calls further below.
+            if ($configVersion !== "0.0.0") {
+                $viewConfigs = [
+                    'Awards.ViewConfig.Default',
+                    'Awards.ViewConfig.In Progress',
+                    'Awards.ViewConfig.Scheduling',
+                    'Awards.ViewConfig.To Give',
+                    'Awards.ViewConfig.Closed',
+                    'Awards.ViewConfig.Event',
+                    'Awards.ViewConfig.SubmittedByMember',
+                    'Awards.ViewConfig.SubmittedForMember',
+                ];
 
             foreach ($viewConfigs as $configKey) {
                 $config = StaticHelpers::getAppSetting($configKey, null, 'yaml');
@@ -126,8 +129,11 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
                     StaticHelpers::setAppSetting($configKey, yaml_emit($config), 'yaml', true);
                 }
             }
+            } // end if ($configVersion !== "0.0.0") — skip view migration on fresh install
+        } // end if ($configVersion != $currentConfigVersion)
 
-            StaticHelpers::getAppSetting("Awards.RecButtonClass", "btn-warning", null, true);
+        // Always ensure default settings exist (idempotent — only creates if missing).
+        StaticHelpers::getAppSetting("Awards.RecButtonClass", "btn-warning", null, true);
             StaticHelpers::getAppSetting("Member.AdditionalInfo.CallIntoCourt", "select:Never,With Notice,Without Notice|user|public", null, true);
             StaticHelpers::getAppSetting("Member.AdditionalInfo.CourtAvailability", "select:None,Morning,Evening,Any|user|public", null, true);
             StaticHelpers::getAppSetting("Member.AdditionalInfo.PersonToGiveNoticeTo", "text|user|public", null, true);
@@ -796,7 +802,6 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
                     'hiddenByDefault' => []
                 ]
             ]), 'yaml', true);
-        }
     }
 
     /**
