@@ -1,0 +1,104 @@
+# KMP Base Infrastructure Image
+#
+# Contains all PHP extensions pre-compiled. Built infrequently (only when
+# PHP extensions or base OS packages change). Rebuilt via .github/workflows/base.yml.
+#
+# Published to: ghcr.io/jhandel/kmp-base:php83
+# Used by: docker/Dockerfile.prod as the production runtime base
+
+FROM php:8.3-apache-bookworm
+
+LABEL org.opencontainers.image.source="https://github.com/jhandel/KMP"
+LABEL org.opencontainers.image.description="KMP base image - PHP 8.3 + Apache + all extensions"
+
+# Install system runtime deps + dev headers needed for extension compilation
+# Dev headers (-dev packages) are removed after compilation to slim the image
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libfreetype6-dev \
+    libjpeg62-turbo-dev \
+    libpng-dev \
+    libwebp-dev \
+    libzip-dev \
+    libicu-dev \
+    libbz2-dev \
+    libyaml-dev \
+    libcurl4-openssl-dev \
+    libpq-dev \
+    # Runtime tools (kept permanently)
+    curl \
+    default-mysql-client \
+    postgresql-client \
+    cron \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+    && docker-php-ext-install -j$(nproc) \
+        bcmath \
+        bz2 \
+        intl \
+        gd \
+        mysqli \
+        pdo_mysql \
+        pdo_pgsql \
+        zip \
+        opcache \
+    && pecl install apcu yaml \
+    && docker-php-ext-enable apcu yaml \
+    # Remove dev headers - compiled .so files remain and link against runtime libs
+    && apt-get purge -y --auto-remove \
+        libfreetype6-dev \
+        libjpeg62-turbo-dev \
+        libpng-dev \
+        libwebp-dev \
+        libzip-dev \
+        libicu-dev \
+        libbz2-dev \
+        libyaml-dev \
+        libcurl4-openssl-dev \
+        libpq-dev \
+    && rm -rf /var/lib/apt/lists/* /tmp/pear
+
+# PHP production configuration
+RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
+
+# OPcache tuning for production
+RUN { \
+        echo 'opcache.enable=1'; \
+        echo 'opcache.memory_consumption=256'; \
+        echo 'opcache.max_accelerated_files=20000'; \
+        echo 'opcache.validate_timestamps=0'; \
+        echo 'opcache.interned_strings_buffer=16'; \
+    } > "$PHP_INI_DIR/conf.d/opcache-prod.ini"
+
+RUN echo 'apc.enable_cli=1' > "$PHP_INI_DIR/conf.d/apcu.ini"
+
+RUN { \
+        echo 'upload_max_filesize = 5M'; \
+        echo 'post_max_size = 20M'; \
+    } > "$PHP_INI_DIR/conf.d/uploads.ini" \
+    && echo 'memory_limit = 256M' > "$PHP_INI_DIR/conf.d/memory.ini"
+
+RUN echo 'expose_php = Off' > "$PHP_INI_DIR/conf.d/security.ini"
+
+# Apache: enable required modules
+RUN a2enmod rewrite headers
+
+RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
+
+# Apache vhost pointing to CakePHP webroot
+RUN { \
+        echo '<VirtualHost *:80>'; \
+        echo '    ServerAdmin webmaster@localhost'; \
+        echo '    DocumentRoot /var/www/html/webroot'; \
+        echo ''; \
+        echo '    <Directory /var/www/html/webroot>'; \
+        echo '        Options FollowSymLinks'; \
+        echo '        AllowOverride All'; \
+        echo '        DirectoryIndex index.php'; \
+        echo '        Require all granted'; \
+        echo '    </Directory>'; \
+        echo ''; \
+        echo '    ErrorLog ${APACHE_LOG_DIR}/error.log'; \
+        echo '    CustomLog ${APACHE_LOG_DIR}/access.log combined'; \
+        echo '</VirtualHost>'; \
+    } > /etc/apache2/sites-available/000-default.conf
+
+EXPOSE 80

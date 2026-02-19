@@ -1,0 +1,56 @@
+name: Build KMP Base Image
+
+# Triggers when the base image definition changes, or manually.
+# This build is SLOW (~60-90 min for arm64 QEMU) but rare.
+# Once published, all app builds use this pre-compiled base.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docker/Dockerfile.base'
+  workflow_dispatch:
+
+concurrency:
+  group: kmp-base-image
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  BASE_IMAGE: ghcr.io/${{ github.repository_owner }}/kmp-base
+
+jobs:
+  build-base:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push base image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.base
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.BASE_IMAGE }}:php83
+            ${{ env.BASE_IMAGE }}:latest
+          # Dedicated cache scope so app builds don't pollute it
+          cache-from: type=gha,scope=kmp-base
+          cache-to: type=gha,mode=max,scope=kmp-base

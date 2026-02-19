@@ -25,3 +25,5 @@ prod_dump.sql
 /.playwright-cli/
 .beads/
 installer/kmp
+installers/bin
+installer/bin/

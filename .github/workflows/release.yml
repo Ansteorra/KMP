@@ -11,6 +11,7 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/kmp
+  BASE_IMAGE: ghcr.io/${{ github.repository_owner }}/kmp-base:php83
 
 jobs:
   build-and-push:
@@ -73,8 +74,10 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          build-args: |
+            BASE_IMAGE=${{ env.BASE_IMAGE }}
+          cache-from: type=gha,scope=kmp-app
+          cache-to: type=gha,mode=max,scope=kmp-app
 
   smoke-test:
     needs: build-and-push

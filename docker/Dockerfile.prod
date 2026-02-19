@@ -1,168 +1,89 @@
-# KMP Production Container - Multi-stage build
-# Stage 1: Build frontend assets and install composer dependencies
-# Stage 2: Production-optimized PHP 8.3 + Apache runtime
+# KMP Production Container
+#
+# 3-stage build designed for fast rebuilds:
+#
+#   Stage 1 (node-builder):   --platform=$BUILDPLATFORM  → runs NATIVE on CI (no QEMU)
+#   Stage 2 (php-deps):       --platform=$BUILDPLATFORM  → runs NATIVE on CI (no QEMU)
+#   Stage 3 (runtime):        FROM kmp-base              → COPY only, zero compilation
+#
+# PHP extension compilation lives in docker/Dockerfile.base (built infrequently).
+# Expected app-image build time: 5-10 min (vs ~90 min previously).
+
+# Base image with all PHP extensions pre-compiled.
+# Falls back to php:8.3-apache-bookworm if the base image hasn't been built yet.
+ARG BASE_IMAGE=ghcr.io/jhandel/kmp-base:php83
 
 # =============================================================================
-# Stage 1: Builder - Node 20 + PHP 8.3 for asset compilation & dependency install
+# Stage 1: Frontend assets
+# --platform=$BUILDPLATFORM: always runs on the CI runner's native arch (amd64)
+# No QEMU penalty for Node.js/webpack even in multi-platform builds.
 # =============================================================================
-FROM php:8.3-cli-bookworm AS builder
-
-# Install Node.js 20
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install system dependencies needed for composer packages
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libfreetype6-dev \
-    libjpeg62-turbo-dev \
-    libpng-dev \
-    libwebp-dev \
-    libzip-dev \
-    libicu-dev \
-    libbz2-dev \
-    libyaml-dev \
-    libcurl4-openssl-dev \
-    libpq-dev \
-    git \
-    unzip \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install PHP extensions needed for composer install
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
-    && docker-php-ext-install -j$(nproc) \
-        bcmath bz2 intl gd mysqli pdo_mysql pdo_pgsql zip
-
-# Install Composer
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+FROM --platform=$BUILDPLATFORM node:20-alpine AS node-builder
 
 WORKDIR /build
 
-# Copy package files first for better layer caching
+# Layer-cache npm installs separately from app code
 COPY app/package.json app/package-lock.json ./
-
-# Install npm dependencies
 RUN npm ci --no-audit --no-fund
 
-# Copy composer files for dependency caching
-COPY app/composer.json app/composer.lock ./
+# Copy everything webpack needs
+COPY app/assets ./assets
+COPY app/plugins ./plugins
+COPY app/webpack.mix.js ./
+COPY app/webroot ./webroot
 
-# Install composer dependencies (no dev)
-RUN composer install --no-dev --no-interaction --prefer-dist --no-scripts --no-autoloader
-
-# Copy full application source
-COPY app/ ./
-
-# Generate optimized autoloader
-RUN composer dump-autoload --optimize --no-dev
-
-# Build frontend assets
 RUN npm run prod
+# Result: /build/webroot/ has compiled JS, CSS, fonts, and mix-manifest.json
 
 # =============================================================================
-# Stage 2: Production runtime
+# Stage 2: PHP dependencies
+# --platform=$BUILDPLATFORM: always runs native, no extension compilation needed.
+# --ignore-platform-reqs: skips PHP extension checks at install time (extensions
+# are present at runtime in the base image).
 # =============================================================================
-FROM php:8.3-apache-bookworm AS runtime
+FROM --platform=$BUILDPLATFORM composer:2 AS php-deps
+
+WORKDIR /app
+
+# Layer-cache composer install separately from app source
+COPY app/composer.json app/composer.lock ./
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --prefer-dist \
+    --no-scripts \
+    --ignore-platform-reqs \
+    --no-autoloader
+
+# Copy full app source, then generate optimized autoloader
+COPY app/ ./
+RUN composer dump-autoload --optimize --no-dev --ignore-platform-reqs \
+    || composer dump-autoload --no-dev --ignore-platform-reqs
+# Result: /app/ has all PHP source + vendor/, no node_modules
+
+# =============================================================================
+# Stage 3: Production runtime
+# Uses pre-built base image — this stage only does COPY operations.
+# Under QEMU (arm64) this is ~30 seconds instead of ~60 minutes.
+# =============================================================================
+# hadolint ignore=DL3006
+FROM ${BASE_IMAGE} AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/jhandel/KMP"
 LABEL org.opencontainers.image.description="Kingdom Management Portal"
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    # PHP build dependencies
-    libfreetype6-dev \
-    libjpeg62-turbo-dev \
-    libpng-dev \
-    libwebp-dev \
-    libzip-dev \
-    libicu-dev \
-    libbz2-dev \
-    libyaml-dev \
-    libcurl4-openssl-dev \
-    libpq-dev \
-    # Runtime tools
-    curl \
-    default-mysql-client \
-    postgresql-client \
-    cron \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install PHP extensions
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
-    && docker-php-ext-install -j$(nproc) \
-        bcmath \
-        bz2 \
-        intl \
-        gd \
-        mysqli \
-        pdo_mysql \
-        pdo_pgsql \
-        zip \
-        opcache
-
-# Install PECL extensions (no xdebug in production)
-RUN pecl install apcu yaml \
-    && docker-php-ext-enable apcu yaml
-
-# Configure PHP for production
-RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
-
-# OPcache configuration
-RUN { \
-        echo 'opcache.enable=1'; \
-        echo 'opcache.memory_consumption=256'; \
-        echo 'opcache.max_accelerated_files=20000'; \
-        echo 'opcache.validate_timestamps=0'; \
-        echo 'opcache.interned_strings_buffer=16'; \
-    } > "$PHP_INI_DIR/conf.d/opcache-prod.ini"
-
-# APCu configuration
-RUN echo 'apc.enable_cli=1' > "$PHP_INI_DIR/conf.d/apcu.ini"
-
-# Upload and memory limits
-RUN { \
-        echo 'upload_max_filesize = 5M'; \
-        echo 'post_max_size = 20M'; \
-    } > "$PHP_INI_DIR/conf.d/uploads.ini" \
-    && echo 'memory_limit = 256M' > "$PHP_INI_DIR/conf.d/memory.ini"
-
-# Security hardening
-RUN echo 'expose_php = Off' > "$PHP_INI_DIR/conf.d/security.ini"
-
-# Enable Apache modules
-RUN a2enmod rewrite headers
-
-# Configure Apache
-RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
-
-# Production Apache vhost with DocumentRoot pointing to CakePHP webroot
-RUN { \
-        echo '<VirtualHost *:80>'; \
-        echo '    ServerAdmin webmaster@localhost'; \
-        echo '    DocumentRoot /var/www/html/webroot'; \
-        echo ''; \
-        echo '    <Directory /var/www/html/webroot>'; \
-        echo '        Options FollowSymLinks'; \
-        echo '        AllowOverride All'; \
-        echo '        DirectoryIndex index.php'; \
-        echo '        Require all granted'; \
-        echo '    </Directory>'; \
-        echo ''; \
-        echo '    ErrorLog ${APACHE_LOG_DIR}/error.log'; \
-        echo '    CustomLog ${APACHE_LOG_DIR}/access.log combined'; \
-        echo '</VirtualHost>'; \
-    } > /etc/apache2/sites-available/000-default.conf
-
 WORKDIR /var/www/html
 
-# Copy application code from builder
-COPY --from=builder /build/ /var/www/html/
+# Copy PHP application (source + vendor/, no node_modules)
+COPY --from=php-deps /app/ ./
 
-# Copy Docker-specific config
+# Overwrite webroot with compiled frontend assets (JS, CSS, fonts, manifest)
+COPY --from=node-builder /build/webroot/ ./webroot/
+
+# Runtime config and volume setup
 RUN mkdir -p /opt/docker
 COPY docker/app_local.php /opt/docker/app_local.php
 
-# Create volume mount points for runtime data
 RUN mkdir -p \
     /var/www/html/logs \
     /var/www/html/tmp \
@@ -171,7 +92,6 @@ RUN mkdir -p \
 
 VOLUME ["/var/www/html/logs", "/var/www/html/tmp", "/var/www/html/images/uploaded", "/var/www/html/images/cache"]
 
-# Set ownership for www-data
 RUN chown -R www-data:www-data /var/www/html
 
 EXPOSE 80
@@ -179,7 +99,6 @@ EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=60s \
     CMD curl -f http://localhost/health || exit 1
 
-# Production entrypoint (handles migrations, cron, graceful shutdown)
 COPY docker/entrypoint.prod.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
