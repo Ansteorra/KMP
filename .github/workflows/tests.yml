@@ -124,6 +124,10 @@ jobs:
         if: matrix.database.type == 'mysql'
         run: mysql -h 127.0.0.1 -u root -proot kmp_test < dev_seed_clean.sql
 
+      - name: Create default database (Postgres)
+        if: matrix.database.type == 'postgres'
+        run: PGPASSWORD=root psql -h 127.0.0.1 -U root -d kmp_test -c "CREATE DATABASE kmp;"
+
       - name: Run migrations (Postgres)
         if: matrix.database.type == 'postgres'
         run: cd app && bin/cake migrations migrate --no-lock --connection test

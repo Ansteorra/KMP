@@ -6,8 +6,8 @@ namespace App\Command;
 
 use App\KMP\StaticHelpers;
 use Cake\Command\Command;
-use Cake\Command\ConsoleIo;
 use Cake\Console\Arguments;
+use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 
 /**
