@@ -89,7 +89,7 @@ return [
         ],
 
         /** @var string Application version loaded from version.txt */
-        "version" => file_get_contents(CONFIG . "version.txt"),
+        "version" => @file_get_contents(CONFIG . "version.txt") ?: 'unknown',
     ],
 
     /** @see docs/7.1-security-best-practices.md#encryption-and-cryptographic-salt */

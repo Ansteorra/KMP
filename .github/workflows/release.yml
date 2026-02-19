@@ -134,6 +134,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             BASE_IMAGE=${{ env.BASE_IMAGE }}
+            APP_VERSION=${{ github.event.release.tag_name }}
           cache-from: type=gha,scope=kmp-app
           cache-to: type=gha,mode=max,scope=kmp-app
 
@@ -178,7 +179,6 @@ jobs:
             -e MYSQL_PASSWORD=kmppass \
             -e MYSQL_DB_NAME=kmp_test \
             -e SECURITY_SALT=ci-test-salt-for-smoke-testing-only \
-            -e DEBUG=true \
             "$IMAGE"
 
           # Wait for health

@@ -188,7 +188,6 @@ jobs:
             -e MYSQL_PASSWORD=kmppass \
             -e MYSQL_DB_NAME=kmp_test \
             -e SECURITY_SALT=ci-nightly-smoke-test-salt \
-            -e DEBUG=true \
             "$IMAGE"
 
           for i in $(seq 1 30); do

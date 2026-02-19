@@ -3,6 +3,7 @@
 return [
     'DebugKit' => [
         'onlyDebug' => true,
+        'optional' => true,
     ],
     'Bake' => [
         'onlyCli' => true,

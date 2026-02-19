@@ -12,6 +12,7 @@
 # Base image with all PHP extensions pre-compiled.
 # Falls back to php:8.3-apache-bookworm if the base image hasn't been built yet.
 ARG BASE_IMAGE=ghcr.io/jhandel/kmp-base:php83
+ARG APP_VERSION=dev
 
 # =============================================================================
 # Stage 1: Frontend assets
@@ -69,6 +70,9 @@ RUN composer dump-autoload --optimize --no-dev --ignore-platform-reqs \
 # hadolint ignore=DL3006
 FROM ${BASE_IMAGE} AS runtime
 
+# Re-declare so the value is available in this stage
+ARG APP_VERSION=dev
+
 LABEL org.opencontainers.image.source="https://github.com/jhandel/KMP"
 LABEL org.opencontainers.image.description="Kingdom Management Portal"
 
@@ -76,6 +80,9 @@ WORKDIR /var/www/html
 
 # Copy PHP application (source + vendor/, no node_modules)
 COPY --from=php-deps /app/ ./
+
+# Stamp version from build-arg
+RUN echo "${APP_VERSION}" > config/version.txt
 
 # Overwrite webroot with compiled frontend assets (JS, CSS, fonts, manifest)
 COPY --from=node-builder /build/webroot/ ./webroot/
