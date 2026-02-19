@@ -5,56 +5,46 @@
 #
 # Published to: ghcr.io/jhandel/kmp-base:php83
 # Used by: docker/Dockerfile.prod as the production runtime base
+#
+# Uses mlocati/php-extension-installer — the industry-standard PHP extension
+# installer for Docker. It automatically manages build deps, cleans up after
+# itself, and uses pre-built packages wherever available instead of make.
+# See: https://github.com/mlocati/docker-php-extension-installer
 
 FROM php:8.3-apache-bookworm
 
 LABEL org.opencontainers.image.source="https://github.com/jhandel/KMP"
 LABEL org.opencontainers.image.description="KMP base image - PHP 8.3 + Apache + all extensions"
 
-# Install system runtime deps + dev headers needed for extension compilation
-# Dev headers (-dev packages) are removed after compilation to slim the image
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libfreetype6-dev \
-    libjpeg62-turbo-dev \
-    libpng-dev \
-    libwebp-dev \
-    libzip-dev \
-    libicu-dev \
-    libbz2-dev \
-    libyaml-dev \
-    libcurl4-openssl-dev \
-    libpq-dev \
-    # Runtime tools (kept permanently)
-    curl \
-    default-mysql-client \
-    postgresql-client \
-    cron \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
-    && docker-php-ext-install -j$(nproc) \
+# Install mlocati/php-extension-installer — handles deps, compilation, and
+# cleanup automatically. Uses pre-built packages when available.
+COPY --from=mlocati/php-extension-installer:latest /usr/bin/install-php-extensions /usr/local/bin/
+
+# Install all PHP extensions in a single layer.
+# install-php-extensions automatically:
+#   - Installs required system/dev packages
+#   - Compiles extension (or uses a pre-built package if available)
+#   - Enables the extension
+#   - Removes build-time dev packages and temp files
+RUN install-php-extensions \
         bcmath \
         bz2 \
-        intl \
         gd \
+        intl \
         mysqli \
+        opcache \
         pdo_mysql \
         pdo_pgsql \
         zip \
-        opcache \
-    && pecl install apcu yaml \
-    && docker-php-ext-enable apcu yaml \
-    # Remove dev headers - compiled .so files remain and link against runtime libs
-    && apt-get purge -y --auto-remove \
-        libfreetype6-dev \
-        libjpeg62-turbo-dev \
-        libpng-dev \
-        libwebp-dev \
-        libzip-dev \
-        libicu-dev \
-        libbz2-dev \
-        libyaml-dev \
-        libcurl4-openssl-dev \
-        libpq-dev \
-    && rm -rf /var/lib/apt/lists/* /tmp/pear
+        apcu \
+        yaml \
+    # Runtime tools (kept permanently in the image)
+    && apt-get update && apt-get install -y --no-install-recommends \
+        curl \
+        default-mysql-client \
+        postgresql-client \
+        cron \
+    && rm -rf /var/lib/apt/lists/*
 
 # PHP production configuration
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
