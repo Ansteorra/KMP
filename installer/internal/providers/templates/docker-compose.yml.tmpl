@@ -6,9 +6,11 @@ services:
     image: {{.Image}}:{{.ImageTag}}
     container_name: kmp-app
     restart: unless-stopped
+{{if eq .DatabaseType "bundled"}}
     depends_on:
       db:
         condition: service_healthy
+{{end}}
     ports:
       - "127.0.0.1:8080:80"
     volumes:
