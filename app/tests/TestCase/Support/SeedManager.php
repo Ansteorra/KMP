@@ -71,7 +71,7 @@ final class SeedManager
      * @param string $connection Connection name.
      * @return bool
      */
-    private static function isPostgres(string $connection): bool
+    public static function isPostgres(string $connection): bool
     {
         try {
             $conn = ConnectionManager::get($connection);

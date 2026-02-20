@@ -1,0 +1,84 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Node modules (rebuilt in builder stage)
+app/node_modules
+
+# Tests
+app/tests
+app/phpunit.xml.dist
+app/phpstan.neon
+app/psalm.xml
+app/phpcs.xml
+app/jest.config.js
+app/playwright.config.js
+app/.phpunit.cache
+
+# Dev containers
+.devcontainer
+
+# Documentation
+docs
+app/docs
+*.md
+!app/README.md
+
+# IDE and editor files
+.vscode
+.idea
+*.code-workspace
+.editorconfig
+app/.editorconfig
+
+# Docker dev files
+docker/Dockerfile.app
+docker/entrypoint.sh
+docker/.env.example
+
+# Dev scripts
+dev-up.sh
+dev-down.sh
+dev-reset-db.sh
+dev-seed-db.sh
+dev_seed_clean.sql
+reset_dev_database.sh
+create_erd.sh
+create_todo_list.sh
+fix_permissions.sh
+generate_api_docs.sh
+hookup_ollama.sh
+load_test.sh
+make_amp_seed_db.sh
+merge_from_upstream.sh
+security-checker.sh
+serve_docs.sh
+set_display.sh
+
+# Cron scripts (copied separately if needed)
+cronScripts
+
+# Migration scripts
+Migration Script
+
+# Specs
+specs
+
+# Test results
+test-results
+test-waiver.png
+
+# Misc
+*.log
+.env
+.env.*
+!docker/.env.example
+app/config/.env
+app/config/.env.*
+
+# PHPDoc config
+app/phpdoc.dist.xml
+app/jsdoc.config.json
+app/babel.config.json
+app/.babelrc

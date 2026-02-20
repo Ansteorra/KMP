@@ -28,17 +28,15 @@ class AddHamletFieldsToBranches extends AbstractMigration
                 'default' => null,
                 'limit' => 11,
                 'null' => true,
-                'signed' => true,
                 'after' => 'can_have_officers',
                 'comment' => 'Point of contact member for hamlet-mode branches',
             ]);
         } else {
-            // Ensure correct signedness if column was created in a prior partial run
+            // Ensure correct type if column was created in a prior partial run
             $table->changeColumn('contact_id', 'integer', [
                 'default' => null,
                 'limit' => 11,
                 'null' => true,
-                'signed' => true,
                 'comment' => 'Point of contact member for hamlet-mode branches',
             ]);
         }

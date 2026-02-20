@@ -9,6 +9,12 @@ class Init extends BaseMigration
 {
     public bool $autoId = false;
 
+    /**
+     * Disable transaction wrapping so that embedded seed failures on
+     * Postgres do not roll back the DDL statements.
+     */
+    public bool $useTransactions = false;
+
 
     /**
      * Create the initial database schema (tables, indices, and foreign keys) and execute the migration seed.
@@ -45,7 +51,6 @@ class Init extends BaseMigration
                 "default" => null,
                 "limit" => 11,
                 "null" => true,
-                "signed" => true,
             ])
             ->addColumn("links", "text", [
                 "default" => null,
@@ -61,13 +66,11 @@ class Init extends BaseMigration
                 "default" => null,
                 "limit" => 11,
                 "null" => true,
-                "signed" => true,
             ])
             ->addColumn("rght", "integer", [
                 "default" => null,
                 "limit" => 11,
                 "null" => true,
-                "signed" => true,
             ])
             ->addColumn("modified", "datetime", [
                 "default" => null,
@@ -238,8 +241,8 @@ class Init extends BaseMigration
                 "limit" => 11,
                 "null" => false,
             ])
-            ->addColumn("created", "timestamp", [
-                "default" => "CURRENT_TIMESTAMP",
+            ->addColumn("created", "datetime", [
+                "default" => null,
                 "limit" => null,
                 "null" => false,
             ])
@@ -304,8 +307,8 @@ class Init extends BaseMigration
                 "limit" => 11,
                 "null" => false,
             ])
-            ->addColumn("created", "timestamp", [
-                "default" => "CURRENT_TIMESTAMP",
+            ->addColumn("created", "datetime", [
+                "default" => null,
                 "limit" => null,
                 "null" => false,
             ])
@@ -552,7 +555,7 @@ class Init extends BaseMigration
                 "null" => true,
             ])
             ->addColumn("start_on", "datetime", [
-                "default" => "CURRENT_TIMESTAMP",
+                "default" => null,
                 "limit" => null,
                 "null" => false,
             ])

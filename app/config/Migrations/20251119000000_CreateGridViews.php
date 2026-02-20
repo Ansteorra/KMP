@@ -100,11 +100,11 @@ class CreateGridViews extends AbstractMigration
             ])
             ->addColumn('created', 'datetime', [
                 'null' => false,
-                'default' => 'CURRENT_TIMESTAMP',
+                'default' => null,
             ])
             ->addColumn('modified', 'datetime', [
                 'null' => false,
-                'default' => 'CURRENT_TIMESTAMP',
+                'default' => null,
             ])
             ->addColumn('created_by', 'integer', [
                 'null' => true,

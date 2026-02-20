@@ -11,6 +11,9 @@ require_once __DIR__ . '/../Seeds/InitActivitiesSeed.php';
 class InitActivities extends BaseMigration
 {
     public bool $autoId = false;
+
+    /** Disable transaction wrapping so embedded seed failures don't roll back DDL on Postgres. */
+    public bool $useTransactions = false;
     /**
      * Change Method.
      *
@@ -178,8 +181,8 @@ class InitActivities extends BaseMigration
                 "limit" => null,
                 "null" => true,
             ])
-            ->addColumn("created", "timestamp", [
-                "default" => "CURRENT_TIMESTAMP",
+            ->addColumn("created", "datetime", [
+                "default" => null,
                 "limit" => null,
                 "null" => false,
             ])

@@ -48,11 +48,11 @@ class CreateServicePrincipals extends AbstractMigration
                 'null' => true,
             ])
             ->addColumn('created', 'datetime', [
-                'default' => 'CURRENT_TIMESTAMP',
+                'default' => null,
                 'null' => false,
             ])
             ->addColumn('modified', 'datetime', [
-                'default' => 'CURRENT_TIMESTAMP',
+                'default' => null,
                 'null' => false,
             ])
             ->addIndex(['client_id'], [
@@ -115,11 +115,11 @@ class CreateServicePrincipals extends AbstractMigration
                 'null' => true,
             ])
             ->addColumn('created', 'datetime', [
-                'default' => 'CURRENT_TIMESTAMP',
+                'default' => null,
                 'null' => false,
             ])
             ->addColumn('modified', 'datetime', [
-                'default' => 'CURRENT_TIMESTAMP',
+                'default' => null,
                 'null' => false,
             ])
             ->addForeignKey('service_principal_id', 'service_principals', 'id', [
@@ -178,7 +178,7 @@ class CreateServicePrincipals extends AbstractMigration
                 'null' => true,
             ])
             ->addColumn('created', 'datetime', [
-                'default' => 'CURRENT_TIMESTAMP',
+                'default' => null,
                 'null' => false,
             ])
             ->addForeignKey('service_principal_id', 'service_principals', 'id', [
@@ -231,7 +231,7 @@ class CreateServicePrincipals extends AbstractMigration
                 'null' => true,
             ])
             ->addColumn('created', 'datetime', [
-                'default' => 'CURRENT_TIMESTAMP',
+                'default' => null,
                 'null' => false,
             ])
             ->addForeignKey('service_principal_id', 'service_principals', 'id', [

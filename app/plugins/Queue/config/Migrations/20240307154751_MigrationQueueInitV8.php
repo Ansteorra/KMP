@@ -69,12 +69,10 @@ class MigrationQueueInitV8 extends BaseMigration
 			->addColumn('progress', 'float', [
 				'default' => null,
 				'null' => true,
-				'signed' => false,
 			])
 			->addColumn('attempts', 'tinyinteger', [
 				'default' => '0',
 				'null' => true,
-				'signed' => false,
 			])
 			->addColumn('failure_message', 'text', [
 				'default' => null,
@@ -93,7 +91,6 @@ class MigrationQueueInitV8 extends BaseMigration
 			->addColumn('priority', 'integer', [
 				'default' => '5',
 				'null' => false,
-				'signed' => false,
 			])
 			->addIndex(
 				[

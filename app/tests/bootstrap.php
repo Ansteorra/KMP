@@ -92,6 +92,14 @@ SeedManager::bootstrap('test');
 // Apply migrations after seeding so test schema includes recent columns.
 (new Migrations())->migrate(['connection' => 'test']);
 
+// On Postgres (no MySQL seed dump), we also need to run plugin migrations
+// to create all plugin tables from scratch.
+if (SeedManager::isPostgres('test')) {
+    foreach (['Queue', 'Officers', 'Activities', 'Awards', 'Waivers'] as $plugin) {
+        (new Migrations())->migrate(['connection' => 'test', 'plugin' => $plugin]);
+    }
+}
+
 // Clear cached table metadata so CakePHP sees columns added by migrations.
 // Without this, Table objects may use stale schema from before migrate() ran.
 $testConn = ConnectionManager::get('test');
@@ -100,28 +108,32 @@ $testConn = ConnectionManager::get('test');
 
 // Fix stale seed data dates: extend expired test member roles to far-future dates
 // so time-sensitive tests remain stable across environments.
-$conn = ConnectionManager::get('test');
-$farFuture = '2100-01-01 00:00:00';
+// These fixup queries reference IDs from the MySQL seed dump (dev_seed_clean.sql)
+// which is not loaded for Postgres — skip them on Postgres.
+if (!SeedManager::isPostgres('test')) {
+    $conn = ConnectionManager::get('test');
+    $farFuture = '2100-01-01 00:00:00';
 
-// Extend membership expiration for all synthetic test members so permission queries work
-$conn->execute(
-    "UPDATE members SET membership_expires_on = ? WHERE id IN (2871, 2872, 2874, 2875) AND membership_expires_on < NOW()",
-    [$farFuture]
-);
-
-// Devon (2874) needs active Regional Officer Management role at Central Region (branch 12)
-// for multi-region permission tests. Role 363 was revoked, so create a replacement if needed.
-$existingActive = $conn->execute(
-    "SELECT COUNT(*) as cnt FROM member_roles WHERE member_id = 2874 AND role_id = 1118 AND branch_id = 12 AND revoker_id IS NULL AND expires_on > NOW()"
-)->fetch('assoc');
-if ($existingActive && (int)$existingActive['cnt'] === 0) {
+    // Extend membership expiration for all synthetic test members so permission queries work
     $conn->execute(
-        "INSERT INTO member_roles (member_id, role_id, branch_id, start_on, expires_on, approver_id, entity_type, created, modified, created_by, modified_by) VALUES (2874, 1118, 12, NOW(), ?, 1, 'Officers.Officers', NOW(), NOW(), 1, 1)",
+        "UPDATE members SET membership_expires_on = ? WHERE id IN (2871, 2872, 2874, 2875) AND membership_expires_on < NOW()",
+        [$farFuture]
+    );
+
+    // Devon (2874) needs active Regional Officer Management role at Central Region (branch 12)
+    // for multi-region permission tests. Role 363 was revoked, so create a replacement if needed.
+    $existingActive = $conn->execute(
+        "SELECT COUNT(*) as cnt FROM member_roles WHERE member_id = 2874 AND role_id = 1118 AND branch_id = 12 AND revoker_id IS NULL AND expires_on > NOW()"
+    )->fetch('assoc');
+    if ($existingActive && (int)$existingActive['cnt'] === 0) {
+        $conn->execute(
+            "INSERT INTO member_roles (member_id, role_id, branch_id, start_on, expires_on, approver_id, entity_type, created, modified, created_by, modified_by) VALUES (2874, 1118, 12, NOW(), ?, 1, 'Officers.Officers', NOW(), NOW(), 1, 1)",
+            [$farFuture]
+        );
+    }
+    // Devon (2874) roles at local branches (370, 371) - extend if expired
+    $conn->execute(
+        "UPDATE member_roles SET expires_on = ? WHERE id IN (370, 371) AND expires_on < NOW()",
         [$farFuture]
     );
 }
-// Devon (2874) roles at local branches (370, 371) - extend if expired
-$conn->execute(
-    "UPDATE member_roles SET expires_on = ? WHERE id IN (370, 371) AND expires_on < NOW()",
-    [$farFuture]
-);

@@ -50,7 +50,6 @@ class CreateGatheringWaiverActivities extends BaseMigration
             'default' => null,
             'limit' => 11,
             'null' => false,
-            'signed' => true,
             'comment' => 'FK to gathering_waivers.id - the waiver document'
         ]);
 
@@ -59,7 +58,6 @@ class CreateGatheringWaiverActivities extends BaseMigration
             'default' => null,
             'limit' => 11,
             'null' => false,
-            'signed' => true,
             'comment' => 'FK to gathering_activities.id - the activity covered'
         ]);
 

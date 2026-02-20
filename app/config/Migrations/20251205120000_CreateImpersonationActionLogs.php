@@ -47,7 +47,7 @@ class CreateImpersonationActionLogs extends AbstractMigration
                 'null' => true,
             ])
             ->addColumn('created', 'datetime', [
-                'default' => 'CURRENT_TIMESTAMP',
+                'default' => null,
                 'null' => false,
             ])
             ->addForeignKey('impersonator_id', 'members', 'id', [

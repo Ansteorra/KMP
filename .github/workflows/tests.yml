@@ -8,8 +8,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    # Postgres may fail initially while we fix MySQL-specific SQL — don't block PRs
-    continue-on-error: ${{ matrix.database.type == 'postgres' }}
     permissions:
       contents: read
       checks: write
@@ -127,19 +125,6 @@ jobs:
       - name: Create default database (Postgres)
         if: matrix.database.type == 'postgres'
         run: PGPASSWORD=root psql -h 127.0.0.1 -U root -d kmp_test -c "CREATE DATABASE kmp;"
-
-      - name: Run migrations (Postgres)
-        if: matrix.database.type == 'postgres'
-        # Tables are created even if the embedded seeder fails (Phinx Postgres adapter compat issue)
-        run: cd app && bin/cake migrations migrate --no-lock --connection test || true
-
-      - name: Run plugin migrations (Postgres)
-        if: matrix.database.type == 'postgres'
-        run: |
-          cd app
-          for plugin in Queue Officers Activities Awards Waivers; do
-            bin/cake migrations migrate --no-lock --connection test --plugin "$plugin" || true
-          done
 
       - name: Run PHPUnit tests
         run: cd app && vendor/bin/phpunit --testsuite all --no-coverage --log-junit ../test-results/junit.xml

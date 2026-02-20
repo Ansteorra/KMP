@@ -11,6 +11,8 @@ require_once __DIR__ . '/../Seeds/InitOfficersSeed.php';
 class InitOffices extends BaseMigration
 {
     public bool $autoId = false;
+    /** Disable transaction wrapping so embedded seed failures don't roll back DDL on Postgres. */
+    public bool $useTransactions = false;
 
     public function up(): void
     {

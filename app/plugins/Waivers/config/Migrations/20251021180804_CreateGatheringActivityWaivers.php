@@ -28,7 +28,6 @@ class CreateGatheringActivityWaivers extends BaseMigration
             'default' => null,
             'limit' => 11,
             'null' => false,
-            'signed' => true,
             'comment' => 'Gathering activity this waiver requirement applies to'
         ]);
         $table->addColumn('waiver_type_id', 'integer', [

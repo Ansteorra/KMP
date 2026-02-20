@@ -19,7 +19,7 @@ class CreateImpersonationSessionLogs extends AbstractMigration
             ->addColumn('request_url', 'string', ['limit' => 512, 'null' => true])
             ->addColumn('ip_address', 'string', ['limit' => 45, 'null' => true])
             ->addColumn('user_agent', 'string', ['limit' => 512, 'null' => true])
-            ->addColumn('created', 'datetime', ['default' => 'CURRENT_TIMESTAMP', 'null' => false])
+            ->addColumn('created', 'datetime', ['default' => null, 'null' => false])
             ->addForeignKey('impersonator_id', 'members', 'id', [
                 'delete' => 'CASCADE',
                 'update' => 'NO_ACTION',
