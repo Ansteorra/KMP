@@ -74,6 +74,8 @@ test-waiver.png
 .env
 .env.*
 !docker/.env.example
+app/config/.env
+app/config/.env.*
 
 # PHPDoc config
 app/phpdoc.dist.xml

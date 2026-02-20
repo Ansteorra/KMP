@@ -1,11 +1,9 @@
 <?php
 
-use Composer\IO\ConsoleIO;
 use Migrations\BaseMigration;
 use Migrations\Migration\ManagerFactory;
 
 require_once __DIR__ . '/../Seeds/InitMigrationSeed.php';
-
 
 class Init extends BaseMigration
 {
@@ -27,6 +25,11 @@ class Init extends BaseMigration
                 "default" => null,
                 "limit" => 11,
                 "null" => false,
+            ])
+            ->addColumn("public_id", "string", [
+                "default" => null,
+                "limit" => 8,
+                "null" => true,
             ])
             ->addColumn("name", "string", [
                 "default" => null,
@@ -342,6 +345,11 @@ class Init extends BaseMigration
                 "default" => null,
                 "limit" => 11,
                 "null" => false,
+            ])
+            ->addColumn("public_id", "string", [
+                "default" => null,
+                "limit" => 8,
+                "null" => true,
             ])
             ->addColumn("password", "string", [
                 "default" => null,

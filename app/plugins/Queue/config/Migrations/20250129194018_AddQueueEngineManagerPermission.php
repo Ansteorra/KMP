@@ -16,8 +16,8 @@ class AddQueueEngineManagerPermission extends BaseMigration
     public function up(): void
     {
         $this->execute(
-            "INSERT INTO permissions (name, require_active_membership, require_active_background_check, require_min_age, is_system, is_super_user, requires_warrant) " .
-            "VALUES ('Can Manage Queue Engine', 0, 0, 0, 1, 0, 0)"
+            "INSERT INTO permissions (name, require_active_membership, require_active_background_check, require_min_age, is_system, is_super_user, requires_warrant, created) " .
+            "VALUES ('Can Manage Queue Engine', 0, 0, 0, 1, 0, 0, NOW())"
         );
     }
 
