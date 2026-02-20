@@ -34,11 +34,23 @@ return [
         ],
     ],
     'Datasources' => [
-        'default' => [
-            'url' => env('DATABASE_URL'),
-            // PgBouncer/Neon pooler requires emulated prepares (server-side PREPARE aborts transactions)
-            'flags' => (strpos(env('DATABASE_URL', ''), 'postgres') !== false) ? [\PDO::ATTR_EMULATE_PREPARES => true] : [],
-        ],
+        'default' => (function() {
+            $url = env('DATABASE_URL', '');
+            $config = ['url' => env('DATABASE_URL')];
+
+            if (strpos($url, 'postgres') !== false) {
+                // PgBouncer/Neon pooler requires emulated prepares
+                $config['flags'] = [\PDO::ATTR_EMULATE_PREPARES => true];
+            }
+
+            // Enable SSL for external MySQL (cloud providers require secure transport)
+            // Skip for bundled DB (hostname "db" inside Docker network)
+            if (strpos($url, 'mysql') !== false && strpos($url, '@db:') === false) {
+                $config['ssl_ca'] = '/etc/ssl/certs/ca-certificates.crt';
+            }
+
+            return $config;
+        })(),
         'test' => [
             'url' => env('DATABASE_TEST_URL', env('DATABASE_URL') . '_test'),
         ],
