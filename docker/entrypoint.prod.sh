@@ -34,38 +34,12 @@ return [
         ],
     ],
     'Datasources' => [
-        'default' => (function() {
-            $url = env('DATABASE_URL', '');
-            $config = ['url' => env('DATABASE_URL')];
-
-            if (strpos($url, 'postgres') !== false) {
-                // PgBouncer/Neon pooler requires emulated prepares
-                $config['flags'] = [\PDO::ATTR_EMULATE_PREPARES => true];
-            }
-
-            // Auto-detect SSL requirement for MySQL: try plain, upgrade if server demands it
-            if (strpos($url, 'mysql') !== false) {
-                $parsed = parse_url($url);
-                $host = $parsed['host'] ?? 'localhost';
-                $port = $parsed['port'] ?? 3306;
-                try {
-                    $testDsn = "mysql:host={$host};port={$port}";
-                    $user = $parsed['user'] ?? '';
-                    $pass = $parsed['pass'] ?? '';
-                    new \PDO($testDsn, $user, $pass, [\PDO::ATTR_TIMEOUT => 5]);
-                } catch (\PDOException $e) {
-                    // Error 3159 = secure transport required
-                    if (strpos($e->getMessage(), '3159') !== false || strpos($e->getMessage(), 'insecure transport') !== false) {
-                        $caPath = '/etc/ssl/certs/ca-certificates.crt';
-                        if (file_exists($caPath)) {
-                            $config['ssl_ca'] = $caPath;
-                        }
-                    }
-                }
-            }
-
-            return $config;
-        })(),
+        'default' => [
+            'url' => env('DATABASE_URL'),
+            // Flags and SSL are configured at container startup by entrypoint.prod.sh
+            'flags' => (strpos(env('DATABASE_URL', ''), 'postgres') !== false) ? [\PDO::ATTR_EMULATE_PREPARES => true] : [],
+            //__MYSQL_SSL_PLACEHOLDER__
+        ],
         'test' => [
             'url' => env('DATABASE_TEST_URL', env('DATABASE_URL') . '_test'),
         ],
@@ -139,6 +113,30 @@ elif [ -z "$MYSQL_HOST" ]; then
     fi
 fi
 echo "Detected database type: $DB_TYPE"
+
+# ---------------------------------------------------------------------------
+# 2b. Auto-detect MySQL SSL requirement (probe once, bake into app_local.php)
+# ---------------------------------------------------------------------------
+if [ "$DB_TYPE" = "mysql" ] && [ -n "$DATABASE_URL" ]; then
+    db_host=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^@]*@([^:/]+).*|\1|')
+    db_port=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^@]*@[^:]+:([0-9]+)/.*|\1|')
+    db_user=$(echo "$DATABASE_URL" | sed -E 's|mysql://([^:]+):.*|\1|')
+    db_pass=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^:]+:([^@]+)@.*|\1|')
+    [ -z "$db_port" ] && db_port=3306
+
+    # Try plain connection; if error 3159 (secure transport required), enable SSL
+    ssl_err=$(mysql -h"$db_host" -P"$db_port" -u"$db_user" -p"$db_pass" -e "SELECT 1" 2>&1) || true
+    if echo "$ssl_err" | grep -q "3159\|insecure transport"; then
+        echo "MySQL requires SSL — enabling ssl_ca in app_local.php"
+        sed -i "s|//__MYSQL_SSL_PLACEHOLDER__|'ssl_ca' => '/etc/ssl/certs/ca-certificates.crt',|" /var/www/html/config/app_local.php
+    else
+        # Remove the placeholder comment
+        sed -i '/__MYSQL_SSL_PLACEHOLDER__/d' /var/www/html/config/app_local.php
+    fi
+else
+    # Not MySQL — remove the placeholder
+    sed -i '/__MYSQL_SSL_PLACEHOLDER__/d' /var/www/html/config/app_local.php
+fi
 
 # ---------------------------------------------------------------------------
 # 3. Wait for database readiness
