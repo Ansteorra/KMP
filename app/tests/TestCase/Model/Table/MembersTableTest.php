@@ -84,8 +84,13 @@ class MembersTableTest extends BaseTestCase
 
     public function testUniqueEmailRulePreventsDuplicate(): void
     {
-        // Use existing seed email (admin@amp.ansteorra.org) to trigger uniqueness rule
-        $entity = $this->Members->newEntity($this->validMemberData(['email_address' => 'admin@amp.ansteorra.org']));
+        // Find an existing member email to test uniqueness rule
+        $existing = $this->Members->find()->first();
+        $this->assertNotNull($existing, 'Need at least one member in DB');
+        $entity = $this->Members->newEntity($this->validMemberData([
+            'email_address' => $existing->email_address,
+            'branch_id' => $existing->branch_id,
+        ]));
         $saved = $this->Members->save($entity);
         $this->assertFalse($saved, 'Duplicate email save should fail');
         $this->assertArrayHasKey('email_address', $entity->getErrors(), 'Error should be on email_address');

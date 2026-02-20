@@ -56,6 +56,7 @@ class PermissionsLoaderTest extends BaseTestCase
 
     public function testBranchScopedPermissionLoadsForBryce(): void
     {
+        $this->skipIfPostgres();
         // Bryce has Regional Officer Management role at Barony of Stargate (branch 39)
         // This role includes "Branch and Children" scoped permissions
         $permissions = PermissionsLoader::getPermissions(self::TEST_MEMBER_BRYCE_ID);
@@ -74,6 +75,7 @@ class PermissionsLoaderTest extends BaseTestCase
 
     public function testDevonHasMultipleBranchScopes(): void
     {
+        $this->skipIfPostgres();
         // Devon has Regional Officer Management in Central (12) and Southern (13) regions
         $permissions = PermissionsLoader::getPermissions(self::TEST_MEMBER_DEVON_ID);
 

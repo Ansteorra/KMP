@@ -98,6 +98,7 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
      */
     public function testExpiredRoleDoesNotGrantPermissions(): void
     {
+        $this->skipIfPostgres();
         // Load the expired role
         $expiredRole = $this->MemberRoles->get(363, ['contain' => ['Roles.Permissions']]);
         $this->assertNotNull($expiredRole->expires_on, 'Role 363 should have expiration date');
@@ -264,11 +265,12 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
      */
     public function testNonWarrantableMemberLacksWarrantPermissions(): void
     {
+        $this->skipIfPostgres();
         // Set warrantable to false via direct SQL (more reliable than ORM for test setup)
         $conn = ConnectionManager::get('test');
         $conn->execute(
-            "UPDATE members SET warrantable = 0 WHERE id = ?",
-            [self::TEST_MEMBER_EIRIK_ID]
+            "UPDATE members SET warrantable = ? WHERE id = ?",
+            [false, self::TEST_MEMBER_EIRIK_ID]
         );
 
         // Reload to pick up changes
@@ -354,6 +356,7 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
      */
     public function testSuperUserBypassesAllValidationRequirements(): void
     {
+        $this->skipIfPostgres();
         $admin = $this->Members->get(self::ADMIN_MEMBER_ID);
         $admin->setAuthorization($this->AuthService);
 

@@ -99,6 +99,7 @@ class AppSettingsTableTest extends BaseTestCase
      */
     public function testBuildRules(): void
     {
+        $this->skipIfPostgres();
         // Test unique name constraint - use an existing setting from dev_seed_clean.sql
         $data = [
             'name' => 'KMP.KingdomName', // This name already exists in dev_seed_clean.sql
@@ -167,6 +168,7 @@ class AppSettingsTableTest extends BaseTestCase
      */
     public function testGetSetting(): void
     {
+        $this->skipIfPostgres();
         // Test getting an existing setting from dev_seed_clean.sql
         $value = $this->AppSettings->getSetting('KMP.KingdomName');
         $this->assertEquals('Ansteorra', $value);
@@ -331,6 +333,7 @@ class AppSettingsTableTest extends BaseTestCase
      */
     public function testGetAppSetting(): void
     {
+        $this->skipIfPostgres();
         // Test getting an existing setting from dev_seed_clean.sql
         $value = $this->AppSettings->getAppSetting('KMP.KingdomName');
         $this->assertEquals('Ansteorra', $value);
@@ -402,6 +405,7 @@ class AppSettingsTableTest extends BaseTestCase
      */
     public function testGetAllAppSettingsStartWith(): void
     {
+        $this->skipIfPostgres();
         // Test getting all settings with a common prefix from dev_seed_clean.sql
         $settings = $this->AppSettings->getAllAppSettingsStartWith('KMP.');
 

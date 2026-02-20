@@ -10,7 +10,10 @@ require_once __DIR__ . '/../Seeds/InitOfficersRefactorSeed.php';
 class RefactorOfficeHierarchy extends BaseMigration
 {
     /** Disable transaction wrapping so embedded seed failures don't roll back DDL on Postgres. */
-    public bool $useTransactions = false;
+    public function useTransactions(): bool
+    {
+        return false;
+    }
 
     /**
      * Change Method.

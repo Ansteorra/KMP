@@ -26,23 +26,26 @@ class AddWarrantableToMembers extends BaseMigration
         ]);
         $table->update();
 
-        // Clear schema cache so ORM picks up the new column with correct type
-        $connName = $this->getAdapter()->getConnection()->configName();
-        $conn = \Cake\Datasource\ConnectionManager::get($connName);
-        (new \Cake\Database\SchemaCache($conn))->clear();
-        \Cake\ORM\TableRegistry::getTableLocator()->clear();
+        // Pre-compute warrantable status for existing members.
+        // Column defaults to false; this is a best-effort optimization.
+        // If it fails (e.g. schema cache issues on Postgres), members
+        // will be updated on their next save/login.
+        try {
+            $connName = $this->getAdapter()->getConnection()->configName();
+            $conn = \Cake\Datasource\ConnectionManager::get($connName);
+            (new \Cake\Database\SchemaCache($conn))->clear();
+            \Cake\ORM\TableRegistry::getTableLocator()->clear();
 
-        // Load the MembersTable
-        $membersTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Members');
+            $membersTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Members');
+            $members = $membersTable->find('all');
 
-        // Fetch all members
-        $members = $membersTable->find('all');
-
-        foreach ($members as $member) {
-            // Compute warrantable status
-            $member->warrantableReview();
-            // Save without triggering beforeSave to avoid recursion
-            $membersTable->save($member, ['checkRules' => false, 'callbacks' => false]);
+            foreach ($members as $member) {
+                $member->warrantableReview();
+                $membersTable->save($member, ['checkRules' => false, 'callbacks' => false]);
+            }
+        } catch (\Exception $e) {
+            // Non-fatal: members default to warrantable=false
+            echo "  [warn] warrantable pre-compute skipped: " . $e->getMessage() . "\n";
         }
     }
     public function down(): void

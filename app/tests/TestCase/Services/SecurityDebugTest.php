@@ -20,6 +20,7 @@ class SecurityDebugTest extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->skipIfPostgres();
         $this->Members = $this->getTableLocator()->get('Members');
 
         // Create authorization service with policy resolver

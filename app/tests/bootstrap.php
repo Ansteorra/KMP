@@ -93,10 +93,31 @@ SeedManager::bootstrap('test');
 (new Migrations())->migrate(['connection' => 'test']);
 
 // On Postgres (no MySQL seed dump), we also need to run plugin migrations
-// to create all plugin tables from scratch.
+// to create all plugin tables from scratch, and seed essential AppSettings.
 if (SeedManager::isPostgres('test')) {
     foreach (['Queue', 'Officers', 'Activities', 'Awards', 'Waivers'] as $plugin) {
         (new Migrations())->migrate(['connection' => 'test', 'plugin' => $plugin]);
+    }
+
+    // Seed essential AppSettings that tests expect
+    $conn = ConnectionManager::get('test');
+    $now = date('Y-m-d H:i:s');
+    $settings = [
+        ['KMP.KingdomName', 'Test Kingdom'],
+        ['KMP.ShortSiteTitle', 'KMP Test'],
+        ['KMP.LongSiteTitle', 'KMP Test Environment'],
+        ['KMP.RequireActiveWarrantForSecurity', 'false'],
+        ['Warrant.LastCheck', $now],
+    ];
+    foreach ($settings as [$name, $value]) {
+        try {
+            $conn->execute(
+                "INSERT INTO app_settings (name, value, created, modified) VALUES (?, ?, ?, ?)",
+                [$name, $value, $now, $now]
+            );
+        } catch (\Exception $e) {
+            // Setting may already exist from migration seed
+        }
     }
 }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Model\Behavior;
 
 use App\Model\Behavior\JsonFieldBehavior;
+use App\Test\TestCase\Support\SeedManager;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\Table;
 use Cake\TestSuite\TestCase;
@@ -19,6 +20,9 @@ class JsonFieldBehaviorTest extends TestCase
      */
     public function testAddJsonWhereUsesJsonExtractForNonPostgres(): void
     {
+        if (SeedManager::isPostgres('test')) {
+            $this->markTestSkipped('MySQL-specific JSON_EXTRACT syntax test');
+        }
         $table = new Table(['table' => 'members']);
         $behavior = new JsonFieldBehavior($table);
         $query = $table->find()->select(['id']);

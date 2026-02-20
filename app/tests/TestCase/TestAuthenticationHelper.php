@@ -29,7 +29,10 @@ trait TestAuthenticationHelper
     protected function authenticateAsSuperUser(): void
     {
         $membersTable = TableRegistry::getTableLocator()->get('Members');
-        $member = $membersTable->findByEmailAddress('admin@amp.ansteorra.org')->firstOrFail();
+        // MySQL seed uses admin@amp.ansteorra.org; Postgres migration seed uses admin@test.com
+        $member = $membersTable->find()
+            ->where(['email_address IN' => ['admin@amp.ansteorra.org', 'admin@test.com']])
+            ->firstOrFail();
         $this->session(['Auth' => $member]);
     }
 

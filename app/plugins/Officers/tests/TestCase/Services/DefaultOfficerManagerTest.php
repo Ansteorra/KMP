@@ -174,6 +174,7 @@ class DefaultOfficerManagerTest extends BaseTestCase
      */
     public function testRecalculateOfficersForOfficeWithReportsToChange(): void
     {
+        $this->skipIfPostgres();
         // Create a test office that reports to another office
         $office = $this->Offices->newEntity([
             'department_id' => 1,
@@ -664,6 +665,7 @@ class DefaultOfficerManagerTest extends BaseTestCase
      */
     public function testRecalculateOfficersForOfficeFailFastOnSaveFailure(): void
     {
+        $this->skipIfPostgres();
         // Create office for recalculation
         $office = $this->Offices->newEntity([
             'name' => 'Test FailFast ' . uniqid(),

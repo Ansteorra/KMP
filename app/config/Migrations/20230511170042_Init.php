@@ -13,7 +13,10 @@ class Init extends BaseMigration
      * Disable transaction wrapping so that embedded seed failures on
      * Postgres do not roll back the DDL statements.
      */
-    public bool $useTransactions = false;
+    public function useTransactions(): bool
+    {
+        return false;
+    }
 
 
     /**

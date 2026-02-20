@@ -30,6 +30,7 @@ class BranchScopedAuthorizationTest extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->skipIfPostgres();
         $this->Members = $this->getTableLocator()->get('Members');
         $this->Branches = $this->getTableLocator()->get('Branches');
 

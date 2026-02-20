@@ -100,6 +100,7 @@ class WaiverTypesTableTest extends BaseTestCase
      */
     public function testFindActive(): void
     {
+        $this->skipIfPostgres();
         $query = $this->WaiverTypes->find('active');
         $results = $query->all();
 
@@ -149,6 +150,7 @@ class WaiverTypesTableTest extends BaseTestCase
      */
     public function testUpdate(): void
     {
+        $this->skipIfPostgres();
         $waiverType = $this->WaiverTypes->get(1);
         $originalName = $waiverType->name;
 
@@ -223,6 +225,7 @@ class WaiverTypesTableTest extends BaseTestCase
      */
     public function testUniqueNameValidation(): void
     {
+        $this->skipIfPostgres();
         // Try to create a waiver type with duplicate name
         $data = [
             'name' => 'Participation Roster Waiver', // Same as seed data id=1

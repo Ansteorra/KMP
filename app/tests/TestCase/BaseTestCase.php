@@ -209,6 +209,19 @@ abstract class BaseTestCase extends TestCase
         $this->transactionStarted = false;
     }
 
+    /**
+     * Skip this test when running on PostgreSQL (no MySQL seed data).
+     *
+     * @param string $reason Optional reason message
+     * @return void
+     */
+    protected function skipIfPostgres(string $reason = 'Requires MySQL seed data (dev_seed_clean.sql)'): void
+    {
+        if (SeedManager::isPostgres('test')) {
+            $this->markTestSkipped($reason);
+        }
+    }
+
     // ==================================================
     // HELPER METHODS
     // ==================================================
