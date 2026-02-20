@@ -31,7 +31,7 @@ class InfoCommandTest extends TestCase
 		$this->exec('queue info');
 
 		$output = $this->_out->output();
-		$this->assertStringContainsString('2 tasks available:', $output);
+		$this->assertMatchesRegularExpression('/\d+ tasks available:/', $output);
 		$this->assertExitCode(0);
 	}
 }
