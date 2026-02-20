@@ -199,11 +199,22 @@ func newS3Inputs() []textinput.Model {
 }
 
 func newAzureInputs() []textinput.Model {
-	t := textinput.New()
-	t.Placeholder = "DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net"
-	t.Width = 72
-	t.Focus()
-	return []textinput.Model{t}
+	specs := []struct {
+		placeholder string
+		label       string
+	}{
+		{"DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net", "connection string"},
+		{"documents", "container name"},
+	}
+	inputs := make([]textinput.Model, len(specs))
+	for i, s := range specs {
+		t := textinput.New()
+		t.Placeholder = s.placeholder
+		t.Width = 60
+		inputs[i] = t
+	}
+	inputs[0].Focus()
+	return inputs
 }
 
 func newDBInputs(dbType string) []textinput.Model {
@@ -709,11 +720,14 @@ func (m *InstallModel) runInstall() tea.Cmd {
 			}
 		} else if storageChoiceIdx == 2 {
 			storageType = "azure"
-			// Azure: connection string only; container defaults to "documents"
 			if len(storageVals) > 0 {
 				storageConfig["azure_connection_string"] = storageVals[0]
 			}
-			storageConfig["azure_container"] = "documents"
+			if len(storageVals) > 1 && storageVals[1] != "" {
+				storageConfig["azure_container"] = storageVals[1]
+			} else {
+				storageConfig["azure_container"] = "documents"
+			}
 		}
 
 		if smtpEnabled {
@@ -1080,9 +1094,9 @@ func (m *InstallModel) viewStorage() string {
 			s.WriteString("  Amazon S3 Configuration\n\n")
 			labels = []string{"Bucket", "Region", "Access Key ID", "Secret Key", "Endpoint (optional)"}
 		} else {
-			// Azure — single connection string
+			// Azure — connection string + container
 			s.WriteString("  Azure Blob Storage Configuration\n\n")
-			labels = []string{"Connection String"}
+			labels = []string{"Connection String", "Container Name"}
 		}
 		for i, label := range labels {
 			if i >= len(m.storageInputs) {
