@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/jhandel/KMP/installer/internal/config"
 	"github.com/jhandel/KMP/installer/internal/providers"
 	"github.com/jhandel/KMP/installer/internal/tui/components"
 )
@@ -136,18 +138,109 @@ func NewInstallModel() *InstallModel {
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#7D56F4"))
 
-	return &InstallModel{
+	m := &InstallModel{
 		step:         stepWelcome,
 		domainInput:  ti,
 		spinner:      s,
 		smtpInputs:   newSmtpInputs(),
-		storageInputs: newS3Inputs(), // default; re-initialised when user picks Azure
+		storageInputs: newS3Inputs(),
 		prereqs: []prereqCheck{
 			{"Docker", "checking", ""},
 			{"Docker Compose", "checking", ""},
 			{"Port 80", "checking", ""},
 			{"Port 443", "checking", ""},
 		},
+	}
+	m.loadDefaults()
+	return m
+}
+
+// loadDefaults pre-fills the model from a previously saved deployment config.
+func (m *InstallModel) loadDefaults() {
+	cfg, err := config.Load()
+	if err != nil || len(cfg.Deployments) == 0 {
+		return
+	}
+	dep, ok := cfg.Deployments["default"]
+	if !ok {
+		return
+	}
+
+	// Seed cursors so each step opens with the previous selection highlighted
+	m.cursor = 0
+
+	// Provider
+	for i, p := range providerChoices {
+		if p.id == dep.Provider {
+			m.provider = i
+			break
+		}
+	}
+
+	// Channel
+	for i, c := range channelValues {
+		if c == dep.Channel {
+			m.channel = i
+			break
+		}
+	}
+
+	// Domain
+	if dep.Domain != "" {
+		m.domain = dep.Domain
+		m.domainInput.SetValue(dep.Domain)
+	}
+
+	// Database type + pre-fill connection form
+	switch {
+	case dep.DatabaseDSN == "":
+		m.database = 0 // bundled
+	case strings.HasPrefix(dep.DatabaseDSN, "postgres"):
+		m.database = 2
+	default:
+		m.database = 1 // mysql
+	}
+	if m.database > 0 && dep.DatabaseDSN != "" {
+		m.dbInputs = newDBInputs(dbValues[m.database])
+		if u, err := url.Parse(dep.DatabaseDSN); err == nil {
+			m.dbInputs[0].SetValue(u.Hostname())
+			m.dbInputs[1].SetValue(u.Port())
+			m.dbInputs[2].SetValue(strings.TrimPrefix(u.Path, "/"))
+			m.dbInputs[3].SetValue(u.User.Username())
+			if pw, ok := u.User.Password(); ok {
+				m.dbInputs[4].SetValue(pw)
+			}
+		}
+	}
+
+	// Email / SMTP
+	if smtpHost := dep.StorageConfig["smtp_host"]; smtpHost != "" {
+		m.emailChoice = 1
+		m.smtpInputs = newSmtpInputs()
+		m.smtpInputs[0].SetValue(smtpHost)
+		m.smtpInputs[1].SetValue(dep.StorageConfig["smtp_port"])
+		m.smtpInputs[2].SetValue(dep.StorageConfig["email_from"])
+		m.smtpInputs[3].SetValue(dep.StorageConfig["smtp_user"])
+		m.smtpInputs[4].SetValue(dep.StorageConfig["smtp_pass"])
+	}
+
+	// Storage
+	switch dep.StorageType {
+	case "s3":
+		m.storageChoice = 1
+		m.storageInputs = newS3Inputs()
+		m.storageInputs[0].SetValue(dep.StorageConfig["s3_bucket"])
+		m.storageInputs[1].SetValue(dep.StorageConfig["s3_region"])
+		m.storageInputs[2].SetValue(dep.StorageConfig["s3_key"])
+		m.storageInputs[3].SetValue(dep.StorageConfig["s3_secret"])
+		m.storageInputs[4].SetValue(dep.StorageConfig["s3_endpoint"])
+	case "azure":
+		m.storageChoice = 2
+		m.storageInputs = newAzureInputs()
+		m.storageInputs[0].SetValue(dep.StorageConfig["azure_connection_string"])
+		if len(m.storageInputs) > 1 {
+			m.storageInputs[1].SetValue(dep.StorageConfig["azure_container"])
+		}
 	}
 }
 
