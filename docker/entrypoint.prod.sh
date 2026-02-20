@@ -43,10 +43,25 @@ return [
                 $config['flags'] = [\PDO::ATTR_EMULATE_PREPARES => true];
             }
 
-            // Enable SSL for external MySQL (cloud providers require secure transport)
-            // Skip for bundled DB (hostname "db" inside Docker network)
-            if (strpos($url, 'mysql') !== false && strpos($url, '@db:') === false) {
-                $config['ssl_ca'] = '/etc/ssl/certs/ca-certificates.crt';
+            // Auto-detect SSL requirement for MySQL: try plain, upgrade if server demands it
+            if (strpos($url, 'mysql') !== false) {
+                $parsed = parse_url($url);
+                $host = $parsed['host'] ?? 'localhost';
+                $port = $parsed['port'] ?? 3306;
+                try {
+                    $testDsn = "mysql:host={$host};port={$port}";
+                    $user = $parsed['user'] ?? '';
+                    $pass = $parsed['pass'] ?? '';
+                    new \PDO($testDsn, $user, $pass, [\PDO::ATTR_TIMEOUT => 5]);
+                } catch (\PDOException $e) {
+                    // Error 3159 = secure transport required
+                    if (strpos($e->getMessage(), '3159') !== false || strpos($e->getMessage(), 'insecure transport') !== false) {
+                        $caPath = '/etc/ssl/certs/ca-certificates.crt';
+                        if (file_exists($caPath)) {
+                            $config['ssl_ca'] = $caPath;
+                        }
+                    }
+                }
             }
 
             return $config;
