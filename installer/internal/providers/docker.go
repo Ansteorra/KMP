@@ -117,11 +117,19 @@ func (d *DockerProvider) Install(cfg *DeployConfig) error {
 		SecuritySalt:   generateRandomString(32),
 		DBRootPassword: generateRandomString(16),
 		DBPassword:     generateRandomString(16),
-		SMTPHost:       valueOrDefault(cfg.StorageConfig["smtp_host"], ""),
-		SMTPPort:       valueOrDefault(cfg.StorageConfig["smtp_port"], "587"),
-		SMTPUser:       valueOrDefault(cfg.StorageConfig["smtp_user"], ""),
-		SMTPPass:       valueOrDefault(cfg.StorageConfig["smtp_pass"], ""),
-		StorageType:    cfg.StorageType,
+		SMTPHost:  valueOrDefault(cfg.StorageConfig["smtp_host"], ""),
+		SMTPPort:  valueOrDefault(cfg.StorageConfig["smtp_port"], "587"),
+		SMTPUser:  valueOrDefault(cfg.StorageConfig["smtp_user"], ""),
+		SMTPPass:  valueOrDefault(cfg.StorageConfig["smtp_pass"], ""),
+		EmailFrom: valueOrDefault(cfg.StorageConfig["email_from"], "noreply@localhost"),
+		StorageType:           cfg.StorageType,
+		AzureConnectionString: cfg.StorageConfig["azure_connection_string"],
+		AzureContainer:        valueOrDefault(cfg.StorageConfig["azure_container"], "documents"),
+		S3Bucket:   cfg.StorageConfig["s3_bucket"],
+		S3Region:   valueOrDefault(cfg.StorageConfig["s3_region"], "us-east-1"),
+		S3Key:      cfg.StorageConfig["s3_key"],
+		S3Secret:   cfg.StorageConfig["s3_secret"],
+		S3Endpoint: cfg.StorageConfig["s3_endpoint"],
 	}
 
 	// Write .env
@@ -411,11 +419,23 @@ type templateData struct {
 	SecuritySalt   string
 	DBRootPassword string
 	DBPassword     string
-	SMTPHost       string
-	SMTPPort       string
-	SMTPUser       string
-	SMTPPass       string
-	StorageType    string
+	// Email
+	SMTPHost  string
+	SMTPPort  string
+	SMTPUser  string
+	SMTPPass  string
+	EmailFrom string
+	// Storage
+	StorageType string
+	// Azure Blob Storage
+	AzureConnectionString string
+	AzureContainer        string
+	// Amazon S3
+	S3Bucket   string
+	S3Region   string
+	S3Key      string
+	S3Secret   string
+	S3Endpoint string
 }
 
 func generateRandomString(length int) string {

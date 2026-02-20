@@ -48,7 +48,14 @@ return [
             'username' => env('EMAIL_SMTP_USERNAME', ''),
             'password' => env('EMAIL_SMTP_PASSWORD', ''),
             'client' => null,
+            'tls' => filter_var(env('EMAIL_SMTP_TLS', false), FILTER_VALIDATE_BOOLEAN),
             'url' => env('EMAIL_TRANSPORT_DEFAULT_URL', null),
+        ],
+    ],
+    'Email' => [
+        'default' => [
+            'transport' => 'default',
+            'from' => env('EMAIL_FROM', 'noreply@localhost'),
         ],
     ],
     'Documents' => [
@@ -56,14 +63,15 @@ return [
             'adapter' => env('DOCUMENT_STORAGE_ADAPTER', 'local'),
             'azure' => [
                 'connectionString' => env('AZURE_STORAGE_CONNECTION_STRING'),
-                'container' => 'documents',
+                'container' => env('AZURE_STORAGE_CONTAINER', 'documents'),
                 'prefix' => '',
             ],
             's3' => [
                 'key' => env('AWS_ACCESS_KEY_ID'),
                 'secret' => env('AWS_SECRET_ACCESS_KEY'),
-                'region' => env('AWS_REGION', 'us-east-1'),
-                'bucket' => env('AWS_BUCKET'),
+                'region' => env('AWS_DEFAULT_REGION', env('AWS_REGION', 'us-east-1')),
+                'bucket' => env('AWS_S3_BUCKET', env('AWS_BUCKET')),
+                'endpoint' => env('AWS_S3_ENDPOINT'),
             ],
         ],
     ],

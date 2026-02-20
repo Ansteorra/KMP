@@ -24,6 +24,8 @@ const (
 	stepDomain
 	stepChannel
 	stepDatabase
+	stepEmail
+	stepStorage
 	stepProgress
 	stepComplete
 )
@@ -96,6 +98,18 @@ type InstallModel struct {
 	// Prerequisites
 	prereqs []prereqCheck
 
+	// Email configuration
+	emailChoice  int  // 0=skip, 1=smtp
+	emailSubStep int  // 0=choice, 1=smtp form
+	smtpInputs   []textinput.Model
+	smtpFocusIdx int
+
+	// Storage configuration
+	storageChoice   int  // 0=local, 1=s3, 2=azure
+	storageSubStep  int  // 0=choice, 1=s3/azure form
+	storageInputs   []textinput.Model
+	storageFocusIdx int
+
 	// Progress
 	progressStep int
 	progressDone bool
@@ -118,9 +132,11 @@ func NewInstallModel() *InstallModel {
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#7D56F4"))
 
 	return &InstallModel{
-		step:        stepWelcome,
-		domainInput: ti,
-		spinner:     s,
+		step:         stepWelcome,
+		domainInput:  ti,
+		spinner:      s,
+		smtpInputs:   newSmtpInputs(),
+		storageInputs: newS3Inputs(), // default; re-initialised when user picks Azure
 		prereqs: []prereqCheck{
 			{"Docker", "checking", ""},
 			{"Docker Compose", "checking", ""},
@@ -128,6 +144,85 @@ func NewInstallModel() *InstallModel {
 			{"Port 443", "checking", ""},
 		},
 	}
+}
+
+func newSmtpInputs() []textinput.Model {
+	specs := []struct {
+		placeholder string
+		echoPass    bool
+	}{
+		{"smtp.gmail.com", false},
+		{"587", false},
+		{"noreply@mykingdom.org", false},
+		{"user@example.com (optional)", false},
+		{"app password (optional)", true},
+	}
+	inputs := make([]textinput.Model, len(specs))
+	for i, s := range specs {
+		t := textinput.New()
+		t.Placeholder = s.placeholder
+		t.Width = 44
+		if s.echoPass {
+			t.EchoMode = textinput.EchoPassword
+		}
+		inputs[i] = t
+	}
+	inputs[0].Focus()
+	return inputs
+}
+
+func newS3Inputs() []textinput.Model {
+	specs := []struct{ placeholder string }{
+		{"my-kmp-documents"},
+		{"us-east-1"},
+		{"leave blank to use IAM role"},
+		{"leave blank to use IAM role"},
+		{"optional — for MinIO / DigitalOcean Spaces etc."},
+	}
+	inputs := make([]textinput.Model, len(specs))
+	for i, s := range specs {
+		t := textinput.New()
+		t.Placeholder = s.placeholder
+		t.Width = 44
+		if i == 3 {
+			t.EchoMode = textinput.EchoPassword
+		}
+		inputs[i] = t
+	}
+	inputs[0].Focus()
+	return inputs
+}
+
+func newAzureInputs() []textinput.Model {
+	specs := []struct{ placeholder string }{
+		{"DefaultEndpointsProtocol=https;AccountName=...;AccountKey=..."},
+		{"documents"},
+	}
+	inputs := make([]textinput.Model, len(specs))
+	for i, s := range specs {
+		t := textinput.New()
+		t.Placeholder = s.placeholder
+		t.Width = 52
+		inputs[i] = t
+	}
+	inputs[0].Focus()
+	return inputs
+}
+
+// advanceFormFocus moves focus to the next input in a slice.
+// Returns true if we reached the end (caller should advance the step).
+func advanceFormFocus(inputs []textinput.Model, idx *int, delta int) bool {
+	inputs[*idx].Blur()
+	next := *idx + delta
+	if next < 0 {
+		next = 0
+	}
+	if next >= len(inputs) {
+		return true // reached end
+	}
+	*idx = next
+	inputs[*idx].Focus()
+	return false
 }
 
 func (m *InstallModel) Init() tea.Cmd {
@@ -168,6 +263,20 @@ func (m *InstallModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.step == stepDomain {
 		var cmd tea.Cmd
 		m.domainInput, cmd = m.domainInput.Update(msg)
+		return m, cmd
+	}
+
+	// Pass through to SMTP inputs when in email form sub-step
+	if m.step == stepEmail && m.emailSubStep == 1 && m.smtpFocusIdx < len(m.smtpInputs) {
+		var cmd tea.Cmd
+		m.smtpInputs[m.smtpFocusIdx], cmd = m.smtpInputs[m.smtpFocusIdx].Update(msg)
+		return m, cmd
+	}
+
+	// Pass through to storage inputs when in storage form sub-step
+	if m.step == stepStorage && m.storageSubStep == 1 && m.storageFocusIdx < len(m.storageInputs) {
+		var cmd tea.Cmd
+		m.storageInputs[m.storageFocusIdx], cmd = m.storageInputs[m.storageFocusIdx].Update(msg)
 		return m, cmd
 	}
 
@@ -265,12 +374,154 @@ func (m *InstallModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		case "enter":
 			m.database = m.cursor
-			m.step = stepProgress
-			m.progressStep = 0
-			return m, tea.Batch(m.spinner.Tick, m.runInstall())
+			m.step = stepEmail
+			m.cursor = 0
+			m.emailChoice = 0
+			m.emailSubStep = 0
 		case "esc":
 			m.step = stepChannel
 			m.cursor = m.channel
+		}
+
+	case stepEmail:
+		if m.emailSubStep == 0 {
+			// Choice: skip or SMTP
+			switch key {
+			case "up", "k":
+				if m.cursor > 0 {
+					m.cursor--
+				}
+			case "down", "j":
+				if m.cursor < 1 {
+					m.cursor++
+				}
+			case "enter":
+				m.emailChoice = m.cursor
+				if m.emailChoice == 0 {
+					// Skip — go straight to storage
+					m.step = stepStorage
+					m.cursor = 0
+					m.storageChoice = 0
+					m.storageSubStep = 0
+				} else {
+					// SMTP — show form
+					m.emailSubStep = 1
+					m.smtpFocusIdx = 0
+					m.smtpInputs = newSmtpInputs()
+					m.smtpInputs[0].Focus()
+				}
+			case "esc":
+				m.step = stepDatabase
+				m.cursor = m.database
+			}
+		} else {
+			// SMTP form sub-step — key events handled via Update pass-through
+			// but navigation keys are intercepted here first
+			switch key {
+			case "tab", "down":
+				if done := advanceFormFocus(m.smtpInputs, &m.smtpFocusIdx, 1); done {
+					m.step = stepStorage
+					m.cursor = 0
+					m.storageChoice = 0
+					m.storageSubStep = 0
+				}
+				return m, nil
+			case "shift+tab", "up":
+				if m.smtpFocusIdx == 0 {
+					m.emailSubStep = 0
+					m.cursor = m.emailChoice
+				} else {
+					advanceFormFocus(m.smtpInputs, &m.smtpFocusIdx, -1) //nolint:errcheck
+				}
+				return m, nil
+			case "enter":
+				// Advance field or submit if on last
+				if done := advanceFormFocus(m.smtpInputs, &m.smtpFocusIdx, 1); done {
+					m.step = stepStorage
+					m.cursor = 0
+					m.storageChoice = 0
+					m.storageSubStep = 0
+				}
+				return m, nil
+			case "esc":
+				m.emailSubStep = 0
+				m.cursor = m.emailChoice
+				return m, nil
+			}
+			// Pass remaining key events to the active text input
+			var cmd tea.Cmd
+			m.smtpInputs[m.smtpFocusIdx], cmd = m.smtpInputs[m.smtpFocusIdx].Update(msg)
+			return m, cmd
+		}
+
+	case stepStorage:
+		if m.storageSubStep == 0 {
+			// Storage type choice
+			var storageChoices = []string{"local", "s3", "azure"}
+			switch key {
+			case "up", "k":
+				if m.cursor > 0 {
+					m.cursor--
+				}
+			case "down", "j":
+				if m.cursor < len(storageChoices)-1 {
+					m.cursor++
+				}
+			case "enter":
+				m.storageChoice = m.cursor
+				if m.storageChoice == 0 {
+					// Local — go straight to install
+					m.step = stepProgress
+					m.progressStep = 0
+					return m, tea.Batch(m.spinner.Tick, m.runInstall())
+				}
+				// S3 or Azure — show form
+				m.storageSubStep = 1
+				m.storageFocusIdx = 0
+				if m.storageChoice == 1 {
+					m.storageInputs = newS3Inputs()
+				} else {
+					m.storageInputs = newAzureInputs()
+				}
+				m.storageInputs[0].Focus()
+			case "esc":
+				m.step = stepEmail
+				m.cursor = m.emailChoice
+				m.emailSubStep = 0
+			}
+		} else {
+			// Storage form sub-step
+			switch key {
+			case "tab", "down":
+				if done := advanceFormFocus(m.storageInputs, &m.storageFocusIdx, 1); done {
+					m.step = stepProgress
+					m.progressStep = 0
+					return m, tea.Batch(m.spinner.Tick, m.runInstall())
+				}
+				return m, nil
+			case "shift+tab", "up":
+				if m.storageFocusIdx == 0 {
+					m.storageSubStep = 0
+					m.cursor = m.storageChoice
+				} else {
+					advanceFormFocus(m.storageInputs, &m.storageFocusIdx, -1) //nolint:errcheck
+				}
+				return m, nil
+			case "enter":
+				if done := advanceFormFocus(m.storageInputs, &m.storageFocusIdx, 1); done {
+					m.step = stepProgress
+					m.progressStep = 0
+					return m, tea.Batch(m.spinner.Tick, m.runInstall())
+				}
+				return m, nil
+			case "esc":
+				m.storageSubStep = 0
+				m.cursor = m.storageChoice
+				return m, nil
+			}
+			var cmd tea.Cmd
+			m.storageInputs[m.storageFocusIdx], cmd = m.storageInputs[m.storageFocusIdx].Update(msg)
+			return m, cmd
 		}
 
 	case stepProgress:
@@ -316,11 +567,57 @@ func (m *InstallModel) runInstall() tea.Cmd {
 	domain := m.domain
 	dbType := dbValues[m.database]
 
+	// Capture email config
+	smtpEnabled := m.emailChoice == 1
+	var smtpVals [5]string
+	for i := range m.smtpInputs {
+		if i < len(m.smtpInputs) {
+			smtpVals[i] = m.smtpInputs[i].Value()
+		}
+	}
+
+	// Capture storage config
+	storageChoiceIdx := m.storageChoice
+	var storageVals []string
+	for _, inp := range m.storageInputs {
+		storageVals = append(storageVals, inp.Value())
+	}
+
 	return func() tea.Msg {
 		// Map channel name to the actual Docker image tag.
 		imageTag := channel
 		if channel == "release" {
 			imageTag = "latest"
+		}
+
+		storageConfig := map[string]string{}
+		storageType := "local"
+		if storageChoiceIdx == 1 {
+			storageType = "s3"
+			// S3: bucket, region, key, secret, endpoint
+			keys := []string{"s3_bucket", "s3_region", "s3_key", "s3_secret", "s3_endpoint"}
+			for i, k := range keys {
+				if i < len(storageVals) {
+					storageConfig[k] = storageVals[i]
+				}
+			}
+		} else if storageChoiceIdx == 2 {
+			storageType = "azure"
+			// Azure: connection string, container
+			keys := []string{"azure_connection_string", "azure_container"}
+			for i, k := range keys {
+				if i < len(storageVals) {
+					storageConfig[k] = storageVals[i]
+				}
+			}
+		}
+
+		if smtpEnabled {
+			storageConfig["smtp_host"] = smtpVals[0]
+			storageConfig["smtp_port"] = smtpVals[1]
+			storageConfig["email_from"] = smtpVals[2]
+			storageConfig["smtp_user"] = smtpVals[3]
+			storageConfig["smtp_pass"] = smtpVals[4]
 		}
 
 		cfg := &providers.DeployConfig{
@@ -330,8 +627,8 @@ func (m *InstallModel) runInstall() tea.Cmd {
 			Domain:      domain,
 			Image:       "ghcr.io/jhandel/kmp",
 			ImageTag:    imageTag,
-			StorageType: "local",
-			StorageConfig: map[string]string{},
+			StorageType: storageType,
+			StorageConfig: storageConfig,
 			BackupConfig: providers.BackupConfig{
 				Enabled:       true,
 				Schedule:      "0 3 * * *",
@@ -425,6 +722,10 @@ func (m *InstallModel) View() string {
 		s.WriteString(m.viewChannel())
 	case stepDatabase:
 		s.WriteString(m.viewDatabase())
+	case stepEmail:
+		s.WriteString(m.viewEmail())
+	case stepStorage:
+		s.WriteString(m.viewStorage())
 	case stepProgress:
 		s.WriteString(m.viewProgress())
 	case stepComplete:
@@ -440,7 +741,7 @@ func (m *InstallModel) View() string {
 func (m *InstallModel) renderHeader() string {
 	stepNames := []string{
 		"Welcome", "Provider", "Prerequisites", "Domain",
-		"Channel", "Database", "Deploying", "Complete",
+		"Channel", "Database", "Email", "Storage", "Deploying", "Complete",
 	}
 
 	var dots strings.Builder
@@ -465,13 +766,20 @@ func (m *InstallModel) renderFooter() string {
 	switch m.step {
 	case stepWelcome:
 		return components.SubtleStyle.Render("enter: continue • q: quit")
+	case stepEmail:
+		if m.emailSubStep == 1 {
+			return components.SubtleStyle.Render("tab/enter: next field • shift+tab/up: prev • esc: back")
+		}
+	case stepStorage:
+		if m.storageSubStep == 1 {
+			return components.SubtleStyle.Render("tab/enter: next field • shift+tab/up: prev • esc: back")
+		}
 	case stepProgress:
 		return components.SubtleStyle.Render("Please wait...")
 	case stepComplete:
 		return components.SubtleStyle.Render("enter/q: exit")
-	default:
-		return components.SubtleStyle.Render("↑/↓: navigate • enter: select • esc: back")
 	}
+	return components.SubtleStyle.Render("↑/↓: navigate • enter: select • esc: back")
 }
 
 func (m *InstallModel) viewWelcome() string {
@@ -582,6 +890,92 @@ func (m *InstallModel) viewDatabase() string {
 			style = style.Bold(true).Foreground(lipgloss.Color("#7D56F4"))
 		}
 		s.WriteString(style.Render(cursor+db) + "\n")
+	}
+
+	return components.BoxStyle.Render(s.String())
+}
+
+func (m *InstallModel) viewEmail() string {
+	var s strings.Builder
+
+	if m.emailSubStep == 0 {
+		s.WriteString("  Configure email delivery (optional):\n\n")
+		choices := []string{
+			"Skip — configure email after installation",
+			"Configure SMTP (send notifications, password resets, etc.)",
+		}
+		for i, c := range choices {
+			cursor := "  ○ "
+			style := lipgloss.NewStyle()
+			if i == m.cursor {
+				cursor = "  ● "
+				style = style.Bold(true).Foreground(lipgloss.Color("#7D56F4"))
+			}
+			s.WriteString(style.Render(cursor+c) + "\n")
+		}
+	} else {
+		// SMTP form
+		s.WriteString("  SMTP Configuration\n\n")
+		labels := []string{"Host", "Port", "From Address", "Username", "Password"}
+		for i, label := range labels {
+			focused := m.smtpFocusIdx == i
+			prefix := "  "
+			ls := lipgloss.NewStyle()
+			if focused {
+				ls = ls.Bold(true).Foreground(lipgloss.Color("#7D56F4"))
+			}
+			s.WriteString(ls.Render(fmt.Sprintf("%s%-14s", prefix, label+":")) + " ")
+			s.WriteString(m.smtpInputs[i].View() + "\n")
+		}
+	}
+
+	return components.BoxStyle.Render(s.String())
+}
+
+var storageTypeLabels = []string{
+	"Local filesystem (default — files stored on the server)",
+	"Amazon S3 / S3-compatible object storage",
+	"Azure Blob Storage",
+}
+
+func (m *InstallModel) viewStorage() string {
+	var s strings.Builder
+
+	if m.storageSubStep == 0 {
+		s.WriteString("  Configure document storage:\n\n")
+		for i, label := range storageTypeLabels {
+			cursor := "  ○ "
+			style := lipgloss.NewStyle()
+			if i == m.cursor {
+				cursor = "  ● "
+				style = style.Bold(true).Foreground(lipgloss.Color("#7D56F4"))
+			}
+			s.WriteString(style.Render(cursor+label) + "\n")
+		}
+	} else {
+		var labels []string
+		if m.storageChoice == 1 {
+			// S3
+			s.WriteString("  Amazon S3 Configuration\n\n")
+			labels = []string{"Bucket", "Region", "Access Key ID", "Secret Key", "Endpoint (optional)"}
+		} else {
+			// Azure
+			s.WriteString("  Azure Blob Storage Configuration\n\n")
+			labels = []string{"Connection String", "Container"}
+		}
+		for i, label := range labels {
+			if i >= len(m.storageInputs) {
+				break
+			}
+			focused := m.storageFocusIdx == i
+			prefix := "  "
+			ls := lipgloss.NewStyle()
+			if focused {
+				ls = ls.Bold(true).Foreground(lipgloss.Color("#7D56F4"))
+			}
+			s.WriteString(ls.Render(fmt.Sprintf("%s%-20s", prefix, label+":")) + " ")
+			s.WriteString(m.storageInputs[i].View() + "\n")
+		}
 	}
 
 	return components.BoxStyle.Render(s.String())
