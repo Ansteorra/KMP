@@ -93,6 +93,7 @@ use Cake\ORM\Locator\TableLocator;
 use Cake\Routing\Middleware\AssetMiddleware;
 use Cake\Routing\Middleware\RoutingMiddleware;
 use Cake\Routing\Router;
+use Cake\Utility\Security;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
@@ -453,6 +454,33 @@ class Application extends BaseApplication implements
             // Parses JSON, XML, and form data into $request->getData()
             // Documentation: https://book.cakephp.org/4/en/controllers/middleware.html#body-parser-middleware
             ->add(new BodyParserMiddleware())
+
+            // 7a. Stale CSRF Cookie Cleaner - strips csrfToken cookies from previous
+            // installations (different security salt) so the CSRF middleware issues a
+            // fresh valid cookie instead of failing on POST with "Missing or invalid
+            // CSRF cookie." (CsrfProtectionMiddleware line 358: _verifyToken failure).
+            ->add(function ($request, $handler) {
+                if ($request->getMethod() === 'GET') {
+                    $cookies = $request->getCookieParams();
+                    $token = $cookies['csrfToken'] ?? null;
+                    if ($token !== null && is_string($token)) {
+                        $decoded = base64_decode($token, true);
+                        $valid = $decoded !== false && strlen($decoded) > 16;
+                        if ($valid) {
+                            $key = substr($decoded, 0, 16);
+                            $hmac = substr($decoded, 16);
+                            $valid = hash_equals(hash_hmac('sha1', $key, Security::getSalt()), $hmac);
+                        }
+                        if (!$valid) {
+                            // Remove stale cookie; CSRF middleware will issue a fresh one
+                            $newCookies = $cookies;
+                            unset($newCookies['csrfToken']);
+                            $request = $request->withCookieParams($newCookies);
+                        }
+                    }
+                }
+                return $handler->handle($request);
+            })
 
             // 7. CSRF Protection Middleware - Cross-site request forgery protection
             // Uses secure cookie settings for maximum security
