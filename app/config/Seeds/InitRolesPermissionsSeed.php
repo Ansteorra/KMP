@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 
 use Migrations\BaseSeed;
+use Cake\I18n\DateTime;
 
 require_once __DIR__ . '/Lib/SeedHelpers.php';
 
@@ -27,11 +28,13 @@ class InitRolesPermissionsSeed extends BaseSeed
                 'permission_id' => SeedHelpers::getPermissionId("Is Super User"),
                 'role_id' => SeedHelpers::getRoleId("Admin"),
                 'created_by' => 1,
+                'created' => DateTime::now(),
             ],
             [
                 'permission_id' => SeedHelpers::getPermissionId("Can Do All But Is Not A Super User"),
                 'role_id' => SeedHelpers::getRoleId("Admin"),
                 'created_by' => 1,
+                'created' => DateTime::now(),
             ]
         ];
     }
