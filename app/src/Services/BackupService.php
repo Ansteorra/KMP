@@ -32,7 +32,6 @@ class BackupService
      * Tables excluded from backup (transient or migration-tracking data).
      */
     private const EXCLUDED_TABLES = [
-        'phinxlog',
         'queued_jobs',
         'queue_processes',
     ];
@@ -49,10 +48,9 @@ class BackupService
         $schemaCollection = $connection->getSchemaCollection();
         $allTables = $schemaCollection->listTables();
 
-        // Filter out excluded tables
+        // Filter out excluded tables (queue jobs are transient)
         $tables = array_values(array_filter($allTables, function (string $table) {
-            return !in_array($table, self::EXCLUDED_TABLES, true)
-                && !str_starts_with($table, 'phinxlog');
+            return !in_array($table, self::EXCLUDED_TABLES, true);
         }));
 
         sort($tables);
