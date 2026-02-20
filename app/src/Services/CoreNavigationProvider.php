@@ -221,6 +221,17 @@ class CoreNavigationProvider
             [
                 'type' => 'link',
                 'mergePath' => ['Config'],
+                'label' => 'Backups',
+                'order' => 10,
+                'url' => [
+                    'controller' => 'Backups',
+                    'action' => 'index',
+                ],
+                'icon' => 'bi-archive',
+            ],
+            [
+                'type' => 'link',
+                'mergePath' => ['Config'],
                 'label' => 'Warrant Periods',
                 'order' => 60,
                 'url' => [

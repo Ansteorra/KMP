@@ -241,11 +241,12 @@ echo "Acquiring migration lock..."
 ) 200>"$LOCK_FILE"
 
 # ---------------------------------------------------------------------------
-# 6. Cron for queue processing
+# 6. Cron for queue processing and scheduled backups
 # ---------------------------------------------------------------------------
-echo "Configuring cron job for queue processing..."
-CRON_JOB="*/2 * * * * cd /var/www/html && bin/cake queue run -q >> /var/log/cron.log 2>&1"
-(crontab -l 2>/dev/null | grep -v "queue run"; echo "$CRON_JOB") | crontab -
+echo "Configuring cron jobs..."
+QUEUE_CRON="*/2 * * * * cd /var/www/html && bin/cake queue run -q >> /var/log/cron.log 2>&1"
+BACKUP_CRON="0 3 * * * cd /var/www/html && bin/cake backup_check >> /var/log/cron.log 2>&1"
+(crontab -l 2>/dev/null | grep -v "queue run" | grep -v "backup_check"; echo "$QUEUE_CRON"; echo "$BACKUP_CRON") | crontab -
 
 service cron start
 
