@@ -114,9 +114,12 @@ type InstallModel struct {
 	prereqs []prereqCheck
 
 	// Database external connection
-	dbSubStep    int              // 0=choice, 1=DSN input, 2=DB name input
-	dsnInput     textinput.Model  // single connection string field
+	dbSubStep    int              // 0=choice, 1=conn method, 2=DSN, 3=DB name, 4=parts form
+	dbConnMethod int              // 0=dsn, 1=parts
+	dsnInput     textinput.Model  // connection string field
 	dbNameInput  textinput.Model  // prompted when DSN lacks a database name
+	dbInputs     []textinput.Model // [host, port, dbname, user, password]
+	dbFocusIdx   int
 
 	// Email configuration
 	emailChoice  int  // 0=skip, 1=smtp
@@ -236,6 +239,7 @@ func (m *InstallModel) loadDefaults() {
 		m.database = 2 // external mysql
 	}
 	if m.database >= 2 && dep.DatabaseDSN != "" {
+		m.dbConnMethod = 0 // DSN method since we have a saved string
 		m.dsnInput.SetValue(dep.DatabaseDSN)
 	}
 
@@ -347,6 +351,35 @@ func newAzureInputs() []textinput.Model {
 	return inputs
 }
 
+func newDBInputs(dbType string) []textinput.Model {
+	defaultPort := "3306"
+	if dbType == "postgres" {
+		defaultPort = "5432"
+	}
+	specs := []struct {
+		placeholder string
+		echoPass    bool
+	}{
+		{"db.example.com", false},
+		{defaultPort, false},
+		{"kmp", false},
+		{"kmpuser", false},
+		{"password", true},
+	}
+	inputs := make([]textinput.Model, len(specs))
+	for i, s := range specs {
+		t := textinput.New()
+		t.Placeholder = s.placeholder
+		t.Width = 44
+		if s.echoPass {
+			t.EchoMode = textinput.EchoPassword
+		}
+		inputs[i] = t
+	}
+	inputs[0].Focus()
+	return inputs
+}
+
 // dsnHasDatabase returns true when the DSN URL contains a non-empty database name.
 func dsnHasDatabase(dsn string) bool {
 	u, err := url.Parse(dsn)
@@ -418,15 +451,20 @@ func (m *InstallModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
-	// Pass through to DB DSN / name inputs when in external DB form
-	if m.step == stepDatabase && m.dbSubStep == 1 {
+	// Pass through to DB DSN / name / parts inputs when in external DB form
+	if m.step == stepDatabase && m.dbSubStep == 2 {
 		var cmd tea.Cmd
 		m.dsnInput, cmd = m.dsnInput.Update(msg)
 		return m, cmd
 	}
-	if m.step == stepDatabase && m.dbSubStep == 2 {
+	if m.step == stepDatabase && m.dbSubStep == 3 {
 		var cmd tea.Cmd
 		m.dbNameInput, cmd = m.dbNameInput.Update(msg)
+		return m, cmd
+	}
+	if m.step == stepDatabase && m.dbSubStep == 4 && m.dbFocusIdx < len(m.dbInputs) {
+		var cmd tea.Cmd
+		m.dbInputs[m.dbFocusIdx], cmd = m.dbInputs[m.dbFocusIdx].Update(msg)
 		return m, cmd
 	}
 
@@ -527,7 +565,9 @@ func (m *InstallModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case stepDatabase:
-		if m.dbSubStep == 0 {
+		switch m.dbSubStep {
+		case 0:
+			// DB type choice
 			switch key {
 			case "up", "k":
 				if m.cursor > 0 {
@@ -540,38 +580,63 @@ func (m *InstallModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			case "enter":
 				m.database = m.cursor
 				if strings.HasPrefix(dbValues[m.database], "bundled") {
-					// Bundled — skip DSN form, go to email
 					m.step = stepEmail
 					m.cursor = 0
 					m.emailChoice = 0
 					m.emailSubStep = 0
 				} else {
-					// External — show DSN input
+					// External — ask how they want to provide connection details
 					m.dbSubStep = 1
-					m.dsnInput.Reset()
-					// Set a type-specific placeholder
-					if dbValues[m.database] == "postgres" {
-						m.dsnInput.Placeholder = "postgres://user:password@host:5432/dbname  (or a Neon/Supabase connection string)"
-					} else {
-						m.dsnInput.Placeholder = "mysql://user:password@host:3306/dbname  (or a Railway/PlanetScale connection string)"
-					}
-					m.dsnInput.Focus()
+					m.cursor = m.dbConnMethod
 				}
 			case "esc":
 				m.step = stepChannel
 				m.cursor = m.channel
 			}
-		} else if m.dbSubStep == 1 {
-			// DSN input
+
+		case 1:
+			// Connection method choice: DSN string or individual parts
+			switch key {
+			case "up", "k":
+				if m.cursor > 0 {
+					m.cursor--
+				}
+			case "down", "j":
+				if m.cursor < 1 {
+					m.cursor++
+				}
+			case "enter":
+				m.dbConnMethod = m.cursor
+				if m.dbConnMethod == 0 {
+					// DSN string path
+					m.dbSubStep = 2
+					if dbValues[m.database] == "postgres" {
+						m.dsnInput.Placeholder = "postgres://user:password@host:5432/dbname"
+					} else {
+						m.dsnInput.Placeholder = "mysql://user:password@host:3306/dbname"
+					}
+					m.dsnInput.Focus()
+				} else {
+					// Individual parts path
+					m.dbSubStep = 4
+					m.dbFocusIdx = 0
+					m.dbInputs = newDBInputs(dbValues[m.database])
+				}
+			case "esc":
+				m.dbSubStep = 0
+				m.cursor = m.database
+			}
+
+		case 2:
+			// DSN string input
 			switch key {
 			case "enter", "tab":
 				dsn := m.dsnInput.Value()
 				if dsn == "" {
-					return m, nil // require input
+					return m, nil
 				}
-				// Check if a database name is present in the DSN path
 				if !dsnHasDatabase(dsn) {
-					m.dbSubStep = 2
+					m.dbSubStep = 3
 					m.dbNameInput.Reset()
 					m.dbNameInput.Focus()
 				} else {
@@ -582,15 +647,16 @@ func (m *InstallModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 			case "esc":
-				m.dbSubStep = 0
-				m.cursor = m.database
+				m.dbSubStep = 1
+				m.cursor = m.dbConnMethod
 				return m, nil
 			}
 			var cmd tea.Cmd
 			m.dsnInput, cmd = m.dsnInput.Update(msg)
 			return m, cmd
-		} else {
-			// dbSubStep == 2: DB name input
+
+		case 3:
+			// DB name (DSN was missing it)
 			switch key {
 			case "enter", "tab":
 				m.step = stepEmail
@@ -599,12 +665,48 @@ func (m *InstallModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.emailSubStep = 0
 				return m, nil
 			case "esc":
-				m.dbSubStep = 1
+				m.dbSubStep = 2
 				m.dsnInput.Focus()
 				return m, nil
 			}
 			var cmd tea.Cmd
 			m.dbNameInput, cmd = m.dbNameInput.Update(msg)
+			return m, cmd
+
+		case 4:
+			// Individual parts form
+			switch key {
+			case "tab", "down":
+				if done := advanceFormFocus(m.dbInputs, &m.dbFocusIdx, 1); done {
+					m.step = stepEmail
+					m.cursor = 0
+					m.emailChoice = 0
+					m.emailSubStep = 0
+				}
+				return m, nil
+			case "shift+tab", "up":
+				if m.dbFocusIdx == 0 {
+					m.dbSubStep = 1
+					m.cursor = m.dbConnMethod
+				} else {
+					advanceFormFocus(m.dbInputs, &m.dbFocusIdx, -1) //nolint:errcheck
+				}
+				return m, nil
+			case "enter":
+				if done := advanceFormFocus(m.dbInputs, &m.dbFocusIdx, 1); done {
+					m.step = stepEmail
+					m.cursor = 0
+					m.emailChoice = 0
+					m.emailSubStep = 0
+				}
+				return m, nil
+			case "esc":
+				m.dbSubStep = 1
+				m.cursor = m.dbConnMethod
+				return m, nil
+			}
+			var cmd tea.Cmd
+			m.dbInputs[m.dbFocusIdx], cmd = m.dbInputs[m.dbFocusIdx].Update(msg)
 			return m, cmd
 		}
 
@@ -847,16 +949,42 @@ func (m *InstallModel) runInstall() tea.Cmd {
 		localDBType = "mariadb"
 	}
 
-	// Build DSN from external DB form (if applicable)
+	// Build DSN from external DB (DSN string or individual parts)
 	var externalDSN string
 	if dbValue == "mysql" || dbValue == "postgres" {
-		externalDSN = m.dsnInput.Value()
-		// If user supplied a DB name separately (because DSN lacked it), inject it
-		if dbName := m.dbNameInput.Value(); dbName != "" && externalDSN != "" {
-			if u, err := url.Parse(externalDSN); err == nil && strings.TrimPrefix(u.Path, "/") == "" {
-				u.Path = "/" + dbName
-				externalDSN = u.String()
+		if m.dbConnMethod == 0 {
+			// DSN string path
+			externalDSN = m.dsnInput.Value()
+			if dbName := m.dbNameInput.Value(); dbName != "" && externalDSN != "" {
+				if u, err := url.Parse(externalDSN); err == nil && strings.TrimPrefix(u.Path, "/") == "" {
+					u.Path = "/" + dbName
+					externalDSN = u.String()
+				}
 			}
+		} else if len(m.dbInputs) == 5 {
+			// Individual parts path — build DSN from fields
+			host := m.dbInputs[0].Value()
+			port := m.dbInputs[1].Value()
+			dbName := m.dbInputs[2].Value()
+			user := m.dbInputs[3].Value()
+			pass := m.dbInputs[4].Value()
+			if host == "" {
+				host = m.dbInputs[0].Placeholder
+			}
+			if port == "" {
+				port = m.dbInputs[1].Placeholder
+			}
+			if dbName == "" {
+				dbName = m.dbInputs[2].Placeholder
+			}
+			if user == "" {
+				user = m.dbInputs[3].Placeholder
+			}
+			scheme := "mysql"
+			if dbValue == "postgres" {
+				scheme = "postgres"
+			}
+			externalDSN = fmt.Sprintf("%s://%s:%s@%s:%s/%s", scheme, user, pass, host, port, dbName)
 		}
 	}
 
@@ -1075,8 +1203,11 @@ func (m *InstallModel) renderFooter() string {
 	case stepWelcome:
 		return components.SubtleStyle.Render("enter: continue • q: quit")
 	case stepDatabase:
-		if m.dbSubStep >= 1 {
+		if m.dbSubStep == 2 || m.dbSubStep == 3 {
 			return components.SubtleStyle.Render("enter/tab: confirm • esc: back")
+		}
+		if m.dbSubStep == 4 {
+			return components.SubtleStyle.Render("tab/enter: next field • shift+tab/up: prev • esc: back")
 		}
 	case stepEmail:
 		if m.emailSubStep == 1 {
@@ -1197,6 +1328,11 @@ func (m *InstallModel) viewChannel() string {
 func (m *InstallModel) viewDatabase() string {
 	var s strings.Builder
 
+	dbLabel := "MySQL"
+	if m.database < len(dbValues) && dbValues[m.database] == "postgres" {
+		dbLabel = "PostgreSQL"
+	}
+
 	switch m.dbSubStep {
 	case 0:
 		s.WriteString("  Select database configuration:\n\n")
@@ -1211,13 +1347,25 @@ func (m *InstallModel) viewDatabase() string {
 		}
 
 	case 1:
-		dbLabel := "MySQL"
-		if dbValues[m.database] == "postgres" {
-			dbLabel = "PostgreSQL"
+		s.WriteString(fmt.Sprintf("  How would you like to provide %s connection details?\n\n", dbLabel))
+		connMethodLabels := []string{
+			"Paste a connection string (DSN URL)",
+			"Enter individual details (host, port, user, etc.)",
 		}
+		for i, label := range connMethodLabels {
+			cursor := "  ○ "
+			style := lipgloss.NewStyle()
+			if i == m.cursor {
+				cursor = "  ● "
+				style = style.Bold(true).Foreground(lipgloss.Color("#7D56F4"))
+			}
+			s.WriteString(style.Render(cursor+label) + "\n")
+		}
+		s.WriteString("\n" + components.SubtleStyle.Render("  Tip: Most cloud services (Neon, PlanetScale, Railway, Supabase)\n  offer a one-click copy of the connection string."))
+
+	case 2:
 		s.WriteString(fmt.Sprintf("  %s Connection String\n\n", dbLabel))
-		s.WriteString("  Paste your connection string below.\n")
-		s.WriteString(components.SubtleStyle.Render("  Most cloud services offer a one-click copy of this string.\n\n"))
+		s.WriteString("  Paste your connection string below:\n\n")
 		s.WriteString("  " + m.dsnInput.View() + "\n\n")
 		s.WriteString(components.SubtleStyle.Render("  Examples:\n"))
 		if dbValues[m.database] == "postgres" {
@@ -1228,11 +1376,25 @@ func (m *InstallModel) viewDatabase() string {
 			s.WriteString(components.SubtleStyle.Render("    mysql://user:pass@monorail.proxy.rlwy.net:12345/railway\n"))
 		}
 
-	case 2:
+	case 3:
 		s.WriteString("  Database Name\n\n")
 		s.WriteString(components.SubtleStyle.Render("  Your connection string doesn't include a database name.\n"))
 		s.WriteString(components.SubtleStyle.Render("  Enter the database name to use:\n\n"))
 		s.WriteString("  Database name:  " + m.dbNameInput.View() + "\n")
+
+	case 4:
+		s.WriteString(fmt.Sprintf("  %s Connection Details\n\n", dbLabel))
+		labels := []string{"Host", "Port", "Database Name", "Username", "Password"}
+		for i, label := range labels {
+			focused := m.dbFocusIdx == i
+			ls := lipgloss.NewStyle()
+			if focused {
+				ls = ls.Bold(true).Foreground(lipgloss.Color("#7D56F4"))
+			}
+			s.WriteString(ls.Render(fmt.Sprintf("  %-16s", label+":")) + " ")
+			s.WriteString(m.dbInputs[i].View() + "\n")
+		}
+		s.WriteString("\n" + components.SubtleStyle.Render("  A DSN will be built from these values."))
 	}
 
 	return components.BoxStyle.Render(s.String())
