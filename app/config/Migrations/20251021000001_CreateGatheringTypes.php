@@ -17,7 +17,7 @@ class CreateGatheringTypes extends BaseMigration
      */
     public function change(): void
     {
-        $table = $this->table('gathering_types');
+        $table = $this->table('gathering_types', ['id' => false]);
         $table->addColumn("id", "integer", [
             "autoIncrement" => true,
             "default" => null,

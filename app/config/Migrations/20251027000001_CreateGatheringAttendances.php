@@ -26,7 +26,7 @@ class CreateGatheringAttendances extends BaseMigration
      */
     public function change(): void
     {
-        $table = $this->table('gathering_attendances');
+        $table = $this->table('gathering_attendances', ['id' => false]);
 
         // Primary key
         $table->addColumn("id", "integer", [

@@ -14,7 +14,7 @@ class InitOffices extends BaseMigration
 
     public function up(): void
     {
-        $this->table("officers_departments")
+        $this->table("officers_departments", ['id' => false])
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
@@ -56,7 +56,7 @@ class InitOffices extends BaseMigration
             ->addIndex(["deleted"])
             ->create();
 
-        $this->table("officers_offices")
+        $this->table("officers_offices", ['id' => false])
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
@@ -144,7 +144,7 @@ class InitOffices extends BaseMigration
             ->addIndex(["deleted"])
             ->create();
 
-        $this->table("officers_officers")
+        $this->table("officers_officers", ['id' => false])
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,

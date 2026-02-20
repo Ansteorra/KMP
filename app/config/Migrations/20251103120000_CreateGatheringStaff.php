@@ -22,7 +22,7 @@ class CreateGatheringStaff extends BaseMigration
      */
     public function change(): void
     {
-        $table = $this->table('gathering_staff');
+        $table = $this->table('gathering_staff', ['id' => false]);
 
         // Primary key
         $table->addColumn('id', 'integer', [

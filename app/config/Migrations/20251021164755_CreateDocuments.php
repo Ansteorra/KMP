@@ -38,7 +38,7 @@ class CreateDocuments extends BaseMigration
      */
     public function change(): void
     {
-        $table = $this->table('documents');
+        $table = $this->table('documents', ['id' => false]);
         $table->addColumn("id", "integer", [
             "autoIncrement" => true,
             "default" => null,

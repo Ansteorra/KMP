@@ -16,7 +16,7 @@ class CreateWaiverTypes extends BaseMigration
      */
     public function change(): void
     {
-        $table = $this->table('waivers_waiver_types');
+        $table = $this->table('waivers_waiver_types', ['id' => false]);
         $table->addColumn("id", "integer", [
             "autoIncrement" => true,
             "default" => null,

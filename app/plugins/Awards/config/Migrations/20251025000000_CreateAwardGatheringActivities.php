@@ -28,7 +28,7 @@ class CreateAwardGatheringActivities extends BaseMigration
      */
     public function change(): void
     {
-        $table = $this->table('award_gathering_activities');
+        $table = $this->table('award_gathering_activities', ['id' => false]);
         $table->addColumn("id", "integer", [
             "autoIncrement" => true,
             "default" => null,

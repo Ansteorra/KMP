@@ -19,7 +19,7 @@ class Init extends BaseMigration
     {
         #region Configuration Schema
 
-        $this->table("branches")
+        $this->table("branches", ['id' => false])
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
@@ -102,7 +102,7 @@ class Init extends BaseMigration
             ->addIndex(["deleted"])
             ->create();
 
-        $this->table("roles")
+        $this->table("roles", ['id' => false])
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
@@ -149,7 +149,7 @@ class Init extends BaseMigration
             ->addIndex(["deleted"])
             ->create();
 
-        $this->table("permissions")
+        $this->table("permissions", ['id' => false])
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
@@ -221,7 +221,7 @@ class Init extends BaseMigration
             ->addIndex(["deleted"])
             ->create();
 
-        $this->table("roles_permissions")
+        $this->table("roles_permissions", ['id' => false])
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
@@ -251,7 +251,7 @@ class Init extends BaseMigration
             ->addPrimaryKey(["id"])
             ->create();
 
-        $this->table("app_settings")
+        $this->table("app_settings", ['id' => false])
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
@@ -292,7 +292,7 @@ class Init extends BaseMigration
             ->create();
         #endregion //
         #region Operational Tables
-        $this->table("notes")
+        $this->table("notes", ['id' => false])
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
@@ -339,7 +339,7 @@ class Init extends BaseMigration
             ->addIndex(["topic_model"])
             ->create();
 
-        $this->table("members")
+        $this->table("members", ['id' => false])
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
@@ -529,7 +529,7 @@ class Init extends BaseMigration
 
 
 
-        $this->table("member_roles")
+        $this->table("member_roles", ['id' => false])
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,

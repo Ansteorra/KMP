@@ -34,7 +34,7 @@ class CreateGatheringWaiverActivities extends BaseMigration
      */
     public function change(): void
     {
-        $table = $this->table('waivers_gathering_waiver_activities');
+        $table = $this->table('waivers_gathering_waiver_activities', ['id' => false]);
 
         // Primary key
         $table->addColumn("id", "integer", [

@@ -16,7 +16,7 @@ class CreateGatheringWaivers extends BaseMigration
      */
     public function change(): void
     {
-        $table = $this->table('waivers_gathering_waivers');
+        $table = $this->table('waivers_gathering_waivers', ['id' => false]);
         $table->addColumn("id", "integer", [
             "autoIncrement" => true,
             "default" => null,

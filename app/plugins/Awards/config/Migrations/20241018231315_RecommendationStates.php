@@ -17,7 +17,7 @@ class RecommendationStates extends BaseMigration
      */
     public function change(): void
     {
-        $this->table("awards_recommendations_states_logs")
+        $this->table("awards_recommendations_states_logs", ['id' => false])
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,

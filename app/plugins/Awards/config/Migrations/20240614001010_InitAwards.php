@@ -21,7 +21,7 @@ class InitAwards extends BaseMigration
     public function up(): void
     {
 
-        $this->table("awards_domains")
+        $this->table("awards_domains", ['id' => false])
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
@@ -63,7 +63,7 @@ class InitAwards extends BaseMigration
             ->addIndex(["deleted"])
             ->create();
 
-        $this->table("awards_levels")
+        $this->table("awards_levels", ['id' => false])
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
@@ -110,7 +110,7 @@ class InitAwards extends BaseMigration
             ->addIndex(["deleted"])
             ->create();
 
-        $this->table("awards_awards")
+        $this->table("awards_awards", ['id' => false])
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
@@ -200,7 +200,7 @@ class InitAwards extends BaseMigration
             ->addIndex(["deleted"])
             ->create();
 
-        $this->table("awards_events")
+        $this->table("awards_events", ['id' => false])
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
@@ -264,7 +264,7 @@ class InitAwards extends BaseMigration
             ->addIndex(["deleted"])
             ->create();
 
-        $this->table("awards_recommendations")
+        $this->table("awards_recommendations", ['id' => false])
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
@@ -386,7 +386,7 @@ class InitAwards extends BaseMigration
             ->addIndex(["deleted"])
             ->create();
 
-        $this->table("awards_recommendations_events")
+        $this->table("awards_recommendations_events", ['id' => false])
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,

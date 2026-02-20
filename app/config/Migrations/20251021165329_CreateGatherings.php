@@ -20,7 +20,7 @@ class CreateGatherings extends BaseMigration
      */
     public function change(): void
     {
-        $table = $this->table('gatherings');
+        $table = $this->table('gatherings', ['id' => false]);
         $table->addColumn("id", "integer", [
             "autoIncrement" => true,
             "default" => null,

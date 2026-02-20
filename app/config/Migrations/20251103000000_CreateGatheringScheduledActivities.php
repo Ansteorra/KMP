@@ -30,7 +30,7 @@ class CreateGatheringScheduledActivities extends BaseMigration
      */
     public function change(): void
     {
-        $table = $this->table('gathering_scheduled_activities');
+        $table = $this->table('gathering_scheduled_activities', ['id' => false]);
         $table->addColumn("id", "integer", [
             "autoIncrement" => true,
             "default" => null,

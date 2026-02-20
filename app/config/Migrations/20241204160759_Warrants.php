@@ -19,7 +19,7 @@ class Warrants extends BaseMigration
      */
     public function up()
     {
-        $this->table('warrant_periods')
+        $this->table('warrant_periods', ['id' => false])
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
@@ -49,7 +49,7 @@ class Warrants extends BaseMigration
             ->addPrimaryKey(["id"])
             ->create();
 
-        $this->table("warrants")
+        $this->table("warrants", ['id' => false])
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
@@ -143,7 +143,7 @@ class Warrants extends BaseMigration
             ->addIndex(["expires_on"])
             ->create();
 
-        $this->table("warrant_rosters")
+        $this->table("warrant_rosters", ['id' => false])
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
@@ -193,7 +193,7 @@ class Warrants extends BaseMigration
             ->addPrimaryKey(["id"])
             ->create();
 
-        $this->table("warrant_roster_approvals")
+        $this->table("warrant_roster_approvals", ['id' => false])
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
