@@ -49,9 +49,6 @@ class InitBranchesSeed extends BaseSeed
         $data = $this->getData();
 
         $table = $this->table('branches');
-        $options = $table->getAdapter()->getOptions();
-        $options['identity_insert'] = true;
-        $table->getAdapter()->setOptions($options);
-        $table->insert($data)->saveData();
+        $table->insert($data)->save();
     }
 }

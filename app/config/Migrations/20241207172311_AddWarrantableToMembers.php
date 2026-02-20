@@ -25,6 +25,13 @@ class AddWarrantableToMembers extends BaseMigration
             'null' => false,
         ]);
         $table->update();
+
+        // Clear schema cache so ORM picks up the new column with correct type
+        $connName = $this->getAdapter()->getConnection()->configName();
+        $conn = \Cake\Datasource\ConnectionManager::get($connName);
+        (new \Cake\Database\SchemaCache($conn))->clear();
+        \Cake\ORM\TableRegistry::getTableLocator()->clear();
+
         // Load the MembersTable
         $membersTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Members');
 
