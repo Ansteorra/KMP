@@ -28,6 +28,7 @@ const (
 	stepDatabase
 	stepEmail
 	stepStorage
+	stepCache
 	stepProgress
 	stepComplete
 )
@@ -51,8 +52,20 @@ var providerChoices = []providerChoice{
 var channelChoices = []string{"Release (stable, recommended)", "Beta", "Dev", "Nightly"}
 var channelValues = []string{"release", "beta", "dev", "nightly"}
 
-var dbChoices = []string{"Bundled MariaDB (recommended)", "Existing MySQL server", "Existing PostgreSQL server"}
-var dbValues = []string{"bundled", "mysql", "postgres"}
+var dbChoices = []string{
+	"Bundled MariaDB (recommended)",
+	"Bundled PostgreSQL",
+	"Existing MySQL server",
+	"Existing PostgreSQL server",
+}
+var dbValues = []string{"bundled-mariadb", "bundled-postgres", "mysql", "postgres"}
+
+var cacheChoices = []string{
+	"APCu (local in-process cache, recommended for single container)",
+	"Redis (bundled — add a local Redis container)",
+	"Redis (external — provide a remote Redis URL)",
+}
+var cacheValues = []string{"apcu", "redis-local", "redis-remote"}
 
 type prereqCheck struct {
 	name   string
@@ -117,6 +130,11 @@ type InstallModel struct {
 	storageInputs   []textinput.Model
 	storageFocusIdx int
 
+	// Cache configuration
+	cacheChoice  int  // 0=apcu, 1=redis-local, 2=redis-remote
+	cacheSubStep int  // 0=choice, 1=remote URL form
+	redisInput   textinput.Model
+
 	// Progress
 	progressStep int
 	progressDone bool
@@ -138,10 +156,15 @@ func NewInstallModel() *InstallModel {
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#7D56F4"))
 
+	ri := textinput.New()
+	ri.Placeholder = "redis://[:password@]host:6379"
+	ri.Width = 50
+
 	m := &InstallModel{
 		step:         stepWelcome,
 		domainInput:  ti,
 		spinner:      s,
+		redisInput:   ri,
 		smtpInputs:   newSmtpInputs(),
 		storageInputs: newS3Inputs(),
 		prereqs: []prereqCheck{
@@ -193,14 +216,16 @@ func (m *InstallModel) loadDefaults() {
 
 	// Database type + pre-fill connection form
 	switch {
+	case dep.DatabaseDSN == "" && dep.LocalDBType == "postgres":
+		m.database = 1 // bundled postgres
 	case dep.DatabaseDSN == "":
-		m.database = 0 // bundled
+		m.database = 0 // bundled mariadb
 	case strings.HasPrefix(dep.DatabaseDSN, "postgres"):
-		m.database = 2
+		m.database = 3 // external postgres
 	default:
-		m.database = 1 // mysql
+		m.database = 2 // external mysql
 	}
-	if m.database > 0 && dep.DatabaseDSN != "" {
+	if m.database >= 2 && dep.DatabaseDSN != "" {
 		m.dbInputs = newDBInputs(dbValues[m.database])
 		if u, err := url.Parse(dep.DatabaseDSN); err == nil {
 			m.dbInputs[0].SetValue(u.Hostname())
@@ -241,6 +266,17 @@ func (m *InstallModel) loadDefaults() {
 		if len(m.storageInputs) > 1 {
 			m.storageInputs[1].SetValue(dep.StorageConfig["azure_container"])
 		}
+	}
+
+	// Cache
+	switch {
+	case dep.CacheEngine == "redis" && dep.RedisURL != "":
+		m.cacheChoice = 2
+		m.redisInput.SetValue(dep.RedisURL)
+	case dep.CacheEngine == "redis":
+		m.cacheChoice = 1
+	default:
+		m.cacheChoice = 0
 	}
 }
 
@@ -513,7 +549,7 @@ func (m *InstallModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				}
 			case "enter":
 				m.database = m.cursor
-				if m.database == 0 {
+				if strings.HasPrefix(dbValues[m.database], "bundled") {
 					// Bundled — skip DSN form, go to email
 					m.step = stepEmail
 					m.cursor = 0
@@ -653,10 +689,11 @@ func (m *InstallModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			case "enter":
 				m.storageChoice = m.cursor
 				if m.storageChoice == 0 {
-					// Local — go straight to install
-					m.step = stepProgress
-					m.progressStep = 0
-					return m, tea.Batch(m.spinner.Tick, m.runInstall())
+					// Local — go to cache step
+					m.step = stepCache
+					m.cursor = m.cacheChoice
+					m.cacheSubStep = 0
+					return m, nil
 				}
 				// S3 or Azure — show form
 				m.storageSubStep = 1
@@ -677,9 +714,10 @@ func (m *InstallModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			switch key {
 			case "tab", "down":
 				if done := advanceFormFocus(m.storageInputs, &m.storageFocusIdx, 1); done {
-					m.step = stepProgress
-					m.progressStep = 0
-					return m, tea.Batch(m.spinner.Tick, m.runInstall())
+					m.step = stepCache
+					m.cursor = m.cacheChoice
+					m.cacheSubStep = 0
+					return m, nil
 				}
 				return m, nil
 			case "shift+tab", "up":
@@ -692,9 +730,10 @@ func (m *InstallModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, nil
 			case "enter":
 				if done := advanceFormFocus(m.storageInputs, &m.storageFocusIdx, 1); done {
-					m.step = stepProgress
-					m.progressStep = 0
-					return m, tea.Batch(m.spinner.Tick, m.runInstall())
+					m.step = stepCache
+					m.cursor = m.cacheChoice
+					m.cacheSubStep = 0
+					return m, nil
 				}
 				return m, nil
 			case "esc":
@@ -704,6 +743,49 @@ func (m *InstallModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			var cmd tea.Cmd
 			m.storageInputs[m.storageFocusIdx], cmd = m.storageInputs[m.storageFocusIdx].Update(msg)
+			return m, cmd
+		}
+
+	case stepCache:
+		if m.cacheSubStep == 0 {
+			switch key {
+			case "up", "k":
+				if m.cursor > 0 {
+					m.cursor--
+				}
+			case "down", "j":
+				if m.cursor < len(cacheChoices)-1 {
+					m.cursor++
+				}
+			case "enter":
+				m.cacheChoice = m.cursor
+				if cacheValues[m.cacheChoice] == "redis-remote" {
+					m.cacheSubStep = 1
+					m.redisInput.Focus()
+				} else {
+					m.step = stepProgress
+					m.progressStep = 0
+					return m, tea.Batch(m.spinner.Tick, m.runInstall())
+				}
+			case "esc":
+				m.step = stepStorage
+				m.cursor = m.storageChoice
+				m.storageSubStep = 0
+			}
+		} else {
+			// Redis URL input
+			switch key {
+			case "enter", "tab":
+				m.step = stepProgress
+				m.progressStep = 0
+				return m, tea.Batch(m.spinner.Tick, m.runInstall())
+			case "esc":
+				m.cacheSubStep = 0
+				m.cursor = m.cacheChoice
+				return m, nil
+			}
+			var cmd tea.Cmd
+			m.redisInput, cmd = m.redisInput.Update(msg)
 			return m, cmd
 		}
 
@@ -748,11 +830,20 @@ func (m *InstallModel) runInstall() tea.Cmd {
 	providerID := providerChoices[m.provider].id
 	channel := channelValues[m.channel]
 	domain := m.domain
-	dbType := dbValues[m.database]
+	dbValue := dbValues[m.database]
+
+	// Build LocalDBType for bundled selections
+	var localDBType string
+	switch dbValue {
+	case "bundled-postgres":
+		localDBType = "postgres"
+	case "bundled-mariadb":
+		localDBType = "mariadb"
+	}
 
 	// Build DSN from external DB form (if applicable)
 	var externalDSN string
-	if dbType != "bundled" && len(m.dbInputs) == 5 {
+	if (dbValue == "mysql" || dbValue == "postgres") && len(m.dbInputs) == 5 {
 		host := m.dbInputs[0].Value()
 		port := m.dbInputs[1].Value()
 		dbName := m.dbInputs[2].Value()
@@ -771,7 +862,7 @@ func (m *InstallModel) runInstall() tea.Cmd {
 			user = m.dbInputs[3].Placeholder
 		}
 		scheme := "mysql"
-		if dbType == "postgres" {
+		if dbValue == "postgres" {
 			scheme = "postgres"
 		}
 		externalDSN = fmt.Sprintf("%s://%s:%s@%s:%s/%s", scheme, user, pass, host, port, dbName)
@@ -791,6 +882,17 @@ func (m *InstallModel) runInstall() tea.Cmd {
 	var storageVals []string
 	for _, inp := range m.storageInputs {
 		storageVals = append(storageVals, inp.Value())
+	}
+
+	// Capture cache config
+	cacheValue := cacheValues[m.cacheChoice]
+	cacheEngine := "apcu"
+	redisURL := ""
+	if cacheValue == "redis-local" {
+		cacheEngine = "redis"
+	} else if cacheValue == "redis-remote" {
+		cacheEngine = "redis"
+		redisURL = m.redisInput.Value()
 	}
 
 	return func() tea.Msg {
@@ -841,6 +943,9 @@ func (m *InstallModel) runInstall() tea.Cmd {
 			StorageType: storageType,
 			StorageConfig: storageConfig,
 			DatabaseDSN: externalDSN,
+			LocalDBType: localDBType,
+			CacheEngine: cacheEngine,
+			RedisURL:    redisURL,
 			BackupConfig: providers.BackupConfig{
 				Enabled:       true,
 				Schedule:      "0 3 * * *",
@@ -935,6 +1040,8 @@ func (m *InstallModel) View() string {
 		s.WriteString(m.viewEmail())
 	case stepStorage:
 		s.WriteString(m.viewStorage())
+	case stepCache:
+		s.WriteString(m.viewCache())
 	case stepProgress:
 		s.WriteString(m.viewProgress())
 	case stepComplete:
@@ -950,7 +1057,7 @@ func (m *InstallModel) View() string {
 func (m *InstallModel) renderHeader() string {
 	stepNames := []string{
 		"Welcome", "Provider", "Prerequisites", "Domain",
-		"Channel", "Database", "Email", "Storage", "Deploying", "Complete",
+		"Channel", "Database", "Email", "Storage", "Cache", "Deploying", "Complete",
 	}
 
 	var dots strings.Builder
@@ -982,6 +1089,10 @@ func (m *InstallModel) renderFooter() string {
 	case stepStorage:
 		if m.storageSubStep == 1 {
 			return components.SubtleStyle.Render("tab/enter: next field • shift+tab/up: prev • esc: back")
+		}
+	case stepCache:
+		if m.cacheSubStep == 1 {
+			return components.SubtleStyle.Render("enter/tab: confirm • esc: back")
 		}
 	case stepProgress:
 		return components.SubtleStyle.Render("Please wait...")
@@ -1204,6 +1315,32 @@ func (m *InstallModel) viewStorage() string {
 			s.WriteString(ls.Render(fmt.Sprintf("%s%-20s", prefix, label+":")) + " ")
 			s.WriteString(m.storageInputs[i].View() + "\n")
 		}
+	}
+
+	return components.BoxStyle.Render(s.String())
+}
+
+func (m *InstallModel) viewCache() string {
+	var s strings.Builder
+
+	if m.cacheSubStep == 0 {
+		s.WriteString("  Configure caching:\n\n")
+		for i, label := range cacheChoices {
+			cursor := "  ○ "
+			style := lipgloss.NewStyle()
+			if i == m.cursor {
+				cursor = "  ● "
+				style = style.Bold(true).Foreground(lipgloss.Color("#7D56F4"))
+			}
+			s.WriteString(style.Render(cursor+label) + "\n")
+		}
+		s.WriteString("\n" + components.SubtleStyle.Render(
+			"  APCu is fast and simple but is per-container only.\n  Redis is required for multi-replica (cloud) deployments.",
+		))
+	} else {
+		s.WriteString("  Remote Redis Configuration\n\n")
+		s.WriteString(components.SubtleStyle.Render("  URL format: redis://[:password@]host[:port]\n\n"))
+		s.WriteString("  Redis URL:  " + m.redisInput.View() + "\n")
 	}
 
 	return components.BoxStyle.Render(s.String())

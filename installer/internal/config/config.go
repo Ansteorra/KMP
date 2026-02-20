@@ -22,8 +22,11 @@ type Deployment struct {
 	ImageTag        string            `yaml:"image_tag"`
 	ComposeDir      string            `yaml:"compose_dir,omitempty"`
 	DatabaseDSN     string            `yaml:"database_dsn,omitempty"`
+	LocalDBType     string            `yaml:"local_db_type,omitempty"` // "mariadb" or "postgres"
 	StorageType     string            `yaml:"storage_type"`
 	StorageConfig   map[string]string `yaml:"storage_config,omitempty"`
+	CacheEngine     string            `yaml:"cache_engine,omitempty"` // "apcu" or "redis"
+	RedisURL        string            `yaml:"redis_url,omitempty"`    // empty = bundled local Redis
 	BackupEnabled   bool              `yaml:"backup_enabled"`
 	BackupSchedule  string            `yaml:"backup_schedule,omitempty"`
 	BackupRetention int               `yaml:"backup_retention_days,omitempty"`

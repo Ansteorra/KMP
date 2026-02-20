@@ -19,11 +19,28 @@ declare(strict_types=1);
 
 use Cake\Cache\Engine\ApcuEngine;
 use Cake\Cache\Engine\ArrayEngine;
+use Cake\Cache\Engine\RedisEngine;
 use Cake\Database\Connection;
 use Cake\Database\Driver\Mysql;
 use Cake\Log\Engine\FileLog;
 use Cake\Mailer\Transport\MailTransport;
 use Templating\View\Icon\BootstrapIcon;
+
+// Determine cache engine and Redis config from environment
+$cacheEngine = env('CACHE_ENGINE', 'apcu') === 'redis' ? RedisEngine::class : ApcuEngine::class;
+$redisConfig = [];
+if ($cacheEngine === RedisEngine::class) {
+    $redisUrl = env('REDIS_URL', 'redis://redis:6379');
+    $parsed = parse_url($redisUrl) ?: [];
+    $redisConfig = [
+        'server'   => $parsed['host'] ?? 'redis',
+        'port'     => $parsed['port'] ?? 6379,
+        'password' => ($parsed['pass'] ?? null) ?: env('REDIS_PASSWORD', null),
+        'database' => (int)(ltrim($parsed['path'] ?? '/0', '/') ?: '0'),
+        'timeout'  => 0,
+        'persistent' => false,
+    ];
+}
 
 return [
     /** @var bool Enable debug mode - set via DEBUG environment variable */
@@ -110,8 +127,8 @@ return [
     /** @see docs/6.4-caching-strategy.md */
     "Cache" => [
         /** @var array Default cache configuration for general application data */
-        "default" => [
-            "className" => ApcuEngine::class,
+        "default" => $redisConfig + [
+            "className" => $cacheEngine,
             'duration' => '+1 hours',
         ],
 
@@ -120,8 +137,8 @@ return [
          * Stores individual member permission data for fast authorization checks.
          * Short TTL ensures permission changes are reflected quickly.
          */
-        "member_permissions" => [
-            "className" => ApcuEngine::class,
+        "member_permissions" => $redisConfig + [
+            "className" => $cacheEngine,
             "duration" => "+30 minutes",
             'groups' => ['security', 'member_security']
         ],
@@ -131,8 +148,8 @@ return [
          * Stores the role/permission hierarchy and relationships.
          * Long TTL as this structure changes infrequently.
          */
-        "permissions_structure" => [
-            "className" => ApcuEngine::class,
+        "permissions_structure" => $redisConfig + [
+            "className" => $cacheEngine,
             "duration" => "+999 days",
             'groups' => ['security']
         ],
@@ -142,8 +159,8 @@ return [
          * Stores organizational hierarchy and branch relationships.
          * Long TTL as organizational structure is relatively stable.
          */
-        "branch_structure" => [
-            "className" => ApcuEngine::class,
+        "branch_structure" => $redisConfig + [
+            "className" => $cacheEngine,
             "duration" => "+999 days",
             'groups' => ['security']
         ],
@@ -154,8 +171,8 @@ return [
          * Framework-managed cache for i18n performance optimization.
          * Duration reduced to +2 minutes when debug = true.
          */
-        "_cake_translations_" => [
-            "className" => ApcuEngine::class,
+        "_cake_translations_" => $redisConfig + [
+            "className" => $cacheEngine,
             "duration" => "+1 years",
             "url" => env("CACHE_CAKECORE_URL", null),
         ],
@@ -166,8 +183,8 @@ return [
          * Framework-managed cache for ORM performance optimization.
          * Duration reduced to +2 minutes when debug = true.
          */
-        "_cake_model_" => [
-            "className" => ApcuEngine::class,
+        "_cake_model_" => $redisConfig + [
+            "className" => $cacheEngine,
             "duration" => "+1 years",
             "url" => env("CACHE_CAKEMODEL_URL", null),
         ],

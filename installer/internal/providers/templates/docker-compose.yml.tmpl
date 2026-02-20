@@ -6,13 +6,17 @@ services:
     image: {{.Image}}:{{.ImageTag}}
     container_name: kmp-app
     restart: unless-stopped
-{{if eq .DatabaseType "bundled"}}
+{{if or (ne .DatabaseType "external") .UseRedis}}
     depends_on:
+{{if ne .DatabaseType "external"}}
       db:
         condition: service_healthy
 {{end}}
-    ports:
-      - "127.0.0.1:8080:80"
+{{if .UseRedis}}
+      redis:
+        condition: service_healthy
+{{end}}
+{{end}}
     volumes:
       - kmp-uploads:/var/www/html/images/uploaded
       - kmp-cache:/var/www/html/images/cache
@@ -26,7 +30,7 @@ services:
       timeout: 10s
       retries: 5
       start_period: 300s
-{{if eq .DatabaseType "bundled"}}
+{{if eq .DatabaseType "bundled-mariadb"}}
   db:
     image: mariadb:11
     container_name: kmp-db
@@ -44,6 +48,38 @@ services:
       timeout: 5s
       retries: 10
       start_period: 60s
+{{end}}
+{{if eq .DatabaseType "bundled-postgres"}}
+  db:
+    image: postgres:16-alpine
+    container_name: kmp-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - kmp-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+{{end}}
+{{if .UseRedis}}
+  redis:
+    image: redis:7-alpine
+    container_name: kmp-redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning{{if .RedisPassword}} --requirepass ${REDIS_PASSWORD}{{end}}
+    volumes:
+      - kmp-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 {{end}}
   caddy:
     image: caddy:2-alpine
@@ -67,6 +103,9 @@ volumes:
   kmp-tmp:
   caddy-data:
   caddy-config:
-{{if eq .DatabaseType "bundled"}}
+{{if ne .DatabaseType "external"}}
   kmp-db-data:
+{{end}}
+{{if .UseRedis}}
+  kmp-redis-data:
 {{end}}

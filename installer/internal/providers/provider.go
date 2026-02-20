@@ -55,8 +55,11 @@ type DeployConfig struct {
 	Image         string // ghcr.io/jhandel/kmp
 	ImageTag      string
 	DatabaseDSN   string // BYO database, empty = bundled
+	LocalDBType   string // "mariadb" or "postgres" when bundled; empty = mariadb default
 	StorageType   string // local, s3, azure
 	StorageConfig map[string]string
+	CacheEngine   string // "apcu" (default) or "redis"
+	RedisURL      string // remote redis:// URL; empty = bundled local Redis when CacheEngine=redis
 	ComposeDir    string // where to store docker-compose files
 	BackupConfig  BackupConfig
 }

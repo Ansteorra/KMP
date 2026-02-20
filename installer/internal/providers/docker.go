@@ -88,9 +88,25 @@ func (d *DockerProvider) Prerequisites() []Prerequisite {
 
 func (d *DockerProvider) Install(cfg *DeployConfig) error {
 	// Determine database type
-	dbType := "bundled"
+	dbType := "bundled-mariadb"
 	if cfg.DatabaseDSN != "" {
 		dbType = "external"
+	} else if cfg.LocalDBType == "postgres" {
+		dbType = "bundled-postgres"
+	}
+
+	// Determine cache config
+	cacheEngine := cfg.CacheEngine
+	if cacheEngine == "" {
+		cacheEngine = "apcu"
+	}
+	useRedis := cacheEngine == "redis"
+	redisURL := cfg.RedisURL
+	redisPassword := ""
+	if useRedis && redisURL == "" {
+		// Bundled local Redis — generate a password
+		redisPassword = generateRandomString(12)
+		redisURL = fmt.Sprintf("redis://:@redis:6379")
 	}
 
 	// Create deployment directory
@@ -130,6 +146,10 @@ func (d *DockerProvider) Install(cfg *DeployConfig) error {
 		S3Key:      cfg.StorageConfig["s3_key"],
 		S3Secret:   cfg.StorageConfig["s3_secret"],
 		S3Endpoint: cfg.StorageConfig["s3_endpoint"],
+		CacheEngine:   cacheEngine,
+		UseRedis:      useRedis,
+		RedisURL:      redisURL,
+		RedisPassword: redisPassword,
 	}
 
 	// Write .env
@@ -414,7 +434,7 @@ type templateData struct {
 	ImageTag       string
 	Domain         string
 	RequireHttps   bool   // false for localhost/IP installs that serve over plain HTTP
-	DatabaseType   string // "bundled" or "external"
+	DatabaseType   string // "bundled-mariadb", "bundled-postgres", or "external"
 	DatabaseDSN    string
 	SecuritySalt   string
 	DBRootPassword string
@@ -436,6 +456,11 @@ type templateData struct {
 	S3Key      string
 	S3Secret   string
 	S3Endpoint string
+	// Cache
+	CacheEngine   string // "apcu" or "redis"
+	UseRedis      bool
+	RedisURL      string // full redis:// URL for remote Redis
+	RedisPassword string // password for bundled Redis
 }
 
 func generateRandomString(length int) string {
@@ -559,8 +584,11 @@ func (d *DockerProvider) saveDeployment(cfg *DeployConfig) error {
 		ImageTag:        cfg.ImageTag,
 		ComposeDir:      d.dir,
 		DatabaseDSN:     cfg.DatabaseDSN,
+		LocalDBType:     cfg.LocalDBType,
 		StorageType:     cfg.StorageType,
 		StorageConfig:   cfg.StorageConfig,
+		CacheEngine:     cfg.CacheEngine,
+		RedisURL:        cfg.RedisURL,
 		BackupEnabled:   cfg.BackupConfig.Enabled,
 		BackupSchedule:  cfg.BackupConfig.Schedule,
 		BackupRetention: cfg.BackupConfig.RetentionDays,
