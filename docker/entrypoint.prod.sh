@@ -36,6 +36,8 @@ return [
     'Datasources' => [
         'default' => [
             'url' => env('DATABASE_URL'),
+            // PgBouncer/Neon pooler requires emulated prepares (server-side PREPARE aborts transactions)
+            'flags' => (strpos(env('DATABASE_URL', ''), 'postgres') !== false) ? [\PDO::ATTR_EMULATE_PREPARES => true] : [],
         ],
         'test' => [
             'url' => env('DATABASE_TEST_URL', env('DATABASE_URL') . '_test'),

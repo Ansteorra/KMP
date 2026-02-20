@@ -13,13 +13,14 @@ class AddWorkerKeyIndex extends BaseMigration
      */
     public function up(): void
     {
+        // Use table-qualified name since PostgreSQL requires schema-unique index names
         $this->table('queued_jobs')
             ->addIndex(
                 [
                     'workerkey',
                 ],
                 [
-                    'name' => 'workerkey',
+                    'name' => 'queued_jobs_workerkey',
                 ],
             )
             ->update();

@@ -22,7 +22,7 @@ class AddGatheringIdToRecommendations extends BaseMigration
         $table->addIndex([
             'gathering_id',
         ], [
-            'name' => 'BY_GATHERING_ID',
+            'name' => 'awards_recommendations_gathering_id',
             'unique' => false,
         ]);
         $table->addForeignKey(
