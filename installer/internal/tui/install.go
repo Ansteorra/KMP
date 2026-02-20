@@ -98,6 +98,11 @@ type InstallModel struct {
 	// Prerequisites
 	prereqs []prereqCheck
 
+	// Database external connection (MySQL/Postgres)
+	dbSubStep  int // 0=choice, 1=connection form
+	dbInputs   []textinput.Model
+	dbFocusIdx int
+
 	// Email configuration
 	emailChoice  int  // 0=skip, 1=smtp
 	emailSubStep int  // 0=choice, 1=smtp form
@@ -209,6 +214,36 @@ func newAzureInputs() []textinput.Model {
 	return inputs
 }
 
+func newDBInputs(dbType string) []textinput.Model {
+	// [host, port, dbname, username, password]
+	defaultPort := "3306"
+	if dbType == "postgres" {
+		defaultPort = "5432"
+	}
+	specs := []struct {
+		placeholder string
+		echoPass    bool
+	}{
+		{"db.example.com", false},
+		{defaultPort, false},
+		{"kmp", false},
+		{"kmpuser", false},
+		{"password", true},
+	}
+	inputs := make([]textinput.Model, len(specs))
+	for i, s := range specs {
+		t := textinput.New()
+		t.Placeholder = s.placeholder
+		t.Width = 44
+		if s.echoPass {
+			t.EchoMode = textinput.EchoPassword
+		}
+		inputs[i] = t
+	}
+	inputs[0].Focus()
+	return inputs
+}
+
 // advanceFormFocus moves focus to the next input in a slice.
 // Returns true if we reached the end (caller should advance the step).
 func advanceFormFocus(inputs []textinput.Model, idx *int, delta int) bool {
@@ -263,6 +298,13 @@ func (m *InstallModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.step == stepDomain {
 		var cmd tea.Cmd
 		m.domainInput, cmd = m.domainInput.Update(msg)
+		return m, cmd
+	}
+
+	// Pass through to DB inputs when in external DB form
+	if m.step == stepDatabase && m.dbSubStep == 1 && m.dbFocusIdx < len(m.dbInputs) {
+		var cmd tea.Cmd
+		m.dbInputs[m.dbFocusIdx], cmd = m.dbInputs[m.dbFocusIdx].Update(msg)
 		return m, cmd
 	}
 
@@ -363,24 +405,69 @@ func (m *InstallModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case stepDatabase:
-		switch key {
-		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
+		if m.dbSubStep == 0 {
+			switch key {
+			case "up", "k":
+				if m.cursor > 0 {
+					m.cursor--
+				}
+			case "down", "j":
+				if m.cursor < len(dbChoices)-1 {
+					m.cursor++
+				}
+			case "enter":
+				m.database = m.cursor
+				if m.database == 0 {
+					// Bundled — skip DSN form, go to email
+					m.step = stepEmail
+					m.cursor = 0
+					m.emailChoice = 0
+					m.emailSubStep = 0
+				} else {
+					// External — show connection form
+					m.dbSubStep = 1
+					m.dbFocusIdx = 0
+					m.dbInputs = newDBInputs(dbValues[m.database])
+				}
+			case "esc":
+				m.step = stepChannel
+				m.cursor = m.channel
 			}
-		case "down", "j":
-			if m.cursor < len(dbChoices)-1 {
-				m.cursor++
+		} else {
+			// External DB connection form
+			switch key {
+			case "tab", "down":
+				if done := advanceFormFocus(m.dbInputs, &m.dbFocusIdx, 1); done {
+					m.step = stepEmail
+					m.cursor = 0
+					m.emailChoice = 0
+					m.emailSubStep = 0
+				}
+				return m, nil
+			case "shift+tab", "up":
+				if m.dbFocusIdx == 0 {
+					m.dbSubStep = 0
+					m.cursor = m.database
+				} else {
+					advanceFormFocus(m.dbInputs, &m.dbFocusIdx, -1) //nolint:errcheck
+				}
+				return m, nil
+			case "enter":
+				if done := advanceFormFocus(m.dbInputs, &m.dbFocusIdx, 1); done {
+					m.step = stepEmail
+					m.cursor = 0
+					m.emailChoice = 0
+					m.emailSubStep = 0
+				}
+				return m, nil
+			case "esc":
+				m.dbSubStep = 0
+				m.cursor = m.database
+				return m, nil
 			}
-		case "enter":
-			m.database = m.cursor
-			m.step = stepEmail
-			m.cursor = 0
-			m.emailChoice = 0
-			m.emailSubStep = 0
-		case "esc":
-			m.step = stepChannel
-			m.cursor = m.channel
+			var cmd tea.Cmd
+			m.dbInputs[m.dbFocusIdx], cmd = m.dbInputs[m.dbFocusIdx].Update(msg)
+			return m, cmd
 		}
 
 	case stepEmail:
@@ -567,6 +654,33 @@ func (m *InstallModel) runInstall() tea.Cmd {
 	domain := m.domain
 	dbType := dbValues[m.database]
 
+	// Build DSN from external DB form (if applicable)
+	var externalDSN string
+	if dbType != "bundled" && len(m.dbInputs) == 5 {
+		host := m.dbInputs[0].Value()
+		port := m.dbInputs[1].Value()
+		dbName := m.dbInputs[2].Value()
+		user := m.dbInputs[3].Value()
+		pass := m.dbInputs[4].Value()
+		if host == "" {
+			host = m.dbInputs[0].Placeholder
+		}
+		if port == "" {
+			port = m.dbInputs[1].Placeholder
+		}
+		if dbName == "" {
+			dbName = m.dbInputs[2].Placeholder
+		}
+		if user == "" {
+			user = m.dbInputs[3].Placeholder
+		}
+		scheme := "mysql"
+		if dbType == "postgres" {
+			scheme = "postgres"
+		}
+		externalDSN = fmt.Sprintf("%s://%s:%s@%s:%s/%s", scheme, user, pass, host, port, dbName)
+	}
+
 	// Capture email config
 	smtpEnabled := m.emailChoice == 1
 	var smtpVals [5]string
@@ -629,14 +743,12 @@ func (m *InstallModel) runInstall() tea.Cmd {
 			ImageTag:    imageTag,
 			StorageType: storageType,
 			StorageConfig: storageConfig,
+			DatabaseDSN: externalDSN,
 			BackupConfig: providers.BackupConfig{
 				Enabled:       true,
 				Schedule:      "0 3 * * *",
 				RetentionDays: 30,
 			},
-		}
-		if dbType != "bundled" {
-			cfg.DatabaseDSN = "" // will be filled in future BYO-DSN step
 		}
 
 		var provider providers.Provider
@@ -880,16 +992,35 @@ func (m *InstallModel) viewChannel() string {
 
 func (m *InstallModel) viewDatabase() string {
 	var s strings.Builder
-	s.WriteString("  Select database configuration:\n\n")
 
-	for i, db := range dbChoices {
-		cursor := "  ○ "
-		style := lipgloss.NewStyle()
-		if i == m.cursor {
-			cursor = "  ● "
-			style = style.Bold(true).Foreground(lipgloss.Color("#7D56F4"))
+	if m.dbSubStep == 0 {
+		s.WriteString("  Select database configuration:\n\n")
+		for i, db := range dbChoices {
+			cursor := "  ○ "
+			style := lipgloss.NewStyle()
+			if i == m.cursor {
+				cursor = "  ● "
+				style = style.Bold(true).Foreground(lipgloss.Color("#7D56F4"))
+			}
+			s.WriteString(style.Render(cursor+db) + "\n")
 		}
-		s.WriteString(style.Render(cursor+db) + "\n")
+	} else {
+		dbLabel := "MySQL"
+		if dbValues[m.database] == "postgres" {
+			dbLabel = "PostgreSQL"
+		}
+		s.WriteString(fmt.Sprintf("  %s Connection Details\n\n", dbLabel))
+		labels := []string{"Host", "Port", "Database Name", "Username", "Password"}
+		for i, label := range labels {
+			focused := m.dbFocusIdx == i
+			ls := lipgloss.NewStyle()
+			if focused {
+				ls = ls.Bold(true).Foreground(lipgloss.Color("#7D56F4"))
+			}
+			s.WriteString(ls.Render(fmt.Sprintf("  %-16s", label+":")) + " ")
+			s.WriteString(m.dbInputs[i].View() + "\n")
+		}
+		s.WriteString("\n" + components.SubtleStyle.Render("  A DSN will be built from these values."))
 	}
 
 	return components.BoxStyle.Render(s.String())
