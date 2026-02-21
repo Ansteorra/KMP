@@ -1,42 +1,38 @@
 #!/bin/bash
-# Script to fix permissions for Apache web server access
-# Run this script if logs, tmp, or images directories have permission issues
+# Script to fix runtime permissions for Apache web server access.
+# This mirrors production-style writable paths for www-data.
+
+set -euo pipefail
 
 REPO_PATH="${REPO_PATH:-/workspaces/KMP}"
+APP_PATH="$REPO_PATH/app"
 
-echo "Fixing permissions for Apache web server (www-data)..."
+echo "Fixing runtime permissions for Apache web server (www-data)..."
 
-# Fix logs directory
-echo "  - Setting up logs directory..."
-sudo mkdir -p "$REPO_PATH/app/logs"
-sudo chmod -R 777 "$REPO_PATH/app/logs"
-sudo chown -R www-data:www-data "$REPO_PATH/app/logs"
+echo "  - Ensuring runtime directories exist..."
+sudo mkdir -p "$APP_PATH/logs"
+sudo mkdir -p "$APP_PATH/tmp/cache/models"
+sudo mkdir -p "$APP_PATH/tmp/cache/persistent"
+sudo mkdir -p "$APP_PATH/tmp/cache/views"
+sudo mkdir -p "$APP_PATH/tmp/sessions"
+sudo mkdir -p "$APP_PATH/tmp/tests"
+sudo mkdir -p "$APP_PATH/images/uploaded"
+sudo mkdir -p "$APP_PATH/images/cache"
+sudo mkdir -p "$APP_PATH/backups"
 
-# Fix tmp directory and all subdirectories
-echo "  - Setting up tmp directory..."
-sudo mkdir -p "$REPO_PATH/app/tmp"
-sudo mkdir -p "$REPO_PATH/app/tmp/cache"
-sudo mkdir -p "$REPO_PATH/app/tmp/cache/models"
-sudo mkdir -p "$REPO_PATH/app/tmp/cache/persistent"
-sudo mkdir -p "$REPO_PATH/app/tmp/cache/views"
-sudo mkdir -p "$REPO_PATH/app/tmp/sessions"
-sudo mkdir -p "$REPO_PATH/app/tmp/tests"
-sudo chmod -R 777 "$REPO_PATH/app/tmp"
-sudo chown -R www-data:www-data "$REPO_PATH/app/tmp"
+echo "  - Applying ownership and mode (www-data:www-data, 775)..."
+for runtime_dir in logs tmp images backups; do
+    sudo chown -R www-data:www-data "$APP_PATH/$runtime_dir"
+    sudo chmod -R 775 "$APP_PATH/$runtime_dir"
+done
 
-# Fix images directory
-echo "  - Setting up images directory..."
-sudo mkdir -p "$REPO_PATH/app/images/uploaded"
-sudo mkdir -p "$REPO_PATH/app/images/cache"
-sudo chmod -R 777 "$REPO_PATH/app/images"
-sudo chown -R www-data:www-data "$REPO_PATH/app/images"
-
-# Restart Apache to ensure changes take effect
-echo "  - Restarting Apache..."
-sudo apachectl restart
+if [[ "${SKIP_APACHE_RESTART:-0}" != "1" ]]; then
+    echo "  - Restarting Apache..."
+    sudo apachectl restart
+fi
 
 echo ""
-echo "✓ Permissions fixed successfully!"
+echo "✓ Runtime permissions fixed successfully."
 echo ""
 echo "Directory ownership and permissions:"
-ls -ld "$REPO_PATH/app/logs" "$REPO_PATH/app/tmp" "$REPO_PATH/app/images"
+ls -ld "$APP_PATH/logs" "$APP_PATH/tmp" "$APP_PATH/images" "$APP_PATH/backups"

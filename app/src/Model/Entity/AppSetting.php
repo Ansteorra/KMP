@@ -32,6 +32,10 @@ class AppSetting extends BaseEntity
 
     protected function _getRawValue()
     {
+        if (($this->type ?? 'string') === 'password' || $this->name === 'Backup.encryptionKey') {
+            return '';
+        }
+
         switch ($this->type) {
             case 'json':
                 return json_encode($this->value);
@@ -98,6 +102,10 @@ class AppSetting extends BaseEntity
      */
     protected function _getValuePreview(): ?string
     {
+        if (($this->type ?? 'string') === 'password' || $this->name === 'Backup.encryptionKey') {
+            return '********';
+        }
+
         $value = $this->value;
 
         // For complex types (yaml/json that decode to arrays), show indicator

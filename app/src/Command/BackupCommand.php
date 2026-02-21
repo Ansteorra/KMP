@@ -6,6 +6,7 @@ namespace App\Command;
 
 use App\Services\BackupService;
 use App\Services\BackupStorageService;
+use App\Services\RestoreStatusService;
 use Cake\Command\Command;
 use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
@@ -54,7 +55,7 @@ class BackupCommand extends Command
         $key = $args->getOption('key');
         if (empty($key)) {
             $appSettings = $this->fetchTable('AppSettings');
-            $key = $appSettings->getAppSetting('Backup.encryptionKey', '', 'string', false);
+            $key = $appSettings->getSetting('Backup.encryptionKey');
         }
 
         if (empty($key)) {
@@ -141,11 +142,72 @@ class BackupCommand extends Command
         }
 
         $backupService = new BackupService();
+        $restoreStatusService = new RestoreStatusService();
+
+        if (!$restoreStatusService->acquireLock([
+            'source' => $filename,
+            'actor' => 'cli',
+            'message' => sprintf('CLI restore starting from %s.', $filename),
+        ])) {
+            $status = $restoreStatusService->getStatus();
+            $io->error((string)($status['message'] ?? 'A restore/import is already running.'));
+
+            return self::CODE_ERROR;
+        }
 
         try {
             $data = $storage->read($filename);
+            $restoreStatusService->updateStatus('starting', sprintf('CLI restore started from %s.', $filename), [
+                'source' => $filename,
+                'actor' => 'cli',
+            ]);
             $io->out('Decrypting and restoring...');
-            $stats = $backupService->import($data, $key);
+
+            $lastPhase = null;
+            $stats = $backupService->import(
+                $data,
+                $key,
+                function (array $progress) use ($restoreStatusService, $filename, $io, &$lastPhase): void {
+                    $phase = (string)($progress['phase'] ?? 'running');
+                    $message = (string)($progress['message'] ?? 'Restore in progress.');
+                    unset($progress['phase'], $progress['message']);
+
+                    $restoreStatusService->updateStatus($phase, $message, array_merge($progress, [
+                        'source' => $filename,
+                        'actor' => 'cli',
+                    ]));
+
+                    if ($phase === 'table_restored' && isset($progress['tables_processed'], $progress['table_count'], $progress['rows_processed'])) {
+                        $io->out(sprintf(
+                            'Progress: %d/%d tables, %s rows.',
+                            (int)$progress['tables_processed'],
+                            (int)$progress['table_count'],
+                            number_format((int)$progress['rows_processed']),
+                        ));
+
+                        return;
+                    }
+
+                    if ($phase !== $lastPhase) {
+                        $io->out($message);
+                        $lastPhase = $phase;
+                    }
+                },
+            );
+
+            $restoreStatusService->markCompleted(sprintf(
+                'CLI restore completed from %s: %d tables, %d rows.',
+                $filename,
+                $stats['table_count'],
+                $stats['row_count'],
+            ), [
+                'source' => $filename,
+                'actor' => 'cli',
+                'table_count' => $stats['table_count'],
+                'tables_processed' => $stats['table_count'],
+                'row_count' => $stats['row_count'],
+                'rows_processed' => $stats['row_count'],
+            ]);
 
             $io->success(sprintf(
                 'Restore completed: %d tables, %s rows',
@@ -155,9 +217,15 @@ class BackupCommand extends Command
 
             return self::CODE_SUCCESS;
         } catch (\Exception $e) {
+            $restoreStatusService->markFailed('CLI restore failed: ' . $e->getMessage(), [
+                'source' => $filename,
+                'actor' => 'cli',
+            ]);
             $io->error('Restore failed: ' . $e->getMessage());
 
             return self::CODE_ERROR;
+        } finally {
+            $restoreStatusService->releaseLock();
         }
     }
 

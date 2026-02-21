@@ -29,7 +29,7 @@ class BackupTask extends Task
     public function run(array $data, int $jobId): void
     {
         $appSettings = $this->fetchTable('AppSettings');
-        $encryptionKey = $appSettings->getAppSetting('Backup.encryptionKey', '', 'string', false);
+        $encryptionKey = $appSettings->getSetting('Backup.encryptionKey');
 
         if (empty($encryptionKey)) {
             Log::warning('Scheduled backup skipped — no encryption key configured');

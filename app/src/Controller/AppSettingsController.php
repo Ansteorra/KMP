@@ -148,8 +148,23 @@ class AppSettingsController extends AppController
         $this->Authorization->authorize($appSetting);
 
         if ($this->request->is(['patch', 'post', 'put'])) {
-            $value = $this->request->getData('raw_value');
-            $result = StaticHelpers::setAppSetting($appSetting->name, $value, $appSetting->type, $appSetting->required);
+            $value = (string)$this->request->getData('raw_value', '');
+            $settingType = $appSetting->name === 'Backup.encryptionKey' ? 'password' : ($appSetting->type ?? 'string');
+
+            if ($settingType === 'password' && trim($value) === '') {
+                $this->Flash->success(__('No changes were made.'));
+                $flashMessages = $this->request->getSession()->read('Flash');
+                $this->request->getSession()->delete('Flash');
+
+                $this->response = $this->response->withType('text/vnd.turbo-stream.html');
+                $this->viewBuilder()->disableAutoLayout();
+                $this->viewBuilder()->setTemplate('turbo_close_modal');
+                $this->set('refreshFrame', 'app-settings-grid-table');
+                $this->set('flashMessages', $flashMessages);
+                return;
+            }
+
+            $result = StaticHelpers::setAppSetting($appSetting->name, $value, $settingType, $appSetting->required);
             if ($result) {
                 $this->Flash->success(__('The app setting has been saved.'));
 

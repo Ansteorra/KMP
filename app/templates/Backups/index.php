@@ -9,6 +9,7 @@
  * @var string $schedule
  * @var int $retention
  * @var string $storageType
+ * @var array<string, mixed> $restoreStatus
  */
 
 $this->extend("/layout/TwitterBootstrap/dashboard");
@@ -18,9 +19,16 @@ echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Backups';
 $this->KMP->endBlock();
 
 $this->assign('title', __('Backups'));
+
+$restoreIsLocked = !empty($restoreStatus['locked']);
 ?>
 
-<div class="container-fluid">
+<div class="container-fluid"
+    data-controller="backup-restore-status"
+    data-backup-restore-status-url-value="<?= h($this->Url->build(['action' => 'status'])) ?>"
+    data-backup-restore-status-interval-value="1000"
+    data-backup-restore-status-terminal-window-value="30"
+    data-backup-restore-status-auto-reload-value="true">
     <div class="row">
         <!-- Settings Panel -->
         <div class="col-md-4 mb-4">
@@ -80,21 +88,58 @@ $this->assign('title', __('Backups'));
         <!-- Backups List -->
         <div class="col-md-8">
             <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0"><i class="bi bi-archive"></i> <?= __('Backups') ?></h5>
-                    <?= $this->Form->create(null, ['url' => ['action' => 'create'], 'class' => 'd-inline']) ?>
-                    <?= $this->Form->button(
-                        '<i class="bi bi-plus-circle"></i> ' . __('Backup Now'),
-                        [
-                            'class' => 'btn btn-success btn-sm',
-                            'escapeTitle' => false,
-                            'disabled' => !$hasKey,
-                            'title' => !$hasKey ? __('Set an encryption key first') : '',
-                        ],
-                    ) ?>
-                    <?= $this->Form->end() ?>
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="bi bi-archive"></i> <?= __('Backups, Export, and Import') ?></h5>
                 </div>
                 <div class="card-body p-0">
+                    <div class="p-3 border-bottom bg-light">
+                        <div class="d-flex flex-column flex-lg-row gap-3 align-items-lg-end">
+                            <div>
+                                <?= $this->Form->create(null, ['url' => ['action' => 'create'], 'class' => 'd-inline']) ?>
+                                <?= $this->Form->button(
+                                    '<i class="bi bi-download"></i> ' . __('Export Backup'),
+                                    [
+                                        'class' => 'btn btn-success btn-sm',
+                                        'escapeTitle' => false,
+                                        'disabled' => !$hasKey || $restoreIsLocked,
+                                        'title' => $restoreIsLocked ? __('A restore/import is currently running') : (!$hasKey ? __('Set an encryption key first') : ''),
+                                    ],
+                                ) ?>
+                                <?= $this->Form->end() ?>
+                            </div>
+                            <div class="flex-grow-1">
+                                <?= $this->Form->create(null, [
+                                    'url' => ['action' => 'restore'],
+                                    'type' => 'file',
+                                    'class' => 'row g-2 align-items-end',
+                                    'data-action' => 'submit->backup-restore-status#submitRestore',
+                                    'data-confirm-message' => __('Import this backup and replace all current data? This action cannot be undone.'),
+                                    'data-restore-key-prompt' => __('Enter the encryption key for this backup file:'),
+                                ]) ?>
+                                <div class="col-md-8">
+                                    <label class="form-label mb-1 small fw-bold"><?= __('Import Backup File') ?></label>
+                                    <input type="file"
+                                        name="backup_file"
+                                        class="form-control form-control-sm"
+                                        accept=".kmpbackup,application/octet-stream"
+                                        required>
+                                </div>
+                                <div class="col-md-auto">
+                                    <?= $this->Form->button(
+                                        '<i class="bi bi-upload"></i> ' . __('Import and Restore'),
+                                        [
+                                            'class' => 'btn btn-outline-warning btn-sm',
+                                            'escapeTitle' => false,
+                                            'disabled' => $restoreIsLocked,
+                                            'title' => $restoreIsLocked ? __('A restore/import is currently running') : '',
+                                        ],
+                                    ) ?>
+                                </div>
+                                <?= $this->Form->end() ?>
+                            </div>
+                        </div>
+                    </div>
+
                     <?php if (empty(iterator_to_array($backups))): ?>
                         <div class="p-4 text-center text-muted">
                             <i class="bi bi-archive" style="font-size: 3rem;"></i>
@@ -110,6 +155,7 @@ $this->assign('title', __('Backups'));
                                         <th><?= __('Tables') ?></th>
                                         <th><?= __('Rows') ?></th>
                                         <th><?= __('Status') ?></th>
+                                        <th><?= __('State Details') ?></th>
                                         <th><?= __('Created') ?></th>
                                         <th class="text-end"><?= __('Actions') ?></th>
                                     </tr>
@@ -132,35 +178,54 @@ $this->assign('title', __('Backups'));
                                                 ?>
                                                 <span class="badge <?= $badgeClass ?>"><?= h($backup->status) ?></span>
                                             </td>
+                                            <td class="small text-muted">
+                                                <?php if (!empty($backup->notes)): ?>
+                                                    <?= h($backup->notes) ?>
+                                                <?php else: ?>
+                                                    —
+                                                <?php endif; ?>
+                                            </td>
                                             <td class="small"><?= h($backup->created->nice()) ?></td>
                                             <td class="text-end">
-                                                <?php if ($backup->status === 'completed'): ?>
+                                                <?php if ($backup->status !== 'running' && !$restoreIsLocked): ?>
                                                     <?= $this->Html->link(
                                                         '<i class="bi bi-download"></i>',
                                                         ['action' => 'download', $backup->id],
                                                         ['escape' => false, 'class' => 'btn btn-outline-primary btn-sm me-1', 'title' => __('Download')],
                                                     ) ?>
-                                                    <?= $this->Form->postLink(
+                                                    <?= $this->Form->create(null, [
+                                                        'url' => ['action' => 'restore', $backup->id],
+                                                        'class' => 'd-inline',
+                                                        'data-action' => 'submit->backup-restore-status#submitRestore',
+                                                        'data-confirm-message' => __('Restore this backup? This will REPLACE all current data. This action cannot be undone.'),
+                                                        'data-restore-key-prompt' => __('Enter the encryption key for this backup:'),
+                                                    ]) ?>
+                                                    <?= $this->Form->button(
                                                         '<i class="bi bi-arrow-counterclockwise"></i>',
-                                                        ['action' => 'restore', $backup->id],
                                                         [
-                                                            'escape' => false,
+                                                            'escapeTitle' => false,
                                                             'class' => 'btn btn-outline-warning btn-sm me-1',
-                                                            'title' => __('Restore'),
-                                                            'confirm' => __('Restore this backup? This will REPLACE all current data. This action cannot be undone.'),
+                                                            'title' => __('Restore from this backup'),
                                                         ],
                                                     ) ?>
+                                                    <?= $this->Form->end() ?>
                                                 <?php endif; ?>
-                                                <?= $this->Form->postLink(
-                                                    '<i class="bi bi-trash"></i>',
-                                                    ['action' => 'delete', $backup->id],
-                                                    [
-                                                        'escape' => false,
-                                                        'class' => 'btn btn-outline-danger btn-sm',
-                                                        'title' => __('Delete'),
-                                                        'confirm' => __('Delete this backup?'),
-                                                    ],
-                                                ) ?>
+                                                <?php if (!$restoreIsLocked): ?>
+                                                    <?= $this->Form->postLink(
+                                                        '<i class="bi bi-trash"></i>',
+                                                        ['action' => 'delete', $backup->id],
+                                                        [
+                                                            'escape' => false,
+                                                            'class' => 'btn btn-outline-danger btn-sm',
+                                                            'title' => __('Delete'),
+                                                            'confirm' => __('Delete this backup?'),
+                                                        ],
+                                                    ) ?>
+                                                <?php else: ?>
+                                                    <button type="button" class="btn btn-outline-secondary btn-sm" disabled title="<?= __('A restore/import is currently running') ?>">
+                                                        <i class="bi bi-lock"></i>
+                                                    </button>
+                                                <?php endif; ?>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
@@ -171,6 +236,28 @@ $this->assign('title', __('Backups'));
                             <?= $this->Paginator->numbers() ?>
                         </div>
                     <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="restoreProgressModal" tabindex="-1" aria-labelledby="restoreProgressModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false" data-backup-restore-status-target="modal">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="restoreProgressModalLabel"><?= __('Restore Progress') ?></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?= __('Close') ?>" data-backup-restore-status-target="modalClose"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <span class="badge bg-secondary" data-backup-restore-status-target="modalBadge"><?= __('idle') ?></span>
+                        <div class="spinner-border spinner-border-sm text-warning" role="status" aria-hidden="true" data-backup-restore-status-target="modalSpinner"></div>
+                    </div>
+                    <div class="fw-semibold" data-backup-restore-status-target="modalMessage"><?= __('Waiting to start restore...') ?></div>
+                    <div class="small text-muted mt-2" data-backup-restore-status-target="modalDetails"><?= __('No active restore.') ?></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-backup-restore-status-target="modalClose"><?= __('Close') ?></button>
                 </div>
             </div>
         </div>

@@ -109,6 +109,7 @@ class AppSettingsGridColumns extends BaseGridColumns
                     ['value' => 'string', 'label' => 'String'],
                     ['value' => 'json', 'label' => 'JSON'],
                     ['value' => 'yaml', 'label' => 'YAML'],
+                    ['value' => 'password', 'label' => 'Password'],
                 ],
             ],
 

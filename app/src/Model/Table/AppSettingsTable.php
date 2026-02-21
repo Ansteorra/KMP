@@ -5,7 +5,9 @@ namespace App\Model\Table;
 
 use Cake\Cache\Cache;
 use Cake\Datasource\EntityInterface;
+use Cake\Log\Log;
 use Cake\ORM\RulesChecker;
+use Cake\Utility\Security;
 use Cake\Validation\Validator;
 use Exception;
 
@@ -28,6 +30,8 @@ use Exception;
  */
 class AppSettingsTable extends BaseTable
 {
+    private const PASSWORD_VALUE_PREFIX = 'enc:v1:';
+
     /**
      * Initialize method
      *
@@ -103,19 +107,31 @@ class AppSettingsTable extends BaseTable
      */
     public function getSetting(string $name): mixed
     {
-        //Log::debug("Getting setting $name");
+        $isSensitive = $this->isSensitiveSetting($name);
         $cacheKey = 'app_setting_' . $name;
-        $setting = Cache::read($cacheKey, 'default');
+        $setting = $isSensitive ? null : Cache::read($cacheKey, 'default');
 
-        if ($setting == null) {
-            $setting = $this->find()
+        if ($setting === null) {
+            $settingEntity = $this->find()
                 ->where(['name' => $name])
                 ->first();
 
-            if ($setting) {
-                Cache::write($cacheKey, $setting->value, 'default');
+            if ($settingEntity) {
+                $resolvedValue = $this->resolveValueForRead($settingEntity->type ?? 'string', $settingEntity->value);
+                if (!$isSensitive) {
+                    Cache::write($cacheKey, $resolvedValue, 'default');
+                }
 
-                return $setting->value;
+                if (
+                    $name === 'Backup.encryptionKey'
+                    && ($settingEntity->type ?? 'string') !== 'password'
+                    && is_string($resolvedValue)
+                    && $resolvedValue !== ''
+                ) {
+                    $this->updateSetting($name, 'password', $resolvedValue, false);
+                }
+
+                return $resolvedValue;
             }
 
             return null;
@@ -138,23 +154,29 @@ class AppSettingsTable extends BaseTable
         $setting = $this->find()
             ->where(['name' => $name])
             ->first();
+        $effectiveType = $type ?? ($setting?->type ?? 'string');
+        $encodedValue = $this->resolveValueForWrite($effectiveType, $value, $setting !== null);
 
         if ($setting) {
             $setting->saving = true;
-            $setting->value = $value;
-            $setting->type = $type;
+            if ($encodedValue !== null) {
+                $setting->value = $encodedValue;
+            }
+            $setting->type = $effectiveType;
             $setting->required = $required;
         } else {
             $setting = $this->newEmptyEntity();
             $setting->saving = true;
             $setting->name = $name;
-            $setting->type = $type;
-            $setting->value = $value;
+            $setting->type = $effectiveType;
+            $setting->value = $encodedValue;
             $setting->required = $required;
         }
         if ($this->save($setting)) {
-            $cacheKey = 'app_setting_' . $name;
-            Cache::write($cacheKey, $setting->value, 'default');
+            if (!$this->isSensitiveSetting($name)) {
+                $cacheKey = 'app_setting_' . $name;
+                Cache::write($cacheKey, $this->resolveValueForRead($effectiveType, $setting->value), 'default');
+            }
 
             return true;
         }
@@ -179,8 +201,10 @@ class AppSettingsTable extends BaseTable
                 return false;
             }
             if ($this->delete($setting)) {
-                $cacheKey = 'app_setting_' . $name;
-                Cache::delete($cacheKey, 'default');
+                if (!$this->isSensitiveSetting($name)) {
+                    $cacheKey = 'app_setting_' . $name;
+                    Cache::delete($cacheKey, 'default');
+                }
 
                 return true;
             }
@@ -226,5 +250,78 @@ class AppSettingsTable extends BaseTable
         }
 
         return $return;
+    }
+
+    private function isSensitiveSetting(string $name): bool
+    {
+        return $name === 'Backup.encryptionKey';
+    }
+
+    private function resolveValueForWrite(string $type, mixed $value, bool $settingExists): mixed
+    {
+        if ($type !== 'password') {
+            return $value;
+        }
+
+        if (!is_string($value)) {
+            $value = (string)$value;
+        }
+
+        if ($value === '' && $settingExists) {
+            return null;
+        }
+
+        if ($value === '') {
+            return '';
+        }
+
+        if (str_starts_with($value, self::PASSWORD_VALUE_PREFIX)) {
+            return $value;
+        }
+
+        $encryptionKey = $this->getPasswordEncryptionKey();
+        $encrypted = Security::encrypt($value, $encryptionKey);
+
+        return self::PASSWORD_VALUE_PREFIX . base64_encode($encrypted);
+    }
+
+    private function resolveValueForRead(string $type, mixed $value): mixed
+    {
+        if ($type !== 'password') {
+            return $value;
+        }
+        if (!is_string($value) || $value === '') {
+            return '';
+        }
+        if (!str_starts_with($value, self::PASSWORD_VALUE_PREFIX)) {
+            return $value;
+        }
+
+        $encoded = substr($value, strlen(self::PASSWORD_VALUE_PREFIX));
+        $decoded = base64_decode($encoded, true);
+        if ($decoded === false) {
+            Log::warning('Invalid encoded password-type app setting value encountered.');
+
+            return '';
+        }
+
+        $decrypted = Security::decrypt($decoded, $this->getPasswordEncryptionKey());
+        if ($decrypted === null) {
+            Log::warning('Could not decrypt password-type app setting value.');
+
+            return '';
+        }
+
+        return $decrypted;
+    }
+
+    private function getPasswordEncryptionKey(): string
+    {
+        $key = (string)env('APPSETTING_PASSWORD_KEY', Security::getSalt());
+        if (strlen($key) < 32) {
+            $key = str_pad($key, 32, '0');
+        }
+
+        return $key;
     }
 }

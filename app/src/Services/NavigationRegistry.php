@@ -90,6 +90,7 @@ class NavigationRegistry
     public static function getNavigationItems(Member $user, array $params = []): array
     {
         self::ensureInitialized();
+        $latestRestoreCompletion = self::getLatestRestoreCompletionTimestamp();
 
         $allItems = [];
         // Check for cached items in session for performance
@@ -99,6 +100,7 @@ class NavigationRegistry
                 isset($cached['user_id'], $cached['items'])
                 && (int)$cached['user_id'] === (int)$user->id
                 && is_array($cached['items'])
+                && !self::isCachedNavigationStaleForRestore($cached, $latestRestoreCompletion)
             ) {
                 return $cached['items'];
             }
@@ -123,6 +125,7 @@ class NavigationRegistry
         $_SESSION['navigation_items'] = [
             'user_id' => (int)$user->id,
             'items' => $allItems,
+            'generated_at' => (new \DateTimeImmutable('now'))->format(\DateTimeInterface::ATOM),
         ];
         return $allItems;
     }
@@ -280,5 +283,43 @@ class NavigationRegistry
 
         // Any initialization logic can go here
         self::$initialized = true;
+    }
+
+    /**
+     * @param array<string, mixed> $cached
+     */
+    private static function isCachedNavigationStaleForRestore(array $cached, ?int $latestRestoreCompletion): bool
+    {
+        if ($latestRestoreCompletion === null) {
+            return false;
+        }
+
+        $generatedAt = $cached['generated_at'] ?? null;
+        if (!is_string($generatedAt) || $generatedAt === '') {
+            return true;
+        }
+
+        $generatedTs = strtotime($generatedAt);
+        if (!is_int($generatedTs)) {
+            return true;
+        }
+
+        return $generatedTs < $latestRestoreCompletion;
+    }
+
+    private static function getLatestRestoreCompletionTimestamp(): ?int
+    {
+        $status = (new RestoreStatusService())->getStatus();
+        $completedAt = $status['completed_at'] ?? null;
+        if (!is_string($completedAt) || $completedAt === '') {
+            return null;
+        }
+
+        $timestamp = strtotime($completedAt);
+        if (!is_int($timestamp)) {
+            return null;
+        }
+
+        return $timestamp;
     }
 }

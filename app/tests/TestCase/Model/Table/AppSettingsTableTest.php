@@ -261,6 +261,71 @@ class AppSettingsTableTest extends BaseTestCase
     }
 
     /**
+     * Password-type settings are encrypted in storage and decrypted on read.
+     *
+     * @return void
+     */
+    public function testPasswordTypeSettingsAreEncryptedAtRest(): void
+    {
+        $key = 'test.password.setting.' . time() . rand(1000, 9999);
+        $plainValue = 'TopSecret-' . rand(1000, 9999);
+
+        $result = $this->AppSettings->updateSetting($key, 'password', $plainValue, false);
+        $this->assertTrue($result);
+
+        $row = $this->AppSettings->find()
+            ->select(['name', 'type', 'value'])
+            ->where(['name' => $key])
+            ->enableHydration(false)
+            ->first();
+
+        $this->assertNotNull($row);
+        $this->assertSame('password', $row['type']);
+        $this->assertIsString($row['value']);
+        $this->assertNotSame($plainValue, $row['value']);
+        $this->assertStringStartsWith('enc:v1:', $row['value']);
+        $this->assertSame($plainValue, $this->AppSettings->getSetting($key));
+
+        // Blank password updates should preserve the existing encrypted value.
+        $this->assertTrue($this->AppSettings->updateSetting($key, 'password', '', false));
+        $this->assertSame($plainValue, $this->AppSettings->getSetting($key));
+
+        $this->AppSettings->deleteSetting($key, true);
+    }
+
+    /**
+     * Backup key setting bypasses default cache storage.
+     *
+     * @return void
+     */
+    public function testBackupEncryptionKeyIsNotWrittenToDefaultCache(): void
+    {
+        $original = $this->AppSettings->find()
+            ->select(['name', 'type', 'value', 'required'])
+            ->where(['name' => 'Backup.encryptionKey'])
+            ->enableHydration(false)
+            ->first();
+
+        try {
+            $plainValue = 'BackupSecret-' . rand(1000, 9999);
+            $this->assertTrue($this->AppSettings->updateSetting('Backup.encryptionKey', 'password', $plainValue, false));
+            $this->assertSame($plainValue, $this->AppSettings->getSetting('Backup.encryptionKey'));
+            $this->assertNull(Cache::read('app_setting_Backup.encryptionKey', 'default'));
+        } finally {
+            if ($original !== null) {
+                $this->AppSettings->updateSetting(
+                    (string)$original['name'],
+                    (string)$original['type'],
+                    $original['value'],
+                    (bool)$original['required'],
+                );
+            } else {
+                $this->AppSettings->deleteSetting('Backup.encryptionKey', true);
+            }
+        }
+    }
+
+    /**
      * Test deleteSetting method
      *
      * @return void

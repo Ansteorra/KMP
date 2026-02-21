@@ -42,7 +42,7 @@ class BackupCheckCommand extends Command
             return self::CODE_SUCCESS;
         }
 
-        $encryptionKey = $appSettings->getAppSetting('Backup.encryptionKey', '', 'string', false);
+        $encryptionKey = $appSettings->getSetting('Backup.encryptionKey');
         if (empty($encryptionKey)) {
             $io->out('Backup schedule active but no encryption key set — skipping.');
 

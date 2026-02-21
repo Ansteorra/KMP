@@ -165,6 +165,9 @@ RUN npm install -g @anthropic-ai/claude-code @beads/bd
 # 2. Set DISPLAY in the container to your host IP (e.g., export DISPLAY=host.docker.internal:0)
 # 3. Run GUI apps (e.g., xeyes, playwright debug, etc.)
 
+# Allow the default dev user to collaborate on www-data-owned runtime paths.
+RUN usermod -a -G www-data vscode
+
 # Set up environment for vscode user
 USER vscode
 

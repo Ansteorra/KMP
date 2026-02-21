@@ -232,6 +232,17 @@ class CoreNavigationProvider
             [
                 'type' => 'link',
                 'mergePath' => ['Config'],
+                'label' => 'Table Admin',
+                'order' => 15,
+                'url' => [
+                    'controller' => 'TableAdmin',
+                    'action' => 'index',
+                ],
+                'icon' => 'bi-table',
+            ],
+            [
+                'type' => 'link',
+                'mergePath' => ['Config'],
                 'label' => 'Warrant Periods',
                 'order' => 60,
                 'url' => [

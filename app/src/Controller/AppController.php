@@ -18,12 +18,14 @@ namespace App\Controller;
 use App\KMP\StaticHelpers;
 use App\Model\Entity\Member;
 use App\Services\ImpersonationService;
+use App\Services\RestoreStatusService;
 use App\Services\ViewCellRegistry;
 use Cake\Controller\Controller;
 use Cake\Core\Configure;
 use Cake\Event\Event;
 use Cake\Event\EventInterface;
 use Cake\Event\EventManager;
+use Cake\Http\Response;
 
 class AppController extends Controller
 {
@@ -56,7 +58,7 @@ class AppController extends Controller
      * view cell loading, and Turbo Frame detection.
      *
      * @param EventInterface $event The beforeFilter event
-     * @return void
+     * @return \Cake\Http\Response|null|void
      */
     public function beforeFilter(EventInterface $event)
     {
@@ -86,6 +88,11 @@ class AppController extends Controller
         }
 
         parent::beforeFilter($event);
+
+        $lockResponse = $this->enforceRestoreLock($event);
+        if ($lockResponse !== null) {
+            return $lockResponse;
+        }
 
         // Extract URL parameters
         $params = [
@@ -214,6 +221,69 @@ class AppController extends Controller
         // Dispatch view data event for plugins
         $event = new Event(static::VIEW_DATA_EVENT, $this, ['url' => $params]);
         EventManager::instance()->dispatch($event);
+    }
+
+    /**
+     * Redirect/block requests while a restore lock is active.
+     */
+    private function enforceRestoreLock(EventInterface $event): ?Response
+    {
+        $restoreStatusService = new RestoreStatusService();
+        if (!$restoreStatusService->isLocked()) {
+            return null;
+        }
+
+        $controller = strtolower((string)$this->request->getParam('controller'));
+        $action = strtolower((string)$this->request->getParam('action'));
+        if ($this->isRestoreLockBypassRoute($controller, $action)) {
+            return null;
+        }
+
+        $status = $restoreStatusService->getStatus();
+        $message = (string)($status['message'] ?? 'A restore is currently running. Please try again shortly.');
+
+        if ($this->request->is('ajax') || $this->request->accepts('application/json') || $this->request->is('json')) {
+            $response = $this->response
+                ->withType('application/json')
+                ->withStatus(423)
+                ->withStringBody((string)json_encode([
+                    'status' => 'locked',
+                    'message' => $message,
+                    'restore' => $status,
+                ]));
+            $event->stopPropagation();
+            $event->setResult($response);
+
+            return $response;
+        }
+
+        $this->Flash->warning($message);
+        $response = $this->redirect(['controller' => 'Backups', 'action' => 'index']);
+        $event->stopPropagation();
+        $event->setResult($response);
+
+        return $response;
+    }
+
+    private function isRestoreLockBypassRoute(string $controller, string $action): bool
+    {
+        if ($controller === 'backups' && in_array($action, ['index', 'status', 'restore'], true)) {
+            return true;
+        }
+
+        if ($controller === 'health' && $action === 'index') {
+            return true;
+        }
+
+        if ($controller === 'members' && in_array($action, ['login', 'logout'], true)) {
+            return true;
+        }
+
+        if ($controller === 'sessions' && $action === 'keepalive') {
+            return true;
+        }
+
+        return false;
     }
 
     /**

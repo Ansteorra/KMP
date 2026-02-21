@@ -82,6 +82,29 @@ echo "Updated passwords for $count members. Errors: $errors\n";
 if ($errors > 0) { exit(1); }
 '
 
+echo "[post] Clearing CakePHP caches..."
+docker compose exec -T app php -r '
+require "vendor/autoload.php";
+require "config/bootstrap.php";
+use Cake\Cache\Cache;
+$failed = [];
+foreach (Cache::configured() as $config) {
+    if (in_array($config, ["_cake_core_", "_cake_routes_"], true)) {
+        continue;
+    }
+    try {
+        if (!Cache::clear($config)) {
+            $failed[] = "$config (clear returned false)";
+        }
+    } catch (Throwable $e) {
+        $failed[] = $config . " (" . $e->getMessage() . ")";
+    }
+}
+if (!empty($failed)) {
+    fwrite(STDERR, "Warning: Failed to clear cache configs: " . implode(", ", $failed) . "\n");
+}
+'
+
 echo ""
 echo "✅ Database reset complete!"
 echo ""

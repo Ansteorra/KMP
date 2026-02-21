@@ -19,6 +19,7 @@ declare(strict_types=1);
 
 use Cake\Cache\Engine\ApcuEngine;
 use Cake\Cache\Engine\ArrayEngine;
+use Cake\Cache\Engine\FileEngine;
 use Cake\Cache\Engine\RedisEngine;
 use Cake\Database\Connection;
 use Cake\Database\Driver\Mysql;
@@ -41,6 +42,11 @@ if ($cacheEngine === RedisEngine::class) {
         'persistent' => false,
     ];
 }
+$restoreStatusPath = env('RESTORE_STATUS_CACHE_PATH', sys_get_temp_dir() . DS . 'kmp_restore_status_shared' . DS);
+if (!is_dir($restoreStatusPath)) {
+    @mkdir($restoreStatusPath, 0777, true);
+}
+@chmod($restoreStatusPath, 0777);
 
 return [
     /** @var bool Enable debug mode - set via DEBUG environment variable */
@@ -163,6 +169,19 @@ return [
             "className" => $cacheEngine,
             "duration" => "+999 days",
             'groups' => ['security']
+        ],
+
+        /**
+         * Restore Status Cache
+         * Uses file cache so restore lock/progress state is shared between web and CLI.
+         */
+        "restore_status" => [
+            "className" => FileEngine::class,
+            "duration" => "+2 days",
+            "prefix" => "kmp_restore_",
+            "path" => $restoreStatusPath,
+            "mask" => 0666,
+            "dirMask" => 0777,
         ],
 
         /**

@@ -4,7 +4,7 @@
  * App Settings Edit Template
  * 
  * Edit form for app settings, loaded in a turbo-frame within a modal.
- * Handles string, JSON, and YAML value types with appropriate editors.
+ * Handles string, password, JSON, and YAML value types with appropriate editors.
  * 
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\AppSetting $appSetting
@@ -35,26 +35,43 @@
                 <?= $this->Form->hidden('name', ['value' => $appSetting->name]) ?>
             </div>
 
+            <?php $displayType = $appSetting->name === 'Backup.encryptionKey' ? 'password' : ($appSetting->type ?? 'string'); ?>
+
             <!-- Setting Type (read-only) -->
             <div class="mb-3">
                 <label class="form-label"><?= __('Type') ?></label>
-                <span class="badge bg-<?= $appSetting->type === 'yaml' ? 'warning' : ($appSetting->type === 'json' ? 'info' : 'secondary') ?>">
-                    <?= h(strtoupper($appSetting->type ?? 'string')) ?>
+                <span class="badge bg-<?= $displayType === 'yaml' ? 'warning' : ($displayType === 'json' ? 'info' : ($displayType === 'password' ? 'dark' : 'secondary')) ?>">
+                    <?= h(strtoupper($displayType)) ?>
                 </span>
             </div>
 
             <!-- Value Editor -->
-            <?php if ($appSetting->type === 'yaml' || $appSetting->type === 'json'): ?>
+            <?php if ($displayType === 'password'): ?>
+                <div class="mb-3">
+                    <label for="raw_value" class="form-label"><?= __('Value') ?></label>
+                    <input
+                        type="password"
+                        name="raw_value"
+                        id="raw_value"
+                        class="form-control"
+                        value=""
+                        autocomplete="new-password"
+                        data-app-setting-edit-target="valueInput">
+                    <div class="form-text">
+                        <i class="bi bi-shield-lock me-1"></i><?= __('Hidden for security. Leave blank to keep the current value.') ?>
+                    </div>
+                </div>
+            <?php elseif ($displayType === 'yaml' || $displayType === 'json'): ?>
                 <!-- Complex type - use code editor with syntax validation -->
                 <div class="mb-3"
                     data-controller="code-editor"
-                    data-code-editor-language-value="<?= h($appSetting->type) ?>"
+                    data-code-editor-language-value="<?= h($displayType) ?>"
                     data-code-editor-validate-on-change-value="true"
                     data-code-editor-min-height-value="300px">
                     <label for="raw_value" class="form-label">
                         <?= __('Value') ?>
-                        <span class="badge bg-<?= $appSetting->type === 'yaml' ? 'warning text-dark' : 'info' ?>">
-                            <?= h(strtoupper($appSetting->type)) ?>
+                        <span class="badge bg-<?= $displayType === 'yaml' ? 'warning text-dark' : 'info' ?>">
+                            <?= h(strtoupper($displayType)) ?>
                         </span>
                     </label>
                     <textarea
@@ -66,7 +83,7 @@
                         data-action="input->code-editor#validateContent"><?= h($appSetting->raw_value) ?></textarea>
                     <div data-code-editor-target="errorDisplay" class="d-none"></div>
                     <div class="form-text">
-                        <?php if ($appSetting->type === 'yaml'): ?>
+                        <?php if ($displayType === 'yaml'): ?>
                             <i class="bi bi-info-circle me-1"></i><?= __('Enter valid YAML. Use 2-space indentation. Press Tab to indent.') ?>
                         <?php else: ?>
                             <i class="bi bi-info-circle me-1"></i><?= __('Enter valid JSON. Press Tab to indent.') ?>

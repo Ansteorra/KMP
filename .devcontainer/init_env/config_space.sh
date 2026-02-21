@@ -91,20 +91,9 @@ if [ ! -d "node_modules/playwright" ] || [ ! -d "$HOME/.cache/ms-playwright" ]; 
     sudo npx playwright install-deps
 fi
 
-# Setup proper permissions for logs and tmp directories
-echo "Setting up logs and tmp directories..."
-sudo mkdir -p "$REPO_PATH/app/logs"
-sudo mkdir -p "$REPO_PATH/app/tmp"
-sudo mkdir -p "$REPO_PATH/app/tmp/cache"
-sudo mkdir -p "$REPO_PATH/app/tmp/cache/models"
-sudo mkdir -p "$REPO_PATH/app/tmp/cache/persistent"
-sudo mkdir -p "$REPO_PATH/app/tmp/cache/views"
-sudo mkdir -p "$REPO_PATH/app/tmp/sessions"
-sudo mkdir -p "$REPO_PATH/app/tmp/tests"
-sudo chmod -R 775 "$REPO_PATH/app/logs"
-sudo chmod -R 775 "$REPO_PATH/app/tmp"
-sudo chown -R www-data:www-data "$REPO_PATH/app/logs"
-sudo chown -R www-data:www-data "$REPO_PATH/app/tmp"
+# Apply production-like runtime permissions for Apache user
+echo "Applying runtime permissions..."
+SKIP_APACHE_RESTART=1 REPO_PATH="$REPO_PATH" bash "$REPO_PATH/fix_permissions.sh"
 
 # Setup cron job for queue processing
 echo "Setting up cron job..."
@@ -135,13 +124,7 @@ fi
 curl -LsSf https://astral.sh/uv/install.sh | sh
 uv tool install specify-cli --from git+https://github.com/github/spec-kit.git
 
-sudo mkdir -p /workspaces/KMP/app/images/uploaded
-sudo mkdir -p /workspaces/KMP/app/images/cache
-sudo chmod -R 766 /workspaces/KMP/app/images
-sudo chown -R www-data:www-data /workspaces/KMP/app/images
-
 # Start Apache
 echo "Starting Apache..."
 sudo apachectl restart
-
 
