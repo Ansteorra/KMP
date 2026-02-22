@@ -110,7 +110,7 @@ class GatheringsController extends AppController
                 'Creators' => ['fields' => ['id', 'sca_name']],
             ])
             ->leftJoinWith('GatheringActivities')
-            ->distinct(['Gatherings.id']);
+            ->distinct();
 
         $result = $this->processDataverseGrid([
             'gridKey' => 'Gatherings.index.main',
@@ -353,7 +353,7 @@ class GatheringsController extends AppController
                 ],
             ])
             ->leftJoinWith('GatheringActivities')
-            ->distinct(['Gatherings.id'])
+            ->distinct()
             ->where([
                 'OR' => [
                     [

@@ -15,6 +15,7 @@ class RestoreStatusService
     private const LOCK_KEY = 'restore.lock';
     private const STATUS_KEY = 'restore.status';
     private const DEFAULT_LOCK_TTL_SECONDS = 1800;
+    private const STALE_PROGRESS_SECONDS = 180;
 
     /**
      * Acquire restore lock and initialize running status.
@@ -151,6 +152,25 @@ class RestoreStatusService
         $lock = $this->readActiveLock();
 
         if ($lock !== null) {
+            $lastUpdateAt = (string)($status['updated_at'] ?? $status['started_at'] ?? '');
+            if (($status['status'] ?? null) === 'running' && $this->isOlderThanSeconds($lastUpdateAt, self::STALE_PROGRESS_SECONDS)) {
+                $now = $this->nowIso();
+                Cache::delete(self::LOCK_KEY, self::CACHE_CONFIG);
+                $status['locked'] = false;
+                $status['status'] = 'failed';
+                $status['phase'] = 'stalled';
+                $status['message'] = sprintf(
+                    'Restore/import appears stalled (no progress for %d seconds).',
+                    self::STALE_PROGRESS_SECONDS,
+                );
+                $status['updated_at'] = $now;
+                $status['completed_at'] = $now;
+                $status['expires_at'] = null;
+                $this->writeStatus($status);
+
+                return $status;
+            }
+
             $status['locked'] = true;
             $status['status'] = 'running';
             $status['started_at'] = $status['started_at'] ?? ($lock['started_at'] ?? null);
@@ -277,5 +297,21 @@ class RestoreStatusService
         }
 
         return $expiresAt <= new \DateTimeImmutable('now');
+    }
+
+    private function isOlderThanSeconds(string $isoValue, int $seconds): bool
+    {
+        if ($isoValue === '') {
+            return false;
+        }
+
+        $date = \DateTimeImmutable::createFromFormat(\DateTimeInterface::ATOM, $isoValue);
+        if (!$date instanceof \DateTimeImmutable) {
+            return false;
+        }
+
+        $threshold = (new \DateTimeImmutable('now'))->modify(sprintf('-%d seconds', $seconds));
+
+        return $date <= $threshold;
     }
 }

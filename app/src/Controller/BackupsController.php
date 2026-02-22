@@ -54,6 +54,7 @@ class BackupsController extends AppController
     public function status(): Response
     {
         $this->request->allowMethod(['get']);
+        $this->request->getSession()->close();
 
         $status = (new RestoreStatusService())->getStatus();
 
@@ -117,6 +118,8 @@ class BackupsController extends AppController
     {
         $this->request->allowMethod(['post']);
         $expectsJson = $this->request->is('ajax') || $this->request->accepts('application/json');
+        @set_time_limit(0);
+        ignore_user_abort(true);
         $encryptionKey = trim((string)$this->request->getData('restore_key', ''));
         if ($encryptionKey === '') {
             $message = __('Enter the encryption key for this backup restore.');
@@ -195,6 +198,11 @@ class BackupsController extends AppController
         }
 
         try {
+            if ($expectsJson) {
+                // Release session lock so /backups/status polling can run while restore is in progress.
+                $this->request->getSession()->close();
+            }
+
             $restoreStatusService->updateStatus('starting', sprintf('Restore started from %s.', $sourceLabel), [
                 'source' => $sourceLabel,
                 'backup_id' => $id,
