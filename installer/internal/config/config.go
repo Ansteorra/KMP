@@ -22,6 +22,7 @@ type Deployment struct {
 	ImageTag        string            `yaml:"image_tag"`
 	ComposeDir      string            `yaml:"compose_dir,omitempty"`
 	DatabaseDSN     string            `yaml:"database_dsn,omitempty"`
+	MySQLSSL        bool              `yaml:"mysql_ssl,omitempty"`
 	LocalDBType     string            `yaml:"local_db_type,omitempty"` // "mariadb" or "postgres"
 	StorageType     string            `yaml:"storage_type"`
 	StorageConfig   map[string]string `yaml:"storage_config,omitempty"`

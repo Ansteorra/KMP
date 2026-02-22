@@ -7,6 +7,23 @@
  *   - Database host uses MYSQL_HOST env var (defaults to 'db' service)
  *   - All config pulled from environment variables
  */
+$databaseUrl = env('DATABASE_URL', null);
+$databaseTestUrl = env('DATABASE_TEST_URL', null);
+$isPostgresUrl = str_starts_with(strtolower((string)$databaseUrl), 'postgres');
+$mysqlSsl = filter_var(env('MYSQL_SSL', false), FILTER_VALIDATE_BOOLEAN);
+
+// Build PDO connection flags based on driver and SSL requirements
+$pdoFlags = [];
+if ($isPostgresUrl) {
+    $pdoFlags[\PDO::ATTR_EMULATE_PREPARES] = true;
+} elseif ($mysqlSsl) {
+    $pdoFlags[\PDO::MYSQL_ATTR_SSL_CA] = env('MYSQL_SSL_CA', '');
+    $pdoFlags[\PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = filter_var(
+        env('MYSQL_SSL_VERIFY', false),
+        FILTER_VALIDATE_BOOLEAN
+    );
+}
+
 return [
     'debug' => filter_var(env('DEBUG', true), FILTER_VALIDATE_BOOLEAN),
 
@@ -25,14 +42,15 @@ return [
             'username' => env('MYSQL_USERNAME'),
             'password' => env('MYSQL_PASSWORD'),
             'database' => env('MYSQL_DB_NAME'),
-            'url' => env('DATABASE_URL', null),
+            'url' => $databaseUrl,
+            'flags' => $pdoFlags,
         ],
         'test' => [
             'host' => env('MYSQL_HOST', 'db'),
             'username' => env('MYSQL_USERNAME'),
             'password' => env('MYSQL_PASSWORD'),
             'database' => env('MYSQL_DB_NAME') . '_test',
-            'url' => env('DATABASE_URL', null),
+            'url' => $databaseTestUrl ?? ($isPostgresUrl ? $databaseUrl : null),
         ],
     ],
 

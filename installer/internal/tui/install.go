@@ -114,12 +114,13 @@ type InstallModel struct {
 	prereqs []prereqCheck
 
 	// Database external connection
-	dbSubStep    int              // 0=choice, 1=conn method, 2=DSN, 3=DB name, 4=parts form
+	dbSubStep    int              // 0=choice, 1=conn method, 2=DSN, 3=DB name, 4=parts form, 5=SSL
 	dbConnMethod int              // 0=dsn, 1=parts
 	dsnInput     textinput.Model  // connection string field
 	dbNameInput  textinput.Model  // prompted when DSN lacks a database name
 	dbInputs     []textinput.Model // [host, port, dbname, user, password]
 	dbFocusIdx   int
+	mysqlSSL     bool             // require SSL for external MySQL
 
 	// Email configuration
 	emailChoice  int  // 0=skip, 1=smtp
@@ -242,6 +243,7 @@ func (m *InstallModel) loadDefaults() {
 		m.dbConnMethod = 0 // DSN method since we have a saved string
 		m.dsnInput.SetValue(dep.DatabaseDSN)
 	}
+	m.mysqlSSL = dep.MySQLSSL
 
 	// Email / SMTP
 	if smtpHost := dep.StorageConfig["smtp_host"]; smtpHost != "" {
@@ -392,6 +394,23 @@ func dsnHasDatabase(dsn string) bool {
 		db = db[:idx]
 	}
 	return db != ""
+}
+
+// dbComplete transitions from DB config to either the SSL prompt (MySQL) or email step.
+func (m *InstallModel) dbComplete() {
+	if m.database < len(dbValues) && dbValues[m.database] == "mysql" {
+		m.dbSubStep = 5
+		if m.mysqlSSL {
+			m.cursor = 0 // Yes
+		} else {
+			m.cursor = 1 // No
+		}
+		return
+	}
+	m.step = stepEmail
+	m.cursor = 0
+	m.emailChoice = 0
+	m.emailSubStep = 0
 }
 
 // advanceFormFocus moves focus to the next input in a slice.
@@ -640,10 +659,7 @@ func (m *InstallModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					m.dbNameInput.Reset()
 					m.dbNameInput.Focus()
 				} else {
-					m.step = stepEmail
-					m.cursor = 0
-					m.emailChoice = 0
-					m.emailSubStep = 0
+					m.dbComplete()
 				}
 				return m, nil
 			case "esc":
@@ -659,10 +675,7 @@ func (m *InstallModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// DB name (DSN was missing it)
 			switch key {
 			case "enter", "tab":
-				m.step = stepEmail
-				m.cursor = 0
-				m.emailChoice = 0
-				m.emailSubStep = 0
+				m.dbComplete()
 				return m, nil
 			case "esc":
 				m.dbSubStep = 2
@@ -678,10 +691,7 @@ func (m *InstallModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			switch key {
 			case "tab", "down":
 				if done := advanceFormFocus(m.dbInputs, &m.dbFocusIdx, 1); done {
-					m.step = stepEmail
-					m.cursor = 0
-					m.emailChoice = 0
-					m.emailSubStep = 0
+					m.dbComplete()
 				}
 				return m, nil
 			case "shift+tab", "up":
@@ -694,10 +704,7 @@ func (m *InstallModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, nil
 			case "enter":
 				if done := advanceFormFocus(m.dbInputs, &m.dbFocusIdx, 1); done {
-					m.step = stepEmail
-					m.cursor = 0
-					m.emailChoice = 0
-					m.emailSubStep = 0
+					m.dbComplete()
 				}
 				return m, nil
 			case "esc":
@@ -708,6 +715,29 @@ func (m *InstallModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			var cmd tea.Cmd
 			m.dbInputs[m.dbFocusIdx], cmd = m.dbInputs[m.dbFocusIdx].Update(msg)
 			return m, cmd
+
+		case 5:
+			// MySQL SSL toggle
+			switch key {
+			case "up", "k":
+				if m.cursor > 0 {
+					m.cursor--
+				}
+			case "down", "j":
+				if m.cursor < 1 {
+					m.cursor++
+				}
+			case "enter":
+				m.mysqlSSL = m.cursor == 0 // 0=Yes, 1=No
+				m.step = stepEmail
+				m.cursor = 0
+				m.emailChoice = 0
+				m.emailSubStep = 0
+			case "esc":
+				// Go back to connection method choice
+				m.dbSubStep = 1
+				m.cursor = m.dbConnMethod
+			}
 		}
 
 	case stepEmail:
@@ -1063,6 +1093,7 @@ func (m *InstallModel) runInstall() tea.Cmd {
 			StorageType: storageType,
 			StorageConfig: storageConfig,
 			DatabaseDSN: externalDSN,
+			MySQLSSL:    m.mysqlSSL,
 			LocalDBType: localDBType,
 			CacheEngine: cacheEngine,
 			RedisURL:    redisURL,
@@ -1395,6 +1426,20 @@ func (m *InstallModel) viewDatabase() string {
 			s.WriteString(m.dbInputs[i].View() + "\n")
 		}
 		s.WriteString("\n" + components.SubtleStyle.Render("  A DSN will be built from these values."))
+
+	case 5:
+		s.WriteString("  Require SSL for MySQL connection?\n\n")
+		sslChoices := []string{"Yes — require SSL (recommended for cloud databases)", "No — connect without SSL"}
+		for i, label := range sslChoices {
+			cursor := "  ○ "
+			style := lipgloss.NewStyle()
+			if i == m.cursor {
+				cursor = "  ● "
+				style = style.Bold(true).Foreground(lipgloss.Color("#7D56F4"))
+			}
+			s.WriteString(style.Render(cursor+label) + "\n")
+		}
+		s.WriteString("\n" + components.SubtleStyle.Render("  Azure MySQL, PlanetScale, and most cloud providers require SSL."))
 	}
 
 	return components.BoxStyle.Render(s.String())

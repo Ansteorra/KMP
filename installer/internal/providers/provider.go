@@ -55,6 +55,7 @@ type DeployConfig struct {
 	Image         string // ghcr.io/jhandel/kmp
 	ImageTag      string
 	DatabaseDSN   string // BYO database, empty = bundled
+	MySQLSSL      bool   // require SSL for external MySQL connections
 	LocalDBType   string // "mariadb" or "postgres" when bundled; empty = mariadb default
 	StorageType   string // local, s3, azure
 	StorageConfig map[string]string

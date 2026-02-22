@@ -5,6 +5,23 @@
  * Note: It is not recommended to commit files with credentials such as app_local.php
  * into source code version control.
  */
+$databaseUrl = env('DATABASE_URL', null);
+$databaseTestUrl = env('DATABASE_TEST_URL', null);
+$isPostgresUrl = str_starts_with(strtolower((string)$databaseUrl), 'postgres');
+$mysqlSsl = filter_var(env('MYSQL_SSL', false), FILTER_VALIDATE_BOOLEAN);
+
+// Build PDO connection flags based on driver and SSL requirements
+$pdoFlags = [];
+if ($isPostgresUrl) {
+    $pdoFlags[\PDO::ATTR_EMULATE_PREPARES] = true;
+} elseif ($mysqlSsl) {
+    $pdoFlags[\PDO::MYSQL_ATTR_SSL_CA] = env('MYSQL_SSL_CA', '');
+    $pdoFlags[\PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = filter_var(
+        env('MYSQL_SSL_VERIFY', false),
+        FILTER_VALIDATE_BOOLEAN
+    );
+}
+
 return [
     /*
      * Debug Level:
@@ -41,7 +58,7 @@ return [
      */
     'Datasources' => [
         'default' => [
-            'host' => 'localhost',
+            'host' => env('MYSQL_HOST', 'localhost'),
             /*
              * CakePHP will use the default DB port based on the driver selected
              * MySQL on MAMP uses port 8889, MAMP users will want to uncomment
@@ -62,7 +79,8 @@ return [
             /*
              * You can use a DSN string to set the entire configuration
              */
-            'url' => env('DATABASE_URL', null),
+            'url' => $databaseUrl,
+            'flags' => $pdoFlags,
         ],
 
         /*
@@ -90,7 +108,7 @@ return [
             /*
              * You can use a DSN string to set the entire configuration
              */
-            'url' => env('DATABASE_URL', null),
+            'url' => $databaseTestUrl ?? ($isPostgresUrl ? $databaseUrl : null),
         ],
     ],
 

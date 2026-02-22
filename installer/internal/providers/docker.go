@@ -130,6 +130,7 @@ func (d *DockerProvider) Install(cfg *DeployConfig) error {
 		RequireHttps:   requireHttps(cfg.Domain),
 		DatabaseType:   dbType,
 		DatabaseDSN:    cfg.DatabaseDSN,
+		MySQLSSL:       cfg.MySQLSSL,
 		SecuritySalt:   generateRandomString(32),
 		DBRootPassword: generateRandomString(16),
 		DBPassword:     generateRandomString(16),
@@ -436,6 +437,7 @@ type templateData struct {
 	RequireHttps   bool   // false for localhost/IP installs that serve over plain HTTP
 	DatabaseType   string // "bundled-mariadb", "bundled-postgres", or "external"
 	DatabaseDSN    string
+	MySQLSSL       bool
 	SecuritySalt   string
 	DBRootPassword string
 	DBPassword     string
@@ -584,6 +586,7 @@ func (d *DockerProvider) saveDeployment(cfg *DeployConfig) error {
 		ImageTag:        cfg.ImageTag,
 		ComposeDir:      d.dir,
 		DatabaseDSN:     cfg.DatabaseDSN,
+		MySQLSSL:        cfg.MySQLSSL,
 		LocalDBType:     cfg.LocalDBType,
 		StorageType:     cfg.StorageType,
 		StorageConfig:   cfg.StorageConfig,
