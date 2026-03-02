@@ -1,3 +1,141 @@
-body,html{height:100%}body{background-color:#f5f5f5;padding-bottom:40px;padding-top:40px}.form-signin,body{align-items:center;display:flex;flex-direction:column}.form-signin{margin:auto;max-width:330px;padding:15px;width:100%}.form-signin .checkbox{font-weight:400}.form-signin .form-control{position:relative}.form-signin .form-group.email{margin-bottom:-1px!important}.form-signin .form-floating:focus-within{z-index:2}.form-signin input[type=email]{border-bottom-left-radius:0;border-bottom-right-radius:0}.form-signin input[type=password]{border-top-left-radius:0;border-top-right-radius:0;margin-bottom:10px}@media (max-width:576px){body{padding:20px 10px}.form-signin{max-width:100%;padding:10px}.form-signin .card{max-width:100%;width:100%!important}.form-signin .card-body{padding:1.25rem 1rem}.form-signin .btn{font-size:1.1rem;padding:.75rem 1rem;touch-action:manipulation}.form-signin .form-control{font-size:16px;min-height:50px;padding:.75rem}.form-signin .form-floating>label{padding:.75rem}.form-signin .btn-link{display:block;margin-top:.5rem;padding:.5rem;width:100%}footer{text-align:center!important}footer .row{margin:0;width:100%}footer .navbar-nav{flex-wrap:wrap;justify-content:center;padding:.5rem}footer .navbar-nav .nav-item{margin:.25rem}footer .navbar-nav .btn{font-size:.75rem;padding:.25rem .5rem}footer .px-5{font-size:.85rem;padding-left:1rem!important;padding-right:1rem!important}}.login-card{width:15rem}@media (max-width:576px){.login-card{max-width:20rem;width:100%}}
+html,
+body {
+    height: 100%;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 40px;
+    padding-bottom: 40px;
+    background-color: #f5f5f5;
+}
+
+.form-signin {
+    width: 100%;
+    max-width: 330px;
+    padding: 15px;
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.form-signin .checkbox {
+    font-weight: 400;
+}
+
+.form-signin .form-control {
+    position: relative;
+}
+.form-signin .form-group.email {
+    margin-bottom: -1px !important;
+}
+.form-signin .form-floating:focus-within {
+    z-index: 2;
+}
+
+.form-signin input[type="email"] {
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.form-signin input[type="password"] {
+    margin-bottom: 10px;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+
+/* Mobile-friendly adjustments */
+@media (max-width: 576px) {
+    body {
+        padding-top: 20px;
+        padding-bottom: 20px;
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    .form-signin {
+        max-width: 100%;
+        padding: 10px;
+    }
+
+    .form-signin .card {
+        width: 100% !important;
+        max-width: 100%;
+    }
+
+    .form-signin .card-body {
+        padding: 1.25rem 1rem;
+    }
+
+    .form-signin .btn {
+        padding: 0.75rem 1rem;
+        font-size: 1.1rem;
+        touch-action: manipulation;
+    }
+
+    .form-signin .form-control {
+        font-size: 16px; /* Prevents iOS zoom on focus */
+        padding: 0.75rem;
+        min-height: 50px;
+    }
+
+    .form-signin .form-floating > label {
+        padding: 0.75rem;
+    }
+
+    .form-signin .btn-link {
+        display: block;
+        width: 100%;
+        padding: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    /* Footer mobile fixes */
+    footer {
+        text-align: center !important;
+    }
+
+    footer .row {
+        margin: 0;
+        width: 100%;
+    }
+
+    footer .navbar-nav {
+        flex-wrap: wrap;
+        justify-content: center;
+        padding: 0.5rem;
+    }
+
+    footer .navbar-nav .nav-item {
+        margin: 0.25rem;
+    }
+
+    footer .navbar-nav .btn {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    footer .px-5 {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        font-size: 0.85rem;
+    }
+}
+
+/* Login card responsive sizing */
+.login-card {
+    width: 15rem;
+}
+
+@media (max-width: 576px) {
+    .login-card {
+        width: 100%;
+        max-width: 20rem;
+    }
+}
+
 
 /*# sourceMappingURL=signin.css.map*/
