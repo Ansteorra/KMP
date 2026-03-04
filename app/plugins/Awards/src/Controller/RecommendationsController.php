@@ -13,6 +13,7 @@ use App\KMP\StaticHelpers;
 use App\Controller\DataverseGridTrait;
 use Authorization\Exception\ForbiddenException;
 use Cake\Log\Log;
+use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\TableRegistry;
 use Exception;
 use PhpParser\Node\Stmt\TryCatch;
@@ -288,6 +289,27 @@ class RecommendationsController extends AppController
         }
 
         return $result;
+    }
+
+    /**
+     * Apply hidden-state visibility constraints to a recommendations query.
+     *
+     * @param \Cake\ORM\Query\SelectQuery $query Recommendations query
+     * @param bool $canViewHidden Whether hidden rows may be included
+     * @return \Cake\ORM\Query\SelectQuery
+     */
+    protected function applyHiddenStateVisibility(SelectQuery $query, bool $canViewHidden): SelectQuery
+    {
+        if ($canViewHidden) {
+            return $query;
+        }
+
+        $hiddenStates = RecommendationsGridColumns::getHiddenStates();
+        if (!empty($hiddenStates)) {
+            $query->where(['Recommendations.state NOT IN' => $hiddenStates]);
+        }
+
+        return $query;
     }
 
     /**
@@ -711,6 +733,7 @@ class RecommendationsController extends AppController
                     return $q->select(['id', 'name', 'start_date', 'end_date']);
                 },
             ]);
+        $baseQuery = $this->applyHiddenStateVisibility($baseQuery, $canViewHidden);
 
         // Get system views for this context
         $systemViews = RecommendationsGridColumns::getSystemViews(['context' => 'memberSubmitted']);
@@ -830,6 +853,7 @@ class RecommendationsController extends AppController
 
         // Apply authorization scope
         $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
+        $baseQuery = $this->applyHiddenStateVisibility($baseQuery, $canViewHidden);
 
         // Get system views for this context
         $systemViews = RecommendationsGridColumns::getSystemViews(['context' => 'recsForMember']);
@@ -959,6 +983,7 @@ class RecommendationsController extends AppController
                     return $q->select(['id', 'name', 'cancelled_at']);
                 }
             ]);
+        $baseQuery = $this->applyHiddenStateVisibility($baseQuery, $canViewHidden);
 
         // Get system views for this context
         $systemViews = RecommendationsGridColumns::getSystemViews(['context' => 'gatheringAwards']);

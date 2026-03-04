@@ -171,16 +171,16 @@ $externalLinks = $this->KMP->getAppSettingsStartWith("Member.ExternalLink.");
 foreach ($externalLinks as $key => $link) {
     $linkLabel = str_replace("Member.ExternalLink.", "", $key);
     $linkUrl = StaticHelpers::processTemplate($link, $member->toArray(), 1, "__missing__");
-    if (substr_count($linkUrl, "__missing__") == 0) {
-        echo "<tr scope='row'><th class='col'>" . $linkLabel . "</th><td class='col-10'" . $detailsColspanAttr . "><a href='" . $linkUrl . "' target='_blank'>" . $linkUrl . "</a></td></tr>";
+    if (substr_count($linkUrl, "__missing__") === 0 && filter_var($linkUrl, FILTER_VALIDATE_URL)) {
+        echo "<tr scope='row'><th class='col'>" . h($linkLabel) . "</th><td class='col-10'" . $detailsColspanAttr . "><a href='" . h($linkUrl) . "' target='_blank' rel='noopener noreferrer'>" . h($linkUrl) . "</a></td></tr>";
     }
 }
 $privateExternalLinks = $this->KMP->getAppSettingsStartWith("Member.PrivateExternalLink.");
 foreach ($privateExternalLinks as $key => $link) {
     $linkLabel = str_replace("Member.PrivateExternalLink.", "", $key);
     $linkUrl = StaticHelpers::processTemplate($link, $member, 1, "__missing__");
-    if (substr_count($linkUrl, "__missing__") == 0) {
-        echo "<tr scope='row'><th class='col'>" . $linkLabel . "</th><td class='col-10'" . $detailsColspanAttr . "><a href='" . $linkUrl . "' target='_blank'>" . $linkUrl . "</a></td></tr>";
+    if (substr_count($linkUrl, "__missing__") === 0 && filter_var($linkUrl, FILTER_VALIDATE_URL)) {
+        echo "<tr scope='row'><th class='col'>" . h($linkLabel) . "</th><td class='col-10'" . $detailsColspanAttr . "><a href='" . h($linkUrl) . "' target='_blank' rel='noopener noreferrer'>" . h($linkUrl) . "</a></td></tr>";
     }
 }
 ?>

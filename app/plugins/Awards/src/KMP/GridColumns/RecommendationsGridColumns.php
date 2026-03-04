@@ -841,7 +841,7 @@ class RecommendationsGridColumns extends BaseGridColumns
             ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date', 'Gatherings.cancelled_at'])
             ->innerJoin(
                 ['RecommendationEvents' => 'awards_recommendations_events'],
-                ['RecommendationEvents.gathering_id = Gatherings.id']
+                ['RecommendationEvents.event_id = Gatherings.id']
             )
             ->innerJoin(
                 ['Recommendations' => 'awards_recommendations'],

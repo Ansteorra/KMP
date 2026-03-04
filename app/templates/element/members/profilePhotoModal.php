@@ -16,7 +16,7 @@ if ($canPartialEdit) {
         "data-face-photo-validator-min-width-value" => 320,
         "data-face-photo-validator-min-height-value" => 320,
         "data-face-photo-validator-min-primary-face-ratio-value" => 0.08,
-        "data-face-photo-validator-debug-value" => "true",
+        "data-face-photo-validator-debug-value" => "false",
     ]);
     echo $this->Form->hidden('member_id', ['value' => $member->id]);
 }

@@ -121,7 +121,7 @@ class Member extends BaseEntity implements
         'pronouns' => true,
         'pronunciation' => true,
         'timezone' => true,
-        'profile_photo_document_id' => true,
+        'profile_photo_document_id' => false,
     ];
 
     /** @var array<string> Fields hidden from serialization */

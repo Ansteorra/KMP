@@ -123,7 +123,11 @@ class BackupStorageService
             try {
                 $blobServiceClient = BlobServiceClient::fromConnectionString($connectionString);
                 $containerClient = $blobServiceClient->getContainerClient($container);
-                $containerClient->createIfNotExists();
+                try {
+                    $containerClient->createIfNotExists();
+                } catch (Exception $e) {
+                    Log::warning('Azure backup container ensure step skipped: ' . $e->getMessage());
+                }
                 $adapter = new AzureBlobStorageAdapter($containerClient, 'backups/');
                 $this->filesystem = new FlysystemFilesystem($adapter);
             } catch (Exception $e) {

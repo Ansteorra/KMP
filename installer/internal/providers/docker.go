@@ -222,7 +222,13 @@ func (d *DockerProvider) Update(version string) error {
 	}
 	if caddyMigrated {
 		if out, err := runDockerCompose(d.dir, "restart", "caddy"); err != nil {
-			return fmt.Errorf("docker compose restart caddy: %s\n%w", out, err)
+			_ = replaceEnvValue(envPath, version, previousTag)
+			d.cfg.ImageTag = previousTag
+			rollbackOut, rollbackErr := runDockerCompose(d.dir, "up", "-d")
+			if rollbackErr != nil {
+				return fmt.Errorf("docker compose restart caddy: %s\n%w; rollback failed: %s\n%w", out, err, rollbackOut, rollbackErr)
+			}
+			return fmt.Errorf("docker compose restart caddy: %s\n%w; rolled back to %s", out, err, previousTag)
 		}
 	}
 

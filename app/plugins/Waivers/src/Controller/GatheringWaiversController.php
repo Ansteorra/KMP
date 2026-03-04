@@ -626,7 +626,7 @@ class GatheringWaiversController extends AppController
         $GatheringWaiverClosures = $this->fetchTable('Waivers.GatheringWaiverClosures');
         $waiverClosure = $GatheringWaiverClosures->getClosureForGathering((int)$gatheringId);
         $canCloseWaivers = $this->Authentication->getIdentity()->checkCan('closeWaivers', $gatheringWaiver);
-        if ($waiverClosure->closed_at != null && !$canCloseWaivers) {
+        if ($waiverClosure !== null && $waiverClosure->closed_at !== null && !$canCloseWaivers) {
             $message = __('Waiver collection is closed for this gathering.');
             if ($this->request->is('ajax')) {
                 $this->viewBuilder()->setClassName('Json');
@@ -3228,7 +3228,7 @@ class GatheringWaiversController extends AppController
         $GatheringWaiverClosures = $this->fetchTable('Waivers.GatheringWaiverClosures');
         $waiverClosure = $GatheringWaiverClosures->getClosureForGathering((int)$gatheringId);
         $canCloseWaivers = $this->Authentication->getIdentity()->checkCan('closeWaivers', $tempWaiver);
-        if ($waiverClosure->closed_at !== null && !$canCloseWaivers) {
+        if ($waiverClosure !== null && $waiverClosure->closed_at !== null && !$canCloseWaivers) {
             $message = __('Waiver collection is closed for this gathering.');
             if ($this->request->is('ajax')) {
                 $this->viewBuilder()->setClassName('Json');

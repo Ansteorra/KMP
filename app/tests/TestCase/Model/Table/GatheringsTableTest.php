@@ -31,6 +31,7 @@ class GatheringsTableTest extends BaseTestCase
         $gatheringActivities = $this->getTableLocator()->get('GatheringActivities');
         $typeActivities = $this->getTableLocator()->get('GatheringTypeGatheringActivities');
         $gatheringLinks = $this->getTableLocator()->get('GatheringsGatheringActivities');
+        $branches = $this->getTableLocator()->get('Branches');
 
         $unique = uniqid('sync', true);
         $typeA = $gatheringTypes->saveOrFail($gatheringTypes->newEntity([
@@ -49,6 +50,10 @@ class GatheringsTableTest extends BaseTestCase
         $activityA = $gatheringActivities->saveOrFail($gatheringActivities->newEntity(['name' => "A {$unique}"]));
         $activityB = $gatheringActivities->saveOrFail($gatheringActivities->newEntity(['name' => "B {$unique}"]));
         $activityC = $gatheringActivities->saveOrFail($gatheringActivities->newEntity(['name' => "C {$unique}"]));
+        $branch = $branches->saveOrFail($branches->newEntity([
+            'name' => "Branch {$unique}",
+            'location' => "Location {$unique}",
+        ]));
 
         $typeActivities->saveOrFail($typeActivities->newEntity([
             'gathering_type_id' => $typeA->id,
@@ -67,7 +72,7 @@ class GatheringsTableTest extends BaseTestCase
         ]));
 
         $gathering = $this->Gatherings->saveOrFail($this->Gatherings->newEntity([
-            'branch_id' => self::KINGDOM_BRANCH_ID,
+            'branch_id' => (int)$branch->id,
             'gathering_type_id' => $typeA->id,
             'name' => "Gathering {$unique}",
             'start_date' => '2030-01-10 10:00:00',

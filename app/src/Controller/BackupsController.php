@@ -110,7 +110,7 @@ class BackupsController extends AppController
             }
             Log::error('Backup creation failed: ' . $fullError);
             $backup->status = 'failed';
-            $backup->notes = $fullError;
+            $backup->notes = substr(strip_tags($errorMsg), 0, 500);
             $this->Backups->save($backup);
             $this->Flash->error(__('Backup failed: {0}', $errorMsg));
         }

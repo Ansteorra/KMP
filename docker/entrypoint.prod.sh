@@ -132,7 +132,7 @@ if [ "$DB_TYPE" = "mysql" ]; then
     fi
 
     # Try plain connection; if error 3159 (secure transport required), enable SSL
-    ssl_err=$(mysql -h"$db_host" -P"$db_port" -u"$db_user" -p"$db_pass" -e "SELECT 1" 2>&1) || true
+    ssl_err=$(MYSQL_PWD="$db_pass" mysql -h"$db_host" -P"$db_port" -u"$db_user" -e "SELECT 1" 2>&1) || true
     if echo "$ssl_err" | grep -q "3159\|insecure transport"; then
         echo "MySQL requires SSL — enabling ssl_ca in app_local.php"
         sed -i "s|//__MYSQL_SSL_PLACEHOLDER__|'ssl_ca' => '/etc/ssl/certs/ca-certificates.crt',|" /var/www/html/config/app_local.php
@@ -154,7 +154,7 @@ attempt=0
 
 check_mysql() {
     if [ -n "$MYSQL_HOST" ] && [ -n "$MYSQL_USERNAME" ]; then
-        mysql -h"${MYSQL_HOST}" -P"${MYSQL_PORT:-3306}" -u"${MYSQL_USERNAME}" -p"${MYSQL_PASSWORD}" -e "SELECT 1" &>/dev/null
+        MYSQL_PWD="${MYSQL_PASSWORD}" mysql -h"${MYSQL_HOST}" -P"${MYSQL_PORT:-3306}" -u"${MYSQL_USERNAME}" -e "SELECT 1" &>/dev/null
     elif [ -n "$DATABASE_URL" ]; then
         # Parse host/port/user/pass from DATABASE_URL
         # Format: mysql://user:pass@host:port/dbname
@@ -164,9 +164,9 @@ check_mysql() {
         db_user=$(echo "$DATABASE_URL" | sed -E 's|mysql://([^:]+):.*|\1|')
         db_pass=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^:]+:([^@]+)@.*|\1|')
         [ -z "$db_port" ] && db_port=3306
-        mysql -h"$db_host" -P"$db_port" -u"$db_user" -p"$db_pass" -e "SELECT 1" &>/dev/null
+        MYSQL_PWD="$db_pass" mysql -h"$db_host" -P"$db_port" -u"$db_user" -e "SELECT 1" &>/dev/null
     else
-        mysql -h"${MYSQL_HOST:-db}" -P"${MYSQL_PORT:-3306}" -u"$MYSQL_USERNAME" -p"$MYSQL_PASSWORD" -e "SELECT 1" &>/dev/null
+        MYSQL_PWD="$MYSQL_PASSWORD" mysql -h"${MYSQL_HOST:-db}" -P"${MYSQL_PORT:-3306}" -u"$MYSQL_USERNAME" -e "SELECT 1" &>/dev/null
     fi
 }
 
@@ -235,7 +235,7 @@ run_migrations() {
         fi
     else
         if [ -n "$MYSQL_HOST" ] && [ -n "$MYSQL_USERNAME" ] && [ -n "$MYSQL_DB_NAME" ]; then
-            table_count=$(mysql -h"${MYSQL_HOST}" -P"${MYSQL_PORT:-3306}" -u"${MYSQL_USERNAME}" -p"${MYSQL_PASSWORD}" "${MYSQL_DB_NAME}" -N -e "SHOW TABLES;" 2>/dev/null | wc -l)
+            table_count=$(MYSQL_PWD="${MYSQL_PASSWORD}" mysql -h"${MYSQL_HOST}" -P"${MYSQL_PORT:-3306}" -u"${MYSQL_USERNAME}" "${MYSQL_DB_NAME}" -N -e "SHOW TABLES;" 2>/dev/null | wc -l)
         elif [ -n "$DATABASE_URL" ]; then
             local db_host db_port db_user db_pass db_name
             db_host=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^@]*@([^:/]+).*|\1|')
@@ -244,9 +244,9 @@ run_migrations() {
             db_pass=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^:]+:([^@]+)@.*|\1|')
             db_name=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^/]+/([^?]+).*|\1|')
             [ -z "$db_port" ] && db_port=3306
-            table_count=$(mysql -h"$db_host" -P"$db_port" -u"$db_user" -p"$db_pass" "$db_name" -N -e "SHOW TABLES;" 2>/dev/null | wc -l)
+            table_count=$(MYSQL_PWD="$db_pass" mysql -h"$db_host" -P"$db_port" -u"$db_user" "$db_name" -N -e "SHOW TABLES;" 2>/dev/null | wc -l)
         else
-            table_count=$(mysql -h"${MYSQL_HOST:-db}" -P"${MYSQL_PORT:-3306}" -u"$MYSQL_USERNAME" -p"$MYSQL_PASSWORD" "$MYSQL_DB_NAME" -N -e "SHOW TABLES;" 2>/dev/null | wc -l)
+            table_count=$(MYSQL_PWD="$MYSQL_PASSWORD" mysql -h"${MYSQL_HOST:-db}" -P"${MYSQL_PORT:-3306}" -u"$MYSQL_USERNAME" "$MYSQL_DB_NAME" -N -e "SHOW TABLES;" 2>/dev/null | wc -l)
         fi
     fi
 
@@ -299,8 +299,8 @@ if ! [[ "$APACHE_PORT" =~ ^[0-9]+$ ]]; then
     echo "WARNING: Invalid PORT value '$APACHE_PORT'; falling back to 80"
     APACHE_PORT="80"
 fi
-sed -ri "s/^Listen 80$/Listen ${APACHE_PORT}/" /etc/apache2/ports.conf
-sed -ri "s/<VirtualHost \*:80>/<VirtualHost *:${APACHE_PORT}>/" /etc/apache2/sites-available/000-default.conf
+sed -ri "s/^Listen [0-9]+$/Listen ${APACHE_PORT}/" /etc/apache2/ports.conf
+sed -ri "s/<VirtualHost \\*:[0-9]+>/<VirtualHost *:${APACHE_PORT}>/" /etc/apache2/sites-available/000-default.conf
 
 # ---------------------------------------------------------------------------
 # 8. Start application

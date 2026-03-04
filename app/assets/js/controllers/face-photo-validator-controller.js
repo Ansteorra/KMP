@@ -104,7 +104,12 @@ class FacePhotoValidatorController extends Controller {
 
     async ensureModelsReady() {
         if (modelsReadyPromise) {
-            await modelsReadyPromise;
+            try {
+                await modelsReadyPromise;
+            } catch (error) {
+                modelsReadyPromise = null;
+                throw error;
+            }
             return;
         }
 
@@ -119,7 +124,12 @@ class FacePhotoValidatorController extends Controller {
             this.logDebug("face-api models loaded");
         })();
 
-        await modelsReadyPromise;
+        try {
+            await modelsReadyPromise;
+        } catch (error) {
+            modelsReadyPromise = null;
+            throw error;
+        }
     }
 
     async analyzeFace(imageElement) {

@@ -331,32 +331,42 @@ class GatheringsTable extends Table
             $maxSortOrder = max(array_column($existingActivities, 'sort_order'));
         }
 
-        // Add missing template activities
-        foreach ($templateActivities as $templateActivity) {
-            $activityId = $templateActivity->gathering_activity_id;
+        $connection = $gatheringsGatheringActivitiesTable->getConnection();
+        $connection->transactional(function () use (
+            $templateActivities,
+            $existingActivities,
+            $templateNotRemovableByActivity,
+            $gatheringsGatheringActivitiesTable,
+            $gathering,
+            &$maxSortOrder
+        ): void {
+            // Add missing template activities
+            foreach ($templateActivities as $templateActivity) {
+                $activityId = $templateActivity->gathering_activity_id;
 
-            if (!isset($existingActivities[$activityId])) {
-                // Activity doesn't exist, add it
-                $maxSortOrder++;
-                $newActivity = $gatheringsGatheringActivitiesTable->newEntity([
-                    'gathering_id' => $gathering->id,
-                    'gathering_activity_id' => $activityId,
-                    'sort_order' => $maxSortOrder
-                ]);
+                if (!isset($existingActivities[$activityId])) {
+                    // Activity doesn't exist, add it
+                    $maxSortOrder++;
+                    $newActivity = $gatheringsGatheringActivitiesTable->newEntity([
+                        'gathering_id' => $gathering->id,
+                        'gathering_activity_id' => $activityId,
+                        'sort_order' => $maxSortOrder
+                    ]);
 
-                $newActivity->not_removable = $templateActivity->not_removable;
-                $gatheringsGatheringActivitiesTable->save($newActivity);
+                    $newActivity->not_removable = $templateActivity->not_removable;
+                    $gatheringsGatheringActivitiesTable->saveOrFail($newActivity);
+                }
             }
-        }
 
-        // Re-evaluate not_removable against the new gathering type template.
-        // Activities not present in the template must be removable.
-        foreach ($existingActivities as $existingActivity) {
-            $desiredNotRemovable = $templateNotRemovableByActivity[$existingActivity->gathering_activity_id] ?? false;
-            if ((bool)$existingActivity->not_removable !== $desiredNotRemovable) {
-                $existingActivity->not_removable = $desiredNotRemovable;
-                $gatheringsGatheringActivitiesTable->save($existingActivity);
+            // Re-evaluate not_removable against the new gathering type template.
+            // Activities not present in the template must be removable.
+            foreach ($existingActivities as $existingActivity) {
+                $desiredNotRemovable = $templateNotRemovableByActivity[$existingActivity->gathering_activity_id] ?? false;
+                if ((bool)$existingActivity->not_removable !== $desiredNotRemovable) {
+                    $existingActivity->not_removable = $desiredNotRemovable;
+                    $gatheringsGatheringActivitiesTable->saveOrFail($existingActivity);
+                }
             }
-        }
+        });
     }
 }

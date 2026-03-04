@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
+
+	"golang.org/x/mod/semver"
 )
 
 // Tag represents a container image tag from the registry.
@@ -44,13 +47,26 @@ func (g *GHCRClient) GetTags() ([]Tag, error) {
 	}
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := g.HTTPClient.Do(req)
+	resp, err := g.httpClient().Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("GHCR tag fetch failed: %w", err)
 	}
+	if resp.StatusCode == http.StatusUnauthorized {
+		token, tokenErr := g.getBearerToken(resp.Header.Get("WWW-Authenticate"))
+		resp.Body.Close()
+		if tokenErr != nil {
+			return nil, tokenErr
+		}
+
+		req.Header.Set("Authorization", "Bearer "+token)
+		resp, err = g.httpClient().Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("GHCR tag fetch retry failed: %w", err)
+		}
+	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("GHCR API returned %d", resp.StatusCode)
 	}
 
@@ -85,13 +101,113 @@ func (g *GHCRClient) GetLatestTagByChannel(channel string) (string, error) {
 		return "", err
 	}
 
-	// For "release" channel, prefer "latest" tag or highest semver
+	bestTag := ""
+	bestVersion := ""
 	for _, t := range tags {
-		if t.Channel == channel {
+		if t.Channel != channel {
+			continue
+		}
+		if t.Name == "latest" {
 			return t.Name, nil
 		}
+		version := t.Name
+		if !strings.HasPrefix(version, "v") {
+			version = "v" + version
+		}
+		if !semver.IsValid(version) {
+			continue
+		}
+		if bestVersion == "" || semver.Compare(version, bestVersion) > 0 {
+			bestVersion = version
+			bestTag = t.Name
+		}
+	}
+	if bestTag != "" {
+		return bestTag, nil
 	}
 	return "", fmt.Errorf("no tags found for channel %q", channel)
+}
+
+func (g *GHCRClient) httpClient() *http.Client {
+	if g.HTTPClient != nil {
+		return g.HTTPClient
+	}
+
+	return &http.Client{Timeout: 10 * time.Second}
+}
+
+func (g *GHCRClient) getBearerToken(wwwAuthenticate string) (string, error) {
+	realm, service, scope, ok := parseBearerChallenge(wwwAuthenticate)
+	if !ok {
+		return "", fmt.Errorf("GHCR API returned %d", http.StatusUnauthorized)
+	}
+
+	tokenURL, err := url.Parse(realm)
+	if err != nil {
+		return "", err
+	}
+	query := tokenURL.Query()
+	if service != "" {
+		query.Set("service", service)
+	}
+	if scope != "" {
+		query.Set("scope", scope)
+	}
+	tokenURL.RawQuery = query.Encode()
+
+	tokenReq, err := http.NewRequest("GET", tokenURL.String(), nil)
+	if err != nil {
+		return "", err
+	}
+	tokenReq.Header.Set("Accept", "application/json")
+
+	tokenResp, err := g.httpClient().Do(tokenReq)
+	if err != nil {
+		return "", err
+	}
+	defer tokenResp.Body.Close()
+	if tokenResp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("GHCR token API returned %d", tokenResp.StatusCode)
+	}
+
+	var tokenPayload struct {
+		Token       string `json:"token"`
+		AccessToken string `json:"access_token"`
+	}
+	if err := json.NewDecoder(tokenResp.Body).Decode(&tokenPayload); err != nil {
+		return "", err
+	}
+	if tokenPayload.Token != "" {
+		return tokenPayload.Token, nil
+	}
+	if tokenPayload.AccessToken != "" {
+		return tokenPayload.AccessToken, nil
+	}
+
+	return "", fmt.Errorf("GHCR token API returned no token")
+}
+
+func parseBearerChallenge(header string) (realm string, service string, scope string, ok bool) {
+	prefix := "bearer "
+	if !strings.HasPrefix(strings.ToLower(header), prefix) {
+		return "", "", "", false
+	}
+
+	params := strings.Split(header[len(prefix):], ",")
+	values := map[string]string{}
+	for _, part := range params {
+		kv := strings.SplitN(strings.TrimSpace(part), "=", 2)
+		if len(kv) != 2 {
+			continue
+		}
+		values[strings.ToLower(kv[0])] = strings.Trim(kv[1], "\"")
+	}
+
+	realm = values["realm"]
+	if realm == "" {
+		return "", "", "", false
+	}
+	return realm, values["service"], values["scope"], true
 }
 
 func classifyTag(tag string) string {

@@ -18,6 +18,7 @@ use Cake\Event\EventInterface;
 use Cake\Http\Exception\BadRequestException;
 use Cake\Http\Exception\ForbiddenException;
 use Cake\Http\Exception\NotFoundException;
+use Cake\Http\Response;
 use Cake\I18n\DateTime;
 use Cake\Mailer\MailerAwareTrait;
 use Cake\ORM\Query\SelectQuery;
@@ -1162,7 +1163,12 @@ class MembersController extends AppController
         return $this->redirect(['action' => 'view', $member->id]);
     }
 
-    public function uploadProfilePhoto()
+    /**
+     * Upload and assign a member profile photo.
+     *
+     * @return \Cake\Http\Response Redirect response
+     */
+    public function uploadProfilePhoto(): Response
     {
         $this->request->allowMethod(['post', 'put']);
 
@@ -1204,7 +1210,13 @@ class MembersController extends AppController
         return $this->redirect($this->referer());
     }
 
-    public function removeProfilePhoto($id = null)
+    /**
+     * Remove a member profile photo and underlying document atomically.
+     *
+     * @param int|null $id Member ID
+     * @return \Cake\Http\Response Redirect response
+     */
+    public function removeProfilePhoto(?int $id = null): Response
     {
         $this->request->allowMethod(['post', 'delete']);
 
@@ -1223,17 +1235,20 @@ class MembersController extends AppController
         }
 
         $oldDocumentId = (int)$member->profile_photo_document_id;
-        $member->profile_photo_document_id = null;
-        if (!$this->Members->save($member)) {
-            $this->Flash->error(__('Unable to remove profile photo. Please try again.'));
-            return $this->redirect(['action' => 'view', $member->id]);
-        }
+        $connection = $this->Members->getConnection();
+        try {
+            $connection->transactional(function () use ($member, $oldDocumentId): void {
+                $member->profile_photo_document_id = null;
+                $this->Members->saveOrFail($member);
 
-        $documentService = new DocumentService();
-        $deleteResult = $documentService->deleteDocument($oldDocumentId);
-        if (!$deleteResult->success) {
-            $member->profile_photo_document_id = $oldDocumentId;
-            $this->Members->save($member);
+                $documentService = new DocumentService();
+                $deleteResult = $documentService->deleteDocument($oldDocumentId);
+                if (!$deleteResult->success) {
+                    throw new \RuntimeException(__('Unable to remove profile photo. Please try again.'));
+                }
+            });
+        } catch (\Throwable $e) {
+            \Cake\Log\Log::error('Profile photo removal failed: ' . $e->getMessage());
             $this->Flash->error(__('Unable to remove profile photo. Please try again.'));
             return $this->redirect(['action' => 'view', $member->id]);
         }
@@ -1242,7 +1257,13 @@ class MembersController extends AppController
         return $this->redirect(['action' => 'view', $member->id]);
     }
 
-    public function mobileCardUploadProfilePhoto($id = null)
+    /**
+     * Upload a profile photo from the mobile card flow.
+     *
+     * @param string|null $id Mobile card token
+     * @return \Cake\Http\Response Redirect response
+     */
+    public function mobileCardUploadProfilePhoto(?string $id = null): Response
     {
         $this->request->allowMethod(['post', 'put']);
         $inactiveStatuses = [
@@ -1279,7 +1300,13 @@ class MembersController extends AppController
         return $this->redirect(['action' => 'viewMobileCard', $id]);
     }
 
-    public function profilePhoto($id = null)
+    /**
+     * Stream a member profile photo document inline.
+     *
+     * @param int|null $id Member ID
+     * @return \Cake\Http\Response Inline file response
+     */
+    public function profilePhoto(?int $id = null): Response
     {
         $member = $this->Members->find()
             ->contain(['ProfilePhoto'])
@@ -1305,7 +1332,13 @@ class MembersController extends AppController
         return $response;
     }
 
-    public function mobileCardPhoto($id = null)
+    /**
+     * Stream a member profile photo by mobile card token.
+     *
+     * @param string|null $id Mobile card token
+     * @return \Cake\Http\Response Inline file response
+     */
+    public function mobileCardPhoto(?string $id = null): Response
     {
         $inactiveStatuses = [
             Member::STATUS_DEACTIVATED,

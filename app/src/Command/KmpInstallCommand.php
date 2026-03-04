@@ -377,12 +377,12 @@ class KmpInstallCommand extends Command
             usleep(100000);
         }
 
-        $exitCode = proc_close($process);
         foreach ($pipes as $pipe) {
             if (is_resource($pipe)) {
                 fclose($pipe);
             }
         }
+        $exitCode = proc_close($process);
 
         return $exitCode === 0;
     }

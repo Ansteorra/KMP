@@ -18,7 +18,7 @@ index 34d399a..d4caaaf 100644
 -        let globAsync = promisify(glob)
 +        let globFn =
 +            typeof globModule === 'function' ? globModule : globModule.glob;
-+        let globAsync = promisify(globFn)
++        let globAsync = globFn;
  
          // 3. Expand globs
          let groups = await Promise.all(files.map(async file => {
@@ -58,7 +58,7 @@ index b790f4e..fedfe59 100644
  let { concat } = require('lodash');
 -let globAsync = promisify(glob);
 +let globFn = typeof globModule === 'function' ? globModule : globModule.glob;
-+let globAsync = promisify(globFn);
++let globAsync = globFn;
  
  /** @internal */
  module.exports.FileGlob = class FileGlob {
