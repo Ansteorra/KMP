@@ -134,3 +134,27 @@ Fixed two bugs in `GatheringWaiversTable::countGatheringsNeedingWaivers()` that 
 - `app/plugins/Waivers/src/Controller/GatheringWaiversController.php` — `needingWaivers()` action (list view, line ~1784) — NOT modified
 
 📌 Team update (2026-02-12): Badge count query in GatheringWaiversTable changed to past-only gatherings + aligned permission to uploadWaivers — decided by Kaylee
+
+### 2026-02-22: Runtime startup hardening (Redis/MySQL/Apache)
+
+- Setup and migration commands should force `CACHE_ENGINE=apcu` (or non-Redis) to avoid RedisEngine initialization failures during bootstrap when Redis is not ready.
+- In container startup scripts, prefer explicit `MYSQL_HOST`/`MYSQL_PORT`/`MYSQL_USERNAME` vars over parsing `DATABASE_URL` when available, especially on Railway-managed databases.
+- Production image should explicitly disable extra Apache MPMs (`mpm_event`, `mpm_worker`) and ensure `mpm_prefork` is enabled to avoid “More than one MPM loaded”.
+
+### 2026-02-22: Railway startup hardening for installer migrations
+
+- Railway migration flows should perform an SSH readiness pre-check loop before running `bin/cake migrations`, because Railway services may be asleep or still starting immediately after deploy.
+- Keep migration failures explicit: if SSH never becomes reachable after bounded retries, return a direct readiness error instead of only per-command migration failures.
+- Runtime entrypoint should re-assert Apache MPM state (`disable mpm_event/mpm_worker`, `enable mpm_prefork`) at startup, not only at image build time, to prevent drift-related boot failures.
+
+📌 Team update (2026-02-22): Railway startup hardening decisions from inbox were merged into a single consolidated entry in `.ai-team/decisions.md`; inbox cleared. — archived by Scribe
+
+### 2026-02-22: Railway 502 readiness root cause pattern
+
+- KMP production startup must map Apache's listen port to the runtime `PORT` env var (not hardcode port 80), otherwise Railway can keep the container running but return edge 502 due to upstream port mismatch.
+- `docker/entrypoint.prod.sh` is the safest place to enforce this at boot by rewriting `ports.conf` and `000-default.conf` before launching `apache2-foreground`.
+
+### 2026-02-22: Railway managed MySQL URL precedence and blank-page risk
+
+- In production `app_local.php` generation, when `MYSQL_HOST` + `MYSQL_USERNAME` are present, datasource `url` should be `null` so Cake uses explicit MySQL env fields instead of reparsing `DATABASE_URL`.
+- Railway-managed credentials can contain URL-special characters; when injected into a raw `mysql://user:pass@host/db` string, malformed DSNs can break dynamic Cake requests while Apache still serves static assets.

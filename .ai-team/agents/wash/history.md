@@ -100,3 +100,5 @@ Completed 9 documentation tasks (8 modified, 1 no-change-needed):
 - Each entry: `### Title`, 1-2 sentence user-facing description, bullet list of capabilities, then `📅 Date · \`Tag\`` (tags: `New Feature`, `Improvement`, `Security`, etc.)
 - Entries separated by `---` horizontal rules
 - Update `LAST_SYNCED_COMMIT` to current HEAD and `LAST_SYNCED_DATE` to the entry date when adding entries
+
+📌 Team update (2026-02-22): Runtime startup decisions consolidated — run startup/migration CLI with `CACHE_ENGINE=apcu`, keep Redis for runtime cache traffic, enforce single Apache MPM, and validate with Redis/update_database/MPM gates. — decided by Jayne, Kaylee

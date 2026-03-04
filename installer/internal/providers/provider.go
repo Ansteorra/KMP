@@ -77,17 +77,19 @@ type BackupConfig struct {
 
 // Status holds current deployment status
 type Status struct {
-	Running     bool
-	Version     string
-	Channel     string
-	Domain      string
-	Provider    string
-	Healthy     bool
-	DBConnected bool
-	CacheOK     bool
-	Uptime      string
-	LastBackup  string
-	LastUpdate  string
+	Running        bool
+	Version        string
+	ImageTag       string
+	Channel        string
+	Domain         string
+	Provider       string
+	Healthy        bool
+	DBConnected    bool
+	CacheOK        bool
+	Uptime         string
+	LastBackup     string
+	LastUpdate     string
+	UpdaterRunning bool // true if kmp-updater sidecar is reachable
 }
 
 // BackupResult holds the result of a backup operation

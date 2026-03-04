@@ -420,7 +420,7 @@ class Application extends BaseApplication implements
                     "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://fonts.googleapis.com; " . // Allow Google Fonts and Leaflet CSS
                     "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net;" .    // Font sources
                     "img-src 'self' data: https:; " .                                // Allow HTTPS images and data URIs
-                    "connect-src 'self' https://maps.googleapis.com https://places.googleapis.com https://tile.openstreetmap.org https://a.tile.openstreetmap.org https://b.tile.openstreetmap.org https://c.tile.openstreetmap.org; " .             // AJAX/fetch restrictions - allow Google Maps, Places API, and OpenStreetMap tiles
+                    "connect-src 'self' https://api.github.com https://maps.googleapis.com https://places.googleapis.com https://tile.openstreetmap.org https://a.tile.openstreetmap.org https://b.tile.openstreetmap.org https://c.tile.openstreetmap.org; " .       // AJAX/fetch restrictions - allow GitHub API, Google Maps, Places API, and OpenStreetMap tiles
                     "frame-src 'self' https://www.google.com; " .                    // iframe restrictions - allow Google Maps embeds
                     "object-src 'none'; " .                                          // Disable plugins
                     "base-uri 'self'; " .                                            // Prevent base tag attacks

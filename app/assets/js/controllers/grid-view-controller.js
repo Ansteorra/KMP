@@ -13,7 +13,7 @@ import { Controller } from "@hotwired/stimulus"
  * Supports optional bulk selection when enableBulkSelection is configured.
  */
 class GridViewController extends Controller {
-    static targets = ["gridState", "searchInput", "rowCheckbox", "selectAllCheckbox", "bulkActionBtn", "selectionCount"]
+    static targets = ["gridState", "searchInput", "searchStatusIndicator", "rowCheckbox", "selectAllCheckbox", "bulkActionBtn", "selectionCount"]
     static values = {
         stickyQuery: String,
         stickyDefault: Object
@@ -33,6 +33,8 @@ class GridViewController extends Controller {
 
         // Initialize bulk selection tracking
         this.selectedIds = []
+        this.searchDebounceTimer = null
+        this.searchDebounceMs = 900
 
         // Initialize sticky query parameter support
         this.stickyParams = {}
@@ -49,6 +51,7 @@ class GridViewController extends Controller {
 
         // Check if state is already present (inline rendered content)
         this.loadInlineState()
+        this.setSearchBusy(false)
     }
 
     /**
@@ -75,6 +78,7 @@ class GridViewController extends Controller {
 
             // Update toolbar UI based on state
             this.updateToolbar()
+            this.setSearchBusy(false)
 
             // Capture sticky parameters for inline-rendered frame content
             this.captureStickyParamsFromFrame(tableFrame)
@@ -87,6 +91,10 @@ class GridViewController extends Controller {
      * Cleanup when controller disconnects
      */
     disconnect() {
+        if (this.searchDebounceTimer) {
+            clearTimeout(this.searchDebounceTimer)
+            this.searchDebounceTimer = null
+        }
         document.removeEventListener('turbo:frame-load', this.boundHandleFrameLoad)
     }
 
@@ -118,6 +126,7 @@ class GridViewController extends Controller {
 
                 // Update toolbar UI based on new state
                 this.updateToolbar()
+                this.setSearchBusy(false)
 
                 // Clear bulk selection when table data changes (pagination, filter, sort)
                 this.clearBulkSelection()
@@ -126,6 +135,7 @@ class GridViewController extends Controller {
                 this.captureStickyParamsFromFrame(tableFrame)
             } catch (e) {
                 console.error('Failed to parse grid state from table frame:', e)
+                this.setSearchBusy(false)
             }
         } else {
             // Outer grid frame loaded - check if it contains an inline table frame with state
@@ -148,6 +158,19 @@ class GridViewController extends Controller {
         this.updateFilterPanels()
         this.updateClearFiltersFooter()
         this.updateColumnPicker()
+    }
+
+    /**
+     * Toggle search busy indicator in the filter search input.
+     */
+    setSearchBusy(isBusy) {
+        if (this.hasSearchStatusIndicatorTarget) {
+            this.searchStatusIndicatorTarget.classList.toggle('d-none', !isBusy)
+        }
+
+        if (this.hasSearchInputTarget) {
+            this.searchInputTarget.setAttribute('aria-busy', isBusy ? 'true' : 'false')
+        }
     }
 
     /**
@@ -1428,22 +1451,54 @@ class GridViewController extends Controller {
      * Handle search input keyup with debouncing
      */
     handleSearchKeyup(event) {
-        if (event.key === 'Enter') return // Handled separately
+        if (event.key === 'Enter') {
+            if (this.searchDebounceTimer) {
+                clearTimeout(this.searchDebounceTimer)
+                this.searchDebounceTimer = null
+            }
+            return // Handled separately
+        }
+
+        // Ignore modifier/navigation keys that don't change input value
+        if (
+            event.key === 'Shift' ||
+            event.key === 'Control' ||
+            event.key === 'Alt' ||
+            event.key === 'Meta' ||
+            event.key === 'ArrowUp' ||
+            event.key === 'ArrowDown' ||
+            event.key === 'ArrowLeft' ||
+            event.key === 'ArrowRight' ||
+            event.key === 'Tab' ||
+            event.key === 'Escape'
+        ) {
+            return
+        }
 
         if (this.searchDebounceTimer) {
             clearTimeout(this.searchDebounceTimer)
         }
 
         this.searchDebounceTimer = setTimeout(() => {
-            this.performSearch(event)
-        }, 500)
+            this.performSearch()
+        }, this.searchDebounceMs)
     }
 
     /**
      * Perform search
      */
     performSearch() {
+        if (this.searchDebounceTimer) {
+            clearTimeout(this.searchDebounceTimer)
+            this.searchDebounceTimer = null
+        }
+
         const searchTerm = this.searchInputTarget.value.trim()
+        if ((this.state.search || '') === searchTerm) {
+            this.setSearchBusy(false)
+            return
+        }
+
         const updates = { search: searchTerm || null }
 
         // If we're on a view and search differs from view default, mark as dirty
@@ -1452,6 +1507,7 @@ class GridViewController extends Controller {
         }
 
         const url = this.buildUrl(updates)
+        this.setSearchBusy(true)
         this.navigate(url)
     }
 
@@ -1467,6 +1523,7 @@ class GridViewController extends Controller {
         }
 
         const url = this.buildUrl(updates)
+        this.setSearchBusy(true)
         this.navigate(url)
     }
 

@@ -31,11 +31,26 @@ make all            # Cross-compile for all platforms
 make install        # Install to $GOPATH/bin
 ```
 
+## Testing
+
+```bash
+make test           # Full installer test suite
+make test-sidecar   # Fast sidecar-only tests (no Docker daemon required)
+```
+
+### Sidecar test workflow (recommended)
+
+Use this loop while changing `internal/updater`:
+
+1. `make test-sidecar` after each change (fast unit checks of update/rollback state transitions).
+2. `go test ./...` before commit (ensures no regressions outside updater package).
+3. Optional smoke run with Docker Compose in a dev environment for end-to-end validation.
+
 ## Supported Deployment Targets
 
 - **Local/VPC** — Docker Compose + Caddy (auto-SSL)
 - **Azure** — Container Apps + Azure DB for MySQL
 - **AWS** — ECS Fargate + RDS MySQL + S3
 - **Fly.io** — Fly Machines + Fly Postgres
-- **Railway** — Railway containers + managed MySQL
+- **Railway** — Railway containers + optional managed MySQL/Redis (requires `railway` CLI + `railway login`)
 - **VPS** — Any SSH-accessible host with Docker

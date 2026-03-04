@@ -494,6 +494,7 @@ CREATE TABLE `members` (
   `birth_year` int(11) DEFAULT NULL,
   `additional_info` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT _utf8mb3'{}' CHECK (json_valid(`additional_info`)),
   `membership_card_path` varchar(256) DEFAULT NULL,
+  `profile_photo_document_id` int(11) DEFAULT NULL,
   `modified` datetime DEFAULT NULL,
   `created` datetime NOT NULL,
   `created_by` int(11) DEFAULT NULL,
@@ -507,7 +508,9 @@ CREATE TABLE `members` (
   UNIQUE KEY `email_address` (`email_address`),
   KEY `deleted` (`deleted`),
   KEY `branch_id` (`branch_id`),
-  CONSTRAINT `members_ibfk_1` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`)
+  KEY `idx_members_profile_photo_document_id` (`profile_photo_document_id`),
+  CONSTRAINT `members_ibfk_1` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`),
+  CONSTRAINT `members_ibfk_2` FOREIGN KEY (`profile_photo_document_id`) REFERENCES `documents` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=2884 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -971,4 +974,3 @@ CREATE TABLE `warrants` (
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-

@@ -171,4 +171,30 @@ class NavigationRegistryTest extends BaseTestCase
         $this->assertFalse($debug['sources']['source1']['has_callback']);
         $this->assertTrue($debug['sources']['source2']['has_callback']);
     }
+
+    /**
+     * Ensure empty cached navigation does not suppress registered menu sources.
+     *
+     * @return void
+     */
+    public function testIgnoresEmptyCachedNavigationWhenSourcesExist(): void
+    {
+        $_SESSION['navigation_items'] = [
+            'user_id' => 1,
+            'items' => [],
+            'generated_at' => (new \DateTimeImmutable('now'))->format(\DateTimeInterface::ATOM),
+        ];
+
+        NavigationRegistry::register('test', [[
+            'type' => 'link',
+            'label' => 'Recovered Link',
+            'url' => ['controller' => 'Members', 'action' => 'index'],
+        ]]);
+
+        $user = new Member(['id' => 1, 'sca_name' => 'Test User']);
+        $items = NavigationRegistry::getNavigationItems($user);
+
+        $this->assertNotEmpty($items);
+        $this->assertSame('Recovered Link', $items[0]['label']);
+    }
 }

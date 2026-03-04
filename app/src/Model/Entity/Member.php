@@ -121,6 +121,7 @@ class Member extends BaseEntity implements
         'pronouns' => true,
         'pronunciation' => true,
         'timezone' => true,
+        'profile_photo_document_id' => false,
     ];
 
     /** @var array<string> Fields hidden from serialization */
@@ -172,6 +173,7 @@ class Member extends BaseEntity implements
         unset($data['verified_date']);
         unset($data['verified_by']);
         unset($data['membership_card_path']);
+        unset($data['profile_photo_document_id']);
         unset($data['created_by']);
         unset($data['modified_by']);
         unset($data['deleted']);

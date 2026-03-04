@@ -34,6 +34,7 @@ class AwardsRecommendationBulkEditForm extends Controller {
         turboFrameUrl: String,
         bulkIds: Array,
         gatheringsUrl: String,
+        gatheringsLookupUrl: String,
     };
     static outlets = ['outlet-btn'];
 
@@ -64,71 +65,55 @@ class AwardsRecommendationBulkEditForm extends Controller {
         return
     }
 
-    /** Fetch gatherings that can give all selected awards via intersection. */
-    async updateGatherings() {
-        // Need both IDs and URL to fetch gatherings
-        if (!this.bulkIdsValue || this.bulkIdsValue.length === 0 || !this.gatheringsUrlValue) {
+    /** Update backend lookup URL for gathering autocomplete in bulk edit. */
+    updateGatherings() {
+        if (!this.hasPlanToGiveGatheringTarget || !this.hasGatheringsLookupUrlValue) {
             return;
         }
 
-        const status = this.stateTarget.value;
-        const currentSelection = this.planToGiveGatheringTarget.value;
+        const selectedIds = (this.bulkIdsValue || []).filter(Boolean);
+        const idsKey = selectedIds.join(',');
+        if (
+            this.planToGiveGatheringTarget.dataset.lookupIdsKey !== undefined &&
+            this.planToGiveGatheringTarget.dataset.lookupIdsKey !== idsKey
+        ) {
+            this.planToGiveGatheringTarget.value = '';
+            this.planToGiveGatheringTarget.dataset.initialValue = '';
+        }
+        this.planToGiveGatheringTarget.dataset.lookupIdsKey = idsKey;
 
-        try {
-            // Get CSRF token from meta tag
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
-            
-            const response = await fetch(this.gatheringsUrlValue, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-Token': csrfToken
-                },
-                body: JSON.stringify({
-                    ids: this.bulkIdsValue,
-                    status: status
-                })
-            });
+        const currentSelection = this.planToGiveGatheringTarget.value ||
+            this.planToGiveGatheringTarget.dataset.initialValue ||
+            '';
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+        const params = new URLSearchParams();
+        if (selectedIds.length > 0) {
+            params.append('ids', selectedIds.join(','));
+        }
+        if (this.hasStateTarget && this.stateTarget.value) {
+            params.append('status', this.stateTarget.value);
+        }
+        if (currentSelection) {
+            params.append('selected_id', currentSelection);
+            this.planToGiveGatheringTarget.dataset.initialValue = currentSelection;
+        }
 
-            const data = await response.json();
+        let lookupUrl = this.gatheringsLookupUrlValue;
+        if (params.toString()) {
+            lookupUrl += `?${params.toString()}`;
+        }
+        this.planToGiveGatheringTarget.setAttribute('data-ac-url-value', lookupUrl);
+    }
 
-            // Clear existing options except the first (empty) one
-            while (this.planToGiveGatheringTarget.options.length > 1) {
-                this.planToGiveGatheringTarget.remove(1);
-            }
-
-            // Add new options
-            if (data.gatherings && data.gatherings.length > 0) {
-                data.gatherings.forEach(gathering => {
-                    const option = document.createElement('option');
-                    option.value = gathering.id;
-                    option.textContent = gathering.display_name;
-
-                    // Disable cancelled gatherings
-                    if (gathering.cancelled) {
-                        option.disabled = true;
-                    }
-
-                    this.planToGiveGatheringTarget.appendChild(option);
-                });
-
-                // Restore previous selection if it still exists and is not cancelled
-                if (currentSelection) {
-                    const optionExists = Array.from(this.planToGiveGatheringTarget.options).some(
-                        opt => opt.value === currentSelection && !opt.disabled
-                    );
-                    if (optionExists) {
-                        this.planToGiveGatheringTarget.value = currentSelection;
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('Error fetching gatherings:', error);
+    /** Sync required state to autocomplete text input. */
+    setPlanToGiveRequired(required) {
+        if (!this.hasPlanToGiveGatheringTarget) {
+            return;
+        }
+        this.planToGiveGatheringTarget.required = required;
+        const input = this.planToGiveGatheringTarget.querySelector("[data-ac-target='input']");
+        if (input) {
+            input.required = required;
         }
     }
 
@@ -158,7 +143,7 @@ class AwardsRecommendationBulkEditForm extends Controller {
         var rules = JSON.parse(rulesstring);
         this.planToGiveBlockTarget.style.display = "none";
         this.givenBlockTarget.style.display = "none";
-        this.planToGiveGatheringTarget.required = false;
+        this.setPlanToGiveRequired(false);
         this.givenDateTarget.required = false;
         this.closeReasonBlockTarget.style.display = "none";
         this.closeReasonTarget.required = false;
@@ -190,6 +175,7 @@ class AwardsRecommendationBulkEditForm extends Controller {
                 });
             }
         }
+        this.setPlanToGiveRequired(!!this.planToGiveGatheringTarget.required);
 
         // Update gatherings list when status changes (affects future vs all gatherings)
         this.updateGatherings();

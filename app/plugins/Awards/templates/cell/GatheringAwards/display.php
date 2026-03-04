@@ -31,6 +31,9 @@ $frameId = 'gathering-awards-grid-' . $gatheringId;
         ]),
         'compactMode' => true,
     ]) ?>
+    <?php if ($canBulkEdit): ?>
+        <?= $this->element('recommendationsBulkEditModal', ['modalId' => 'bulkEditRecommendationModal']) ?>
+    <?php endif; ?>
 <?php else: ?>
     <p class="text-muted"><?= __('No Award Recommendations for this gathering') ?></p>
 <?php endif; ?>

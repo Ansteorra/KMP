@@ -599,6 +599,11 @@ class GatheringWaiversController extends AppController
             ],
         ]);
 
+        // need an empty gathering waiver to check authorization
+        $gatheringWaiver = $this->GatheringWaivers->newEmptyEntity();
+        $gatheringWaiver->gathering = $gathering;
+        $this->Authorization->authorize($gatheringWaiver, 'uploadWaivers');
+
         // Check if gathering is cancelled
         if ($gathering->cancelled_at !== null) {
             $message = __('This gathering has been cancelled. Waivers are not required.');
@@ -620,7 +625,8 @@ class GatheringWaiversController extends AppController
 
         $GatheringWaiverClosures = $this->fetchTable('Waivers.GatheringWaiverClosures');
         $waiverClosure = $GatheringWaiverClosures->getClosureForGathering((int)$gatheringId);
-        if ($waiverClosure) {
+        $canCloseWaivers = $this->Authentication->getIdentity()->checkCan('closeWaivers', $gatheringWaiver);
+        if ($waiverClosure !== null && $waiverClosure->closed_at !== null && !$canCloseWaivers) {
             $message = __('Waiver collection is closed for this gathering.');
             if ($this->request->is('ajax')) {
                 $this->viewBuilder()->setClassName('Json');
@@ -645,11 +651,6 @@ class GatheringWaiversController extends AppController
             $this->Flash->error(__('This gathering is not configured to collect waivers.'));
             return $this->redirect(['plugin' => false, 'controller' => 'Gatherings', 'action' => 'view', $gatheringId]);
         }
-        // need an empty gathering waiver to check authorization
-        $gatheringWaiver = $this->GatheringWaivers->newEmptyEntity();
-        $gatheringWaiver->gathering = $gathering;
-        $this->Authorization->authorize($gatheringWaiver, 'uploadWaivers');
-
         // Handle POST - process uploads
         if ($this->request->is('post')) {
             $data = $this->request->getData();
@@ -2136,16 +2137,27 @@ class GatheringWaiversController extends AppController
                 $color = 'warning';
             }
 
-            $startDate = Date::parse($gathering->start_date);
-            $endDate = $gathering->end_date ? Date::parse($gathering->end_date) : $startDate;
-            $isMultiDay = $startDate->toDateString() !== $endDate->toDateString();
+            $startLocal = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, $currentUser, null, $gathering);
+            $endLocal = \App\KMP\TimezoneHelper::toUserTimezone(
+                $gathering->end_date ?? $gathering->start_date,
+                $currentUser,
+                null,
+                $gathering
+            );
+            if ($startLocal === null || $endLocal === null) {
+                continue;
+            }
+
+            $startDate = $startLocal->format('Y-m-d');
+            $endDate = $endLocal->format('Y-m-d');
+            $isMultiDay = $startDate !== $endDate;
 
             $events[] = [
                 'id' => $gathering->id,
                 'name' => $gathering->name,
                 'branch' => $gathering->branch ? $gathering->branch->name : '',
-                'start_date' => $startDate->toDateString(),
-                'end_date' => $endDate->toDateString(),
+                'start_date' => $startDate,
+                'end_date' => $endDate,
                 'multi_day' => $isMultiDay,
                 'status' => $status,
                 'color' => $color,
@@ -3215,7 +3227,8 @@ class GatheringWaiversController extends AppController
 
         $GatheringWaiverClosures = $this->fetchTable('Waivers.GatheringWaiverClosures');
         $waiverClosure = $GatheringWaiverClosures->getClosureForGathering((int)$gatheringId);
-        if ($waiverClosure) {
+        $canCloseWaivers = $this->Authentication->getIdentity()->checkCan('closeWaivers', $tempWaiver);
+        if ($waiverClosure !== null && $waiverClosure->closed_at !== null && !$canCloseWaivers) {
             $message = __('Waiver collection is closed for this gathering.');
             if ($this->request->is('ajax')) {
                 $this->viewBuilder()->setClassName('Json');

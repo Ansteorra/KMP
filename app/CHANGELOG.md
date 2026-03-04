@@ -3,8 +3,44 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: 169435cfa0da44e4745eeb41dbc97347bf376a00 -->
-<!-- LAST_SYNCED_DATE: 2026-02-12 -->
+<!-- LAST_SYNCED_COMMIT: 9ef4fb16ab83e9575c16f6221aa37be6b9f91803 -->
+<!-- LAST_SYNCED_DATE: 2026-03-04 -->
+
+## March 2026
+
+### Profile Photo Uploads for Member Profiles and Mobile Cards
+
+Members can now upload and manage a profile photo that appears on their profile and mobile authorization card.
+
+- New profile photo upload/remove flow on member profile pages (for users with partial edit access)
+- Mobile card view now supports profile photo upload and full-screen zoom
+- Face-photo validation checks for a single clear, front-facing face before allowing submit
+- Profile photos are stored as linked documents for durable file management
+
+📅 March 4, 2026 · `New Feature`
+
+---
+
+### Awards Recommendation Gathering Autocomplete Enhancements
+
+Award recommendation editing now has improved gathering selection across edit, quick edit, and bulk edit flows.
+
+- Added gathering autocomplete endpoints for recommendation edit and bulk edit forms
+- Bulk edit "Plan to Give At" now uses autocomplete instead of a static select list
+- Gathering awards tab now renders the bulk edit modal when bulk edit is permitted
+
+📅 March 4, 2026 · `Improvement`
+
+---
+
+### Waiver Calendar and Upload Workflow Improvements
+
+Waiver workflows now better reflect real-world permissions and timezone-aware event dates.
+
+- Waiver calendar event dates now use timezone-aware date conversion
+- Uploads are blocked after closure except for authorized waiver closers
+
+📅 March 4, 2026 · `Improvement`
 
 ## February 2026
 

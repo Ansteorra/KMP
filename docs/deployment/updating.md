@@ -70,6 +70,8 @@ docker compose pull
 docker compose up -d
 ```
 
+In-app web-triggered updates for Docker/VPC are currently disabled; use `kmp update` or the manual compose commands above.
+
 ### Fly.io
 
 ```bash
@@ -83,6 +85,16 @@ Redeploy from the Railway dashboard or CLI:
 ```bash
 railway up
 ```
+
+### Shared Hosting (No Root Access)
+
+Use a manual, least-privilege workflow:
+
+1. Upload the new application release package with your hosting panel/FTP.
+2. Run application database migrations using the hosting-provided job/console tooling (if available).
+3. Verify `/health` responds and key admin workflows load successfully.
+
+Host-managed components (web server/proxy, database engine) are upgraded by your hosting provider, not by KMP.
 
 ## Rollback
 
@@ -118,12 +130,6 @@ KMP_IMAGE_TAG=v1.2.3 docker compose up -d
 # Deploy a specific version
 fly deploy --image ghcr.io/jhandel/kmp:v1.2.3
 ```
-
-## In-App Update Notifications
-
-KMP checks for available updates and displays a notification banner to administrators when a newer version is available. This uses the `/health` endpoint, which includes version information.
-
-No action is taken automatically — administrators choose when to apply updates.
 
 ## Best Practices
 

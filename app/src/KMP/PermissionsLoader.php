@@ -28,6 +28,7 @@ use ReflectionMethod;
  */
 class PermissionsLoader
 {
+
     /**
      * Get complete permissions set for member.
      *

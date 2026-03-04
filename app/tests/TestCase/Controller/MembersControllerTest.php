@@ -6,6 +6,7 @@ namespace App\Test\TestCase\Controller;
 
 use App\Model\Entity\Member;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
+use Cake\I18n\FrozenTime;
 
 /**
  * MembersController Test Case
@@ -409,5 +410,99 @@ class MembersControllerTest extends HttpIntegrationTestCase
 
         $response = json_decode((string)$this->_response->getBody(), true);
         $this->assertFalse($response);
+    }
+
+    public function testViewShowsProfilePhotoButton(): void
+    {
+        $this->get('/members/view/' . self::ADMIN_MEMBER_ID);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Update Profile Photo');
+    }
+
+    public function testViewCardJsonIncludesProfilePhotoUrlWhenConfigured(): void
+    {
+        $members = $this->getTableLocator()->get('Members');
+        $documents = $this->getTableLocator()->get('Documents');
+        $member = $members->get(self::ADMIN_MEMBER_ID);
+        $now = FrozenTime::now();
+
+        $document = $documents->newEntity([
+            'entity_type' => 'Members.ProfilePhoto',
+            'entity_id' => (int)$member->id,
+            'original_filename' => 'profile.jpg',
+            'stored_filename' => 'profile.jpg',
+            'file_path' => 'member-profile-photos/test-profile.jpg',
+            'mime_type' => 'image/jpeg',
+            'file_size' => 1024,
+            'checksum' => hash('sha256', 'profile-photo-test'),
+            'storage_adapter' => 'local',
+            'uploaded_by' => (int)$member->id,
+            'created' => $now,
+            'modified' => $now,
+            'created_by' => (int)$member->id,
+            'modified_by' => (int)$member->id,
+        ]);
+        $this->assertNotFalse($documents->save($document), 'Document test fixture could not be created');
+
+        $member->profile_photo_document_id = (int)$document->id;
+        $this->assertNotFalse($members->save($member), 'Member fixture update failed');
+
+        $this->get('/members/view-card-json/' . self::ADMIN_MEMBER_ID);
+
+        $this->assertResponseOk();
+        $this->assertContentType('application/json');
+        $response = json_decode((string)$this->_response->getBody(), true);
+        $this->assertIsArray($response);
+        $this->assertArrayHasKey('member', $response);
+        $this->assertArrayHasKey('profile_photo_url', $response['member']);
+        $this->assertStringContainsString('/members/profile-photo/' . self::ADMIN_MEMBER_ID, (string)$response['member']['profile_photo_url']);
+    }
+
+    public function testProfilePhotoReturnsNotFoundWhenNoProfilePhotoConfigured(): void
+    {
+        $members = $this->getTableLocator()->get('Members');
+        $member = $members->get(self::ADMIN_MEMBER_ID);
+        $member->profile_photo_document_id = null;
+        $this->assertNotFalse($members->save($member));
+
+        $this->get('/members/profile-photo/' . self::ADMIN_MEMBER_ID);
+        $this->assertResponseCode(404);
+    }
+
+    public function testRemoveProfilePhotoClearsMemberReferenceAndDeletesDocument(): void
+    {
+        $members = $this->getTableLocator()->get('Members');
+        $documents = $this->getTableLocator()->get('Documents');
+        $member = $members->get(self::ADMIN_MEMBER_ID);
+        $now = FrozenTime::now();
+
+        $document = $documents->newEntity([
+            'entity_type' => 'Members.ProfilePhoto',
+            'entity_id' => (int)$member->id,
+            'original_filename' => 'profile-remove.jpg',
+            'stored_filename' => 'profile-remove.jpg',
+            'file_path' => 'member-profile-photos/test-profile-remove.jpg',
+            'mime_type' => 'image/jpeg',
+            'file_size' => 2048,
+            'checksum' => hash('sha256', 'profile-photo-remove-test'),
+            'storage_adapter' => 'local',
+            'uploaded_by' => (int)$member->id,
+            'created' => $now,
+            'modified' => $now,
+            'created_by' => (int)$member->id,
+            'modified_by' => (int)$member->id,
+        ]);
+        $this->assertNotFalse($documents->save($document), 'Document fixture creation failed');
+
+        $member->profile_photo_document_id = (int)$document->id;
+        $this->assertNotFalse($members->save($member), 'Member fixture update failed');
+
+        $this->post('/members/remove-profile-photo/' . self::ADMIN_MEMBER_ID);
+        $this->assertRedirectContains('/members/view/' . self::ADMIN_MEMBER_ID);
+
+        $updatedMember = $members->get(self::ADMIN_MEMBER_ID);
+        $this->assertNull($updatedMember->profile_photo_document_id);
+        $this->assertFalse($documents->exists(['id' => (int)$document->id]));
     }
 }

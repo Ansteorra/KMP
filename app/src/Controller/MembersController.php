@@ -11,16 +11,19 @@ use App\KMP\StaticHelpers;
 use App\Mailer\QueuedMailerAwareTrait;
 use App\Model\Entity\Member;
 use App\Services\CsvExportService;
+use App\Services\DocumentService;
 use App\Services\ImpersonationService;
 use Cake\Datasource\Exception\RecordNotFoundException;
 use Cake\Event\EventInterface;
 use Cake\Http\Exception\BadRequestException;
 use Cake\Http\Exception\ForbiddenException;
 use Cake\Http\Exception\NotFoundException;
+use Cake\Http\Response;
 use Cake\I18n\DateTime;
 use Cake\Mailer\MailerAwareTrait;
 use Cake\ORM\Query\SelectQuery;
 use Cake\Routing\Router;
+use Psr\Http\Message\UploadedFileInterface;
 
 /**
  * Manages member CRUD, authentication, profiles, and member discovery.
@@ -61,6 +64,8 @@ class MembersController extends AppController
             'register',
             'viewMobileCard',
             'viewMobileCardJson',
+            'mobileCardPhoto',
+            'mobileCardUploadProfilePhoto',
             'searchMembers',
             'publicProfile',
             'emailTaken',
@@ -1158,6 +1163,267 @@ class MembersController extends AppController
         return $this->redirect(['action' => 'view', $member->id]);
     }
 
+    /**
+     * Upload and assign a member profile photo.
+     *
+     * @return \Cake\Http\Response Redirect response
+     */
+    public function uploadProfilePhoto(): Response
+    {
+        $this->request->allowMethod(['post', 'put']);
+
+        $user = $this->Authentication->getIdentity();
+        if (!$user) {
+            throw new NotFoundException();
+        }
+        $targetMemberId = $this->request->getData('member_id');
+        if (empty($targetMemberId) && $user) {
+            $targetMemberId = $user->id;
+        }
+
+        $member = $this->Members->find()
+            ->contain(['ProfilePhoto'])
+            ->where(['Members.id' => $targetMemberId])
+            ->first();
+        if (!$member) {
+            throw new NotFoundException();
+        }
+        $this->Authorization->authorize($member, 'partialEdit');
+
+        $file = $this->request->getData('profile_photo');
+        if (!$file instanceof UploadedFileInterface || $file->getSize() <= 0) {
+            $this->Flash->error(__('Please choose a profile photo to upload.'));
+            return $this->redirect($this->referer());
+        }
+
+        $result = $this->processProfilePhotoUpload($member, $file, (int)$user->id);
+        if (!$result['success']) {
+            $this->Flash->error($result['message']);
+            return $this->redirect($this->referer());
+        }
+        if (!empty($result['warning'])) {
+            $this->Flash->warning($result['message']);
+        } else {
+            $this->Flash->success($result['message']);
+        }
+
+        return $this->redirect($this->referer());
+    }
+
+    /**
+     * Remove a member profile photo and underlying document atomically.
+     *
+     * @param int|null $id Member ID
+     * @return \Cake\Http\Response Redirect response
+     */
+    public function removeProfilePhoto(?int $id = null): Response
+    {
+        $this->request->allowMethod(['post', 'delete']);
+
+        $member = $this->Members->find()
+            ->contain(['ProfilePhoto'])
+            ->where(['Members.id' => $id])
+            ->first();
+        if (!$member) {
+            throw new NotFoundException();
+        }
+        $this->Authorization->authorize($member, 'partialEdit');
+
+        if (empty($member->profile_photo_document_id)) {
+            $this->Flash->info(__('No profile photo to remove.'));
+            return $this->redirect(['action' => 'view', $member->id]);
+        }
+
+        $oldDocumentId = (int)$member->profile_photo_document_id;
+        $connection = $this->Members->getConnection();
+        try {
+            $connection->transactional(function () use ($member, $oldDocumentId): void {
+                $member->profile_photo_document_id = null;
+                $this->Members->saveOrFail($member);
+
+                $documentService = new DocumentService();
+                $deleteResult = $documentService->deleteDocument($oldDocumentId);
+                if (!$deleteResult->success) {
+                    throw new \RuntimeException(__('Unable to remove profile photo. Please try again.'));
+                }
+            });
+        } catch (\Throwable $e) {
+            \Cake\Log\Log::error('Profile photo removal failed: ' . $e->getMessage());
+            $this->Flash->error(__('Unable to remove profile photo. Please try again.'));
+            return $this->redirect(['action' => 'view', $member->id]);
+        }
+
+        $this->Flash->success(__('Profile photo removed.'));
+        return $this->redirect(['action' => 'view', $member->id]);
+    }
+
+    /**
+     * Upload a profile photo from the mobile card flow.
+     *
+     * @param string|null $id Mobile card token
+     * @return \Cake\Http\Response Redirect response
+     */
+    public function mobileCardUploadProfilePhoto(?string $id = null): Response
+    {
+        $this->request->allowMethod(['post', 'put']);
+        $inactiveStatuses = [
+            Member::STATUS_DEACTIVATED,
+            Member::STATUS_UNVERIFIED_MINOR,
+            Member::STATUS_MINOR_MEMBERSHIP_VERIFIED,
+        ];
+        $member = $this->Members->find()
+            ->contain(['ProfilePhoto'])
+            ->where(['Members.mobile_card_token' => $id, 'Members.status NOT IN' => $inactiveStatuses])
+            ->first();
+        if (!$member) {
+            throw new NotFoundException();
+        }
+        $this->Authorization->skipAuthorization();
+
+        $file = $this->request->getData('profile_photo');
+        if (!$file instanceof UploadedFileInterface || $file->getSize() <= 0) {
+            $this->Flash->error(__('Please choose a profile photo to upload.'));
+            return $this->redirect(['action' => 'viewMobileCard', $id]);
+        }
+
+        $result = $this->processProfilePhotoUpload($member, $file, (int)$member->id);
+        if (!$result['success']) {
+            $this->Flash->error($result['message']);
+            return $this->redirect(['action' => 'viewMobileCard', $id]);
+        }
+        if (!empty($result['warning'])) {
+            $this->Flash->warning($result['message']);
+        } else {
+            $this->Flash->success($result['message']);
+        }
+
+        return $this->redirect(['action' => 'viewMobileCard', $id]);
+    }
+
+    /**
+     * Stream a member profile photo document inline.
+     *
+     * @param int|null $id Member ID
+     * @return \Cake\Http\Response Inline file response
+     */
+    public function profilePhoto(?int $id = null): Response
+    {
+        $member = $this->Members->find()
+            ->contain(['ProfilePhoto'])
+            ->where(['Members.id' => $id])
+            ->first();
+        if (!$member) {
+            throw new NotFoundException();
+        }
+        $this->Authorization->authorize($member, 'view');
+        if (!$member->profile_photo) {
+            throw new NotFoundException();
+        }
+
+        $documentService = new DocumentService();
+        $response = $documentService->getDocumentInlineResponse(
+            $member->profile_photo,
+            'member_profile_photo_' . $member->id . '.jpg',
+        );
+        if ($response === null) {
+            throw new NotFoundException();
+        }
+
+        return $response;
+    }
+
+    /**
+     * Stream a member profile photo by mobile card token.
+     *
+     * @param string|null $id Mobile card token
+     * @return \Cake\Http\Response Inline file response
+     */
+    public function mobileCardPhoto(?string $id = null): Response
+    {
+        $inactiveStatuses = [
+            Member::STATUS_DEACTIVATED,
+            Member::STATUS_UNVERIFIED_MINOR,
+            Member::STATUS_MINOR_MEMBERSHIP_VERIFIED,
+        ];
+        $member = $this->Members->find()
+            ->contain(['ProfilePhoto'])
+            ->where(['Members.mobile_card_token' => $id, 'Members.status NOT IN' => $inactiveStatuses])
+            ->first();
+        if (!$member) {
+            throw new NotFoundException();
+        }
+        $this->Authorization->skipAuthorization();
+        if (!$member->profile_photo) {
+            throw new NotFoundException();
+        }
+
+        $documentService = new DocumentService();
+        $response = $documentService->getDocumentInlineResponse(
+            $member->profile_photo,
+            'member_mobile_card_photo_' . $member->id . '.jpg',
+        );
+        if ($response === null) {
+            throw new NotFoundException();
+        }
+
+        return $response;
+    }
+
+    /**
+     * @return array{success:bool,message:string,warning?:bool}
+     */
+    private function processProfilePhotoUpload(Member $member, UploadedFileInterface $file, int $uploaderId): array
+    {
+        $clientMediaType = (string)$file->getClientMediaType();
+        if ($clientMediaType !== '' && !str_starts_with($clientMediaType, 'image/')) {
+            return ['success' => false, 'message' => __('Invalid file type. Only PNG and JPEG images are allowed.')];
+        }
+
+        $ext = strtolower(pathinfo((string)$file->getClientFilename(), PATHINFO_EXTENSION));
+        if (!in_array($ext, ['png', 'jpg', 'jpeg'], true)) {
+            return ['success' => false, 'message' => __('Invalid file extension. Only .png, .jpg, .jpeg are allowed.')];
+        }
+
+        $tempPath = $file->getStream()->getMetadata('uri');
+        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $actualMimeType = $finfo->file($tempPath);
+        if (!in_array($actualMimeType, ['image/png', 'image/jpeg'], true)) {
+            return ['success' => false, 'message' => __('File content does not match an allowed image type.')];
+        }
+
+        $documentService = new DocumentService();
+        $uploadResult = $documentService->createDocument(
+            $file,
+            'Members.ProfilePhoto',
+            (int)$member->id,
+            $uploaderId,
+            ['type' => 'profile_photo'],
+            'member-profile-photos',
+            ['png', 'jpg', 'jpeg'],
+        );
+        if (!$uploadResult->success) {
+            return ['success' => false, 'message' => $uploadResult->reason ?? __('Unable to upload profile photo.')];
+        }
+
+        $newDocumentId = (int)$uploadResult->data;
+        $oldDocumentId = $member->profile_photo_document_id ? (int)$member->profile_photo_document_id : null;
+
+        $member->profile_photo_document_id = $newDocumentId;
+        if (!$this->Members->save($member)) {
+            $documentService->deleteDocument($newDocumentId);
+            return ['success' => false, 'message' => __('Unable to save profile photo. Please try again.')];
+        }
+
+        if ($oldDocumentId && $oldDocumentId !== $newDocumentId) {
+            $deleteResult = $documentService->deleteDocument($oldDocumentId);
+            if (!$deleteResult->success) {
+                return ['success' => true, 'warning' => true, 'message' => __('Profile photo updated, but old photo cleanup failed.')];
+            }
+        }
+
+        return ['success' => true, 'message' => __('Profile photo updated.')];
+    }
+
     public function partialEdit($id = null)
     {
         $member = $this->Members->get($id);
@@ -1338,6 +1604,7 @@ class MembersController extends AppController
                 'Members.membership_expires_on',
                 'Members.background_check_expires_on',
                 'Members.additional_info',
+                'Members.profile_photo_document_id',
             ])
             ->contain([
                 'Branches' => function (SelectQuery $q) {
@@ -1351,6 +1618,15 @@ class MembersController extends AppController
         }
         if ($member->title) {
             $member->sca_name = $member->title . ' ' . $member->sca_name;
+        }
+        if (!empty($member->profile_photo_document_id)) {
+            $member->profile_photo_url = Router::url([
+                'controller' => 'Members',
+                'action' => 'profilePhoto',
+                $member->id,
+            ], true);
+        } else {
+            $member->profile_photo_url = null;
         }
         $this->Authorization->authorize($member);
         $this->viewBuilder()
@@ -1378,6 +1654,7 @@ class MembersController extends AppController
                 'Members.membership_expires_on',
                 'Members.background_check_expires_on',
                 'Members.additional_info',
+                'Members.profile_photo_document_id',
             ])
             ->contain([
                 'Branches' => function (SelectQuery $q) {
@@ -1391,6 +1668,15 @@ class MembersController extends AppController
         }
         if ($member->title) {
             $member->sca_name = $member->title . ' ' . $member->sca_name;
+        }
+        if (!empty($member->profile_photo_document_id)) {
+            $member->profile_photo_url = Router::url([
+                'controller' => 'Members',
+                'action' => 'mobileCardPhoto',
+                $id,
+            ], true);
+        } else {
+            $member->profile_photo_url = null;
         }
         $this->Authorization->skipAuthorization();
         $this->viewBuilder()

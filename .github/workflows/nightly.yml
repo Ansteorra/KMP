@@ -103,23 +103,45 @@ jobs:
       - name: Copy production dockerignore
         run: cp docker/.dockerignore.prod .dockerignore
 
+      - name: Set app semantic version
+        id: app-version
+        run: |
+          BASE_VERSION="0.0.0"
+          if [[ -f app/config/version.txt ]]; then
+            BASE_VERSION="$(tr -d '\r\n' < app/config/version.txt)"
+          fi
+          BASE_VERSION="${BASE_VERSION#v}"
+
+          MAJOR="$(echo "$BASE_VERSION" | cut -d. -f1)"
+          MINOR="$(echo "$BASE_VERSION" | cut -d. -f2)"
+          if [[ ! "$MAJOR" =~ ^[0-9]+$ ]]; then MAJOR="0"; fi
+          if [[ ! "$MINOR" =~ ^[0-9]+$ ]]; then MINOR="0"; fi
+
+          APP_VERSION="${MAJOR}.${MINOR}.${GITHUB_RUN_NUMBER}"
+          echo "$APP_VERSION" > app/config/version.txt
+          echo "app_version=${APP_VERSION}" >> "$GITHUB_OUTPUT"
+
       - name: Determine tags
         id: tags
         run: |
           DATE=$(date -u +'%Y-%m-%d')
           SHORT_SHA=${GITHUB_SHA::7}
+          APP_VERSION="${{ steps.app-version.outputs.app_version }}"
           TAGS=""
 
           if [[ "${{ github.event_name }}" == "schedule" ]]; then
-            TAGS="nightly-${DATE},nightly"
+            TAGS="nightly-${DATE},nightly,nightly-${APP_VERSION}"
             PRIMARY="nightly-${DATE}"
+            CHANNEL="nightly"
           elif [[ "${{ github.event_name }}" == "push" ]]; then
-            TAGS="dev-${SHORT_SHA},dev"
+            TAGS="dev-${SHORT_SHA},dev,dev-${APP_VERSION}"
             PRIMARY="dev-${SHORT_SHA}"
+            CHANNEL="dev"
           else
             # workflow_dispatch: both sets
-            TAGS="nightly-${DATE},nightly,dev-${SHORT_SHA},dev"
+            TAGS="nightly-${DATE},nightly,nightly-${APP_VERSION},dev-${SHORT_SHA},dev,dev-${APP_VERSION}"
             PRIMARY="dev-${SHORT_SHA}"
+            CHANNEL="dev"
           fi
 
           # Build full image refs
@@ -130,6 +152,7 @@ jobs:
           done
 
           echo "primary=${PRIMARY}" >> "$GITHUB_OUTPUT"
+          echo "channel=${CHANNEL}" >> "$GITHUB_OUTPUT"
           printf "tags<<EOF\n${FULL_TAGS}EOF\n" >> "$GITHUB_OUTPUT"
 
       - name: Build and push
@@ -144,6 +167,8 @@ jobs:
           tags: ${{ steps.tags.outputs.tags }}
           build-args: |
             BASE_IMAGE=${{ env.BASE_IMAGE }}
+            APP_VERSION=${{ steps.app-version.outputs.app_version }}
+            RELEASE_CHANNEL=${{ steps.tags.outputs.channel }}
           cache-from: type=gha,scope=kmp-app
           cache-to: type=gha,mode=max,scope=kmp-app
 

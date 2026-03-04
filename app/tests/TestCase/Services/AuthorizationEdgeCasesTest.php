@@ -270,7 +270,7 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
         $conn = ConnectionManager::get('test');
         $conn->execute(
             "UPDATE members SET warrantable = ? WHERE id = ?",
-            [false, self::TEST_MEMBER_EIRIK_ID]
+            [0, self::TEST_MEMBER_EIRIK_ID]
         );
 
         // Reload to pick up changes

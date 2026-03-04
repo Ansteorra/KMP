@@ -29,3 +29,4 @@ installers/bin
 installer/bin/
 installer/bin/kmp
 app/backups
+/*.png

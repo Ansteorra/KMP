@@ -34,16 +34,29 @@ class MobileControllerBase extends Controller {
         if (MobileControllerBase.initialized) return;
         
         window.addEventListener('online', () => {
-            MobileControllerBase.isOnline = true;
-            MobileControllerBase.notifyListeners(true);
+            MobileControllerBase.setOnlineState(true, true);
         });
         
         window.addEventListener('offline', () => {
-            MobileControllerBase.isOnline = false;
-            MobileControllerBase.notifyListeners(false);
+            MobileControllerBase.setOnlineState(false, true);
         });
         
         MobileControllerBase.initialized = true;
+    }
+
+    /**
+     * Set global online state and optionally notify listeners.
+     * @param {boolean} isOnline
+     * @param {boolean} notify
+     */
+    static setOnlineState(isOnline, notify = true) {
+        const normalized = Boolean(isOnline);
+        const changed = MobileControllerBase.isOnline !== normalized;
+        MobileControllerBase.isOnline = normalized;
+
+        if (notify && changed) {
+            MobileControllerBase.notifyListeners(normalized);
+        }
     }
     
     /**
@@ -52,10 +65,7 @@ class MobileControllerBase extends Controller {
      */
     static syncOnlineState() {
         const currentState = navigator.onLine;
-        if (MobileControllerBase.isOnline !== currentState) {
-            MobileControllerBase.isOnline = currentState;
-            // Don't notify - let onConnect handle the initial display
-        }
+        MobileControllerBase.setOnlineState(currentState, false);
     }
 
     /**

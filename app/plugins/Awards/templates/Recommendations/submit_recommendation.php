@@ -19,7 +19,8 @@ $this->KMP->endBlock(); ?>
             'plugin' => null
         ]),
         'data-action' => 'submit->awards-rec-add#submit',
-        'data-awards-rec-add-award-list-url-value' => $this->URL->build(['controller' => 'Awards', 'action' => 'awardsByDomain', 'plugin' => "Awards"])
+        'data-awards-rec-add-award-list-url-value' => $this->URL->build(['controller' => 'Awards', 'action' => 'awardsByDomain', 'plugin' => "Awards"]),
+        'data-awards-rec-add-gatherings-url-value' => $this->URL->build(['controller' => 'Recommendations', 'action' => 'gatheringsForAward', 'plugin' => 'Awards'])
     ]) ?>
     <div class="card mb-3">
         <div class="card-body">
@@ -128,13 +129,18 @@ $this->KMP->endBlock(); ?>
                         'label' => 'Reason for Recommendation',
                         'data-awards-rec-add-target' => 'reason'
                     ]);
-                    echo $this->Form->control('gatherings._ids', [
-                        'label' => 'Gatherings/Events They May Attend:',
-                        "type" => "select",
-                        "multiple" => "checkbox",
-                        'options' => $gatherings,
-                        'data-awards-rec-add-target' => 'gatherings'
-                    ]);
+                    ?>
+                    <div data-awards-rec-add-target="gatherings">
+                        <?php
+                        echo $this->Form->control('gatherings._ids', [
+                            'label' => 'Gatherings/Events They May Attend:',
+                            "type" => "select",
+                            "multiple" => "checkbox",
+                            'options' => $gatherings
+                        ]);
+                        ?>
+                    </div>
+                    <?php
                     ?>
                 </fieldset>
                 <?= $this->Form->end() ?>

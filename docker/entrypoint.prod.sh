@@ -35,13 +35,13 @@ return [
     ],
     'Datasources' => [
         'default' => [
-            'url' => env('DATABASE_URL'),
+            'url' => (env('MYSQL_HOST') && env('MYSQL_USERNAME')) ? null : env('DATABASE_URL'),
             // Flags and SSL are configured at container startup by entrypoint.prod.sh
             'flags' => (strpos(env('DATABASE_URL', ''), 'postgres') !== false) ? [\PDO::ATTR_EMULATE_PREPARES => true] : [],
             //__MYSQL_SSL_PLACEHOLDER__
         ],
         'test' => [
-            'url' => env('DATABASE_TEST_URL', env('DATABASE_URL') . '_test'),
+            'url' => (env('MYSQL_HOST') && env('MYSQL_USERNAME')) ? null : env('DATABASE_TEST_URL', env('DATABASE_URL') . '_test'),
         ],
     ],
     'EmailTransport' => [
@@ -117,15 +117,22 @@ echo "Detected database type: $DB_TYPE"
 # ---------------------------------------------------------------------------
 # 2b. Auto-detect MySQL SSL requirement (probe once, bake into app_local.php)
 # ---------------------------------------------------------------------------
-if [ "$DB_TYPE" = "mysql" ] && [ -n "$DATABASE_URL" ]; then
-    db_host=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^@]*@([^:/]+).*|\1|')
-    db_port=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^@]*@[^:]+:([0-9]+)/.*|\1|')
-    db_user=$(echo "$DATABASE_URL" | sed -E 's|mysql://([^:]+):.*|\1|')
-    db_pass=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^:]+:([^@]+)@.*|\1|')
-    [ -z "$db_port" ] && db_port=3306
+if [ "$DB_TYPE" = "mysql" ]; then
+    if [ -n "$MYSQL_HOST" ] && [ -n "$MYSQL_USERNAME" ]; then
+        db_host="$MYSQL_HOST"
+        db_port="${MYSQL_PORT:-3306}"
+        db_user="$MYSQL_USERNAME"
+        db_pass="$MYSQL_PASSWORD"
+    elif [ -n "$DATABASE_URL" ]; then
+        db_host=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^@]*@([^:/]+).*|\1|')
+        db_port=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^@]*@[^:]+:([0-9]+)/.*|\1|')
+        db_user=$(echo "$DATABASE_URL" | sed -E 's|mysql://([^:]+):.*|\1|')
+        db_pass=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^:]+:([^@]+)@.*|\1|')
+        [ -z "$db_port" ] && db_port=3306
+    fi
 
     # Try plain connection; if error 3159 (secure transport required), enable SSL
-    ssl_err=$(mysql -h"$db_host" -P"$db_port" -u"$db_user" -p"$db_pass" -e "SELECT 1" 2>&1) || true
+    ssl_err=$(MYSQL_PWD="$db_pass" mysql -h"$db_host" -P"$db_port" -u"$db_user" -e "SELECT 1" 2>&1) || true
     if echo "$ssl_err" | grep -q "3159\|insecure transport"; then
         echo "MySQL requires SSL — enabling ssl_ca in app_local.php"
         sed -i "s|//__MYSQL_SSL_PLACEHOLDER__|'ssl_ca' => '/etc/ssl/certs/ca-certificates.crt',|" /var/www/html/config/app_local.php
@@ -146,7 +153,9 @@ max_attempts=60
 attempt=0
 
 check_mysql() {
-    if [ -n "$DATABASE_URL" ]; then
+    if [ -n "$MYSQL_HOST" ] && [ -n "$MYSQL_USERNAME" ]; then
+        MYSQL_PWD="${MYSQL_PASSWORD}" mysql -h"${MYSQL_HOST}" -P"${MYSQL_PORT:-3306}" -u"${MYSQL_USERNAME}" -e "SELECT 1" &>/dev/null
+    elif [ -n "$DATABASE_URL" ]; then
         # Parse host/port/user/pass from DATABASE_URL
         # Format: mysql://user:pass@host:port/dbname
         local db_host db_port db_user db_pass
@@ -155,9 +164,9 @@ check_mysql() {
         db_user=$(echo "$DATABASE_URL" | sed -E 's|mysql://([^:]+):.*|\1|')
         db_pass=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^:]+:([^@]+)@.*|\1|')
         [ -z "$db_port" ] && db_port=3306
-        mysql -h"$db_host" -P"$db_port" -u"$db_user" -p"$db_pass" -e "SELECT 1" &>/dev/null
+        MYSQL_PWD="$db_pass" mysql -h"$db_host" -P"$db_port" -u"$db_user" -e "SELECT 1" &>/dev/null
     else
-        mysql -h"${MYSQL_HOST:-db}" -u"$MYSQL_USERNAME" -p"$MYSQL_PASSWORD" -e "SELECT 1" &>/dev/null
+        MYSQL_PWD="$MYSQL_PASSWORD" mysql -h"${MYSQL_HOST:-db}" -P"${MYSQL_PORT:-3306}" -u"$MYSQL_USERNAME" -e "SELECT 1" &>/dev/null
     fi
 }
 
@@ -225,7 +234,9 @@ run_migrations() {
             table_count=$(PGPASSWORD="$PGPASSWORD" psql -h "${PGHOST:-db}" -U "$PGUSER" -d "$PGDATABASE" -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' ' || echo "0")
         fi
     else
-        if [ -n "$DATABASE_URL" ]; then
+        if [ -n "$MYSQL_HOST" ] && [ -n "$MYSQL_USERNAME" ] && [ -n "$MYSQL_DB_NAME" ]; then
+            table_count=$(MYSQL_PWD="${MYSQL_PASSWORD}" mysql -h"${MYSQL_HOST}" -P"${MYSQL_PORT:-3306}" -u"${MYSQL_USERNAME}" "${MYSQL_DB_NAME}" -N -e "SHOW TABLES;" 2>/dev/null | wc -l)
+        elif [ -n "$DATABASE_URL" ]; then
             local db_host db_port db_user db_pass db_name
             db_host=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^@]*@([^:/]+).*|\1|')
             db_port=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^@]*@[^:]+:([0-9]+)/.*|\1|')
@@ -233,23 +244,23 @@ run_migrations() {
             db_pass=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^:]+:([^@]+)@.*|\1|')
             db_name=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^/]+/([^?]+).*|\1|')
             [ -z "$db_port" ] && db_port=3306
-            table_count=$(mysql -h"$db_host" -P"$db_port" -u"$db_user" -p"$db_pass" "$db_name" -N -e "SHOW TABLES;" 2>/dev/null | wc -l)
+            table_count=$(MYSQL_PWD="$db_pass" mysql -h"$db_host" -P"$db_port" -u"$db_user" "$db_name" -N -e "SHOW TABLES;" 2>/dev/null | wc -l)
         else
-            table_count=$(mysql -h"${MYSQL_HOST:-db}" -u"$MYSQL_USERNAME" -p"$MYSQL_PASSWORD" "$MYSQL_DB_NAME" -N -e "SHOW TABLES;" 2>/dev/null | wc -l)
+            table_count=$(MYSQL_PWD="$MYSQL_PASSWORD" mysql -h"${MYSQL_HOST:-db}" -P"${MYSQL_PORT:-3306}" -u"$MYSQL_USERNAME" "$MYSQL_DB_NAME" -N -e "SHOW TABLES;" 2>/dev/null | wc -l)
         fi
     fi
 
     if [ "$table_count" -eq 0 ] 2>/dev/null; then
         echo "Empty database detected — running full setup..."
-        bin/cake update_database 2>&1 || {
+        CACHE_ENGINE=apcu bin/cake update_database 2>&1 || {
             echo "WARNING: update_database failed, attempting migrations migrate..."
-            bin/cake migrations migrate 2>&1 || true
+            CACHE_ENGINE=apcu bin/cake migrations migrate 2>&1 || true
         }
     else
         echo "Existing database detected ($table_count tables) — running incremental migrations..."
-        bin/cake migrations migrate 2>&1 || true
+        CACHE_ENGINE=apcu bin/cake migrations migrate 2>&1 || true
         echo "Running plugin migrations via update_database..."
-        bin/cake update_database 2>&1 || true
+        CACHE_ENGINE=apcu bin/cake update_database 2>&1 || true
     fi
 }
 
@@ -276,10 +287,26 @@ BACKUP_CRON="0 3 * * * cd /var/www/html && bin/cake backup_check >> /var/log/cro
 service cron start
 
 # ---------------------------------------------------------------------------
-# 7. Start application
+# 7. Ensure exactly one Apache MPM is enabled
+# ---------------------------------------------------------------------------
+echo "Ensuring Apache MPM configuration is valid..."
+a2dismod mpm_event mpm_worker >/dev/null 2>&1 || true
+a2enmod mpm_prefork >/dev/null
+
+# Railway (and similar platforms) inject PORT; Apache defaults to 80.
+APACHE_PORT="${PORT:-80}"
+if ! [[ "$APACHE_PORT" =~ ^[0-9]+$ ]]; then
+    echo "WARNING: Invalid PORT value '$APACHE_PORT'; falling back to 80"
+    APACHE_PORT="80"
+fi
+sed -ri "s/^Listen [0-9]+$/Listen ${APACHE_PORT}/" /etc/apache2/ports.conf
+sed -ri "s/<VirtualHost \\*:[0-9]+>/<VirtualHost *:${APACHE_PORT}>/" /etc/apache2/sites-available/000-default.conf
+
+# ---------------------------------------------------------------------------
+# 8. Start application
 # ---------------------------------------------------------------------------
 echo "=== KMP Production Container Ready ==="
-echo "  Listening on port 80"
+echo "  Listening on port ${APACHE_PORT}"
 
 # Execute the main command (apache2-foreground) — replaces this process
 exec "$@"

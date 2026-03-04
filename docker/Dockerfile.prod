@@ -25,6 +25,7 @@ WORKDIR /build
 
 # Layer-cache npm installs separately from app code
 COPY app/package.json app/package-lock.json ./
+COPY app/patches ./patches
 RUN npm ci --no-audit --no-fund
 
 # Copy everything webpack needs
@@ -72,17 +73,21 @@ FROM ${BASE_IMAGE} AS runtime
 
 # Re-declare so the value is available in this stage
 ARG APP_VERSION=dev
+ARG RELEASE_CHANNEL=release
 
 LABEL org.opencontainers.image.source="https://github.com/jhandel/KMP"
 LABEL org.opencontainers.image.description="Kingdom Management Portal"
 
 WORKDIR /var/www/html
 
+RUN (a2dismod mpm_event mpm_worker || true) && a2enmod mpm_prefork
+
 # Copy PHP application (source + vendor/, no node_modules)
 COPY --from=php-deps /app/ ./
 
-# Stamp version from build-arg
-RUN echo "${APP_VERSION}" > config/version.txt
+# Stamp version and channel from build-args
+RUN echo "${APP_VERSION}" > config/version.txt \
+    && echo "${RELEASE_CHANNEL}" > config/channel.txt
 
 # Overwrite webroot with compiled frontend assets (JS, CSS, fonts, manifest)
 COPY --from=node-builder /build/webroot/ ./webroot/

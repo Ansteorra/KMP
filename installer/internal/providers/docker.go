@@ -18,6 +18,7 @@ import (
 
 	"github.com/jhandel/KMP/installer/internal/config"
 	"github.com/jhandel/KMP/installer/internal/health"
+	"gopkg.in/yaml.v3"
 )
 
 //go:embed templates/docker-compose.yml.tmpl
@@ -42,7 +43,11 @@ func NewDockerProvider(cfg *config.Deployment) *DockerProvider {
 		dir = cfg.ComposeDir
 	}
 	if dir == "" {
-		dir = filepath.Join(config.DefaultConfigDir(), "deployments", "default")
+		if cfg == nil {
+			dir = generateRandomComposeDir()
+		} else {
+			dir = filepath.Join(config.DefaultConfigDir(), "deployments", "default")
+		}
 	}
 	return &DockerProvider{cfg: cfg, dir: dir}
 }
@@ -124,33 +129,34 @@ func (d *DockerProvider) Install(cfg *DeployConfig) error {
 
 	// Template data shared across all templates
 	data := templateData{
-		Image:          cfg.Image,
-		ImageTag:       cfg.ImageTag,
-		Domain:         cfg.Domain,
-		RequireHttps:   requireHttps(cfg.Domain),
-		DatabaseType:   dbType,
-		DatabaseDSN:    cfg.DatabaseDSN,
-		MySQLSSL:       cfg.MySQLSSL,
-		SecuritySalt:   generateRandomString(32),
-		DBRootPassword: generateRandomString(16),
-		DBPassword:     generateRandomString(16),
-		SMTPHost:  valueOrDefault(cfg.StorageConfig["smtp_host"], ""),
-		SMTPPort:  valueOrDefault(cfg.StorageConfig["smtp_port"], "587"),
-		SMTPUser:  valueOrDefault(cfg.StorageConfig["smtp_user"], ""),
-		SMTPPass:  valueOrDefault(cfg.StorageConfig["smtp_pass"], ""),
-		EmailFrom: valueOrDefault(cfg.StorageConfig["email_from"], "noreply@localhost"),
+		Image:                 cfg.Image,
+		ImageTag:              cfg.ImageTag,
+		ComposeProjectName:    filepath.Base(d.dir),
+		Domain:                cfg.Domain,
+		RequireHttps:          requireHttps(cfg.Domain),
+		DatabaseType:          dbType,
+		DatabaseDSN:           cfg.DatabaseDSN,
+		MySQLSSL:              cfg.MySQLSSL,
+		SecuritySalt:          generateRandomString(32),
+		DBRootPassword:        generateRandomString(16),
+		DBPassword:            generateRandomString(16),
+		SMTPHost:              valueOrDefault(cfg.StorageConfig["smtp_host"], ""),
+		SMTPPort:              valueOrDefault(cfg.StorageConfig["smtp_port"], "587"),
+		SMTPUser:              valueOrDefault(cfg.StorageConfig["smtp_user"], ""),
+		SMTPPass:              valueOrDefault(cfg.StorageConfig["smtp_pass"], ""),
+		EmailFrom:             valueOrDefault(cfg.StorageConfig["email_from"], "noreply@localhost"),
 		StorageType:           cfg.StorageType,
 		AzureConnectionString: cfg.StorageConfig["azure_connection_string"],
 		AzureContainer:        valueOrDefault(cfg.StorageConfig["azure_container"], "documents"),
-		S3Bucket:   cfg.StorageConfig["s3_bucket"],
-		S3Region:   valueOrDefault(cfg.StorageConfig["s3_region"], "us-east-1"),
-		S3Key:      cfg.StorageConfig["s3_key"],
-		S3Secret:   cfg.StorageConfig["s3_secret"],
-		S3Endpoint: cfg.StorageConfig["s3_endpoint"],
-		CacheEngine:   cacheEngine,
-		UseRedis:      useRedis,
-		RedisURL:      redisURL,
-		RedisPassword: redisPassword,
+		S3Bucket:              cfg.StorageConfig["s3_bucket"],
+		S3Region:              valueOrDefault(cfg.StorageConfig["s3_region"], "us-east-1"),
+		S3Key:                 cfg.StorageConfig["s3_key"],
+		S3Secret:              cfg.StorageConfig["s3_secret"],
+		S3Endpoint:            cfg.StorageConfig["s3_endpoint"],
+		CacheEngine:           cacheEngine,
+		UseRedis:              useRedis,
+		RedisURL:              redisURL,
+		RedisPassword:         redisPassword,
 	}
 
 	// Write .env
@@ -193,6 +199,13 @@ func (d *DockerProvider) Update(version string) error {
 	if err := replaceEnvValue(envPath, d.cfg.ImageTag, version); err != nil {
 		return fmt.Errorf("updating .env: %w", err)
 	}
+	if _, err := migrateComposeServiceNames(filepath.Join(d.dir, "docker-compose.yml")); err != nil {
+		return fmt.Errorf("updating compose service names: %w", err)
+	}
+	caddyMigrated, err := migrateCaddyUpstream(filepath.Join(d.dir, "Caddyfile"))
+	if err != nil {
+		return fmt.Errorf("updating caddy upstream host: %w", err)
+	}
 
 	previousTag := d.cfg.ImageTag
 	d.cfg.ImageTag = version
@@ -206,6 +219,17 @@ func (d *DockerProvider) Update(version string) error {
 		_ = replaceEnvValue(envPath, version, previousTag)
 		d.cfg.ImageTag = previousTag
 		return fmt.Errorf("docker compose up: %s\n%w", out, err)
+	}
+	if caddyMigrated {
+		if out, err := runDockerCompose(d.dir, "restart", "caddy"); err != nil {
+			_ = replaceEnvValue(envPath, version, previousTag)
+			d.cfg.ImageTag = previousTag
+			rollbackOut, rollbackErr := runDockerCompose(d.dir, "up", "-d")
+			if rollbackErr != nil {
+				return fmt.Errorf("docker compose restart caddy: %s\n%w; rollback failed: %s\n%w", out, err, rollbackOut, rollbackErr)
+			}
+			return fmt.Errorf("docker compose restart caddy: %s\n%w; rolled back to %s", out, err, previousTag)
+		}
 	}
 
 	domain := d.cfg.Domain
@@ -255,6 +279,17 @@ func (d *DockerProvider) Status() (*Status, error) {
 		st.DBConnected = hr.DB
 		st.CacheOK = hr.Cache
 		st.Version = hr.Version
+		if hr.ImageTag != "" {
+			st.ImageTag = hr.ImageTag
+		}
+		if hr.Channel != "" {
+			st.Channel = hr.Channel
+		}
+	}
+
+	// Check if kmp-updater sidecar is running
+	if out, err := runDockerCompose(d.dir, "ps", "--status", "running", "--format", "{{.Name}}"); err == nil {
+		st.UpdaterRunning = strings.Contains(out, "kmp-updater")
 	}
 
 	// Try to get uptime from docker compose ps
@@ -431,16 +466,17 @@ func (d *DockerProvider) Destroy() error {
 
 // templateData holds values interpolated into the embedded templates.
 type templateData struct {
-	Image          string
-	ImageTag       string
-	Domain         string
-	RequireHttps   bool   // false for localhost/IP installs that serve over plain HTTP
-	DatabaseType   string // "bundled-mariadb", "bundled-postgres", or "external"
-	DatabaseDSN    string
-	MySQLSSL       bool
-	SecuritySalt   string
-	DBRootPassword string
-	DBPassword     string
+	Image              string
+	ImageTag           string
+	ComposeProjectName string
+	Domain             string
+	RequireHttps       bool   // false for localhost/IP installs that serve over plain HTTP
+	DatabaseType       string // "bundled-mariadb", "bundled-postgres", or "external"
+	DatabaseDSN        string
+	MySQLSSL           bool
+	SecuritySalt       string
+	DBRootPassword     string
+	DBPassword         string
 	// Email
 	SMTPHost  string
 	SMTPPort  string
@@ -532,6 +568,160 @@ func replaceEnvValue(envPath, oldTag, newTag string) error {
 	}
 	updated := strings.ReplaceAll(string(data), oldTag, newTag)
 	return os.WriteFile(envPath, []byte(updated), 0600)
+}
+
+func generateRandomComposeDir() string {
+	root := filepath.Join(config.DefaultConfigDir(), "deployments")
+	for i := 0; i < 10; i++ {
+		candidate := filepath.Join(root, "kmp-"+generateRandomString(4))
+		if _, err := os.Stat(candidate); os.IsNotExist(err) {
+			return candidate
+		}
+	}
+
+	return filepath.Join(root, "kmp-"+generateRandomString(8))
+}
+
+func migrateComposeServiceNames(composePath string) (bool, error) {
+	data, err := os.ReadFile(composePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	var doc map[string]any
+	if err := yaml.Unmarshal(data, &doc); err != nil {
+		return false, err
+	}
+
+	services, ok := doc["services"].(map[string]any)
+	if !ok {
+		return false, nil
+	}
+
+	changed := false
+	setContainerName := func(serviceName, containerName string) {
+		raw, exists := services[serviceName]
+		if !exists {
+			return
+		}
+		svc, ok := raw.(map[string]any)
+		if !ok {
+			return
+		}
+		current, _ := svc["container_name"].(string)
+		if current == containerName {
+			return
+		}
+		svc["container_name"] = containerName
+		changed = true
+	}
+
+	setContainerName("app", "kmp-app")
+	setContainerName("db", "kmp-db")
+	setContainerName("redis", "kmp-redis")
+	setContainerName("caddy", "kmp-caddy")
+	setContainerName("kmp-updater", "kmp-updater")
+
+	if raw, exists := services["kmp-updater"]; exists {
+		svc, ok := raw.(map[string]any)
+		if ok {
+			defaultProject := filepath.Base(filepath.Dir(composePath))
+			if volumes, ok := svc["volumes"].([]any); ok {
+				for i, entry := range volumes {
+					vol, ok := entry.(string)
+					if !ok {
+						continue
+					}
+					updated := strings.Replace(vol, ":/deploy:ro", ":/deploy", 1)
+					if updated != vol {
+						volumes[i] = updated
+						changed = true
+					}
+				}
+				svc["volumes"] = volumes
+			}
+			if env, ok := svc["environment"].(map[string]any); ok {
+				currentProject, _ := env["COMPOSE_PROJECT_NAME"].(string)
+				if currentProject == "" && defaultProject != "" {
+					env["COMPOSE_PROJECT_NAME"] = defaultProject
+					changed = true
+				}
+				current, _ := env["HEALTH_URL"].(string)
+				if current != "http://kmp-app/health" {
+					env["HEALTH_URL"] = "http://kmp-app/health"
+					changed = true
+				}
+			} else if envList, ok := svc["environment"].([]any); ok {
+				envMap := map[string]any{}
+				for _, item := range envList {
+					entry, ok := item.(string)
+					if !ok {
+						continue
+					}
+					parts := strings.SplitN(entry, "=", 2)
+					if len(parts) != 2 || parts[0] == "" {
+						continue
+					}
+					envMap[parts[0]] = parts[1]
+				}
+				envChanged := false
+				currentProject, _ := envMap["COMPOSE_PROJECT_NAME"].(string)
+				if currentProject == "" && defaultProject != "" {
+					envMap["COMPOSE_PROJECT_NAME"] = defaultProject
+					envChanged = true
+				}
+				current, _ := envMap["HEALTH_URL"].(string)
+				if current != "http://kmp-app/health" {
+					envMap["HEALTH_URL"] = "http://kmp-app/health"
+					envChanged = true
+				}
+				if envChanged {
+					svc["environment"] = envMap
+					changed = true
+				}
+			}
+		}
+	}
+
+	if !changed {
+		return false, nil
+	}
+
+	updated, err := yaml.Marshal(doc)
+	if err != nil {
+		return false, err
+	}
+
+	if err := os.WriteFile(composePath, updated, 0644); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func migrateCaddyUpstream(caddyPath string) (bool, error) {
+	data, err := os.ReadFile(caddyPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	current := string(data)
+	updated := strings.ReplaceAll(current, "reverse_proxy app:80", "reverse_proxy kmp-app:80")
+	if updated == current {
+		return false, nil
+	}
+
+	if err := os.WriteFile(caddyPath, []byte(updated), 0644); err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 // readEnvValue reads a KEY=value pair from a .env file and returns the value.

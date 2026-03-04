@@ -119,6 +119,108 @@ if (SeedManager::isPostgres('test')) {
             // Setting may already exist from migration seed
         }
     }
+
+    // Seed DB-agnostic authorization edge-case records used by service tests.
+    $members = [
+        [1, 'Admin von Admin', 'Admin', 'von', 'admin@test.com', 'verified', '2100-01-01', true, 1980],
+        [2871, 'Agatha Local MoAS Demoer', 'Agatha', 'Demoer', 'agatha@ampdemo.com', 'verified', '2100-01-01', true, 2000],
+        [2872, 'Bryce Local Seneschal Demoer', 'Bryce', 'Demoer', 'bryce@ampdemo.com', 'verified', '2100-01-01', true, 2001],
+        [2874, 'Devon Regional Armored Demoer', 'Devon', 'Demoer', 'devon@ampdemo.com', 'verified', '2100-01-01', true, 2002],
+        [2875, 'Eirik Kingdom Seneschal Demoer', 'Eirik', 'Demoer', 'eirik@ampdemo.com', 'verified', '2100-01-01', true, 2004],
+    ];
+    foreach ($members as [$id, $scaName, $firstName, $lastName, $email, $status, $membershipExpiresOn, $warrantable, $birthYear]) {
+        $conn->execute(
+            "INSERT INTO members (id, password, sca_name, first_name, last_name, email_address, status, membership_expires_on, warrantable, birth_month, birth_year, created, modified, created_by, modified_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, 1, 1)
+             ON CONFLICT (id) DO UPDATE SET
+                sca_name = EXCLUDED.sca_name,
+                first_name = EXCLUDED.first_name,
+                last_name = EXCLUDED.last_name,
+                email_address = EXCLUDED.email_address,
+                status = EXCLUDED.status,
+                membership_expires_on = EXCLUDED.membership_expires_on,
+                warrantable = EXCLUDED.warrantable,
+                birth_month = EXCLUDED.birth_month,
+                birth_year = EXCLUDED.birth_year,
+                modified = EXCLUDED.modified,
+                modified_by = EXCLUDED.modified_by",
+            [$id, '$2y$10$test-test-test-test-test-test-test-test-test', $scaName, $firstName, $lastName, $email, $status, $membershipExpiresOn, $warrantable, $birthYear, $now, $now]
+        );
+    }
+
+    $conn->execute(
+        "INSERT INTO roles (id, name, is_system, created, modified, created_by, modified_by)
+         VALUES (9001, 'Edge Case Role', false, ?, ?, 1, 1)
+         ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, modified = EXCLUDED.modified, modified_by = EXCLUDED.modified_by",
+        [$now, $now]
+    );
+    $conn->execute(
+        "INSERT INTO roles (id, name, is_system, created, modified, created_by, modified_by)
+         VALUES (9002, 'Edge Case Active Role', false, ?, ?, 1, 1)
+         ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, modified = EXCLUDED.modified, modified_by = EXCLUDED.modified_by",
+        [$now, $now]
+    );
+    $conn->execute(
+        "INSERT INTO permissions (id, name, is_system, is_super_user, scoping_rule, created, modified, created_by, modified_by)
+         VALUES (9901, 'Edge Case Test Permission', false, false, 'Global', ?, ?, 1, 1)
+         ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, modified = EXCLUDED.modified, modified_by = EXCLUDED.modified_by",
+        [$now, $now]
+    );
+    $conn->execute(
+        "INSERT INTO roles_permissions (id, permission_id, role_id, created, created_by)
+         VALUES (9901, 9901, 9002, ?, 1)
+         ON CONFLICT (id) DO NOTHING",
+        [$now]
+    );
+    $conn->execute(
+        "INSERT INTO permission_policies (id, permission_id, policy_class, policy_method)
+         VALUES (9901, 9901, 'App\\\\Policy\\\\MemberPolicy', 'canView')
+         ON CONFLICT (id) DO NOTHING"
+    );
+
+    $conn->execute(
+        "INSERT INTO member_roles (id, member_id, role_id, start_on, expires_on, approver_id, revoker_id, created, modified, created_by, modified_by, branch_id)
+         VALUES (362, 2875, 9001, NOW() - INTERVAL '30 days', NOW() + INTERVAL '365 days', 1, 1, ?, ?, 1, 1, NULL)
+         ON CONFLICT (id) DO UPDATE SET member_id = EXCLUDED.member_id, role_id = EXCLUDED.role_id, revoker_id = EXCLUDED.revoker_id, expires_on = EXCLUDED.expires_on, modified = EXCLUDED.modified, modified_by = EXCLUDED.modified_by",
+        [$now, $now]
+    );
+    $conn->execute(
+        "INSERT INTO member_roles (id, member_id, role_id, start_on, expires_on, approver_id, revoker_id, created, modified, created_by, modified_by, branch_id)
+         VALUES (363, 2874, 9001, NOW() - INTERVAL '365 days', NOW() - INTERVAL '30 days', 1, NULL, ?, ?, 1, 1, NULL)
+         ON CONFLICT (id) DO UPDATE SET member_id = EXCLUDED.member_id, role_id = EXCLUDED.role_id, revoker_id = EXCLUDED.revoker_id, expires_on = EXCLUDED.expires_on, modified = EXCLUDED.modified, modified_by = EXCLUDED.modified_by",
+        [$now, $now]
+    );
+    $conn->execute(
+        "INSERT INTO member_roles (id, member_id, role_id, start_on, expires_on, approver_id, revoker_id, created, modified, created_by, modified_by, branch_id)
+         VALUES (99021, 2872, 9002, NOW() - INTERVAL '30 days', NOW() + INTERVAL '365 days', 1, NULL, ?, ?, 1, 1, NULL)
+         ON CONFLICT (id) DO UPDATE SET member_id = EXCLUDED.member_id, role_id = EXCLUDED.role_id, revoker_id = EXCLUDED.revoker_id, expires_on = EXCLUDED.expires_on, modified = EXCLUDED.modified, modified_by = EXCLUDED.modified_by",
+        [$now, $now]
+    );
+    $conn->execute(
+        "INSERT INTO member_roles (id, member_id, role_id, start_on, expires_on, approver_id, revoker_id, created, modified, created_by, modified_by, branch_id)
+         VALUES (99022, 2874, 9002, NOW() - INTERVAL '30 days', NOW() + INTERVAL '365 days', 1, NULL, ?, ?, 1, 1, NULL)
+         ON CONFLICT (id) DO UPDATE SET member_id = EXCLUDED.member_id, role_id = EXCLUDED.role_id, revoker_id = EXCLUDED.revoker_id, expires_on = EXCLUDED.expires_on, modified = EXCLUDED.modified, modified_by = EXCLUDED.modified_by",
+        [$now, $now]
+    );
+
+    $conn->execute(
+        "INSERT INTO warrant_rosters (id, name, approvals_required, approval_count, status, created, modified, created_by, modified_by)
+         VALUES (9901, 'Edge Case Warrant Roster', 1, 1, 'Current', ?, ?, 1, 1)
+         ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, modified = EXCLUDED.modified, modified_by = EXCLUDED.modified_by",
+        [$now, $now]
+    );
+    $conn->execute(
+        "INSERT INTO warrants (id, name, member_id, warrant_roster_id, entity_id, member_role_id, start_on, expires_on, status, created, modified, created_by, modified_by)
+         VALUES (99011, 'Bryce Current Warrant', 2872, 9901, 0, 99021, NOW() - INTERVAL '30 days', NOW() + INTERVAL '365 days', 'Current', ?, ?, 1, 1)
+         ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status, start_on = EXCLUDED.start_on, expires_on = EXCLUDED.expires_on, modified = EXCLUDED.modified, modified_by = EXCLUDED.modified_by",
+        [$now, $now]
+    );
+    $conn->execute(
+        "INSERT INTO warrants (id, name, member_id, warrant_roster_id, entity_id, member_role_id, start_on, expires_on, status, created, modified, created_by, modified_by)
+         VALUES (99012, 'Bryce Expired Warrant', 2872, 9901, 0, 99021, NOW() - INTERVAL '365 days', NOW() - INTERVAL '30 days', 'Expired', ?, ?, 1, 1)
+         ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status, start_on = EXCLUDED.start_on, expires_on = EXCLUDED.expires_on, modified = EXCLUDED.modified, modified_by = EXCLUDED.modified_by",
+        [$now, $now]
+    );
 }
 
 // Clear cached table metadata so CakePHP sees columns added by migrations.

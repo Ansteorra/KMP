@@ -11,6 +11,8 @@ import (
 type Response struct {
 	Status    string `json:"status"`
 	Version   string `json:"version"`
+	ImageTag  string `json:"image_tag"`
+	Channel   string `json:"channel"`
 	DB        bool   `json:"db"`
 	Cache     bool   `json:"cache"`
 	Profile   string `json:"profile"`

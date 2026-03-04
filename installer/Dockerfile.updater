@@ -1,0 +1,18 @@
+# kmp-updater sidecar — manages app container updates via Docker socket
+FROM golang:1.24-alpine AS builder
+
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /kmp-updater ./cmd/kmp-updater
+
+FROM alpine:3.21
+RUN apk add --no-cache docker-cli docker-cli-compose curl
+COPY --from=builder /kmp-updater /usr/local/bin/kmp-updater
+RUN addgroup -S kmp && adduser -S -G kmp kmp && chown kmp:kmp /usr/local/bin/kmp-updater
+
+EXPOSE 8484
+USER kmp
+ENTRYPOINT ["/usr/local/bin/kmp-updater"]

@@ -4,14 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
 
 const (
-	defaultRepo  = "jhandel/KMP"
-	defaultImage = "ghcr.io/jhandel/kmp"
-	apiURL       = "https://api.github.com/repos/%s/releases"
+	defaultRepo    = "jhandel/KMP"
+	defaultImage   = "ghcr.io/jhandel/kmp"
+	defaultAPIBase = "https://api.github.com"
+	apiPath        = "/repos/%s/releases"
 )
 
 // Release represents a KMP release
@@ -28,6 +30,7 @@ type Release struct {
 // Client fetches release information from GitHub
 type Client struct {
 	Repo       string
+	APIBase    string
 	HTTPClient *http.Client
 }
 
@@ -35,6 +38,7 @@ type Client struct {
 func NewClient() *Client {
 	return &Client{
 		Repo:       defaultRepo,
+		APIBase:    defaultAPIBase,
 		HTTPClient: &http.Client{Timeout: 10 * time.Second},
 	}
 }
@@ -46,39 +50,66 @@ func ImageForTag(tag string) string {
 
 // GetReleases fetches releases from GitHub
 func (c *Client) GetReleases(limit int) ([]Release, error) {
-	url := fmt.Sprintf(apiURL, c.Repo)
+	perPage := 100
+	page := 1
+	collected := make([]Release, 0)
 
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
+	for {
+		requestURL := fmt.Sprintf("%s"+apiPath, strings.TrimRight(c.APIBase, "/"), c.Repo)
+		parsedURL, err := url.Parse(requestURL)
+		if err != nil {
+			return nil, err
+		}
+		query := parsedURL.Query()
+		query.Set("per_page", fmt.Sprintf("%d", perPage))
+		query.Set("page", fmt.Sprintf("%d", page))
+		parsedURL.RawQuery = query.Encode()
+
+		req, err := http.NewRequest("GET", parsedURL.String(), nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Accept", "application/vnd.github.v3+json")
+
+		resp, err := c.HTTPClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch releases: %w", err)
+		}
+
+		if resp.StatusCode != 200 {
+			resp.Body.Close()
+			return nil, fmt.Errorf("GitHub API returned %d", resp.StatusCode)
+		}
+
+		var pageReleases []Release
+		decodeErr := json.NewDecoder(resp.Body).Decode(&pageReleases)
+		resp.Body.Close()
+		if decodeErr != nil {
+			return nil, decodeErr
+		}
+
+		if len(pageReleases) == 0 {
+			break
+		}
+
+		for i := range pageReleases {
+			if !isAppReleaseTag(pageReleases[i].Tag) {
+				continue
+			}
+			pageReleases[i].Channel = classifyChannel(pageReleases[i])
+			collected = append(collected, pageReleases[i])
+			if limit > 0 && len(collected) >= limit {
+				return collected[:limit], nil
+			}
+		}
+
+		if len(pageReleases) < perPage {
+			break
+		}
+		page++
 	}
-	req.Header.Set("Accept", "application/vnd.github.v3+json")
 
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch releases: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("GitHub API returned %d", resp.StatusCode)
-	}
-
-	var releases []Release
-	if err := json.NewDecoder(resp.Body).Decode(&releases); err != nil {
-		return nil, err
-	}
-
-	// Classify channels
-	for i := range releases {
-		releases[i].Channel = classifyChannel(releases[i])
-	}
-
-	if limit > 0 && len(releases) > limit {
-		releases = releases[:limit]
-	}
-
-	return releases, nil
+	return collected, nil
 }
 
 // GetLatestByChannel returns the latest release for a channel
@@ -111,4 +142,11 @@ func classifyChannel(r Release) string {
 		return "beta"
 	}
 	return "release"
+}
+
+func isAppReleaseTag(tag string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(tag))
+	return normalized != "" &&
+		!strings.HasPrefix(normalized, "installer-") &&
+		!strings.HasPrefix(normalized, "updater-")
 }

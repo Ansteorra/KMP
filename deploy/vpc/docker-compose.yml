@@ -67,6 +67,22 @@ services:
       app:
         condition: service_healthy
 
+  kmp-updater:
+    image: ghcr.io/jhandel/kmp-updater:latest
+    container_name: kmp-updater
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/deploy
+    environment:
+      COMPOSE_DIR: /deploy
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-kmp}
+      APP_SERVICE_NAME: app
+      HEALTH_URL: http://kmp-app/health
+      IMAGE_REPO: ghcr.io/jhandel/kmp
+    expose:
+      - "8484"
+
 volumes:
   kmp-uploads:
   kmp-cache:

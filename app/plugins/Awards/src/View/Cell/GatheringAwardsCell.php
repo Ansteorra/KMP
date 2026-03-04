@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Awards\View\Cell;
 
+use App\KMP\StaticHelpers;
+use Awards\Model\Entity\Recommendation;
 use Cake\View\Cell;
 use Cake\ORM\TableRegistry;
 
@@ -155,7 +157,25 @@ class GatheringAwardsCell extends Cell
             ->where(['gathering_id' => $gathering->id])
             ->count() === 0;
 
+        $bulkEditRecommendation = $recommendationsTable->newEmptyEntity();
+        $bulkEditRecommendation->gathering_id = $gathering->id;
+        $bulkEditRecommendation->gathering = $gathering;
+        $canBulkEdit = $currentUser->can('edit', $bulkEditRecommendation);
+
+        $statusList = Recommendation::getStatuses();
+        foreach ($statusList as $key => $value) {
+            $states = $value;
+            $statusList[$key] = [];
+            foreach ($states as $state) {
+                $statusList[$key][$state] = $state;
+            }
+        }
+
+        $rules = StaticHelpers::getAppSetting('Awards.RecommendationStateRules');
+        $gatheringList = [];
+
         $this->set('gatheringId', $gathering->id);
         $this->set('isEmpty', $isEmpty);
+        $this->set(compact('rules', 'statusList', 'gatheringList', 'canBulkEdit'));
     }
 }

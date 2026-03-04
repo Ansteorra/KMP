@@ -111,6 +111,19 @@ jobs:
             echo "tag=latest" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Determine channel-version tag
+        id: channel_version
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          CHANNEL="${{ steps.channel.outputs.tag }}"
+          VERSION="${TAG#v}"
+          if [[ "$VERSION" == "$CHANNEL"-* ]]; then
+            CHANNEL_VERSION_TAG="$VERSION"
+          else
+            CHANNEL_VERSION_TAG="${CHANNEL}-${VERSION}"
+          fi
+          echo "value=${CHANNEL_VERSION_TAG}" >> "$GITHUB_OUTPUT"
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -121,6 +134,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix=sha-
             type=raw,value=${{ steps.channel.outputs.tag }}
+            type=raw,value=${{ steps.channel_version.outputs.value }}
 
       - name: Build and push
         id: build
@@ -135,6 +149,7 @@ jobs:
           build-args: |
             BASE_IMAGE=${{ env.BASE_IMAGE }}
             APP_VERSION=${{ github.event.release.tag_name }}
+            RELEASE_CHANNEL=${{ steps.channel.outputs.tag }}
           cache-from: type=gha,scope=kmp-app
           cache-to: type=gha,mode=max,scope=kmp-app
 

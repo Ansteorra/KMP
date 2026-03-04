@@ -148,6 +148,13 @@ $searchDescription = !empty($searchableLabels)
                                             <input type="text" class="form-control" placeholder="Search..."
                                                 data-<?= h($controllerName) ?>-target="searchInput"
                                                 data-action="keyup-><?= h($controllerName) ?>#handleSearchKeyup keydown.enter-><?= h($controllerName) ?>#performSearch">
+                                            <span class="input-group-text bg-white d-none"
+                                                data-<?= h($controllerName) ?>-target="searchStatusIndicator"
+                                                title="Searching..."
+                                                aria-live="polite">
+                                                <span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
+                                                <span class="visually-hidden">Searching</span>
+                                            </span>
                                         </div>
                                         <small class="text-muted d-block mt-1">
                                             <?= h($searchDescription) ?>

@@ -29,18 +29,31 @@ use Templating\View\Icon\BootstrapIcon;
 
 // Determine cache engine and Redis config from environment
 $cacheEngine = env('CACHE_ENGINE', 'apcu') === 'redis' ? RedisEngine::class : ApcuEngine::class;
+$cliArgs = array_map('strtolower', $_SERVER['argv'] ?? []);
+$isSetupCommand = PHP_SAPI === 'cli' && (in_array('migrations', $cliArgs, true) || in_array('update_database', $cliArgs, true));
+if ($cacheEngine === RedisEngine::class && $isSetupCommand) {
+    $cacheEngine = ArrayEngine::class;
+}
+$redisExtensionLoaded = extension_loaded('redis');
+if ($cacheEngine === RedisEngine::class && !$redisExtensionLoaded) {
+    $cacheEngine = ApcuEngine::class;
+}
 $redisConfig = [];
 if ($cacheEngine === RedisEngine::class) {
-    $redisUrl = env('REDIS_URL', 'redis://redis:6379');
-    $parsed = parse_url($redisUrl) ?: [];
-    $redisConfig = [
-        'server'   => $parsed['host'] ?? 'redis',
-        'port'     => $parsed['port'] ?? 6379,
-        'password' => ($parsed['pass'] ?? null) ?: env('REDIS_PASSWORD', null),
-        'database' => (int)(ltrim($parsed['path'] ?? '/0', '/') ?: '0'),
-        'timeout'  => 0,
-        'persistent' => false,
-    ];
+    $redisUrl = trim((string)env('REDIS_URL', ''));
+    if ($redisUrl === '') {
+        $cacheEngine = ApcuEngine::class;
+    } else {
+        $parsed = parse_url($redisUrl) ?: [];
+        $redisConfig = [
+            'server'   => $parsed['host'] ?? 'redis',
+            'port'     => $parsed['port'] ?? 6379,
+            'password' => ($parsed['pass'] ?? null) ?: env('REDIS_PASSWORD', null),
+            'database' => (int)(ltrim($parsed['path'] ?? '/0', '/') ?: '0'),
+            'timeout'  => 0,
+            'persistent' => false,
+        ];
+    }
 }
 $restoreStatusPath = env('RESTORE_STATUS_CACHE_PATH', sys_get_temp_dir() . DS . 'kmp_restore_status_shared' . DS);
 if (!is_dir($restoreStatusPath)) {
@@ -88,7 +101,7 @@ return [
         //'baseUrl' => env('SCRIPT_NAME'),
 
         /** @var string|false Full base URL for absolute links (auto-detected if false) */
-        "fullBaseUrl" => false,
+        "fullBaseUrl" => env("APP_FULL_BASE_URL", false),
 
         /** @var string Web path to images directory */
         "imageBaseUrl" => "img/",
@@ -113,6 +126,18 @@ return [
 
         /** @var string Application version loaded from version.txt */
         "version" => @file_get_contents(CONFIG . "version.txt") ?: 'unknown',
+
+        /** @var string Container image tag (set at build time or via env) */
+        "imageTag" => env("IMAGE_TAG", trim((string)@file_get_contents(CONFIG . "version.txt")) ?: 'unknown'),
+
+        /** @var string Release channel: release, beta, dev, nightly */
+        "releaseChannel" => env("RELEASE_CHANNEL", trim((string)@file_get_contents(CONFIG . "channel.txt")) ?: 'release'),
+
+        /** @var string Container registry base (no tag) */
+        "containerRegistry" => env("CONTAINER_REGISTRY", "ghcr.io/jhandel/kmp"),
+
+        /** @var string Deployment provider: docker, railway, azure, aws, fly, vpc, shared */
+        "deploymentProvider" => env("DEPLOYMENT_PROVIDER", env("KMP_DEPLOY_PROVIDER", "docker")),
     ],
 
     /** @see docs/7.1-security-best-practices.md#encryption-and-cryptographic-salt */
@@ -302,6 +327,24 @@ return [
             /** @var string Database driver (MySQL/MariaDB) */
             "driver" => Mysql::class,
 
+            /** @var string Database hostname */
+            "host" => env("DB_HOST", env("MYSQL_HOST", "localhost")),
+
+            /** @var int Database port */
+            "port" => env("DB_PORT", env("MYSQL_PORT", 3306)),
+
+            /** @var string Database username */
+            "username" => env("DB_USERNAME", env("MYSQL_USERNAME", "root")),
+
+            /** @var string Database password */
+            "password" => env("DB_PASSWORD", env("MYSQL_PASSWORD", "")),
+
+            /** @var string Database name */
+            "database" => env("DB_DATABASE", env("MYSQL_DB_NAME", "kmp")),
+
+            /** @var string|null Complete database DSN URL */
+            "url" => env("DATABASE_URL", null),
+
             /** @var bool Use persistent connections (false for better resource management) */
             "persistent" => false,
 
@@ -340,6 +383,24 @@ return [
 
             /** @var string Database driver (MySQL/MariaDB) */
             "driver" => Mysql::class,
+
+            /** @var string Test database hostname */
+            "host" => env("DB_HOST", env("MYSQL_HOST", "localhost")),
+
+            /** @var int Test database port */
+            "port" => env("DB_PORT", env("MYSQL_PORT", 3306)),
+
+            /** @var string Test database username */
+            "username" => env("DB_USERNAME", env("MYSQL_USERNAME", "root")),
+
+            /** @var string Test database password */
+            "password" => env("DB_PASSWORD", env("MYSQL_PASSWORD", "")),
+
+            /** @var string Test database name */
+            "database" => env("DB_DATABASE", env("MYSQL_DB_NAME", "kmp")) . "_test",
+
+            /** @var string|null Complete test database DSN URL */
+            "url" => env("DATABASE_TEST_URL", env("DATABASE_URL", null)),
 
             /** @var bool Use persistent connections */
             "persistent" => false,

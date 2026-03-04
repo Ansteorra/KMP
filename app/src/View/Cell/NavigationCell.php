@@ -90,7 +90,7 @@ class NavigationCell extends Cell
         ];
 
         // Get navigation items from the registry instead of dispatching events
-        $menuItems = NavigationRegistry::getNavigationItems($user, $params);
+        $menuItems = NavigationRegistry::getNavigationItems($user, $params, $this->request->getSession());
         $menu = $this->organizeMenu($menuItems, $user);
 
         $this->set(compact('menu'));
@@ -214,7 +214,7 @@ class NavigationCell extends Cell
             }
 
             if (!$activeFound && $this->isActive($sublink, $currentRequestString)) {
-                $parents[$mainlink['mergePath'][0]]['active'] = true;
+                $parents[$sublink['mergePath'][0]]['active'] = true;
                 // $parents[$sublink['mergePath'][0]]['children'][$sublink['mergePath'][1]]['active'] = true;
                 $parents[$sublink['mergePath'][0]]['children'][$sublink['mergePath'][1]]['active'] = true;
                 $sublink['active'] = true;
@@ -222,7 +222,7 @@ class NavigationCell extends Cell
             }
 
             if ($this->hasBadge($sublink, $currentRequestString)) {
-                $parents[$mainlink['mergePath'][0]]['expanded'] = true;
+                $parents[$sublink['mergePath'][0]]['expanded'] = true;
                 // $parents[$sublink['mergePath'][0]]['children'][$sublink['mergePath'][1]]['active'] = true;
                 $parents[$sublink['mergePath'][0]]['children'][$sublink['mergePath'][1]]['expanded'] = true;
                 $sublink['expanded'] = true;

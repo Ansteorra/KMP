@@ -109,6 +109,7 @@ class DocumentService
             try {
                 $blobServiceClient = BlobServiceClient::fromConnectionString($connectionString);
                 $containerClient = $blobServiceClient->getContainerClient($container);
+                $containerClient->createIfNotExists();
                 $adapter = new AzureBlobStorageAdapter($containerClient, $prefix);
                 $this->filesystem = new FlysystemFilesystem($adapter);
                 Log::info('Initialized Azure Blob Storage adapter', [
@@ -274,6 +275,7 @@ class DocumentService
             try {
                 $blobServiceClient = BlobServiceClient::fromConnectionString($connectionString);
                 $containerClient = $blobServiceClient->getContainerClient($container);
+                $containerClient->createIfNotExists();
                 $adapter = new AzureBlobStorageAdapter($containerClient, $prefix);
                 return new FlysystemFilesystem($adapter);
             } catch (Exception $e) {

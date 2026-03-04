@@ -120,3 +120,27 @@ Fixed 13 documentation issues across 12 files by verifying each claim against ac
 📌 Team update (2026-02-11): EmailTemplateRendererService now supports safe conditional DSL (superseded — now uses `{{#if var == "value"}}...{{/if}}`; the interim `<?php if ($var == "value") : ?>...<?php endif; ?>` format is no longer active) — parsed via regex, never eval()d. Supports ==, !=, ||, && operators. All status paths (Approved/Pending/Denied) tested and passing. — decided by Kaylee
 
 📌 Team update (2026-02-11): Email template conditionals now use {{#if var == "value"}}...{{/if}} mustache-style syntax instead of PHP-style. Tests should use new syntax. — decided by Kaylee
+
+### 2026-02-22: Runtime log triage (Redis/update_database/Apache MPM)
+
+- **RedisEngine typed property warning (likely root cause):** `app/config/app.php` enables `RedisEngine` whenever `CACHE_ENGINE=redis`, and `installer/internal/providers/railway.go` sets `CACHE_ENGINE=redis` for Redis deployments. If Redis extension/runtime wiring is missing or `REDIS_URL` is unresolved/invalid at boot, Cake’s Redis init path can fail and surface the uninitialized typed-property error noise.
+- **`update_database` fallback warning (confirmed root cause):** `docker/entrypoint.prod.sh` intentionally logs a warning and falls back to `bin/cake migrations migrate` when `bin/cake update_database` exits non-zero on empty DB bootstrap. Warning is from fallback path, not from lock/wait logic.
+- **Apache “More than one MPM loaded” (likely root cause):** no MPM module toggles exist in provided runtime scripts; this points to image/runtime Apache module state (duplicate enabled MPM modules) rather than Cake app code.
+- **Testing gap note:** no existing test pattern currently covers `docker/entrypoint.prod.sh` runtime branching or Railway provider env wiring in this repo’s current test suites, so I documented command-level verification instead of adding a mismatched test.
+
+### 2026-02-22: Railway startup follow-up validation
+
+- **Apache MPM root-cause signal refined:** `docker/Dockerfile.prod` now explicitly disables `mpm_event`/`mpm_worker` and enables `mpm_prefork` in the runtime image, so current validation should focus on final loaded module state (`apachectl -M`) instead of assuming script-level omission.
+- **Railway sleep/scale-to-zero migration risk pattern:** `installer/internal/providers/railway.go` still runs `railway ssh ... migrations` immediately after `railway up --detach`; resilience currently comes from per-command SSH retries (3 attempts, 5s backoff), not from a separate readiness gate.
+- **New installer regression guard:** added `installer/internal/providers/railway_test.go` with a transient-failure fake `railway` binary to verify `runRailwayMigrations` succeeds after an initial SSH failure (retry path exercised).
+
+📌 Team update (2026-02-22): Railway startup hardening decisions from inbox were merged into a single consolidated entry in `.ai-team/decisions.md`; inbox cleared. — archived by Scribe
+
+📌 Team update (2026-02-22): Railway 502 gateway validation from decision inbox was merged into consolidated Railway startup guidance in `.ai-team/decisions.md`; inbox cleared. — archived by Scribe
+
+### 2026-02-22: Railway blank-page validation gates (favicon loads, body empty)
+
+- **Likely runtime failure mode #1:** app bootstrap/runtime exceptions are hidden when `DEBUG=false` (Railway provider sets this), so `/` can render an effectively blank response while static assets like `/favicon.ico` still serve from Apache.
+- **Likely runtime failure mode #2:** `docker/entrypoint.prod.sh` allows incremental migration/update failures to continue (`|| true` paths), so app can start with schema drift; dynamic pages can fail while static assets continue loading.
+- **Likely runtime failure mode #3:** cache backend mismatch (`CACHE_ENGINE=redis` with unresolved/bad Redis URL) can break Cake cache initialization during request bootstrap; this does not block Apache static file serving.
+- **Testing note:** no existing test harness in this repo covers Railway container runtime behavior (`entrypoint.prod.sh` + Apache + env wiring), so command-level pass/fail gates are the reliable verification layer for this incident pattern.

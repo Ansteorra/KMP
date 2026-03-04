@@ -73,6 +73,10 @@ echo $this->KMP->startBlock('pageTitle') ?>
 <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#submitMemberCardModal"
     id='scaCardUploadBtn'>Submit Updated SCA Info</button>
 <?php }
+if ($user->checkCan('partialEdit', $member)) { ?>
+<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#profilePhotoModal"
+    id='profilePhotoBtn'>Update Profile Photo</button>
+<?php }
 if (
     $user->checkCan('edit', $member) ||
     $user->checkCan('partialEdit', $member)
@@ -344,6 +348,9 @@ echo $this->element('members/verifyMembershipModal', [
     'needsMemberCardVerification' => $needsMemberCardVerification,
 ]);
 echo $this->element('members/submitMemberCard', [
+    'user' => $user,
+]);
+echo $this->element('members/profilePhotoModal', [
     'user' => $user,
 ]);
 echo $this->element('members/gatheringAttendanceModals', [

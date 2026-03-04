@@ -54,6 +54,8 @@ class HealthController extends AppController
         $data = [
             'status' => $status,
             'version' => trim((string)Configure::read('App.version', 'unknown')),
+            'image_tag' => trim((string)Configure::read('App.imageTag', 'unknown')),
+            'channel' => trim((string)Configure::read('App.releaseChannel', 'release')),
             'db' => $dbOk,
             'cache' => $cacheOk,
             'profile' => Configure::read('KMP.Deploy.Profile', 'unknown'),

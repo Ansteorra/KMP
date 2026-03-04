@@ -39,7 +39,8 @@ class AwardsRecommendationQuickEditForm extends Controller {
         awardListUrl: String,
         formUrl: String,
         turboFrameUrl: String,
-        gatheringsUrl: String
+        gatheringsUrl: String,
+        gatheringsLookupUrl: String
     };
     static outlets = ['outlet-btn'];
 
@@ -78,18 +79,13 @@ class AwardsRecommendationQuickEditForm extends Controller {
 
     /** Fetch gatherings filtered by award and update checkboxes and dropdown. */
     updateGatherings(awardId) {
-        if (!awardId) {
+        if (!awardId || !this.hasPlanToGiveGatheringTarget || !this.hasGatheringsLookupUrlValue) {
             return;
         }
 
         // Get member_id if available
         let memberId = this.hasMemberIdTarget ? this.memberIdTarget.value : '';
-
-        // Get status if available
         let status = this.hasStateTarget ? this.stateTarget.value : '';
-
-        // Build URL with query params
-        let url = this.gatheringsUrlValue + '/' + awardId;
         let params = new URLSearchParams();
         if (memberId) {
             params.append('member_id', memberId);
@@ -97,109 +93,44 @@ class AwardsRecommendationQuickEditForm extends Controller {
         if (status) {
             params.append('status', status);
         }
-        if (params.toString()) {
-            url += '?' + params.toString();
+        if (this.hasRecIdTarget && this.recIdTarget.value) {
+            params.append('recommendation_id', this.recIdTarget.value);
+        }
+        const awardKey = String(awardId);
+        if (
+            this.planToGiveGatheringTarget.dataset.lookupAwardId &&
+            this.planToGiveGatheringTarget.dataset.lookupAwardId !== awardKey
+        ) {
+            this.planToGiveGatheringTarget.value = '';
+            this.planToGiveGatheringTarget.dataset.initialValue = '';
+        }
+        this.planToGiveGatheringTarget.dataset.lookupAwardId = awardKey;
+
+        const currentValue = this.planToGiveGatheringTarget.value ||
+            this.planToGiveGatheringTarget.dataset.initialValue ||
+            '';
+        if (currentValue) {
+            params.append('selected_id', currentValue);
+            this.planToGiveGatheringTarget.dataset.initialValue = currentValue;
         }
 
-        fetch(url, this.optionsForFetch())
-            .then(response => response.json())
-            .then(data => {
-                if (data.gatherings) {
-                    // Update the gatherings checkboxes
-                    const gatheringsContainer = document.getElementById('recommendation__gathering_ids');
-                    if (gatheringsContainer) {
-                        // Save currently selected values
-                        const selectedValues = [];
-                        gatheringsContainer.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
-                            selectedValues.push(cb.value);
-                        });
+        let lookupUrl = `${this.gatheringsLookupUrlValue}/${awardId}`;
+        if (params.toString()) {
+            lookupUrl += `?${params.toString()}`;
+        }
+        this.planToGiveGatheringTarget.setAttribute('data-ac-url-value', lookupUrl);
+    }
 
-                        // Clear existing options
-                        gatheringsContainer.innerHTML = '';
-
-                        // Add new options as checkboxes
-                        data.gatherings.forEach(gathering => {
-                            const div = document.createElement('div');
-                            div.className = 'form-check';
-
-                            const input = document.createElement('input');
-                            input.type = 'checkbox';
-                            input.className = 'form-check-input';
-                            input.name = 'gatherings[_ids][]';
-                            input.value = gathering.id;
-                            input.id = `gathering-${gathering.id}`;
-
-                            // Disable cancelled gatherings
-                            if (gathering.cancelled) {
-                                input.disabled = true;
-                            }
-
-                            // Restore checked state if it was previously selected
-                            if (selectedValues.includes(gathering.id.toString())) {
-                                input.checked = true;
-                            }
-
-                            const label = document.createElement('label');
-                            label.className = 'form-check-label';
-                            label.htmlFor = `gathering-${gathering.id}`;
-                            label.textContent = gathering.display;
-
-                            // Style cancelled gatherings
-                            if (gathering.cancelled) {
-                                label.classList.add('text-danger');
-                            }
-
-                            div.appendChild(input);
-                            div.appendChild(label);
-                            gatheringsContainer.appendChild(div);
-                        });
-                    }
-
-                    // Also update the planToGiveGathering dropdown if it exists
-                    if (this.hasPlanToGiveGatheringTarget) {
-                        // Try to get current value, fallback to initial value stored on connect
-                        const currentValue = this.planToGiveGatheringTarget.value ||
-                            this.planToGiveGatheringTarget.dataset.initialValue ||
-                            '';
-
-                        // Clear existing options
-                        this.planToGiveGatheringTarget.innerHTML = '';
-
-                        // Add default option
-                        const defaultOption = document.createElement('option');
-                        defaultOption.value = '';
-                        defaultOption.textContent = 'Select Gathering';
-                        this.planToGiveGatheringTarget.appendChild(defaultOption);
-
-                        // Add gathering options
-                        data.gatherings.forEach(gathering => {
-                            const option = document.createElement('option');
-                            option.value = gathering.id;
-                            option.textContent = gathering.display;
-
-                            // Disable cancelled gatherings (unless currently selected)
-                            if (gathering.cancelled && gathering.id.toString() !== currentValue) {
-                                option.disabled = true;
-                            }
-
-                            // Restore selected state if it matches current or initial value
-                            if (gathering.id.toString() === currentValue) {
-                                option.selected = true;
-                            }
-
-                            this.planToGiveGatheringTarget.appendChild(option);
-                        });
-
-                        // Update the stored value for next time
-                        if (currentValue) {
-                            this.planToGiveGatheringTarget.dataset.initialValue = currentValue;
-                        }
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching gatherings:', error);
-            });
+    /** Sync required state to autocomplete text input. */
+    setPlanToGiveRequired(required) {
+        if (!this.hasPlanToGiveGatheringTarget) {
+            return;
+        }
+        this.planToGiveGatheringTarget.required = required;
+        const input = this.planToGiveGatheringTarget.querySelector("[data-ac-target='input']");
+        if (input) {
+            input.required = required;
+        }
     }
 
     /** Fetch awards for domain and populate award selection with autocomplete. */
@@ -315,7 +246,7 @@ class AwardsRecommendationQuickEditForm extends Controller {
         this.domainTarget.disabled = false;
         this.awardTarget.disabled = false;
         this.specialtyTarget.disabled = this.specialtyTarget.hidden;
-        this.planToGiveGatheringTarget.required = false;
+        this.setPlanToGiveRequired(false);
         this.givenDateTarget.required = false;
         this.closeReasonBlockTarget.style.display = "none";
         this.closeReasonTarget.required = false;
@@ -348,6 +279,7 @@ class AwardsRecommendationQuickEditForm extends Controller {
                 });
             }
         }
+        this.setPlanToGiveRequired(!!this.planToGiveGatheringTarget.required);
 
         // Update gatherings when state changes (e.g., to/from "Given")
         if (this.hasAwardTarget && this.awardTarget.value) {

@@ -5,6 +5,6 @@
   */
 
 /*!
-Turbo 8.0.21
+Turbo 8.0.23
 Copyright © 2026 37signals LLC
  */

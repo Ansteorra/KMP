@@ -31,6 +31,7 @@ use Cake\Validation\Validator;
  * @property \App\Model\Table\RolesTable&\Cake\ORM\Association\BelongsToMany $Roles
  * @property \App\Model\Table\PendingAuthorizationsTable&\Cake\ORM\Association\HasMany $PendingAuthorizations
  * @property \App\Model\Table\GatheringAttendancesTable&\Cake\ORM\Association\HasMany $GatheringAttendances
+ * @property \App\Model\Table\DocumentsTable&\Cake\ORM\Association\BelongsTo $ProfilePhoto
  *
  * @method \App\Model\Entity\Member newEmptyEntity()
  * @method \App\Model\Entity\Member newEntity(array $data, array $options = [])
@@ -92,6 +93,11 @@ class MembersTable extends BaseTable
         $this->belongsTo('Parents', [
             'className' => 'Members',
             'foreignKey' => 'parent_id',
+        ]);
+        $this->belongsTo('ProfilePhoto', [
+            'className' => 'Documents',
+            'foreignKey' => 'profile_photo_document_id',
+            'joinType' => 'LEFT',
         ]);
 
         $this->hasMany('GatheringAttendances', [
@@ -251,6 +257,7 @@ class MembersTable extends BaseTable
         $validator->integer('birth_month')->notEmptyString('birth_month');
 
         $validator->integer('birth_year')->notEmptyString('birth_year');
+        $validator->integer('profile_photo_document_id')->allowEmptyString('profile_photo_document_id');
 
         $validator
             ->dateTime('deleted_date')
@@ -289,6 +296,7 @@ class MembersTable extends BaseTable
     public function buildRules(RulesChecker $rules): RulesChecker
     {
         $rules->add($rules->isUnique(['email_address']), ['errorField' => 'email_address']);
+        $rules->add($rules->existsIn(['profile_photo_document_id'], 'ProfilePhoto'), ['errorField' => 'profile_photo_document_id']);
 
         return $rules;
     }

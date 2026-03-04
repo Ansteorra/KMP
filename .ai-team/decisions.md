@@ -1496,3 +1496,38 @@ Completed 13 documentation tasks fixing factual errors across 12 files. Every fi
 **By:** Kaylee
 **What:** `countGatheringsNeedingWaivers()` now counts ONLY past gatherings (end_date < today) instead of ongoing/future ones. Also aligned the permission action to `'uploadWaivers'` to match the list view controller.
 **Why:** The badge count didn't match the list view for two reasons: (1) it checked a different permission action (`needingWaivers` vs `uploadWaivers`), and (2) its date filter was inverted — it showed future/ongoing gatherings while Josh wanted it to flag events that are OVER but still missing waivers. The badge is now a strict subset of the list view (past-only, needing action), which makes it a useful "things you need to deal with" indicator rather than a confusing mismatch.
+
+### 2026-02-22: Railway runtime startup and migration hardening (consolidated)
+**By:** Jayne, Kaylee
+**What:** Consolidated Railway/Docker startup guidance: keep Redis enabled for normal runtime traffic, but run startup and migration/setup CLI paths with `CACHE_ENGINE=apcu`; rely on explicit MySQL env vars (including port) for startup DB checks; add a bounded SSH readiness loop before Railway migration commands; keep explicit failure output when readiness never succeeds; enforce/re-assert a single Apache MPM module (`prefork`) by disabling `mpm_event`/`mpm_worker` and enabling `mpm_prefork`; and verify runtime listener alignment with Railway `PORT` to avoid edge 502s from port mismatch.
+**Why:** Production logs and follow-up validation showed coupled startup risks: Redis bootstrap failures surfacing typed-property warnings, `update_database` fallback warnings during empty DB startup, Railway SSH migration failures when services are still waking/sleeping after detached deploys, Apache startup failures when multiple MPM modules are active, and likely gateway 502s when Apache remains bound to port 80 while Railway routes to `PORT`. Consolidating these decisions keeps deployment behavior predictable while preserving clear failure signals.
+
+**Verification gates:**
+```bash
+# Redis cache path is actually usable
+cd /var/www/html && php -r 'require "config/bootstrap.php"; \Cake\Cache\Cache::write("scribe_probe","ok","default"); echo \Cake\Cache\Cache::read("scribe_probe","default"), PHP_EOL;'
+
+# Startup DB path succeeds (or fallback behavior is explicitly expected)
+cd /var/www/html && bin/cake update_database
+
+# Exactly one Apache MPM should be loaded
+apachectl -M 2>/dev/null | grep -E "mpm_(event|worker|prefork)_module" | wc -l
+
+# Loaded MPM must be prefork
+apachectl -M 2>/dev/null | grep -E "mpm_(event|worker|prefork)_module"
+
+# Railway migration retry/readiness behavior is covered by installer test
+cd installer && go test ./internal/providers -run TestRunRailwayMigrationsRetriesTransientSSHFailure -v
+
+# Validate runtime listener matches Railway PORT and not only :80
+railway ssh -s kmp-app -- sh -lc 'echo "PORT=$PORT"; ss -ltn | grep -E ":(${PORT}|80)\\b"'
+
+# Public health should not return gateway 502
+curl -sS -o /dev/null -w '%{http_code}\n' https://<your-domain>/health
+
+# Health response should be app JSON, not gateway HTML
+curl -sS https://<your-domain>/health | head -c 200
+
+# Logs should not show recurring upstream connect/refused loops
+railway logs -s kmp-app | grep -Ei 'bad gateway|upstream|connect|refused' | tail -n 20
+```

@@ -35,6 +35,7 @@ RUN install-php-extensions \
         opcache \
         pdo_mysql \
         pdo_pgsql \
+        redis \
         zip \
         apcu \
         yaml \

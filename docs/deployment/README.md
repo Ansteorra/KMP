@@ -20,10 +20,11 @@ The interactive wizard will guide you through choosing a platform and configurin
 |----------|------|----------|-----|------------|
 | Docker (Local/VPC) | Self-hosted | Bundled MariaDB or BYO | Caddy (auto Let's Encrypt) | ⭐ Easy |
 | Fly.io | PaaS | Fly Postgres | Automatic | ⭐ Easy |
-| Railway | PaaS | Managed MySQL | Automatic | ⭐ Easy |
+| Railway | PaaS | Managed MySQL / Redis (optional) | Automatic (Railway edge TLS, no extra proxy required) | ⭐ Easy |
 | Azure | Cloud | Azure DB for MySQL | Automatic | ⭐⭐ Moderate |
 | AWS | Cloud | RDS MySQL | ALB/ACM | ⭐⭐ Moderate |
 | VPS (SSH) | Self-hosted | Bundled MariaDB | Caddy | ⭐⭐ Moderate |
+| Shared hosting (no root) | Traditional web host | Provider-managed or external | Provider-managed | ⭐⭐ Moderate |
 
 ## How It Works
 

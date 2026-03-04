@@ -13,6 +13,7 @@ use Exception;
 use League\Flysystem\AwsS3V3\AwsS3V3Adapter;
 use League\Flysystem\Filesystem as FlysystemFilesystem;
 use League\Flysystem\Local\LocalFilesystemAdapter;
+use League\Flysystem\UnableToWriteFile;
 use RuntimeException;
 
 /**
@@ -35,7 +36,19 @@ class BackupStorageService
      */
     public function write(string $filename, string $data): void
     {
-        $this->filesystem->write($filename, $data);
+        try {
+            $this->filesystem->write($filename, $data);
+        } catch (UnableToWriteFile $e) {
+            $message = "Unable to write backup '{$filename}' to {$this->adapter} storage";
+            if ($e->reason()) {
+                $message .= ": {$e->reason()}";
+            }
+            $previous = $e->getPrevious();
+            if ($previous) {
+                $message .= " (Underlying error: {$previous->getMessage()})";
+            }
+            throw new RuntimeException($message, 0, $e);
+        }
     }
 
     /**
@@ -110,6 +123,11 @@ class BackupStorageService
             try {
                 $blobServiceClient = BlobServiceClient::fromConnectionString($connectionString);
                 $containerClient = $blobServiceClient->getContainerClient($container);
+                try {
+                    $containerClient->createIfNotExists();
+                } catch (Exception $e) {
+                    Log::warning('Azure backup container ensure step skipped: ' . $e->getMessage());
+                }
                 $adapter = new AzureBlobStorageAdapter($containerClient, 'backups/');
                 $this->filesystem = new FlysystemFilesystem($adapter);
             } catch (Exception $e) {

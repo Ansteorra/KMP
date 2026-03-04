@@ -7,7 +7,7 @@ Deploy KMP to Railway with managed MySQL — zero infrastructure configuration r
 ## Prerequisites
 
 - [Railway account](https://railway.app/)
-- [`railway` CLI](https://docs.railway.app/develop/cli) installed and authenticated (optional for manual deploy)
+- [`railway` CLI](https://docs.railway.app/develop/cli) installed and authenticated (`railway login`)
 
 ## Option A: Automated Install (Recommended)
 
@@ -22,9 +22,12 @@ kmp install
 Select **Railway** when prompted. The wizard will:
 1. Authenticate with your Railway account
 2. Create a new Railway project
-3. Provision a MySQL service
-4. Configure environment variables
-5. Deploy the KMP Docker image
+3. Optionally provision Railway MySQL/Redis services
+4. Ask whether to use Railway-managed or existing database/cache services
+5. Configure environment variables
+6. Deploy the KMP Docker image
+
+If your Railway CLI version does not support one of the automated provisioning commands, the installer will stop with a command-specific error so you can run that step manually and retry.
 
 ## Option B: Manual Deployment
 
@@ -48,6 +51,7 @@ In the Railway dashboard, add these variables to the KMP service:
 | `SECURITY_SALT` | Generate with `openssl rand -hex 32` |
 | `DEBUG` | `false` |
 | `APP_NAME` | `KMP` |
+| `REDIS_URL` | Optional if using existing Redis (for Railway Redis, use references to `${{Redis.REDISUSER}}`, `${{Redis.REDISPASSWORD}}`, `${{Redis.REDISHOST}}`, `${{Redis.REDISPORT}}`) |
 
 ### Using the CLI
 
@@ -72,6 +76,12 @@ railway up
 4. Update your DNS records as instructed
 
 Railway provisions TLS certificates automatically for custom domains.
+
+## Reverse Proxy on Railway
+
+For standard KMP Railway deployments, deploy the **app image directly**. Railway's edge network terminates TLS and routes traffic; you do not need to run Caddy/nginx just for HTTPS.
+
+Run a custom proxy only if you need advanced internal routing across multiple services.
 
 ## Scaling
 
@@ -113,6 +123,6 @@ See [Updating & Rollback](updating.md) for full details.
 
 - **Build failures**: Railway deploys pre-built Docker images — ensure the image tag exists at `ghcr.io/jhandel/kmp`
 - **Database connection**: Verify MySQL reference variables resolve correctly in the dashboard
-- **Port binding**: KMP listens on port 8080; Railway detects this automatically via the `PORT` environment variable
+- **Port binding**: KMP binds Apache to Railway's `PORT` environment variable at startup
 
 See [Troubleshooting](troubleshooting.md) for more common issues.

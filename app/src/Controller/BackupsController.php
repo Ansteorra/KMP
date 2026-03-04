@@ -101,11 +101,18 @@ class BackupsController extends AppController
 
             $this->Flash->success(__('Backup created successfully: {0}', $backup->filename));
         } catch (Exception $e) {
-            Log::error('Backup creation failed: ' . $e->getMessage());
+            $errorMsg = $e->getMessage();
+            $fullError = $errorMsg;
+            $prev = $e->getPrevious();
+            while ($prev) {
+                $fullError .= ' <- ' . $prev->getMessage();
+                $prev = $prev->getPrevious();
+            }
+            Log::error('Backup creation failed: ' . $fullError);
             $backup->status = 'failed';
-            $backup->notes = $e->getMessage();
+            $backup->notes = substr(strip_tags($errorMsg), 0, 500);
             $this->Backups->save($backup);
-            $this->Flash->error(__('Backup failed: {0}', $e->getMessage()));
+            $this->Flash->error(__('Backup failed. Check logs for details.'));
         }
 
         return $this->redirect(['action' => 'index']);

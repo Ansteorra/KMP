@@ -22,7 +22,8 @@ Complete reference for all KMP deployment configuration options.
 | `APP_NAME` | `KMP` | Application display name |
 | `DEBUG` | `false` | Enable debug mode (`true`/`false`) |
 | `KMP_IMAGE_TAG` | `latest` | Docker image tag (version or channel) |
-| `KMP_DEPLOY_PROVIDER` | `docker` | Deployment provider identifier |
+| `KMP_DEPLOY_PROVIDER` | `docker` | Deployment provider identifier (`docker`, `vpc`, `railway`, `fly`, `aws`, `azure`, `shared`) |
+| `DEPLOYMENT_PROVIDER` | `docker` | App runtime provider override (falls back to `KMP_DEPLOY_PROVIDER` when unset) |
 
 ### Database
 

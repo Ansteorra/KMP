@@ -787,10 +787,9 @@ class RecommendationsGridColumns extends BaseGridColumns
      * Get gatherings filter options for recommendations grid.
      *
      * Returns a list of gatherings relevant to award recommendations:
-     * - All future gatherings (starting from today)
-     * - Past gatherings that have recommendations linked to them (via awards_recommendations_events)
-     *   or have member attendance with share_with_crown or share_with_kingdom
-     * - Limited to 6 months of back-looking for performance
+     * - All future gatherings that include at least one award-capable activity
+     *   (gatherings_gathering_activities -> award_gathering_activities)
+     * - All past gatherings that have scheduled or given awards
      *
      * @return array<array<string, string>> Filter options for gatherings dropdown
      */
@@ -798,53 +797,26 @@ class RecommendationsGridColumns extends BaseGridColumns
     {
         $gatheringsTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Gatherings');
         $now = new \Cake\I18n\DateTime();
-        $sixMonthsAgo = $now->modify('-6 months');
 
-        // Query 1: Future gatherings (starting from today)
+        // Query 1: Future gatherings with at least one award-capable activity.
         $futureGatherings = $gatheringsTable->find()
-            ->select(['id', 'name', 'start_date', 'cancelled_at'])
-            ->where(['start_date >=' => $now])
-            ->orderBy(['start_date' => 'ASC'])
+            ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date', 'Gatherings.cancelled_at'])
+            ->innerJoin(
+                ['GatheringsGatheringActivities' => 'gatherings_gathering_activities'],
+                ['GatheringsGatheringActivities.gathering_id = Gatherings.id']
+            )
+            ->innerJoin(
+                ['AwardGatheringActivities' => 'award_gathering_activities'],
+                ['AwardGatheringActivities.gathering_activity_id = GatheringsGatheringActivities.gathering_activity_id']
+            )
+            ->where(['Gatherings.start_date >=' => $now])
+            ->orderBy(['Gatherings.start_date' => 'ASC'])
+            ->groupBy(['Gatherings.id'])
             ->limit(100)
             ->all()
             ->toArray();
 
-        // Query 2: Past gatherings that have recommendations linked via awards_recommendations_events
-        //$pastGatheringsWithRecs = $gatheringsTable->find()
-        //    ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date'])
-        //    ->innerJoin(
-        //        ['RecEvents' => 'awards_recommendations_events'],
-        //        ['RecEvents.gathering_id = Gatherings.id']
-        //    )
-        //    ->where([
-        //        'Gatherings.start_date <' => $now,
-        //        'Gatherings.start_date >=' => $sixMonthsAgo,
-        //    ])
-        //    ->orderBy(['Gatherings.start_date' => 'DESC'])
-        //    ->groupBy(['Gatherings.id'])
-        //    ->all()
-        //     ->toArray();
-
-        // Query 3: Past gatherings with relevant member attendance (share_with_crown or share_with_kingdom)
-        //$pastGatheringsWithAttendance = $gatheringsTable->find()
-        //    ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date'])
-        //    ->innerJoin(
-        //        ['Attendance' => 'gathering_attendances'],
-        //        ['Attendance.gathering_id = Gatherings.id']
-        //    )
-        //    ->where([
-        //        'Gatherings.start_date <' => $now,
-        //        'Gatherings.start_date >=' => $sixMonthsAgo,
-        //        'OR' => [
-        //            'Attendance.share_with_crown' => true,
-        //            'Attendance.share_with_kingdom' => true,
-        //        ],
-        //    ])
-        //    ->orderBy(['Gatherings.start_date' => 'DESC'])
-        //    ->groupBy(['Gatherings.id'])
-        //    ->all()
-        //    ->toArray();
-        // query 4: Past gatherings with recommendations linked via the recommendation.gathering_id field
+        // Query 2a: Past gatherings with scheduled/given awards assigned by gathering_id.
         $pastGatheringsWithRecAssigned = $gatheringsTable->find()
             ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date', 'Gatherings.cancelled_at'])
             ->innerJoin(
@@ -853,7 +825,35 @@ class RecommendationsGridColumns extends BaseGridColumns
             )
             ->where([
                 'Gatherings.start_date <' => $now,
-                'Gatherings.start_date >=' => $sixMonthsAgo,
+                'OR' => [
+                    'Recommendations.status IN' => ['Scheduling', 'To Give'],
+                    'Recommendations.given IS NOT' => null,
+                    'Recommendations.state' => 'Given',
+                ],
+            ])
+            ->orderBy(['Gatherings.start_date' => 'DESC'])
+            ->groupBy(['Gatherings.id'])
+            ->all()
+            ->toArray();
+
+        // Query 2b: Past gatherings linked through recommendation events with scheduled/given awards.
+        $pastGatheringsWithRecEvents = $gatheringsTable->find()
+            ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date', 'Gatherings.cancelled_at'])
+            ->innerJoin(
+                ['RecommendationEvents' => 'awards_recommendations_events'],
+                ['RecommendationEvents.event_id = Gatherings.id']
+            )
+            ->innerJoin(
+                ['Recommendations' => 'awards_recommendations'],
+                ['Recommendations.id = RecommendationEvents.recommendation_id']
+            )
+            ->where([
+                'Gatherings.start_date <' => $now,
+                'OR' => [
+                    'Recommendations.status IN' => ['Scheduling', 'To Give'],
+                    'Recommendations.given IS NOT' => null,
+                    'Recommendations.state' => 'Given',
+                ],
             ])
             ->orderBy(['Gatherings.start_date' => 'DESC'])
             ->groupBy(['Gatherings.id'])
@@ -868,22 +868,15 @@ class RecommendationsGridColumns extends BaseGridColumns
             $allGatherings[$gathering->id] = $gathering;
         }
 
-        // Add past gatherings with recommendations
-        //foreach ($pastGatheringsWithRecs as $gathering) {
-        //    if (!isset($allGatherings[$gathering->id])) {
-        //        $allGatherings[$gathering->id] = $gathering;
-        //    }
-        //}
-
-        // Add past gatherings with attendance
-        //foreach ($pastGatheringsWithAttendance as $gathering) {
-        //    if (!isset($allGatherings[$gathering->id])) {
-        //        $allGatherings[$gathering->id] = $gathering;
-        //    }
-        //}
-
-        // Add past gatherings with recommendation assigned_gathering
+        // Add past gatherings with scheduled/given awards assigned by gathering_id.
         foreach ($pastGatheringsWithRecAssigned as $gathering) {
+            if (!isset($allGatherings[$gathering->id])) {
+                $allGatherings[$gathering->id] = $gathering;
+            }
+        }
+
+        // Add past gatherings linked through recommendation events.
+        foreach ($pastGatheringsWithRecEvents as $gathering) {
             if (!isset($allGatherings[$gathering->id])) {
                 $allGatherings[$gathering->id] = $gathering;
             }

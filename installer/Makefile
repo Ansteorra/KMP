@@ -3,7 +3,7 @@ LDFLAGS := -ldflags "-X main.version=$(VERSION) -s -w"
 BINARY := kmp
 GOFLAGS := -trimpath
 
-.PHONY: build clean test install all
+.PHONY: build clean test test-sidecar install all
 
 build:
 	go build $(LDFLAGS) $(GOFLAGS) -o bin/$(BINARY) ./cmd/kmp
@@ -13,6 +13,9 @@ install:
 
 test:
 	go test ./...
+
+test-sidecar:
+	go test -v ./internal/updater
 
 clean:
 	rm -rf bin/

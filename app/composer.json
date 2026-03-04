@@ -5,7 +5,10 @@
     "type": "project",
     "license": "MIT",
     "require": {
-        "php": ">=8.1",
+        "php": "^8.3",
+        "ext-gd": "*",
+        "ext-intl": "*",
+        "ext-yaml": "*",
         "admad/cakephp-glide": "^6.0",
         "azure-oss/storage-blob-flysystem": "^1.2",
         "cakephp/authentication": "^3.0",
@@ -51,7 +54,15 @@
     },
     "autoload": {
         "psr-4": {
-            "App\\": "src/"
+            "App\\": "src/",
+            "Activities\\": "plugins/Activities/src/",
+            "Awards\\": "plugins/Awards/src/",
+            "Bootstrap\\": "plugins/Bootstrap/src/",
+            "GitHubIssueSubmitter\\": "plugins/GitHubIssueSubmitter/src/",
+            "Officers\\": "plugins/Officers/src/",
+            "Queue\\": "plugins/Queue/src/",
+            "Template\\": "plugins/Template/src/",
+            "Waivers\\": "plugins/Waivers/src/"
         }
     },
     "autoload-dev": {

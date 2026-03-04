@@ -18,13 +18,8 @@ const mockKMPUtils = {
 
 describe('KMP_utils', () => {
   beforeEach(() => {
-    // Mock window.location.search
-    Object.defineProperty(window, 'location', {
-      writable: true,
-      value: {
-        search: '?test=value&foo=bar'
-      }
-    });
+    // JSDOM 28+ disallows redefining window.location directly.
+    window.history.replaceState({}, '', '/?test=value&foo=bar');
   });
 
   describe('sanitizeString', () => {

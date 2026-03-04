@@ -4,6 +4,7 @@ const { execSync } = require('child_process');
 
 async function globalSetup() {
   console.log('🚀 Starting global setup for UI tests...');
+  const baseUrl = process.env.PLAYWRIGHT_BASE_URL || 'https://127.0.0.1:8080';
 
   // Start browser for authentication and other global setup
   const browser = await chromium.launch();
@@ -31,7 +32,7 @@ async function globalSetup() {
   try {
     // Wait for the server to be ready
     console.log('⏳ Waiting for server to be ready...');
-    await page.goto('https://127.0.0.1:8080', { waitUntil: 'networkidle' });
+    await page.goto(baseUrl, { waitUntil: 'networkidle' });
     console.log('✅ Server is ready');
   } catch (error) {
     console.error('❌ Global setup failed:', error);

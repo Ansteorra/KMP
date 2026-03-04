@@ -13,7 +13,20 @@ import MobileControllerBase from "./mobile-controller-base.js";
  * - Dynamic card generation for plugin sections
  */
 class MemberMobileCardProfile extends MobileControllerBase {
-    static targets = ["cardSet", "name", "scaName", "branchName", "membershipInfo", "backgroundCheck", "lastUpdate", "loading", "memberDetails"];
+    static targets = [
+        "cardSet",
+        "name",
+        "scaName",
+        "branchName",
+        "membershipInfo",
+        "backgroundCheck",
+        "lastUpdate",
+        "loading",
+        "memberDetails",
+        "profilePhotoContainer",
+        "profilePhoto",
+        "zoomPhoto",
+    ];
     static values = {
         url: String,
         pwaReady: Boolean
@@ -95,6 +108,9 @@ class MemberMobileCardProfile extends MobileControllerBase {
         this.cardSetTarget.innerHTML = "";
         this.loadingTarget.hidden = false;
         this.memberDetailsTarget.hidden = true;
+        if (this.hasProfilePhotoContainerTarget) {
+            this.profilePhotoContainerTarget.hidden = true;
+        }
 
         try {
             // Use base class fetchWithRetry for reliability
@@ -145,9 +161,42 @@ class MemberMobileCardProfile extends MobileControllerBase {
         }
         
         this.lastUpdateTarget.textContent = new Date().toLocaleString();
+        this.renderProfilePhoto(data.member.profile_photo_url || null);
         
         // Render plugin sections
         this.renderPluginSections(data);
+    }
+
+    renderProfilePhoto(photoUrl) {
+        const hasPhoto = typeof photoUrl === "string" && photoUrl.length > 0;
+
+        if (this.hasProfilePhotoContainerTarget) {
+            this.profilePhotoContainerTarget.hidden = !hasPhoto;
+        }
+        if (hasPhoto) {
+            if (this.hasProfilePhotoTarget) {
+                this.profilePhotoTarget.src = photoUrl;
+            }
+            if (this.hasZoomPhotoTarget) {
+                this.zoomPhotoTarget.src = photoUrl;
+            }
+            this.cacheProfilePhotoForOffline(photoUrl);
+        }
+    }
+
+    async cacheProfilePhotoForOffline(photoUrl) {
+        if (!('serviceWorker' in navigator) || typeof photoUrl !== "string" || photoUrl.length === 0) {
+            return;
+        }
+        try {
+            const registration = await navigator.serviceWorker.ready;
+            registration?.active?.postMessage({
+                type: 'CACHE_URLS',
+                payload: [photoUrl]
+            });
+        } catch (error) {
+            console.warn('[member-mobile-card-profile] Could not queue profile photo for offline cache', error);
+        }
     }
 
     /**

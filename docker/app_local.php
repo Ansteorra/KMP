@@ -64,14 +64,21 @@ return [
             'url' => env('EMAIL_TRANSPORT_DEFAULT_URL', null),
         ],
     ],
-    
+
     'Documents' => [
         'storage' => [
-            'adapter' => 'local',
+            'adapter' => env('DOCUMENT_STORAGE_ADAPTER', 'local'),
             'azure' => [
                 'connectionString' => env('AZURE_STORAGE_CONNECTION_STRING'),
-                'container' => 'documents',
+                'container' => env('AZURE_STORAGE_CONTAINER', 'documents'),
                 'prefix' => '',
+            ],
+            's3' => [
+                'key' => env('AWS_ACCESS_KEY_ID'),
+                'secret' => env('AWS_SECRET_ACCESS_KEY'),
+                'region' => env('AWS_DEFAULT_REGION', env('AWS_REGION', 'us-east-1')),
+                'bucket' => env('AWS_S3_BUCKET', env('AWS_BUCKET')),
+                'endpoint' => env('AWS_S3_ENDPOINT'),
             ],
         ],
     ],
