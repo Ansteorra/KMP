@@ -164,9 +164,6 @@ class RecommendationsController extends AppController
         // Get system views with proper state filter options
         $systemViews = RecommendationsGridColumns::getSystemViews([]);
 
-        // Update state column filter options based on permissions
-        $stateFilterOptions = RecommendationsGridColumns::getStateFilterOptions($canViewHidden);
-
         // Use unified trait for grid processing
         // Note: 'gatherings' column has customFilterHandler defined in RecommendationsGridColumns
         // which handles the complex multi-table filtering automatically via the trait
@@ -193,6 +190,7 @@ class RecommendationsController extends AppController
                 ],
             ],
         ]);
+        $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
 
         // Handle CSV export using trait's unified method with data mode
         if (!empty($result['isCsvExport'])) {
@@ -228,19 +226,13 @@ class RecommendationsController extends AppController
         // Get row actions from grid columns
         $rowActions = RecommendationsGridColumns::getRowActions();
 
-        // Merge dynamic state filter options
-        $columns = $result['columnsMetadata'];
-        if (isset($columns['state'])) {
-            $columns['state']['filterOptions'] = $stateFilterOptions;
-        }
-
         // Set view variables
         $this->set([
             'recommendations' => $recommendations,
             'data' => $recommendations,
             'rowActions' => $rowActions,
             'gridState' => $result['gridState'],
-            'columns' => $columns,
+            'columns' => $result['columnsMetadata'],
             'visibleColumns' => $result['visibleColumns'],
             'searchableColumns' => RecommendationsGridColumns::getSearchableColumns(),
             'dropdownFilterColumns' => $result['dropdownFilterColumns'],
@@ -273,6 +265,29 @@ class RecommendationsController extends AppController
             $this->viewBuilder()->setTemplatePath('element');
             $this->viewBuilder()->setTemplate('dv_grid_content');
         }
+    }
+
+    /**
+     * Inject dynamic state filter options into a Dataverse grid result payload.
+     *
+     * @param array $result Dataverse grid processing result.
+     * @param bool $canViewHidden Whether hidden states should be included.
+     * @return array Updated grid result with state filter options in metadata and gridState.
+     */
+    protected function applyStateFilterOptionsToGridResult(array $result, bool $canViewHidden): array
+    {
+        $stateFilterOptions = RecommendationsGridColumns::getStateFilterOptions($canViewHidden);
+        $result['filterOptions']['state'] = $stateFilterOptions;
+
+        if (isset($result['columnsMetadata']['state'])) {
+            $result['columnsMetadata']['state']['filterOptions'] = $stateFilterOptions;
+            $result['gridState']['filters']['available']['state'] = [
+                'label' => $result['columnsMetadata']['state']['label'] ?? 'State',
+                'options' => $stateFilterOptions,
+            ];
+        }
+
+        return $result;
     }
 
     /**
@@ -680,6 +695,7 @@ class RecommendationsController extends AppController
         $emptyRecommendation->requester_id = $memberId;
 
         $this->Authorization->authorize($emptyRecommendation, 'ViewSubmittedByMember');
+        $canViewHidden = $user->checkCan('ViewHidden', $emptyRecommendation);
 
         // Build base query filtered by requester
         $baseQuery = $this->Recommendations->find()
@@ -711,10 +727,11 @@ class RecommendationsController extends AppController
             'defaultSystemView' => 'sys-recs-submitted-by',
             'showAllTab' => false,
             'canAddViews' => false,
-            'canFilter' => false,
+            'canFilter' => true,
             'canExportCsv' => false,
             'enableColumnPicker' => false
         ]);
+        $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
 
         // Post-process data
         $recommendations = $result['data'];
@@ -791,6 +808,7 @@ class RecommendationsController extends AppController
 
 
         $this->Authorization->authorize($emptyRecommendation, 'ViewSubmittedForMember');
+        $canViewHidden = $user->checkCan('ViewHidden', $emptyRecommendation);
 
         // Build base query filtered by member (subject of recommendation)
         $baseQuery = $this->Recommendations->find()
@@ -828,9 +846,10 @@ class RecommendationsController extends AppController
             'defaultSystemView' => 'sys-recs-for-member',
             'showAllTab' => false,
             'canAddViews' => false,
-            'canFilter' => false,
+            'canFilter' => true,
             'canExportCsv' => false,
         ]);
+        $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
 
         // Post-process data
         $recommendations = $result['data'];
@@ -906,6 +925,7 @@ class RecommendationsController extends AppController
         $recommendation->gathering = $gathering;
 
         $this->Authorization->authorize($recommendation, 'ViewGatheringRecommendations');
+        $canViewHidden = $user->checkCan('ViewHidden', $recommendation);
 
         // Build base query filtered by gathering
         $baseQuery = $this->Recommendations->find()
@@ -954,11 +974,21 @@ class RecommendationsController extends AppController
             'systemViews' => $systemViews,
             'defaultSystemView' => 'sys-recs-gathering',
             'showAllTab' => false,
-            'showViewTabs' => false,
-            'canAddViews' => false,
-            'canFilter' => false,
+            'showViewTabs' => true,
+            'canAddViews' => true,
+            'canFilter' => true,
             'canExportCsv' => true,
+            'enableBulkSelection' => $user->checkCan('edit', $recommendation),
+            'bulkActions' => [
+                [
+                    'key' => 'bulk-edit',
+                    'label' => 'Bulk Edit',
+                    'icon' => 'bi-pencil-square',
+                    'modalTarget' => '#bulkEditRecommendationModal',
+                ],
+            ],
         ]);
+        $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
 
         // Handle CSV export using trait's unified method with data mode
         if (!empty($result['isCsvExport'])) {
@@ -1319,24 +1349,7 @@ class RecommendationsController extends AppController
                 ->toArray();
 
             $awards = $this->Recommendations->Awards->find('list', limit: 200)->all();
-
-            $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
-            $gatheringsData = $gatheringsTable->find()
-                ->contain(['Branches' => function ($q) {
-                    return $q->select(['id', 'name']);
-                }])
-                ->where([
-                    'start_date >' => DateTime::now(),
-                ])
-                ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
-                ->orderBy(['start_date' => 'ASC'])
-                ->all();
-
             $gatherings = [];
-            foreach ($gatheringsData as $gathering) {
-                $gatherings[$gathering->id] = $gathering->name . ' in ' . $gathering->branch->name . ' on '
-                    . $gathering->start_date->toDateString() . ' - ' . $gathering->end_date->toDateString();
-            }
 
             $this->set(compact('recommendation', 'branches', 'awards', 'gatherings', 'awardsDomains', 'awardsLevels'));
             return null;
@@ -1476,22 +1489,7 @@ class RecommendationsController extends AppController
             ->toArray();
 
         $awards = $this->Recommendations->Awards->find('list', limit: 200)->all();
-
-        $gatheringsTable = $this->fetchTable('Gatherings');
-        $gatheringsData = $gatheringsTable->find()
-            ->contain(['Branches' => function ($q) {
-                return $q->select(['id', 'name']);
-            }])
-            ->where(['start_date >' => DateTime::now()])
-            ->select(['id', 'name', 'start_date', 'end_date', 'Gatherings.branch_id'])
-            ->orderBy(['start_date' => 'ASC'])
-            ->all();
-
         $gatherings = [];
-        foreach ($gatheringsData as $gathering) {
-            $gatherings[$gathering->id] = $gathering->name . ' in ' . $gathering->branch->name . ' on '
-                . $gathering->start_date->toDateString() . ' - ' . $gathering->end_date->toDateString();
-        }
 
         $this->set(compact(
             'recommendation',
@@ -1819,11 +1817,16 @@ class RecommendationsController extends AppController
             // Get filtered gatherings for this award
             // If status is "Given", show all gatherings (past and future) for retroactive entry
             $futureOnly = ($recommendation->status !== 'Given');
+            $selectedRecommendationGatheringIds = [];
+            foreach (($recommendation->gatherings ?? []) as $selectedGathering) {
+                $selectedRecommendationGatheringIds[] = (int)$selectedGathering->id;
+            }
             $gatheringData = $this->getFilteredGatheringsForAward(
                 $recommendation->award_id,
                 $recommendation->member_id,
                 $futureOnly,
-                $recommendation->gathering_id  // Include the currently assigned gathering
+                $recommendation->gathering_id,  // Include the currently assigned gathering
+                $selectedRecommendationGatheringIds
             );
             $gatheringList = $gatheringData['gatherings'];
             $cancelledGatheringIds = $gatheringData['cancelledGatheringIds'];
@@ -1917,11 +1920,16 @@ class RecommendationsController extends AppController
             // Get filtered gatherings for this award
             // If status is "Given", show all gatherings (past and future) for retroactive entry
             $futureOnly = ($recommendation->status !== 'Given');
+            $selectedRecommendationGatheringIds = [];
+            foreach (($recommendation->gatherings ?? []) as $selectedGathering) {
+                $selectedRecommendationGatheringIds[] = (int)$selectedGathering->id;
+            }
             $gatheringData = $this->getFilteredGatheringsForAward(
                 $recommendation->award_id,
                 $recommendation->member_id,
                 $futureOnly,
-                $recommendation->gathering_id  // Include the currently assigned gathering
+                $recommendation->gathering_id,  // Include the currently assigned gathering
+                $selectedRecommendationGatheringIds
             );
             $gatheringList = $gatheringData['gatherings'];
             $cancelledGatheringIds = $gatheringData['cancelledGatheringIds'];
@@ -2039,10 +2047,21 @@ class RecommendationsController extends AppController
      * @param int|null $memberId Optional member ID; when provided, gatherings the member attends with `share_with_crown` enabled are marked.
      * @param bool $futureOnly When true, include only gatherings with a start date in the future.
      * @param int|null $includeGatheringId If provided, ensure this gathering ID is included in the results even if it would be excluded by the activity or date filters.
+     * @param array<int> $includeGatheringIds Additional gathering IDs to include (for recommendation-selected gatherings).
      * @return array Associative array mapping gathering ID => formatted display string ("Name in Branch on YYYY-MM-DD - YYYY-MM-DD"); entries with an asterisk indicate the member is attending and sharing with crown.
      */
-    protected function getFilteredGatheringsForAward(int $awardId, ?int $memberId = null, bool $futureOnly = true, ?int $includeGatheringId = null): array
-    {
+    protected function getFilteredGatheringsForAward(
+        int $awardId,
+        ?int $memberId = null,
+        bool $futureOnly = true,
+        ?int $includeGatheringId = null,
+        array $includeGatheringIds = []
+    ): array {
+        $includeGatheringIds = array_values(array_unique(array_filter(array_map('intval', array_merge(
+            $includeGatheringIds,
+            $includeGatheringId ? [$includeGatheringId] : []
+        )))));
+
         // Get all gathering activities linked to this award
         $awardGatheringActivitiesTable = $this->fetchTable('Awards.AwardGatheringActivities');
         $linkedActivities = $awardGatheringActivitiesTable->find()
@@ -2054,34 +2073,31 @@ class RecommendationsController extends AppController
             return $row->gathering_activity_id;
         }, $linkedActivities);
 
-        // If no activities are linked to the award, return empty array
-        if (empty($activityIds)) {
-            return [];
-        }
-
         // Get gatherings that have these activities
-        $gatheringsTable = $this->fetchTable('Gatherings');
-        $query = $gatheringsTable->find()
-            ->contain([
-                'Branches' => function ($q) {
-                    return $q->select(['id', 'name']);
-                }
-            ])
-            ->select(['id', 'name', 'start_date', 'end_date', 'Gatherings.branch_id', 'Gatherings.cancelled_at'])
-            ->orderBy(['start_date' => 'DESC']);
+        $gatheringsData = [];
+        if (!empty($activityIds)) {
+            $query = $this->fetchTable('Gatherings')->find()
+                ->contain([
+                    'Branches' => function ($q) {
+                        return $q->select(['id', 'name']);
+                    }
+                ])
+                ->select(['id', 'name', 'start_date', 'end_date', 'Gatherings.branch_id', 'Gatherings.cancelled_at'])
+                ->orderBy(['start_date' => 'DESC']);
 
-        // Only filter by date if futureOnly is true
-        if ($futureOnly) {
-            $query->where(['start_date >' => DateTime::now()]);
-            $query->orderBy(['start_date' => 'ASC']);
+            // Only filter by date if futureOnly is true
+            if ($futureOnly) {
+                $query->where(['start_date >' => DateTime::now()]);
+                $query->orderBy(['start_date' => 'ASC']);
+            }
+
+            // Filter by linked activities
+            $query->matching('GatheringActivities', function ($q) use ($activityIds) {
+                return $q->where(['GatheringActivities.id IN' => $activityIds]);
+            });
+
+            $gatheringsData = $query->all();
         }
-
-        // Filter by linked activities
-        $query->matching('GatheringActivities', function ($q) use ($activityIds) {
-            return $q->where(['GatheringActivities.id IN' => $activityIds]);
-        });
-
-        $gatheringsData = $query->all();
 
         // Get attendance information for the member if member_id provided
         $attendanceMap = [];
@@ -2100,9 +2116,7 @@ class RecommendationsController extends AppController
             }
         }
 
-        // Build the response array
-        // Simple format: [id => display_name]
-        // Also track cancelled gathering IDs for disabling in form
+        // Build the response array from award-linked activities
         $gatherings = [];
         $cancelledGatheringIds = [];
         foreach ($gatheringsData as $gathering) {
@@ -2112,55 +2126,55 @@ class RecommendationsController extends AppController
 
             $hasAttendance = isset($attendanceMap[$gathering->id]);
             $shareWithCrown = $hasAttendance && $attendanceMap[$gathering->id];
-
-            // Add indicator if member is attending and sharing with crown
             if ($shareWithCrown) {
                 $displayName .= ' *';
             }
 
-            // Add cancelled indicator
             if ($isCancelled) {
                 $displayName = '[CANCELLED] ' . $displayName;
                 $cancelledGatheringIds[] = $gathering->id;
             }
-            
+
             $gatherings[$gathering->id] = $displayName;
         }
 
-        // If a specific gathering ID should be included (e.g., already assigned to recommendation)
-        // and it's not already in the list, add it
-        if ($includeGatheringId && !isset($gatherings[$includeGatheringId])) {
-            $gatheringsTable = $this->fetchTable('Gatherings');
-            $specificGathering = $gatheringsTable->find()
-                ->contain(['Branches' => function ($q) {
-                    return $q->select(['id', 'name']);
-                }])
-                ->where(['Gatherings.id' => $includeGatheringId])
-                ->select(['id', 'name', 'start_date', 'end_date', 'Gatherings.branch_id', 'Gatherings.cancelled_at'])
-                ->first();
+        // Always include currently scheduled gathering and recommendation-selected gatherings.
+        if (!empty($includeGatheringIds)) {
+            $missingIncludeIds = array_values(array_diff($includeGatheringIds, array_keys($gatherings)));
+            $includedGatherings = [];
 
-            if ($specificGathering) {
-                $isCancelled = $specificGathering->cancelled_at !== null;
-                $displayName = $specificGathering->name . ' in ' . $specificGathering->branch->name . ' on '
-                    . $specificGathering->start_date->toDateString() . ' - ' . $specificGathering->end_date->toDateString();
+            if (!empty($missingIncludeIds)) {
+                $includeGatherings = $this->fetchTable('Gatherings')->find()
+                    ->contain(['Branches' => function ($q) {
+                        return $q->select(['id', 'name']);
+                    }])
+                    ->where(['Gatherings.id IN' => $missingIncludeIds])
+                    ->select(['id', 'name', 'start_date', 'end_date', 'Gatherings.branch_id', 'Gatherings.cancelled_at'])
+                    ->all()
+                    ->indexBy('id')
+                    ->toArray();
 
-                $hasAttendance = isset($attendanceMap[$specificGathering->id]);
-                $shareWithCrown = $hasAttendance && $attendanceMap[$specificGathering->id];
-
-                if ($shareWithCrown) {
-                    $displayName .= ' *';
+                foreach ($includeGatheringIds as $includedId) {
+                    if (!isset($includeGatherings[$includedId])) {
+                        continue;
+                    }
+                    $includedGathering = $includeGatherings[$includedId];
+                    $displayName = $includedGathering->name . ' in ' . $includedGathering->branch->name . ' on '
+                        . $includedGathering->start_date->toDateString() . ' - ' . $includedGathering->end_date->toDateString();
+                    $hasAttendance = isset($attendanceMap[$includedGathering->id]);
+                    $shareWithCrown = $hasAttendance && $attendanceMap[$includedGathering->id];
+                    if ($shareWithCrown) {
+                        $displayName .= ' *';
+                    }
+                    if ($includedGathering->cancelled_at !== null) {
+                        $displayName = '[CANCELLED] ' . $displayName;
+                    }
+                    $includedGatherings[$includedGathering->id] = $displayName;
                 }
-
-                // Cancelled gatherings that are already assigned: show but mark as cancelled
-                // Don't add to disabled list - allow keeping the existing assignment
-                if ($isCancelled) {
-                    $displayName = '[CANCELLED] ' . $displayName;
-                    // Note: Not adding to cancelledGatheringIds to allow keeping existing assignment
-                }
-                
-                // Add to the beginning of the array so it appears first
-                $gatherings = [$specificGathering->id => $displayName] + $gatherings;
             }
+
+            $gatherings = $includedGatherings + $gatherings;
+            $cancelledGatheringIds = array_values(array_diff($cancelledGatheringIds, $includeGatheringIds));
         }
 
         return ['gatherings' => $gatherings, 'cancelledGatheringIds' => $cancelledGatheringIds];
@@ -2311,6 +2325,238 @@ class RecommendationsController extends AppController
             $this->viewBuilder()->setOption('serialize', ['error']);
             $this->response = $this->response->withStatus(500);
         }
+    }
+
+    /**
+     * Return gathering autocomplete options for recommendation edit/quick-edit forms.
+     *
+     * Returns Ajax HTML list items consumed by the shared auto-complete controller.
+     *
+     * @param string|null $awardId Award ID for gathering activity filtering.
+     * @return void
+     */
+    public function gatheringsAutoComplete(?string $awardId = null): void
+    {
+        $this->request->allowMethod(['get']);
+        $this->Authorization->skipAuthorization();
+        $this->viewBuilder()->setClassName('Ajax');
+        $this->viewBuilder()->setTemplate('gatherings_auto_complete');
+
+        $q = trim((string)$this->request->getQuery('q', ''));
+        $status = (string)$this->request->getQuery('status', '');
+        $futureOnly = ($status !== 'Given');
+        $selectedId = $this->request->getQuery('selected_id');
+        $selectedId = is_numeric((string)$selectedId) ? (int)$selectedId : null;
+        $recommendationId = $this->request->getQuery('recommendation_id');
+        $recommendationId = is_numeric((string)$recommendationId) ? (int)$recommendationId : null;
+
+        $gatherings = [];
+        $cancelledGatheringIds = [];
+        $includeGatheringIds = [];
+
+        try {
+            $memberId = null;
+            $memberPublicId = (string)$this->request->getQuery('member_id', '');
+            if ($memberPublicId !== '') {
+                $member = $this->fetchTable('Members')->find('byPublicId', publicId: $memberPublicId)->first();
+                if ($member) {
+                    $memberId = $member->id;
+                }
+            }
+
+            if ($recommendationId) {
+                $recommendation = $this->Recommendations->find()
+                    ->select(['Recommendations.id', 'Recommendations.gathering_id'])
+                    ->where(['Recommendations.id' => $recommendationId])
+                    ->contain(['Gatherings' => function ($q) {
+                        return $q->select(['Gatherings.id']);
+                    }])
+                    ->first();
+                if ($recommendation) {
+                    if (!empty($recommendation->gathering_id)) {
+                        $includeGatheringIds[] = (int)$recommendation->gathering_id;
+                    }
+                    foreach (($recommendation->gatherings ?? []) as $selectedGathering) {
+                        $includeGatheringIds[] = (int)$selectedGathering->id;
+                    }
+                }
+            }
+
+            if ($awardId !== null && ctype_digit((string)$awardId)) {
+                $gatheringData = $this->getFilteredGatheringsForAward(
+                    (int)$awardId,
+                    $memberId,
+                    $futureOnly,
+                    $selectedId,
+                    $includeGatheringIds
+                );
+                $gatherings = $gatheringData['gatherings'] ?? [];
+                $cancelledGatheringIds = $gatheringData['cancelledGatheringIds'] ?? [];
+            }
+
+            $stickyGatheringIds = array_values(array_unique(array_filter(array_map('intval', array_merge(
+                $includeGatheringIds,
+                $selectedId ? [$selectedId] : []
+            )))));
+            $stickyLookup = array_fill_keys($stickyGatheringIds, true);
+
+            if ($q === '') {
+                if (!empty($stickyGatheringIds)) {
+                    $gatherings = array_intersect_key($gatherings, array_fill_keys($stickyGatheringIds, true));
+                }
+            } else {
+                $gatherings = array_filter($gatherings, function ($display, $id) use ($q, $stickyLookup) {
+                    return isset($stickyLookup[(int)$id]) || mb_stripos((string)$display, $q) !== false;
+                }, ARRAY_FILTER_USE_BOTH);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error in gatheringsAutoComplete: ' . $e->getMessage());
+            $gatherings = [];
+            $cancelledGatheringIds = [];
+        }
+
+        $this->set(compact('gatherings', 'q', 'cancelledGatheringIds', 'selectedId'));
+    }
+
+    /**
+     * Return gathering autocomplete options for bulk edit modal.
+     *
+     * Returns Ajax HTML list items consumed by the shared auto-complete controller.
+     *
+     * @return void
+     */
+    public function gatheringsForBulkEditAutoComplete(): void
+    {
+        $this->request->allowMethod(['get']);
+        $this->Authorization->skipAuthorization();
+        $this->viewBuilder()->setClassName('Ajax');
+        $this->viewBuilder()->setTemplate('gatherings_auto_complete');
+
+        $q = trim((string)$this->request->getQuery('q', ''));
+        $status = (string)$this->request->getQuery('status', '');
+        $futureOnly = ($status !== 'Given');
+        $selectedId = $this->request->getQuery('selected_id');
+        $selectedId = is_numeric((string)$selectedId) ? (int)$selectedId : null;
+
+        $idsQuery = $this->request->getQuery('ids', []);
+        if (is_string($idsQuery)) {
+            $ids = array_filter(array_map('intval', explode(',', $idsQuery)));
+        } elseif (is_array($idsQuery)) {
+            $ids = array_filter(array_map('intval', $idsQuery));
+        } else {
+            $ids = [];
+        }
+
+        $gatherings = [];
+        $cancelledGatheringIds = [];
+
+        try {
+            if (!empty($ids)) {
+                $recommendations = $this->Recommendations->find()
+                    ->where(['Recommendations.id IN' => $ids])
+                    ->contain(['Awards', 'Members'])
+                    ->all();
+
+                if (!$recommendations->isEmpty()) {
+                    $awardIds = [];
+                    $memberIds = [];
+                    foreach ($recommendations as $rec) {
+                        $awardIds[] = $rec->award_id;
+                        if ($rec->member_id) {
+                            $memberIds[] = $rec->member_id;
+                        }
+                    }
+                    $awardIds = array_unique($awardIds);
+                    $memberIds = array_unique($memberIds);
+
+                    $awardGatheringActivitiesTable = $this->fetchTable('Awards.AwardGatheringActivities');
+                    $activityIdsByAward = [];
+                    foreach ($awardIds as $awardId) {
+                        $linkedActivities = $awardGatheringActivitiesTable->find()
+                            ->where(['award_id' => $awardId])
+                            ->select(['gathering_activity_id'])
+                            ->toArray();
+                        $activityIdsByAward[$awardId] = array_map(function ($row) {
+                            return $row->gathering_activity_id;
+                        }, $linkedActivities);
+                    }
+
+                    $commonActivityIds = null;
+                    foreach ($activityIdsByAward as $activityIds) {
+                        if ($commonActivityIds === null) {
+                            $commonActivityIds = $activityIds;
+                        } else {
+                            $commonActivityIds = array_intersect($commonActivityIds, $activityIds);
+                        }
+                    }
+
+                    if (!empty($commonActivityIds)) {
+                        $query = $this->fetchTable('Gatherings')->find()
+                            ->contain(['Branches' => function ($q) {
+                                return $q->select(['id', 'name']);
+                            }])
+                            ->select(['id', 'name', 'start_date', 'end_date', 'Gatherings.branch_id', 'Gatherings.cancelled_at'])
+                            ->orderBy(['start_date' => 'DESC']);
+
+                        if ($futureOnly) {
+                            $query->where(['start_date >' => DateTime::now()]);
+                            $query->orderBy(['start_date' => 'ASC']);
+                        }
+
+                        $query->matching('GatheringActivities', function ($q) use ($commonActivityIds) {
+                            return $q->where(['GatheringActivities.id IN' => $commonActivityIds]);
+                        });
+
+                        $gatheringsData = $query->all();
+
+                        $attendanceMap = [];
+                        if (!empty($memberIds)) {
+                            $attendances = $this->fetchTable('GatheringAttendances')->find()
+                                ->where([
+                                    'member_id IN' => $memberIds,
+                                    'deleted IS' => null,
+                                    'share_with_crown' => true
+                                ])
+                                ->select(['gathering_id', 'member_id'])
+                                ->toArray();
+
+                            foreach ($attendances as $attendance) {
+                                if (!isset($attendanceMap[$attendance->gathering_id])) {
+                                    $attendanceMap[$attendance->gathering_id] = 0;
+                                }
+                                $attendanceMap[$attendance->gathering_id]++;
+                            }
+                        }
+
+                        foreach ($gatheringsData as $gathering) {
+                            $isCancelled = $gathering->cancelled_at !== null;
+                            $displayName = $gathering->name . ' in ' . $gathering->branch->name . ' on '
+                                . $gathering->start_date->toDateString() . ' - ' . $gathering->end_date->toDateString();
+                            if (isset($attendanceMap[$gathering->id])) {
+                                $displayName .= ' *(' . $attendanceMap[$gathering->id] . ')';
+                            }
+                            if ($isCancelled) {
+                                $displayName = '[CANCELLED] ' . $displayName;
+                                $cancelledGatheringIds[] = $gathering->id;
+                            }
+                            $gatherings[$gathering->id] = $displayName;
+                        }
+                    }
+                }
+            }
+
+            if ($q !== '') {
+                $gatherings = array_filter($gatherings, function ($display) use ($q) {
+                    return mb_stripos((string)$display, $q) !== false;
+                });
+            }
+        } catch (\Exception $e) {
+            Log::error('Error in gatheringsForBulkEditAutoComplete: ' . $e->getMessage());
+            $gatherings = [];
+            $cancelledGatheringIds = [];
+        }
+
+        $this->set(compact('gatherings', 'q', 'cancelledGatheringIds', 'selectedId'));
     }
 
     /**

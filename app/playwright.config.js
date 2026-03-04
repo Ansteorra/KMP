@@ -2,6 +2,8 @@
 const { defineConfig, devices } = require('@playwright/test');
 // Playwright-BDD configuration  
 const { defineBddConfig } = require('playwright-bdd');
+const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'https://127.0.0.1:8080';
+const webServerCommand = process.env.PLAYWRIGHT_WEB_SERVER_COMMAND || 'bash ../dev-up.sh';
 
 const testDir = defineBddConfig({
   featuresRoot: './tests/ui/bdd',
@@ -39,7 +41,7 @@ module.exports = defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'https://127.0.0.1:8080',
+    baseURL,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -102,8 +104,8 @@ module.exports = defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: '',
-    url: 'https://127.0.0.1:8080',
+    command: webServerCommand,
+    url: baseURL,
     reuseExistingServer: true,
     ignoreHTTPSErrors: true,
   },

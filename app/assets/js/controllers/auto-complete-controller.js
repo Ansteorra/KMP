@@ -94,6 +94,7 @@ class AutoComplete extends Controller {
         minLength: Number,
         allowOther: Boolean,
         required: Boolean,
+        showOnFocus: { type: Boolean, default: false },
         initSelection: Object,
         delay: { type: Number, default: 300 },
         queryParam: { type: String, default: "q" },
@@ -388,7 +389,7 @@ class AutoComplete extends Controller {
 
     onInputClick = (event) => {
         this.state = "start";
-        if (this.hasDataListTarget) {
+        if (this.hasDataListTarget || (this.hasUrlValue && this.showOnFocusValue)) {
             const query = this.inputTarget.value.trim()
             this.fetchResults(query);
         }

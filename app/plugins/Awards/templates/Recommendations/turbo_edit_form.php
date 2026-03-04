@@ -172,16 +172,45 @@
         </div>
         <?php endif;
         
-        echo $this->Form->control('gathering_id', [
-            'label' => 'Plan to Give At',
-            "type" => "select",
-            'options' => $gatheringList,
-            'empty' => true,
-            'value' => $recommendation->gathering_id,
-            'data-awards-rec-edit-target' => 'planToGiveGathering',
-            'container' => ['data-awards-rec-edit-target' => 'planToGiveBlock'],
-            'disabled' => $cancelledGatheringIds,
+        $selectedGatheringText = '';
+        if (!empty($recommendation->gathering_id) && isset($gatheringList[$recommendation->gathering_id])) {
+            $selectedGatheringText = $gatheringList[$recommendation->gathering_id];
+        }
+        $gatheringLookupQuery = array_filter([
+            'member_id' => $recommendation->member->public_id ?? null,
+            'status' => $recommendation->state,
+            'selected_id' => $recommendation->gathering_id,
+            'recommendation_id' => $recommendation->id,
+        ], fn($value) => $value !== null && $value !== '');
+        $gatheringLookupUrl = $this->URL->build([
+            'plugin' => 'Awards',
+            'controller' => 'Recommendations',
+            'action' => 'gatheringsAutoComplete',
+            $recommendation->award_id,
+            '?' => $gatheringLookupQuery,
         ]);
+        ?>
+        <div data-awards-rec-edit-target="planToGiveBlock">
+            <?= $this->KMP->autoCompleteControl(
+                $this->Form,
+                'gathering_name',
+                'gathering_id',
+                $gatheringLookupUrl,
+                'Plan to Give At',
+                false,
+                false,
+                2,
+                [
+                    'data-awards-rec-edit-target' => 'planToGiveGathering',
+                    'data-ac-show-on-focus-value' => 'true',
+                    'data-ac-init-selection-value' => json_encode([
+                        'value' => $recommendation->gathering_id,
+                        'text' => $selectedGatheringText,
+                    ]),
+                ]
+            ) ?>
+        </div>
+        <?php
 
         // Format given date for HTML5 date input (requires Y-m-d format)
         // Since this is a date-only field, format without timezone conversion

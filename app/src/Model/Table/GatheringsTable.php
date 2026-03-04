@@ -297,7 +297,7 @@ class GatheringsTable extends Table
      * This method:
      * 1. Fetches all template activities for the gathering type
      * 2. Adds any missing activities to the gathering
-     * 3. Sets the not_removable flag based on the template
+     * 3. Re-evaluates not_removable for all existing activities based on the current template
      *
      * @param \Cake\Datasource\EntityInterface $gathering The gathering entity
      * @return void
@@ -313,16 +313,17 @@ class GatheringsTable extends Table
             ->contain(['GatheringActivities'])
             ->all();
 
-        if ($templateActivities->isEmpty()) {
-            return;
-        }
-
         // Get existing activities for this gathering
         $existingActivities = $gatheringsGatheringActivitiesTable->find()
             ->where(['gathering_id' => $gathering->id])
             ->all()
             ->indexBy('gathering_activity_id')
             ->toArray();
+
+        $templateNotRemovableByActivity = [];
+        foreach ($templateActivities as $templateActivity) {
+            $templateNotRemovableByActivity[$templateActivity->gathering_activity_id] = (bool)$templateActivity->not_removable;
+        }
 
         // Find the max sort order to append new activities
         $maxSortOrder = 0;
@@ -345,13 +346,16 @@ class GatheringsTable extends Table
 
                 $newActivity->not_removable = $templateActivity->not_removable;
                 $gatheringsGatheringActivitiesTable->save($newActivity);
-            } else {
-                // Activity exists, update not_removable if template says it should be
-                if ($templateActivity->not_removable && !$existingActivities[$activityId]->not_removable) {
-                    $existingActivity = $existingActivities[$activityId];
-                    $existingActivity->not_removable = true;
-                    $gatheringsGatheringActivitiesTable->save($existingActivity);
-                }
+            }
+        }
+
+        // Re-evaluate not_removable against the new gathering type template.
+        // Activities not present in the template must be removable.
+        foreach ($existingActivities as $existingActivity) {
+            $desiredNotRemovable = $templateNotRemovableByActivity[$existingActivity->gathering_activity_id] ?? false;
+            if ((bool)$existingActivity->not_removable !== $desiredNotRemovable) {
+                $existingActivity->not_removable = $desiredNotRemovable;
+                $gatheringsGatheringActivitiesTable->save($existingActivity);
             }
         }
     }

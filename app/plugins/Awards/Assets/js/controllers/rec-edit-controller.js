@@ -44,7 +44,8 @@ class AwardsRecommendationEditForm extends Controller {
         awardListUrl: String,
         formUrl: String,
         turboFrameUrl: String,
-        gatheringsUrl: String
+        gatheringsUrl: String,
+        gatheringsLookupUrl: String
     };
     static outlets = ['outlet-btn'];
 
@@ -106,6 +107,8 @@ class AwardsRecommendationEditForm extends Controller {
             url += '?' + params.toString();
         }
 
+        this.updatePlanToGiveLookupUrl(awardId, memberId, status);
+
         fetch(url, this.optionsForFetch())
             .then(response => response.json())
             .then(data => {
@@ -159,52 +162,65 @@ class AwardsRecommendationEditForm extends Controller {
                             gatheringsContainer.appendChild(div);
                         });
                     }
-
-                    // Also update the planToGiveGathering dropdown if it exists
-                    if (this.hasPlanToGiveGatheringTarget) {
-                        // Try to get current value, fallback to initial value stored on connect
-                        const currentValue = this.planToGiveGatheringTarget.value ||
-                            this.planToGiveGatheringTarget.dataset.initialValue ||
-                            '';
-
-                        // Clear existing options
-                        this.planToGiveGatheringTarget.innerHTML = '';
-
-                        // Add default option
-                        const defaultOption = document.createElement('option');
-                        defaultOption.value = '';
-                        defaultOption.textContent = 'Select Gathering';
-                        this.planToGiveGatheringTarget.appendChild(defaultOption);
-
-                        // Add gathering options
-                        data.gatherings.forEach(gathering => {
-                            const option = document.createElement('option');
-                            option.value = gathering.id;
-                            option.textContent = gathering.display;
-
-                            // Disable cancelled gatherings (unless currently selected)
-                            if (gathering.cancelled && gathering.id.toString() !== currentValue) {
-                                option.disabled = true;
-                            }
-
-                            // Restore selected state if it matches current or initial value
-                            if (gathering.id.toString() === currentValue) {
-                                option.selected = true;
-                            }
-
-                            this.planToGiveGatheringTarget.appendChild(option);
-                        });
-
-                        // Update the stored value for next time
-                        if (currentValue) {
-                            this.planToGiveGatheringTarget.dataset.initialValue = currentValue;
-                        }
-                    }
                 }
             })
             .catch(error => {
                 console.error('Error fetching gatherings:', error);
             });
+    }
+
+    /** Update autocomplete endpoint URL for "Plan to Give At" gathering lookups. */
+    updatePlanToGiveLookupUrl(awardId, memberId = '', status = '') {
+        if (!this.hasPlanToGiveGatheringTarget || !this.hasGatheringsLookupUrlValue || !awardId) {
+            return;
+        }
+
+        const awardKey = String(awardId);
+        if (
+            this.planToGiveGatheringTarget.dataset.lookupAwardId &&
+            this.planToGiveGatheringTarget.dataset.lookupAwardId !== awardKey
+        ) {
+            this.planToGiveGatheringTarget.value = '';
+            this.planToGiveGatheringTarget.dataset.initialValue = '';
+        }
+        this.planToGiveGatheringTarget.dataset.lookupAwardId = awardKey;
+
+        const currentValue = this.planToGiveGatheringTarget.value ||
+            this.planToGiveGatheringTarget.dataset.initialValue ||
+            '';
+
+        const params = new URLSearchParams();
+        if (memberId) {
+            params.append('member_id', memberId);
+        }
+        if (status) {
+            params.append('status', status);
+        }
+        if (this.hasRecIdTarget && this.recIdTarget.value) {
+            params.append('recommendation_id', this.recIdTarget.value);
+        }
+        if (currentValue) {
+            params.append('selected_id', currentValue);
+            this.planToGiveGatheringTarget.dataset.initialValue = currentValue;
+        }
+
+        let lookupUrl = `${this.gatheringsLookupUrlValue}/${awardId}`;
+        if (params.toString()) {
+            lookupUrl += `?${params.toString()}`;
+        }
+        this.planToGiveGatheringTarget.setAttribute('data-ac-url-value', lookupUrl);
+    }
+
+    /** Sync required state to autocomplete text input. */
+    setPlanToGiveRequired(required) {
+        if (!this.hasPlanToGiveGatheringTarget) {
+            return;
+        }
+        this.planToGiveGatheringTarget.required = required;
+        const input = this.planToGiveGatheringTarget.querySelector("[data-ac-target='input']");
+        if (input) {
+            input.required = required;
+        }
     }
 
     /** Fetch awards for domain and populate award selection with autocomplete. */
@@ -375,7 +391,7 @@ class AwardsRecommendationEditForm extends Controller {
         this.awardTarget.disabled = false;
         this.specialtyTarget.disabled = this.specialtyTarget.hidden;
         this.scaMemberTarget.disabled = false;
-        this.planToGiveGatheringTarget.required = false;
+        this.setPlanToGiveRequired(false);
         this.givenDateTarget.required = false;
         this.closeReasonBlockTarget.style.display = "none";
         this.closeReasonTarget.required = false;
@@ -415,6 +431,7 @@ class AwardsRecommendationEditForm extends Controller {
                 });
             }
         }
+        this.setPlanToGiveRequired(!!this.planToGiveGatheringTarget.required);
 
         // Update gatherings when state changes (e.g., to/from "Given")
         if (this.hasAwardTarget && this.awardTarget.value) {

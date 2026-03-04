@@ -20,6 +20,7 @@ echo $this->Form->create(null, [
     'data-awards-rec-bulk-edit-form-url-value' => $formUrl,
     'data-awards-rec-bulk-edit-turbo-frame-url-value' => $turboFrameUrl,
     'data-awards-rec-bulk-edit-gatherings-url-value' => $this->URL->build(['controller' => 'Recommendations', 'action' => 'gatheringsForBulkEdit', 'plugin' => "Awards"]),
+    'data-awards-rec-bulk-edit-gatherings-lookup-url-value' => $this->URL->build(['controller' => 'Recommendations', 'action' => 'gatheringsForBulkEditAutoComplete', 'plugin' => "Awards"]),
 
 
 ]);
@@ -77,15 +78,26 @@ echo $this->Modal->create("Bulk Edit Recommendations", [
             'container' => ['data-awards-rec-bulk-edit-target' => 'closeReasonBlock'],
         ]
     );
-    echo $this->Form->control('gathering_id', [
-        'label' => 'Plan to Give At',
-        "type" => "select",
-        'options' => $gatheringList,
-        'empty' => true,
-        'value' => "",
-        'data-awards-rec-bulk-edit-target' => 'planToGiveGathering',
-        'container' => ['data-awards-rec-bulk-edit-target' => 'planToGiveBlock'],
+    $bulkGatheringLookupUrl = $this->URL->build([
+        'plugin' => 'Awards',
+        'controller' => 'Recommendations',
+        'action' => 'gatheringsForBulkEditAutoComplete',
     ]);
+    ?>
+    <div data-awards-rec-bulk-edit-target="planToGiveBlock">
+        <?= $this->KMP->autoCompleteControl(
+            $this->Form,
+            'gathering_name',
+            'gathering_id',
+            $bulkGatheringLookupUrl,
+            'Plan to Give At',
+            false,
+            false,
+            2,
+            ['data-awards-rec-bulk-edit-target' => 'planToGiveGathering']
+        ) ?>
+    </div>
+    <?php
     echo $this->Form->control(
         'given',
         [

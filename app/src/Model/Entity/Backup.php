@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Model\Entity;
 
-use Cake\ORM\Entity;
-
 /**
  * Backup entity — tracks backup metadata.
  *
@@ -20,7 +18,7 @@ use Cake\ORM\Entity;
  * @property \Cake\I18n\DateTime $created
  * @property \Cake\I18n\DateTime $modified
  */
-class Backup extends Entity
+class Backup extends BaseEntity
 {
     protected array $_accessible = [
         'filename' => true,
