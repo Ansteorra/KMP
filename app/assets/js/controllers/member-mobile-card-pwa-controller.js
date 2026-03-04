@@ -118,7 +118,7 @@ class MemberMobileCardPWA extends MobileControllerBase {
         const previous = this.online;
         MobileControllerBase.setOnlineState(isOnline, true);
         this.updateStatusDisplay(isOnline);
-        if (previous === isOnline) {
+        if (previous !== isOnline) {
             this.dispatchStatusEvent(isOnline ? 'online' : 'offline');
         }
     }

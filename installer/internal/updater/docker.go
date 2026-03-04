@@ -3,6 +3,7 @@ package updater
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -278,7 +279,7 @@ func (s *Server) waitForHealthy(timeout time.Duration) error {
 	for time.Now().Before(deadline) {
 		resp, err := client.Get(s.cfg.HealthURL)
 		if err == nil {
-			defer resp.Body.Close()
+			healthy := false
 			if resp.StatusCode == http.StatusOK {
 				var health struct {
 					Status string `json:"status"`
@@ -287,9 +288,14 @@ func (s *Server) waitForHealthy(timeout time.Duration) error {
 				}
 				if json.NewDecoder(resp.Body).Decode(&health) == nil {
 					if health.Status == "ok" && health.DB {
-						return nil
+						healthy = true
 					}
 				}
+			}
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+			if healthy {
+				return nil
 			}
 		}
 		time.Sleep(3 * time.Second)

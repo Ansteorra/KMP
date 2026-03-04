@@ -88,6 +88,10 @@ func (s *Server) handleUpdate(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, fmt.Sprintf("update already in progress: %s", s.state.Status), http.StatusConflict)
 		return
 	}
+	s.state.Status = "pulling"
+	s.state.Message = "Update queued"
+	s.state.Progress = 1
+	s.state.TargetTag = req.TargetTag
 	s.mu.Unlock()
 
 	// Run update in background
@@ -108,11 +112,15 @@ func (s *Server) handleRollback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.mu.Lock()
-	if s.state.Status == "pulling" || s.state.Status == "stopping" || s.state.Status == "starting" || s.state.Status == "rolling_back" {
+	if s.state.Status != "idle" && s.state.Status != "completed" && s.state.Status != "failed" {
 		s.mu.Unlock()
 		writeJSONError(w, "operation in progress", http.StatusConflict)
 		return
 	}
+	s.state.Status = "rolling_back"
+	s.state.Message = "Rollback queued"
+	s.state.Progress = 1
+	s.state.TargetTag = req.PreviousTag
 	s.mu.Unlock()
 
 	s.runAsync(func() {

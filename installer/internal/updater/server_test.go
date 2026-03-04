@@ -69,6 +69,74 @@ func TestHandleUpdateRunsToCompletion(t *testing.T) {
 	}
 }
 
+func TestHandleUpdateReservesStateBeforeAsyncRun(t *testing.T) {
+	s := NewServer(Config{})
+	runAsyncCalled := false
+	s.runAsync = func(fn func()) {
+		runAsyncCalled = true
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/updater/update", bytes.NewBufferString(`{"targetTag":"v1.1.0"}`))
+	rec := httptest.NewRecorder()
+
+	s.handleUpdate(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rec.Code)
+	}
+	if !runAsyncCalled {
+		t.Fatal("expected async update to be scheduled")
+	}
+	st := readState(s)
+	if st.Status != "pulling" {
+		t.Fatalf("expected reserved pulling status, got %q", st.Status)
+	}
+	if st.TargetTag != "v1.1.0" {
+		t.Fatalf("expected target tag v1.1.0, got %q", st.TargetTag)
+	}
+}
+
+func TestHandleRollbackConflictWhenBusy(t *testing.T) {
+	s := NewServer(Config{})
+	s.setState("pulling", "busy", 10)
+
+	req := httptest.NewRequest(http.MethodPost, "/updater/rollback", bytes.NewBufferString(`{"previousTag":"v1.0.0"}`))
+	rec := httptest.NewRecorder()
+
+	s.handleRollback(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected status 409, got %d", rec.Code)
+	}
+}
+
+func TestHandleRollbackReservesStateBeforeAsyncRun(t *testing.T) {
+	s := NewServer(Config{})
+	runAsyncCalled := false
+	s.runAsync = func(fn func()) {
+		runAsyncCalled = true
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/updater/rollback", bytes.NewBufferString(`{"previousTag":"v1.0.0"}`))
+	rec := httptest.NewRecorder()
+
+	s.handleRollback(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rec.Code)
+	}
+	if !runAsyncCalled {
+		t.Fatal("expected async rollback to be scheduled")
+	}
+	st := readState(s)
+	if st.Status != "rolling_back" {
+		t.Fatalf("expected reserved rolling_back status, got %q", st.Status)
+	}
+	if st.TargetTag != "v1.0.0" {
+		t.Fatalf("expected rollback target tag v1.0.0, got %q", st.TargetTag)
+	}
+}
+
 func TestRunUpdateRollsBackOnHealthFailure(t *testing.T) {
 	s := NewServer(Config{AppServiceName: "app", ImageRepo: "ghcr.io/jhandel/kmp"})
 	s.readCurrentTagFn = func() string { return "v1.0.0" }
