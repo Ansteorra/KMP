@@ -28,6 +28,8 @@ class MemberMobileCardPWA extends MobileControllerBase {
         this.swVersion = null;
         this.updateDismissed = false;
         this.refreshIntervalId = null;
+        this.connectivityProbeId = null;
+        this._visibilityHandler = this.bindHandler('visibility', this.handleVisibilityChange);
     }
 
     /**
@@ -44,7 +46,7 @@ class MemberMobileCardPWA extends MobileControllerBase {
      */
     statusTargetConnected() {
         // Always update display when status target connects
-        this.updateStatusDisplay(navigator.onLine);
+        this.updateStatusDisplay(this.online);
     }
 
     /**
@@ -83,6 +85,47 @@ class MemberMobileCardPWA extends MobileControllerBase {
             if (this.hasRefreshBtnTarget) {
                 this.refreshBtnTarget.hidden = true;
             }
+        }
+    }
+
+    async probeConnectivity() {
+        let isOnline = navigator.onLine;
+
+        // If browser thinks we're online, confirm with a network-only request
+        if (isOnline) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2500);
+            try {
+                await fetch('/api/csrf', {
+                    method: 'GET',
+                    cache: 'no-store',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'same-origin',
+                    signal: controller.signal
+                });
+                // Any HTTP response confirms network reachability.
+                isOnline = true;
+            } catch (error) {
+                isOnline = false;
+            } finally {
+                clearTimeout(timeoutId);
+            }
+        }
+
+        const previous = this.online;
+        MobileControllerBase.setOnlineState(isOnline, true);
+        this.updateStatusDisplay(isOnline);
+        if (previous === isOnline) {
+            this.dispatchStatusEvent(isOnline ? 'online' : 'offline');
+        }
+    }
+
+    handleVisibilityChange() {
+        if (document.visibilityState === 'visible') {
+            this.probeConnectivity();
         }
     }
 
@@ -267,6 +310,7 @@ class MemberMobileCardPWA extends MobileControllerBase {
         // Initialize status display
         this.updateStatusDisplay(this.online);
         this.dispatchStatusEvent(this.online ? 'online' : 'offline');
+        this.probeConnectivity();
         
         if ('serviceWorker' in navigator) {
             // Register service worker
@@ -286,6 +330,8 @@ class MemberMobileCardPWA extends MobileControllerBase {
         
         // Set up periodic refresh (5 minutes)
         this.refreshIntervalId = setInterval(() => this.refreshPageIfOnline(), 300000);
+        this.connectivityProbeId = setInterval(() => this.probeConnectivity(), 10000);
+        document.addEventListener('visibilitychange', this._visibilityHandler);
     }
 
     /**
@@ -296,6 +342,11 @@ class MemberMobileCardPWA extends MobileControllerBase {
             clearInterval(this.refreshIntervalId);
             this.refreshIntervalId = null;
         }
+        if (this.connectivityProbeId) {
+            clearInterval(this.connectivityProbeId);
+            this.connectivityProbeId = null;
+        }
+        document.removeEventListener('visibilitychange', this._visibilityHandler);
         
         // Remove SW message listener
         const swMessageHandler = this.getHandler('swMessage');

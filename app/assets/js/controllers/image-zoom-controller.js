@@ -42,6 +42,8 @@ class ImageZoom extends Controller {
         img.style.userSelect = "none";
         img.style.webkitUserSelect = "none";
         img.draggable = false;
+        this._onImageLoad = this._onImageLoad.bind(this);
+        img.addEventListener("load", this._onImageLoad);
 
         this._onWheel = this._onWheel.bind(this);
         this._onPointerDown = this._onPointerDown.bind(this);
@@ -51,6 +53,12 @@ class ImageZoom extends Controller {
         this._onTouchStart = this._onTouchStart.bind(this);
         this._onTouchMove = this._onTouchMove.bind(this);
         this._onTouchEnd = this._onTouchEnd.bind(this);
+        this._onModalShown = this._onModalShown.bind(this);
+
+        this.modalElement = this.element.closest(".modal");
+        if (this.modalElement) {
+            this.modalElement.addEventListener("shown.bs.modal", this._onModalShown);
+        }
 
         container.addEventListener("wheel", this._onWheel, { passive: false });
         container.addEventListener("pointerdown", this._onPointerDown);
@@ -67,6 +75,7 @@ class ImageZoom extends Controller {
 
     disconnect() {
         const container = this.element;
+        this.imageTarget.removeEventListener("load", this._onImageLoad);
         container.removeEventListener("wheel", this._onWheel);
         container.removeEventListener("pointerdown", this._onPointerDown);
         container.removeEventListener("pointermove", this._onPointerMove);
@@ -76,6 +85,9 @@ class ImageZoom extends Controller {
         container.removeEventListener("touchstart", this._onTouchStart);
         container.removeEventListener("touchmove", this._onTouchMove);
         container.removeEventListener("touchend", this._onTouchEnd);
+        if (this.modalElement) {
+            this.modalElement.removeEventListener("shown.bs.modal", this._onModalShown);
+        }
     }
 
     _onWheel(e) {
@@ -116,6 +128,18 @@ class ImageZoom extends Controller {
     }
 
     _onDblClick() {
+        this._resetView();
+    }
+
+    _onImageLoad() {
+        this._resetView();
+    }
+
+    _onModalShown() {
+        this._resetView();
+    }
+
+    _resetView() {
         this.scale = 1;
         this.translateX = 0;
         this.translateY = 0;
@@ -198,29 +222,48 @@ class ImageZoom extends Controller {
     }
 
     _clampTranslation() {
-        if (this.scale <= 1) {
-            this.translateX = 0;
-            this.translateY = 0;
-            return;
-        }
         const img = this.imageTarget;
         const container = this.element;
         const cw = container.clientWidth;
         const ch = container.clientHeight;
+        if (!cw || !ch) {
+            return;
+        }
 
         // Scaled image dimensions based on rendered size
         const renderedW = img.clientWidth * this.scale;
         const renderedH = img.clientHeight * this.scale;
+        const baseX = renderedW < cw ? (cw - renderedW) / 2 : 0;
+        const baseY = renderedH < ch ? (ch - renderedH) / 2 : 0;
 
-        const minX = Math.min(0, cw - renderedW);
-        const minY = Math.min(0, ch - renderedH);
-        this.translateX = Math.max(minX, Math.min(0, this.translateX));
-        this.translateY = Math.max(minY, Math.min(0, this.translateY));
+        if (renderedW <= cw) {
+            this.translateX = 0;
+        } else {
+            const minX = cw - renderedW - baseX;
+            const maxX = -baseX;
+            this.translateX = Math.max(minX, Math.min(maxX, this.translateX));
+        }
+
+        if (renderedH <= ch) {
+            this.translateY = 0;
+        } else {
+            const minY = ch - renderedH - baseY;
+            const maxY = -baseY;
+            this.translateY = Math.max(minY, Math.min(maxY, this.translateY));
+        }
     }
 
     _applyTransform() {
+        const container = this.element;
+        const cw = container.clientWidth;
+        const ch = container.clientHeight;
+        const renderedW = this.imageTarget.clientWidth * this.scale;
+        const renderedH = this.imageTarget.clientHeight * this.scale;
+        const baseX = renderedW < cw ? (cw - renderedW) / 2 : 0;
+        const baseY = renderedH < ch ? (ch - renderedH) / 2 : 0;
+
         this.imageTarget.style.transform =
-            `translate(${this.translateX}px, ${this.translateY}px) scale(${this.scale})`;
+            `translate(${baseX + this.translateX}px, ${baseY + this.translateY}px) scale(${this.scale})`;
     }
 }
 

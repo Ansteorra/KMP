@@ -54,6 +54,13 @@ mix.setPublicPath('./webroot')
     .extract(['bootstrap', 'popper.js', '@hotwired/turbo', '@hotwired/stimulus', '@hotwired/stimulus-webpack-helpers'], 'webroot/js/core.js')
     .webpackConfig({
         devtool: "source-map",
+        resolve: {
+            fallback: {
+                fs: false,
+                path: false,
+                crypto: false,
+            },
+        },
         optimization: {
             runtimeChunk: true
         },
@@ -83,4 +90,3 @@ mix.setPublicPath('./webroot')
     .copyDirectory('node_modules/@fortawesome/fontawesome-free/webfonts', 'webroot/fonts')
     .version()
     .sourceMaps();
-

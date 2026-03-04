@@ -605,3 +605,151 @@ tr.row-expanded .toggle-icon.bi-chevron-down {
     max-height: 350px;
     overflow-y: auto;
 }
+
+/* Mobile auth card profile photo zoom modal */
+.mobile-card-photo-trigger {
+    border-radius: 999px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mobile-card-photo-trigger:hover,
+.mobile-card-photo-trigger:focus-visible {
+    transform: scale(1.02);
+}
+
+.mobile-card-photo-thumb {
+    width: 140px;
+    height: 140px;
+    object-fit: cover;
+    border-width: 3px;
+    border-color: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.2);
+}
+
+.mobile-card-photo-manage-btn {
+    color: var(--mobile-text-muted);
+    padding: 0.1rem 0.35rem;
+    font-size: 0.85rem;
+}
+
+.mobile-card-photo-manage-btn:hover,
+.mobile-card-photo-manage-btn:focus-visible {
+    color: var(--mobile-text-primary);
+}
+
+.mobile-photo-zoom-modal .modal-content.mobile-photo-zoom-content {
+    background: linear-gradient(165deg, #0f172a 0%, #111827 55%, #1f2937 100%);
+    color: #f8fafc;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 1rem;
+    box-shadow: 0 24px 50px rgba(2, 6, 23, 0.6);
+}
+
+.mobile-photo-zoom-header {
+    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.mobile-photo-zoom-modal .btn-close {
+    filter: invert(1) grayscale(1);
+    opacity: 0.85;
+}
+
+.mobile-photo-zoom-modal .btn-close:hover {
+    opacity: 1;
+}
+
+.mobile-photo-zoom-body {
+    padding: 1rem 1rem 1.25rem;
+}
+
+.mobile-photo-zoom-stage {
+    position: relative;
+    min-height: min(70vh, 680px);
+    max-height: 70vh;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 0.85rem;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 20% 20%, rgba(99, 102, 241, 0.18), transparent 45%),
+        radial-gradient(circle at 85% 80%, rgba(14, 165, 233, 0.16), transparent 35%),
+        rgba(15, 23, 42, 0.75);
+}
+
+.mobile-photo-zoom-image {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+}
+
+.mobile-photo-zoom-hint {
+    color: rgba(226, 232, 240, 0.85);
+    text-align: center;
+}
+
+/* Desktop member profile details photo placement */
+.member-profile-photo-cell {
+    min-width: 240px;
+}
+
+.member-profile-photo-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 220px;
+    padding-top: 0.25rem;
+}
+
+.member-profile-photo-frame {
+    position: relative;
+    display: inline-block;
+    line-height: 0;
+}
+
+.member-profile-photo-image {
+    max-width: 220px;
+    max-height: 220px;
+    border-radius: 0.5rem;
+}
+
+.member-profile-photo-actions {
+    position: absolute;
+    right: 6px;
+    bottom: 4px;
+    z-index: 2;
+}
+
+.member-profile-photo-actions form {
+    display: inline;
+    margin: 0;
+}
+
+.member-profile-photo-remove-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.1rem 0.38rem;
+    border-radius: 0.35rem;
+    font-size: 0.68rem;
+    line-height: 1.1;
+    text-transform: lowercase;
+    border: 1px solid rgba(220, 53, 69, 0.45);
+    color: #dc3545;
+    opacity: 0.72;
+    background-color: rgba(255, 255, 255, 0.66);
+    text-decoration: none;
+    transition: opacity 0.15s ease;
+}
+
+.member-profile-photo-remove-btn:hover,
+.member-profile-photo-remove-btn:focus {
+    opacity: 1;
+    color: #dc3545;
+    text-decoration: none;
+}
+
+.member-profile-photo-remove-btn:focus-visible {
+    box-shadow: 0 0 0 0.1rem rgba(220, 53, 69, 0.2);
+    outline: none;
+}

@@ -218,6 +218,36 @@ if ($currentUser && $currentUser->mobile_card_token) {
     .cardbox[data-section="request"] { --section-color: var(--section-request); }
     .cardbox[data-section="waivers"] { --section-color: var(--section-waivers); }
 
+    /* Auth card view uses a slightly denser scale so the full card layout fits better on phones */
+    .viewMobileCard[data-section="auth-card"] {
+        --base-font-size: 15px;
+        --heading-font-size: 1.08rem;
+        --small-font-size: 12px;
+        --label-font-size: 13px;
+    }
+
+    .viewMobileCard[data-section="auth-card"] .cardbox {
+        margin: 0.65rem !important;
+    }
+
+    .viewMobileCard[data-section="auth-card"] .cardbox .card-body {
+        padding: 10px 12px;
+    }
+
+    .viewMobileCard[data-section="auth-card"] .card-body dl dt {
+        font-size: 12px;
+        margin-bottom: 1px;
+    }
+
+    .viewMobileCard[data-section="auth-card"] .card-body dl dd {
+        margin-bottom: 0.35rem;
+    }
+
+    .viewMobileCard[data-section="auth-card"] .mobile-card-photo-thumb {
+        width: 120px;
+        height: 120px;
+    }
+
     /* ============================================
            Cards - Aged Scroll/Document Style
            Reduced padding, larger fonts for accessibility
