@@ -7,11 +7,19 @@ namespace App\Test\TestCase\Model\Table;
 use App\Model\Table\GatheringsTable;
 use App\Test\TestCase\BaseTestCase;
 
+/**
+ * Tests Gathering template activity sync behavior.
+ */
 class GatheringsTableTest extends BaseTestCase
 {
     /** @var \App\Model\Table\GatheringsTable */
     protected $Gatherings;
 
+    /**
+     * Initialize Gatherings table fixture state.
+     *
+     * @return void
+     */
     protected function setUp(): void
     {
         parent::setUp();
@@ -19,12 +27,22 @@ class GatheringsTableTest extends BaseTestCase
         $this->Gatherings = $this->getTableLocator()->get('Gatherings', $config);
     }
 
+    /**
+     * Clean up Gatherings table fixture state.
+     *
+     * @return void
+     */
     protected function tearDown(): void
     {
         unset($this->Gatherings);
         parent::tearDown();
     }
 
+    /**
+     * Sync template activities and not_removable flags on type change.
+     *
+     * @return void
+     */
     public function testTypeChangeSyncsTemplateActivitiesAndNotRemovableFlags(): void
     {
         $gatheringTypes = $this->getTableLocator()->get('GatheringTypes');

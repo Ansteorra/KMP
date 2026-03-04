@@ -654,6 +654,34 @@ func migrateComposeServiceNames(composePath string) (bool, error) {
 					env["HEALTH_URL"] = "http://kmp-app/health"
 					changed = true
 				}
+			} else if envList, ok := svc["environment"].([]any); ok {
+				envMap := map[string]any{}
+				for _, item := range envList {
+					entry, ok := item.(string)
+					if !ok {
+						continue
+					}
+					parts := strings.SplitN(entry, "=", 2)
+					if len(parts) != 2 || parts[0] == "" {
+						continue
+					}
+					envMap[parts[0]] = parts[1]
+				}
+				envChanged := false
+				currentProject, _ := envMap["COMPOSE_PROJECT_NAME"].(string)
+				if currentProject == "" && defaultProject != "" {
+					envMap["COMPOSE_PROJECT_NAME"] = defaultProject
+					envChanged = true
+				}
+				current, _ := envMap["HEALTH_URL"].(string)
+				if current != "http://kmp-app/health" {
+					envMap["HEALTH_URL"] = "http://kmp-app/health"
+					envChanged = true
+				}
+				if envChanged {
+					svc["environment"] = envMap
+					changed = true
+				}
 			}
 		}
 	}

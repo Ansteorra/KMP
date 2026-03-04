@@ -76,4 +76,41 @@ describe('FacePhotoValidatorController', () => {
     expect(controller.dispatch).toHaveBeenCalledWith('invalid', expect.any(Object));
     expect(controller.enableSubmit).not.toHaveBeenCalled();
   });
+
+  test('queues latest file while validation is in progress', async () => {
+    let resolveFirstImage;
+    const firstImagePromise = new Promise((resolve) => {
+      resolveFirstImage = resolve;
+    });
+    controller.loadImage = jest.fn((file) => (
+      file.name === 'first.jpg'
+        ? firstImagePromise
+        : Promise.resolve({ naturalWidth: 400, naturalHeight: 400 })
+    ));
+    controller.ensureModelsReady = jest.fn().mockResolvedValue();
+    controller.analyzeFace = jest.fn().mockResolvedValue({
+      faceCount: 1,
+      primaryFaceRatio: 0.2,
+      primaryFaceFrontalish: true,
+      blurVariance: 220
+    });
+
+    const firstFile = new File(['img1'], 'first.jpg', { type: 'image/jpeg' });
+    const secondFile = new File(['img2'], 'second.jpg', { type: 'image/jpeg' });
+    const input = { files: [firstFile] };
+
+    const firstRun = controller.validateFile({ target: input });
+    await Promise.resolve();
+
+    input.files = [secondFile];
+    await controller.validateFile({ target: input });
+    expect(controller.loadImage).toHaveBeenCalledTimes(1);
+
+    resolveFirstImage({ naturalWidth: 400, naturalHeight: 400 });
+    await firstRun;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(controller.loadImage).toHaveBeenCalledTimes(2);
+    expect(controller.loadImage.mock.calls[1][0]).toBe(secondFile);
+  });
 });

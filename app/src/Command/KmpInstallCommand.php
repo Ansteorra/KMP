@@ -102,12 +102,15 @@ class KmpInstallCommand extends Command
         $io->out('KMP Deployment Installer');
         $io->out('This command gathers deployment settings and writes app/config/.env for first-time setup.');
 
+        $profileOption = (string)($args->getOption('profile') ?? '');
         $profile = $this->normalizeChoice(
-            $args->getOption('profile') ?? '',
+            $profileOption,
             ['auto', 'vpc', 'azure', 'aws', 'fly', 'railway', 'shared'],
             'auto',
         );
-        $profile = $io->askChoice('Deployment profile', ['auto', 'vpc', 'azure', 'aws', 'fly', 'railway', 'shared'], $profile);
+        if ($profileOption === '' && (bool)$args->getOption('yes') === false) {
+            $profile = $io->askChoice('Deployment profile', ['auto', 'vpc', 'azure', 'aws', 'fly', 'railway', 'shared'], $profile);
+        }
 
         $dbDriver = $this->normalizeChoice(
             $args->getOption('database-driver') ?? '',

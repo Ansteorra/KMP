@@ -112,7 +112,7 @@ class BackupsController extends AppController
             $backup->status = 'failed';
             $backup->notes = substr(strip_tags($errorMsg), 0, 500);
             $this->Backups->save($backup);
-            $this->Flash->error(__('Backup failed: {0}', $errorMsg));
+            $this->Flash->error(__('Backup failed. Check logs for details.'));
         }
 
         return $this->redirect(['action' => 'index']);

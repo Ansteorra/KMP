@@ -1605,7 +1605,6 @@ class MembersController extends AppController
                 'Members.background_check_expires_on',
                 'Members.additional_info',
                 'Members.profile_photo_document_id',
-                'Members.mobile_card_token',
             ])
             ->contain([
                 'Branches' => function (SelectQuery $q) {
@@ -1656,7 +1655,6 @@ class MembersController extends AppController
                 'Members.background_check_expires_on',
                 'Members.additional_info',
                 'Members.profile_photo_document_id',
-                'Members.mobile_card_token',
             ])
             ->contain([
                 'Branches' => function (SelectQuery $q) {
@@ -1675,7 +1673,7 @@ class MembersController extends AppController
             $member->profile_photo_url = Router::url([
                 'controller' => 'Members',
                 'action' => 'mobileCardPhoto',
-                $member->mobile_card_token,
+                $id,
             ], true);
         } else {
             $member->profile_photo_url = null;

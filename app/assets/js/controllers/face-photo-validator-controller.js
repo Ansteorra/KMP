@@ -35,7 +35,8 @@ class FacePhotoValidatorController extends Controller {
             return;
         }
         if (this.validationInProgress) {
-            this.logDebug("Validation skipped because another validation is running");
+            this.pendingValidationInput = input;
+            this.logDebug("Validation queued because another validation is running");
             return;
         }
 
@@ -99,6 +100,13 @@ class FacePhotoValidatorController extends Controller {
             this.dispatch("invalid", { detail: { message } });
         } finally {
             this.validationInProgress = false;
+            const pendingInput = this.pendingValidationInput;
+            this.pendingValidationInput = null;
+            if (pendingInput) {
+                queueMicrotask(() => {
+                    void this.validateFile({ target: pendingInput });
+                });
+            }
         }
     }
 

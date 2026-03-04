@@ -2363,7 +2363,8 @@ class RecommendationsController extends AppController
     public function gatheringsAutoComplete(?string $awardId = null): void
     {
         $this->request->allowMethod(['get']);
-        $this->Authorization->skipAuthorization();
+        $emptyRecommendation = $this->Recommendations->newEmptyEntity();
+        $this->Authorization->authorize($emptyRecommendation, 'index');
         $this->viewBuilder()->setClassName('Ajax');
         $this->viewBuilder()->setTemplate('gatherings_auto_complete');
 
@@ -2390,12 +2391,13 @@ class RecommendationsController extends AppController
             }
 
             if ($recommendationId) {
-                $recommendation = $this->Recommendations->find()
+                $recommendationQuery = $this->Recommendations->find()
                     ->select(['Recommendations.id', 'Recommendations.gathering_id'])
-                    ->where(['Recommendations.id' => $recommendationId])
                     ->contain(['Gatherings' => function ($q) {
                         return $q->select(['Gatherings.id']);
-                    }])
+                    }]);
+                $recommendation = $this->Authorization->applyScope($recommendationQuery, 'index')
+                    ->where(['Recommendations.id' => $recommendationId])
                     ->first();
                 if ($recommendation) {
                     if (!empty($recommendation->gathering_id)) {
@@ -2453,7 +2455,8 @@ class RecommendationsController extends AppController
     public function gatheringsForBulkEditAutoComplete(): void
     {
         $this->request->allowMethod(['get']);
-        $this->Authorization->skipAuthorization();
+        $emptyRecommendation = $this->Recommendations->newEmptyEntity();
+        $this->Authorization->authorize($emptyRecommendation, 'index');
         $this->viewBuilder()->setClassName('Ajax');
         $this->viewBuilder()->setTemplate('gatherings_auto_complete');
 
@@ -2477,9 +2480,10 @@ class RecommendationsController extends AppController
 
         try {
             if (!empty($ids)) {
-                $recommendations = $this->Recommendations->find()
+                $recommendationsQuery = $this->Recommendations->find()
                     ->where(['Recommendations.id IN' => $ids])
-                    ->contain(['Awards', 'Members'])
+                    ->contain(['Awards', 'Members']);
+                $recommendations = $this->Authorization->applyScope($recommendationsQuery, 'index')
                     ->all();
 
                 if (!$recommendations->isEmpty()) {

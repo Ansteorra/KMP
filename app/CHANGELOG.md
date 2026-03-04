@@ -38,7 +38,7 @@ Award recommendation editing now has improved gathering selection across edit, q
 Waiver workflows now better reflect real-world permissions and timezone-aware event dates.
 
 - Waiver calendar event dates now use timezone-aware date conversion
-- Upload closure behavior now allows authorized waiver closers while blocking unauthorized uploads after closure
+- Uploads are blocked after closure except for authorized waiver closers
 
 📅 March 4, 2026 · `Improvement`
 

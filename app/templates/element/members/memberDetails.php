@@ -26,7 +26,7 @@ $detailsColspanAttr = $hasProfilePhoto ? ' colspan="2"' : '';
     <td class="member-profile-photo-cell text-center align-top" rowspan="<?= $photoRowspan ?>">
         <div class="member-profile-photo-wrapper">
             <div class="member-profile-photo-frame">
-                <img src="<?= h($profilePhotoUrl) ?>" alt="<?= __('Profile photo for {0}', $member->sca_name) ?>"
+                <img src="<?= h($profilePhotoUrl) ?>" alt="<?= h(__('Profile photo for {0}', $member->sca_name)) ?>"
                     class="img-thumbnail member-profile-photo-image" />
                 <?php if ($canEditProfilePhoto): ?>
                 <div class="member-profile-photo-actions">
