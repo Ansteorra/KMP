@@ -643,13 +643,10 @@ class AuthorizationsController extends AppController
 
         // Check if request came from mobile interface
         if (strpos($referer, '/mobile') !== false || strpos($referer, 'view-mobile-card') !== false) {
-            // Get the member's mobile card URL
-            $member = $this->Authorizations->Members->get($memberId, ['fields' => ['id', 'mobile_card_token']]);
             return $this->redirect([
                 'controller' => 'Members',
                 'action' => 'viewMobileCard',
                 'plugin' => null,
-                $member->mobile_card_token
             ]);
         }
 

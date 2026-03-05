@@ -2161,7 +2161,7 @@ class GatheringsController extends AppController
 
         // Get member's auth card URL for offline navigation
         $member = $this->Authentication->getIdentity();
-        $authCardUrl = $member ? '/members/view-mobile-card/' . $member->mobile_card_token : '/';
+        $authCardUrl = $member ? '/members/view-mobile-card' : '/';
 
         $this->set(compact('defaultYear', 'defaultMonth', 'authCardUrl'));
         $this->viewBuilder()->setLayout('mobile_app');

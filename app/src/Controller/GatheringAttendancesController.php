@@ -507,7 +507,7 @@ class GatheringAttendancesController extends AppController
         // For non-JSON requests, set view variables
         $this->set('upcomingAttendances', $upcomingAttendances);
         $this->set('pastAttendances', $pastAttendances);
-        $this->set('authCardUrl', '/members/view-mobile-card/' . $currentUser->mobile_card_token);
+        $this->set('authCardUrl', '/members/view-mobile-card');
         $this->viewBuilder()->setLayout('mobile_app');
     }
 }

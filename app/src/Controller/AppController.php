@@ -374,19 +374,16 @@ class AppController extends Controller
 
         // Redirect based on mode
         if ($mode === 'mobile') {
-            // Redirect to mobile card view with user's token
-            if ($currentUser && $currentUser->mobile_card_token) {
+            if ($currentUser) {
                 return $this->redirect([
                     'controller' => 'Members',
                     'action' => 'viewMobileCard',
                     'plugin' => null,
-                    $currentUser->mobile_card_token
                 ]);
-            } else {
-                // Fallback if no mobile card token exists
-                $this->Flash->error(__('Mobile card not available. Please contact an administrator.'));
-                return $this->redirect(['controller' => 'Members', 'action' => 'index', 'plugin' => null]);
             }
+            $this->Flash->error(__('Please sign in to use mobile view.'));
+
+            return $this->redirect(['controller' => 'Members', 'action' => 'login', 'plugin' => null]);
         } else {
             // Redirect to desktop profile view
             return $this->redirect([

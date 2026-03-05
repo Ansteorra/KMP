@@ -1147,8 +1147,12 @@ class RecommendationsController extends AppController
                     'status' => $newStatus
                 ];
 
-                if ($gathering_id) {
-                    $updateFields['gathering_id'] = $gathering_id;
+                if (Recommendation::supportsGatheringAssignmentForState((string)$newState)) {
+                    if ($gathering_id) {
+                        $updateFields['gathering_id'] = $gathering_id;
+                    }
+                } else {
+                    $updateFields['gathering_id'] = null;
                 }
 
                 if ($given) {

@@ -26,6 +26,8 @@ class MemberMobileCardProfile extends MobileControllerBase {
         "profilePhotoContainer",
         "profilePhoto",
         "zoomPhoto",
+        "photoManageButton",
+        "photoUploadModal",
     ];
     static values = {
         url: String,
@@ -44,6 +46,7 @@ class MemberMobileCardProfile extends MobileControllerBase {
      */
     onConnect() {
         this.element.addEventListener('pwa-ready', this.handlePwaReady);
+        this.updatePhotoActionsForConnection(this.online);
         
         // Check if PWA is already ready
         if (this.pwaReadyValue) {
@@ -56,6 +59,15 @@ class MemberMobileCardProfile extends MobileControllerBase {
      */
     onDisconnect() {
         this.element.removeEventListener('pwa-ready', this.handlePwaReady);
+    }
+
+    /**
+     * Handle global online/offline state changes from MobileControllerBase.
+     *
+     * @param {boolean} isOnline Current connection state.
+     */
+    onConnectionStateChanged(isOnline) {
+        this.updatePhotoActionsForConnection(isOnline);
     }
 
     /**
@@ -295,6 +307,36 @@ class MemberMobileCardProfile extends MobileControllerBase {
      */
     retryLoad() {
         this.loadCard();
+    }
+
+    /**
+     * Hide photo capture/upload affordances while offline.
+     *
+     * @param {boolean} isOnline Current connectivity state.
+     */
+    updatePhotoActionsForConnection(isOnline) {
+        if (this.hasPhotoManageButtonTarget) {
+            this.photoManageButtonTarget.hidden = !isOnline;
+        }
+        if (!isOnline) {
+            this.hidePhotoUploadModal();
+        }
+    }
+
+    hidePhotoUploadModal() {
+        if (!this.hasPhotoUploadModalTarget || !window.bootstrap?.Modal) {
+            return;
+        }
+
+        const modalElement = this.photoUploadModalTarget;
+        const existingModal = window.bootstrap.Modal.getInstance?.(modalElement);
+        if (existingModal) {
+            existingModal.hide();
+            return;
+        }
+
+        const modal = window.bootstrap.Modal.getOrCreateInstance?.(modalElement);
+        modal?.hide();
     }
 }
 

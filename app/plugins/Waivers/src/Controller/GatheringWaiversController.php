@@ -3303,16 +3303,11 @@ class GatheringWaiversController extends AppController
 
                 if ($result->success) {
                     // Get redirect URL to mobile card
-                    $currentUser = $this->Authentication->getIdentity();
-                    $Members = $this->fetchTable('Members');
-                    $member = $Members->get($currentUser->id, ['fields' => ['id', 'mobile_card_token']]);
-
                     // Build the redirect URL using Router
                     $redirectUrl = \Cake\Routing\Router::url([
                         'controller' => 'Members',
                         'action' => 'viewMobileCard',
                         'plugin' => null,
-                        $member->mobile_card_token
                     ], true); // true = full base URL
 
                     // Get result data for messaging
@@ -3355,7 +3350,6 @@ class GatheringWaiversController extends AppController
                         'controller' => 'Members',
                         'action' => 'viewMobileCard',
                         'plugin' => null,
-                        $member->mobile_card_token
                     ]);
                 } else {
                     $this->Flash->error(__('Failed to upload waiver: {0}', $result->getError()));
@@ -3604,15 +3598,10 @@ class GatheringWaiversController extends AppController
                 // Check if request came from mobile upload
                 if ($referer && strpos($referer, 'mobile-upload') !== false) {
                     // Redirect to mobile card
-                    $currentUser = $this->Authentication->getIdentity();
-                    $Members = $this->fetchTable('Members');
-                    $member = $Members->get($currentUser->id, ['fields' => ['id', 'mobile_card_token']]);
-
                     $redirectUrl = \Cake\Routing\Router::url([
                         'controller' => 'Members',
                         'action' => 'viewMobileCard',
                         'plugin' => null,
-                        $member->mobile_card_token
                     ], true);
                 } else {
                     // Default: redirect to gathering view

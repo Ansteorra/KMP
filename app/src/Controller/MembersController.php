@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Form\ResetPasswordForm;
+use App\Identifier\KMPBruteForcePasswordIdentifier;
 use App\KMP\GridColumns\MembersGridColumns;
 use App\KMP\GridColumns\VerifyQueueGridColumns;
 use App\KMP\StaticHelpers;
@@ -13,6 +14,7 @@ use App\Model\Entity\Member;
 use App\Services\CsvExportService;
 use App\Services\DocumentService;
 use App\Services\ImpersonationService;
+use Authentication\PasswordHasher\DefaultPasswordHasher;
 use Cake\Datasource\Exception\RecordNotFoundException;
 use Cake\Event\EventInterface;
 use Cake\Http\Exception\BadRequestException;
@@ -46,6 +48,21 @@ class MembersController extends AppController
     /** @var \App\Services\CsvExportService */
     protected CsvExportService $csvExportService;
 
+    /** Maximum failed quick PIN attempts before temporary lockout. */
+    private const QUICK_LOGIN_MAX_PIN_ATTEMPTS = 5;
+
+    /** Quick PIN lockout window in seconds. */
+    private const QUICK_LOGIN_LOCKOUT_SECONDS = 300;
+
+    /** Session key for deferred quick-login PIN setup. */
+    private const QUICK_LOGIN_SETUP_SESSION_KEY = 'QuickLoginSetup';
+
+    /** Request-scoped flag to instruct login UI to clear stale quick-login config. */
+    private bool $quickLoginDisabledForRequest = false;
+
+    /** Request-scoped email used to prefill password login after quick-login reset. */
+    private string $quickLoginDisabledEmailForRequest = '';
+
     /**
      * Configure authorization and authentication filters.
      *
@@ -62,10 +79,6 @@ class MembersController extends AppController
             'forgotPassword',
             'resetPassword',
             'register',
-            'viewMobileCard',
-            'viewMobileCardJson',
-            'mobileCardPhoto',
-            'mobileCardUploadProfilePhoto',
             'searchMembers',
             'publicProfile',
             'emailTaken',
@@ -778,6 +791,21 @@ class MembersController extends AppController
         $canManageMember = $user instanceof Member ? $user->canManageMember($member) : false;
         $canViewPii = $user ? $user->checkCan('viewPii', $member) : false;
         $canViewAdditionalInformation = $user ? $user->checkCan('viewAdditionalInformation', $member) : false;
+        $canManageQuickLoginDevices = $user ? $user->checkCan('partialEdit', $member) : false;
+        $quickLoginDevices = [];
+        if ($canManageQuickLoginDevices) {
+            /** @var \App\Model\Table\MemberQuickLoginDevicesTable $quickLoginDevicesTable */
+            $quickLoginDevicesTable = $this->fetchTable('MemberQuickLoginDevices');
+            $quickLoginDevices = $quickLoginDevicesTable->find()
+                ->where(['member_id' => (int)$member->id])
+                ->orderBy([
+                    'last_used' => 'DESC',
+                    'modified' => 'DESC',
+                    'id' => 'DESC',
+                ])
+                ->all()
+                ->toList();
+        }
         $statusList = [
             Member::STATUS_ACTIVE => Member::STATUS_ACTIVE,
             Member::STATUS_DEACTIVATED => Member::STATUS_DEACTIVATED,
@@ -852,6 +880,8 @@ class MembersController extends AppController
                 'canViewAdditionalInformation',
                 'children',
                 'canManageMember',
+                'quickLoginDevices',
+                'canManageQuickLoginDevices',
             ),
         );
         $this->viewBuilder()->setTemplate('view');
@@ -895,6 +925,10 @@ class MembersController extends AppController
 
     public function viewMobileCard($id = null)
     {
+        $currentUser = $this->Authentication->getIdentity();
+        if (!$currentUser) {
+            throw new NotFoundException();
+        }
         $inactiveStatuses = [
             Member::STATUS_DEACTIVATED,
             Member::STATUS_UNVERIFIED_MINOR,
@@ -902,18 +936,13 @@ class MembersController extends AppController
         ];
         $member = $this->Members
             ->find()
-            ->where(['Members.mobile_card_token' => $id, 'Members.status NOT IN' => $inactiveStatuses])
+            ->where([
+                'Members.id' => $currentUser->id,
+                'Members.status NOT IN' => $inactiveStatuses,
+            ])
             ->first();
         if (!$member) {
             throw new NotFoundException();
-        }
-
-        // Authenticate user with mobile card token and persist session
-        // This allows the user to access other features that require authentication
-        $result = $this->Authentication->getResult();
-        if ($result->isValid()) {
-            // User authenticated via token - persist the session
-            $this->Authentication->setIdentity($member);
         }
 
         $this->Authorization->skipAuthorization();
@@ -945,7 +974,7 @@ class MembersController extends AppController
         }
 
         // Build card URL for member-mobile-card-profile controller
-        $cardUrl = Router::url(['controller' => 'Members', 'action' => 'viewMobileCardJson', $member->mobile_card_token], true);
+        $cardUrl = Router::url(['controller' => 'Members', 'action' => 'viewMobileCardJson'], true);
 
         // Set layout variables for mobile_app layout
         $this->set('mobileTitle', 'Auth Card');
@@ -1008,7 +1037,6 @@ class MembersController extends AppController
 
                 return;
             }
-            $member->mobile_card_token = StaticHelpers::generateToken(16);
             $member->password = StaticHelpers::generateToken(16);
             if ($member->age < 18) {
                 $member->status = Member::STATUS_UNVERIFIED_MINOR;
@@ -1143,16 +1171,11 @@ class MembersController extends AppController
             throw new NotFoundException();
         }
         $this->Authorization->authorize($member);
-        if ($member->mobile_card_token == null || $member->mobile_card_token == '') {
-            $member->mobile_card_token = StaticHelpers::generateToken(16);
-            $this->Members->save($member);
-        }
         $url = Router::url([
             'controller' => 'Members',
             'action' => 'ViewMobileCard',
             'plugin' => null,
             '_full' => true,
-            $member->mobile_card_token,
         ]);
         $vars = [
             'url' => $url,
@@ -1260,12 +1283,15 @@ class MembersController extends AppController
     /**
      * Upload a profile photo from the mobile card flow.
      *
-     * @param string|null $id Mobile card token
      * @return \Cake\Http\Response Redirect response
      */
     public function mobileCardUploadProfilePhoto(?string $id = null): Response
     {
         $this->request->allowMethod(['post', 'put']);
+        $currentUser = $this->Authentication->getIdentity();
+        if (!$currentUser) {
+            throw new NotFoundException();
+        }
         $inactiveStatuses = [
             Member::STATUS_DEACTIVATED,
             Member::STATUS_UNVERIFIED_MINOR,
@@ -1273,7 +1299,10 @@ class MembersController extends AppController
         ];
         $member = $this->Members->find()
             ->contain(['ProfilePhoto'])
-            ->where(['Members.mobile_card_token' => $id, 'Members.status NOT IN' => $inactiveStatuses])
+            ->where([
+                'Members.id' => $currentUser->id,
+                'Members.status NOT IN' => $inactiveStatuses,
+            ])
             ->first();
         if (!$member) {
             throw new NotFoundException();
@@ -1283,13 +1312,13 @@ class MembersController extends AppController
         $file = $this->request->getData('profile_photo');
         if (!$file instanceof UploadedFileInterface || $file->getSize() <= 0) {
             $this->Flash->error(__('Please choose a profile photo to upload.'));
-            return $this->redirect(['action' => 'viewMobileCard', $id]);
+            return $this->redirect(['action' => 'viewMobileCard']);
         }
 
         $result = $this->processProfilePhotoUpload($member, $file, (int)$member->id);
         if (!$result['success']) {
             $this->Flash->error($result['message']);
-            return $this->redirect(['action' => 'viewMobileCard', $id]);
+            return $this->redirect(['action' => 'viewMobileCard']);
         }
         if (!empty($result['warning'])) {
             $this->Flash->warning($result['message']);
@@ -1297,7 +1326,7 @@ class MembersController extends AppController
             $this->Flash->success($result['message']);
         }
 
-        return $this->redirect(['action' => 'viewMobileCard', $id]);
+        return $this->redirect(['action' => 'viewMobileCard']);
     }
 
     /**
@@ -1333,13 +1362,16 @@ class MembersController extends AppController
     }
 
     /**
-     * Stream a member profile photo by mobile card token.
+     * Stream the authenticated member's mobile profile photo.
      *
-     * @param string|null $id Mobile card token
      * @return \Cake\Http\Response Inline file response
      */
     public function mobileCardPhoto(?string $id = null): Response
     {
+        $currentUser = $this->Authentication->getIdentity();
+        if (!$currentUser) {
+            throw new NotFoundException();
+        }
         $inactiveStatuses = [
             Member::STATUS_DEACTIVATED,
             Member::STATUS_UNVERIFIED_MINOR,
@@ -1347,7 +1379,10 @@ class MembersController extends AppController
         ];
         $member = $this->Members->find()
             ->contain(['ProfilePhoto'])
-            ->where(['Members.mobile_card_token' => $id, 'Members.status NOT IN' => $inactiveStatuses])
+            ->where([
+                'Members.id' => $currentUser->id,
+                'Members.status NOT IN' => $inactiveStatuses,
+            ])
             ->first();
         if (!$member) {
             throw new NotFoundException();
@@ -1637,6 +1672,10 @@ class MembersController extends AppController
 
     public function viewMobileCardJson($id = null)
     {
+        $currentUser = $this->Authentication->getIdentity();
+        if (!$currentUser) {
+            throw new NotFoundException();
+        }
         $inactiveStatuses = [
             Member::STATUS_DEACTIVATED,
             Member::STATUS_UNVERIFIED_MINOR,
@@ -1661,7 +1700,10 @@ class MembersController extends AppController
                     return $q->select(['Branches.name']);
                 },
             ])
-            ->where(['Members.mobile_card_token' => $id, 'Members.status NOT IN' => $inactiveStatuses])
+            ->where([
+                'Members.id' => $currentUser->id,
+                'Members.status NOT IN' => $inactiveStatuses,
+            ])
             ->first();
         if (!$member) {
             throw new NotFoundException();
@@ -1673,7 +1715,6 @@ class MembersController extends AppController
             $member->profile_photo_url = Router::url([
                 'controller' => 'Members',
                 'action' => 'mobileCardPhoto',
-                $id,
             ], true);
         } else {
             $member->profile_photo_url = null;
@@ -1891,70 +1932,69 @@ class MembersController extends AppController
     public function login()
     {
         $this->Authorization->skipAuthorization();
+        $this->quickLoginDisabledForRequest = false;
+        $this->quickLoginDisabledEmailForRequest = '';
         if ($this->request->is('post')) {
-            $authentication = $this->request->getAttribute('authentication');
-            $result = $authentication->getResult();
-            // regardless of POST or GET, redirect if user is logged in
-            if ($result->isValid()) {
-                $user = $this->Members->get(
-                    $authentication->getIdentity()->getIdentifier(),
-                );
-                $this->Flash->success('Welcome ' . $user->sca_name . '!');
-                $page = $this->request->getQuery('redirect');
-                if (
-                    $page == '/' ||
-                    $page == '/Members/login' ||
-                    $page == '/Members/logout' ||
-                    $page == null
-                ) {
-                    // Detect mobile phone and redirect to auth card if applicable
-                    $userAgent = $this->request->getHeaderLine('User-Agent');
-                    if (StaticHelpers::isMobilePhone($userAgent) && $user->mobile_card_token) {
-                        // Set view mode to mobile in session
-                        $this->request->getSession()->write('viewMode', 'mobile');
-                        return $this->redirect(['action' => 'viewMobileCard', $user->mobile_card_token]);
-                    }
-                    return $this->redirect(['action' => 'profile']);
-                } else {
-                    return $this->redirect($page);
-                }
-            }
-            $errors = $result->getErrors();
-            if (
-                isset($errors['KMPBruteForcePassword']) &&
-                count($errors['KMPBruteForcePassword']) > 0
-            ) {
-                $message = $errors['KMPBruteForcePassword'][0];
-                switch ($message) {
-                    case 'Account Locked':
-                        $this->Flash->error(
-                            'Your account has been locked. Please try again later.',
-                        );
-                        break;
-                    case 'Account Not Verified':
-                        $contactAddress = StaticHelpers::getAppSetting(
-                            'Members.AccountVerificationContactEmail',
-                        );
-                        $this->Flash->error(
-                            'Your account is being verified. This process may take several days after you have verified your email address. Please contact ' . $contactAddress . ' if you have not been verified within a week.',
-                        );
-                        break;
-                    case 'Account Disabled':
-                        $contactAddress = StaticHelpers::getAppSetting(
-                            'Members.AccountDisabledContactEmail',
-                        );
-                        $this->Flash->error(
-                            'Your account deactivated. Please contact ' . $contactAddress . ' if you feel this is in error.',
-                        );
-                        break;
-                    default:
-                        $this->Flash->error(
-                            'Your email or password is incorrect.',
-                        );
-                        break;
+            $loginMethod = (string)$this->request->getData('login_method', 'password');
+            if ($loginMethod === 'quick_pin') {
+                $quickLoginResponse = $this->attemptQuickPinLogin();
+                if ($quickLoginResponse instanceof Response) {
+                    return $quickLoginResponse;
                 }
             } else {
-                $this->Flash->error('Your email or password is incorrect.');
+                $authentication = $this->request->getAttribute('authentication');
+                $result = $authentication->getResult();
+                // regardless of POST or GET, redirect if user is logged in
+                if ($result->isValid()) {
+                    $user = $this->Members->get(
+                        $authentication->getIdentity()->getIdentifier(),
+                    );
+                    $redirectTarget = $this->resolvePostLoginRedirectTarget();
+                    $quickSetupResponse = $this->maybeQueueQuickLoginPinSetup($user, $redirectTarget);
+                    $this->Flash->success('Welcome ' . $user->sca_name . '!');
+                    if ($quickSetupResponse instanceof Response) {
+                        return $quickSetupResponse;
+                    }
+
+                    return $this->redirect($redirectTarget);
+                }
+                $errors = $result->getErrors();
+                if (
+                    isset($errors['KMPBruteForcePassword']) &&
+                    count($errors['KMPBruteForcePassword']) > 0
+                ) {
+                    $message = $errors['KMPBruteForcePassword'][0];
+                    switch ($message) {
+                        case 'Account Locked':
+                            $this->Flash->error(
+                                'Your account has been locked. Please try again later.',
+                            );
+                            break;
+                        case 'Account Not Verified':
+                            $contactAddress = StaticHelpers::getAppSetting(
+                                'Members.AccountVerificationContactEmail',
+                            );
+                            $this->Flash->error(
+                                'Your account is being verified. This process may take several days after you have verified your email address. Please contact ' . $contactAddress . ' if you have not been verified within a week.',
+                            );
+                            break;
+                        case 'Account Disabled':
+                            $contactAddress = StaticHelpers::getAppSetting(
+                                'Members.AccountDisabledContactEmail',
+                            );
+                            $this->Flash->error(
+                                'Your account deactivated. Please contact ' . $contactAddress . ' if you feel this is in error.',
+                            );
+                            break;
+                        default:
+                            $this->Flash->error(
+                                'Your email or password is incorrect.',
+                            );
+                            break;
+                    }
+                } else {
+                    $this->Flash->error('Your email or password is incorrect.');
+                }
             }
         }
         $headerImage = StaticHelpers::getAppSetting(
@@ -1963,7 +2003,480 @@ class MembersController extends AppController
         $allowRegistration = StaticHelpers::getAppSetting(
             'KMP.EnablePublicRegistration',
         );
-        $this->set(compact('headerImage', 'allowRegistration'));
+        $quickLoginDisabled = $this->quickLoginDisabledForRequest;
+        $quickLoginDisabledEmail = $this->quickLoginDisabledEmailForRequest;
+        $this->set(compact('headerImage', 'allowRegistration', 'quickLoginDisabled', 'quickLoginDisabledEmail'));
+    }
+
+    private function redirectAfterSuccessfulLogin(): Response
+    {
+        return $this->redirect($this->resolvePostLoginRedirectTarget());
+    }
+
+    /**
+     * Resolve where the member should land after a successful sign-in.
+     *
+     * @return array|string
+     */
+    private function resolvePostLoginRedirectTarget(): array|string
+    {
+        $page = $this->request->getQuery('redirect');
+        if (
+            $page == '/' ||
+            $page == '/Members/login' ||
+            $page == '/Members/logout' ||
+            $page == null
+        ) {
+            // Detect mobile phone and redirect to auth card if applicable
+            $userAgent = $this->request->getHeaderLine('User-Agent');
+            if (StaticHelpers::isMobilePhone($userAgent)) {
+                // Set view mode to mobile in session
+                $this->request->getSession()->write('viewMode', 'mobile');
+                return ['action' => 'viewMobileCard'];
+            }
+
+            return ['action' => 'profile'];
+        }
+
+        return $page;
+    }
+
+    private function maybeQueueQuickLoginPinSetup(Member $member, array|string $redirectTarget): ?Response
+    {
+        $enableQuickLogin = filter_var(
+            $this->request->getData('quick_login_enable', false),
+            FILTER_VALIDATE_BOOLEAN,
+        );
+        if (!$enableQuickLogin) {
+            $this->clearPendingQuickLoginSetup();
+
+            return null;
+        }
+
+        $deviceId = trim((string)$this->request->getData('quick_login_device_id', ''));
+        if ($deviceId === '' || !preg_match('/^[a-zA-Z0-9_-]{16,128}$/', $deviceId)) {
+            $this->Flash->warning(__('Quick login could not be enabled because this device identifier is invalid.'));
+            $this->clearPendingQuickLoginSetup();
+
+            return null;
+        }
+
+        $redirectPath = is_array($redirectTarget)
+            ? Router::url($redirectTarget)
+            : (string)$redirectTarget;
+        $this->request->getSession()->write(self::QUICK_LOGIN_SETUP_SESSION_KEY, [
+            'member_id' => (int)$member->id,
+            'device_id' => $deviceId,
+            'email_address' => (string)$member->email_address,
+            'redirect_target' => $redirectPath,
+        ]);
+        $this->Flash->info(__('One more step: set your quick login PIN for this device.'));
+
+        return $this->redirect(['action' => 'setupQuickLoginPin']);
+    }
+
+    /**
+     * Collect and save a quick-login PIN after a successful password login.
+     *
+     * @return \Cake\Http\Response|null|void
+     */
+    public function setupQuickLoginPin()
+    {
+        $this->Authorization->skipAuthorization();
+        $identity = $this->request->getAttribute('identity');
+        if (!$identity instanceof Member) {
+            $this->clearPendingQuickLoginSetup();
+            $this->Flash->warning(__('Please sign in before setting up quick login.'));
+
+            return $this->redirect(['action' => 'login']);
+        }
+
+        $pendingSetup = $this->request->getSession()->read(self::QUICK_LOGIN_SETUP_SESSION_KEY);
+        $pendingMemberId = is_array($pendingSetup) ? (int)($pendingSetup['member_id'] ?? 0) : 0;
+        if (!is_array($pendingSetup) || $pendingMemberId !== (int)$identity->id) {
+            $this->clearPendingQuickLoginSetup();
+            $this->Flash->warning(__('Quick login setup is not pending for this session.'));
+
+            return $this->redirect(['action' => 'profile']);
+        }
+
+        $redirectTarget = (string)($pendingSetup['redirect_target'] ?? Router::url(['action' => 'profile']));
+        if ($this->request->getQuery('skip') !== null) {
+            $this->clearPendingQuickLoginSetup();
+            $this->Flash->info(__('Quick login setup skipped.'));
+
+            return $this->redirect($redirectTarget);
+        }
+
+        if ($this->request->is('post')) {
+            $pin = trim((string)$this->request->getData('quick_login_pin', ''));
+            $pinConfirm = trim((string)$this->request->getData('quick_login_pin_confirm', ''));
+            if (!preg_match('/^\d{4,10}$/', $pin)) {
+                $this->Flash->error(__('Quick login PIN must be 4 to 10 digits.'));
+            } elseif ($pin !== $pinConfirm) {
+                $this->Flash->error(__('Quick login PIN confirmation does not match.'));
+            } elseif (
+                $this->saveQuickLoginDevicePin(
+                    $identity,
+                    (string)$pendingSetup['device_id'],
+                    $pin,
+                    $this->collectQuickLoginDeviceMetadata(),
+                )
+            ) {
+                $this->clearPendingQuickLoginSetup();
+                $this->Flash->success(__('Quick login on this device is now enabled.'));
+
+                return $this->redirect($redirectTarget);
+            } else {
+                $this->Flash->error(__('Quick login could not be enabled on this device.'));
+            }
+        }
+
+        $headerImage = StaticHelpers::getAppSetting(
+            'KMP.Login.Graphic',
+        );
+        $quickLoginEmail = (string)$pendingSetup['email_address'];
+        $quickLoginDeviceId = (string)$pendingSetup['device_id'];
+        $this->set(compact('headerImage', 'quickLoginEmail', 'quickLoginDeviceId'));
+    }
+
+    /**
+     * Remove an enrolled quick-login device.
+     *
+     * @param string|null $id Quick login device record ID
+     * @return \Cake\Http\Response
+     */
+    public function removeQuickLoginDevice(?string $id = null): Response
+    {
+        $this->request->allowMethod(['post', 'delete']);
+        if ($id === null || !ctype_digit($id)) {
+            throw new NotFoundException(__('Quick login device not found.'));
+        }
+
+        /** @var \App\Model\Table\MemberQuickLoginDevicesTable $quickLoginDevices */
+        $quickLoginDevices = $this->fetchTable('MemberQuickLoginDevices');
+        $device = $quickLoginDevices->find()
+            ->where(['id' => (int)$id])
+            ->first();
+        if ($device === null) {
+            throw new NotFoundException(__('Quick login device not found.'));
+        }
+
+        $member = $this->Members->find()
+            ->select(['id'])
+            ->where(['Members.id' => (int)$device->member_id])
+            ->first();
+        if ($member === null) {
+            throw new NotFoundException(__('Member not found.'));
+        }
+        $this->Authorization->authorize($member, 'partialEdit');
+
+        if ($quickLoginDevices->delete($device)) {
+            $this->Flash->success(__('Quick login has been disabled for that device.'));
+        } else {
+            $this->Flash->error(__('Quick login device could not be removed. Please try again.'));
+        }
+
+        $identity = $this->Authentication->getIdentity();
+        if ($identity instanceof Member && (int)$identity->id === (int)$member->id) {
+            return $this->redirect(['action' => 'profile']);
+        }
+
+        return $this->redirect(['action' => 'view', $member->id]);
+    }
+
+    private function saveQuickLoginDevicePin(
+        Member $member,
+        string $deviceId,
+        string $pin,
+        array $metadata = [],
+    ): bool
+    {
+        if (
+            $deviceId === '' ||
+            !preg_match('/^[a-zA-Z0-9_-]{16,128}$/', $deviceId) ||
+            !preg_match('/^\d{4,10}$/', $pin)
+        ) {
+            return false;
+        }
+
+        /** @var \App\Model\Table\MemberQuickLoginDevicesTable $quickLoginDevices */
+        $quickLoginDevices = $this->fetchTable('MemberQuickLoginDevices');
+        $device = $quickLoginDevices->find()
+            ->where([
+                'device_id' => $deviceId,
+            ])
+            ->first();
+
+        if ($device === null) {
+            $device = $quickLoginDevices->newEmptyEntity();
+        }
+
+        $device->member_id = (int)$member->id;
+        $device->device_id = $deviceId;
+        $device->pin_hash = (new DefaultPasswordHasher())->hash($pin);
+        $device->failed_attempts = 0;
+        $device->last_failed_login = null;
+        $device->last_used = DateTime::now();
+        $device->configured_ip_address = $metadata['configured_ip_address'] ?? null;
+        $device->configured_location_hint = $metadata['configured_location_hint'] ?? null;
+        $device->configured_os = $metadata['configured_os'] ?? null;
+        $device->configured_browser = $metadata['configured_browser'] ?? null;
+        $device->configured_user_agent = $metadata['configured_user_agent'] ?? null;
+        $device->last_used_ip_address = $metadata['last_used_ip_address'] ?? null;
+        $device->last_used_location_hint = $metadata['last_used_location_hint'] ?? null;
+
+        return (bool)$quickLoginDevices->save($device);
+    }
+
+    private function clearPendingQuickLoginSetup(): void
+    {
+        $this->request->getSession()->delete(self::QUICK_LOGIN_SETUP_SESSION_KEY);
+    }
+
+    private function attemptQuickPinLogin(): ?Response
+    {
+        $emailAddress = trim((string)$this->request->getData('email_address', ''));
+        $pin = trim((string)$this->request->getData('quick_login_pin', ''));
+        $deviceId = trim((string)$this->request->getData('quick_login_device_id', ''));
+
+        if ($emailAddress === '' || $pin === '' || $deviceId === '') {
+            $this->Flash->error(__('Quick login failed. Please sign in with your email and password.'));
+
+            return null;
+        }
+        if (
+            !preg_match('/^\d{4,10}$/', $pin) ||
+            !preg_match('/^[a-zA-Z0-9_-]{16,128}$/', $deviceId)
+        ) {
+            $this->Flash->error(__('Quick login failed. Please sign in with your email and password.'));
+
+            return null;
+        }
+
+        $member = $this->Members->find()
+            ->where(['Members.email_address' => $emailAddress])
+            ->first();
+        if ($member === null) {
+            $this->flagQuickLoginOutOfSync($emailAddress);
+
+            return null;
+        }
+
+        if (!$this->isQuickLoginAccountEligible($member)) {
+            $this->Flash->error(__('Quick login failed. Please sign in with your email and password.'));
+
+            return null;
+        }
+
+        /** @var \App\Model\Table\MemberQuickLoginDevicesTable $quickLoginDevices */
+        $quickLoginDevices = $this->fetchTable('MemberQuickLoginDevices');
+        $device = $quickLoginDevices->find()
+            ->where([
+                'member_id' => $member->id,
+                'device_id' => $deviceId,
+            ])
+            ->first();
+        if ($device === null) {
+            $this->flagQuickLoginOutOfSync($emailAddress);
+
+            return null;
+        }
+
+        $pinLockoutWindow = DateTime::now()->subSeconds(self::QUICK_LOGIN_LOCKOUT_SECONDS);
+        if (
+            (int)$device->failed_attempts >= self::QUICK_LOGIN_MAX_PIN_ATTEMPTS &&
+            $device->last_failed_login !== null &&
+            $device->last_failed_login > $pinLockoutWindow
+        ) {
+            $this->Flash->error(__('Too many failed PIN attempts. Please wait a few minutes or sign in with your password.'));
+
+            return null;
+        }
+
+        $pinMatches = (new DefaultPasswordHasher())->check($pin, (string)$device->pin_hash);
+        if (!$pinMatches) {
+            $device->failed_attempts = ((int)$device->failed_attempts) + 1;
+            $device->last_failed_login = DateTime::now();
+            $quickLoginDevices->save($device);
+            $this->Flash->error(__('Quick login failed. Please sign in with your email and password.'));
+
+            return null;
+        }
+
+        $device->failed_attempts = 0;
+        $device->last_failed_login = null;
+        $device->last_used = DateTime::now();
+        $usageMetadata = $this->collectQuickLoginUsageMetadata();
+        $device->last_used_ip_address = $usageMetadata['last_used_ip_address'] ?? null;
+        $device->last_used_location_hint = $usageMetadata['last_used_location_hint'] ?? null;
+        $quickLoginDevices->save($device);
+
+        $this->markQuickPinLoginSuccess($member);
+        $this->Authentication->setIdentity($member);
+        $this->Flash->success('Welcome ' . $member->sca_name . '!');
+
+        return $this->redirectAfterSuccessfulLogin();
+    }
+
+    private function flagQuickLoginOutOfSync(string $emailAddress): void
+    {
+        $this->quickLoginDisabledForRequest = true;
+        $this->quickLoginDisabledEmailForRequest = $this->truncateString(trim($emailAddress), 255) ?? '';
+        $this->Flash->error(__('Quick login was disabled on this device. Please sign in with your email and password.'));
+    }
+
+    /**
+     * Build metadata for quick-login device enrollment.
+     *
+     * @return array<string, string|null>
+     */
+    private function collectQuickLoginDeviceMetadata(): array
+    {
+        $userAgent = $this->truncateString($this->request->getHeaderLine('User-Agent'), 512);
+        $usageMetadata = $this->collectQuickLoginUsageMetadata();
+
+        return [
+            'configured_ip_address' => $usageMetadata['last_used_ip_address'] ?? null,
+            'configured_location_hint' => $usageMetadata['last_used_location_hint'] ?? null,
+            'configured_os' => $this->detectOperatingSystem($userAgent ?? ''),
+            'configured_browser' => $this->detectBrowser($userAgent ?? ''),
+            'configured_user_agent' => $userAgent,
+            'last_used_ip_address' => $usageMetadata['last_used_ip_address'] ?? null,
+            'last_used_location_hint' => $usageMetadata['last_used_location_hint'] ?? null,
+        ];
+    }
+
+    /**
+     * Build metadata for quick-login usage events.
+     *
+     * @return array<string, string|null>
+     */
+    private function collectQuickLoginUsageMetadata(): array
+    {
+        return [
+            'last_used_ip_address' => $this->truncateString($this->request->clientIp(), 45),
+            'last_used_location_hint' => $this->extractLocationHint(),
+        ];
+    }
+
+    private function detectOperatingSystem(string $userAgent): ?string
+    {
+        if ($userAgent === '') {
+            return null;
+        }
+
+        $signatures = [
+            'iPhone' => 'iOS (iPhone)',
+            'iPad' => 'iPadOS',
+            'Android' => 'Android',
+            'Windows NT 10.0' => 'Windows 10/11',
+            'Windows NT 6.3' => 'Windows 8.1',
+            'Windows NT 6.1' => 'Windows 7',
+            'Mac OS X' => 'macOS',
+            'CrOS' => 'ChromeOS',
+            'Linux' => 'Linux',
+        ];
+        foreach ($signatures as $needle => $label) {
+            if (stripos($userAgent, $needle) !== false) {
+                return $label;
+            }
+        }
+
+        return 'Unknown';
+    }
+
+    private function detectBrowser(string $userAgent): ?string
+    {
+        if ($userAgent === '') {
+            return null;
+        }
+
+        $signatures = [
+            'Edg/' => 'Microsoft Edge',
+            'SamsungBrowser/' => 'Samsung Internet',
+            'CriOS/' => 'Google Chrome (iOS)',
+            'Chrome/' => 'Google Chrome',
+            'FxiOS/' => 'Mozilla Firefox (iOS)',
+            'Firefox/' => 'Mozilla Firefox',
+            'Safari/' => 'Safari',
+        ];
+        foreach ($signatures as $needle => $label) {
+            if (stripos($userAgent, $needle) !== false) {
+                return $label;
+            }
+        }
+
+        return 'Unknown';
+    }
+
+    private function extractLocationHint(): ?string
+    {
+        $city = $this->truncateString($this->request->getHeaderLine('CloudFront-Viewer-City'), 60);
+        $region = $this->truncateString($this->request->getHeaderLine('CloudFront-Viewer-Country-Region'), 20);
+
+        $country = null;
+        foreach (['CloudFront-Viewer-Country', 'CF-IPCountry', 'X-AppEngine-Country'] as $headerName) {
+            $headerValue = $this->truncateString($this->request->getHeaderLine($headerName), 20);
+            if ($headerValue !== null) {
+                $country = strtoupper($headerValue);
+                break;
+            }
+        }
+
+        $parts = array_values(array_filter([$city, $region, $country], static fn(?string $part): bool => $part !== null));
+        if (empty($parts)) {
+            return null;
+        }
+
+        return $this->truncateString(implode(', ', $parts), 120);
+    }
+
+    private function truncateString(?string $value, int $maxLength): ?string
+    {
+        $normalized = trim((string)$value);
+        if ($normalized === '') {
+            return null;
+        }
+        if (strlen($normalized) <= $maxLength) {
+            return $normalized;
+        }
+
+        return substr($normalized, 0, $maxLength);
+    }
+
+    private function isQuickLoginAccountEligible(Member $member): bool
+    {
+        $lockoutCutoff = DateTime::now()->subSeconds((int)KMPBruteForcePasswordIdentifier::TIMEOUT);
+        if (
+            (int)$member->failed_login_attempts >= (int)KMPBruteForcePasswordIdentifier::MAX_ATTEMPTS &&
+            $member->last_failed_login !== null &&
+            $member->last_failed_login > $lockoutCutoff
+        ) {
+            return false;
+        }
+
+        return !in_array(
+            $member->status,
+            [
+                Member::STATUS_DEACTIVATED,
+                Member::STATUS_UNVERIFIED_MINOR,
+                Member::STATUS_MINOR_MEMBERSHIP_VERIFIED,
+            ],
+            true,
+        );
+    }
+
+    private function markQuickPinLoginSuccess(Member $member): void
+    {
+        $member->failed_login_attempts = 0;
+        $member->last_failed_login = null;
+        $member->password_token = null;
+        $member->password_token_expires_on = null;
+        $member->last_login = DateTime::now();
+        $member->setDirty('modified', true);
+        $member->setDirty('modified_by', true);
+        $this->Members->save($member);
     }
 
     public function logout()
@@ -2109,7 +2622,6 @@ class MembersController extends AppController
             } else {
                 $member->status = Member::STATUS_UNVERIFIED_MINOR;
             }
-            $member->mobile_card_token = StaticHelpers::generateToken(16);
             if ($this->Members->save($member)) {
                 if ($member->age > 17) {
                     $url = Router::url([

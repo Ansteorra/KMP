@@ -86,6 +86,33 @@ class MembersControllerTest extends HttpIntegrationTestCase
     }
 
     /**
+     * Mobile auth card must require an authenticated member session.
+     *
+     * @return void
+     */
+    public function testViewMobileCardRequiresAuthenticatedSession(): void
+    {
+        $this->logout();
+
+        $this->get('/members/view-mobile-card/legacy-token-value');
+
+        $this->assertRedirectContains('/members/login');
+    }
+
+    /**
+     * Legacy tokenized auth-card URLs should resolve to the authenticated member card.
+     *
+     * @return void
+     */
+    public function testViewMobileCardIgnoresLegacyTokenParameter(): void
+    {
+        $this->get('/members/view-mobile-card/legacy-token-value');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Activity Authorization');
+    }
+
+    /**
      * Ensure impersonation button appears for super users on member profile.
      *
      * @return void

@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Awards\Model\Table;
 
 use App\KMP\StaticHelpers;
+use Awards\Model\Entity\Recommendation;
+use Cake\Datasource\EntityInterface;
+use Cake\Event\EventInterface;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
@@ -221,6 +224,26 @@ class RecommendationsTable extends BaseTable
         $rules->add($rules->existsIn(['award_id'], 'Awards'), ['errorField' => 'award_id']);
 
         return $rules;
+    }
+
+    /**
+     * Enforce recommendation workflow constraints before persisting changes.
+     *
+     * @param \Cake\Event\EventInterface $event The beforeSave event.
+     * @param \Cake\Datasource\EntityInterface $entity The entity being persisted.
+     * @param \ArrayObject $options Save operation options.
+     * @return void
+     */
+    public function beforeSave(EventInterface $event, EntityInterface $entity, \ArrayObject $options): void
+    {
+        if (!$entity instanceof Recommendation) {
+            return;
+        }
+
+        $state = (string)($entity->state ?? '');
+        if ($state !== '' && !Recommendation::supportsGatheringAssignmentForState($state)) {
+            $entity->gathering_id = null;
+        }
     }
 
     /**

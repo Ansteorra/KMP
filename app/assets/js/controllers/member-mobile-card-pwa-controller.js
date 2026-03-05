@@ -96,8 +96,8 @@ class MemberMobileCardPWA extends MobileControllerBase {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 2500);
             try {
-                await fetch('/api/csrf', {
-                    method: 'GET',
+                await fetch('/health', {
+                    method: 'HEAD',
                     cache: 'no-store',
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',

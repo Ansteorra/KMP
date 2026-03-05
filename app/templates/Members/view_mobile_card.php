@@ -21,6 +21,8 @@ $uploadLimits = $this->KMP->getUploadLimits();
         <div class="d-flex align-items-center justify-content-between mb-3">
             <span class="fs-5 text-muted"><?= h($message_variables["kingdom"]) ?> Activity Authorization</span>
             <button type="button" class="btn btn-link btn-sm text-decoration-none mobile-card-photo-manage-btn"
+                hidden
+                data-member-mobile-card-profile-target="photoManageButton"
                 data-bs-toggle="modal" data-bs-target="#mobileCardPhotoUploadModal">
                 <i class="bi bi-camera me-1"></i><?= __('Photo') ?>
             </button>
@@ -60,7 +62,7 @@ $uploadLimits = $this->KMP->getUploadLimits();
 <div id="pluginCards" class="mt-3" data-member-mobile-card-profile-target="cardSet"></div>
 
 <?= $this->Form->create(null, [
-    'url' => ['controller' => 'Members', 'action' => 'mobileCardUploadProfilePhoto', $member->mobile_card_token],
+    'url' => ['controller' => 'Members', 'action' => 'mobileCardUploadProfilePhoto'],
     'type' => 'file',
     'data-controller' => 'face-photo-validator',
     'data-face-photo-validator-model-base-url-value' => $this->Url->build('/models/face-api'),
@@ -69,6 +71,7 @@ $uploadLimits = $this->KMP->getUploadLimits();
     'data-face-photo-validator-min-primary-face-ratio-value' => 0.08,
 ]) ?>
 <div class="modal fade" id="mobileCardPhotoUploadModal" tabindex="-1" aria-labelledby="mobileCardPhotoUploadModalLabel"
+    data-member-mobile-card-profile-target="photoUploadModal"
     aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">

@@ -8,6 +8,21 @@ Stay up to date with the latest features, improvements, and announcements for th
 
 ## March 2026
 
+### Mobile Login Improvements: Remember ID, Quick Login PIN, and Device Management
+
+Mobile sign-in now supports a faster and clearer device-aware flow, while preserving account security and giving members control over where quick login is enabled.
+
+- Added **Remember my ID** on login screens to save and prefill the member email/ID on future sign-ins
+- Added optional **Quick login on this device** setup after standard email/password login, with a 4-10 digit PIN
+- Quick login is now device-bound and can be used for faster sign-in when configured
+- Added stronger mobile privacy handling so PIN-protected quick login can gate re-entry on device/fresh-open scenarios
+- Added a **Quick login devices** tab on member profile pages so members can review enrolled quick-login devices and disable them as needed
+- Device-management details include useful metadata (such as OS/browser and network/location hints) to help identify registered devices
+
+📅 March 5, 2026 · `New Feature`
+
+---
+
 ### Profile Photo Uploads for Member Profiles and Mobile Cards
 
 Members can now upload and manage a profile photo that appears on their profile and mobile authorization card.
