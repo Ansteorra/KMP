@@ -797,6 +797,20 @@ class MembersController extends AppController
             /** @var \App\Model\Table\MemberQuickLoginDevicesTable $quickLoginDevicesTable */
             $quickLoginDevicesTable = $this->fetchTable('MemberQuickLoginDevices');
             $quickLoginDevices = $quickLoginDevicesTable->find()
+                ->select([
+                    'id',
+                    'member_id',
+                    'device_id',
+                    'configured_os',
+                    'configured_browser',
+                    'configured_location_hint',
+                    'configured_ip_address',
+                    'last_used',
+                    'last_used_location_hint',
+                    'last_used_ip_address',
+                    'created',
+                    'modified',
+                ])
                 ->where(['member_id' => (int)$member->id])
                 ->orderBy([
                     'last_used' => 'DESC',
@@ -2079,6 +2093,13 @@ class MembersController extends AppController
         return true;
     }
 
+    /**
+     * Queue quick-login PIN setup after successful password login when requested.
+     *
+     * @param \App\Model\Entity\Member $member Authenticated member.
+     * @param array|string $redirectTarget Destination after login or setup skip.
+     * @return \Cake\Http\Response|null Redirect to PIN setup or null when setup is not required.
+     */
     private function maybeQueueQuickLoginPinSetup(Member $member, array|string $redirectTarget): ?Response
     {
         $enableQuickLogin = filter_var(
@@ -2223,6 +2244,15 @@ class MembersController extends AppController
         return $this->redirect(['action' => 'view', $member->id]);
     }
 
+    /**
+     * Persist or update a quick-login device PIN and metadata for a member.
+     *
+     * @param \App\Model\Entity\Member $member Member enabling quick login.
+     * @param string $deviceId Stable browser/device identifier.
+     * @param string $pin Raw numeric PIN to hash and store.
+     * @param array<string, string|null> $metadata Enrollment metadata.
+     * @return bool True when the device record was saved.
+     */
     private function saveQuickLoginDevicePin(
         Member $member,
         string $deviceId,
@@ -2267,11 +2297,21 @@ class MembersController extends AppController
         return (bool)$quickLoginDevices->save($device);
     }
 
+    /**
+     * Clear any pending quick-login setup state from the current session.
+     *
+     * @return void
+     */
     private function clearPendingQuickLoginSetup(): void
     {
         $this->request->getSession()->delete(self::QUICK_LOGIN_SETUP_SESSION_KEY);
     }
 
+    /**
+     * Attempt authentication using quick-login PIN credentials from the login form.
+     *
+     * @return \Cake\Http\Response|null Redirect response on successful login, otherwise null.
+     */
     private function attemptQuickPinLogin(): ?Response
     {
         $emailAddress = trim((string)$this->request->getData('email_address', ''));
@@ -2357,6 +2397,12 @@ class MembersController extends AppController
         return $this->redirectAfterSuccessfulLogin();
     }
 
+    /**
+     * Mark quick login as out of sync and prompt password re-authentication.
+     *
+     * @param string $emailAddress Email used for the failed quick-login attempt.
+     * @return void
+     */
     private function flagQuickLoginOutOfSync(string $emailAddress): void
     {
         $this->quickLoginDisabledForRequest = true;
@@ -2398,6 +2444,12 @@ class MembersController extends AppController
         ];
     }
 
+    /**
+     * Derive a friendly operating-system label from a user-agent string.
+     *
+     * @param string $userAgent HTTP user-agent header value.
+     * @return string|null Detected OS label or null when unavailable.
+     */
     private function detectOperatingSystem(string $userAgent): ?string
     {
         if ($userAgent === '') {
@@ -2424,6 +2476,12 @@ class MembersController extends AppController
         return 'Unknown';
     }
 
+    /**
+     * Derive a friendly browser label from a user-agent string.
+     *
+     * @param string $userAgent HTTP user-agent header value.
+     * @return string|null Detected browser label or null when unavailable.
+     */
     private function detectBrowser(string $userAgent): ?string
     {
         if ($userAgent === '') {
@@ -2448,6 +2506,11 @@ class MembersController extends AppController
         return 'Unknown';
     }
 
+    /**
+     * Build a best-effort location hint from available proxy headers.
+     *
+     * @return string|null Location summary for quick-login device metadata.
+     */
     private function extractLocationHint(): ?string
     {
         $city = $this->truncateString($this->request->getHeaderLine('CloudFront-Viewer-City'), 60);
@@ -2470,6 +2533,13 @@ class MembersController extends AppController
         return $this->truncateString(implode(', ', $parts), 120);
     }
 
+    /**
+     * Trim and truncate an optional string to the configured maximum length.
+     *
+     * @param string|null $value Raw string value.
+     * @param int $maxLength Maximum allowed length.
+     * @return string|null Normalized string or null when empty.
+     */
     private function truncateString(?string $value, int $maxLength): ?string
     {
         $normalized = trim((string)$value);
@@ -2483,6 +2553,12 @@ class MembersController extends AppController
         return substr($normalized, 0, $maxLength);
     }
 
+    /**
+     * Check whether a member is eligible for quick-login PIN authentication.
+     *
+     * @param \App\Model\Entity\Member $member Candidate member account.
+     * @return bool True when account status and lockout state permit quick login.
+     */
     private function isQuickLoginAccountEligible(Member $member): bool
     {
         $lockoutCutoff = DateTime::now()->subSeconds((int)KMPBruteForcePasswordIdentifier::TIMEOUT);
@@ -2505,6 +2581,12 @@ class MembersController extends AppController
         );
     }
 
+    /**
+     * Reset lockout counters and timestamps after successful quick PIN login.
+     *
+     * @param \App\Model\Entity\Member $member Authenticated member entity.
+     * @return void
+     */
     private function markQuickPinLoginSuccess(Member $member): void
     {
         $member->failed_login_attempts = 0;

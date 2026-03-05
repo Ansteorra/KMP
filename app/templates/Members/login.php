@@ -56,8 +56,15 @@ $this->KMP->endBlock(); ?>
                     <p class="text-muted small mb-2" data-login-device-auth-target="quickLoginLabel">
                         <?= __("Enter your PIN to use quick login on this device.") ?>
                     </p>
+                    <?php
+                    $quickLoginUrl = ["action" => "login"];
+                    $redirectTarget = trim((string)$this->request->getQuery("redirect", ""));
+                    if ($redirectTarget !== "") {
+                        $quickLoginUrl["?"] = ["redirect" => $redirectTarget];
+                    }
+                    ?>
                     <?= $this->Form->create(null, [
-                        "url" => ["action" => "login"],
+                        "url" => $quickLoginUrl,
                         "class" => "mb-2",
                         "data-login-device-auth-target" => "quickForm",
                     ]) ?>

@@ -90,6 +90,11 @@ class PagesController extends AppController
         }
     }
 
+    /**
+     * Render the PWA web manifest response.
+     *
+     * @return void
+     */
     public function webmanifest(): void
     {
         $this->Authorization->skipAuthorization();
