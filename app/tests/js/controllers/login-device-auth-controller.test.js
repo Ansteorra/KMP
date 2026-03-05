@@ -30,6 +30,7 @@ describe('LoginDeviceAuthController', () => {
     controller.pinSetupEmailTarget = { value: 'iris@ampdemo.com' };
     controller.hasPinSetupDeviceIdTarget = true;
     controller.pinSetupDeviceIdTarget = { value: 'device_id-1234567890' };
+    controller.hasPinSetupFormTarget = true;
     controller.pinSetupFormTarget = { submit: jest.fn() };
     controller.deviceId = 'device_id-1234567890';
 
@@ -60,6 +61,34 @@ describe('LoginDeviceAuthController', () => {
     expect(rememberSpy).toHaveBeenCalledWith('iris@ampdemo.com');
     expect(clearStateSpy).not.toHaveBeenCalled();
     expect(controller.pinSetupFormTarget.submit).toHaveBeenCalled();
+  });
+
+  test('handlePinSetupSubmit stops when quick config cannot be saved', async () => {
+    const controller = new LoginDeviceAuthController();
+    controller.isSubmittingPinSetup = false;
+    controller.hasPinSetupPinTarget = true;
+    controller.pinSetupPinTarget = { value: '1234' };
+    controller.hasPinSetupConfirmTarget = true;
+    controller.pinSetupConfirmTarget = { value: '1234' };
+    controller.hasPinSetupEmailTarget = true;
+    controller.pinSetupEmailTarget = { value: 'iris@ampdemo.com' };
+    controller.hasPinSetupDeviceIdTarget = true;
+    controller.pinSetupDeviceIdTarget = { value: 'device_id-1234567890' };
+    controller.hasPinSetupFormTarget = true;
+    controller.pinSetupFormTarget = { submit: jest.fn() };
+    controller.deviceId = 'device_id-1234567890';
+
+    const saveQuickConfigSpy = jest
+      .spyOn(QuickLoginService, 'saveQuickConfig')
+      .mockResolvedValue(null);
+    const preventDefault = jest.fn();
+
+    await controller.handlePinSetupSubmit({ preventDefault });
+
+    expect(preventDefault).toHaveBeenCalled();
+    expect(saveQuickConfigSpy).toHaveBeenCalled();
+    expect(controller.pinSetupFormTarget.submit).not.toHaveBeenCalled();
+    expect(controller.isSubmittingPinSetup).toBe(false);
   });
 
   test('handleServerQuickLoginDisabled clears stale quick config and keeps email for password login', () => {

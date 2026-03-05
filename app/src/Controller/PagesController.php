@@ -90,7 +90,7 @@ class PagesController extends AppController
         }
     }
 
-    public function webmanifest($id = null): void
+    public function webmanifest(): void
     {
         $this->Authorization->skipAuthorization();
         $this->viewBuilder()->setLayout('ajax');

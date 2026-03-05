@@ -235,10 +235,11 @@ class Application extends BaseApplication implements
 
         $configVersion = StaticHelpers::getAppSetting('KMP.configVersion', '0.0.0', null, true);
         if ($configVersion != $currentConfigVersion) {
-            // Update configuration version first
-            StaticHelpers::setAppSetting('KMP.configVersion', $currentConfigVersion, null, true);
-            if (!Cache::clear('_cake_model_')) {
+            $modelCacheCleared = Cache::clear('_cake_model_');
+            if (!$modelCacheCleared) {
                 Log::warning('Failed clearing _cake_model_ cache during config version update.');
+            } else {
+                StaticHelpers::setAppSetting('KMP.configVersion', $currentConfigVersion, null, true);
             }
 
             // Core KMP Settings - Basic application configuration

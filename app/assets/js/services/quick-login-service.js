@@ -4,7 +4,11 @@ const STORAGE_KEYS = {
     quickConfig: "kmp.quickLogin.config"
 };
 
-const encoder = new TextEncoder();
+const hasSecureCryptoSupport = () => (
+    typeof TextEncoder !== "undefined" &&
+    !!window.crypto?.subtle &&
+    !!window.crypto?.getRandomValues
+);
 
 const toHex = (buffer) => {
     return Array.from(new Uint8Array(buffer))
@@ -13,30 +17,24 @@ const toHex = (buffer) => {
 };
 
 const hashPinWithSalt = async (pin, salt) => {
+    if (!hasSecureCryptoSupport()) {
+        return null;
+    }
+
+    const encoder = new TextEncoder();
     const payload = `${salt}:${pin}`;
-    if (window.crypto?.subtle) {
-        const digest = await window.crypto.subtle.digest("SHA-256", encoder.encode(payload));
-        return toHex(digest);
-    }
-
-    // Non-crypto fallback for older browsers (privacy gate only).
-    let hash = 0;
-    for (let i = 0; i < payload.length; i += 1) {
-        hash = ((hash << 5) - hash) + payload.charCodeAt(i);
-        hash |= 0;
-    }
-
-    return `fallback-${Math.abs(hash)}`;
+    const digest = await window.crypto.subtle.digest("SHA-256", encoder.encode(payload));
+    return toHex(digest);
 };
 
 const randomSalt = () => {
-    if (window.crypto?.getRandomValues) {
-        const bytes = new Uint8Array(16);
-        window.crypto.getRandomValues(bytes);
-        return Array.from(bytes).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+    if (!hasSecureCryptoSupport()) {
+        return null;
     }
 
-    return `${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}`;
+    const bytes = new Uint8Array(16);
+    window.crypto.getRandomValues(bytes);
+    return Array.from(bytes).map((byte) => byte.toString(16).padStart(2, "0")).join("");
 };
 
 const parseQuickConfig = (raw) => {
@@ -112,6 +110,10 @@ const QuickLoginService = {
     },
 
     async saveQuickConfig({ email, deviceId, pin }) {
+        if (!hasSecureCryptoSupport()) {
+            return null;
+        }
+
         const normalizedEmail = String(email || "").trim();
         const normalizedDeviceId = String(deviceId || "").trim();
         const normalizedPin = String(pin || "").trim();
@@ -124,7 +126,13 @@ const QuickLoginService = {
         }
 
         const pinSalt = randomSalt();
+        if (!pinSalt) {
+            return null;
+        }
         const pinHash = await hashPinWithSalt(normalizedPin, pinSalt);
+        if (!pinHash) {
+            return null;
+        }
         const config = {
             email: normalizedEmail,
             deviceId: normalizedDeviceId,
@@ -144,7 +152,7 @@ const QuickLoginService = {
         }
 
         const candidate = await hashPinWithSalt(String(pin || "").trim(), config.pinSalt);
-        return candidate === config.pinHash;
+        return candidate !== null && candidate === config.pinHash;
     }
 };
 

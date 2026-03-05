@@ -370,11 +370,10 @@ class AppController extends Controller
         // Get current user identity
         $currentUser = $this->request->getAttribute('identity');
 
-        $this->Flash->success(__('Switched to {0} view.', $mode));
-
         // Redirect based on mode
         if ($mode === 'mobile') {
             if ($currentUser) {
+                $this->Flash->success(__('Switched to {0} view.', $mode));
                 return $this->redirect([
                     'controller' => 'Members',
                     'action' => 'viewMobileCard',
@@ -385,6 +384,7 @@ class AppController extends Controller
 
             return $this->redirect(['controller' => 'Members', 'action' => 'login', 'plugin' => null]);
         } else {
+            $this->Flash->success(__('Switched to {0} view.', $mode));
             // Redirect to desktop profile view
             return $this->redirect([
                 'controller' => 'Members',

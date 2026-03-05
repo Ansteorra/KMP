@@ -137,18 +137,18 @@ $this->KMP->endBlock(); ?>
                     <?= $this->Form->end() ?>
                 </div>
 
-                <?= $this->html->link(
+                <?= $this->Html->link(
                     __("Forgot Password?"),
                     ["action" => "forgotPassword"],
                     ["class" => "btn btn-sm btn-link"],
                 ) ?>
-                <? if ($allowRegistration == strtolower("yes")) : ?>
-                    <?= $this->html->link(
+                <?php if ($allowRegistration == strtolower("yes")) : ?>
+                    <?= $this->Html->link(
                         __("New User? Register Here"),
                         ["action" => "register"],
                         ["class" => "btn btn-sm btn-link"],
                     ) ?>
-                <? endif; ?>
+                <?php endif; ?>
 
                 <a href="<?= $this->Url->build(['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'SubmitRecommendation']) ?>"
                     class="mt-3 btn fs-6 bi bi-megaphone-fill mb-2 <?= $this->KMP->getAppSetting("Awards.RecButtonClass") ?>">

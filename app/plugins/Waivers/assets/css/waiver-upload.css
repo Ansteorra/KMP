@@ -171,10 +171,10 @@
 }
 
 .text-success .bi-camera-fill {
-    animation: fadeIn 0.5s ease-in;
+    animation: fade-in 0.5s ease-in;
 }
 
-@keyframes fadeIn {
+@keyframes fade-in {
     from {
         opacity: 0;
     }

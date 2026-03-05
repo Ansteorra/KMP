@@ -269,10 +269,13 @@ class LoginDeviceAuthController extends Controller {
         if (
             this.isSubmittingPinSetup ||
             !this.hasPinSetupPinTarget ||
-            !this.hasPinSetupConfirmTarget
+            !this.hasPinSetupConfirmTarget ||
+            !this.hasPinSetupFormTarget
         ) {
             return;
         }
+
+        event.preventDefault();
 
         const pin = this.pinSetupPinTarget.value.trim();
         const confirmPin = this.pinSetupConfirmTarget.value.trim();
@@ -280,25 +283,30 @@ class LoginDeviceAuthController extends Controller {
             return;
         }
 
-        event.preventDefault();
-
         const email = this.hasPinSetupEmailTarget ? this.pinSetupEmailTarget.value.trim() : "";
         const deviceId = this.hasPinSetupDeviceIdTarget
             ? this.pinSetupDeviceIdTarget.value.trim()
             : this.deviceId;
 
+        this.isSubmittingPinSetup = true;
         try {
             const savedConfig = await QuickLoginService.saveQuickConfig({
                 email,
                 deviceId,
                 pin
             });
-            if (savedConfig !== null && email !== "") {
+            if (savedConfig === null) {
+                this.isSubmittingPinSetup = false;
+                return;
+            }
+
+            if (email !== "") {
                 QuickLoginService.setRememberedId(email);
             }
-        } finally {
-            this.isSubmittingPinSetup = true;
             this.pinSetupFormTarget.submit();
+        } catch (error) {
+            this.isSubmittingPinSetup = false;
+            console.error("Failed to save quick login configuration.", error);
         }
     }
 }

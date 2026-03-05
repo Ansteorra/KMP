@@ -1366,7 +1366,7 @@ class MembersController extends AppController
      *
      * @return \Cake\Http\Response Inline file response
      */
-    public function mobileCardPhoto(?string $id = null): Response
+    public function mobileCardPhoto(): Response
     {
         $currentUser = $this->Authentication->getIdentity();
         if (!$currentUser) {
@@ -2020,25 +2020,63 @@ class MembersController extends AppController
      */
     private function resolvePostLoginRedirectTarget(): array|string
     {
-        $page = $this->request->getQuery('redirect');
+        $page = trim((string)$this->request->getQuery('redirect', ''));
         if (
-            $page == '/' ||
-            $page == '/Members/login' ||
-            $page == '/Members/logout' ||
-            $page == null
+            $page === '' ||
+            $page === '/' ||
+            strcasecmp($page, '/Members/login') === 0 ||
+            strcasecmp($page, '/Members/logout') === 0
         ) {
-            // Detect mobile phone and redirect to auth card if applicable
-            $userAgent = $this->request->getHeaderLine('User-Agent');
-            if (StaticHelpers::isMobilePhone($userAgent)) {
-                // Set view mode to mobile in session
-                $this->request->getSession()->write('viewMode', 'mobile');
-                return ['action' => 'viewMobileCard'];
-            }
-
-            return ['action' => 'profile'];
+            return $this->defaultPostLoginRedirectTarget();
         }
 
-        return $page;
+        if ($this->isSafeInternalRedirectPath($page)) {
+            return $page;
+        }
+
+        return $this->defaultPostLoginRedirectTarget();
+    }
+
+    /**
+     * Determine the default post-login destination based on device type.
+     *
+     * @return array<string, string>
+     */
+    private function defaultPostLoginRedirectTarget(): array
+    {
+        $userAgent = $this->request->getHeaderLine('User-Agent');
+        if (StaticHelpers::isMobilePhone($userAgent)) {
+            $this->request->getSession()->write('viewMode', 'mobile');
+            return ['action' => 'viewMobileCard'];
+        }
+
+        return ['action' => 'profile'];
+    }
+
+    /**
+     * Validate whether a redirect path is an internal URL safe for post-login navigation.
+     *
+     * @param string $page Redirect path from query string.
+     * @return bool
+     */
+    private function isSafeInternalRedirectPath(string $page): bool
+    {
+        if (!str_starts_with($page, '/') || str_starts_with($page, '//')) {
+            return false;
+        }
+
+        $parts = parse_url($page);
+        if ($parts === false) {
+            return false;
+        }
+
+        foreach (['scheme', 'host', 'user', 'pass', 'port'] as $part) {
+            if (isset($parts[$part])) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function maybeQueueQuickLoginPinSetup(Member $member, array|string $redirectTarget): ?Response
