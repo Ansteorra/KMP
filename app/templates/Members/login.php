@@ -149,7 +149,7 @@ $this->KMP->endBlock(); ?>
                     ["action" => "forgotPassword"],
                     ["class" => "btn btn-sm btn-link"],
                 ) ?>
-                <?php if ($allowRegistration == strtolower("yes")) : ?>
+                <?php if (strtolower((string)$allowRegistration) === "yes") : ?>
                     <?= $this->Html->link(
                         __("New User? Register Here"),
                         ["action" => "register"],
