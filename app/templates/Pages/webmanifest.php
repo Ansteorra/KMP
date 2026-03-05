@@ -12,5 +12,5 @@
 "background_color": "<?= $this->KMP->getAppSetting("Member.MobileCard.BgColor") ?>",
 "display": "standalone",
 "lang": "en-US",
-"start_url":"<?= $this->Url->build(["controller" => "Members", "action" => "ViewMobileCard", $mobile_token]) ?>"
+"start_url":"<?= $this->Url->build(["controller" => "Members", "action" => "viewMobileCard"]) ?>"
 }

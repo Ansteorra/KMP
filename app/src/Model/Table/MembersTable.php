@@ -31,6 +31,7 @@ use Cake\Validation\Validator;
  * @property \App\Model\Table\RolesTable&\Cake\ORM\Association\BelongsToMany $Roles
  * @property \App\Model\Table\PendingAuthorizationsTable&\Cake\ORM\Association\HasMany $PendingAuthorizations
  * @property \App\Model\Table\GatheringAttendancesTable&\Cake\ORM\Association\HasMany $GatheringAttendances
+ * @property \App\Model\Table\MemberQuickLoginDevicesTable&\Cake\ORM\Association\HasMany $MemberQuickLoginDevices
  * @property \App\Model\Table\DocumentsTable&\Cake\ORM\Association\BelongsTo $ProfilePhoto
  *
  * @method \App\Model\Entity\Member newEmptyEntity()
@@ -101,6 +102,9 @@ class MembersTable extends BaseTable
         ]);
 
         $this->hasMany('GatheringAttendances', [
+            'foreignKey' => 'member_id',
+        ]);
+        $this->hasMany('MemberQuickLoginDevices', [
             'foreignKey' => 'member_id',
         ]);
 

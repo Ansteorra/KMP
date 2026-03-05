@@ -14,8 +14,8 @@ body {
 
 .form-signin {
     width: 100%;
-    max-width: 330px;
-    padding: 15px;
+    max-width: 440px;
+    padding: 15px 15px 24px;
     margin: auto;
     display: flex;
     flex-direction: column;
@@ -45,6 +45,16 @@ body {
     margin-bottom: 10px;
     border-top-left-radius: 0;
     border-top-right-radius: 0;
+}
+
+.login-mode-tabs .nav-link {
+    font-weight: 600;
+}
+
+.login-mode-tabs .nav-link:disabled {
+    color: #6c757d;
+    cursor: not-allowed;
+    opacity: 0.7;
 }
 
 /* Mobile-friendly adjustments */
@@ -127,12 +137,17 @@ body {
 
 /* Login card responsive sizing */
 .login-card {
-    width: 15rem;
+    width: 100%;
+    max-width: 26rem;
+}
+
+.login-card .card-body {
+    padding-bottom: 2rem;
 }
 
 @media (max-width: 576px) {
     .login-card {
         width: 100%;
-        max-width: 20rem;
+        max-width: 100%;
     }
 }

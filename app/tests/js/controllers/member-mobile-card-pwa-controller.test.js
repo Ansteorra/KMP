@@ -23,6 +23,10 @@ describe('MemberMobileCardPWA probeConnectivity', () => {
 
     await controller.probeConnectivity();
 
+    expect(global.fetch).toHaveBeenCalledWith('/health', expect.objectContaining({
+      method: 'HEAD',
+      cache: 'no-store',
+    }));
     expect(controller.updateStatusDisplay).toHaveBeenCalledWith(true);
     expect(controller.dispatchStatusEvent).not.toHaveBeenCalled();
   });

@@ -78,6 +78,7 @@ use Authorization\Exception\MissingIdentityException;
 use Authorization\Middleware\AuthorizationMiddleware;
 use Authorization\Policy\OrmResolver;
 use Authorization\Policy\ResolverCollection;
+use Cake\Cache\Cache;
 use Cake\Core\Configure;
 use Cake\Core\ContainerInterface;
 use Cake\Datasource\FactoryLocator;
@@ -230,12 +231,16 @@ class Application extends BaseApplication implements
         // Version-based application configuration management
         // This system allows automatic updates to application settings when KMP is upgraded
         // Each time the version changes, new default settings are applied
-        $currentConfigVersion = '25.11.05.a'; // Update this with each configuration change
+        $currentConfigVersion = '25.11.06.a'; // Update this with each configuration change
 
         $configVersion = StaticHelpers::getAppSetting('KMP.configVersion', '0.0.0', null, true);
         if ($configVersion != $currentConfigVersion) {
-            // Update configuration version first
-            StaticHelpers::setAppSetting('KMP.configVersion', $currentConfigVersion, null, true);
+            $modelCacheCleared = Cache::clear('_cake_model_');
+            if (!$modelCacheCleared) {
+                Log::warning('Failed clearing _cake_model_ cache during config version update.');
+            } else {
+                StaticHelpers::setAppSetting('KMP.configVersion', $currentConfigVersion, null, true);
+            }
 
             // Core KMP Settings - Basic application configuration
             StaticHelpers::getAppSetting('KMP.BranchInitRun', '', null, true);                           // Tracks branch initialization
@@ -715,16 +720,6 @@ class Application extends BaseApplication implements
         // Load authenticators in order of precedence
         // Session authenticator should always be first for performance
         $service->loadAuthenticator('Authentication.Session');          // Check existing sessions first
-
-        // Mobile Card Token authenticator for PWA mobile card access
-        // Allows passwordless authentication via secure token in URL
-        $service->loadAuthenticator('MobileCardToken', [
-            'tokenParam' => 'token',                         // URL parameter name
-            'fields' => [
-                'mobile_card_token' => 'token'               // Database field mapping
-            ],
-            'userModel' => 'Members',                        // Members table
-        ]);
 
         // Form authenticator handles login form submissions
         $service->loadAuthenticator('Authentication.Form', [

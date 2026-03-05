@@ -26,6 +26,8 @@ if (!empty($aiFormConfig)) {
 }
 $canViewAdditionalInformation = $canViewAdditionalInformation ?? ($user->checkCan('viewAdditionalInformation', $member));
 $canManageMember = $canManageMember ?? ($user && method_exists($user, 'canManageMember') ? $user->canManageMember($member) : false);
+$canManageQuickLoginDevices = $canManageQuickLoginDevices ?? false;
+$quickLoginDevices = $quickLoginDevices ?? [];
 $children = $children ?? [];
 switch ($member->status) {
     case Member::STATUS_ACTIVE:
@@ -133,6 +135,13 @@ $this->KMP->endBlock() ?>
     role="tab" aria-controls="nav-add-info" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="30"
     style="order: 30;">
     <?= __('Additional Info') ?>
+</button>
+<?php endif; ?>
+<?php if (!empty($quickLoginDevices)) : ?>
+<button class="nav-link" id="nav-quick-login-devices-tab" data-bs-toggle="tab" data-bs-target="#nav-quick-login-devices"
+    type="button" role="tab" aria-controls="nav-quick-login-devices" aria-selected="false"
+    data-detail-tabs-target='tabBtn' data-tab-order="35" style="order: 35;">
+    <?= __('Quick login devices') ?>
 </button>
 <?php endif; ?>
 <?php $this->KMP->endBlock() ?>
@@ -329,6 +338,86 @@ $this->KMP->endBlock() ?>
         <?php } ?>
     </table>
     <?php } ?>
+</div>
+<?php endif; ?>
+<?php if (!empty($quickLoginDevices)) : ?>
+<div class="related tab-pane fade m-3" id="nav-quick-login-devices" role="tabpanel"
+    aria-labelledby="nav-quick-login-devices-tab" data-detail-tabs-target="tabContent" data-tab-order="35"
+    style="order: 35;">
+    <p class="text-muted">
+        <?= __("These devices can sign in with Quick login PIN. Disable any device you don't recognize.") ?>
+    </p>
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th><?= __('Device') ?></th>
+                    <th><?= __('Configured') ?></th>
+                    <th><?= __('Last used') ?></th>
+                    <th><?= __('Network') ?></th>
+                    <th class="text-end"><?= __('Actions') ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($quickLoginDevices as $quickLoginDevice) : ?>
+                <?php
+                        $deviceId = (string)$quickLoginDevice->device_id;
+                        $shortDeviceId = strlen($deviceId) > 18
+                            ? substr($deviceId, 0, 8) . '...' . substr($deviceId, -6)
+                            : $deviceId;
+                        $deviceSignature = trim((string)implode(' / ', array_filter([
+                            $quickLoginDevice->configured_os,
+                            $quickLoginDevice->configured_browser,
+                        ])));
+                        $configuredAt = $quickLoginDevice->created?->i18nFormat('yyyy-MM-dd HH:mm');
+                        $lastUsedAt = $quickLoginDevice->last_used?->i18nFormat('yyyy-MM-dd HH:mm');
+                        $configuredNetwork = trim((string)($quickLoginDevice->configured_location_hint ?? ''));
+                        if ($configuredNetwork === '') {
+                            $configuredNetwork = trim((string)($quickLoginDevice->configured_ip_address ?? ''));
+                        }
+                        $lastUsedNetwork = trim((string)($quickLoginDevice->last_used_location_hint ?? ''));
+                        if ($lastUsedNetwork === '') {
+                            $lastUsedNetwork = trim((string)($quickLoginDevice->last_used_ip_address ?? ''));
+                        }
+                    ?>
+                <tr>
+                    <td>
+                        <div class="fw-semibold">
+                            <?= h($deviceSignature !== '' ? $deviceSignature : __('Unknown device')) ?>
+                        </div>
+                        <div class="text-muted small" title="<?= h($deviceId) ?>">
+                            <?= h($shortDeviceId) ?>
+                        </div>
+                    </td>
+                    <td><?= h($configuredAt ?? __('Unknown')) ?></td>
+                    <td><?= h($lastUsedAt ?? __('Never')) ?></td>
+                    <td>
+                        <div class="small">
+                            <span class="text-muted"><?= __('Configured:') ?></span>
+                            <?= h($configuredNetwork !== '' ? $configuredNetwork : __('Unknown')) ?>
+                        </div>
+                        <div class="small">
+                            <span class="text-muted"><?= __('Last used:') ?></span>
+                            <?= h($lastUsedNetwork !== '' ? $lastUsedNetwork : __('Unknown')) ?>
+                        </div>
+                    </td>
+                    <td class="text-end">
+                        <?php if ($canManageQuickLoginDevices) : ?>
+                        <?= $this->Form->postLink(
+                                __('Disable'),
+                                ['action' => 'removeQuickLoginDevice', $quickLoginDevice->id],
+                                [
+                                    'class' => 'btn btn-sm btn-outline-danger',
+                                    'confirm' => __('Disable quick login on this device?'),
+                                ],
+                            ) ?>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
 </div>
 <?php endif; ?>
 <?php $this->KMP->endBlock() ?>

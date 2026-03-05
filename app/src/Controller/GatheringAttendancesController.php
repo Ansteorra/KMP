@@ -7,6 +7,7 @@ namespace App\Controller;
 use Cake\Http\Response;
 use Cake\I18n\DateTime;
 use Cake\I18n\Date;
+use Cake\Routing\Router;
 
 /**
  * GatheringAttendances Controller
@@ -507,7 +508,11 @@ class GatheringAttendancesController extends AppController
         // For non-JSON requests, set view variables
         $this->set('upcomingAttendances', $upcomingAttendances);
         $this->set('pastAttendances', $pastAttendances);
-        $this->set('authCardUrl', '/members/view-mobile-card/' . $currentUser->mobile_card_token);
+        $this->set('authCardUrl', Router::url([
+            'controller' => 'Members',
+            'action' => 'viewMobileCard',
+            'plugin' => null,
+        ]));
         $this->viewBuilder()->setLayout('mobile_app');
     }
 }

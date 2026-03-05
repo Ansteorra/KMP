@@ -48,15 +48,11 @@ $authCardAccentColor = $this->KMP->getAppSetting('Member.MobileCard.ThemeColor',
 // Get service worker and URLs if authenticated
 $currentUser = $this->request->getAttribute('identity');
 $swUrl = Asset::url("sw.js");
-$cardUrlForManifest = null;
-if ($currentUser && $currentUser->mobile_card_token) {
-    $cardUrlForManifest = $this->Url->build([
-        'controller' => 'Members',
-        'action' => 'viewMobileCard',
-        $currentUser->mobile_card_token,
-        'plugin' => null
-    ]);
-}
+$cardUrlForManifest = $currentUser ? $this->Url->build([
+    'controller' => 'Members',
+    'action' => 'viewMobileCard',
+    'plugin' => null
+]) : null;
 ?>
 <!DOCTYPE html>
 <html>
@@ -78,7 +74,7 @@ if ($currentUser && $currentUser->mobile_card_token) {
 
     <?php if ($cardUrlForManifest): ?>
     <link rel="manifest"
-        href="<?= $this->Url->build(['controller' => 'Members', 'action' => 'card.webmanifest', 'plugin' => null, $currentUser->mobile_card_token]) ?>" />
+        href="<?= $this->Url->build(['controller' => 'Members', 'action' => 'card.webmanifest', 'plugin' => null]) ?>" />
     <?php endif; ?>
 
     <!-- Medieval Typography -->
@@ -794,6 +790,27 @@ if ($currentUser && $currentUser->mobile_card_token) {
         gap: 12px;
     }
 
+    .mobile-pin-gate-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        background: rgba(44, 24, 16, 0.94);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        backdrop-filter: blur(8px);
+    }
+
+    .mobile-pin-gate-card {
+        width: min(420px, 100%);
+        background: var(--mobile-card-bg);
+        border-radius: 4px;
+        padding: 24px;
+        border: 2px solid rgba(139, 105, 20, 0.3);
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.35);
+    }
+
     /* ============================================
            Form Elements - Larger text, tighter padding
            ============================================ */
@@ -1193,17 +1210,15 @@ if ($currentUser && $currentUser->mobile_card_token) {
     $skipOfflineOverlay = $isAuthCard || $isMyRsvps;
 
     $authCardUrl = ['controller' => 'Members', 'action' => 'viewMobileCard', 'plugin' => null];
-    if ($currentUser && $currentUser->mobile_card_token) {
-        $authCardUrl[] = $currentUser->mobile_card_token;
-    }
     $authCardUrlBuilt = $this->Url->build($authCardUrl);
     ?>
-    <div data-controller="member-mobile-card-pwa<?= isset($cardUrl) ? ' member-mobile-card-profile' : '' ?><?= !$skipOfflineOverlay ? ' mobile-offline-overlay' : '' ?>"
+    <div data-controller="member-mobile-card-pwa mobile-pin-gate<?= isset($cardUrl) ? ' member-mobile-card-profile' : '' ?><?= !$skipOfflineOverlay ? ' mobile-offline-overlay' : '' ?>"
         <?php if (isset($cardUrl)): ?> data-member-mobile-card-profile-url-value="<?= h($cardUrl) ?>"
         data-member-mobile-card-profile-pwa-ready-value="false" <?php endif; ?>
         data-member-mobile-card-pwa-sw-url-value="<?= $swUrl ?>" data-member-mobile-card-pwa-pwa-ready-value="false"
         data-member-mobile-card-pwa-auth-card-url-value="<?= h($authCardUrlBuilt) ?>"
         data-member-mobile-card-pwa-is-auth-card-value="<?= $isAuthCard ? 'true' : 'false' ?>"
+        data-mobile-pin-gate-email-value="<?= h((string)($currentUser?->email_address ?? '')) ?>"
         <?php if (!$skipOfflineOverlay): ?>
         data-mobile-offline-overlay-auth-card-url-value="<?= h($authCardUrlBuilt) ?>" <?php endif; ?>>
         <div class="mobile-header-bar">
@@ -1323,7 +1338,7 @@ if ($currentUser && $currentUser->mobile_card_token) {
             $cacheList[] = Asset::imageUrl("favicon.ico");
             $cacheList[] = $this->request->getPath();
             if ($cardUrlForManifest) {
-                $cacheList[] = $this->Url->build(['controller' => 'Members', 'action' => 'viewMobileCardJson', 'plugin' => null, $currentUser->mobile_card_token]);
+                $cacheList[] = $this->Url->build(['controller' => 'Members', 'action' => 'viewMobileCardJson', 'plugin' => null]);
             }
             echo json_encode($cacheList); ?>
         </json>

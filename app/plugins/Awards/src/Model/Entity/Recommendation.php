@@ -53,6 +53,13 @@ use Cake\ORM\TableRegistry;
  */
 class Recommendation extends BaseEntity
 {
+    /** States that support assigning a scheduled gathering. */
+    private const GATHERING_ASSIGNABLE_STATES = [
+        'Need to Schedule',
+        'Scheduled',
+        'Given',
+    ];
+
     /**
      * @var array<string, bool>
      */
@@ -143,6 +150,9 @@ class Recommendation extends BaseEntity
                 }
             }
         }
+        if (!self::supportsGatheringAssignmentForState((string)$value)) {
+            $this->gathering_id = null;
+        }
         return $value;
     }
 
@@ -177,6 +187,17 @@ class Recommendation extends BaseEntity
             }
         }
         return $states;
+    }
+
+    /**
+     * Determine whether a recommendation state supports a scheduled gathering assignment.
+     *
+     * @param string $state Workflow state name.
+     * @return bool
+     */
+    public static function supportsGatheringAssignmentForState(string $state): bool
+    {
+        return in_array($state, self::GATHERING_ASSIGNABLE_STATES, true);
     }
 
     /**

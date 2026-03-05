@@ -90,25 +90,16 @@ class PagesController extends AppController
         }
     }
 
-    public function webmanifest($id = null)
+    /**
+     * Render the PWA web manifest response.
+     *
+     * @return void
+     */
+    public function webmanifest(): void
     {
         $this->Authorization->skipAuthorization();
-        $path = $this->request->getPath();
-        if ($id) {
-            $mobile_token = $id;
-        } else {
-            $mobile_token = $this->request->getParam('mobile_token');
-        }
-        if (!$mobile_token) {
-            $current_user = $this->Authentication->getIdentity();
-            $mobile_token = $current_user->mobile_card_token;
-        }
-        if (!$mobile_token) {
-            throw new NotFoundException();
-        }
         $this->viewBuilder()->setLayout('ajax');
         $this->response = $this->response->withType('application/manifest+json');
-        $this->set(compact('mobile_token'));
     }
 
     /**
