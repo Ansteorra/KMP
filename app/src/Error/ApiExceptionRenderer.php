@@ -25,7 +25,7 @@ class ApiExceptionRenderer extends WebExceptionRenderer
     /**
      * Render the error response.
      *
-     * @return ResponseInterface
+     * @return \Psr\Http\Message\ResponseInterface
      */
     public function render(): ResponseInterface
     {
@@ -63,7 +63,7 @@ class ApiExceptionRenderer extends WebExceptionRenderer
     /**
      * Render api json.
      *
-     * @return ResponseInterface
+     * @return \Psr\Http\Message\ResponseInterface
      */
     protected function renderApiJson(): ResponseInterface
     {

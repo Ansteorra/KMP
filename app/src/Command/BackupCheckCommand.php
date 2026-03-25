@@ -34,8 +34,8 @@ class BackupCheckCommand extends Command
     /**
      * Configure the command option parser.
      *
-     * @param ConsoleOptionParser $parser
-     * @return ConsoleOptionParser
+     * @param \Cake\Console\ConsoleOptionParser $parser
+     * @return \Cake\Console\ConsoleOptionParser
      */
     protected function buildOptionParser(ConsoleOptionParser $parser): ConsoleOptionParser
     {
@@ -47,8 +47,8 @@ class BackupCheckCommand extends Command
     /**
      * Execute the command.
      *
-     * @param Arguments $args
-     * @param ConsoleIo $io
+     * @param \Cake\Console\Arguments $args
+     * @param \Cake\Console\ConsoleIo $io
      * @return ?int
      */
     public function execute(Arguments $args, ConsoleIo $io): ?int

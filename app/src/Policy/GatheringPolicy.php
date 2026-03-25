@@ -21,8 +21,8 @@ class GatheringPolicy extends BasePolicy
     /**
      * Check if user can index.
      *
-     * @param KmpIdentityInterface $user
-     * @param BaseEntity|Table $entity
+     * @param \App\KMP\KmpIdentityInterface $user
+     * @param \App\Model\Entity\BaseEntity|\Cake\ORM\Table $entity
      * @return bool
      */
     public function canIndex(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
@@ -55,8 +55,8 @@ class GatheringPolicy extends BasePolicy
     /**
      * Check if user can cancel.
      *
-     * @param KmpIdentityInterface $user
-     * @param BaseEntity $entity
+     * @param \App\KMP\KmpIdentityInterface $user
+     * @param \App\Model\Entity\BaseEntity $entity
      * @return bool
      */
     public function canCancel(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
@@ -67,8 +67,8 @@ class GatheringPolicy extends BasePolicy
     /**
      * Check if user can uncancel.
      *
-     * @param KmpIdentityInterface $user
-     * @param BaseEntity $entity
+     * @param \App\KMP\KmpIdentityInterface $user
+     * @param \App\Model\Entity\BaseEntity $entity
      * @return bool
      */
     public function canUncancel(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
@@ -118,8 +118,8 @@ class GatheringPolicy extends BasePolicy
     /**
      * Check if user can calendar.
      *
-     * @param KmpIdentityInterface $user
-     * @param BaseEntity|Table $entity
+     * @param \App\KMP\KmpIdentityInterface $user
+     * @param \App\Model\Entity\BaseEntity|\Cake\ORM\Table $entity
      * @return bool
      */
     public function canCalendar(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool

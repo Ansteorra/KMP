@@ -34,8 +34,8 @@ class BackupCommand extends Command
     /**
      * Configure the command option parser.
      *
-     * @param ConsoleOptionParser $parser
-     * @return ConsoleOptionParser
+     * @param \Cake\Console\ConsoleOptionParser $parser
+     * @return \Cake\Console\ConsoleOptionParser
      */
     protected function buildOptionParser(ConsoleOptionParser $parser): ConsoleOptionParser
     {
@@ -61,8 +61,8 @@ class BackupCommand extends Command
     /**
      * Execute the command.
      *
-     * @param Arguments $args
-     * @param ConsoleIo $io
+     * @param \Cake\Console\Arguments $args
+     * @param \Cake\Console\ConsoleIo $io
      * @return ?int
      */
     public function execute(Arguments $args, ConsoleIo $io): ?int
@@ -93,7 +93,7 @@ class BackupCommand extends Command
      * Do create.
      *
      * @param string $key
-     * @param ConsoleIo $io
+     * @param \Cake\Console\ConsoleIo $io
      * @return int
      */
     private function doCreate(string $key, ConsoleIo $io): int
@@ -146,8 +146,8 @@ class BackupCommand extends Command
      * Do restore.
      *
      * @param string $key
-     * @param Arguments $args
-     * @param ConsoleIo $io
+     * @param \Cake\Console\Arguments $args
+     * @param \Cake\Console\ConsoleIo $io
      * @return int
      */
     private function doRestore(string $key, Arguments $args, ConsoleIo $io): int

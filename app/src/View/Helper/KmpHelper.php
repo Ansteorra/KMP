@@ -40,7 +40,7 @@ class KmpHelper extends Helper
     /**
      * Run before view rendering.
      *
-     * @param Event $event
+     * @param \Cake\Event\Event $event
      * @return void
      */
     public function beforeRender(Event $event): void

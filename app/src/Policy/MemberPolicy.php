@@ -82,8 +82,8 @@ class MemberPolicy extends BasePolicy
     /**
      * Check if user can submit sca member info.
      *
-     * @param KmpIdentityInterface $user
-     * @param BaseEntity $entity
+     * @param \App\KMP\KmpIdentityInterface $user
+     * @param \App\Model\Entity\BaseEntity $entity
      * @return bool
      */
     public function canSubmitScaMemberInfo(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool

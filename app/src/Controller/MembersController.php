@@ -2140,7 +2140,7 @@ class MembersController extends AppController
     /**
      * Redirect after successful login.
      *
-     * @return Response
+     * @return \Cake\Http\Response
      */
     private function redirectAfterSuccessfulLogin(): Response
     {
@@ -3153,7 +3153,7 @@ class MembersController extends AppController
     /**
      * Internal: add roles select and contain.
      *
-     * @param SelectQuery $q
+     * @param \Cake\ORM\Query\SelectQuery $q
      */
     protected function _addRolesSelectAndContain(SelectQuery $q)
     {

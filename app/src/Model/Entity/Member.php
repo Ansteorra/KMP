@@ -143,7 +143,7 @@ class Member extends BaseEntity implements
      *
      * @return array Filtered member data safe for public consumption
      */
-    public function publicData()
+    public function publicData(): array
     {
         if ($this->age < 18) {
             $data = [];
@@ -271,7 +271,7 @@ class Member extends BaseEntity implements
      *
      * @return array<string, string> Link names to URLs
      */
-    public function publicLinks()
+    public function publicLinks(): array
     {
         $externalLinks = StaticHelpers::getAppSettingsStartWith('Member.ExternalLink.');
         if (empty($externalLinks)) {
@@ -294,7 +294,7 @@ class Member extends BaseEntity implements
      *
      * @return array<string, string> Public additional info fields
      */
-    public function publicAdditionalInfo()
+    public function publicAdditionalInfo(): array
     {
         $additionalInfoList = StaticHelpers::getAppSettingsStartWith('Member.AdditionalInfo.');
         if (empty($additionalInfoList)) {
@@ -711,7 +711,7 @@ class Member extends BaseEntity implements
      * @param string $value Plain text password to hash
      * @return string Hashed password (or existing if value is empty)
      */
-    protected function _setPassword($value)
+    protected function _setPassword($value): string
     {
         if (strlen($value) > 0) {
             $hasher = new DefaultPasswordHasher();
@@ -727,7 +727,7 @@ class Member extends BaseEntity implements
      *
      * @return \Cake\I18n\DateTime|null Birth date or null if incomplete
      */
-    protected function _getBirthdate()
+    protected function _getBirthdate(): ?DateTime
     {
         $date = new DateTime();
         if ($this->birth_month == null) {
@@ -748,7 +748,7 @@ class Member extends BaseEntity implements
      *
      * @return string Formatted herald name
      */
-    protected function _getNameForHerald()
+    protected function _getNameForHerald(): string
     {
         $returnVal = $this->sca_name;
         if ($this->title != null && $this->title != '') {
@@ -771,7 +771,7 @@ class Member extends BaseEntity implements
      * @return string The validated status value
      * @throws \InvalidArgumentException When invalid status is provided
      */
-    protected function _setStatus($value)
+    protected function _setStatus($value): string
     {
         //the status must be one of the constants defined in this class
         switch ($value) {
@@ -793,7 +793,7 @@ class Member extends BaseEntity implements
      *
      * @return string Formatted date string or empty string if null
      */
-    protected function _getExpiresOnToString()
+    protected function _getExpiresOnToString(): string
     {
         if ($this->membership_expires_on == null) {
             return '';
@@ -807,7 +807,7 @@ class Member extends BaseEntity implements
      *
      * @return int|null Current age or null if birth data incomplete
      */
-    protected function _getAge()
+    protected function _getAge(): ?int
     {
         $now = new DateTime();
         $date = new DateTime();

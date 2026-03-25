@@ -77,8 +77,8 @@ class AppSettingsTable extends BaseTable
     /**
      * Define application-level rules.
      *
-     * @param RulesChecker $rules
-     * @return RulesChecker
+     * @param \Cake\ORM\RulesChecker $rules
+     * @return \Cake\ORM\RulesChecker
      */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
@@ -90,9 +90,9 @@ class AppSettingsTable extends BaseTable
     /**
      * Save.
      *
-     * @param EntityInterface $entity
+     * @param \Cake\Datasource\EntityInterface $entity
      * @param array $options
-     * @return EntityInterface|false
+     * @return \Cake\Datasource\EntityInterface|false
      */
     public function save(
         EntityInterface $entity,
@@ -108,7 +108,7 @@ class AppSettingsTable extends BaseTable
     /**
      * Delete.
      *
-     * @param EntityInterface $entity
+     * @param \Cake\Datasource\EntityInterface $entity
      * @param array $options
      * @return bool
      */

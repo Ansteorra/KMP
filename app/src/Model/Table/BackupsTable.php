@@ -34,8 +34,8 @@ class BackupsTable extends Table
     /**
      * Define default validation rules.
      *
-     * @param Validator $validator
-     * @return Validator
+     * @param \Cake\Validation\Validator $validator
+     * @return \Cake\Validation\Validator
      */
     public function validationDefault(Validator $validator): Validator
     {

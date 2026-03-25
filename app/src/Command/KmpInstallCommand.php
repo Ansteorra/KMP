@@ -246,7 +246,7 @@ class KmpInstallCommand extends Command
     /**
      * Ask or default.
      *
-     * @param ConsoleIo $io
+     * @param \Cake\Console\ConsoleIo $io
      * @param string $label
      * @param array $options
      * @param string $default
@@ -270,7 +270,7 @@ class KmpInstallCommand extends Command
     /**
      * Build database url.
      *
-     * @param ConsoleIo $io
+     * @param \Cake\Console\ConsoleIo $io
      * @param string $driver
      * @param string $dbHost
      * @param string $dbPort
@@ -384,7 +384,7 @@ class KmpInstallCommand extends Command
     /**
      * Confirm write.
      *
-     * @param ConsoleIo $io
+     * @param \Cake\Console\ConsoleIo $io
      * @param array $payload
      * @param bool $nonInteractive
      * @return bool
@@ -409,7 +409,7 @@ class KmpInstallCommand extends Command
     /**
      * Run bootstrap.
      *
-     * @param ConsoleIo $io
+     * @param \Cake\Console\ConsoleIo $io
      * @return ?int
      */
     private function runBootstrap(ConsoleIo $io): ?int
@@ -439,7 +439,7 @@ class KmpInstallCommand extends Command
      * Run shell command.
      *
      * @param string $command
-     * @param ConsoleIo $io
+     * @param \Cake\Console\ConsoleIo $io
      * @return bool
      */
     private function runShellCommand(string $command, ConsoleIo $io): bool

@@ -135,7 +135,7 @@ class NavigationCell extends Cell
      * ]
      * ```
      */
-    protected function organizeMenu($menuItems, $user)
+    protected function organizeMenu($menuItems, $user): array
     {
         $currentRequestString = $this->request->getUri()->getPath(); //$this->request->getParam('controller') . '/' . $this->request->getParam('action');
         $currentQueryString = $this->request->getUri()->getQuery();

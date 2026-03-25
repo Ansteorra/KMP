@@ -156,7 +156,7 @@ class PermissionsLoader
      * @param array|null $branchIds Optional array of branch IDs to filter policies by
      * @return array Nested array of policy classes, methods, and authorization data
      */
-    public static function getPolicies($id, ?array $branchIds = null)
+    public static function getPolicies($id, ?array $branchIds = null): array
     {
         // 1. Cache Strategy - Check for cached policy mappings
         $cacheKey = 'permissions_policies' . $id;

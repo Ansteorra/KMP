@@ -28,7 +28,7 @@ class DefaultWarrantManager implements WarrantManagerInterface
     /**
      * Constructor.
      *
-     * @param ActiveWindowManagerInterface $activeWindowManager
+     * @param \App\Services\ActiveWindowManager\ActiveWindowManagerInterface $activeWindowManager
      */
     public function __construct(ActiveWindowManagerInterface $activeWindowManager)
     {
@@ -56,7 +56,7 @@ class DefaultWarrantManager implements WarrantManagerInterface
      * @param mixed $request_name
      * @param mixed $desc
      * @param mixed $warrantRequests
-     * @return ServiceResult
+     * @return \App\Services\ServiceResult
      */
     public function request($request_name, $desc, $warrantRequests): ServiceResult
     {
@@ -136,7 +136,7 @@ class DefaultWarrantManager implements WarrantManagerInterface
      *
      * @param mixed $warrant_roster_id
      * @param mixed $approver_id
-     * @return ServiceResult
+     * @return \App\Services\ServiceResult
      */
     public function approve($warrant_roster_id, $approver_id): ServiceResult
     {
@@ -240,7 +240,7 @@ class DefaultWarrantManager implements WarrantManagerInterface
      * @param mixed $warrant_roster_id
      * @param mixed $rejecter_id
      * @param mixed $reason
-     * @return ServiceResult
+     * @return \App\Services\ServiceResult
      */
     public function decline($warrant_roster_id, $rejecter_id, $reason): ServiceResult
     {
@@ -312,7 +312,7 @@ class DefaultWarrantManager implements WarrantManagerInterface
      * @param mixed $reason
      * @param mixed $rejecter_id
      * @param mixed $expiresOn
-     * @return ServiceResult
+     * @return \App\Services\ServiceResult
      */
     public function cancel($warrant_id, $reason, $rejecter_id, $expiresOn): ServiceResult
     {
@@ -333,7 +333,7 @@ class DefaultWarrantManager implements WarrantManagerInterface
      * @param mixed $reason
      * @param mixed $rejecter_id
      * @param mixed $expiresOn
-     * @return ServiceResult
+     * @return \App\Services\ServiceResult
      */
     public function cancelByEntity($entityType, $entityId, $reason, $rejecter_id, $expiresOn): ServiceResult
     {
@@ -357,7 +357,7 @@ class DefaultWarrantManager implements WarrantManagerInterface
      * @param mixed $warrant_id
      * @param mixed $reason
      * @param mixed $rejecter_id
-     * @return ServiceResult
+     * @return \App\Services\ServiceResult
      */
     public function declineSingleWarrant($warrant_id, $reason, $rejecter_id): ServiceResult
     {
@@ -428,9 +428,9 @@ class DefaultWarrantManager implements WarrantManagerInterface
     /**
      * Get warrant period.
      *
-     * @param DateTime $startOn
-     * @param ?DateTime $endOn
-     * @return ?WarrantPeriod
+     * @param \Cake\I18n\DateTime $startOn
+     * @param ?\Cake\I18n\DateTime $endOn
+     * @return ?\App\Model\Entity\WarrantPeriod
      */
     public function getWarrantPeriod(DateTime $startOn, ?DateTime $endOn): ?WarrantPeriod
     {
@@ -468,7 +468,7 @@ class DefaultWarrantManager implements WarrantManagerInterface
      * @param mixed $expiresOn
      * @param mixed $rejecter_id
      * @param mixed $reason
-     * @return ServiceResult
+     * @return \App\Services\ServiceResult
      */
     protected function cancelWarrant($warrantTable, $warrant, $expiresOn, $rejecter_id, $reason): ServiceResult
     {
@@ -490,7 +490,7 @@ class DefaultWarrantManager implements WarrantManagerInterface
      *
      * @param mixed $warrant
      * @param mixed $rejecter_id
-     * @return ServiceResult
+     * @return \App\Services\ServiceResult
      */
     protected function stopWarrantDependants($warrant, $rejecter_id): ServiceResult
     {
@@ -539,7 +539,7 @@ class DefaultWarrantManager implements WarrantManagerInterface
      * @param mixed $warrant
      * @param mixed $rejecter_id
      * @param mixed $reason
-     * @return ServiceResult
+     * @return \App\Services\ServiceResult
      */
     protected function declineWarrant($warrantTable, $warrant, $rejecter_id, $reason): ServiceResult
     {

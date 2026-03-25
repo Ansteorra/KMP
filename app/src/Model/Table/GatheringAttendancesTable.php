@@ -6,6 +6,7 @@ namespace App\Model\Table;
 use ArrayObject;
 use Cake\Datasource\EntityInterface;
 use Cake\Event\EventInterface;
+use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
@@ -170,7 +171,7 @@ class GatheringAttendancesTable extends Table
      * @param \Cake\ORM\Query\SelectQuery $query The query to modify
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findPublic($query)
+    public function findPublic($query): SelectQuery
     {
         return $query->where(['is_public' => true]);
     }
@@ -181,7 +182,7 @@ class GatheringAttendancesTable extends Table
      * @param \Cake\ORM\Query\SelectQuery $query The query to modify
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findSharedWithKingdom($query)
+    public function findSharedWithKingdom($query): SelectQuery
     {
         return $query->where(['share_with_kingdom' => true]);
     }
@@ -192,7 +193,7 @@ class GatheringAttendancesTable extends Table
      * @param \Cake\ORM\Query\SelectQuery $query The query to modify
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findSharedWithHostingGroup($query)
+    public function findSharedWithHostingGroup($query): SelectQuery
     {
         return $query->where(['share_with_hosting_group' => true]);
     }
@@ -203,7 +204,7 @@ class GatheringAttendancesTable extends Table
      * @param \Cake\ORM\Query\SelectQuery $query The query to modify
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findSharedWithCrown($query)
+    public function findSharedWithCrown($query): SelectQuery
     {
         return $query->where(['share_with_crown' => true]);
     }
@@ -214,7 +215,7 @@ class GatheringAttendancesTable extends Table
      * @param \Cake\ORM\Query\SelectQuery $query The query to modify
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findShared($query)
+    public function findShared($query): SelectQuery
     {
         return $query->where([
             'OR' => [

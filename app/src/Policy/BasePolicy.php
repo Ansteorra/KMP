@@ -134,7 +134,7 @@ class BasePolicy implements BeforePolicyInterface
     /**
      * Apply scope for index action.
      *
-     * @param KmpIdentityInterface $user
+     * @param \App\KMP\KmpIdentityInterface $user
      * @param mixed $query
      */
     public function scopeIndex(KmpIdentityInterface $user, $query)

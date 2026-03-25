@@ -81,7 +81,7 @@ class KMPBruteForcePasswordIdentifier extends PasswordIdentifier
      * Internal: find identity.
      *
      * @param mixed $username
-     * @return ArrayAccess|array|null
+     * @return \ArrayAccess|array|null
      */
     protected function _findIdentity($username): ArrayAccess|array|null
     {

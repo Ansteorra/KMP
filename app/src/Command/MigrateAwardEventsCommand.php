@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Model\Entity\GatheringActivity;
+use App\Model\Entity\GatheringType;
 use Cake\Command\Command;
 use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
@@ -124,7 +126,7 @@ class MigrateAwardEventsCommand extends Command
      *
      * @return \App\Model\Entity\GatheringActivity|null
      */
-    protected function createKingdomCourtActivity()
+    protected function createKingdomCourtActivity(): ?GatheringActivity
     {
         $this->io->out('<info>Step 1: Creating Kingdom Court activity...</info>');
 
@@ -229,7 +231,7 @@ class MigrateAwardEventsCommand extends Command
      *
      * @return \App\Model\Entity\GatheringType|null
      */
-    protected function createKingdomCalendarEventType()
+    protected function createKingdomCalendarEventType(): ?GatheringType
     {
         $this->io->out('<info>Step 3: Creating Kingdom Calendar Event gathering type...</info>');
 

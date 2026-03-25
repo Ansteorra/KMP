@@ -12,8 +12,8 @@ class ResetPasswordForm extends Form
     /**
      * Build the form schema.
      *
-     * @param Schema $schema
-     * @return Schema
+     * @param \Cake\Form\Schema $schema
+     * @return \Cake\Form\Schema
      */
     protected function _buildSchema(Schema $schema): Schema
     {
@@ -25,8 +25,8 @@ class ResetPasswordForm extends Form
     /**
      * Define default validation rules.
      *
-     * @param Validator $validator
-     * @return Validator
+     * @param \Cake\Validation\Validator $validator
+     * @return \Cake\Validation\Validator
      */
     public function validationDefault(Validator $validator): Validator
     {

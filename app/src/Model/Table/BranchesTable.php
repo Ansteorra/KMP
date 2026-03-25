@@ -482,7 +482,7 @@ class BranchesTable extends BaseTable
      *
      * @return array<\App\Model\Entity\Branch> Threaded tree structure with nested children
      */
-    public function getThreadedTree()
+    public function getThreadedTree(): array
     {
         // rebuild the array into a tree structure
         $branches = $this->find('threaded', [

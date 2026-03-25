@@ -148,7 +148,7 @@ class MemberRolesController extends AppController
     /**
      * Deactivate.
      *
-     * @param ActiveWindowManagerInterface $awService
+     * @param \App\Services\ActiveWindowManager\ActiveWindowManagerInterface $awService
      * @param mixed $id
      */
     public function deactivate(ActiveWindowManagerInterface $awService, $id = null)

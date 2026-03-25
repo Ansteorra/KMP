@@ -68,7 +68,7 @@ class ServiceResult
      * }
      * ```
      */
-    public function getData()
+    public function getData(): mixed
     {
         return $this->data;
     }

@@ -17,8 +17,8 @@ class GatheringAttendancesTablePolicy extends BasePolicy
     /**
      * Check if user can index.
      *
-     * @param KmpIdentityInterface $user
-     * @param BaseEntity|Table $entity
+     * @param \App\KMP\KmpIdentityInterface $user
+     * @param \App\Model\Entity\BaseEntity|\Cake\ORM\Table $entity
      * @return bool
      */
     public function canIndex(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
@@ -29,8 +29,8 @@ class GatheringAttendancesTablePolicy extends BasePolicy
     /**
      * Check if user can my rsvps.
      *
-     * @param KmpIdentityInterface $user
-     * @param BaseEntity|Table $entity
+     * @param \App\KMP\KmpIdentityInterface $user
+     * @param \App\Model\Entity\BaseEntity|\Cake\ORM\Table $entity
      * @return bool
      */
     public function canMyRsvps(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
@@ -42,8 +42,8 @@ class GatheringAttendancesTablePolicy extends BasePolicy
     /**
      * Check if user can mobile rsvp.
      *
-     * @param KmpIdentityInterface $user
-     * @param BaseEntity|Table $entity
+     * @param \App\KMP\KmpIdentityInterface $user
+     * @param \App\Model\Entity\BaseEntity|\Cake\ORM\Table $entity
      * @return bool
      */
     public function canMobileRsvp(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
@@ -55,8 +55,8 @@ class GatheringAttendancesTablePolicy extends BasePolicy
     /**
      * Check if user can mobile unrsvp.
      *
-     * @param KmpIdentityInterface $user
-     * @param BaseEntity|Table $entity
+     * @param \App\KMP\KmpIdentityInterface $user
+     * @param \App\Model\Entity\BaseEntity|\Cake\ORM\Table $entity
      * @return bool
      */
     public function canMobileUnrsvp(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
@@ -68,8 +68,8 @@ class GatheringAttendancesTablePolicy extends BasePolicy
     /**
      * Check if user can mobile update rsvp.
      *
-     * @param KmpIdentityInterface $user
-     * @param BaseEntity|Table $entity
+     * @param \App\KMP\KmpIdentityInterface $user
+     * @param \App\Model\Entity\BaseEntity|\Cake\ORM\Table $entity
      * @return bool
      */
     public function canMobileUpdateRsvp(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool

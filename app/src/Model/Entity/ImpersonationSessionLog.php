@@ -35,7 +35,7 @@ class ImpersonationSessionLog extends Entity
     /**
      * Get the created virtual field.
      *
-     * @return ?FrozenTime
+     * @return ?\Cake\I18n\FrozenTime
      */
     protected function _getCreated(): ?FrozenTime
     {

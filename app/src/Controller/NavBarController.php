@@ -13,7 +13,7 @@ class NavBarController extends AppController
     /**
      * Run before controller action execution.
      *
-     * @param EventInterface $event
+     * @param \Cake\Event\EventInterface $event
      */
     public function beforeFilter(EventInterface $event)
     {

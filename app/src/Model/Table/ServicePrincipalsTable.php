@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\Validation\Validator;
 
@@ -150,7 +151,7 @@ class ServicePrincipalsTable extends BaseTable
      * @param \Cake\ORM\Query\SelectQuery $query Query
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findActive($query)
+    public function findActive($query): SelectQuery
     {
         return $query->where(['ServicePrincipals.is_active' => true]);
     }
@@ -162,7 +163,7 @@ class ServicePrincipalsTable extends BaseTable
      * @param string $clientId Client ID
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findByClientId($query, string $clientId)
+    public function findByClientId($query, string $clientId): SelectQuery
     {
         return $query->where(['ServicePrincipals.client_id' => $clientId]);
     }

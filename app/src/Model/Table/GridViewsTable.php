@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\Validation\Validator;
 
@@ -211,7 +212,7 @@ class GridViewsTable extends BaseTable
      * @param array<string, mixed> $options Options including 'gridKey' and optionally 'memberId'
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findByGrid($query, array $options)
+    public function findByGrid($query, array $options): SelectQuery
     {
         $gridKey = $options['gridKey'] ?? null;
         $memberId = $options['memberId'] ?? null;
@@ -248,7 +249,7 @@ class GridViewsTable extends BaseTable
      * @param array<string, mixed> $options Options including 'gridKey'
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findSystemDefault($query, array $options)
+    public function findSystemDefault($query, array $options): SelectQuery
     {
         $gridKey = $options['gridKey'] ?? null;
 
@@ -270,7 +271,7 @@ class GridViewsTable extends BaseTable
      * @param array<string, mixed> $options Options including 'gridKey' and 'memberId'
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findUserDefault($query, array $options)
+    public function findUserDefault($query, array $options): SelectQuery
     {
         $gridKey = $options['gridKey'] ?? null;
         $memberId = $options['memberId'] ?? null;

@@ -102,9 +102,9 @@ class RolesPermissionsTable extends BaseTable
     /**
      * Run before an entity is saved.
      *
-     * @param Event $event
-     * @param EntityInterface $entity
-     * @param ArrayObject $options
+     * @param \Cake\Event\Event $event
+     * @param \Cake\Datasource\EntityInterface $entity
+     * @param \ArrayObject $options
      * @return void
      */
     public function beforeSave(Event $event, EntityInterface $entity, ArrayObject $options): void

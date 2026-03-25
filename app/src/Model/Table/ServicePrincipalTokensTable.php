@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\Validation\Validator;
 
@@ -121,7 +122,7 @@ class ServicePrincipalTokensTable extends BaseTable
      * @param \Cake\ORM\Query\SelectQuery $query Query
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findActive($query)
+    public function findActive($query): SelectQuery
     {
         $now = date('Y-m-d H:i:s');
 
@@ -140,7 +141,7 @@ class ServicePrincipalTokensTable extends BaseTable
      * @param string $tokenHash Token hash
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findByHash($query, string $tokenHash)
+    public function findByHash($query, string $tokenHash): SelectQuery
     {
         return $query->where(['ServicePrincipalTokens.token_hash' => $tokenHash]);
     }

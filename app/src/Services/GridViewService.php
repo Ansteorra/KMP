@@ -198,7 +198,7 @@ class GridViewService
      * @param \App\Model\Entity\Member $member Owner of the view
      * @return \App\Model\Entity\GridView|false
      */
-    public function createView(array $data, Member $member)
+    public function createView(array $data, Member $member): GridView|false
     {
         // Ensure member_id is set correctly
         $data['member_id'] = $member->id;
@@ -222,7 +222,7 @@ class GridViewService
      * @param \App\Model\Entity\Member $member Member making the update
      * @return \App\Model\Entity\GridView|false
      */
-    public function updateView(int $viewId, array $data, Member $member)
+    public function updateView(int $viewId, array $data, Member $member): GridView|false
     {
         $view = $this->getView($viewId, $member);
 
@@ -399,7 +399,7 @@ class GridViewService
      * @param array<string, mixed> $data View data
      * @return \App\Model\Entity\GridView|false
      */
-    public function createSystemDefault(array $data)
+    public function createSystemDefault(array $data): GridView|false
     {
         // Enforce system default properties
         $data['member_id'] = null;

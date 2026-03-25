@@ -66,8 +66,8 @@ class GridViewPreferencesTable extends BaseTable
     /**
      * Define default validation rules.
      *
-     * @param Validator $validator
-     * @return Validator
+     * @param \Cake\Validation\Validator $validator
+     * @return \Cake\Validation\Validator
      */
     public function validationDefault(Validator $validator): Validator
     {
@@ -101,8 +101,8 @@ class GridViewPreferencesTable extends BaseTable
     /**
      * Define application-level rules.
      *
-     * @param RulesChecker $rules
-     * @return RulesChecker
+     * @param \Cake\ORM\RulesChecker $rules
+     * @return \Cake\ORM\RulesChecker
      */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
