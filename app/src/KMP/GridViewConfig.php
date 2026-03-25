@@ -413,7 +413,13 @@ class GridViewConfig
             return null;
         }
 
-        return self::buildExpression($config['expression'], $queryExpression, $tableName, $skipColumns, $columnsMetadata);
+        return self::buildExpression(
+            $config['expression'],
+            $queryExpression,
+            $tableName,
+            $skipColumns,
+            $columnsMetadata,
+        );
     }
 
     /**
@@ -454,7 +460,13 @@ class GridViewConfig
                 if (isset($condition['type']) && in_array(strtoupper($condition['type']), ['OR', 'AND'], true)) {
                     // Nested group - recurse
                     $nestedExp = $queryExpression->newExpr();
-                    $groupConditions[] = self::buildExpression($condition, $nestedExp, $tableName, $skipColumns, $columnsMetadata);
+                    $groupConditions[] = self::buildExpression(
+                        $condition,
+                        $nestedExp,
+                        $tableName,
+                        $skipColumns,
+                        $columnsMetadata,
+                    );
                 } else {
                     // Leaf condition - convert to CakePHP condition array
                     $leafConditions = self::buildLeafCondition($condition, $tableName, $skipColumns, $columnsMetadata);

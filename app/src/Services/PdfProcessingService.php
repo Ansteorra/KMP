@@ -170,7 +170,13 @@ class PdfProcessingService
 
             if ($totalPages === 0) {
                 if (!empty($skippedFiles)) {
-                    return new ServiceResult(false, 'Could not process PDF files. Some PDFs use compression not supported by this system. Please try uploading images instead, or use a simpler PDF format.');
+                    return new ServiceResult(
+                        false,
+                        'Could not process PDF files. Some PDFs use '
+                        . 'compression not supported by this system. '
+                        . 'Please try uploading images instead, or '
+                        . 'use a simpler PDF format.',
+                    );
                 }
 
                 return new ServiceResult(false, 'No pages found in PDF files');
@@ -204,7 +210,12 @@ class PdfProcessingService
      * @param int $height Thumbnail height in pixels (default: 260)
      * @return \App\Services\ServiceResult Success or failure
      */
-    public function generateThumbnail(string $pdfPath, string $outputPath, int $width = 200, int $height = 260): ServiceResult
+    public function generateThumbnail(
+        string $pdfPath,
+        string $outputPath,
+        int $width = 200,
+        int $height = 260,
+    ): ServiceResult
     {
         $pageCount = $this->getPageCount($pdfPath);
         if ($pageCount === 0) {

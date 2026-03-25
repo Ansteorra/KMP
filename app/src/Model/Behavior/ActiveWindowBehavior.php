@@ -33,7 +33,13 @@ class ActiveWindowBehavior extends Behavior
             $effectiveDate = Datetime::now();
         }
 
-        return $query->where([$alias . '.start_on >' => $effectiveDate, 'or' => [$alias . '.expires_on >' => $effectiveDate, $alias . '.expires_on IS' => null]]);
+        return $query->where([
+            $alias . '.start_on >' => $effectiveDate,
+            'or' => [
+                $alias . '.expires_on >' => $effectiveDate,
+                $alias . '.expires_on IS' => null,
+            ],
+        ]);
     }
 
     /**
@@ -51,7 +57,13 @@ class ActiveWindowBehavior extends Behavior
             $effectiveDate = Datetime::now();
         }
 
-        return $query->where([$alias . '.start_on <=' => $effectiveDate, 'or' => [$alias . '.expires_on >=' => $effectiveDate, $alias . '.expires_on IS' => null]]);
+        return $query->where([
+            $alias . '.start_on <=' => $effectiveDate,
+            'or' => [
+                $alias . '.expires_on >=' => $effectiveDate,
+                $alias . '.expires_on IS' => null,
+            ],
+        ]);
     }
 
     /**

@@ -83,7 +83,12 @@ class AppController extends Controller
                 $this->Flash->error("The plugin $plugin is not enabled.");
                 $currentUser = $this->request->getAttribute('identity');
                 if ($currentUser != null) {
-                    $this->redirect(['plugin' => null, 'controller' => 'Members', 'action' => 'view', $currentUser->id]);
+                    $this->redirect([
+                        'plugin' => null,
+                        'controller' => 'Members',
+                        'action' => 'view',
+                        $currentUser->id,
+                    ]);
                 } else {
                     $this->redirect(['plugin' => null, 'controller' => 'Members', 'action' => 'login']);
                 }
@@ -142,7 +147,8 @@ class AppController extends Controller
         }
 
         // Exclude AJAX/Turbo/POST requests from history
-        $isAjax = $this->request->is('ajax') || $this->request->is('json') || $this->request->is('xml') || $this->request->is('csv');
+        $isAjax = $this->request
+            ->is('ajax') || $this->request->is('json') || $this->request->is('xml') || $this->request->is('csv');
         $turboRequest = $this->request->getHeader('Turbo-Frame') != null;
         $isAjax = $isAjax || $turboRequest;
         if (!$isNoStack) {
@@ -165,7 +171,6 @@ class AppController extends Controller
 
             if ($pageStack[$historyCount - 1] != $currentUrl) {
                 $pageStack[] = $currentUrl;
-                $historyCount++;
             }
         }
 
@@ -209,7 +214,7 @@ class AppController extends Controller
         } elseif (is_array($recordId) && count($recordId) == 0) {
             $recordId = -1;
         } elseif (is_array($recordId)) {
-            foreach ($recordId as $key => $value) {
+            foreach ($recordId as $value) {
                 $recordId .= $value . ', ';
             }
         }

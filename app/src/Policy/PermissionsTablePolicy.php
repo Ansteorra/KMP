@@ -40,7 +40,11 @@ class PermissionsTablePolicy extends BasePolicy
      * @param mixed ...$optionalArgs Optional arguments
      * @return bool
      */
-    public function canExportPolicies(KmpIdentityInterface $user, BaseEntity|Table $entity, mixed ...$optionalArgs): bool
+    public function canExportPolicies(
+        KmpIdentityInterface $user,
+        BaseEntity|Table $entity,
+        mixed ...$optionalArgs,
+    ): bool
     {
         return $this->_isSuperUser($user);
     }
@@ -55,7 +59,11 @@ class PermissionsTablePolicy extends BasePolicy
      * @param mixed ...$optionalArgs Optional arguments
      * @return bool
      */
-    public function canImportPolicies(KmpIdentityInterface $user, BaseEntity|Table $entity, mixed ...$optionalArgs): bool
+    public function canImportPolicies(
+        KmpIdentityInterface $user,
+        BaseEntity|Table $entity,
+        mixed ...$optionalArgs,
+    ): bool
     {
         return $this->_isSuperUser($user);
     }

@@ -290,7 +290,7 @@ class WarrantRostersController extends AppController
      * @return \Cake\Http\Response Redirect to roster view
      * @throws \Cake\Http\Exception\NotFoundException When roster not found
      */
-    function approve(WarrantManagerInterface $wManager, $id = null)
+    public function approve(WarrantManagerInterface $wManager, $id = null)
     {
         // Require POST request for security
         $this->request->allowMethod(['post']);
@@ -339,7 +339,11 @@ class WarrantRostersController extends AppController
         $this->Authorization->authorize($warrantRoster);
 
         // Process decline through WarrantManager service with standard reason
-        $wmResult = $wManager->decline($warrantRoster->id, $this->Authentication->getIdentity()->getIdentifier(), 'Declined from Warrant Roster View');
+        $wmResult = $wManager->decline(
+            $warrantRoster->id,
+            $this->Authentication->getIdentity()->getIdentifier(),
+            'Declined from Warrant Roster View',
+        );
 
         if ($wmResult->success) {
             $this->Flash->success(__('The declination has been been processed.'));
@@ -387,7 +391,11 @@ class WarrantRostersController extends AppController
         $this->Authorization->authorize($warrant);
 
         // Process individual warrant decline through WarrantManager
-        $wResult = $wService->declineSingleWarrant((int)$warrant_id, 'Declined Warrant', $this->Authentication->getIdentity()->get('id'));
+        $wResult = $wService->declineSingleWarrant(
+            (int)$warrant_id,
+            'Declined Warrant',
+            $this->Authentication->getIdentity()->get('id'),
+        );
 
         if (!$wResult->success) {
             $this->Flash->error($wResult->reason);
@@ -396,7 +404,11 @@ class WarrantRostersController extends AppController
         }
 
         // Provide comprehensive feedback about warrant and office impacts
-        $this->Flash->success(__('The warrant has been deactivated. If this warrant is associated with an office, the officer has been released however they have not been notified.  Please notify them at your earliest convienence.'));
+        $this->Flash->success(__(
+            'The warrant has been deactivated. If this warrant is associated with an office,'
+            . ' the officer has been released however they have not been notified.'
+            . '  Please notify them at your earliest convienence.'
+        ));
 
         return $this->redirect($this->referer());
     }

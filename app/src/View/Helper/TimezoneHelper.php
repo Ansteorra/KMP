@@ -167,7 +167,8 @@ class TimezoneHelper extends Helper
         $converted = TzHelper::toUserTimezone($datetime, $member, null, $gathering);
 
         if ($intlDateFormat !== null || $intlTimeFormat !== null) {
-            $locale = $this->getView()->getRequest()?->getAttribute('locale') ?? I18n::getLocale() ?? Locale::getDefault();
+            $locale = $this->getView()
+                ->getRequest()?->getAttribute('locale') ?? I18n::getLocale() ?? Locale::getDefault();
             $formatter = new IntlDateFormatter(
                 $locale,
                 $intlDateFormat ?? IntlDateFormatter::FULL,

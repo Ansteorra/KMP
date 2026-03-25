@@ -73,7 +73,13 @@ class AuthorizationService extends rootAuthorizationService implements Authoriza
      * @param array $optionalArgs Optional arguments
      * @return void
      */
-    protected function logAuthCheck(?KmpIdentityInterface $user, string $action, $resource, bool $result, array $optionalArgs): void
+    protected function logAuthCheck(
+        ?KmpIdentityInterface $user,
+        string $action,
+        $resource,
+        bool $result,
+        array $optionalArgs,
+    ): void
     {
         $resourceInfo = $this->getResourceInfo($resource);
 

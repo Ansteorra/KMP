@@ -171,7 +171,11 @@ class EmailTemplateRendererService
                 $content = $matches[2];
 
                 if (str_contains($content, '{{#if')) {
-                    Log::warning('EmailTemplateRendererService: nested {{#if}} blocks detected — innermost resolved first');
+                    Log::warning(
+                        'EmailTemplateRendererService: nested '
+                        . '{{#if}} blocks detected — innermost '
+                        . 'resolved first',
+                    );
                 }
 
                 if ($this->evaluateCondition($condition, $vars)) {
@@ -182,7 +186,11 @@ class EmailTemplateRendererService
             }, $template);
 
             if ($result === null) {
-                Log::error('EmailTemplateRendererService: preg_replace_callback returned null (PCRE error) in processConditionals');
+                Log::error(
+                    'EmailTemplateRendererService: '
+                    . 'preg_replace_callback returned null '
+                    . '(PCRE error) in processConditionals',
+                );
 
                 return $template;
             }

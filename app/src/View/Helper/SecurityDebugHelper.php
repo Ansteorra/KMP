@@ -69,8 +69,12 @@ class SecurityDebugHelper extends Helper
 
         if ($isSuperUser) {
             $output .= '<div class="alert alert-warning mb-3">';
-            $output .= '<strong>⚠️ Super User Detected:</strong> This user has super user privileges and bypasses all policy checks. ';
-            $output .= 'The policies shown below are explicitly assigned, but this user has access to ALL actions regardless of policy assignments.';
+            $output .= '<strong>⚠️ Super User Detected:</strong> '
+                . 'This user has super user privileges and '
+                . 'bypasses all policy checks. ';
+            $output .= 'The policies shown below are explicitly '
+                . 'assigned, but this user has access to ALL '
+                . 'actions regardless of policy assignments.';
             $output .= '</div>';
         }
 
@@ -88,7 +92,8 @@ class SecurityDebugHelper extends Helper
             $totalMethods += count($methods);
         }
 
-        $output .= '<p class="text-muted mb-2">Showing ' . count($policies) . ' policy classes with ' . $totalMethods . ' total methods</p>';
+        $output .= '<p class="text-muted mb-2">Showing '
+            . count($policies) . ' policy classes with ' . $totalMethods . ' total methods</p>';
 
         $output .= '<div class="table-responsive">';
         $output .= '<table class="table table-sm table-bordered table-hover">';

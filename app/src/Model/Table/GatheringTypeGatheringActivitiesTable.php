@@ -90,10 +90,16 @@ class GatheringTypeGatheringActivitiesTable extends Table
     public function buildRules(RulesChecker $rules): RulesChecker
     {
         $rules->add($rules->existsIn(['gathering_type_id'], 'GatheringTypes'), ['errorField' => 'gathering_type_id']);
-        $rules->add($rules->existsIn(['gathering_activity_id'], 'GatheringActivities'), ['errorField' => 'gathering_activity_id']);
+        $rules->add(
+            $rules->existsIn(['gathering_activity_id'], 'GatheringActivities'),
+            ['errorField' => 'gathering_activity_id'],
+        );
 
         // Ensure unique combination of gathering_type_id and gathering_activity_id
-        $rules->add($rules->isUnique(['gathering_type_id', 'gathering_activity_id'], 'This activity is already assigned to this gathering type.'));
+        $rules->add($rules->isUnique(
+            ['gathering_type_id', 'gathering_activity_id'],
+            'This activity is already assigned to this gathering type.',
+        ));
 
         return $rules;
     }

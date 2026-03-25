@@ -163,7 +163,13 @@ class BasePolicy implements BeforePolicyInterface
      * @param \App\Model\Entity\BaseEntity|\Cake\ORM\Table $entity
      * @return bool
      */
-    protected function _hasPolicy(KmpIdentityInterface $user, string $policyMethod, BaseEntity|Table $entity, ?int $branchId = null, $grantSource = null): bool
+    protected function _hasPolicy(
+        KmpIdentityInterface $user,
+        string $policyMethod,
+        BaseEntity|Table $entity,
+        ?int $branchId = null,
+        $grantSource = null,
+    ): bool
     {
         if ($this->_isSuperUser($user)) {
             return true;
@@ -232,7 +238,13 @@ class BasePolicy implements BeforePolicyInterface
      * @param Array|\Cake\ORM\Table $entity
      * @return bool
      */
-    protected function _hasPolicyForUrl(KmpIdentityInterface $user, string $policyMethod, array $urlProps, ?int $branchId = null, $grantSource = null): bool
+    protected function _hasPolicyForUrl(
+        KmpIdentityInterface $user,
+        string $policyMethod,
+        array $urlProps,
+        ?int $branchId = null,
+        $grantSource = null,
+    ): bool
     {
         if ($this->_isSuperUser($user)) {
             return true;

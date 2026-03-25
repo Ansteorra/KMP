@@ -66,8 +66,10 @@ class ImpersonationService
         }
 
         try {
-            $impersonator = TableRegistry::getTableLocator()->get('Members')->get((int)($state['impersonator_id'] ?? 0));
-            $impersonated = TableRegistry::getTableLocator()->get('Members')->get((int)($state['impersonated_member_id'] ?? 0));
+            $impersonator = TableRegistry::getTableLocator()->get('Members')
+                ->get((int)($state['impersonator_id'] ?? 0));
+            $impersonated = TableRegistry::getTableLocator()->get('Members')
+                ->get((int)($state['impersonated_member_id'] ?? 0));
             $this->logSessionEvent('stop', $impersonator, $impersonated);
         } catch (Throwable $exception) {
             Log::warning('Failed to record impersonation session stop: ' . $exception->getMessage());

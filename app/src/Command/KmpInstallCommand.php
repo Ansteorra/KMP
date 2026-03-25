@@ -108,13 +108,23 @@ class KmpInstallCommand extends Command
             'auto',
         );
         if ($profileOption === '' && (bool)$args->getOption('yes') === false) {
-            $profile = $io->askChoice('Deployment profile', ['auto', 'vpc', 'azure', 'aws', 'fly', 'railway', 'shared'], $profile);
+            $profile = $io->askChoice(
+                'Deployment profile',
+                ['auto', 'vpc', 'azure', 'aws', 'fly', 'railway', 'shared'],
+                $profile,
+            );
         }
 
         $dbDriver = $this->normalizeChoice(
             $args->getOption('database-driver') ?? '',
             ['mysql', 'postgres'],
-            $this->askOrDefault($io, 'Database family', ['mysql', 'postgres'], 'mysql', $args->getOption('database-driver')),
+            $this->askOrDefault(
+                $io,
+                'Database family',
+                ['mysql', 'postgres'],
+                'mysql',
+                $args->getOption('database-driver'),
+            ),
         );
 
         $databaseUrl = trim((string)$args->getOption('database-url'));
@@ -133,7 +143,13 @@ class KmpInstallCommand extends Command
         $storage = $this->normalizeChoice(
             $args->getOption('storage') ?? '',
             ['local', 'azure', 's3'],
-            $this->askOrDefault($io, 'Document storage', ['local', 'azure', 's3'], 'local', $args->getOption('storage')),
+            $this->askOrDefault(
+                $io,
+                'Document storage',
+                ['local', 'azure', 's3'],
+                'local',
+                $args->getOption('storage'),
+            ),
         );
 
         $redisUrl = trim((string)$args->getOption('redis-url'));
@@ -165,7 +181,17 @@ class KmpInstallCommand extends Command
         }
 
         $envFile = $args->getOption('env-file');
-        $payload = $this->buildEnvPayload($profile, $dbDriver, $databaseUrl, $redisUrl, $storage, $azureConnection, $s3Bucket, $s3Region, $s3Endpoint);
+        $payload = $this->buildEnvPayload(
+            $profile,
+            $dbDriver,
+            $databaseUrl,
+            $redisUrl,
+            $storage,
+            $azureConnection,
+            $s3Bucket,
+            $s3Region,
+            $s3Endpoint,
+        );
 
         if ($args->getOption('json')) {
             $io->out(json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
@@ -209,7 +235,13 @@ class KmpInstallCommand extends Command
         return strtolower($value);
     }
 
-    private function askOrDefault(ConsoleIo $io, string $label, array $options, string $default, mixed $optionValue): string
+    private function askOrDefault(
+        ConsoleIo $io,
+        string $label,
+        array $options,
+        string $default,
+        mixed $optionValue,
+    ): string
     {
         if ($optionValue !== null && $optionValue !== '') {
             return $this->normalizeChoice((string)$optionValue, $options, $default);

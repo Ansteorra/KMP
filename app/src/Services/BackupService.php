@@ -290,13 +290,19 @@ class BackupService
                         'rows_processed' => $totalRows,
                     ],
                 );
-                $notValidatedConstraintCount = $this->restorePostgresForeignKeys($connection, $driver, $droppedForeignKeys);
+                $notValidatedConstraintCount = $this->restorePostgresForeignKeys(
+                    $connection,
+                    $driver,
+                    $droppedForeignKeys,
+                );
                 if ($notValidatedConstraintCount > 0) {
                     $this->reportProgress(
                         $progressReporter,
                         'finalizing_constraints',
                         sprintf(
-                            'Restore completed with warnings: %d foreign key constraints were left NOT VALID due existing orphaned data.',
+                            'Restore completed with warnings: %d foreign '
+                            . 'key constraints were left NOT VALID due '
+                            . 'existing orphaned data.',
                             $notValidatedConstraintCount,
                         ),
                         [
@@ -594,7 +600,12 @@ SQL;
      * @param callable(array<string, mixed>):void|null $progressReporter
      * @param array<string, mixed> $context
      */
-    private function reportProgress(?callable $progressReporter, string $phase, string $message, array $context = []): void
+    private function reportProgress(
+        ?callable $progressReporter,
+        string $phase,
+        string $message,
+        array $context = [],
+    ): void
     {
         if ($progressReporter === null) {
             return;
@@ -889,7 +900,11 @@ SQL;
             return (int)$value;
         }
 
-        if (is_string($value) && $value !== '' && in_array($columnType, ['float', 'decimal'], true) && is_numeric($value)) {
+        if (is_string($value) && $value !== '' && in_array(
+            $columnType,
+            ['float', 'decimal'],
+            true,
+        )&& is_numeric($value)) {
             return (float)$value;
         }
 

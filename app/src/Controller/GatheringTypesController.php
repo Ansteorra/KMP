@@ -120,7 +120,10 @@ class GatheringTypesController extends AppController
         $this->Authorization->authorize($gatheringType);
 
         // Get all available activities for the add activity modal
-        $availableActivities = $this->GatheringTypes->GatheringActivities->find('list', order: ['name' => 'ASC'])->all();
+        $availableActivities = $this->GatheringTypes->GatheringActivities->find(
+            'list',
+            order: ['name' => 'ASC'],
+        )->all();
 
         $this->set(compact('gatheringType', 'availableActivities'));
     }
@@ -149,7 +152,7 @@ class GatheringTypesController extends AppController
             $errors = $gatheringType->getErrors();
             if (!empty($errors)) {
                 $errorMessages = [];
-                foreach ($errors as $field => $fieldErrors) {
+                foreach ($errors as $fieldErrors) {
                     foreach ($fieldErrors as $error) {
                         $errorMessages[] = $error;
                     }
@@ -192,7 +195,7 @@ class GatheringTypesController extends AppController
             $errors = $gatheringType->getErrors();
             if (!empty($errors)) {
                 $errorMessages = [];
-                foreach ($errors as $field => $fieldErrors) {
+                foreach ($errors as $fieldErrors) {
                     foreach ($fieldErrors as $error) {
                         $errorMessages[] = $error;
                     }
@@ -229,7 +232,8 @@ class GatheringTypesController extends AppController
 
         if ($gatheringCount > 0) {
             $this->Flash->error(__(
-                'Cannot delete gathering type "{0}" because it is used by {1} gathering(s). Please reassign or delete those gatherings first.',
+                'Cannot delete gathering type "{0}" because it is used by {1} gathering(s).'
+                    . ' Please reassign or delete those gatherings first.',
                 $gatheringType->name,
                 $gatheringCount,
             ));

@@ -122,7 +122,10 @@ class MembersController extends AppController
 
         $session = $this->request->getSession();
         if ($impersonationService->isActive($session)) {
-            throw new BadRequestException(__('You are already impersonating another member. Stop impersonating before starting a new session.'));
+            throw new BadRequestException(__(
+                'You are already impersonating another member. '
+                . 'Stop impersonating before starting a new session.',
+            ));
         }
 
         if ((int)$currentUser->id === $memberId) {
@@ -144,7 +147,10 @@ class MembersController extends AppController
 
         $displayName = $member->sca_name ?: ($member->first_name ?? $member->email_address ?? (string)$member->id);
         $this->Flash->success(
-            __('You are now impersonating {0}. All actions will use their permissions until you stop impersonating.', $displayName),
+            __(
+                'You are now impersonating {0}. All actions will use their permissions until you stop impersonating.',
+                $displayName,
+            ),
         );
 
         return $this->redirect(
@@ -798,7 +804,6 @@ class MembersController extends AppController
             })
             ->where(['can_have_members' => true])
             ->orderBy(['name' => 'ASC'])->toArray();
-        $referer = $this->request->referer(true);
         $backUrl = [];
         $user = $this->Authentication->getIdentity();
         $canManageMember = $user instanceof Member ? $user->canManageMember($member) : false;
@@ -1072,10 +1077,18 @@ class MembersController extends AppController
             }
             if ($this->Members->save($member)) {
                 if ($member->age < 18) {
-                    $this->Flash->success(__('The Member has been saved and the minor registration email has been sent for verification.'));
+                    $this->Flash->success(__(
+                        'The Member has been saved and the minor '
+                        . 'registration email has been sent for '
+                        . 'verification.',
+                    ));
                     $this->getMailer('KMP')->send('notifySecretaryOfNewMinorMember', [$member]);
                 } else {
-                    $this->Flash->success(__("The Member has been saved. Please ask the member to use 'forgot password' to set their password."));
+                    $this->Flash->success(__(
+                        'The Member has been saved. Please ask the '
+                        . "member to use 'forgot password' to set "
+                        . 'their password.',
+                    ));
                 }
 
                 return $this->redirect(['action' => 'view', $member->id]);
@@ -1143,7 +1156,10 @@ class MembersController extends AppController
                         break;
                 }
             }
-            if ($member->membership_expires_on != null && $member->membership_expires_on != '' && is_string($member->membership_expires_on)) {
+            if ($member->membership_expires_on != null
+                && $member->membership_expires_on != ''
+                && is_string($member->membership_expires_on)
+            ) {
                 //convert to a date
                 $member->membership_expires_on = DateTime::createFromFormat('Y-m-d', $member->membership_expires_on);
             }
@@ -1475,7 +1491,9 @@ class MembersController extends AppController
         }
 
         $newDocumentId = (int)$uploadResult->data;
-        $oldDocumentId = $member->profile_photo_document_id ? (int)$member->profile_photo_document_id : null;
+        $oldDocumentId = $member->profile_photo_document_id
+            ? (int)$member->profile_photo_document_id
+            : null;
 
         $member->profile_photo_document_id = $newDocumentId;
         if (!$this->Members->save($member)) {
@@ -1487,7 +1505,14 @@ class MembersController extends AppController
         if ($oldDocumentId && $oldDocumentId !== $newDocumentId) {
             $deleteResult = $documentService->deleteDocument($oldDocumentId);
             if (!$deleteResult->success) {
-                return ['success' => true, 'warning' => true, 'message' => __('Profile photo updated, but old photo cleanup failed.')];
+                return [
+                    'success' => true,
+                    'warning' => true,
+                    'message' => __(
+                        'Profile photo updated, but old photo '
+                        . 'cleanup failed.',
+                    ),
+                ];
             }
         }
 
@@ -2010,7 +2035,12 @@ class MembersController extends AppController
                                 'Members.AccountVerificationContactEmail',
                             );
                             $this->Flash->error(
-                                'Your account is being verified. This process may take several days after you have verified your email address. Please contact ' . $contactAddress . ' if you have not been verified within a week.',
+                                'Your account is being verified. This '
+                                . 'process may take several days after '
+                                . 'you have verified your email address. '
+                                . 'Please contact ' . $contactAddress
+                                . ' if you have not been verified '
+                                . 'within a week.',
                             );
                             break;
                         case 'Account Disabled':
@@ -2018,7 +2048,8 @@ class MembersController extends AppController
                                 'Members.AccountDisabledContactEmail',
                             );
                             $this->Flash->error(
-                                'Your account deactivated. Please contact ' . $contactAddress . ' if you feel this is in error.',
+                                'Your account deactivated. Please contact '
+                                    . $contactAddress . ' if you feel this is in error.',
                             );
                             break;
                         default:
@@ -2388,7 +2419,8 @@ class MembersController extends AppController
             $device->last_failed_login !== null &&
             $device->last_failed_login > $pinLockoutWindow
         ) {
-            $this->Flash->error(__('Too many failed PIN attempts. Please wait a few minutes or sign in with your password.'));
+            $this->Flash
+                ->error(__('Too many failed PIN attempts. Please wait a few minutes or sign in with your password.'));
 
             return null;
         }
@@ -2428,7 +2460,8 @@ class MembersController extends AppController
     {
         $this->quickLoginDisabledForRequest = true;
         $this->quickLoginDisabledEmailForRequest = $this->truncateString(trim($emailAddress), 255) ?? '';
-        $this->Flash->error(__('Quick login was disabled on this device. Please sign in with your email and password.'));
+        $this->Flash
+            ->error(__('Quick login was disabled on this device. Please sign in with your email and password.'));
     }
 
     /**
@@ -2546,7 +2579,10 @@ class MembersController extends AppController
             }
         }
 
-        $parts = array_values(array_filter([$city, $region, $country], static fn(?string $part): bool => $part !== null));
+        $parts = array_values(array_filter(
+            [$city, $region, $country],
+            static fn(?string $part): bool => $part !== null,
+        ));
         if (empty($parts)) {
             return null;
         }
@@ -2683,7 +2719,11 @@ class MembersController extends AppController
                 $fileName = substr($fileResult, strrpos($fileResult, '/') + 1);
                 $member->membership_card_path = $fileName;
                 if ($this->Members->save($member)) {
-                    $this->Flash->success(__('Membership information has been submitted, please allow several days for our team to review and update the profile.'));
+                    $this->Flash->success(__(
+                        'Membership information has been submitted, '
+                        . 'please allow several days for our team to '
+                        . 'review and update the profile.',
+                    ));
                 } else {
                     $this->Flash->error('There was an error please try again.');
                 }
@@ -2800,7 +2840,11 @@ class MembersController extends AppController
                         $vars['membershipCardPresent'] = false;
                     }
                     $this->queueMail('KMP', 'notifySecretaryOfNewMember', $member->email_address, $vars);
-                    $this->Flash->success(__('Your registration has been submitted. Please check your email for a link to set up your password.'));
+                    $this->Flash->success(__(
+                        'Your registration has been submitted. '
+                        . 'Please check your email for a link '
+                        . 'to set up your password.',
+                    ));
                 } else {
                     $url = Router::url([
                         'controller' => 'Members',
@@ -2819,7 +2863,12 @@ class MembersController extends AppController
                         $vars['membershipCardPresent'] = false;
                     }
                     $this->queueMail('KMP', 'notifySecretaryOfNewMinorMember', $member->email_address, $vars);
-                    $this->Flash->success(__('Your registration has been submitted. The Kingdom Secretary will need to verify your account with your parent or guardian'));
+                    $this->Flash->success(__(
+                        'Your registration has been submitted. '
+                        . 'The Kingdom Secretary will need to '
+                        . 'verify your account with your parent '
+                        . 'or guardian',
+                    ));
                 }
 
                 return $this->redirect(['action' => 'login']);
@@ -2924,9 +2973,15 @@ class MembersController extends AppController
                 }
                 $member->membership_number = $membership_number;
                 $member->membership_expires_on = $this->request->getData('membership_expires_on');
-                if ($member->membership_expires_on != null && $member->membership_expires_on != '' && is_string($member->membership_expires_on)) {
+                if ($member->membership_expires_on != null
+                    && $member->membership_expires_on != ''
+                    && is_string($member->membership_expires_on)
+                ) {
                     //convert to a date
-                    $member->membership_expires_on = DateTime::createFromFormat('Y-m-d', $member->membership_expires_on);
+                    $member->membership_expires_on = DateTime::createFromFormat(
+                        'Y-m-d',
+                        $member->membership_expires_on,
+                    );
                 }
             }
             if ($member->age < 18 && $verifyParent == '1') {

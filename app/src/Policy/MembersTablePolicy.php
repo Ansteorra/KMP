@@ -71,7 +71,7 @@ class MembersTablePolicy extends BasePolicy
      * @param mixed ...$optionalArgs Optional arguments
      * @return bool
      */
-    function canVerifyQueue(KmpIdentityInterface $user, BaseEntity|Table $entity, mixed ...$optionalArgs): bool
+    public function canVerifyQueue(KmpIdentityInterface $user, BaseEntity|Table $entity, mixed ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
 
@@ -87,7 +87,11 @@ class MembersTablePolicy extends BasePolicy
      * @param mixed ...$optionalArgs Optional arguments
      * @return bool
      */
-    public function canVerifyQueueGridData(KmpIdentityInterface $user, BaseEntity|Table $entity, mixed ...$optionalArgs): bool
+    public function canVerifyQueueGridData(
+        KmpIdentityInterface $user,
+        BaseEntity|Table $entity,
+        mixed ...$optionalArgs,
+    ): bool
     {
         return $this->canVerifyQueue($user, $entity, ...$optionalArgs);
     }

@@ -332,7 +332,14 @@ class GatheringsGridColumns extends BaseGridColumns
                 'canManage' => false,
                 'config' => [
                     'filters' => [
-                        ['field' => 'start_date', 'operator' => 'dateRange', 'value' => [$boundaries['thisMonthStartLocal'], $boundaries['thisMonthEndLocal']]],
+                        [
+                            'field' => 'start_date',
+                            'operator' => 'dateRange',
+                            'value' => [
+                                $boundaries['thisMonthStartLocal'],
+                                $boundaries['thisMonthEndLocal'],
+                            ],
+                        ],
                     ],
                     'skipFilterColumns' => ['start_date', 'end_date'],
                 ],
@@ -344,7 +351,14 @@ class GatheringsGridColumns extends BaseGridColumns
                 'canManage' => false,
                 'config' => [
                     'filters' => [
-                        ['field' => 'start_date', 'operator' => 'dateRange', 'value' => [$boundaries['nextMonthStartLocal'], $boundaries['nextMonthEndLocal']]],
+                        [
+                            'field' => 'start_date',
+                            'operator' => 'dateRange',
+                            'value' => [
+                                $boundaries['nextMonthStartLocal'],
+                                $boundaries['nextMonthEndLocal'],
+                            ],
+                        ],
                     ],
                     'skipFilterColumns' => ['start_date', 'end_date'],
                 ],

@@ -79,7 +79,7 @@ trait QueuedMailerAwareTrait
 
         try {
             $this->mailer->setTransport($data['transport'] ?? 'default');
-            $result = $this->mailer->send($data['action'], $data['vars'] ?? []);
+            $this->mailer->send($data['action'], $data['vars'] ?? []);
         } catch (Throwable $e) {
             throw $e;
         }

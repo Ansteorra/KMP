@@ -279,7 +279,12 @@ class Application extends BaseApplication implements
             StaticHelpers::getAppSetting('Warrant.RosterApprovalsRequired', '2', null, true); // Number of approvals needed for roster changes
 
             // Help and Documentation Settings
-            StaticHelpers::getAppSetting('KMP.AppSettings.HelpUrl', 'https://github.com/Ansteorra/KMP/wiki/App-Settings', null, true); // Settings help URL
+            StaticHelpers::getAppSetting(
+                'KMP.AppSettings.HelpUrl',
+                'https://github.com/Ansteorra/KMP/wiki/App-Settings',
+                null,
+                true,
+            ); // Settings help URL
 
             // Branch Type Configuration - Organizational structure definitions
             // Uses YAML format for complex data structures
@@ -418,17 +423,34 @@ class Application extends BaseApplication implements
                 }
 
                 // Build CSP policy
-                $csp = "default-src 'self'; " . // Default to same origin
-                    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://maps.googleapis.com; " . // Allow CDN scripts, Leaflet (unpkg), and Google Maps
-                    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://fonts.googleapis.com; " . // Allow Google Fonts and Leaflet CSS
-                    "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net;" . // Font sources
-                    "img-src 'self' data: https:; " . // Allow HTTPS images and data URIs
-                    "connect-src 'self' https://api.github.com https://maps.googleapis.com https://places.googleapis.com https://tile.openstreetmap.org https://a.tile.openstreetmap.org https://b.tile.openstreetmap.org https://c.tile.openstreetmap.org; " . // AJAX/fetch restrictions - allow GitHub API, Google Maps, Places API, and OpenStreetMap tiles
-                    "frame-src 'self' https://www.google.com; " . // iframe restrictions - allow Google Maps embeds
-                    "object-src 'none'; " . // Disable plugins
-                    "base-uri 'self'; " . // Prevent base tag attacks
-                    "form-action 'self'; " . // Form submission restrictions
-                    "frame-ancestors 'self'"; // Embedding restrictions
+                $csp = "default-src 'self'; "
+                    // Allow CDN scripts, Leaflet (unpkg), and Google Maps
+                    . "script-src 'self' 'unsafe-inline' 'unsafe-eval' "
+                    . "https://cdn.jsdelivr.net https://unpkg.com "
+                    . "https://maps.googleapis.com; "
+                    // Allow Google Fonts and Leaflet CSS
+                    . "style-src 'self' 'unsafe-inline' "
+                    . "https://cdn.jsdelivr.net https://unpkg.com "
+                    . "https://fonts.googleapis.com; "
+                    // Font sources
+                    . "font-src 'self' data: https://fonts.gstatic.com "
+                    . "https://cdn.jsdelivr.net;"
+                    // Allow HTTPS images and data URIs
+                    . "img-src 'self' data: https:; "
+                    // AJAX/fetch restrictions
+                    . "connect-src 'self' https://api.github.com "
+                    . "https://maps.googleapis.com "
+                    . "https://places.googleapis.com "
+                    . "https://tile.openstreetmap.org "
+                    . "https://a.tile.openstreetmap.org "
+                    . "https://b.tile.openstreetmap.org "
+                    . "https://c.tile.openstreetmap.org; "
+                    // iframe restrictions - allow Google Maps embeds
+                    . "frame-src 'self' https://www.google.com; "
+                    . "object-src 'none'; "
+                    . "base-uri 'self'; "
+                    . "form-action 'self'; "
+                    . "frame-ancestors 'self'";
 
                 // Add upgrade-insecure-requests only in production/UAT
                 if (!$isDevelopment) {
@@ -493,8 +515,14 @@ class Application extends BaseApplication implements
             ->add(
                 (new CsrfProtectionMiddleware([
                     'httponly' => true, // Prevent JavaScript access to CSRF cookie
-                    'secure' => filter_var(env('REQUIRE_HTTPS', !Configure::read('debug') ? 'true' : 'false'), FILTER_VALIDATE_BOOLEAN),
-                    'sameSite' => filter_var(env('REQUIRE_HTTPS', !Configure::read('debug') ? 'true' : 'false'), FILTER_VALIDATE_BOOLEAN) ? 'Strict' : 'Lax',
+                    'secure' => filter_var(
+                        env('REQUIRE_HTTPS', !Configure::read('debug') ? 'true' : 'false'),
+                        FILTER_VALIDATE_BOOLEAN,
+                    ),
+                    'sameSite' => filter_var(
+                        env('REQUIRE_HTTPS', !Configure::read('debug') ? 'true' : 'false'),
+                        FILTER_VALIDATE_BOOLEAN,
+                    )? 'Strict' : 'Lax',
                 ]))->skipCheckCallback(function ($request) {
                     // Skip CSRF for API routes (Bearer token provides security)
                     $path = $request->getUri()->getPath();

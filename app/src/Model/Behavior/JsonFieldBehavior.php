@@ -102,7 +102,11 @@ class JsonFieldBehavior extends Behavior
         $segments = explode('.', substr($path, 2));
         foreach ($segments as $segment) {
             if ($segment === '' || preg_match('/^[A-Za-z0-9_]+$/', $segment) !== 1) {
-                throw new InvalidArgumentException(sprintf('Invalid JSON path segment `%s` in path `%s`.', $segment, $path));
+                throw new InvalidArgumentException(sprintf(
+                    'Invalid JSON path segment `%s` in path `%s`.',
+                    $segment,
+                    $path,
+                ));
             }
         }
 

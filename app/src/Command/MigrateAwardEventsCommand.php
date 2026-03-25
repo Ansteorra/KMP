@@ -309,7 +309,8 @@ class MigrateAwardEventsCommand extends Command
                 ->first();
 
             if ($existing) {
-                $this->io->out("  - Gathering already exists for event '{$event->name}' (Gathering ID: {$existing->id})");
+                $this->io
+                    ->out("  - Gathering already exists for event '{$event->name}' (Gathering ID: {$existing->id})");
                 $eventGatheringMap[$event->id] = $existing->id;
                 $skipped++;
                 continue;
@@ -384,7 +385,11 @@ class MigrateAwardEventsCommand extends Command
 
         foreach ($recommendations as $recommendation) {
             if (!isset($eventGatheringMap[$recommendation->event_id])) {
-                $this->io->warning("    - No gathering found for event ID {$recommendation->event_id}, skipping recommendation {$recommendation->id}");
+                $this->io->warning(
+                    "    - No gathering found for event ID "
+                    . "{$recommendation->event_id}, skipping "
+                    . "recommendation {$recommendation->id}",
+                );
                 $skippedRecommendations++;
                 continue;
             }
@@ -392,7 +397,12 @@ class MigrateAwardEventsCommand extends Command
             $gatheringId = $eventGatheringMap[$recommendation->event_id];
 
             if ($this->dryRun) {
-                $this->io->out("    - [DRY RUN] Would update recommendation {$recommendation->id}: event_id {$recommendation->event_id} -> gathering_id {$gatheringId}");
+                $this->io->out(
+                    "    - [DRY RUN] Would update recommendation "
+                    . "{$recommendation->id}: event_id "
+                    . "{$recommendation->event_id} -> "
+                    . "gathering_id {$gatheringId}",
+                );
                 $updatedRecommendations++;
                 continue;
             }
@@ -407,7 +417,8 @@ class MigrateAwardEventsCommand extends Command
             }
         }
 
-        $this->io->success("    ✓ Updated {$updatedRecommendations} recommendations, skipped {$skippedRecommendations}");
+        $this->io
+            ->success("    ✓ Updated {$updatedRecommendations} recommendations, skipped {$skippedRecommendations}");
 
         // Step 7: Update awards_recommendations_events.event_id to gathering_id
         // This is a junction table without a model, so we use direct queries
@@ -435,7 +446,12 @@ class MigrateAwardEventsCommand extends Command
             $gatheringId = $eventGatheringMap[$eventId];
 
             if ($this->dryRun) {
-                $this->io->out("    - [DRY RUN] Would update awards_recommendations_events {$recordId}: event_id {$eventId} -> gathering_id {$gatheringId}");
+                $this->io->out(
+                    "    - [DRY RUN] Would update "
+                    . "awards_recommendations_events {$recordId}: "
+                    . "event_id {$eventId} -> gathering_id "
+                    . "{$gatheringId}",
+                );
                 $updatedRecEvents++;
                 continue;
             }
@@ -449,6 +465,10 @@ class MigrateAwardEventsCommand extends Command
             $updatedRecEvents++;
         }
 
-        $this->io->success("    ✓ Updated {$updatedRecEvents} awards_recommendations_events records, skipped {$skippedRecEvents}");
+        $this->io->success(
+            "    ✓ Updated {$updatedRecEvents} "
+            . "awards_recommendations_events records, "
+            . "skipped {$skippedRecEvents}",
+        );
     }
 }

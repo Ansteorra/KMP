@@ -84,12 +84,18 @@ class TableAdminController extends AppController
                             if (!empty($sqlResultRows)) {
                                 $sqlResultColumns = array_keys($sqlResultRows[0]);
                             }
-                            $sqlMessage = __('Query executed successfully. Returned {0} row(s).', count($sqlResultRows));
+                            $sqlMessage = __(
+                                'Query executed successfully. Returned {0} row(s).',
+                                count($sqlResultRows),
+                            );
                             if ($sqlTruncated) {
                                 $sqlMessage .= ' ' . __('Results were limited to the first {0} row(s).', $sqlMaxRows);
                             }
                         } else {
-                            $sqlMessage = __('Statement executed successfully. {0} row(s) affected.', (int)$statement->rowCount());
+                            $sqlMessage = __(
+                                'Statement executed successfully. {0} row(s) affected.',
+                                (int)$statement->rowCount(),
+                            );
                             if ($mutationType !== null) {
                                 $sqlMessage .= ' ' . __('{0} was wrapped in a transaction.', $mutationType);
                             }

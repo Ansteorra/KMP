@@ -130,10 +130,22 @@ class MemberRolesGridColumns extends BaseGridColumns
                 'width' => '120px',
                 'alignment' => 'center',
                 'filterOptions' => [
-                    ['value' => ActiveWindowBaseEntity::CURRENT_STATUS, 'label' => ActiveWindowBaseEntity::CURRENT_STATUS],
-                    ['value' => ActiveWindowBaseEntity::UPCOMING_STATUS, 'label' => ActiveWindowBaseEntity::UPCOMING_STATUS],
-                    ['value' => ActiveWindowBaseEntity::EXPIRED_STATUS, 'label' => ActiveWindowBaseEntity::EXPIRED_STATUS],
-                    ['value' => ActiveWindowBaseEntity::DEACTIVATED_STATUS, 'label' => ActiveWindowBaseEntity::DEACTIVATED_STATUS],
+                    [
+                        'value' => ActiveWindowBaseEntity::CURRENT_STATUS,
+                        'label' => ActiveWindowBaseEntity::CURRENT_STATUS,
+                    ],
+                    [
+                        'value' => ActiveWindowBaseEntity::UPCOMING_STATUS,
+                        'label' => ActiveWindowBaseEntity::UPCOMING_STATUS,
+                    ],
+                    [
+                        'value' => ActiveWindowBaseEntity::EXPIRED_STATUS,
+                        'label' => ActiveWindowBaseEntity::EXPIRED_STATUS,
+                    ],
+                    [
+                        'value' => ActiveWindowBaseEntity::DEACTIVATED_STATUS,
+                        'label' => ActiveWindowBaseEntity::DEACTIVATED_STATUS,
+                    ],
                 ],
             ],
 

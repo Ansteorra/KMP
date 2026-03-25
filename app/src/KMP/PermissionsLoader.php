@@ -115,7 +115,8 @@ class PermissionsLoader
                 if ($permission->permission_policies) {
                     foreach ($permission->permission_policies as $policy) {
                         // Build policy class -> method -> policy ID mapping
-                        $permissions[$permission->id]->policies[$policy->policy_class][$policy->policy_method] = $policy->id;
+                        $permissions[$permission->id]->policies[$policy->policy_class][$policy->policy_method] = $policy
+                            ->id;
                     }
                 }
 
@@ -611,7 +612,8 @@ class PermissionsLoader
 
                 if ($permission->permission_policies) {
                     foreach ($permission->permission_policies as $policy) {
-                        $permissions[$permission->id]->policies[$policy->policy_class][$policy->policy_method] = $policy->id;
+                        $permissions[$permission->id]->policies[$policy->policy_class][$policy->policy_method] = $policy
+                            ->id;
                     }
                 }
 

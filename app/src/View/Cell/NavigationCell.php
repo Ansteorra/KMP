@@ -226,7 +226,8 @@ class NavigationCell extends Cell
                 $sublink['expanded'] = true;
             }
 
-            $parents[$sublink['mergePath'][0]]['children'][$sublink['mergePath'][1]]['sublinks'][$sublink['label']] = $sublink;
+            $parents[$sublink['mergePath'][0]]['children'][$sublink['mergePath'][1]]['sublinks'][$sublink['label']] =
+                $sublink;
         }
         //sort parents by order
         uasort($parents, function ($a, $b) {

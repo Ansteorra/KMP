@@ -224,7 +224,7 @@ class DocumentService
         // Verify directory is writable
         if (!is_writable($this->localBasePath)) {
             // Attempt to fix permissions
-            if (!@chmod($this->localBasePath, 0755)) {
+            if (!chmod($this->localBasePath, 0755)) {
                 Log::warning('Failed to set permissions on storage directory', [
                     'path' => $this->localBasePath,
                 ]);
@@ -560,7 +560,7 @@ class DocumentService
             Log::error('Failed to store file');
 
             if ($previewTempPath !== null && file_exists($previewTempPath)) {
-                @unlink($previewTempPath);
+                unlink($previewTempPath);
             }
 
             return new ServiceResult(
@@ -604,7 +604,7 @@ class DocumentService
             ]);
 
             if ($previewTempPath !== null && file_exists($previewTempPath)) {
-                @unlink($previewTempPath);
+                unlink($previewTempPath);
             }
 
             return new ServiceResult(
@@ -911,7 +911,11 @@ class DocumentService
             $fullPath = $basePath . DIRECTORY_SEPARATOR . $relativePath;
             $resolvedPath = realpath($fullPath);
 
-            if ($resolvedPath !== false && file_exists($resolvedPath) && strpos($resolvedPath, realpath($basePath)) === 0) {
+            if (
+                $resolvedPath !== false
+                && file_exists($resolvedPath)
+                && strpos($resolvedPath, realpath($basePath)) === 0
+            ) {
                 $response = new Response();
 
                 return $response->withFile(
@@ -1100,24 +1104,30 @@ class DocumentService
             return new ServiceResult(false, 'Temporary preview image missing.');
         }
 
-        $previewRelativePath = preg_replace('/\\.pdf$/i', '_preview.jpg', $relativePdfPath) ?? $relativePdfPath . '_preview.jpg';
+        $previewRelativePath = preg_replace(
+            '/\\.pdf$/i',
+            '_preview.jpg',
+            $relativePdfPath,
+        ) ?? $relativePdfPath . '_preview.jpg';
         $sanitizedRelativePath = $this->sanitizePath($previewRelativePath);
 
         try {
             if ($this->adapter === 'local') {
-                $destination = $this->localBasePath . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $sanitizedRelativePath);
+                $destination = $this->localBasePath
+                    . DIRECTORY_SEPARATOR
+                    . str_replace('/', DIRECTORY_SEPARATOR, $sanitizedRelativePath);
                 $directory = dirname($destination);
 
                 if (!is_dir($directory) && !mkdir($directory, 0755, true) && !is_dir($directory)) {
                     return new ServiceResult(false, 'Failed to prepare directory for preview image.');
                 }
 
-                if (file_exists($destination) && !@unlink($destination)) {
+                if (file_exists($destination) && !unlink($destination)) {
                     return new ServiceResult(false, 'Failed to replace existing preview image.');
                 }
 
-                if (!@rename($tempPreviewPath, $destination)) {
-                    if (!@copy($tempPreviewPath, $destination)) {
+                if (!rename($tempPreviewPath, $destination)) {
+                    if (!copy($tempPreviewPath, $destination)) {
                         return new ServiceResult(false, 'Failed to copy preview into storage.');
                     }
                 }
@@ -1141,7 +1151,7 @@ class DocumentService
             return new ServiceResult(false, $e->getMessage());
         } finally {
             if (file_exists($tempPreviewPath)) {
-                @unlink($tempPreviewPath);
+                unlink($tempPreviewPath);
             }
         }
     }

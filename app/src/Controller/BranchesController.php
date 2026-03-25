@@ -287,7 +287,10 @@ class BranchesController extends AppController
                 },
                 'Members' => function ($q) {
                     return $q
-                        ->select(['id', 'sca_name', 'branch_id', 'membership_number', 'membership_expires_on', 'status', 'birth_month', 'birth_year'])
+                        ->select([
+                            'id', 'sca_name', 'branch_id', 'membership_number',
+                            'membership_expires_on', 'status', 'birth_month', 'birth_year',
+                        ])
                         ->orderBy(['sca_name' => 'ASC']);
                 },
             ])
@@ -371,7 +374,10 @@ class BranchesController extends AppController
                 },
                 'Members' => function ($q) {
                     return $q
-                        ->select(['id', 'sca_name', 'branch_id', 'membership_number', 'membership_expires_on', 'status', 'birth_month', 'birth_year'])
+                        ->select([
+                            'id', 'sca_name', 'branch_id', 'membership_number',
+                            'membership_expires_on', 'status', 'birth_month', 'birth_year',
+                        ])
                         ->orderBy(['sca_name' => 'ASC']);
                 },
             ])

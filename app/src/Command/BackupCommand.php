@@ -179,7 +179,11 @@ class BackupCommand extends Command
                         'actor' => 'cli',
                     ]));
 
-                    if ($phase === 'table_restored' && isset($progress['tables_processed'], $progress['table_count'], $progress['rows_processed'])) {
+                    if ($phase === 'table_restored' && isset(
+                        $progress['tables_processed'],
+                        $progress['table_count'],
+                        $progress['rows_processed'],
+                    )) {
                         $io->out(sprintf(
                             'Progress: %d/%d tables, %s rows.',
                             (int)$progress['tables_processed'],
@@ -236,7 +240,8 @@ class BackupCommand extends Command
         $units = ['B', 'KB', 'MB', 'GB'];
         $i = 0;
         $size = (float)$bytes;
-        while ($size >= 1024 && $i < count($units) - 1) {
+        $unitsCount = count($units) - 1;
+        while ($size >= 1024 && $i < $unitsCount) {
             $size /= 1024;
             $i++;
         }

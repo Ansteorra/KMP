@@ -33,7 +33,15 @@ class PermissionsController extends AppController
 
         // Configure model-level authorization for specific actions
         // These actions will have automatic model authorization applied
-        $this->Authorization->authorizeModel('index', 'add', 'matrix', 'gridData', 'exportPolicies', 'importPolicies', 'previewImport');
+        $this->Authorization->authorizeModel(
+            'index',
+            'add',
+            'matrix',
+            'gridData',
+            'exportPolicies',
+            'importPolicies',
+            'previewImport',
+        );
     }
 
     /**
@@ -63,7 +71,6 @@ class PermissionsController extends AppController
     public function gridData(CsvExportService $csvExportService)
     {
         // Get system views from GridColumns
-        $systemViews = PermissionsGridColumns::getSystemViews([]);
 
         // Use unified trait for grid processing
         $result = $this->processDataverseGrid([

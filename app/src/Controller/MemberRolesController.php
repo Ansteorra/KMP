@@ -158,7 +158,14 @@ class MemberRolesController extends AppController
         }
         $this->Authorization->authorize($memberRole, 'Deactivate');
 
-        if (!$awService->stop('MemberRoles', (int)$id, $this->Authentication->getIdentity()->get('id'), MemberRole::DEACTIVATED_STATUS, '', DateTime::now())) {
+        if (!$awService->stop(
+            'MemberRoles',
+            (int)$id,
+            $this->Authentication->getIdentity()->get('id'),
+            MemberRole::DEACTIVATED_STATUS,
+            '',
+            DateTime::now(),
+        )) {
             $this->Flash->error(
                 __(
                     'The Member role could not be deactivated. Please, try again.',
@@ -207,7 +214,10 @@ class MemberRolesController extends AppController
     protected function addConditions($query)
     {
         return $query
-            ->select(['id', 'role_id', 'member_id', 'approver_id', 'entity_type', 'entity_id', 'start_on', 'expires_on', 'revoker_id'])
+            ->select([
+                'id', 'role_id', 'member_id', 'approver_id', 'entity_type',
+                'entity_id', 'start_on', 'expires_on', 'revoker_id',
+            ])
             ->contain([
                 'Members' => function ($q) {
                     return $q->select(['id', 'sca_name']);

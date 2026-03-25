@@ -162,7 +162,8 @@ class SyncActiveWindowStatusesCommand extends Command
         if ($plugin === null) {
             $paths = App::classPath('Model/Table');
         } else {
-            $pluginPath = Plugin::path($plugin) . 'src' . DIRECTORY_SEPARATOR . 'Model' . DIRECTORY_SEPARATOR . 'Table' . DIRECTORY_SEPARATOR;
+            $pluginPath = Plugin::path($plugin)
+                . 'src' . DIRECTORY_SEPARATOR . 'Model' . DIRECTORY_SEPARATOR . 'Table' . DIRECTORY_SEPARATOR;
             $paths = [
                 $pluginPath,
             ];

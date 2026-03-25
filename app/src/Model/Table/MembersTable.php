@@ -300,7 +300,10 @@ class MembersTable extends BaseTable
     public function buildRules(RulesChecker $rules): RulesChecker
     {
         $rules->add($rules->isUnique(['email_address']), ['errorField' => 'email_address']);
-        $rules->add($rules->existsIn(['profile_photo_document_id'], 'ProfilePhoto'), ['errorField' => 'profile_photo_document_id']);
+        $rules->add(
+            $rules->existsIn(['profile_photo_document_id'], 'ProfilePhoto'),
+            ['errorField' => 'profile_photo_document_id'],
+        );
 
         return $rules;
     }
@@ -329,7 +332,7 @@ class MembersTable extends BaseTable
      *
      * @return int Number of members requiring validation review
      */
-    static function getValidationQueueCount(): int
+    public static function getValidationQueueCount(): int
     {
         // Get the count of pending validations  based on the members status
         $membersTable = TableRegistry::getTableLocator()->get('Members');

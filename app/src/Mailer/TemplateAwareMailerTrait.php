@@ -48,7 +48,12 @@ trait TemplateAwareMailerTrait
         if ($dbTemplate !== null && $dbTemplate->is_active) {
             Log::debug('Using database template for rendering (template is active)');
             $result = $this->renderFromDb($dbTemplate, $content);
-            Log::debug('render() returning - HTML: ' . strlen($result[Message::MESSAGE_HTML] ?? '') . ' chars, TEXT: ' . strlen($result[Message::MESSAGE_TEXT] ?? '') . ' chars');
+            $htmlLen = strlen($result[Message::MESSAGE_HTML] ?? '');
+            $textLen = strlen($result[Message::MESSAGE_TEXT] ?? '');
+            Log::debug(
+                'render() returning - HTML: ' . $htmlLen
+                . ' chars, TEXT: ' . $textLen . ' chars',
+            );
 
             // IMPORTANT: Also set the message body directly on the message object
             // This ensures the content is available when the email is sent

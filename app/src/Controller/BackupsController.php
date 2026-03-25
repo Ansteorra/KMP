@@ -124,7 +124,7 @@ class BackupsController extends AppController
     {
         $this->request->allowMethod(['post']);
         $expectsJson = $this->request->is('ajax') || $this->request->accepts('application/json');
-        @set_time_limit(0);
+        set_time_limit(0);
         ignore_user_abort(true);
         $encryptionKey = trim((string)$this->request->getData('restore_key', ''));
         if ($encryptionKey === '') {
@@ -179,7 +179,10 @@ class BackupsController extends AppController
         }
 
         $identity = $this->request->getAttribute('identity');
-        $actor = is_object($identity) && method_exists($identity, 'getIdentifier') ? (string)$identity->getIdentifier() : null;
+        $actor = is_object($identity) && method_exists(
+            $identity,
+            'getIdentifier',
+        )? (string)$identity->getIdentifier() : null;
         if (
             !$restoreStatusService->acquireLock([
             'source' => $sourceLabel,

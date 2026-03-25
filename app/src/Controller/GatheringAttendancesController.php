@@ -83,7 +83,10 @@ class GatheringAttendancesController extends AppController
             // Check if gathering has already ended
             if ($gathering->end_date < $today) {
                 if ($this->wantsJson()) {
-                    return $this->jsonResponse(['success' => false, 'error' => 'Cannot register for a gathering that has already ended'], 400);
+                    return $this->jsonResponse(
+                        ['success' => false, 'error' => 'Cannot register for a gathering that has already ended'],
+                        400,
+                    );
                 }
                 $this->Flash->error(__('Cannot register for a gathering that has already ended.'));
 

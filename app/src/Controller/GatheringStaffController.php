@@ -160,7 +160,11 @@ class GatheringStaffController extends AppController
             if ($this->GatheringStaff->save($staff)) {
                 $this->Flash->success(__('The staff member has been updated.'));
 
-                return $this->redirect(['controller' => 'Gatherings', 'action' => 'view', $staff->gathering->public_id]);
+                return $this->redirect([
+                    'controller' => 'Gatherings',
+                    'action' => 'view',
+                    $staff->gathering->public_id,
+                ]);
             }
 
             // If save failed, redirect back with error

@@ -10,6 +10,7 @@ use App\Services\ICalendarService;
 use Cake\Event\EventInterface;
 use Cake\Http\Exception\NotFoundException;
 use Cake\I18n\Date;
+use Cake\I18n\DateTime as CakeDateTime;
 use Cake\Log\Log;
 use Cake\Routing\Router;
 use DateTime;
@@ -48,7 +49,15 @@ class GatheringsController extends AppController
         parent::initialize();
 
         // Authorize model-level operations
-        $this->Authorization->authorizeModel('index', 'add', 'gridData', 'calendar', 'calendarGridData', 'mobileCalendar', 'mobileCalendarData');
+        $this->Authorization->authorizeModel(
+            'index',
+            'add',
+            'gridData',
+            'calendar',
+            'calendarGridData',
+            'mobileCalendar',
+            'mobileCalendarData',
+        );
     }
 
     /**
@@ -898,8 +907,8 @@ class GatheringsController extends AppController
         $startDateParam = $this->request->getQuery('start_date');
         if ($startDateParam && !$this->request->is('post')) {
             try {
-                $gathering->start_date = new \Cake\I18n\DateTime($startDateParam);
-                $gathering->end_date = new \Cake\I18n\DateTime($startDateParam);
+                $gathering->start_date = new CakeDateTime($startDateParam);
+                $gathering->end_date = new CakeDateTime($startDateParam);
             } catch (Exception $e) {
                 // Ignore invalid date — form will show empty fields
             }
@@ -943,7 +952,7 @@ class GatheringsController extends AppController
             $errors = $gathering->getErrors();
             if (!empty($errors)) {
                 $errorMessages = [];
-                foreach ($errors as $field => $fieldErrors) {
+                foreach ($errors as $fieldErrors) {
                     foreach ($fieldErrors as $error) {
                         $errorMessages[] = $error;
                     }
@@ -1028,7 +1037,7 @@ class GatheringsController extends AppController
             $errors = $gathering->getErrors();
             if (!empty($errors)) {
                 $errorMessages = [];
-                foreach ($errors as $field => $fieldErrors) {
+                foreach ($errors as $fieldErrors) {
                     foreach ($fieldErrors as $error) {
                         $errorMessages[] = $error;
                     }
@@ -1113,7 +1122,7 @@ class GatheringsController extends AppController
             $errors = $gathering->getErrors();
             if (!empty($errors)) {
                 $errorMessages = [];
-                foreach ($errors as $field => $fieldErrors) {
+                foreach ($errors as $fieldErrors) {
                     foreach ($fieldErrors as $error) {
                         $errorMessages[] = $error;
                     }
@@ -1163,7 +1172,7 @@ class GatheringsController extends AppController
         }
 
         // Mark as cancelled
-        $gathering->cancelled_at = \Cake\I18n\DateTime::now();
+        $gathering->cancelled_at = CakeDateTime::now();
         $gathering->cancellation_reason = $this->request->getData('cancellation_reason');
 
         if ($this->Gatherings->save($gathering)) {
@@ -1416,7 +1425,7 @@ class GatheringsController extends AppController
             $errors = $link->getErrors();
             if (!empty($errors)) {
                 $errorMessages = [];
-                foreach ($errors as $field => $fieldErrors) {
+                foreach ($errors as $fieldErrors) {
                     foreach ($fieldErrors as $error) {
                         $errorMessages[] = $error;
                     }
@@ -1645,7 +1654,11 @@ class GatheringsController extends AppController
                 $successParts[] = __('{0} {1}', $clonedStaff, __n('staff member', 'staff members', $clonedStaff));
             }
             if ($clonedSchedule > 0) {
-                $successParts[] = __('{0} {1}', $clonedSchedule, __n('scheduled activity', 'scheduled activities', $clonedSchedule));
+                $successParts[] = __(
+                    '{0} {1}',
+                    $clonedSchedule,
+                    __n('scheduled activity', 'scheduled activities', $clonedSchedule),
+                );
             }
 
             if (!empty($successParts)) {
@@ -1667,7 +1680,7 @@ class GatheringsController extends AppController
         $errors = $newGathering->getErrors();
         if (!empty($errors)) {
             $errorMessages = [];
-            foreach ($errors as $field => $fieldErrors) {
+            foreach ($errors as $fieldErrors) {
                 foreach ($fieldErrors as $error) {
                     $errorMessages[] = $error;
                 }
@@ -1736,7 +1749,7 @@ class GatheringsController extends AppController
         } else {
             $errors = $scheduledActivity->getErrors();
             $errorMessages = [];
-            foreach ($errors as $field => $fieldErrors) {
+            foreach ($errors as $fieldErrors) {
                 foreach ($fieldErrors as $error) {
                     $errorMessages[] = is_string($error) ? $error : implode(', ', $error);
                 }
@@ -1818,7 +1831,7 @@ class GatheringsController extends AppController
         } else {
             $errors = $scheduledActivity->getErrors();
             $errorMessages = [];
-            foreach ($errors as $field => $fieldErrors) {
+            foreach ($errors as $fieldErrors) {
                 foreach ($fieldErrors as $error) {
                     $errorMessages[] = is_string($error) ? $error : implode(', ', $error);
                 }
@@ -1926,8 +1939,11 @@ class GatheringsController extends AppController
 
         // Apply custom descriptions to scheduled activities
         foreach ($gathering->gathering_scheduled_activities as $scheduledActivity) {
-            if ($scheduledActivity->gathering_activity_id && isset($customDescriptions[$scheduledActivity->gathering_activity_id])) {
-                $scheduledActivity->gathering_activity->custom_description = $customDescriptions[$scheduledActivity->gathering_activity_id];
+            if ($scheduledActivity->gathering_activity_id
+                && isset($customDescriptions[$scheduledActivity->gathering_activity_id])
+            ) {
+                $scheduledActivity->gathering_activity
+                    ->custom_description = $customDescriptions[$scheduledActivity->gathering_activity_id];
             }
         }
 
@@ -1999,7 +2015,7 @@ class GatheringsController extends AppController
     {
         $this->Authorization->skipAuthorization();
 
-        $cutoff = new \Cake\I18n\DateTime('-30 days');
+        $cutoff = new CakeDateTime('-30 days');
         $query = $this->Gatherings->find()
             ->contain([
                 'Branches',

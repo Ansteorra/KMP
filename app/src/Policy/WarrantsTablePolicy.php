@@ -17,7 +17,11 @@ class WarrantsTablePolicy extends BasePolicy
      * @param mixed ...$optionalArgs Optional arguments
      * @return bool
      */
-    public function canDeclineWarrantInRoster(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
+    public function canDeclineWarrantInRoster(
+        KmpIdentityInterface $user,
+        BaseEntity $entity,
+        mixed ...$optionalArgs,
+    ): bool
     {
         $method = __FUNCTION__;
 

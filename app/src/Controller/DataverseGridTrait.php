@@ -121,7 +121,6 @@ trait DataverseGridTrait
         $dirtyFilters = $canFilter && isset($dirtyFlags['filters']);
         $dirtySearch = isset($dirtyFlags['search']);
         $dirtySort = isset($dirtyFlags['sort']);
-        $dirtyColumns = isset($dirtyFlags['columns']);
 
         // Check if user explicitly wants to ignore default
         $ignoreDefault = $this->request->getQuery('ignore_default');
@@ -264,7 +263,8 @@ trait DataverseGridTrait
                         if (count($relationParts) === 2) {
                             $associationName = ucfirst($relationParts[0]) . 's';
                             $fieldName = $relationParts[1];
-                            $searchConditions['OR'][$associationName . '.' . $fieldName . ' LIKE'] = '%' . $searchTerm . '%';
+                            $searchConditions['OR'][$associationName . '.' . $fieldName . ' LIKE'] = '%'
+                                . $searchTerm . '%';
                         }
                     } else {
                         $searchConditions['OR'][$tableName . '.' . $columnKey . ' LIKE'] = '%' . $searchTerm . '%';
@@ -311,7 +311,11 @@ trait DataverseGridTrait
             $systemViewSkipColumns = $dirtyFilters || $hasIncomingFilters
                 ? []
                 : ($systemViewDefaults['skipFilterColumns'] ?? []);
-            $skipFilterColumns = array_unique(array_merge($configSkipFilterColumns, $autoSkipFilterColumns, $systemViewSkipColumns));
+            $skipFilterColumns = array_unique(array_merge(
+                $configSkipFilterColumns,
+                $autoSkipFilterColumns,
+                $systemViewSkipColumns,
+            ));
         }
 
         // Determine which filters to apply:
@@ -336,20 +340,31 @@ trait DataverseGridTrait
                     if (($columnMeta['filterType'] ?? null) === 'is-populated') {
                         // Use filterQueryField if specified, otherwise use queryField, fallback to column key
                         $fieldToCheck = $columnMeta['filterQueryField'] ?? $columnMeta['queryField'] ?? $columnKey;
-                        $qualifiedField = strpos($fieldToCheck, '.') === false ? $tableName . '.' . $fieldToCheck : $fieldToCheck;
+                        $qualifiedField = strpos(
+                            $fieldToCheck,
+                            '.',
+                        )=== false ? $tableName . '.' . $fieldToCheck : $fieldToCheck;
 
                         // Normalize filterValue - if it's an array, take the first value
                         $normalizedValue = is_array($filterValue) ? ($filterValue[0] ?? null) : $filterValue;
 
                         // filterValue should be 'yes' (populated) or 'no' (not populated)
-                        if ($normalizedValue === 'yes' || $normalizedValue === '1' || $normalizedValue === 1 || $normalizedValue === true) {
+                        if ($normalizedValue === 'yes'
+                            || $normalizedValue === '1'
+                            || $normalizedValue === 1
+                            || $normalizedValue === true
+                        ) {
                             // IS NOT NULL AND NOT EMPTY
                             $baseQuery->where(function ($exp) use ($qualifiedField) {
                                 return $exp->and([
                                     $qualifiedField . ' IS NOT' => null,
                                 ]);
                             });
-                        } elseif ($normalizedValue === 'no' || $normalizedValue === '0' || $normalizedValue === 0 || $normalizedValue === false) {
+                        } elseif ($normalizedValue === 'no'
+                            || $normalizedValue === '0'
+                            || $normalizedValue === 0
+                            || $normalizedValue === false
+                        ) {
                             // IS NULL OR EMPTY
                             $baseQuery->where(function ($exp) use ($qualifiedField) {
                                 return $exp->or([
@@ -362,7 +377,10 @@ trait DataverseGridTrait
 
                     // Use queryField if available (for relation columns), otherwise use column key
                     $fieldToFilter = $columnMeta['queryField'] ?? $columnKey;
-                    $qualifiedField = strpos($fieldToFilter, '.') === false ? $tableName . '.' . $fieldToFilter : $fieldToFilter;
+                    $qualifiedField = strpos(
+                        $fieldToFilter,
+                        '.',
+                    )=== false ? $tableName . '.' . $fieldToFilter : $fieldToFilter;
 
                     if (is_array($filterValue)) {
                         if ($columnMeta['type'] === 'boolean') {
@@ -404,7 +422,10 @@ trait DataverseGridTrait
                 $endDate = $canFilter ? $this->request->getQuery($endParam) : null;
 
                 // Apply user defaults only if canFilter is true
-                if ($canFilter && ($startDate === null || $startDate === '') && isset($dateRangeDefaults[$startParam])) {
+                if ($canFilter
+                    && ($startDate === null || $startDate === '')
+                    && isset($dateRangeDefaults[$startParam])
+                ) {
                     $startDate = $dateRangeDefaults[$startParam];
                 }
                 if ($canFilter && ($endDate === null || $endDate === '') && isset($dateRangeDefaults[$endParam])) {
@@ -967,8 +988,15 @@ trait DataverseGridTrait
                 'currentName' => $currentName,
                 'preferredId' => $preferredViewId,
                 'systemDefaultId' => $systemDefaultId,
-                'isPreferred' => $currentView && $preferredViewId !== null ? ((int)$currentView->id === $preferredViewId) : ($selectedSystemView && $preferredViewId !== null && $selectedSystemView['id'] === $preferredViewId),
-                'isDefault' => $currentView ? ($preferredViewId !== null && (int)$currentView->id === $preferredViewId) : ($selectedSystemView && $preferredViewId !== null && $selectedSystemView['id'] === $preferredViewId),
+                'isPreferred' => $currentView && $preferredViewId !== null
+                    ? ((int)$currentView->id === $preferredViewId)
+                    : ($selectedSystemView && $preferredViewId !== null
+                        && $selectedSystemView['id'] === $preferredViewId),
+                'isDefault' => $currentView
+                    ? ($preferredViewId !== null
+                        && (int)$currentView->id === $preferredViewId)
+                    : ($selectedSystemView && $preferredViewId !== null
+                        && $selectedSystemView['id'] === $preferredViewId),
                 'isUserDefault' => $currentView ? $currentView->isUserDefault() : ($preferredViewId !== null),
                 'available' => $formattedViews,
             ],
@@ -1293,7 +1321,12 @@ trait DataverseGridTrait
             $transformedData = $this->buildExportDataFromEntities($data, $visibleColumns, $columnsMetadata);
         } else {
             // Query Mode: Build SQL SELECT and execute query
-            $transformedData = $this->buildExportDataFromQuery($result['query'], $visibleColumns, $columnsMetadata, $tableName);
+            $transformedData = $this->buildExportDataFromQuery(
+                $result['query'],
+                $visibleColumns,
+                $columnsMetadata,
+                $tableName,
+            );
         }
 
         // Generate filename with current view name
@@ -1360,7 +1393,12 @@ trait DataverseGridTrait
      * @param string $tableName Full table name for model alias extraction
      * @return array Transformed data ready for CSV export
      */
-    protected function buildExportDataFromQuery($query, array $visibleColumns, array $columnsMetadata, string $tableName): array
+    protected function buildExportDataFromQuery(
+        $query,
+        array $visibleColumns,
+        array $columnsMetadata,
+        string $tableName,
+    ): array
     {
         // Extract model alias for SQL field references (e.g., 'Awards.Recommendations' -> 'Recommendations')
         $modelAlias = str_contains($tableName, '.') ? substr($tableName, strrpos($tableName, '.') + 1) : $tableName;
@@ -1381,7 +1419,9 @@ trait DataverseGridTrait
             }
 
             // Skip columns that require data mode (have renderField but no queryField, or have exportValue callback)
-            if (!empty($columnMeta['exportValue']) || (!empty($columnMeta['renderField']) && empty($columnMeta['queryField']))) {
+            if (!empty($columnMeta['exportValue'])
+                || (!empty($columnMeta['renderField']) && empty($columnMeta['queryField']))
+            ) {
                 continue;
             }
 
@@ -1635,7 +1675,11 @@ trait DataverseGridTrait
 
             // 2. Check current filters (may have been set from query or system view defaults)
             // Use explicit null/empty-string check to allow valid falsey values like 0, "0", false
-            if ($filterValue === null && isset($currentFilters[$columnKey]) && $currentFilters[$columnKey] !== null && $currentFilters[$columnKey] !== '') {
+            if ($filterValue === null
+                && isset($currentFilters[$columnKey])
+                && $currentFilters[$columnKey] !== null
+                && $currentFilters[$columnKey] !== ''
+            ) {
                 $filterValue = $currentFilters[$columnKey];
             }
 

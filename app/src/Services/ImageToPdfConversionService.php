@@ -33,7 +33,12 @@ class ImageToPdfConversionService
      * @param string|null $previewPath Reference that will receive the path to a generated JPEG preview
      * @return \App\Services\ServiceResult Success/failure with optional error message
      */
-    public function convertImageToPdf(string $imagePath, string $outputPath, string $pageSize = 'letter', ?string &$previewPath = null): ServiceResult
+    public function convertImageToPdf(
+        string $imagePath,
+        string $outputPath,
+        string $pageSize = 'letter',
+        ?string &$previewPath = null,
+    ): ServiceResult
     {
         // Check if GD extension is available
         if (!extension_loaded('gd')) {
@@ -63,7 +68,10 @@ class ImageToPdfConversionService
 
         try {
             // Create PDF using simple format (since FPDF may not be installed)
-            $result = $this->createSimplePdf($image, $width, $height, $outputPath, $pageWidth, $pageHeight, $previewPath);
+            $result = $this->createSimplePdf(
+                $image, $width, $height, $outputPath,
+                $pageWidth, $pageHeight, $previewPath,
+            );
             unset($image);
 
             return $result;
@@ -84,7 +92,12 @@ class ImageToPdfConversionService
      * @param string|null $previewPath Reference that will receive the path to a generated JPEG preview for the first page
      * @return \App\Services\ServiceResult Success/failure with optional error message
      */
-    public function convertMultipleImagesToPdf(array $imagePaths, string $outputPath, string $pageSize = 'letter', ?string &$previewPath = null): ServiceResult
+    public function convertMultipleImagesToPdf(
+        array $imagePaths,
+        string $outputPath,
+        string $pageSize = 'letter',
+        ?string &$previewPath = null,
+    ): ServiceResult
     {
         if (empty($imagePaths)) {
             return new ServiceResult(false, 'No images provided');
@@ -192,13 +205,13 @@ class ImageToPdfConversionService
         }
 
         $previewTarget = $previewTemp . '.jpg';
-        @rename($previewTemp, $previewTarget);
+        rename($previewTemp, $previewTarget);
 
         if (file_put_contents($previewTarget, $jpegData) !== false) {
             return $previewTarget;
         }
 
-        @unlink($previewTarget);
+        unlink($previewTarget);
 
         return null;
     }
@@ -230,7 +243,7 @@ class ImageToPdfConversionService
         }
 
         // Get image info
-        $imageInfo = @getimagesize($imagePath);
+        $imageInfo = getimagesize($imagePath);
         if ($imageInfo === false) {
             // Save the failing file for debugging
             //$debugPath = TMP . 'failed_image_' . date('Y-m-d_His') . '_' . basename($imagePath);
@@ -251,9 +264,11 @@ class ImageToPdfConversionService
             ]);
 
             if (strpos($fileContent, '<svg') !== false || strpos($fileContent, '<?xml') !== false) {
-                $error = 'SVG files are not supported. Please upload raster images only (JPEG, PNG, GIF, BMP, WEBP, WBMP)';
+                $error = 'SVG files are not supported. Please upload '
+                    . 'raster images only (JPEG, PNG, GIF, BMP, WEBP, WBMP)';
             } else {
-                $error = 'Unable to read image file. Supported formats: JPEG, PNG, GIF, BMP, WEBP, WBMP (raster images only)';
+                $error = 'Unable to read image file. Supported formats: '
+                    . 'JPEG, PNG, GIF, BMP, WEBP, WBMP (raster images only)';
             }
 
             if ($throwException) {
@@ -308,11 +323,11 @@ class ImageToPdfConversionService
     {
         // Handle basic formats with match
         $image = match ($type) {
-            IMAGETYPE_JPEG => @imagecreatefromjpeg($path),
-            IMAGETYPE_PNG => @imagecreatefrompng($path),
-            IMAGETYPE_GIF => @imagecreatefromgif($path),
-            IMAGETYPE_BMP => @imagecreatefrombmp($path),
-            IMAGETYPE_WBMP => @imagecreatefromwbmp($path),
+            IMAGETYPE_JPEG => imagecreatefromjpeg($path),
+            IMAGETYPE_PNG => imagecreatefrompng($path),
+            IMAGETYPE_GIF => imagecreatefromgif($path),
+            IMAGETYPE_BMP => imagecreatefrombmp($path),
+            IMAGETYPE_WBMP => imagecreatefromwbmp($path),
             default => false,
         };
 
@@ -323,7 +338,7 @@ class ImageToPdfConversionService
 
         // Handle optional formats that may not be defined in all PHP builds
         if (defined('IMAGETYPE_WEBP') && $type === IMAGETYPE_WEBP) {
-            return @imagecreatefromwebp($path);
+            return imagecreatefromwebp($path);
         }
 
         return false;
@@ -344,7 +359,15 @@ class ImageToPdfConversionService
      * @param string|null $previewPath Output parameter that receives a temporary JPEG path
      * @return \App\Services\ServiceResult
      */
-    private function createSimplePdf(GdImage $image, int $width, int $height, string $outputPath, int $pageWidth, int $pageHeight, ?string &$previewPath = null): ServiceResult
+    private function createSimplePdf(
+        GdImage $image,
+        int $width,
+        int $height,
+        string $outputPath,
+        int $pageWidth,
+        int $pageHeight,
+        ?string &$previewPath = null,
+    ): ServiceResult
     {
         $previewPath = null;
         [$imgWidth, $imgHeight] = $this->calculateFitDimensions($width, $height, $pageWidth, $pageHeight);
@@ -391,11 +414,11 @@ class ImageToPdfConversionService
         $previewCopy = tempnam(sys_get_temp_dir(), 'waiver_preview_');
         if ($previewCopy !== false) {
             $previewCopyJpg = $previewCopy . '.jpg';
-            @rename($previewCopy, $previewCopyJpg);
-            if (@copy($tempJpeg, $previewCopyJpg)) {
+            rename($previewCopy, $previewCopyJpg);
+            if (copy($tempJpeg, $previewCopyJpg)) {
                 $previewPath = $previewCopyJpg;
             } else {
-                @unlink($previewCopyJpg);
+                unlink($previewCopyJpg);
             }
         }
 
@@ -404,7 +427,7 @@ class ImageToPdfConversionService
         $jpegSize = filesize($tempJpeg);
 
         // Get actual JPEG dimensions for the XObject declaration
-        $jpegInfo = @getimagesize($tempJpeg);
+        $jpegInfo = getimagesize($tempJpeg);
         $jpegWidth = $imgWidth; // Default to fitted dimensions
         $jpegHeight = $imgHeight;
         if ($jpegInfo !== false) {
@@ -415,7 +438,10 @@ class ImageToPdfConversionService
 
         // Create minimal PDF structure
         // Pass JPEG pixel dimensions for XObject, and fitted dimensions for display size
-        $pdf = $this->buildPdfStructure($jpegData, $jpegSize, $jpegWidth, $jpegHeight, $imgWidth, $imgHeight, $pageWidth, $pageHeight);
+        $pdf = $this->buildPdfStructure(
+            $jpegData, $jpegSize, $jpegWidth, $jpegHeight,
+            $imgWidth, $imgHeight, $pageWidth, $pageHeight,
+        );
 
         // Write PDF file
         if (file_put_contents($outputPath, $pdf) === false) {
@@ -497,7 +523,16 @@ class ImageToPdfConversionService
      * @param int $pageHeight Page height
      * @return string PDF content
      */
-    private function buildPdfStructure(string $jpegData, int $jpegSize, int $jpegWidth, int $jpegHeight, int $displayWidth, int $displayHeight, int $pageWidth, int $pageHeight): string
+    private function buildPdfStructure(
+        string $jpegData,
+        int $jpegSize,
+        int $jpegWidth,
+        int $jpegHeight,
+        int $displayWidth,
+        int $displayHeight,
+        int $pageWidth,
+        int $pageHeight,
+    ): string
     {
         // Calculate position to center image based on display dimensions
         $x = ($pageWidth - $displayWidth) / 2;
@@ -513,11 +548,19 @@ class ImageToPdfConversionService
         $objects[2] = "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n";
 
         // Object 3: Page
-        $objects[3] = "3 0 obj\n<< /Type /Page /Parent 2 0 R /Resources << /XObject << /Im1 4 0 R >> >> /MediaBox [0 0 $pageWidth $pageHeight] /Contents 5 0 R >>\nendobj\n";
+        $objects[3] = "3 0 obj\n<< /Type /Page /Parent 2 0 R "
+            . "/Resources << /XObject << /Im1 4 0 R >> >> "
+            . "/MediaBox [0 0 $pageWidth $pageHeight] "
+            . "/Contents 5 0 R >>\nendobj\n";
 
         // Object 4: Image (using DeviceRGB since GD saves grayscale images as RGB JPEGs)
         // Width/Height should match actual JPEG pixel dimensions
-        $objects[4] = "4 0 obj\n<< /Type /XObject /Subtype /Image /Width $jpegWidth /Height $jpegHeight /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length $jpegSize >>\nstream\n$jpegData\nendstream\nendobj\n";
+        $objects[4] = "4 0 obj\n<< /Type /XObject "
+            . "/Subtype /Image /Width $jpegWidth "
+            . "/Height $jpegHeight /ColorSpace /DeviceRGB "
+            . "/BitsPerComponent 8 /Filter /DCTDecode "
+            . "/Length $jpegSize >>\nstream\n"
+            . $jpegData . "\nendstream\nendobj\n";
 
         // Object 5: Content stream
         // In PDF, images are 1x1 unit squares that need to be scaled and positioned
@@ -576,7 +619,11 @@ class ImageToPdfConversionService
         imagefill($resizedImage, 0, 0, $white);
 
         // Resize the original image to fit - use ACTUAL resource dimensions
-        if (!imagecopyresampled($resizedImage, $image, 0, 0, 0, 0, $displayWidth, $displayHeight, $actualWidth, $actualHeight)) {
+        if (!imagecopyresampled(
+            $resizedImage, $image, 0, 0, 0, 0,
+            $displayWidth, $displayHeight,
+            $actualWidth, $actualHeight,
+        )) {
             unset($resizedImage);
 
             return ['success' => false, 'error' => 'Failed to resize image'];
@@ -604,7 +651,7 @@ class ImageToPdfConversionService
         $jpegSize = filesize($tempJpeg);
 
         // Get actual JPEG pixel dimensions (may differ slightly from display dimensions due to GD processing)
-        $jpegInfo = @getimagesize($tempJpeg);
+        $jpegInfo = getimagesize($tempJpeg);
         $jpegWidth = $displayWidth;
         $jpegHeight = $displayHeight;
         if ($jpegInfo !== false) {
@@ -650,7 +697,7 @@ class ImageToPdfConversionService
         $imageObjects = [];
         $contentObjects = [];
 
-        foreach ($jpegDataArray as $index => $pageData) {
+        foreach ($jpegDataArray as $pageData) {
             $pageNum = $objNum++;
             $imageNum = $objNum++;
             $contentNum = $objNum++;
@@ -666,11 +713,28 @@ class ImageToPdfConversionService
             $y = ($pageHeight - $pageData['display_height']) / 2;
 
             // Page object
-            $objects[$pageNum] = "$pageNum 0 obj\n<< /Type /Page /Parent 2 0 R /Resources << /XObject << /Im$pageNum $imageNum 0 R >> >> /MediaBox [0 0 $pageWidth $pageHeight] /Contents $contentNum 0 R >>\nendobj\n";
+            $objects[$pageNum] = "$pageNum 0 obj\n"
+                . "<< /Type /Page /Parent 2 0 R "
+                . "/Resources << /XObject "
+                . "<< /Im$pageNum $imageNum 0 R >> >> "
+                . "/MediaBox [0 0 $pageWidth $pageHeight] "
+                . "/Contents $contentNum 0 R >>\n"
+                . "endobj\n";
 
             // Image object (using DeviceRGB since GD saves grayscale images as RGB JPEGs)
             // Width/Height should match actual JPEG pixel dimensions, not display dimensions
-            $objects[$imageNum] = "$imageNum 0 obj\n<< /Type /XObject /Subtype /Image /Width {$pageData['jpeg_width']} /Height {$pageData['jpeg_height']} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length {$pageData['size']} >>\nstream\n{$pageData['data']}\nendstream\nendobj\n";
+            $jpgW = $pageData['jpeg_width'];
+            $jpgH = $pageData['jpeg_height'];
+            $jpgLen = $pageData['size'];
+            $jpgData = $pageData['data'];
+            $objects[$imageNum] = "$imageNum 0 obj\n"
+                . "<< /Type /XObject /Subtype /Image "
+                . "/Width $jpgW /Height $jpgH "
+                . "/ColorSpace /DeviceRGB "
+                . "/BitsPerComponent 8 "
+                . "/Filter /DCTDecode "
+                . "/Length $jpgLen >>\nstream\n"
+                . $jpgData . "\nendstream\nendobj\n";
 
             // Content stream
             // In PDF, images are 1x1 unit squares that need to be scaled and positioned
@@ -678,7 +742,9 @@ class ImageToPdfConversionService
             $stream = "q\n{$pageData['display_width']} 0 0 {$pageData['display_height']} $x $y cm\n/Im$pageNum Do\nQ\n";
             $streamLength = strlen($stream);
 
-            $objects[$contentNum] = "$contentNum 0 obj\n<< /Length $streamLength >>\nstream\n$stream\nendstream\nendobj\n";
+            $objects[$contentNum] = "$contentNum 0 obj\n"
+                . "<< /Length $streamLength >>\nstream\n"
+                . $stream . "endstream\nendobj\n";
         }
 
         // Now create the Pages object with all page references
@@ -716,7 +782,12 @@ class ImageToPdfConversionService
      * @param string|null $previewPath Reference that will receive the path to a preview image
      * @return \App\Services\ServiceResult Success with page count, or failure with error
      */
-    public function convertMixedToPdf(array $fileInfos, string $outputPath, string $pageSize = 'letter', ?string &$previewPath = null): ServiceResult
+    public function convertMixedToPdf(
+        array $fileInfos,
+        string $outputPath,
+        string $pageSize = 'letter',
+        ?string &$previewPath = null,
+    ): ServiceResult
     {
         if (empty($fileInfos)) {
             return new ServiceResult(false, 'No files provided');
@@ -766,7 +837,7 @@ class ImageToPdfConversionService
                         throw new Exception('Failed to create temp file for image conversion');
                     }
                     $tempPdfPath = $tempPdf . '.pdf';
-                    @rename($tempPdf, $tempPdfPath);
+                    rename($tempPdf, $tempPdfPath);
                     $tempFiles[] = $tempPdfPath;
 
                     $result = $this->convertImageToPdf($filePath, $tempPdfPath, $pageSize);
@@ -799,13 +870,13 @@ class ImageToPdfConversionService
                 $thumbnailTemp = tempnam(sys_get_temp_dir(), 'waiver_thumb_');
                 if ($thumbnailTemp !== false) {
                     $thumbnailPath = $thumbnailTemp . '.png';
-                    @rename($thumbnailTemp, $thumbnailPath);
+                    rename($thumbnailTemp, $thumbnailPath);
 
                     $thumbResult = $pdfService->generateThumbnail($outputPath, $thumbnailPath);
                     if ($thumbResult->success) {
                         $previewPath = $thumbnailPath;
                     } else {
-                        @unlink($thumbnailPath);
+                        unlink($thumbnailPath);
                     }
                 }
             }
@@ -826,7 +897,7 @@ class ImageToPdfConversionService
             // Clean up temporary files
             foreach ($tempFiles as $tempFile) {
                 if (file_exists($tempFile)) {
-                    @unlink($tempFile);
+                    unlink($tempFile);
                 }
             }
         }
@@ -856,7 +927,7 @@ class ImageToPdfConversionService
     private function generateThumbnailFromImage(string $imagePath, int $maxWidth = 200, int $maxHeight = 260): ?string
     {
         try {
-            $imageInfo = @getimagesize($imagePath);
+            $imageInfo = getimagesize($imagePath);
             if ($imageInfo === false) {
                 return null;
             }
@@ -901,11 +972,11 @@ class ImageToPdfConversionService
                 return null;
             }
             $thumbnailPath = $thumbnailTemp . '.jpg';
-            @rename($thumbnailTemp, $thumbnailPath);
+            rename($thumbnailTemp, $thumbnailPath);
 
             if (!imagejpeg($thumbnail, $thumbnailPath, 75)) {
                 imagedestroy($thumbnail);
-                @unlink($thumbnailPath);
+                unlink($thumbnailPath);
 
                 return null;
             }

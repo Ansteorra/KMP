@@ -146,7 +146,7 @@ class GatheringActivitiesController extends AppController
             $errors = $gatheringActivity->getErrors();
             if (!empty($errors)) {
                 $errorMessages = [];
-                foreach ($errors as $field => $fieldErrors) {
+                foreach ($errors as $fieldErrors) {
                     foreach ($fieldErrors as $error) {
                         $errorMessages[] = $error;
                     }
@@ -190,7 +190,7 @@ class GatheringActivitiesController extends AppController
             $errors = $gatheringActivity->getErrors();
             if (!empty($errors)) {
                 $errorMessages = [];
-                foreach ($errors as $field => $fieldErrors) {
+                foreach ($errors as $fieldErrors) {
                     foreach ($fieldErrors as $error) {
                         $errorMessages[] = $error;
                     }
@@ -231,7 +231,8 @@ class GatheringActivitiesController extends AppController
 
         if ($gatheringCount > 0) {
             $this->Flash->error(__(
-                'Cannot delete activity "{0}" because it is used by {1} gathering(s). Please remove this activity from those gatherings first.',
+                'Cannot delete activity "{0}" because it is used by {1} gathering(s).'
+                    . ' Please remove this activity from those gatherings first.',
                 $activityName,
                 $gatheringCount,
             ));
@@ -246,7 +247,8 @@ class GatheringActivitiesController extends AppController
 
         if ($waiverCount > 0) {
             $this->Flash->error(__(
-                'Cannot delete activity "{0}" because it has {1} waiver requirement(s) associated with it. Please remove the waiver requirements first.',
+                'Cannot delete activity "{0}" because it has {1} waiver requirement(s)'
+                    . ' associated with it. Please remove the waiver requirements first.',
                 $activityName,
                 $waiverCount,
             ));
@@ -263,7 +265,7 @@ class GatheringActivitiesController extends AppController
             $errors = $gatheringActivity->getErrors();
             if (!empty($errors)) {
                 $errorMessages = [];
-                foreach ($errors as $field => $fieldErrors) {
+                foreach ($errors as $fieldErrors) {
                     foreach ($fieldErrors as $error) {
                         $errorMessages[] = $error;
                     }

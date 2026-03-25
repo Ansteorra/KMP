@@ -307,7 +307,8 @@ class GatheringsTable extends Table
      */
     public function syncTemplateActivities(EntityInterface $gathering): void
     {
-        $gatheringTypeGatheringActivitiesTable = TableRegistry::getTableLocator()->get('GatheringTypeGatheringActivities');
+        $gatheringTypeGatheringActivitiesTable =
+            TableRegistry::getTableLocator()->get('GatheringTypeGatheringActivities');
         $gatheringsGatheringActivitiesTable = TableRegistry::getTableLocator()->get('GatheringsGatheringActivities');
 
         // Get template activities for this gathering type
@@ -325,7 +326,8 @@ class GatheringsTable extends Table
 
         $templateNotRemovableByActivity = [];
         foreach ($templateActivities as $templateActivity) {
-            $templateNotRemovableByActivity[$templateActivity->gathering_activity_id] = (bool)$templateActivity->not_removable;
+            $templateNotRemovableByActivity[$templateActivity->gathering_activity_id] =
+                (bool)$templateActivity->not_removable;
         }
 
         // Find the max sort order to append new activities
@@ -364,7 +366,8 @@ class GatheringsTable extends Table
             // Re-evaluate not_removable against the new gathering type template.
             // Activities not present in the template must be removable.
             foreach ($existingActivities as $existingActivity) {
-                $desiredNotRemovable = $templateNotRemovableByActivity[$existingActivity->gathering_activity_id] ?? false;
+                $desiredNotRemovable =
+                    $templateNotRemovableByActivity[$existingActivity->gathering_activity_id] ?? false;
                 if ((bool)$existingActivity->not_removable !== $desiredNotRemovable) {
                     $existingActivity->not_removable = $desiredNotRemovable;
                     $gatheringsGatheringActivitiesTable->saveOrFail($existingActivity);

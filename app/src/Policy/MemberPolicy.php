@@ -150,7 +150,11 @@ class MemberPolicy extends BasePolicy
      * @param mixed ...$optionalArgs Optional arguments
      * @return bool
      */
-    public function canViewAdditionalInformation(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    public function canViewAdditionalInformation(
+        KmpIdentityInterface $user,
+        BaseEntity|Table $entity,
+        ...$optionalArgs,
+    ): bool
     {
         if ($entity instanceof Member && $user instanceof Member && $user->canManageMember($entity)) {
             return true;
@@ -219,7 +223,11 @@ class MemberPolicy extends BasePolicy
      * @param mixed ...$optionalArgs Optional arguments
      * @return bool
      */
-    public function canImportExpirationDates(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
+    public function canImportExpirationDates(
+        KmpIdentityInterface $user,
+        BaseEntity $entity,
+        mixed ...$optionalArgs,
+    ): bool
     {
         $method = __FUNCTION__;
 
@@ -234,7 +242,7 @@ class MemberPolicy extends BasePolicy
      * @param mixed ...$optionalArgs Optional arguments
      * @return bool
      */
-    function canVerifyMembership(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
+    public function canVerifyMembership(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
 
@@ -249,7 +257,7 @@ class MemberPolicy extends BasePolicy
      * @param mixed ...$optionalArgs Optional arguments
      * @return bool
      */
-    function canVerifyQueue(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
+    public function canVerifyQueue(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
 
@@ -264,7 +272,7 @@ class MemberPolicy extends BasePolicy
      * @param mixed ...$optionalArgs Optional arguments
      * @return bool
      */
-    function canEditAdditionalInfo(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
+    public function canEditAdditionalInfo(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
     {
         if ($entity instanceof Member && $user instanceof Member && $user->canManageMember($entity)) {
             return true;
