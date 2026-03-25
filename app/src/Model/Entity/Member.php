@@ -383,7 +383,6 @@ class Member extends BaseEntity implements
      */
     public function authorizeWithArgs(mixed $resource, ?string $action = null, ...$args): void
     {
-
         $result = $this->canResult($action, $resource, ...$args);
         if ($result->getStatus()) {
             return;

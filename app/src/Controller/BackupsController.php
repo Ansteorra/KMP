@@ -17,6 +17,11 @@ use Psr\Http\Message\UploadedFileInterface;
  */
 class BackupsController extends AppController
 {
+    /**
+     * Set up this component.
+     *
+     * @return void
+     */
     public function initialize(): void
     {
         parent::initialize();

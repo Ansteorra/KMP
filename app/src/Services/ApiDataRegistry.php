@@ -113,6 +113,11 @@ class ApiDataRegistry
         self::$initialized = false;
     }
 
+    /**
+     * Ensure initialized.
+     *
+     * @return void
+     */
     private static function ensureInitialized(): void
     {
         if (self::$initialized) {

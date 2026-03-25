@@ -8,10 +8,10 @@ use Cake\TestSuite\IntegrationTestTrait;
 /**
  * SuperUserAuthenticatedTrait
  *
- * @deprecated Use TestAuthenticationHelper (via HttpIntegrationTestCase) instead.
+ * @deprecated Use TestAuthenticationHelperTrait (via HttpIntegrationTestCase) instead.
  *   This trait writes to the database and is incompatible with transaction rollback.
  *   Extend HttpIntegrationTestCase and call $this->authenticateAsSuperUser() instead.
- * @see \App\Test\TestCase\TestAuthenticationHelper
+ * @see \App\Test\TestCase\TestAuthenticationHelperTrait
  * @see \App\Test\TestCase\Support\HttpIntegrationTestCase
  */
 trait SuperUserAuthenticatedTrait

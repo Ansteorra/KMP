@@ -5,6 +5,9 @@ namespace App\Controller;
 
 class SessionsController extends AppController
 {
+    /**
+     * Keepalive.
+     */
     public function keepalive()
     {
         $this->Authorization->skipAuthorization();

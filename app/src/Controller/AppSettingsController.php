@@ -31,6 +31,11 @@ class AppSettingsController extends AppController
      */
     protected CsvExportService $csvExportService;
 
+    /**
+     * Set up this component.
+     *
+     * @return void
+     */
     public function initialize(): void
     {
         parent::initialize();

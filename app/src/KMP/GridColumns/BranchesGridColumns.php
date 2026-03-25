@@ -21,6 +21,11 @@ class BranchesGridColumns extends BaseGridColumns
         return [];
     }
 
+    /**
+     * Get columns.
+     *
+     * @return array
+     */
     public static function getColumns(): array
     {
         return [

@@ -521,6 +521,14 @@ class BackupService
         return $notValidatedConstraintCount;
     }
 
+    /**
+     * Fetch postgres foreign key definition.
+     *
+     * @param mixed $connection
+     * @param string $tableName
+     * @param string $constraintName
+     * @return ?string
+     */
     private function fetchPostgresForeignKeyDefinition($connection, string $tableName, string $constraintName): ?string
     {
         $sql = <<<'SQL'
@@ -548,6 +556,13 @@ SQL;
         return $definition;
     }
 
+    /**
+     * Get insert batch size.
+     *
+     * @param int $columnCount
+     * @param bool $isPostgres
+     * @return int
+     */
     private function getInsertBatchSize(int $columnCount, bool $isPostgres): int
     {
         if (!$isPostgres) {
@@ -935,11 +950,23 @@ SQL;
         return ['converted' => true, 'value' => $encoded];
     }
 
+    /**
+     * Check if integer like type.
+     *
+     * @param string $columnType
+     * @return bool
+     */
     private function isIntegerLikeType(string $columnType): bool
     {
         return in_array($columnType, ['boolean', 'integer', 'biginteger', 'smallinteger', 'tinyinteger'], true);
     }
 
+    /**
+     * Check if numeric column type.
+     *
+     * @param string $columnType
+     * @return bool
+     */
     private function isNumericColumnType(string $columnType): bool
     {
         return $this->isIntegerLikeType($columnType) || in_array($columnType, ['float', 'decimal'], true);

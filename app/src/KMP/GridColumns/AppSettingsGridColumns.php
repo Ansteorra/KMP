@@ -53,6 +53,11 @@ class AppSettingsGridColumns extends BaseGridColumns
         ];
     }
 
+    /**
+     * Get columns.
+     *
+     * @return array
+     */
     public static function getColumns(): array
     {
         return [

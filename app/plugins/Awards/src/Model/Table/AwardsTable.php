@@ -90,6 +90,11 @@ class AwardsTable extends BaseTable
         $this->addBehavior("Muffin/Trash.Trash");
     }
 
+    /**
+     * Get schema.
+     *
+     * @return TableSchemaInterface
+     */
     public function getSchema(): TableSchemaInterface
     {
         $schema = parent::getSchema();

@@ -226,6 +226,14 @@ class KmpInstallCommand extends Command
         return $this->runBootstrap($io);
     }
 
+    /**
+     * Normalize choice.
+     *
+     * @param string $value
+     * @param array $valid
+     * @param string $default
+     * @return string
+     */
     private function normalizeChoice(string $value, array $valid, string $default): string
     {
         if ($value === '' || !in_array($value, $valid, true)) {
@@ -235,6 +243,16 @@ class KmpInstallCommand extends Command
         return strtolower($value);
     }
 
+    /**
+     * Ask or default.
+     *
+     * @param ConsoleIo $io
+     * @param string $label
+     * @param array $options
+     * @param string $default
+     * @param mixed $optionValue
+     * @return string
+     */
     private function askOrDefault(
         ConsoleIo $io,
         string $label,
@@ -249,6 +267,18 @@ class KmpInstallCommand extends Command
         return $io->askChoice($label, $options, $default);
     }
 
+    /**
+     * Build database url.
+     *
+     * @param ConsoleIo $io
+     * @param string $driver
+     * @param string $dbHost
+     * @param string $dbPort
+     * @param string $dbName
+     * @param string $dbUser
+     * @param string $dbPass
+     * @return string
+     */
     private function buildDatabaseUrl(
         ConsoleIo $io,
         string $driver,
@@ -285,6 +315,9 @@ class KmpInstallCommand extends Command
         );
     }
 
+    /**
+     * Build env payload.
+     */
     private function buildEnvPayload(
         string $profile,
         string $databaseDriver,
@@ -326,6 +359,13 @@ class KmpInstallCommand extends Command
         return $payload;
     }
 
+    /**
+     * Write env file.
+     *
+     * @param string $path
+     * @param array $payload
+     * @return void
+     */
     private function writeEnvFile(string $path, array $payload): void
     {
         ksort($payload);
@@ -341,6 +381,14 @@ class KmpInstallCommand extends Command
         file_put_contents($path, implode(PHP_EOL, $lines) . PHP_EOL);
     }
 
+    /**
+     * Confirm write.
+     *
+     * @param ConsoleIo $io
+     * @param array $payload
+     * @param bool $nonInteractive
+     * @return bool
+     */
     private function confirmWrite(ConsoleIo $io, array $payload, bool $nonInteractive): bool
     {
         $io->out('Configuration summary:');
@@ -358,6 +406,12 @@ class KmpInstallCommand extends Command
         return strtolower((string)$io->askChoice('Apply this configuration?', ['yes', 'no'], 'yes')) === 'yes';
     }
 
+    /**
+     * Run bootstrap.
+     *
+     * @param ConsoleIo $io
+     * @return ?int
+     */
     private function runBootstrap(ConsoleIo $io): ?int
     {
         $commands = [
@@ -381,6 +435,13 @@ class KmpInstallCommand extends Command
         return Command::CODE_SUCCESS;
     }
 
+    /**
+     * Run shell command.
+     *
+     * @param string $command
+     * @param ConsoleIo $io
+     * @return bool
+     */
     private function runShellCommand(string $command, ConsoleIo $io): bool
     {
         $descriptors = [

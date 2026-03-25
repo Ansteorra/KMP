@@ -22,6 +22,11 @@ class ApiExceptionRenderer extends WebExceptionRenderer
         MissingIdentityException::class => 401,
     ];
 
+    /**
+     * Render the error response.
+     *
+     * @return ResponseInterface
+     */
     public function render(): ResponseInterface
     {
         if ($this->isApiRequest()) {
@@ -31,6 +36,11 @@ class ApiExceptionRenderer extends WebExceptionRenderer
         return parent::render();
     }
 
+    /**
+     * Check if api request.
+     *
+     * @return bool
+     */
     protected function isApiRequest(): bool
     {
         if (!$this->request) {
@@ -50,6 +60,11 @@ class ApiExceptionRenderer extends WebExceptionRenderer
         return false;
     }
 
+    /**
+     * Render api json.
+     *
+     * @return ResponseInterface
+     */
     protected function renderApiJson(): ResponseInterface
     {
         $exception = $this->error;

@@ -32,6 +32,11 @@ class MembersGridColumns extends BaseGridColumns
         return $previous;
     }
 
+    /**
+     * Get columns.
+     *
+     * @return array
+     */
     public static function getColumns(): array
     {
         $columns = [

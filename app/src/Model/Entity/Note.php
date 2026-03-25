@@ -36,6 +36,11 @@ class Note extends BaseEntity
         'private' => true,
     ];
 
+    /**
+     * Get branch id.
+     *
+     * @return ?int
+     */
     public function getBranchId(): ?int
     {
         $entity_type = $this->entity_type;

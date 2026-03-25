@@ -18,6 +18,11 @@ use Cake\I18n\DateTime;
  */
 class MemberRolesController extends AppController
 {
+    /**
+     * Set up this component.
+     *
+     * @return void
+     */
     public function initialize(): void
     {
         parent::initialize();
@@ -140,6 +145,12 @@ class MemberRolesController extends AppController
         return $this->redirect($this->referer());
     }
 
+    /**
+     * Deactivate.
+     *
+     * @param ActiveWindowManagerInterface $awService
+     * @param mixed $id
+     */
     public function deactivate(ActiveWindowManagerInterface $awService, $id = null)
     {
         $this->request->allowMethod(['post']);
@@ -184,9 +195,14 @@ class MemberRolesController extends AppController
         return $this->redirect($this->referer());
     }
 
+    /**
+     * Role member roles.
+     *
+     * @param mixed $state
+     * @param mixed $id
+     */
     public function roleMemberRoles($state, $id)
     {
-
         if ($state != 'current' && $state == 'upcoming' && $state == 'previous') {
             throw new NotFoundException();
         }
@@ -213,6 +229,11 @@ class MemberRolesController extends AppController
         $this->set(compact('memberRoles', 'role', 'state'));
     }
 
+    /**
+     * Add conditions.
+     *
+     * @param mixed $query
+     */
     protected function addConditions($query)
     {
         return $query

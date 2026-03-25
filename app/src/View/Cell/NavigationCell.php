@@ -320,6 +320,13 @@ class NavigationCell extends Cell
         return false;
     }
 
+    /**
+     * Check if has badge.
+     *
+     * @param mixed $link
+     * @param mixed $currentRequestString
+     * @return bool
+     */
     protected function hasBadge($link, $currentRequestString): bool
     {
         if (isset($link['badgeResult']) && ($link['badgeResult'] > 0)) {
@@ -329,6 +336,11 @@ class NavigationCell extends Cell
         return false;
     }
 
+    /**
+     * Get badge status.
+     *
+     * @param mixed $badgeConfig
+     */
     protected function getBadgeStatus($badgeConfig)
     {
         if (

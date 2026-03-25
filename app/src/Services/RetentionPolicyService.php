@@ -31,7 +31,6 @@ class RetentionPolicyService
      * @param \Cake\I18n\Date|null $uploadDate Upload date (required for upload_date anchor, defaults to today)
      * @return \App\Services\ServiceResult Success with Date object (or null for permanent retention), or failure with error message
      */
-
     public function calculateRetentionDate(
         string $policyJson,
         ?Date $gatheringEndDate = null,

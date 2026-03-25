@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Support;
 
 use App\Test\TestCase\BaseTestCase;
-use App\Test\TestCase\TestAuthenticationHelper;
+use App\Test\TestCase\TestAuthenticationHelperTrait;
 use Cake\TestSuite\IntegrationTestTrait;
 
 /**
@@ -16,7 +16,7 @@ use Cake\TestSuite\IntegrationTestTrait;
 abstract class HttpIntegrationTestCase extends BaseTestCase
 {
     use IntegrationTestTrait;
-    use TestAuthenticationHelper;
+    use TestAuthenticationHelperTrait;
 
     /**
      * Ensure the Cake router runs in HTTP mode for Turbo/Stimulus rendering.

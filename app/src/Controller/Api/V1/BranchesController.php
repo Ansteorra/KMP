@@ -14,6 +14,11 @@ use App\Services\ApiDataRegistry;
  */
 class BranchesController extends ApiController
 {
+    /**
+     * Set up this component.
+     *
+     * @return void
+     */
     public function initialize(): void
     {
         parent::initialize();

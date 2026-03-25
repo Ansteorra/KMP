@@ -25,6 +25,11 @@ class DefaultWarrantManager implements WarrantManagerInterface
 
     private ActiveWindowManagerInterface $activeWindowManager;
 
+    /**
+     * Constructor.
+     *
+     * @param ActiveWindowManagerInterface $activeWindowManager
+     */
     public function __construct(ActiveWindowManagerInterface $activeWindowManager)
     {
         $this->activeWindowManager = $activeWindowManager;
@@ -45,6 +50,14 @@ class DefaultWarrantManager implements WarrantManagerInterface
         }
     }
 
+    /**
+     * Request.
+     *
+     * @param mixed $request_name
+     * @param mixed $desc
+     * @param mixed $warrantRequests
+     * @return ServiceResult
+     */
     public function request($request_name, $desc, $warrantRequests): ServiceResult
     {
         //Create a warrant approval set
@@ -118,6 +131,13 @@ class DefaultWarrantManager implements WarrantManagerInterface
         return new ServiceResult(true, '', $warrantRoster->id);
     }
 
+    /**
+     * Approve.
+     *
+     * @param mixed $warrant_roster_id
+     * @param mixed $approver_id
+     * @return ServiceResult
+     */
     public function approve($warrant_roster_id, $approver_id): ServiceResult
     {
         $warrantRosterTable = TableRegistry::getTableLocator()->get('WarrantRosters');
@@ -214,6 +234,14 @@ class DefaultWarrantManager implements WarrantManagerInterface
         return new ServiceResult(true);
     }
 
+    /**
+     * Decline.
+     *
+     * @param mixed $warrant_roster_id
+     * @param mixed $rejecter_id
+     * @param mixed $reason
+     * @return ServiceResult
+     */
     public function decline($warrant_roster_id, $rejecter_id, $reason): ServiceResult
     {
         $warrantRosterTable = TableRegistry::getTableLocator()->get('WarrantRosters');
@@ -277,6 +305,15 @@ class DefaultWarrantManager implements WarrantManagerInterface
         return new ServiceResult(true);
     }
 
+    /**
+     * Cancel.
+     *
+     * @param mixed $warrant_id
+     * @param mixed $reason
+     * @param mixed $rejecter_id
+     * @param mixed $expiresOn
+     * @return ServiceResult
+     */
     public function cancel($warrant_id, $reason, $rejecter_id, $expiresOn): ServiceResult
     {
         $warrantTable = TableRegistry::getTableLocator()->get('Warrants');
@@ -288,6 +325,16 @@ class DefaultWarrantManager implements WarrantManagerInterface
         return $this->cancelWarrant($warrantTable, $warrant, $expiresOn, $rejecter_id, $reason);
     }
 
+    /**
+     * Cancel by entity.
+     *
+     * @param mixed $entityType
+     * @param mixed $entityId
+     * @param mixed $reason
+     * @param mixed $rejecter_id
+     * @param mixed $expiresOn
+     * @return ServiceResult
+     */
     public function cancelByEntity($entityType, $entityId, $reason, $rejecter_id, $expiresOn): ServiceResult
     {
         $warrantTable = TableRegistry::getTableLocator()->get('Warrants');
@@ -304,6 +351,14 @@ class DefaultWarrantManager implements WarrantManagerInterface
         return $this->cancelWarrant($warrantTable, $warrant, $expiresOn, $rejecter_id, $reason);
     }
 
+    /**
+     * Decline single warrant.
+     *
+     * @param mixed $warrant_id
+     * @param mixed $reason
+     * @param mixed $rejecter_id
+     * @return ServiceResult
+     */
     public function declineSingleWarrant($warrant_id, $reason, $rejecter_id): ServiceResult
     {
         $warrantTable = TableRegistry::getTableLocator()->get('Warrants');
@@ -370,6 +425,13 @@ class DefaultWarrantManager implements WarrantManagerInterface
         return new ServiceResult(true);
     }
 
+    /**
+     * Get warrant period.
+     *
+     * @param DateTime $startOn
+     * @param ?DateTime $endOn
+     * @return ?WarrantPeriod
+     */
     public function getWarrantPeriod(DateTime $startOn, ?DateTime $endOn): ?WarrantPeriod
     {
         $periodStart = new DateTime();
@@ -398,6 +460,16 @@ class DefaultWarrantManager implements WarrantManagerInterface
         return $warrantPeriod;
     }
 
+    /**
+     * Cancel warrant.
+     *
+     * @param mixed $warrantTable
+     * @param mixed $warrant
+     * @param mixed $expiresOn
+     * @param mixed $rejecter_id
+     * @param mixed $reason
+     * @return ServiceResult
+     */
     protected function cancelWarrant($warrantTable, $warrant, $expiresOn, $rejecter_id, $reason): ServiceResult
     {
         if ($expiresOn < new DateTime()) {
@@ -413,9 +485,15 @@ class DefaultWarrantManager implements WarrantManagerInterface
         return new ServiceResult(true);
     }
 
+    /**
+     * Stop warrant dependants.
+     *
+     * @param mixed $warrant
+     * @param mixed $rejecter_id
+     * @return ServiceResult
+     */
     protected function stopWarrantDependants($warrant, $rejecter_id): ServiceResult
     {
-
         if ($warrant->member_role_id != null) {
             /**
              *
@@ -454,6 +532,15 @@ class DefaultWarrantManager implements WarrantManagerInterface
         return new ServiceResult(true);
     }
 
+    /**
+     * Decline warrant.
+     *
+     * @param mixed $warrantTable
+     * @param mixed $warrant
+     * @param mixed $rejecter_id
+     * @param mixed $reason
+     * @return ServiceResult
+     */
     protected function declineWarrant($warrantTable, $warrant, $rejecter_id, $reason): ServiceResult
     {
         $warrant->status = Warrant::DECLINED_STATUS;

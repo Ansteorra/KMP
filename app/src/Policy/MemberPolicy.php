@@ -79,6 +79,13 @@ class MemberPolicy extends BasePolicy
         return false;
     }
 
+    /**
+     * Check if user can submit sca member info.
+     *
+     * @param KmpIdentityInterface $user
+     * @param BaseEntity $entity
+     * @return bool
+     */
     public function canSubmitScaMemberInfo(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
     {
         if ($entity instanceof Member && $user instanceof Member && $user->canManageMember($entity)) {

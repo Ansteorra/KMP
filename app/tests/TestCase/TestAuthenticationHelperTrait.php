@@ -6,7 +6,7 @@ namespace App\Test\TestCase;
 use Cake\ORM\TableRegistry;
 
 /**
- * TestAuthenticationHelper
+ * TestAuthenticationHelperTrait
  *
  * Helper trait for authenticating test users in integration tests.
  * Provides convenient methods to authenticate as the test super user
@@ -15,7 +15,7 @@ use Cake\ORM\TableRegistry;
  * Sessions must contain a Member entity (not a plain array) because
  * the authorization middleware expects KmpIdentityInterface.
  */
-trait TestAuthenticationHelper
+trait TestAuthenticationHelperTrait
 {
     /**
      * Authenticate as the test super user

@@ -25,7 +25,6 @@ class InitAwards extends BaseMigration
      */
     public function up(): void
     {
-
         $this->table("awards_domains", ['id' => false])
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
@@ -502,6 +501,9 @@ class InitAwards extends BaseMigration
         $manager->seed($seeder);
     }
 
+    /**
+     * Reverse the migration.
+     */
     public function down()
     {
         $this->table("awards_recommendation_event")

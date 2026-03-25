@@ -204,6 +204,11 @@ class RestoreStatusService
         return $status;
     }
 
+    /**
+     * Check if locked.
+     *
+     * @return bool
+     */
     public function isLocked(): bool
     {
         return $this->readActiveLock() !== null;
@@ -266,6 +271,11 @@ class RestoreStatusService
         return $lock;
     }
 
+    /**
+     * Clear expired lock.
+     *
+     * @return void
+     */
     private function clearExpiredLock(): void
     {
         $this->readActiveLock();
@@ -279,11 +289,22 @@ class RestoreStatusService
         Cache::write(self::STATUS_KEY, $status, self::CACHE_CONFIG);
     }
 
+    /**
+     * Now iso.
+     *
+     * @return string
+     */
     private function nowIso(): string
     {
         return (new DateTimeImmutable('now'))->format(DateTimeInterface::ATOM);
     }
 
+    /**
+     * Iso after seconds.
+     *
+     * @param int $seconds
+     * @return string
+     */
     private function isoAfterSeconds(int $seconds): string
     {
         return (new DateTimeImmutable('now'))
@@ -291,6 +312,12 @@ class RestoreStatusService
             ->format(DateTimeInterface::ATOM);
     }
 
+    /**
+     * Check if expired.
+     *
+     * @param string $isoValue
+     * @return bool
+     */
     private function isExpired(string $isoValue): bool
     {
         if ($isoValue === '') {
@@ -305,6 +332,13 @@ class RestoreStatusService
         return $expiresAt <= new DateTimeImmutable('now');
     }
 
+    /**
+     * Check if older than seconds.
+     *
+     * @param string $isoValue
+     * @param int $seconds
+     * @return bool
+     */
     private function isOlderThanSeconds(string $isoValue, int $seconds): bool
     {
         if ($isoValue === '') {

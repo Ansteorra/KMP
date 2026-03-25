@@ -273,6 +273,13 @@ class AppController extends Controller
         return $response;
     }
 
+    /**
+     * Check if restore lock bypass route.
+     *
+     * @param string $controller
+     * @param string $action
+     * @return bool
+     */
     private function isRestoreLockBypassRoute(string $controller, string $action): bool
     {
         if ($controller === 'backups' && in_array($action, ['index', 'status', 'restore'], true)) {

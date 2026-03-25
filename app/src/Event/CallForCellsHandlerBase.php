@@ -25,6 +25,11 @@ class CallForCellsHandlerBase implements EventListenerInterface
     protected string $pluginName = '';
     protected array $viewsToTest = [];
 
+    /**
+     * Get the list of implemented event listeners.
+     *
+     * @return array
+     */
     public function implementedEvents(): array
     {
         return [
@@ -34,6 +39,11 @@ class CallForCellsHandlerBase implements EventListenerInterface
         ];
     }
 
+    /**
+     * Call for view cells.
+     *
+     * @param mixed $event
+     */
     public function callForViewCells($event)
     {
         if ($this->pluginName && !StaticHelpers::pluginEnabled($this->pluginName)) {

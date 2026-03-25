@@ -14,6 +14,11 @@ use Exception;
  */
 class TableAdminController extends AppController
 {
+    /**
+     * Index.
+     *
+     * @return void
+     */
     public function index(): void
     {
         $this->request->allowMethod(['get', 'post']);
@@ -186,6 +191,11 @@ class TableAdminController extends AppController
         ];
     }
 
+    /**
+     * Require super user.
+     *
+     * @return void
+     */
     private function requireSuperUser(): void
     {
         $identity = $this->request->getAttribute('identity');
@@ -194,6 +204,12 @@ class TableAdminController extends AppController
         }
     }
 
+    /**
+     * Get mutation type.
+     *
+     * @param string $sql
+     * @return ?string
+     */
     private function getMutationType(string $sql): ?string
     {
         if (!preg_match('/^\s*(insert|update|delete)\b/i', $sql, $matches)) {
@@ -203,6 +219,12 @@ class TableAdminController extends AppController
         return strtoupper($matches[1]);
     }
 
+    /**
+     * Get confirmation required type.
+     *
+     * @param string $sql
+     * @return ?string
+     */
     private function getConfirmationRequiredType(string $sql): ?string
     {
         if (!preg_match('/^\s*(insert|update|delete|truncate)\b/i', $sql, $matches)) {

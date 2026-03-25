@@ -10,6 +10,11 @@ use Cake\Event\EventInterface;
  */
 class NavBarController extends AppController
 {
+    /**
+     * Run before controller action execution.
+     *
+     * @param EventInterface $event
+     */
     public function beforeFilter(EventInterface $event)
     {
         parent::beforeFilter($event);
@@ -20,6 +25,11 @@ class NavBarController extends AppController
         ]);
     }
 
+    /**
+     * Record expand.
+     *
+     * @param mixed $menu
+     */
     public function recordExpand($menu = null)
     {
         $navbarState = $this->request->getSession()->read('navbarState');
@@ -37,6 +47,11 @@ class NavBarController extends AppController
         return $this->response;
     }
 
+    /**
+     * Record collapse.
+     *
+     * @param mixed $menu
+     */
     public function recordCollapse($menu = null)
     {
         $navbarState = $this->request->getSession()->read('navbarState');

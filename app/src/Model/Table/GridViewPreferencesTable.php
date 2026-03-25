@@ -15,6 +15,12 @@ use Cake\Validation\Validator;
  */
 class GridViewPreferencesTable extends BaseTable
 {
+    /**
+     * Set up this component.
+     *
+     * @param array $config
+     * @return void
+     */
     public function initialize(array $config): void
     {
         parent::initialize($config);
@@ -57,6 +63,12 @@ class GridViewPreferencesTable extends BaseTable
         ]);
     }
 
+    /**
+     * Define default validation rules.
+     *
+     * @param Validator $validator
+     * @return Validator
+     */
     public function validationDefault(Validator $validator): Validator
     {
         $validator
@@ -86,6 +98,12 @@ class GridViewPreferencesTable extends BaseTable
         return $validator;
     }
 
+    /**
+     * Define application-level rules.
+     *
+     * @param RulesChecker $rules
+     * @return RulesChecker
+     */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
         $rules->add($rules->isUnique(

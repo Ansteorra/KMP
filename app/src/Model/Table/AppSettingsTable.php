@@ -74,6 +74,12 @@ class AppSettingsTable extends BaseTable
         return $validator;
     }
 
+    /**
+     * Define application-level rules.
+     *
+     * @param RulesChecker $rules
+     * @return RulesChecker
+     */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
         $rules->add($rules->isUnique(['name']), ['errorField' => 'name']);
@@ -81,6 +87,13 @@ class AppSettingsTable extends BaseTable
         return $rules;
     }
 
+    /**
+     * Save.
+     *
+     * @param EntityInterface $entity
+     * @param array $options
+     * @return EntityInterface|false
+     */
     public function save(
         EntityInterface $entity,
         array $options = [],
@@ -92,6 +105,13 @@ class AppSettingsTable extends BaseTable
         return $result;
     }
 
+    /**
+     * Delete.
+     *
+     * @param EntityInterface $entity
+     * @param array $options
+     * @return bool
+     */
     public function delete(EntityInterface $entity, array $options = []): bool
     {
         $result = parent::delete($entity, $options);
@@ -213,6 +233,14 @@ class AppSettingsTable extends BaseTable
         return false;
     }
 
+    /**
+     * Get app setting.
+     *
+     * @param mixed $key
+     * @param mixed $default
+     * @param mixed $type
+     * @param mixed $required
+     */
     public function getAppSetting($key, $default = null, $type = null, $required = false)
     {
         $setting = $this->getSetting($key);
@@ -228,11 +256,27 @@ class AppSettingsTable extends BaseTable
         }
     }
 
+    /**
+     * Set app setting.
+     *
+     * @param mixed $key
+     * @param mixed $value
+     * @param mixed $type
+     * @param mixed $required
+     * @return bool
+     */
     public function setAppSetting($key, $value, $type = null, $required = false): bool
     {
         return $this->updateSetting($key, $type, $value, $required);
     }
 
+    /**
+     * Delete app setting.
+     *
+     * @param mixed $key
+     * @param bool $forceDelete
+     * @return bool
+     */
     public function deleteAppSetting($key, bool $forceDelete = false): bool
     {
         return $this->deleteSetting($key, $forceDelete);
@@ -240,6 +284,12 @@ class AppSettingsTable extends BaseTable
 
     //TODO: Create a caching strategy for this
 
+    /**
+     * Get all app settings start with.
+     *
+     * @param mixed $key
+     * @return array
+     */
     public function getAllAppSettingsStartWith($key): array
     {
         $settings = $this->find()
@@ -253,11 +303,25 @@ class AppSettingsTable extends BaseTable
         return $return;
     }
 
+    /**
+     * Check if sensitive setting.
+     *
+     * @param string $name
+     * @return bool
+     */
     private function isSensitiveSetting(string $name): bool
     {
         return $name === 'Backup.encryptionKey';
     }
 
+    /**
+     * Resolve value for write.
+     *
+     * @param string $type
+     * @param mixed $value
+     * @param bool $settingExists
+     * @return mixed
+     */
     private function resolveValueForWrite(string $type, mixed $value, bool $settingExists): mixed
     {
         if ($type !== 'password') {
@@ -286,6 +350,13 @@ class AppSettingsTable extends BaseTable
         return self::PASSWORD_VALUE_PREFIX . base64_encode($encrypted);
     }
 
+    /**
+     * Resolve value for read.
+     *
+     * @param string $type
+     * @param mixed $value
+     * @return mixed
+     */
     private function resolveValueForRead(string $type, mixed $value): mixed
     {
         if ($type !== 'password') {
@@ -316,6 +387,11 @@ class AppSettingsTable extends BaseTable
         return $decrypted;
     }
 
+    /**
+     * Get password encryption key.
+     *
+     * @return string
+     */
     private function getPasswordEncryptionKey(): string
     {
         $key = (string)env('APPSETTING_PASSWORD_KEY', Security::getSalt());

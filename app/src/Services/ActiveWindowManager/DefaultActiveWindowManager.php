@@ -10,6 +10,9 @@ use Cake\ORM\TableRegistry;
 
 class DefaultActiveWindowManager implements ActiveWindowManagerInterface
 {
+    /**
+     * Constructor.
+     */
     public function __construct()
     {
     }

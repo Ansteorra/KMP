@@ -12,6 +12,11 @@ namespace App\KMP\GridColumns;
  */
 class VerifyQueueGridColumns extends BaseGridColumns
 {
+    /**
+     * Get columns.
+     *
+     * @return array
+     */
     public static function getColumns(): array
     {
         return [

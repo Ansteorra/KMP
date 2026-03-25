@@ -37,6 +37,12 @@ class KmpHelper extends Helper
      */
     private static string $currentOpenBlock = '';
 
+    /**
+     * Run before view rendering.
+     *
+     * @param Event $event
+     * @return void
+     */
     public function beforeRender(Event $event): void
     {
         // Each cell has its own view, but the first one created is the main

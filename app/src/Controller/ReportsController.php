@@ -8,12 +8,20 @@ use Cake\ORM\TableRegistry;
 
 class ReportsController extends AppController
 {
+    /**
+     * Set up this component.
+     *
+     * @return void
+     */
     public function initialize(): void
     {
         parent::initialize();
         //$this->Authorization->authorizeModel('index','add','searchMembers','addPermission','deletePermission');
     }
 
+    /**
+     * Roles list.
+     */
     public function rolesList()
     {
         $this->authorizeCurrentUrl();
@@ -44,6 +52,9 @@ class ReportsController extends AppController
         $this->set(compact('roles', 'validOn'));
     }
 
+    /**
+     * Permissions warrants roster.
+     */
     public function permissionsWarrantsRoster()
     {
         $hide = false;
@@ -117,6 +128,12 @@ class ReportsController extends AppController
         $this->set(compact('permissionsRoster', 'validOn', 'hide'));
     }
 
+    /**
+     * Set valid filter.
+     *
+     * @param mixed $q
+     * @param mixed $validOn
+     */
     protected function setValidFilter($q, $validOn)
     {
         return $q->where([

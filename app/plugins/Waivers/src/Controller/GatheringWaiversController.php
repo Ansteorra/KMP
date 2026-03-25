@@ -3184,7 +3184,6 @@ class GatheringWaiversController extends AppController
      */
     public function mobileUpload(?string $gatheringId = null)
     {
-
         if (!$gatheringId) {
             $gatheringId = $this->request->getQuery('gathering_id');
         }

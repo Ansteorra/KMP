@@ -21,6 +21,15 @@ class ActivitiesMailer extends Mailer
         parent::__construct();
     }
 
+    /**
+     * Send notification approver.
+     *
+     * @param string $to
+     * @param string $approvalToken
+     * @param string $memberScaName
+     * @param string $approverScaName
+     * @param string $activityName
+     */
     public function notifyApprover(
         string $to,
         string $approvalToken,
@@ -93,6 +102,15 @@ class ActivitiesMailer extends Mailer
             ]);
     }
 
+    /**
+     * Send notification approver of retraction.
+     *
+     * @param string $to
+     * @param string $activityName
+     * @param string $approverScaName
+     * @param string $requesterScaName
+     * @return void
+     */
     public function notifyApproverOfRetraction(
         string $to,
         string $activityName,

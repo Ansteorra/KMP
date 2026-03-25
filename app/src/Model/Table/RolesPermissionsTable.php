@@ -99,6 +99,14 @@ class RolesPermissionsTable extends BaseTable
         return $rules;
     }
 
+    /**
+     * Run before an entity is saved.
+     *
+     * @param Event $event
+     * @param EntityInterface $entity
+     * @param ArrayObject $options
+     * @return void
+     */
     public function beforeSave(Event $event, EntityInterface $entity, ArrayObject $options): void
     {
         if ($entity->isNew() && empty($entity->created_by)) {

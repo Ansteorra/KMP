@@ -14,6 +14,12 @@ use Cake\Validation\Validator;
  */
 class BackupsTable extends Table
 {
+    /**
+     * Set up this component.
+     *
+     * @param array $config
+     * @return void
+     */
     public function initialize(array $config): void
     {
         parent::initialize($config);
@@ -25,6 +31,12 @@ class BackupsTable extends Table
         $this->addBehavior('Timestamp');
     }
 
+    /**
+     * Define default validation rules.
+     *
+     * @param Validator $validator
+     * @return Validator
+     */
     public function validationDefault(Validator $validator): Validator
     {
         $validator

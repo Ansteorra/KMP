@@ -13,12 +13,22 @@ class KMPMailer extends Mailer
 
     protected AppSettingsTable $appSettings;
 
+    /**
+     * Constructor.
+     */
     public function __construct()
     {
         parent::__construct();
         $this->appSettings = $this->getTableLocator()->get('AppSettings');
     }
 
+    /**
+     * Reset password.
+     *
+     * @param mixed $to
+     * @param mixed $url
+     * @return void
+     */
     public function resetPassword($to, $url): void
     {
         $sendFrom = StaticHelpers::getAppSetting('Email.SystemEmailFromAddress');
@@ -32,6 +42,13 @@ class KMPMailer extends Mailer
             ]);
     }
 
+    /**
+     * Mobile card.
+     *
+     * @param mixed $to
+     * @param mixed $url
+     * @return void
+     */
     public function mobileCard($to, $url): void
     {
         $sendFrom = StaticHelpers::getAppSetting('Email.SystemEmailFromAddress');
@@ -45,6 +62,14 @@ class KMPMailer extends Mailer
             ]);
     }
 
+    /**
+     * New registration.
+     *
+     * @param mixed $to
+     * @param mixed $url
+     * @param mixed $sca_name
+     * @return void
+     */
     public function newRegistration($to, $url, $sca_name): void
     {
         $sendFrom = StaticHelpers::getAppSetting('Email.SystemEmailFromAddress');
@@ -61,6 +86,15 @@ class KMPMailer extends Mailer
             ]);
     }
 
+    /**
+     * Notify secretary of new member.
+     *
+     * @param mixed $to
+     * @param mixed $url
+     * @param mixed $sca_name
+     * @param mixed $membershipCardPresent
+     * @return void
+     */
     public function notifySecretaryOfNewMember($to, $url, $sca_name, $membershipCardPresent): void
     {
         $sendFrom = StaticHelpers::getAppSetting('Email.SystemEmailFromAddress');
@@ -76,6 +110,15 @@ class KMPMailer extends Mailer
             ]);
     }
 
+    /**
+     * Notify secretary of new minor member.
+     *
+     * @param mixed $to
+     * @param mixed $url
+     * @param mixed $sca_name
+     * @param mixed $membershipCardPresent
+     * @return void
+     */
     public function notifySecretaryOfNewMinorMember($to, $url, $sca_name, $membershipCardPresent): void
     {
         $sendFrom = StaticHelpers::getAppSetting('Email.SystemEmailFromAddress');
@@ -91,6 +134,16 @@ class KMPMailer extends Mailer
             ]);
     }
 
+    /**
+     * Notify of warrant.
+     *
+     * @param string $to
+     * @param string $memberScaName
+     * @param string $warrantName
+     * @param string $warrantStart
+     * @param string $warrantExpires
+     * @return void
+     */
     public function notifyOfWarrant(
         string $to,
         string $memberScaName,

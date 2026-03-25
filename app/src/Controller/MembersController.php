@@ -919,6 +919,11 @@ class MembersController extends AppController
         $this->viewBuilder()->setTemplate('view');
     }
 
+    /**
+     * View card.
+     *
+     * @param mixed $id
+     */
     public function viewCard($id = null)
     {
         $member = $this->Members
@@ -955,6 +960,11 @@ class MembersController extends AppController
         $this->viewBuilder()->setTemplate($customTemplate);
     }
 
+    /**
+     * View mobile card.
+     *
+     * @param mixed $id
+     */
     public function viewMobileCard($id = null)
     {
         $currentUser = $this->Authentication->getIdentity();
@@ -1208,6 +1218,11 @@ class MembersController extends AppController
 
     #region Member Specific calls
 
+    /**
+     * Send mobile card email.
+     *
+     * @param mixed $id
+     */
     public function sendMobileCardEmail($id = null)
     {
         $member = $this->Members->get($id);
@@ -1520,6 +1535,11 @@ class MembersController extends AppController
         return ['success' => true, 'message' => __('Profile photo updated.')];
     }
 
+    /**
+     * Partial edit.
+     *
+     * @param mixed $id
+     */
     public function partialEdit($id = null)
     {
         $member = $this->Members->get($id);
@@ -1578,6 +1598,11 @@ class MembersController extends AppController
         return $this->view((string)$user->id);
     }
 
+    /**
+     * Edit additional info.
+     *
+     * @param mixed $id
+     */
     public function editAdditionalInfo($id = null)
     {
         $member = $this->Members->get($id);
@@ -1654,6 +1679,9 @@ class MembersController extends AppController
 
     #region ASYNC calls
 
+    /**
+     * Search members.
+     */
     public function searchMembers()
     {
         $q = $this->request->getQuery('q');
@@ -1686,6 +1714,11 @@ class MembersController extends AppController
         return $this->response;
     }
 
+    /**
+     * View card json.
+     *
+     * @param mixed $id
+     */
     public function viewCardJson($id = null)
     {
         $member = $this->Members
@@ -1731,6 +1764,11 @@ class MembersController extends AppController
         $this->set(compact('member'));
     }
 
+    /**
+     * View mobile card json.
+     *
+     * @param mixed $id
+     */
     public function viewMobileCardJson($id = null)
     {
         $currentUser = $this->Authentication->getIdentity();
@@ -1788,6 +1826,11 @@ class MembersController extends AppController
         $this->viewBuilder()->setTemplate('view_card_json');
     }
 
+    /**
+     * Public profile.
+     *
+     * @param mixed $publicId
+     */
     public function publicProfile($publicId = null)
     {
         $member = $this->Members
@@ -1805,6 +1848,9 @@ class MembersController extends AppController
         return $this->response;
     }
 
+    /**
+     * Auto complete.
+     */
     public function autoComplete()
     {
         //TODO: Audit for Privacy
@@ -1835,6 +1881,9 @@ class MembersController extends AppController
         $this->set(compact('query', 'q', 'nq', 'uq'));
     }
 
+    /**
+     * Email taken.
+     */
     public function emailTaken()
     {
         $email = $this->request->getQuery('email');
@@ -1862,6 +1911,11 @@ class MembersController extends AppController
 
     #region Password specific calls
 
+    /**
+     * Change password.
+     *
+     * @param mixed $id
+     */
     public function changePassword($id = null)
     {
         $member = $this->Members->get($id);
@@ -1893,6 +1947,9 @@ class MembersController extends AppController
         }
     }
 
+    /**
+     * Forgot password.
+     */
     public function forgotPassword()
     {
         $this->Authorization->skipAuthorization();
@@ -1945,6 +2002,11 @@ class MembersController extends AppController
         $this->set(compact('headerImage'));
     }
 
+    /**
+     * Reset password.
+     *
+     * @param mixed $token
+     */
     public function resetPassword($token = null)
     {
         $this->Authorization->skipAuthorization();
@@ -2075,6 +2137,11 @@ class MembersController extends AppController
         $this->set(compact('headerImage', 'allowRegistration', 'quickLoginDisabled', 'quickLoginDisabledEmail'));
     }
 
+    /**
+     * Redirect after successful login.
+     *
+     * @return Response
+     */
     private function redirectAfterSuccessfulLogin(): Response
     {
         return $this->redirect($this->resolvePostLoginRedirectTarget());
@@ -2657,6 +2724,9 @@ class MembersController extends AppController
         $this->Members->save($member);
     }
 
+    /**
+     * Logout.
+     */
     public function logout()
     {
         $this->Authorization->skipAuthorization();
@@ -2668,6 +2738,9 @@ class MembersController extends AppController
         ]);
     }
 
+    /**
+     * Submit sca member info.
+     */
     public function submitScaMemberInfo()
     {
         $user = $this->Authentication->getIdentity();
@@ -2733,6 +2806,9 @@ class MembersController extends AppController
         $this->redirect($this->referer());
     }
 
+    /**
+     * Register.
+     */
     public function register()
     {
         $allowRegistration = StaticHelpers::getAppSetting(
@@ -2952,6 +3028,11 @@ class MembersController extends AppController
 
     #region Verification calls
 
+    /**
+     * Verify membership.
+     *
+     * @param mixed $id
+     */
     public function verifyMembership($id = null)
     {
         $member = $this->Members->get($id);
@@ -3069,6 +3150,11 @@ class MembersController extends AppController
 
     #region protected
 
+    /**
+     * Internal: add roles select and contain.
+     *
+     * @param SelectQuery $q
+     */
     protected function _addRolesSelectAndContain(SelectQuery $q)
     {
         return $q

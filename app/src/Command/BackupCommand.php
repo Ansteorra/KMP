@@ -21,11 +21,22 @@ use Exception;
  */
 class BackupCommand extends Command
 {
+    /**
+     * Get the default command name.
+     *
+     * @return string
+     */
     public static function defaultName(): string
     {
         return 'backup';
     }
 
+    /**
+     * Configure the command option parser.
+     *
+     * @param ConsoleOptionParser $parser
+     * @return ConsoleOptionParser
+     */
     protected function buildOptionParser(ConsoleOptionParser $parser): ConsoleOptionParser
     {
         $parser
@@ -47,6 +58,13 @@ class BackupCommand extends Command
         return $parser;
     }
 
+    /**
+     * Execute the command.
+     *
+     * @param Arguments $args
+     * @param ConsoleIo $io
+     * @return ?int
+     */
     public function execute(Arguments $args, ConsoleIo $io): ?int
     {
         $action = $args->getArgument('action');
@@ -71,6 +89,13 @@ class BackupCommand extends Command
         };
     }
 
+    /**
+     * Do create.
+     *
+     * @param string $key
+     * @param ConsoleIo $io
+     * @return int
+     */
     private function doCreate(string $key, ConsoleIo $io): int
     {
         $backupService = new BackupService();
@@ -117,6 +142,14 @@ class BackupCommand extends Command
         }
     }
 
+    /**
+     * Do restore.
+     *
+     * @param string $key
+     * @param Arguments $args
+     * @param ConsoleIo $io
+     * @return int
+     */
     private function doRestore(string $key, Arguments $args, ConsoleIo $io): int
     {
         $filename = $args->getArgument('file');
@@ -237,6 +270,12 @@ class BackupCommand extends Command
         }
     }
 
+    /**
+     * Format bytes.
+     *
+     * @param int $bytes
+     * @return string
+     */
     private function formatBytes(int $bytes): string
     {
         $units = ['B', 'KB', 'MB', 'GB'];

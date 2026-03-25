@@ -32,6 +32,11 @@ use Parsedown;
  */
 class PagesController extends AppController
 {
+    /**
+     * Run before controller action execution.
+     *
+     * @param EventInterface $event
+     */
     public function beforeFilter(EventInterface $event)
     {
         parent::beforeFilter($event);

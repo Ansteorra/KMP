@@ -211,7 +211,6 @@ class QueueController extends AppController
 	 */
 	public function hardReset()
 	{
-
 		$this->Authorization->authorize("Queue.QueuedJobs", "hardReset");
 		$this->request->allowMethod('post');
 		$this->QueuedJobs->truncate();

@@ -32,6 +32,11 @@ class ImpersonationSessionLog extends Entity
         'impersonated_member' => true,
     ];
 
+    /**
+     * Get the created virtual field.
+     *
+     * @return ?FrozenTime
+     */
     protected function _getCreated(): ?FrozenTime
     {
         $created = $this->_fields['created'] ?? null;

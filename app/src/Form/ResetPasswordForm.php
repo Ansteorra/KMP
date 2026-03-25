@@ -9,6 +9,12 @@ use Cake\Validation\Validator;
 
 class ResetPasswordForm extends Form
 {
+    /**
+     * Build the form schema.
+     *
+     * @param Schema $schema
+     * @return Schema
+     */
     protected function _buildSchema(Schema $schema): Schema
     {
         return $schema
@@ -16,6 +22,12 @@ class ResetPasswordForm extends Form
             ->addField('confirm_password', ['type' => 'password']);
     }
 
+    /**
+     * Define default validation rules.
+     *
+     * @param Validator $validator
+     * @return Validator
+     */
     public function validationDefault(Validator $validator): Validator
     {
         return $validator
@@ -46,6 +58,12 @@ class ResetPasswordForm extends Form
             ]);
     }
 
+    /**
+     * Execute the form action.
+     *
+     * @param array $data
+     * @return bool
+     */
     protected function _execute(array $data): bool
     {
         return true;

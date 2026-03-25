@@ -327,6 +327,11 @@ class NavigationRegistry
         return $generatedTs < $latestRestoreCompletion;
     }
 
+    /**
+     * Get latest restore completion timestamp.
+     *
+     * @return ?int
+     */
     private static function getLatestRestoreCompletionTimestamp(): ?int
     {
         $status = (new RestoreStatusService())->getStatus();

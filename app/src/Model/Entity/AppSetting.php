@@ -29,6 +29,9 @@ class AppSetting extends BaseEntity
         'required' => true,
     ];
 
+    /**
+     * Get the raw value virtual field.
+     */
     protected function _getRawValue()
     {
         if (($this->type ?? 'string') === 'password' || $this->name === 'Backup.encryptionKey') {
@@ -45,6 +48,12 @@ class AppSetting extends BaseEntity
         }
     }
 
+    /**
+     * Set the raw value virtual field.
+     *
+     * @param mixed $value
+     * @return void
+     */
     protected function _setRawValue($value): void
     {
         switch ($this->type) {
@@ -59,6 +68,11 @@ class AppSetting extends BaseEntity
         }
     }
 
+    /**
+     * Set the value virtual field.
+     *
+     * @param mixed $value
+     */
     protected function _setValue($value)
     {
         if ($this->saving) {
@@ -74,6 +88,11 @@ class AppSetting extends BaseEntity
         }
     }
 
+    /**
+     * Get the value virtual field.
+     *
+     * @param mixed $value
+     */
     protected function _getValue($value)
     {
         if ($this->saving) {

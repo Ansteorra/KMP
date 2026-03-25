@@ -21,11 +21,22 @@ use Exception;
  */
 class BackupCheckCommand extends Command
 {
+    /**
+     * Get the default command name.
+     *
+     * @return string
+     */
     public static function defaultName(): string
     {
         return 'backup_check';
     }
 
+    /**
+     * Configure the command option parser.
+     *
+     * @param ConsoleOptionParser $parser
+     * @return ConsoleOptionParser
+     */
     protected function buildOptionParser(ConsoleOptionParser $parser): ConsoleOptionParser
     {
         $parser->setDescription('Check backup schedule and create backup if due');
@@ -33,6 +44,13 @@ class BackupCheckCommand extends Command
         return $parser;
     }
 
+    /**
+     * Execute the command.
+     *
+     * @param Arguments $args
+     * @param ConsoleIo $io
+     * @return ?int
+     */
     public function execute(Arguments $args, ConsoleIo $io): ?int
     {
         $appSettings = $this->fetchTable('AppSettings');

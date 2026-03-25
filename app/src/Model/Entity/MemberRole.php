@@ -44,6 +44,11 @@ class MemberRole extends ActiveWindowBaseEntity
         'branch_id' => true,
     ];
 
+    /**
+     * Get the granted by virtual field.
+     *
+     * @param mixed $value
+     */
     protected function _getGrantedBy($value)
     {
         if ($this->entity_type == 'Direct Grant') {

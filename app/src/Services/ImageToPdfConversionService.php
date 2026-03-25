@@ -480,6 +480,13 @@ class ImageToPdfConversionService
         return 'portrait';
     }
 
+    /**
+     * Get page dimensions.
+     *
+     * @param string $pageSize
+     * @param string $orientation
+     * @return array
+     */
     private function getPageDimensions(string $pageSize, string $orientation = 'portrait'): array
     {
         [$width, $height] = match (strtolower($pageSize)) {

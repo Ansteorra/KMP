@@ -12,6 +12,11 @@ use Migrations\BaseMigration;
  */
 class DropGatheringWaiverActivities extends BaseMigration
 {
+    /**
+     * Run the migration changes.
+     *
+     * @return void
+     */
     public function change(): void
     {
         $table = $this->table('waivers_gathering_waiver_activities');

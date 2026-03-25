@@ -11,6 +11,12 @@ use Cake\Validation\Validator;
  */
 class ImpersonationSessionLogsTable extends BaseTable
 {
+    /**
+     * Set up this component.
+     *
+     * @param array $config
+     * @return void
+     */
     public function initialize(array $config): void
     {
         parent::initialize($config);
@@ -29,6 +35,12 @@ class ImpersonationSessionLogsTable extends BaseTable
         ]);
     }
 
+    /**
+     * Define default validation rules.
+     *
+     * @param Validator $validator
+     * @return Validator
+     */
     public function validationDefault(Validator $validator): Validator
     {
         $validator
@@ -59,6 +71,12 @@ class ImpersonationSessionLogsTable extends BaseTable
         return $validator;
     }
 
+    /**
+     * Define application-level rules.
+     *
+     * @param RulesChecker $rules
+     * @return RulesChecker
+     */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
         $rules->add($rules->existsIn(['impersonator_id'], 'Impersonators'));

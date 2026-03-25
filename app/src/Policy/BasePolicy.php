@@ -131,6 +131,12 @@ class BasePolicy implements BeforePolicyInterface
         return $this->canIndex($user, $entity, ...$optionalArgs);
     }
 
+    /**
+     * Apply scope for index action.
+     *
+     * @param KmpIdentityInterface $user
+     * @param mixed $query
+     */
     public function scopeIndex(KmpIdentityInterface $user, $query)
     {
         $table = $query->getRepository();

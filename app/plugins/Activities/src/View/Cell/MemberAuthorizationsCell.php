@@ -230,7 +230,6 @@ class MemberAuthorizationsCell extends Cell
      */
     protected function addConditions(SelectQuery $q)
     {
-
         $rejectFragment = $q->func()->concat([
             "Authorizations.status" => 'identifier',
             ' - ',

@@ -77,6 +77,12 @@ class KMPBruteForcePasswordIdentifier extends PasswordIdentifier
         return $identity;
     }
 
+    /**
+     * Internal: find identity.
+     *
+     * @param mixed $username
+     * @return ArrayAccess|array|null
+     */
     protected function _findIdentity($username): ArrayAccess|array|null
     {
         $finder = $this->getConfig('finder', 'all');
@@ -89,6 +95,13 @@ class KMPBruteForcePasswordIdentifier extends PasswordIdentifier
         return $user;
     }
 
+    /**
+     * Internal: log successful login.
+     *
+     * @param mixed $user
+     * @param mixed $MembersTable
+     * @return void
+     */
     protected function _logSuccessfulLogin($user, $MembersTable): void
     {
         $user->failed_login_attempts = 0;
@@ -101,6 +114,13 @@ class KMPBruteForcePasswordIdentifier extends PasswordIdentifier
         $MembersTable->save($user);
     }
 
+    /**
+     * Internal: add failed login attempt.
+     *
+     * @param mixed $user
+     * @param mixed $MembersTable
+     * @return void
+     */
     protected function _addFailedLoginAttempt($user, $MembersTable): void
     {
         $user->failed_login_attempts++;

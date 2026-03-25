@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Queue\Test\TestCase\Controller\Admin;
 
-use App\Test\TestCase\TestAuthenticationHelper;
+use App\Test\TestCase\TestAuthenticationHelperTrait;
 use Cake\I18n\DateTime;
 use Cake\TestSuite\IntegrationTestTrait;
 use Queue\Model\Table\QueuedJobsTable;
@@ -17,7 +17,7 @@ class QueueProcessesControllerTest extends TestCase
 {
 
 	use IntegrationTestTrait;
-	use TestAuthenticationHelper;
+	use TestAuthenticationHelperTrait;
 
 	/**
 	 * @var array<string>

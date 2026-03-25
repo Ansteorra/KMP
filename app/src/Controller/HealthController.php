@@ -17,6 +17,12 @@ use Throwable;
  */
 class HealthController extends AppController
 {
+    /**
+     * Run before controller action execution.
+     *
+     * @param EventInterface $event
+     * @return void
+     */
     public function beforeFilter(EventInterface $event): void
     {
         parent::beforeFilter($event);

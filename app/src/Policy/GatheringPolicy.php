@@ -18,6 +18,13 @@ use Cake\ORM\TableRegistry;
  */
 class GatheringPolicy extends BasePolicy
 {
+    /**
+     * Check if user can index.
+     *
+     * @param KmpIdentityInterface $user
+     * @param BaseEntity|Table $entity
+     * @return bool
+     */
     public function canIndex(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
     {
         return true;
@@ -45,11 +52,25 @@ class GatheringPolicy extends BasePolicy
         return $this->_isGatheringSteward($user, $entity);
     }
 
+    /**
+     * Check if user can cancel.
+     *
+     * @param KmpIdentityInterface $user
+     * @param BaseEntity $entity
+     * @return bool
+     */
     public function canCancel(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         return $this->canEdit($user, $entity, ...$optionalArgs);
     }
 
+    /**
+     * Check if user can uncancel.
+     *
+     * @param KmpIdentityInterface $user
+     * @param BaseEntity $entity
+     * @return bool
+     */
     public function canUncancel(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         return $this->canEdit($user, $entity, ...$optionalArgs);
@@ -94,6 +115,13 @@ class GatheringPolicy extends BasePolicy
         return true;
     }
 
+    /**
+     * Check if user can calendar.
+     *
+     * @param KmpIdentityInterface $user
+     * @param BaseEntity|Table $entity
+     * @return bool
+     */
     public function canCalendar(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
     {
         return true;
