@@ -53,13 +53,13 @@ class WarrantRostersTable extends BaseTable
         $this->belongsTo('CreatedByMember', [
             'className' => 'Members',
             'foreignKey' => 'created_by',
-            'joinType' => 'LEFT',  // LEFT JOIN allows rosters without creator tracking
+            'joinType' => 'LEFT', // LEFT JOIN allows rosters without creator tracking
         ]);
 
         $this->belongsTo('ModfiedByMember', [
             'className' => 'Members',
             'foreignKey' => 'modified_by',
-            'joinType' => 'LEFT',  // LEFT JOIN allows rosters without modifier tracking
+            'joinType' => 'LEFT', // LEFT JOIN allows rosters without modifier tracking
         ]);
 
         // Duplicate behavior setup (appears to be redundant - consider removing one)
@@ -135,8 +135,8 @@ class WarrantRostersTable extends BaseTable
         // Execute optimized count query for pending rosters only
         return $warrantRostersTable->find()
             ->where([
-                'status' => WarrantRoster::STATUS_PENDING,  // Filter to pending status only
+                'status' => WarrantRoster::STATUS_PENDING, // Filter to pending status only
             ])
-            ->count();  // Use count() for performance optimization
+            ->count(); // Use count() for performance optimization
     }
 }

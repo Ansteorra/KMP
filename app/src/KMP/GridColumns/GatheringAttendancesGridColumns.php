@@ -181,7 +181,7 @@ class GatheringAttendancesGridColumns extends BaseGridColumns
                 'sortable' => true,
                 'filterable' => true,
                 'filterType' => 'date-range',
-                'defaultVisible' => false,  // Hidden by default since date range shows both
+                'defaultVisible' => false, // Hidden by default since date range shows both
                 'width' => '140px',
                 'alignment' => 'left',
                 'renderField' => 'gathering.start_date',
@@ -195,7 +195,7 @@ class GatheringAttendancesGridColumns extends BaseGridColumns
                 'sortable' => true,
                 'filterable' => true,
                 'filterType' => 'date-range',
-                'defaultVisible' => false,  // Hidden by default since date range shows both
+                'defaultVisible' => false, // Hidden by default since date range shows both
                 'width' => '140px',
                 'alignment' => 'left',
                 'renderField' => 'gathering.end_date',

@@ -69,7 +69,7 @@ class DefaultWarrantManager implements WarrantManagerInterface
             $warrantRequestEntity = $warrantRequestTable->newEmptyEntity();
             $warrantRequestEntity->name = $warrantRequest->name;
             $warrantRequestEntity->entity_type = $warrantRequest->entity_type;
-            $warrantRequestEntity->entity_id =  $warrantRequest->entity_id;
+            $warrantRequestEntity->entity_id = $warrantRequest->entity_id;
             $warrantRequestEntity->requester_id = $warrantRequest->requester_id;
             $warrantRequestEntity->member_id = $warrantRequest->member_id;
             $warrantRequestEntity->member_role_id = $warrantRequest->member_role_id;

@@ -131,9 +131,9 @@ class ImageToPdfConversionService
                 $jpegDataArray[] = [
                     'data' => $result['jpeg_data'],
                     'size' => $result['jpeg_size'],
-                    'jpeg_width' => $result['jpeg_width'],       // Actual JPEG pixel dimensions
+                    'jpeg_width' => $result['jpeg_width'], // Actual JPEG pixel dimensions
                     'jpeg_height' => $result['jpeg_height'],
-                    'display_width' => $result['display_width'],   // Display size in points
+                    'display_width' => $result['display_width'], // Display size in points
                     'display_height' => $result['display_height'],
                     'page_width' => $result['page_width'],
                     'page_height' => $result['page_height'],
@@ -405,7 +405,7 @@ class ImageToPdfConversionService
 
         // Get actual JPEG dimensions for the XObject declaration
         $jpegInfo = @getimagesize($tempJpeg);
-        $jpegWidth = $imgWidth;  // Default to fitted dimensions
+        $jpegWidth = $imgWidth; // Default to fitted dimensions
         $jpegHeight = $imgHeight;
         if ($jpegInfo !== false) {
             $jpegWidth = $jpegInfo[0];
@@ -449,8 +449,8 @@ class ImageToPdfConversionService
     private function getPageDimensions(string $pageSize, string $orientation = 'portrait'): array
     {
         [$width, $height] = match (strtolower($pageSize)) {
-            'a4' => [595, 842],      // A4 in points (210 x 297 mm)
-            'letter' => [612, 792],  // US Letter in points (8.5 x 11 in)
+            'a4' => [595, 842], // A4 in points (210 x 297 mm)
+            'letter' => [612, 792], // US Letter in points (8.5 x 11 in)
             default => [612, 792],
         };
 
@@ -619,9 +619,9 @@ class ImageToPdfConversionService
             'success' => true,
             'jpeg_data' => $jpegData,
             'jpeg_size' => $jpegSize,
-            'jpeg_width' => $jpegWidth,       // Actual JPEG pixel dimensions
+            'jpeg_width' => $jpegWidth, // Actual JPEG pixel dimensions
             'jpeg_height' => $jpegHeight,
-            'display_width' => $displayWidth,   // Intended display size in points
+            'display_width' => $displayWidth, // Intended display size in points
             'display_height' => $displayHeight,
         ];
     }

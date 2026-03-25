@@ -136,7 +136,7 @@ class PermissionsController extends AppController
         // Load permission with related data for comprehensive view
         $permission = $this->Permissions->get(
             $id,
-            contain: ['Roles', 'PermissionPolicies'],  // Include roles and policies
+            contain: ['Roles', 'PermissionPolicies'], // Include roles and policies
         );
 
         if (!$permission) {
@@ -159,8 +159,8 @@ class PermissionsController extends AppController
             $roles = $this->Permissions->Roles
                 ->find('list')
                 ->where([
-                    'NOT' => ['id IN' => $currentRoleIds],  // Exclude already assigned
-                    'is_system !=' => true,                   // Exclude system roles
+                    'NOT' => ['id IN' => $currentRoleIds], // Exclude already assigned
+                    'is_system !=' => true, // Exclude system roles
                 ])
                 ->all();
         } else {
@@ -201,7 +201,7 @@ class PermissionsController extends AppController
             );
 
             // Security controls for permission creation
-            $permission->is_system = false;  // New permissions are never system permissions
+            $permission->is_system = false; // New permissions are never system permissions
 
             // Only super users can create super user permissions
             if (!$this->Authentication->getIdentity()->isSuperUser()) {
@@ -387,7 +387,7 @@ class PermissionsController extends AppController
                     'class' => $policyClass,
                     'className' => $className,
                     'method' => $method,
-                    'display' => str_replace('can', '', $method),  // Clean display name
+                    'display' => str_replace('can', '', $method), // Clean display name
                 ];
             }
         }

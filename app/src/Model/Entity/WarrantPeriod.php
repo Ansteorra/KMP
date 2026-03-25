@@ -22,10 +22,10 @@ class WarrantPeriod extends BaseEntity
      * @var array<string, bool> Mass assignment fields
      */
     protected array $_accessible = [
-        'start_date' => true,    // Warrant period start date
-        'end_date' => true,      // Warrant period end date
-        'created' => true,       // Creation timestamp
-        'created_by' => true,    // Creator identification
+        'start_date' => true, // Warrant period start date
+        'end_date' => true, // Warrant period end date
+        'created' => true, // Creation timestamp
+        'created_by' => true, // Creator identification
     ];
 
     /**

@@ -57,9 +57,9 @@ class PermissionsLoader
                 'Permissions.name',
                 'Permissions.scoping_rule',
                 'Permissions.is_super_user',
-                'MemberRoles.branch_id',    // Branch context for permission
-                'MemberRoles.entity_id',    // Associated entity (if any)
-                'MemberRoles.entity_type',  // Associated entity type (if any)
+                'MemberRoles.branch_id', // Branch context for permission
+                'MemberRoles.entity_id', // Associated entity (if any)
+                'MemberRoles.entity_type', // Associated entity type (if any)
             ])
             ->contain(['PermissionPolicies']) // Include policy framework data
             ->where(['Members.id' => $memberId]) // Filter for specific member
@@ -108,7 +108,7 @@ class PermissionsLoader
                     'is_super_user' => $permission->is_super_user,
                     'branch_ids' => [],
                     'entity_id' => $entity_id,
-                    'entity_type' =>  $entity_type,
+                    'entity_type' => $entity_type,
                 ];
 
                 // 5. Policy Framework Integration
@@ -329,8 +329,8 @@ class PermissionsLoader
             ->select(['Warrants.member_role_id']) // Only need role linkage
             ->where([
                 'Warrants.member_id' => new IdentifierExpression('Members.id'),
-                'Warrants.start_on <' => $now,           // Warrant has started
-                'Warrants.expires_on >' => $now,         // Warrant hasn't expired
+                'Warrants.start_on <' => $now, // Warrant has started
+                'Warrants.expires_on >' => $now, // Warrant hasn't expired
                 'Warrants.status' => Warrant::CURRENT_STATUS, // Warrant is active
             ]);
 
@@ -340,7 +340,7 @@ class PermissionsLoader
                 // Role Assignment Temporal Validation
                 'MemberRoles.start_on < ' => DateTime::now(), // Role assignment has started
                 'OR' => [
-                    'MemberRoles.expires_on IS ' => null,      // Permanent role assignment
+                    'MemberRoles.expires_on IS ' => null, // Permanent role assignment
                     'MemberRoles.expires_on >' => DateTime::now(), // Or hasn't expired
                 ],
                 // Revocation Check - exclude explicitly revoked roles
@@ -355,7 +355,7 @@ class PermissionsLoader
                         // Permission requires membership - validate status and expiration
                         'Members.status IN ' => [
                             Member::STATUS_VERIFIED_MEMBERSHIP, // Full verified member
-                            Member::STATUS_VERIFIED_MINOR,      // Verified minor member
+                            Member::STATUS_VERIFIED_MINOR, // Verified minor member
                         ],
                         'Members.membership_expires_on >' => DateTime::now(), // Membership is current
                     ],
@@ -392,8 +392,8 @@ class PermissionsLoader
                     'Permissions.requires_warrant' => false, // Permission doesn't require warrant
                     'AND' => [
                         // Permission requires warrant - validate member eligibility and active warrant
-                        'Members.warrantable' => true,              // Member is eligible for warrants
-                        'MemberRoles.id IN' => $warrantSubquery,    // Role has active warrant
+                        'Members.warrantable' => true, // Member is eligible for warrants
+                        'MemberRoles.id IN' => $warrantSubquery, // Role has active warrant
                     ],
                 ],
             ]);

@@ -37,7 +37,7 @@ class CoreViewCellProvider
             'icon' => 'bi-calendar-event',
             'url' => ['controller' => 'Gatherings', 'action' => 'mobileCalendar', 'plugin' => null],
             'order' => 35,
-            'color' => 'events',  // Section-specific color
+            'color' => 'events', // Section-specific color
             'badge' => null,
             'validRoutes' => [], // Show on all mobile pages
             'authCallback' => function ($urlParams, $user) {
@@ -63,7 +63,7 @@ class CoreViewCellProvider
             'icon' => 'bi-calendar-check',
             'url' => ['controller' => 'GatheringAttendances', 'action' => 'myRsvps', 'plugin' => null],
             'order' => 36,
-            'color' => 'rsvps',  // Section-specific color
+            'color' => 'rsvps', // Section-specific color
             'badge' => null,
             'validRoutes' => [], // Show on all mobile pages
             'authCallback' => fn($urlParams, $user) => $user !== null,

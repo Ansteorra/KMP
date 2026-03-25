@@ -201,10 +201,10 @@ class StaticHelpers
             // Check for conditional formatting syntax: prefix(key)suffix
             if (strpos($key, '(') !== false) {
                 $key = explode('(', $key);
-                $prepend = $key[0];  // Text before parentheses
+                $prepend = $key[0]; // Text before parentheses
                 $key = explode(')', $key[1]);
                 $postpend = $key[1]; // Text after parentheses
-                $key = $key[0];      // Key inside parentheses
+                $key = $key[0]; // Key inside parentheses
             }
             $temp = &$temp[$key];
         }

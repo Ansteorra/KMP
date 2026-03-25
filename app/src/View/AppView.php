@@ -148,10 +148,10 @@ class AppView extends View
 
         // Load additional utility helpers for formatting and display
         $helpers = [
-            'Tools.Format',        // Text formatting utilities
-            'Tools.Time',          // Time/date formatting utilities
-            'Timezone',            // Timezone conversion and formatting
-            'SecurityDebug',       // Security debugging helper (only active in debug mode)
+            'Tools.Format', // Text formatting utilities
+            'Tools.Time', // Time/date formatting utilities
+            'Timezone', // Timezone conversion and formatting
+            'SecurityDebug', // Security debugging helper (only active in debug mode)
         ];
 
         // Templating helpers require cakephp-templating (require dependency).

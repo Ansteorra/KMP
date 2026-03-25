@@ -154,7 +154,7 @@ class WarrantRostersController extends AppController
         // Build base query with creator information
         $query = $this->WarrantRosters->find()
             ->contain(['CreatedByMember' => function ($q) {
-                return $q->select(['id', 'sca_name']);  // Minimal member data for performance
+                return $q->select(['id', 'sca_name']); // Minimal member data for performance
             }]);
 
         // Add warrant counting with matching for rosters that have warrants
@@ -166,9 +166,9 @@ class WarrantRostersController extends AppController
                 'approvals_required',
                 'approval_count',
                 'created',
-                'warrant_count' => $query->func()->count('Warrants.id'),  // Aggregate warrant count
+                'warrant_count' => $query->func()->count('Warrants.id'), // Aggregate warrant count
             ])
-            ->groupBy(['WarrantRosters.id']);  // Group by roster for proper counting
+            ->groupBy(['WarrantRosters.id']); // Group by roster for proper counting
 
         // Apply status filter
         $query = $query->where(['WarrantRosters.status' => $state]);

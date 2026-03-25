@@ -157,7 +157,7 @@ class RolesController extends AppController
         $role = $this->Roles->get(
             $id,
             contain: [
-                'Permissions',  // Include all permissions assigned to this role
+                'Permissions', // Include all permissions assigned to this role
             ],
         );
 
@@ -183,7 +183,7 @@ class RolesController extends AppController
         if ($branch_required) {
             $branches = TableRegistry::getTableLocator()
                 ->get('Branches')
-                ->find('treeList', spacer: '--')  // Hierarchical list format
+                ->find('treeList', spacer: '--') // Hierarchical list format
                 ->orderBy(['name' => 'ASC']);
         }
 
@@ -214,7 +214,7 @@ class RolesController extends AppController
         if (count($currentPermissionIds) > 0) {
             $permissions = $this->Roles->Permissions
                 ->find('list')
-                ->where(['NOT' => ['id IN' => $currentPermissionIds]])  // Exclude assigned
+                ->where(['NOT' => ['id IN' => $currentPermissionIds]]) // Exclude assigned
                 ->all();
         } else {
             // No permissions assigned yet, show all available permissions
@@ -224,7 +224,7 @@ class RolesController extends AppController
         // Load branch hierarchy for descendant operations
         $branchTree = TableRegistry::getTableLocator()
             ->get('Branches')
-            ->getAllDecendentIds(1);  // Get all branches under root
+            ->getAllDecendentIds(1); // Get all branches under root
 
         $this->set(compact(
             'role',
@@ -295,9 +295,9 @@ class RolesController extends AppController
         $role = $this->Roles->get(
             $id,
             contain: [
-                'MemberRoles.Members',      // Member assignment history
-                'MemberRoles.ApprovedBy',   // Approval tracking
-                'Permissions',              // Associated permissions
+                'MemberRoles.Members', // Member assignment history
+                'MemberRoles.ApprovedBy', // Approval tracking
+                'Permissions', // Associated permissions
             ],
         );
 
@@ -375,7 +375,7 @@ class RolesController extends AppController
 
         // Add the permission to the role's permission collection
         $role->permissions[] = $permission;
-        $role->setDirty('permissions', true);  // Mark association as modified
+        $role->setDirty('permissions', true); // Mark association as modified
 
         if ($this->Roles->save($role)) {
             $this->Flash->success(
@@ -428,7 +428,7 @@ class RolesController extends AppController
             if ($role->permissions[$i]->id == $permission_id) {
                 // Remove permission from collection
                 unset($role->permissions[$i]);
-                $role->setDirty('permissions', true);  // Mark association as modified
+                $role->setDirty('permissions', true); // Mark association as modified
 
                 if ($this->Roles->save($role)) {
                     $this->Flash->success(

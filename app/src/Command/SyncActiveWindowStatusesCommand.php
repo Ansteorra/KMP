@@ -189,7 +189,7 @@ class SyncActiveWindowStatusesCommand extends Command
                 }
 
                 $class = substr($filename, 0, -4); // Remove .php
-                $alias = substr($class, 0, -5);    // Remove Table suffix
+                $alias = substr($class, 0, -5); // Remove Table suffix
                 if ($alias !== '') {
                     $aliases[] = $alias;
                 }

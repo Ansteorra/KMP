@@ -800,7 +800,7 @@ class MembersController extends AppController
             ->orderBy(['name' => 'ASC'])->toArray();
         $referer = $this->request->referer(true);
         $backUrl = [];
-        $user =  $this->Authentication->getIdentity();
+        $user = $this->Authentication->getIdentity();
         $canManageMember = $user instanceof Member ? $user->canManageMember($member) : false;
         $canViewPii = $user ? $user->checkCan('viewPii', $member) : false;
         $canViewAdditionalInformation = $user ? $user->checkCan('viewAdditionalInformation', $member) : false;
@@ -1592,7 +1592,7 @@ class MembersController extends AppController
                 $aiOptions = [];
                 if ($colonPos !== false) {
                     $fieldDetails = explode(':', $fieldType);
-                    $fieldType =  $fieldDetails[0];
+                    $fieldType = $fieldDetails[0];
                     $aiOptions = explode(',', $fieldDetails[1]);
                 }
                 //if aiOptions are not emoty then check the value is one of the options
@@ -2978,7 +2978,7 @@ class MembersController extends AppController
                 }
             }
             $image = $member->membership_card_path;
-            $deleteImage =  $member->status == Member::STATUS_VERIFIED_MEMBERSHIP ||
+            $deleteImage = $member->status == Member::STATUS_VERIFIED_MEMBERSHIP ||
                 $member->status == Member::STATUS_VERIFIED_MINOR ||
                 $member->status == Member::STATUS_MINOR_MEMBERSHIP_VERIFIED;
 

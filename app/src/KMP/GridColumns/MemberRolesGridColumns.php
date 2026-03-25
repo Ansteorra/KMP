@@ -71,7 +71,7 @@ class MemberRolesGridColumns extends BaseGridColumns
                 'alignment' => 'left',
                 'queryField' => 'MemberRoles.expires_on',
                 'renderField' => 'expires_on',
-                'nullMeansActive' => true,  // NULL = no known expiration (active indefinitely)
+                'nullMeansActive' => true, // NULL = no known expiration (active indefinitely)
             ],
 
             'approved_by_id' => [
