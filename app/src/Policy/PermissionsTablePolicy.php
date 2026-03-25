@@ -44,8 +44,7 @@ class PermissionsTablePolicy extends BasePolicy
         KmpIdentityInterface $user,
         BaseEntity|Table $entity,
         mixed ...$optionalArgs,
-    ): bool
-    {
+    ): bool {
         return $this->_isSuperUser($user);
     }
 
@@ -63,8 +62,7 @@ class PermissionsTablePolicy extends BasePolicy
         KmpIdentityInterface $user,
         BaseEntity|Table $entity,
         mixed ...$optionalArgs,
-    ): bool
-    {
+    ): bool {
         return $this->_isSuperUser($user);
     }
 

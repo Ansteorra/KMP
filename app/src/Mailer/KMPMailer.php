@@ -51,7 +51,7 @@ class KMPMailer extends Mailer
         $portalName = StaticHelpers::getAppSetting('KMP.LongSiteTitle');
         $this->setTo($to)
             ->setFrom($sendFrom)
-            ->setSubject("Welcome $sca_name to $portalName")
+            ->setSubject('Welcome ' . $sca_name . ' to ' . $portalName)
             ->setViewVars([
                 'email' => $to,
                 'passwordResetUrl' => $url,

@@ -179,11 +179,13 @@ class BackupCommand extends Command
                         'actor' => 'cli',
                     ]));
 
-                    if ($phase === 'table_restored' && isset(
-                        $progress['tables_processed'],
-                        $progress['table_count'],
-                        $progress['rows_processed'],
-                    )) {
+                    if (
+                        $phase === 'table_restored' && isset(
+                            $progress['tables_processed'],
+                            $progress['table_count'],
+                            $progress['rows_processed'],
+                        )
+                    ) {
                         $io->out(sprintf(
                             'Progress: %d/%d tables, %s rows.',
                             (int)$progress['tables_processed'],

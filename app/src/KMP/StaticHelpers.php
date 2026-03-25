@@ -74,8 +74,7 @@ class StaticHelpers
         int $newHeight,
         string $uploadDir,
         string $moveToDir,
-    ): string
-    {
+    ): string {
         // Build source image path
         $path = $uploadDir . '/' . $imageName;
 

@@ -1939,7 +1939,8 @@ class GatheringsController extends AppController
 
         // Apply custom descriptions to scheduled activities
         foreach ($gathering->gathering_scheduled_activities as $scheduledActivity) {
-            if ($scheduledActivity->gathering_activity_id
+            if (
+                $scheduledActivity->gathering_activity_id
                 && isset($customDescriptions[$scheduledActivity->gathering_activity_id])
             ) {
                 $scheduledActivity->gathering_activity

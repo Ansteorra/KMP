@@ -79,8 +79,7 @@ class AuthorizationService extends rootAuthorizationService implements Authoriza
         $resource,
         bool $result,
         array $optionalArgs,
-    ): void
-    {
+    ): void {
         $resourceInfo = $this->getResourceInfo($resource);
 
         self::$authCheckLog[] = [

@@ -156,7 +156,8 @@ class GatheringScheduledActivity extends Entity
 
         // Second priority: check for custom_description in the gathering activity
         // This would be set if we load it through the gathering's activities relationship
-        if (isset($this->gathering_activity->custom_description)
+        if (
+            isset($this->gathering_activity->custom_description)
             && !empty($this->gathering_activity->custom_description)
         ) {
             return $this->gathering_activity->custom_description;

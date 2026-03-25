@@ -407,7 +407,7 @@ class WarrantRostersController extends AppController
         $this->Flash->success(__(
             'The warrant has been deactivated. If this warrant is associated with an office,'
             . ' the officer has been released however they have not been notified.'
-            . '  Please notify them at your earliest convienence.'
+            . '  Please notify them at your earliest convienence.',
         ));
 
         return $this->redirect($this->referer());

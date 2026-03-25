@@ -215,8 +215,7 @@ class PdfProcessingService
         string $outputPath,
         int $width = 200,
         int $height = 260,
-    ): ServiceResult
-    {
+    ): ServiceResult {
         $pageCount = $this->getPageCount($pdfPath);
         if ($pageCount === 0) {
             return new ServiceResult(false, 'Unable to read PDF page count');

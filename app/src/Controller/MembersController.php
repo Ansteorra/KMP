@@ -1156,7 +1156,8 @@ class MembersController extends AppController
                         break;
                 }
             }
-            if ($member->membership_expires_on != null
+            if (
+                $member->membership_expires_on != null
                 && $member->membership_expires_on != ''
                 && is_string($member->membership_expires_on)
             ) {
@@ -2973,7 +2974,8 @@ class MembersController extends AppController
                 }
                 $member->membership_number = $membership_number;
                 $member->membership_expires_on = $this->request->getData('membership_expires_on');
-                if ($member->membership_expires_on != null
+                if (
+                    $member->membership_expires_on != null
                     && $member->membership_expires_on != ''
                     && is_string($member->membership_expires_on)
                 ) {

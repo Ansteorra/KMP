@@ -21,8 +21,7 @@ class WarrantsTablePolicy extends BasePolicy
         KmpIdentityInterface $user,
         BaseEntity $entity,
         mixed ...$optionalArgs,
-    ): bool
-    {
+    ): bool {
         $method = __FUNCTION__;
 
         return $this->_hasPolicy($user, $method, $entity, ...$optionalArgs);

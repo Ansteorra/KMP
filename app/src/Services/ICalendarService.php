@@ -6,6 +6,7 @@ namespace App\Services;
 use App\KMP\TimezoneHelper;
 use App\Model\Entity\Gathering;
 use Cake\I18n\DateTime;
+use DateTime as NativeDateTime;
 use DateTimeZone;
 use Exception;
 
@@ -375,16 +376,19 @@ class ICalendarService
                 $line .= '\n';
             }
 
-            while (strlen($part) > 0) {
+            $partLen = strlen($part);
+            while ($partLen > 0) {
                 $remaining = $maxLength - strlen($line);
 
-                if (strlen($part) <= $remaining) {
+                if ($partLen <= $remaining) {
                     $line .= $part;
                     $part = '';
+                    $partLen = 0;
                 } else {
                     $chunk = substr($part, 0, $remaining);
                     $line .= $chunk;
                     $part = substr($part, $remaining);
+                    $partLen = strlen($part);
 
                     // Add line with folding
                     $result .= $line . "\r\n ";
@@ -432,9 +436,9 @@ class ICalendarService
             $tz = new DateTimeZone($timezoneId);
 
             // Get transitions for the current year and next year to handle DST properly
-            $now = new \DateTime('now', $tz);
-            $startOfYear = new \DateTime('first day of january this year', $tz);
-            $endOfNextYear = new \DateTime('last day of december next year', $tz);
+            $now = new NativeDateTime('now', $tz);
+            $startOfYear = new NativeDateTime('first day of january this year', $tz);
+            $endOfNextYear = new NativeDateTime('last day of december next year', $tz);
 
             $transitions = $tz->getTransitions(
                 $startOfYear->getTimestamp(),
@@ -468,7 +472,7 @@ class ICalendarService
                         continue; // Skip the first entry (it's a reference point)
                     }
 
-                    $dt = new \DateTime($transition['time']);
+                    $dt = new NativeDateTime($transition['time']);
                     $isDst = $transition['isdst'];
                     $offset = $transition['offset'];
                     $prevOffset = $transitions[$i - 1]['offset'];

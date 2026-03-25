@@ -202,10 +202,8 @@ class BranchScopedAuthorizationTest extends BaseTestCase
         $permissions = $eirik->getPermissions();
 
         // Check if Eirik has any Branch Only scoped permissions
-        $hasBranchOnly = false;
         foreach ($permissions as $permission) {
             if ($permission->scoping_rule === 'Branch Only') {
-                $hasBranchOnly = true;
                 $this->assertNotEmpty($permission->branch_ids, 'Branch Only should have specific branch_ids');
                 break;
             }

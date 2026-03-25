@@ -286,8 +286,6 @@ class DefaultWarrantManager implements WarrantManagerInterface
         }
 
         return $this->cancelWarrant($warrantTable, $warrant, $expiresOn, $rejecter_id, $reason);
-
-        return new ServiceResult(true);
     }
 
     public function cancelByEntity($entityType, $entityId, $reason, $rejecter_id, $expiresOn): ServiceResult

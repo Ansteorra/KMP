@@ -154,10 +154,12 @@ class RestoreStatusService
 
         if ($lock !== null) {
             $lastUpdateAt = (string)($status['updated_at'] ?? $status['started_at'] ?? '');
-            if (($status['status'] ?? null) === 'running' && $this->isOlderThanSeconds(
-                $lastUpdateAt,
-                self::STALE_PROGRESS_SECONDS,
-            )) {
+            if (
+                ($status['status'] ?? null) === 'running' && $this->isOlderThanSeconds(
+                    $lastUpdateAt,
+                    self::STALE_PROGRESS_SECONDS,
+                )
+            ) {
                 $now = $this->nowIso();
                 Cache::delete(self::LOCK_KEY, self::CACHE_CONFIG);
                 $status['locked'] = false;

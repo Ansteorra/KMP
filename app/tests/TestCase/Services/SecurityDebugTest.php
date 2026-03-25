@@ -123,7 +123,7 @@ class SecurityDebugTest extends BaseTestCase
         $this->assertTrue($grantedResult);
 
         // Regular member may not have certain permissions
-        $deniedResult = $this->AuthService->checkCan($regularMember, 'delete', $regularMember);
+        $this->AuthService->checkCan($regularMember, 'delete', $regularMember);
 
         // Get the log
         $log = AuthorizationService::getAuthCheckLog();

@@ -51,7 +51,7 @@ class ApiDataRegistry
         self::ensureInitialized();
 
         $data = [];
-        foreach (self::$providers as $source => $registration) {
+        foreach (self::$providers as $registration) {
             if (!self::matchesRoute($registration['routes'], $controller, $action)) {
                 continue;
             }

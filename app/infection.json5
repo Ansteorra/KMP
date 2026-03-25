@@ -1,0 +1,28 @@
+{
+  "$schema": "https://raw.githubusercontent.com/infection/infection/0.32.0/resources/schema.json",
+  "source": {
+    "directories": [
+      "src/Policy",
+      "plugins/Awards/src/Model/Entity",
+      "plugins/Awards/src/Model/Table"
+    ]
+  },
+  "logs": {
+    "text": "tests/mutation-reports/infection.log",
+    "html": "tests/mutation-reports/infection.html",
+    "summary": "tests/mutation-reports/infection-summary.log"
+  },
+  "tmpDir": "tmp/infection",
+  "phpUnit": {
+    "configDir": "."
+  },
+  "mutators": {
+    "@default": true
+  },
+  "minMsi": 0,
+  "minCoveredMsi": 0,
+  "timeout": 60,
+  "testFramework": "phpunit",
+  "testFrameworkOptions": "--colors=always --testsuite=all",
+  "initialTestsPhpOptions": "-d memory_limit=-1"
+}

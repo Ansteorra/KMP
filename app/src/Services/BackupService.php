@@ -605,8 +605,7 @@ SQL;
         string $phase,
         string $message,
         array $context = [],
-    ): void
-    {
+    ): void {
         if ($progressReporter === null) {
             return;
         }
@@ -900,11 +899,13 @@ SQL;
             return (int)$value;
         }
 
-        if (is_string($value) && $value !== '' && in_array(
-            $columnType,
-            ['float', 'decimal'],
-            true,
-        )&& is_numeric($value)) {
+        if (
+            is_string($value) && $value !== '' && in_array(
+                $columnType,
+                ['float', 'decimal'],
+                true,
+            ) && is_numeric($value)
+        ) {
             return (float)$value;
         }
 

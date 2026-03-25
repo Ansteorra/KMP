@@ -44,8 +44,6 @@ class UpdateDatabaseCommand extends Command
      */
     public function execute(Arguments $args, ConsoleIo $io): ?int
     {
-        //create a date at 0000-00-00 00:00:00
-        $date = '0000-01-01 00:00:00';
         $items = Plugin::getCollection();
         $pluginsToMigrate = [];
 

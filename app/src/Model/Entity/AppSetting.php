@@ -50,8 +50,10 @@ class AppSetting extends BaseEntity
         switch ($this->type) {
             case 'json':
                 $this->value = json_decode($value);
+                // no break
             case 'yaml':
                 $this->value = yaml_parse($value);
+                // no break
             default:
                 $this->value = $value;
         }
@@ -82,10 +84,12 @@ class AppSetting extends BaseEntity
                 if (is_string($value)) {
                     return json_decode($value, true);
                 }
+                // no break
             case 'yaml':
                 if (is_string($value)) {
                     return yaml_parse($value);
                 }
+                // no break
             default:
                 return $value;
         }

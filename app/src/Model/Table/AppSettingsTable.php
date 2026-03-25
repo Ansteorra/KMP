@@ -220,7 +220,7 @@ class AppSettingsTable extends BaseTable
             return $setting;
         }
         if ($default !== null) {
-            $setting = $this->setAppSetting($key, $default, $type, $required);
+            $this->setAppSetting($key, $default, $type, $required);
 
             return $default;
         } else {

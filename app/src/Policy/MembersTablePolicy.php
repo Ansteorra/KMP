@@ -91,8 +91,7 @@ class MembersTablePolicy extends BasePolicy
         KmpIdentityInterface $user,
         BaseEntity|Table $entity,
         mixed ...$optionalArgs,
-    ): bool
-    {
+    ): bool {
         return $this->canVerifyQueue($user, $entity, ...$optionalArgs);
     }
 

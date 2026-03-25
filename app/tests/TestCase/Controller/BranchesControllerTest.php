@@ -59,7 +59,7 @@ class BranchesControllerTest extends HttpIntegrationTestCase
     {
         // Create initial branch then attempt duplicate via controller
         $branches = $this->getTableLocator()->get('Branches');
-        $initial = $branches->save($branches->newEntity([
+        $branches->save($branches->newEntity([
             'name' => 'Duplicate Root',
             'location' => 'Loc1',
         ]));

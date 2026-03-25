@@ -77,8 +77,7 @@ class WarrantRequest
         ?DateTime $start_on = null,
         ?DateTime $expires_on = null,
         ?int $member_role_id = null,
-    )
-    {
+    ) {
         $this->entity_type = $entity_type;
         $this->entity_id = $entity_id;
         $this->requester_id = $requester_id;

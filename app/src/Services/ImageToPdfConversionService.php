@@ -38,8 +38,7 @@ class ImageToPdfConversionService
         string $outputPath,
         string $pageSize = 'letter',
         ?string &$previewPath = null,
-    ): ServiceResult
-    {
+    ): ServiceResult {
         // Check if GD extension is available
         if (!extension_loaded('gd')) {
             return new ServiceResult(false, 'GD extension is not available for image processing');
@@ -69,8 +68,13 @@ class ImageToPdfConversionService
         try {
             // Create PDF using simple format (since FPDF may not be installed)
             $result = $this->createSimplePdf(
-                $image, $width, $height, $outputPath,
-                $pageWidth, $pageHeight, $previewPath,
+                $image,
+                $width,
+                $height,
+                $outputPath,
+                $pageWidth,
+                $pageHeight,
+                $previewPath,
             );
             unset($image);
 
@@ -97,8 +101,7 @@ class ImageToPdfConversionService
         string $outputPath,
         string $pageSize = 'letter',
         ?string &$previewPath = null,
-    ): ServiceResult
-    {
+    ): ServiceResult {
         if (empty($imagePaths)) {
             return new ServiceResult(false, 'No images provided');
         }
@@ -367,8 +370,7 @@ class ImageToPdfConversionService
         int $pageWidth,
         int $pageHeight,
         ?string &$previewPath = null,
-    ): ServiceResult
-    {
+    ): ServiceResult {
         $previewPath = null;
         [$imgWidth, $imgHeight] = $this->calculateFitDimensions($width, $height, $pageWidth, $pageHeight);
 
@@ -439,8 +441,14 @@ class ImageToPdfConversionService
         // Create minimal PDF structure
         // Pass JPEG pixel dimensions for XObject, and fitted dimensions for display size
         $pdf = $this->buildPdfStructure(
-            $jpegData, $jpegSize, $jpegWidth, $jpegHeight,
-            $imgWidth, $imgHeight, $pageWidth, $pageHeight,
+            $jpegData,
+            $jpegSize,
+            $jpegWidth,
+            $jpegHeight,
+            $imgWidth,
+            $imgHeight,
+            $pageWidth,
+            $pageHeight,
         );
 
         // Write PDF file
@@ -532,8 +540,7 @@ class ImageToPdfConversionService
         int $displayHeight,
         int $pageWidth,
         int $pageHeight,
-    ): string
-    {
+    ): string {
         // Calculate position to center image based on display dimensions
         $x = ($pageWidth - $displayWidth) / 2;
         $y = ($pageHeight - $displayHeight) / 2;
@@ -549,7 +556,7 @@ class ImageToPdfConversionService
 
         // Object 3: Page
         $objects[3] = "3 0 obj\n<< /Type /Page /Parent 2 0 R "
-            . "/Resources << /XObject << /Im1 4 0 R >> >> "
+            . '/Resources << /XObject << /Im1 4 0 R >> >> '
             . "/MediaBox [0 0 $pageWidth $pageHeight] "
             . "/Contents 5 0 R >>\nendobj\n";
 
@@ -558,7 +565,7 @@ class ImageToPdfConversionService
         $objects[4] = "4 0 obj\n<< /Type /XObject "
             . "/Subtype /Image /Width $jpegWidth "
             . "/Height $jpegHeight /ColorSpace /DeviceRGB "
-            . "/BitsPerComponent 8 /Filter /DCTDecode "
+            . '/BitsPerComponent 8 /Filter /DCTDecode '
             . "/Length $jpegSize >>\nstream\n"
             . $jpegData . "\nendstream\nendobj\n";
 
@@ -619,11 +626,20 @@ class ImageToPdfConversionService
         imagefill($resizedImage, 0, 0, $white);
 
         // Resize the original image to fit - use ACTUAL resource dimensions
-        if (!imagecopyresampled(
-            $resizedImage, $image, 0, 0, 0, 0,
-            $displayWidth, $displayHeight,
-            $actualWidth, $actualHeight,
-        )) {
+        if (
+            !imagecopyresampled(
+                $resizedImage,
+                $image,
+                0,
+                0,
+                0,
+                0,
+                $displayWidth,
+                $displayHeight,
+                $actualWidth,
+                $actualHeight,
+            )
+        ) {
             unset($resizedImage);
 
             return ['success' => false, 'error' => 'Failed to resize image'];
@@ -714,8 +730,8 @@ class ImageToPdfConversionService
 
             // Page object
             $objects[$pageNum] = "$pageNum 0 obj\n"
-                . "<< /Type /Page /Parent 2 0 R "
-                . "/Resources << /XObject "
+                . '<< /Type /Page /Parent 2 0 R '
+                . '/Resources << /XObject '
                 . "<< /Im$pageNum $imageNum 0 R >> >> "
                 . "/MediaBox [0 0 $pageWidth $pageHeight] "
                 . "/Contents $contentNum 0 R >>\n"
@@ -728,11 +744,11 @@ class ImageToPdfConversionService
             $jpgLen = $pageData['size'];
             $jpgData = $pageData['data'];
             $objects[$imageNum] = "$imageNum 0 obj\n"
-                . "<< /Type /XObject /Subtype /Image "
+                . '<< /Type /XObject /Subtype /Image '
                 . "/Width $jpgW /Height $jpgH "
-                . "/ColorSpace /DeviceRGB "
-                . "/BitsPerComponent 8 "
-                . "/Filter /DCTDecode "
+                . '/ColorSpace /DeviceRGB '
+                . '/BitsPerComponent 8 '
+                . '/Filter /DCTDecode '
                 . "/Length $jpgLen >>\nstream\n"
                 . $jpgData . "\nendstream\nendobj\n";
 
@@ -787,8 +803,7 @@ class ImageToPdfConversionService
         string $outputPath,
         string $pageSize = 'letter',
         ?string &$previewPath = null,
-    ): ServiceResult
-    {
+    ): ServiceResult {
         if (empty($fileInfos)) {
             return new ServiceResult(false, 'No files provided');
         }

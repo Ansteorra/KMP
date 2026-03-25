@@ -73,7 +73,7 @@ class ImageToPdfConversionServiceTest extends BaseTestCase
         // Clean up tracked temp files (e.g., preview paths)
         foreach ($this->tempFiles as $file) {
             if (file_exists($file)) {
-                @unlink($file);
+                unlink($file);
             }
         }
         $this->tempFiles = [];
@@ -320,7 +320,7 @@ class ImageToPdfConversionServiceTest extends BaseTestCase
 
         // Verify grayscale via the preview JPEG (R == G == B for every sampled pixel)
         if ($previewPath !== null && file_exists($previewPath)) {
-            $preview = @imagecreatefromjpeg($previewPath);
+            $preview = imagecreatefromjpeg($previewPath);
             $this->assertNotFalse($preview, 'Preview should be a loadable JPEG');
             // Sample center pixel
             $rgb = imagecolorat($preview, (int)(imagesx($preview) / 2), (int)(imagesy($preview) / 2));

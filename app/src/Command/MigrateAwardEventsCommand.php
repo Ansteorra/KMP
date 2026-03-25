@@ -386,7 +386,7 @@ class MigrateAwardEventsCommand extends Command
         foreach ($recommendations as $recommendation) {
             if (!isset($eventGatheringMap[$recommendation->event_id])) {
                 $this->io->warning(
-                    "    - No gathering found for event ID "
+                    '    - No gathering found for event ID '
                     . "{$recommendation->event_id}, skipping "
                     . "recommendation {$recommendation->id}",
                 );
@@ -398,7 +398,7 @@ class MigrateAwardEventsCommand extends Command
 
             if ($this->dryRun) {
                 $this->io->out(
-                    "    - [DRY RUN] Would update recommendation "
+                    '    - [DRY RUN] Would update recommendation '
                     . "{$recommendation->id}: event_id "
                     . "{$recommendation->event_id} -> "
                     . "gathering_id {$gatheringId}",
@@ -447,7 +447,7 @@ class MigrateAwardEventsCommand extends Command
 
             if ($this->dryRun) {
                 $this->io->out(
-                    "    - [DRY RUN] Would update "
+                    '    - [DRY RUN] Would update '
                     . "awards_recommendations_events {$recordId}: "
                     . "event_id {$eventId} -> gathering_id "
                     . "{$gatheringId}",
@@ -467,7 +467,7 @@ class MigrateAwardEventsCommand extends Command
 
         $this->io->success(
             "    ✓ Updated {$updatedRecEvents} "
-            . "awards_recommendations_events records, "
+            . 'awards_recommendations_events records, '
             . "skipped {$skippedRecEvents}",
         );
     }

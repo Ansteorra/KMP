@@ -154,8 +154,7 @@ class MemberPolicy extends BasePolicy
         KmpIdentityInterface $user,
         BaseEntity|Table $entity,
         ...$optionalArgs,
-    ): bool
-    {
+    ): bool {
         if ($entity instanceof Member && $user instanceof Member && $user->canManageMember($entity)) {
             return true;
         }
@@ -227,8 +226,7 @@ class MemberPolicy extends BasePolicy
         KmpIdentityInterface $user,
         BaseEntity $entity,
         mixed ...$optionalArgs,
-    ): bool
-    {
+    ): bool {
         $method = __FUNCTION__;
 
         return $this->_hasPolicy($user, $method, $entity);

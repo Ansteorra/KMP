@@ -182,7 +182,7 @@ class BackupsController extends AppController
         $actor = is_object($identity) && method_exists(
             $identity,
             'getIdentifier',
-        )? (string)$identity->getIdentifier() : null;
+        ) ? (string)$identity->getIdentifier() : null;
         if (
             !$restoreStatusService->acquireLock([
             'source' => $sourceLabel,

@@ -241,8 +241,7 @@ class KmpInstallCommand extends Command
         array $options,
         string $default,
         mixed $optionValue,
-    ): string
-    {
+    ): string {
         if ($optionValue !== null && $optionValue !== '') {
             return $this->normalizeChoice((string)$optionValue, $options, $default);
         }

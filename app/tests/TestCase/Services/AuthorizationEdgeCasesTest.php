@@ -68,7 +68,7 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
      */
     public function testRevokedRoleDoesNotGrantPermissions(): void
     {
-        $eirik = $this->Members->get(self::TEST_MEMBER_EIRIK_ID);
+        $this->Members->get(self::TEST_MEMBER_EIRIK_ID);
 
         // Load the revoked role
         $revokedRole = $this->MemberRoles->get(362, ['contain' => ['Roles.Permissions']]);

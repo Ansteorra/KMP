@@ -82,7 +82,7 @@ class ResetDatabaseCommand extends Command
                     $tables = $query->fetchAll(PDO::FETCH_COLUMN);
                 } elseif (stripos($driverName, 'sqlserver') !== false) {
                     $query = $db->execute(
-                        "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES "
+                        'SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES '
                         . "WHERE TABLE_TYPE = 'BASE TABLE' "
                         . "AND TABLE_SCHEMA = 'dbo'",
                     );

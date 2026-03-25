@@ -263,8 +263,6 @@ class PermissionsLoaderWarrantIsolationTest extends BaseTestCase
         // For each returned member, verify they actually have an active warrant
         // for a role that grants this specific permission
         foreach ($memberIds as $memberId) {
-            $member = $this->Members->get($memberId);
-
             // Skip super users — they bypass normal permission checks
             if ($memberId === self::ADMIN_MEMBER_ID) {
                 continue;

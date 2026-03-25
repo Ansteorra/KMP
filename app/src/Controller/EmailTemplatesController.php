@@ -471,7 +471,7 @@ class EmailTemplatesController extends AppController
         if (preg_match('/<\?php\s+elseif\s*\((.+?)\)\s*:\s*\?>/', $content)) {
             Log::warning(
                 'Email template conversion encountered <?php elseif (...) : ?>'
-                . ' block \xe2\x80\x94 stripping (not supported in safe DSL)'
+                . ' block \xe2\x80\x94 stripping (not supported in safe DSL)',
             );
             $content = preg_replace('/<\?php\s+elseif\s*\((.+?)\)\s*:\s*\?>/', '', $content);
         }

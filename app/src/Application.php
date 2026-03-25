@@ -426,25 +426,25 @@ class Application extends BaseApplication implements
                 $csp = "default-src 'self'; "
                     // Allow CDN scripts, Leaflet (unpkg), and Google Maps
                     . "script-src 'self' 'unsafe-inline' 'unsafe-eval' "
-                    . "https://cdn.jsdelivr.net https://unpkg.com "
-                    . "https://maps.googleapis.com; "
+                    . 'https://cdn.jsdelivr.net https://unpkg.com '
+                    . 'https://maps.googleapis.com; '
                     // Allow Google Fonts and Leaflet CSS
                     . "style-src 'self' 'unsafe-inline' "
-                    . "https://cdn.jsdelivr.net https://unpkg.com "
-                    . "https://fonts.googleapis.com; "
+                    . 'https://cdn.jsdelivr.net https://unpkg.com '
+                    . 'https://fonts.googleapis.com; '
                     // Font sources
                     . "font-src 'self' data: https://fonts.gstatic.com "
-                    . "https://cdn.jsdelivr.net;"
+                    . 'https://cdn.jsdelivr.net;'
                     // Allow HTTPS images and data URIs
                     . "img-src 'self' data: https:; "
                     // AJAX/fetch restrictions
                     . "connect-src 'self' https://api.github.com "
-                    . "https://maps.googleapis.com "
-                    . "https://places.googleapis.com "
-                    . "https://tile.openstreetmap.org "
-                    . "https://a.tile.openstreetmap.org "
-                    . "https://b.tile.openstreetmap.org "
-                    . "https://c.tile.openstreetmap.org; "
+                    . 'https://maps.googleapis.com '
+                    . 'https://places.googleapis.com '
+                    . 'https://tile.openstreetmap.org '
+                    . 'https://a.tile.openstreetmap.org '
+                    . 'https://b.tile.openstreetmap.org '
+                    . 'https://c.tile.openstreetmap.org; '
                     // iframe restrictions - allow Google Maps embeds
                     . "frame-src 'self' https://www.google.com; "
                     . "object-src 'none'; "
@@ -522,7 +522,7 @@ class Application extends BaseApplication implements
                     'sameSite' => filter_var(
                         env('REQUIRE_HTTPS', !Configure::read('debug') ? 'true' : 'false'),
                         FILTER_VALIDATE_BOOLEAN,
-                    )? 'Strict' : 'Lax',
+                    ) ? 'Strict' : 'Lax',
                 ]))->skipCheckCallback(function ($request) {
                     // Skip CSRF for API routes (Bearer token provides security)
                     $path = $request->getUri()->getPath();

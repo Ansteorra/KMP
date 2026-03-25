@@ -82,9 +82,6 @@ class RolesController extends AppController
             ->select($this->Roles)
             ->select(['member_count' => $memberCountSubquery]);
 
-        // Get system views from GridColumns
-        $systemViews = RolesGridColumns::getSystemViews([]);
-
         // Use unified trait for grid processing
         $result = $this->processDataverseGrid([
             'gridKey' => 'Roles.index.main',
@@ -363,7 +360,8 @@ class RolesController extends AppController
         $permission = $this->Roles->Permissions->get($permission_id);
 
         // Check if permission is already assigned to prevent duplicates
-        for ($i = 0; $i < count($role->permissions); $i++) {
+        $permissionCount = count($role->permissions);
+        for ($i = 0; $i < $permissionCount; $i++) {
             if ($role->permissions[$i]->id == $permission_id) {
                 $this->Flash->error(
                     __('The permission is already assigned to the role.'),
@@ -421,10 +419,11 @@ class RolesController extends AppController
         $this->Authorization->authorize($role);
 
         // Load permission for validation
-        $permission = $this->Roles->Permissions->get($permission_id);
+        $this->Roles->Permissions->get($permission_id);
 
         // Find and remove the permission from the role's collection
-        for ($i = 0; $i < count($role->permissions); $i++) {
+        $permissionCount = count($role->permissions);
+        for ($i = 0; $i < $permissionCount; $i++) {
             if ($role->permissions[$i]->id == $permission_id) {
                 // Remove permission from collection
                 unset($role->permissions[$i]);

@@ -169,8 +169,7 @@ class BasePolicy implements BeforePolicyInterface
         BaseEntity|Table $entity,
         ?int $branchId = null,
         $grantSource = null,
-    ): bool
-    {
+    ): bool {
         if ($this->_isSuperUser($user)) {
             return true;
         }
@@ -244,8 +243,7 @@ class BasePolicy implements BeforePolicyInterface
         array $urlProps,
         ?int $branchId = null,
         $grantSource = null,
-    ): bool
-    {
+    ): bool {
         if ($this->_isSuperUser($user)) {
             return true;
         }

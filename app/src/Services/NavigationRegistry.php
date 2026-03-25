@@ -115,7 +115,7 @@ class NavigationRegistry
         }
 
         // Process all registered sources
-        foreach (self::$navigationItems as $source => $registration) {
+        foreach (self::$navigationItems as $registration) {
             $items = $registration['items'];
 
             // Execute dynamic callback if provided

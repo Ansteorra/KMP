@@ -219,7 +219,7 @@ class GatheringScheduledActivitiesTable extends Table
             }
 
             // Get gathering timezone (or default)
-            $gatheringTimezone = !empty($gathering->timezone) ? $gathering->timezone :
+            !empty($gathering->timezone) ? $gathering->timezone :
                 TimezoneHelper::getAppTimezone();
 
             // The gathering's start_date and end_date are already DateTime objects in UTC

@@ -107,7 +107,6 @@ class ReportsController extends AppController
             }
         }
         foreach ($permissionsRoster as $permissionName => $permissionUser) {
-            $show = false;
             //sort by sca_name
             usort($permissionUser, function ($a, $b) {
                 return strcmp($a->sca_name, $b->sca_name);

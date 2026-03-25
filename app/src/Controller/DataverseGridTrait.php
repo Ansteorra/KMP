@@ -343,13 +343,14 @@ trait DataverseGridTrait
                         $qualifiedField = strpos(
                             $fieldToCheck,
                             '.',
-                        )=== false ? $tableName . '.' . $fieldToCheck : $fieldToCheck;
+                        ) === false ? $tableName . '.' . $fieldToCheck : $fieldToCheck;
 
                         // Normalize filterValue - if it's an array, take the first value
                         $normalizedValue = is_array($filterValue) ? ($filterValue[0] ?? null) : $filterValue;
 
                         // filterValue should be 'yes' (populated) or 'no' (not populated)
-                        if ($normalizedValue === 'yes'
+                        if (
+                            $normalizedValue === 'yes'
                             || $normalizedValue === '1'
                             || $normalizedValue === 1
                             || $normalizedValue === true
@@ -360,7 +361,8 @@ trait DataverseGridTrait
                                     $qualifiedField . ' IS NOT' => null,
                                 ]);
                             });
-                        } elseif ($normalizedValue === 'no'
+                        } elseif (
+                            $normalizedValue === 'no'
                             || $normalizedValue === '0'
                             || $normalizedValue === 0
                             || $normalizedValue === false
@@ -380,7 +382,7 @@ trait DataverseGridTrait
                     $qualifiedField = strpos(
                         $fieldToFilter,
                         '.',
-                    )=== false ? $tableName . '.' . $fieldToFilter : $fieldToFilter;
+                    ) === false ? $tableName . '.' . $fieldToFilter : $fieldToFilter;
 
                     if (is_array($filterValue)) {
                         if ($columnMeta['type'] === 'boolean') {
@@ -422,7 +424,8 @@ trait DataverseGridTrait
                 $endDate = $canFilter ? $this->request->getQuery($endParam) : null;
 
                 // Apply user defaults only if canFilter is true
-                if ($canFilter
+                if (
+                    $canFilter
                     && ($startDate === null || $startDate === '')
                     && isset($dateRangeDefaults[$startParam])
                 ) {
@@ -1398,8 +1401,7 @@ trait DataverseGridTrait
         array $visibleColumns,
         array $columnsMetadata,
         string $tableName,
-    ): array
-    {
+    ): array {
         // Extract model alias for SQL field references (e.g., 'Awards.Recommendations' -> 'Recommendations')
         $modelAlias = str_contains($tableName, '.') ? substr($tableName, strrpos($tableName, '.') + 1) : $tableName;
 
@@ -1419,7 +1421,8 @@ trait DataverseGridTrait
             }
 
             // Skip columns that require data mode (have renderField but no queryField, or have exportValue callback)
-            if (!empty($columnMeta['exportValue'])
+            if (
+                !empty($columnMeta['exportValue'])
                 || (!empty($columnMeta['renderField']) && empty($columnMeta['queryField']))
             ) {
                 continue;
@@ -1675,7 +1678,8 @@ trait DataverseGridTrait
 
             // 2. Check current filters (may have been set from query or system view defaults)
             // Use explicit null/empty-string check to allow valid falsey values like 0, "0", false
-            if ($filterValue === null
+            if (
+                $filterValue === null
                 && isset($currentFilters[$columnKey])
                 && $currentFilters[$columnKey] !== null
                 && $currentFilters[$columnKey] !== ''

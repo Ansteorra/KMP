@@ -61,7 +61,7 @@ class ViewCellRegistry
 
         $allCells = [];
 
-        foreach (self::$viewCells as $source => $registration) {
+        foreach (self::$viewCells as $registration) {
             $cells = $registration['cells'];
 
             // If there's a callback, call it to get dynamic cells

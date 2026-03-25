@@ -164,7 +164,7 @@ class ServicePrincipalsController extends AppController
                 if (!$this->fetchTable('ServicePrincipalTokens')->save($tokenEntity)) {
                     $this->Flash->error(__(
                         'Service principal created but initial token could not be saved.'
-                        . ' Generate a new token manually.'
+                        . ' Generate a new token manually.',
                     ));
 
                     return $this->redirect(['action' => 'credentials', $servicePrincipal->id]);
@@ -177,7 +177,7 @@ class ServicePrincipalsController extends AppController
 
                 $this->Flash->success(__(
                     'Service principal created. Save the credentials shown below'
-                    . ' - they will not be displayed again.'
+                    . ' - they will not be displayed again.',
                 ));
 
                 return $this->redirect(['action' => 'credentials', $servicePrincipal->id]);
