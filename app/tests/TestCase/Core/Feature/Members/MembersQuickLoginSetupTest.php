@@ -1,11 +1,11 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Core\Feature\Members;
 
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Authentication\PasswordHasher\DefaultPasswordHasher;
+use Cake\I18n\DateTime;
 
 final class MembersQuickLoginSetupTest extends HttpIntegrationTestCase
 {
@@ -140,7 +140,7 @@ final class MembersQuickLoginSetupTest extends HttpIntegrationTestCase
             'configured_browser' => 'Google Chrome',
             'configured_location_hint' => 'US',
             'last_used_location_hint' => 'US',
-            'last_used' => new \Cake\I18n\DateTime(),
+            'last_used' => new DateTime(),
         ]);
         $this->assertNotFalse($quickLoginDevices->save($device));
 

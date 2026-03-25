@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller\Api\V1;
@@ -86,6 +85,7 @@ class BranchesController extends ApiController
 
         if (!$branch) {
             $this->apiError('NOT_FOUND', 'Branch not found', [], 404);
+
             return;
         }
 

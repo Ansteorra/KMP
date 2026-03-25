@@ -1,10 +1,11 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services;
 
 use Cake\Cache\Cache;
+use DateTimeImmutable;
+use DateTimeInterface;
 
 /**
  * Tracks restore lock and restore progress in shared cache.
@@ -275,14 +276,14 @@ class RestoreStatusService
 
     private function nowIso(): string
     {
-        return (new \DateTimeImmutable('now'))->format(\DateTimeInterface::ATOM);
+        return (new DateTimeImmutable('now'))->format(DateTimeInterface::ATOM);
     }
 
     private function isoAfterSeconds(int $seconds): string
     {
-        return (new \DateTimeImmutable('now'))
+        return (new DateTimeImmutable('now'))
             ->modify(sprintf('+%d seconds', $seconds))
-            ->format(\DateTimeInterface::ATOM);
+            ->format(DateTimeInterface::ATOM);
     }
 
     private function isExpired(string $isoValue): bool
@@ -291,12 +292,12 @@ class RestoreStatusService
             return false;
         }
 
-        $expiresAt = \DateTimeImmutable::createFromFormat(\DateTimeInterface::ATOM, $isoValue);
-        if (!$expiresAt instanceof \DateTimeImmutable) {
+        $expiresAt = DateTimeImmutable::createFromFormat(DateTimeInterface::ATOM, $isoValue);
+        if (!$expiresAt instanceof DateTimeImmutable) {
             return false;
         }
 
-        return $expiresAt <= new \DateTimeImmutable('now');
+        return $expiresAt <= new DateTimeImmutable('now');
     }
 
     private function isOlderThanSeconds(string $isoValue, int $seconds): bool
@@ -305,12 +306,12 @@ class RestoreStatusService
             return false;
         }
 
-        $date = \DateTimeImmutable::createFromFormat(\DateTimeInterface::ATOM, $isoValue);
-        if (!$date instanceof \DateTimeImmutable) {
+        $date = DateTimeImmutable::createFromFormat(DateTimeInterface::ATOM, $isoValue);
+        if (!$date instanceof DateTimeImmutable) {
             return false;
         }
 
-        $threshold = (new \DateTimeImmutable('now'))->modify(sprintf('-%d seconds', $seconds));
+        $threshold = (new DateTimeImmutable('now'))->modify(sprintf('-%d seconds', $seconds));
 
         return $date <= $threshold;
     }

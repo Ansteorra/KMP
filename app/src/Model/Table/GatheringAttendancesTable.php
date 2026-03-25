@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -7,9 +6,9 @@ namespace App\Model\Table;
 use ArrayObject;
 use Cake\Datasource\EntityInterface;
 use Cake\Event\EventInterface;
+use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
-use Cake\ORM\RulesChecker;
 
 /**
  * GatheringAttendances Model
@@ -21,7 +20,6 @@ use Cake\ORM\RulesChecker;
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Members
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Creators
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Modifiers
- *
  * @method \App\Model\Entity\GatheringAttendance newEmptyEntity()
  * @method \App\Model\Entity\GatheringAttendance newEntity(array $data, array $options = [])
  * @method \App\Model\Entity\GatheringAttendance[] newEntities(array $data, array $options = [])
@@ -51,7 +49,7 @@ class GatheringAttendancesTable extends Table
         $this->addBehavior('Timestamp');
         $this->addBehavior('Muffin/Footprint.Footprint');
         $this->addBehavior('Muffin/Trash.Trash', [
-            'field' => 'deleted'
+            'field' => 'deleted',
         ]);
 
         $this->belongsTo('Gatherings', [
@@ -129,7 +127,7 @@ class GatheringAttendancesTable extends Table
         // Ensure unique combination of gathering_id and member_id
         $rules->add($rules->isUnique(['gathering_id', 'member_id'], [
             'allowMultipleNulls' => false,
-            'message' => __('This member already has an attendance record for this gathering.')
+            'message' => __('This member already has an attendance record for this gathering.'),
         ]));
 
         return $rules;
@@ -223,7 +221,7 @@ class GatheringAttendancesTable extends Table
                 'share_with_kingdom' => true,
                 'share_with_hosting_group' => true,
                 'share_with_crown' => true,
-            ]
+            ],
         ]);
     }
 

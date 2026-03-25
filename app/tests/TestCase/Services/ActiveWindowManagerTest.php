@@ -1,15 +1,14 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services;
 
-use App\Services\ActiveWindowManager\DefaultActiveWindowManager;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
+use App\Services\ActiveWindowManager\DefaultActiveWindowManager;
 use App\Services\ServiceResult;
 use App\Test\TestCase\BaseTestCase;
+use Cake\Datasource\Exception\RecordNotFoundException;
 use Cake\I18n\DateTime;
-use Cake\ORM\TableRegistry;
 
 class ActiveWindowManagerTest extends BaseTestCase
 {
@@ -52,7 +51,7 @@ class ActiveWindowManagerTest extends BaseTestCase
             self::ADMIN_MEMBER_ID,
             'Deactivated',
             'Test deactivation',
-            DateTime::now()
+            DateTime::now(),
         );
 
         $this->assertInstanceOf(ServiceResult::class, $result);
@@ -66,7 +65,7 @@ class ActiveWindowManagerTest extends BaseTestCase
 
     public function testStopWithInvalidEntityThrowsException(): void
     {
-        $this->expectException(\Cake\Datasource\Exception\RecordNotFoundException::class);
+        $this->expectException(RecordNotFoundException::class);
 
         $this->manager->stop(
             'MemberRoles',
@@ -74,7 +73,7 @@ class ActiveWindowManagerTest extends BaseTestCase
             self::ADMIN_MEMBER_ID,
             'Deactivated',
             'Test',
-            DateTime::now()
+            DateTime::now(),
         );
     }
 
@@ -111,7 +110,7 @@ class ActiveWindowManagerTest extends BaseTestCase
             DateTime::now()->modify('+1 year'),
             null,
             null,
-            false
+            false,
         );
 
         $this->assertInstanceOf(ServiceResult::class, $result);
@@ -124,13 +123,13 @@ class ActiveWindowManagerTest extends BaseTestCase
 
     public function testStartWithInvalidEntityThrowsException(): void
     {
-        $this->expectException(\Cake\Datasource\Exception\RecordNotFoundException::class);
+        $this->expectException(RecordNotFoundException::class);
 
         $this->manager->start(
             'MemberRoles',
             999999,
             self::ADMIN_MEMBER_ID,
-            DateTime::now()
+            DateTime::now(),
         );
     }
 }

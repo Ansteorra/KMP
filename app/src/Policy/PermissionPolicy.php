@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Policy;
@@ -17,7 +16,7 @@ class PermissionPolicy extends BasePolicy
      * Check if user can update policy
      *
      * @param \App\KMP\KmpIdentityInterface $user User
-     * @param \App\Model\Entity\BaseEntity|Cake\ORM\Table $entity Entity
+     * @param \App\Model\Entity\BaseEntity|\App\Policy\Cake\ORM\Table $entity Entity
      * @param mixed ...$optionalArgs Optional arguments
      * @return bool
      */
@@ -32,7 +31,7 @@ class PermissionPolicy extends BasePolicy
      * Check if user can view the Matrix
      *
      * @param \App\KMP\KmpIdentityInterface $user User
-     * @param \App\Model\Entity\BaseEntity|Cake\ORM\Table $entity Entity
+     * @param \App\Model\Entity\BaseEntity|\App\Policy\Cake\ORM\Table $entity Entity
      * @param mixed ...$optionalArgs Optional arguments
      * @return bool
      */

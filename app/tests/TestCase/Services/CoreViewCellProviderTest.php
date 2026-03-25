@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services;
@@ -66,7 +65,7 @@ class CoreViewCellProviderTest extends BaseTestCase
             $this->assertEquals(
                 ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU,
                 $cell['type'],
-                "Cell '{$cell['label']}' should be mobile_menu type"
+                "Cell '{$cell['label']}' should be mobile_menu type",
             );
         }
     }
@@ -174,7 +173,7 @@ class CoreViewCellProviderTest extends BaseTestCase
         $cellsEmpty = CoreViewCellProvider::getViewCells([], $member);
         $cellsWithParams = CoreViewCellProvider::getViewCells(
             ['controller' => 'Members', 'action' => 'view'],
-            $member
+            $member,
         );
 
         $this->assertCount(count($cellsEmpty), $cellsWithParams);

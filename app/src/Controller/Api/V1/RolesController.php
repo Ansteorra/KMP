@@ -1,11 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller\Api\V1;
 
 use App\Controller\Api\ApiController;
-
 
 /**
  * Roles API Controller
@@ -58,6 +56,7 @@ class RolesController extends ApiController
 
         if (!$role) {
             $this->apiError('NOT_FOUND', 'Role not found', [], 404);
+
             return;
         }
 

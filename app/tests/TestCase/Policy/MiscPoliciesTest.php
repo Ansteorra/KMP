@@ -1,9 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Policy;
 
+use App\Model\Entity\Member;
 use App\Policy\ControllerActionHookPolicy;
 use App\Policy\NotePolicy;
 use App\Policy\NotesTablePolicy;
@@ -28,7 +28,7 @@ class MiscPoliciesTest extends BaseTestCase
         $this->Members = $this->getTableLocator()->get('Members');
     }
 
-    protected function loadMember(int $id): \App\Model\Entity\Member
+    protected function loadMember(int $id): Member
     {
         $member = $this->Members->get($id);
         $member->getPermissions();

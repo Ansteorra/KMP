@@ -1,11 +1,12 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Model\Entity;
 
 use App\Model\Entity\Gathering;
 use App\Test\TestCase\BaseTestCase;
+use Cake\Core\Configure;
+use Cake\I18n\DateTime;
 
 /**
  * App\Model\Entity\Gathering Test Case
@@ -161,15 +162,15 @@ class GatheringTest extends BaseTestCase
     {
         $gathering = new Gathering([
             'name' => 'Single Day Practice',
-            'start_date' => new \Cake\I18n\DateTime('2025-06-15'),
-            'end_date' => new \Cake\I18n\DateTime('2025-06-15'), // Same day
+            'start_date' => new DateTime('2025-06-15'),
+            'end_date' => new DateTime('2025-06-15'), // Same day
         ]);
 
         $this->assertNotNull($gathering->start_date);
         $this->assertNotNull($gathering->end_date);
         $this->assertEquals(
             $gathering->start_date->format('Y-m-d'),
-            $gathering->end_date->format('Y-m-d')
+            $gathering->end_date->format('Y-m-d'),
         );
     }
 
@@ -183,8 +184,8 @@ class GatheringTest extends BaseTestCase
         // Event starts and ends on the same calendar day
         $gathering = new Gathering([
             'name' => 'Single Day Event',
-            'start_date' => new \Cake\I18n\DateTime('2025-06-15 09:00:00', 'UTC'),
-            'end_date' => new \Cake\I18n\DateTime('2025-06-15 17:00:00', 'UTC'),
+            'start_date' => new DateTime('2025-06-15 09:00:00', 'UTC'),
+            'end_date' => new DateTime('2025-06-15 17:00:00', 'UTC'),
             'timezone' => 'America/Chicago',
         ]);
 
@@ -201,8 +202,8 @@ class GatheringTest extends BaseTestCase
         // Event clearly spans multiple days
         $gathering = new Gathering([
             'name' => 'Multi Day Event',
-            'start_date' => new \Cake\I18n\DateTime('2025-06-15 09:00:00', 'UTC'),
-            'end_date' => new \Cake\I18n\DateTime('2025-06-17 17:00:00', 'UTC'),
+            'start_date' => new DateTime('2025-06-15 09:00:00', 'UTC'),
+            'end_date' => new DateTime('2025-06-17 17:00:00', 'UTC'),
             'timezone' => 'America/Chicago',
         ]);
 
@@ -228,9 +229,9 @@ class GatheringTest extends BaseTestCase
         $gathering = new Gathering([
             'name' => 'Evening Event',
             // 6pm CDT = 23:00 UTC (same day)
-            'start_date' => new \Cake\I18n\DateTime('2025-06-15 23:00:00', 'UTC'),
+            'start_date' => new DateTime('2025-06-15 23:00:00', 'UTC'),
             // 11pm CDT = 04:00 UTC (next day in UTC, but same day in CDT)
-            'end_date' => new \Cake\I18n\DateTime('2025-06-16 04:00:00', 'UTC'),
+            'end_date' => new DateTime('2025-06-16 04:00:00', 'UTC'),
             'timezone' => 'America/Chicago', // CDT (UTC-5) in June
         ]);
 
@@ -238,7 +239,7 @@ class GatheringTest extends BaseTestCase
         // both dates are June 15 local time
         $this->assertFalse(
             $gathering->is_multi_day,
-            'Event that spans midnight UTC but is same day in event timezone should not be flagged as multi-day'
+            'Event that spans midnight UTC but is same day in event timezone should not be flagged as multi-day',
         );
     }
 
@@ -253,14 +254,14 @@ class GatheringTest extends BaseTestCase
     public function testIsMultiDayNoTimezoneFallsBackToAppDefault(): void
     {
         // Temporarily set app default to America/Chicago to test fallback
-        $originalTz = \Cake\Core\Configure::read('App.defaultTimezone');
-        \Cake\Core\Configure::write('App.defaultTimezone', 'America/Chicago');
+        $originalTz = Configure::read('App.defaultTimezone');
+        Configure::write('App.defaultTimezone', 'America/Chicago');
 
         // An event that spans midnight UTC but is same day in Central time
         $gathering = new Gathering([
             'name' => 'Event Without Timezone',
-            'start_date' => new \Cake\I18n\DateTime('2025-06-15 23:00:00', 'UTC'),
-            'end_date' => new \Cake\I18n\DateTime('2025-06-16 04:00:00', 'UTC'),
+            'start_date' => new DateTime('2025-06-15 23:00:00', 'UTC'),
+            'end_date' => new DateTime('2025-06-16 04:00:00', 'UTC'),
             // No timezone set - will use app default (America/Chicago)
         ]);
 
@@ -270,11 +271,11 @@ class GatheringTest extends BaseTestCase
         // So this is NOT multi-day in the default timezone
         $this->assertFalse(
             $gathering->is_multi_day,
-            'Event with no timezone should use app default timezone for multi-day calculation'
+            'Event with no timezone should use app default timezone for multi-day calculation',
         );
 
         // Restore original timezone
-        \Cake\Core\Configure::write('App.defaultTimezone', $originalTz);
+        Configure::write('App.defaultTimezone', $originalTz);
     }
 
     /**
@@ -287,15 +288,15 @@ class GatheringTest extends BaseTestCase
         // When UTC is explicitly set, dates spanning midnight UTC ARE multi-day
         $gathering = new Gathering([
             'name' => 'UTC Event',
-            'start_date' => new \Cake\I18n\DateTime('2025-06-15 23:00:00', 'UTC'),
-            'end_date' => new \Cake\I18n\DateTime('2025-06-16 04:00:00', 'UTC'),
+            'start_date' => new DateTime('2025-06-15 23:00:00', 'UTC'),
+            'end_date' => new DateTime('2025-06-16 04:00:00', 'UTC'),
             'timezone' => 'UTC',
         ]);
 
         // In UTC, this spans June 15 and June 16
         $this->assertTrue(
             $gathering->is_multi_day,
-            'Event with explicit UTC timezone should be multi-day when spanning midnight UTC'
+            'Event with explicit UTC timezone should be multi-day when spanning midnight UTC',
         );
     }
 }

@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\KMP\GridColumns;
@@ -94,6 +93,7 @@ class RolesGridColumns extends BaseGridColumns
                 'label' => 'Members',
                 'type' => 'number',
                 'sortable' => true,
+                'queryField' => 'member_count',
                 'filterable' => false,
                 'defaultVisible' => true,
                 'width' => '100px',

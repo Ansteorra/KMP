@@ -1,19 +1,17 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
-use Cake\ORM\RulesChecker;
 
 /**
  * GatheringTypes Model
  *
  * @property \App\Model\Table\GatheringsTable&\Cake\ORM\Association\HasMany $Gatherings
  * @property \App\Model\Table\GatheringActivitiesTable&\Cake\ORM\Association\BelongsToMany $GatheringActivities
- *
  * @method \App\Model\Entity\GatheringType newEmptyEntity()
  * @method \App\Model\Entity\GatheringType newEntity(array $data, array $options = [])
  * @method \App\Model\Entity\GatheringType[] newEntities(array $data, array $options = [])
@@ -88,7 +86,7 @@ class GatheringTypesTable extends Table
                 'rule' => function ($value) {
                     return (bool)preg_match('/^#[0-9A-Fa-f]{6}$/', $value);
                 },
-                'message' => 'Color must be a valid hex color code (e.g., #0d6efd)'
+                'message' => 'Color must be a valid hex color code (e.g., #0d6efd)',
             ]);
 
         return $validator;

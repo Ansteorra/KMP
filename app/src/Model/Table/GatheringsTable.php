@@ -1,15 +1,18 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
 
-use Cake\ORM\Table;
-use Cake\Validation\Validator;
-use Cake\ORM\RulesChecker;
-use Cake\Event\EventInterface;
+use ArrayObject;
 use Cake\Datasource\EntityInterface;
+use Cake\Event\EventInterface;
+use Cake\ORM\Query\SelectQuery;
+use Cake\ORM\RulesChecker;
+use Cake\ORM\Table;
 use Cake\ORM\TableRegistry;
+use Cake\Validation\Validator;
+use DateTimeZone;
+use Exception;
 
 /**
  * Gatherings Model
@@ -22,7 +25,6 @@ use Cake\ORM\TableRegistry;
  * @property \App\Model\Table\GatheringScheduledActivitiesTable&\Cake\ORM\Association\HasMany $GatheringScheduledActivities
  * @property \App\Model\Table\GatheringStaffTable&\Cake\ORM\Association\HasMany $GatheringStaff
  * @property \Waivers\Model\Table\GatheringWaiversTable&\Cake\ORM\Association\HasMany $GatheringWaivers
- *
  * @method \App\Model\Entity\Gathering newEmptyEntity()
  * @method \App\Model\Entity\Gathering newEntity(array $data, array $options = [])
  * @method \App\Model\Entity\Gathering[] newEntities(array $data, array $options = [])
@@ -52,7 +54,7 @@ class GatheringsTable extends Table
         $this->addBehavior('Timestamp');
         $this->addBehavior('Muffin/Footprint.Footprint');
         $this->addBehavior('Muffin/Trash.Trash', [
-            'field' => 'deleted'
+            'field' => 'deleted',
         ]);
         $this->addBehavior('PublicId');
 
@@ -170,9 +172,10 @@ class GatheringsTable extends Table
                     }
                     // Validate using PHP's timezone list
                     try {
-                        new \DateTimeZone($value);
+                        new DateTimeZone($value);
+
                         return true;
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         return false;
                     }
                 },
@@ -222,7 +225,7 @@ class GatheringsTable extends Table
      * @param array $options Options including 'start' and 'end'
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findByDateRange(\Cake\ORM\Query\SelectQuery $query, array $options): \Cake\ORM\Query\SelectQuery
+    public function findByDateRange(SelectQuery $query, array $options): SelectQuery
     {
         if (isset($options['start'])) {
             $query->where(['Gatherings.start_date >=' => $options['start']]);
@@ -241,7 +244,7 @@ class GatheringsTable extends Table
      * @param array $options Options including 'branch_id'
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findByBranch(\Cake\ORM\Query\SelectQuery $query, array $options): \Cake\ORM\Query\SelectQuery
+    public function findByBranch(SelectQuery $query, array $options): SelectQuery
     {
         if (isset($options['branch_id'])) {
             $query->where(['Gatherings.branch_id' => $options['branch_id']]);
@@ -257,7 +260,7 @@ class GatheringsTable extends Table
      * @param array $options Options including 'gathering_type_id'
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findByType(\Cake\ORM\Query\SelectQuery $query, array $options): \Cake\ORM\Query\SelectQuery
+    public function findByType(SelectQuery $query, array $options): SelectQuery
     {
         if (isset($options['gathering_type_id'])) {
             $query->where(['Gatherings.gathering_type_id' => $options['gathering_type_id']]);
@@ -278,7 +281,7 @@ class GatheringsTable extends Table
      * @param \ArrayObject $options Options passed to save
      * @return void
      */
-    public function afterSave(EventInterface $event, EntityInterface $entity, \ArrayObject $options): void
+    public function afterSave(EventInterface $event, EntityInterface $entity, ArrayObject $options): void
     {
         // Skip template sync when cloning (clone manages activities from the source gathering)
         if (!empty($options['skipTemplateSync'])) {
@@ -338,7 +341,7 @@ class GatheringsTable extends Table
             $templateNotRemovableByActivity,
             $gatheringsGatheringActivitiesTable,
             $gathering,
-            &$maxSortOrder
+            &$maxSortOrder,
         ): void {
             // Add missing template activities
             foreach ($templateActivities as $templateActivity) {
@@ -350,7 +353,7 @@ class GatheringsTable extends Table
                     $newActivity = $gatheringsGatheringActivitiesTable->newEntity([
                         'gathering_id' => $gathering->id,
                         'gathering_activity_id' => $activityId,
-                        'sort_order' => $maxSortOrder
+                        'sort_order' => $maxSortOrder,
                     ]);
 
                     $newActivity->not_removable = $templateActivity->not_removable;

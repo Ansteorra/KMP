@@ -1,11 +1,11 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services;
 
 use App\Services\BackupStorageService;
 use App\Test\TestCase\BaseTestCase;
+use Exception;
 
 class BackupStorageServiceTest extends BaseTestCase
 {
@@ -19,7 +19,7 @@ class BackupStorageServiceTest extends BaseTestCase
 
         try {
             $this->service = new BackupStorageService();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->markTestSkipped('BackupStorageService initialization failed: ' . $e->getMessage());
         }
     }
@@ -33,7 +33,7 @@ class BackupStorageServiceTest extends BaseTestCase
                     if ($this->service->exists($filename)) {
                         $this->service->delete($filename);
                     }
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     // Ignore cleanup errors
                 }
             }

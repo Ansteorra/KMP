@@ -1,10 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
 
-use Cake\ORM\Entity;
+use App\KMP\TimezoneHelper;
 
 /**
  * Gathering Entity
@@ -85,8 +84,8 @@ class Gathering extends BaseEntity
     protected function _getDateRange(): string
     {
         // Convert dates to gathering's timezone before display
-        $startInTz = \App\KMP\TimezoneHelper::toUserTimezone($this->start_date, null, null, $this);
-        $endInTz = \App\KMP\TimezoneHelper::toUserTimezone($this->end_date, null, null, $this);
+        $startInTz = TimezoneHelper::toUserTimezone($this->start_date, null, null, $this);
+        $endInTz = TimezoneHelper::toUserTimezone($this->end_date, null, null, $this);
 
         // Defensive check: return empty string if timezone conversion failed
         if ($startInTz === null || $endInTz === null) {
@@ -111,8 +110,8 @@ class Gathering extends BaseEntity
     protected function _getIsMultiDay(): bool
     {
         // Convert dates to gathering's timezone before comparing
-        $startInTz = \App\KMP\TimezoneHelper::toUserTimezone($this->start_date, null, null, $this);
-        $endInTz = \App\KMP\TimezoneHelper::toUserTimezone($this->end_date, null, null, $this);
+        $startInTz = TimezoneHelper::toUserTimezone($this->start_date, null, null, $this);
+        $endInTz = TimezoneHelper::toUserTimezone($this->end_date, null, null, $this);
 
         // Defensive check: if timezone conversion failed, assume single-day
         if ($startInTz === null || $endInTz === null) {

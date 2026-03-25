@@ -1,14 +1,13 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\KMP;
 
 use App\Model\Entity\Member;
 use App\Model\Entity\Permission;
-use App\Model\Entity\ServicePrincipal;
 use App\Model\Entity\Warrant;
 use Cake\Cache\Cache;
+use Cake\Database\Expression\IdentifierExpression;
 use Cake\I18n\DateTime;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\TableRegistry;
@@ -28,7 +27,6 @@ use ReflectionMethod;
  */
 class PermissionsLoader
 {
-
     /**
      * Get complete permissions set for member.
      *
@@ -199,7 +197,7 @@ class PermissionsLoader
                                 // Merge branch IDs for non-global permissions
                                 $policies[$policyClass][$method]->branch_ids = array_merge(
                                     $policies[$policyClass][$method]->branch_ids,
-                                    $permission->branch_ids
+                                    $permission->branch_ids,
                                 );
                             }
                         }
@@ -261,7 +259,7 @@ class PermissionsLoader
      *
      * @param int $permissionId The permission ID to search for
      * @param int $branch_id The branch context for scoped permission checking
-     * @return SelectQuery Query object ready for execution or further modification
+     * @return \Cake\ORM\Query\SelectQuery Query object ready for execution or further modification
      */
     public static function getMembersWithPermissionsQuery(int $permissionId, int $branch_id): SelectQuery
     {
@@ -313,8 +311,8 @@ class PermissionsLoader
      * background checks, age restrictions, and warrant requirements (when enabled).
      * Used by all permission checking operations for consistent validation.
      *
-     * @param SelectQuery $q Base query to apply validation clauses to
-     * @return SelectQuery Query with validation chain applied
+     * @param \Cake\ORM\Query\SelectQuery $q Base query to apply validation clauses to
+     * @return \Cake\ORM\Query\SelectQuery Query with validation chain applied
      */
     protected static function validPermissionClauses(SelectQuery $q): SelectQuery
     {
@@ -325,9 +323,12 @@ class PermissionsLoader
         $warrantsTable = TableRegistry::getTableLocator()->get('Warrants');
 
         // Build efficient subquery for warrant validation
+        // Correlate with outer query's Members.id to ensure we only check
+        // warrants belonging to the specific member being evaluated
         $warrantSubquery = $warrantsTable->find()
             ->select(['Warrants.member_role_id']) // Only need role linkage
             ->where([
+                'Warrants.member_id' => new IdentifierExpression('Members.id'),
                 'Warrants.start_on <' => $now,           // Warrant has started
                 'Warrants.expires_on >' => $now,         // Warrant hasn't expired
                 'Warrants.status' => Warrant::CURRENT_STATUS, // Warrant is active
@@ -523,7 +524,7 @@ class PermissionsLoader
     /**
      * Get complete permissions set for a service principal.
      *
-     * Loads all permissions through ServicePrincipalRoles with role validation and 
+     * Loads all permissions through ServicePrincipalRoles with role validation and
      * temporal boundaries. Similar to getPermissions() but for service principals.
      * Results are cached with key `sp_permissions_{servicePrincipalId}`.
      *
@@ -682,7 +683,7 @@ class PermissionsLoader
                             } elseif ($policies[$policyClass][$method]->scoping_rule != Permission::SCOPE_GLOBAL) {
                                 $policies[$policyClass][$method]->branch_ids = array_merge(
                                     $policies[$policyClass][$method]->branch_ids,
-                                    $permission->branch_ids
+                                    $permission->branch_ids,
                                 );
                             }
                         }

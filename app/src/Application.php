@@ -1,14 +1,13 @@
 <?php
-
 declare(strict_types=1);
 
 /**
  * Kingdom Management Portal (KMP) - Main Application Class
- * 
+ *
  * This file contains the core Application class that bootstraps the entire KMP system.
  * It handles middleware configuration, dependency injection, authentication setup,
  * authorization configuration, and plugin registration.
- * 
+ *
  * The Application class serves as the central orchestrator for:
  * - Middleware stack configuration (security, CSRF, routing, etc.)
  * - Authentication and authorization service setup
@@ -16,28 +15,27 @@ declare(strict_types=1);
  * - Plugin system initialization
  * - Core application settings management
  * - Navigation system registration
- * 
+ *
  * Architecture Pattern: This follows the Application Service pattern with
  * middleware composition, providing a single entry point for all HTTP requests
  * and establishing the security, routing, and service boundaries.
- * 
+ *
  * Security Features:
  * - CSRF protection with secure cookie settings
  * - Comprehensive security headers (CSP, HSTS, XSS protection)
  * - Session-based authentication with form fallback
  * - Role-based authorization with policy resolution
  * - Brute force protection for login attempts
- * 
+ *
  * Performance Considerations:
  * - Table locator optimization for CLI vs web contexts
  * - Asset middleware caching configuration
  * - Service container for dependency injection efficiency
- * 
+ *
  * @copyright Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
  * @link      https://cakephp.org CakePHP(tm) Project
  * @since     3.3.0
  * @license   https://opensource.org/licenses/mit-license.php MIT License
- * 
  * @package   App
  * @author    KMP Development Team
  * @version   25.01.11.a
@@ -50,20 +48,21 @@ namespace App;
 
 // Authentication usings
 
-use App\Services\NavigationRegistry;
-use App\Services\CoreNavigationProvider;
-use App\Services\ViewCellRegistry;
-use App\Services\CoreViewCellProvider;
-use App\KMP\KmpIdentityInterface; // Add this line
+use App\KMP\KmpIdentityInterface;
+// Add this line
 use App\KMP\StaticHelpers;
 // Authorization usings
 use App\Policy\ControllerResolver;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use App\Services\ActiveWindowManager\DefaultActiveWindowManager;
 use App\Services\AuthorizationService as KmpAuthorizationService;
+use App\Services\CoreNavigationProvider;
+use App\Services\CoreViewCellProvider;
 use App\Services\CsvExportService;
-use App\Services\ImpersonationService;
 use App\Services\ICalendarService;
+use App\Services\ImpersonationService;
+use App\Services\NavigationRegistry;
+use App\Services\ViewCellRegistry;
 use App\Services\WarrantManager\DefaultWarrantManager;
 use App\Services\WarrantManager\WarrantManagerInterface;
 use Authentication\AuthenticationService;
@@ -83,7 +82,6 @@ use Cake\Core\Configure;
 use Cake\Core\ContainerInterface;
 use Cake\Datasource\FactoryLocator;
 use Cake\Error\Middleware\ErrorHandlerMiddleware;
-use Cake\Event\EventManager;
 use Cake\Http\BaseApplication;
 use Cake\Http\Middleware\BodyParserMiddleware;
 use Cake\Http\Middleware\CsrfProtectionMiddleware;
@@ -102,7 +100,7 @@ use Psr\Http\Message\ServerRequestInterface;
  *
  * This is the main application class that orchestrates the entire KMP system.
  * It extends CakePHP's BaseApplication to provide KMP-specific functionality
- * including authentication, authorization, middleware configuration, and 
+ * including authentication, authorization, middleware configuration, and
  * dependency injection setup.
  *
  * Key Responsibilities:
@@ -141,7 +139,6 @@ use Psr\Http\Message\ServerRequestInterface;
  * @extends \Cake\Http\BaseApplication<\App\Application>
  * @implements \Authentication\AuthenticationServiceProviderInterface
  * @implements \Authorization\AuthorizationServiceProviderInterface
- * 
  * @see \App\Services\NavigationRegistry Navigation system
  * @see \App\KMP\StaticHelpers Application settings management
  * @see \App\Services\AuthorizationService Custom authorization logic
@@ -216,16 +213,17 @@ class Application extends BaseApplication implements
         NavigationRegistry::register(
             'core',                                                              // Source identifier
             [],                                                                  // Static navigation items (none for core)
-            function ($user, $params) {                                          // Dynamic callback for navigation generation
+            function ($user, $params) {
+                                          // Dynamic callback for navigation generation
                 return CoreNavigationProvider::getNavigationItems($user, $params);
-            }
+            },
         );
 
         // Register core view cells (mobile menu items, etc.)
         ViewCellRegistry::register(
             'core',
             [],
-            [CoreViewCellProvider::class, 'getViewCells']
+            [CoreViewCellProvider::class, 'getViewCells'],
         );
 
         // Version-based application configuration management
@@ -387,7 +385,7 @@ class Application extends BaseApplication implements
                         $request->getUri()->getPath(),
                         $response->getStatusCode(),
                         $durationMs,
-                        memory_get_peak_usage(true) / 1048576
+                        memory_get_peak_usage(true) / 1048576,
                     ),
                     ['scope' => ['app.performance']],
                 );
@@ -434,7 +432,7 @@ class Application extends BaseApplication implements
 
                 // Add upgrade-insecure-requests only in production/UAT
                 if (!$isDevelopment) {
-                    $csp .= "; upgrade-insecure-requests";                           // Auto-upgrade HTTP to HTTPS
+                    $csp .= '; upgrade-insecure-requests';                           // Auto-upgrade HTTP to HTTPS
                 }
 
                 // Comprehensive Content Security Policy
@@ -484,6 +482,7 @@ class Application extends BaseApplication implements
                         }
                     }
                 }
+
                 return $handler->handle($request);
             })
 
@@ -499,6 +498,7 @@ class Application extends BaseApplication implements
                 ]))->skipCheckCallback(function ($request) {
                     // Skip CSRF for API routes (Bearer token provides security)
                     $path = $request->getUri()->getPath();
+
                     return str_starts_with($path, '/api/');
                 }),
             )
@@ -554,7 +554,7 @@ class Application extends BaseApplication implements
      *
      * 2. **WarrantManagerInterface**: Handles warrant lifecycle management
      *    including creation, approval, expiration, and renewal processes.
-     *    - Implementation: DefaultWarrantManager  
+     *    - Implementation: DefaultWarrantManager
      *    - Dependencies: ActiveWindowManagerInterface (for date management)
      *    - Purpose: Officer warrant processing and workflow management
      *    - Usage: Officer appointments, warrant approvals, roster management
@@ -583,7 +583,7 @@ class Application extends BaseApplication implements
      * @return void
      * @throws \Cake\Core\Exception\CakeException If service registration fails
      * @see \App\Services\ActiveWindowManager\ActiveWindowManagerInterface Date-bounded entity management
-     * @see \App\Services\WarrantManager\WarrantManagerInterface Warrant lifecycle management  
+     * @see \App\Services\WarrantManager\WarrantManagerInterface Warrant lifecycle management
      * @see \App\Services\CsvExportService CSV export functionality
      * @link https://book.cakephp.org/4/en/development/dependency-injection.html CakePHP Dependency Injection
      */
@@ -673,7 +673,7 @@ class Application extends BaseApplication implements
         ServerRequestInterface $request,
     ): AuthenticationServiceInterface {
         $service = new AuthenticationService();
-        
+
         // Check if this is an API request
         $path = $request->getUri()->getPath();
         $isApiRequest = str_starts_with($path, '/api/');
@@ -781,7 +781,7 @@ class Application extends BaseApplication implements
      *    - Handles data scoping (users only see data they're authorized for)
      *    - Example: MemberPolicy::canView(), BranchPolicy::canEdit()
      *
-     * 2. **Controller Resolver**: Handles controller-level authorization  
+     * 2. **Controller Resolver**: Handles controller-level authorization
      *    - Resolves policies for controller actions
      *    - Provides application-level access control
      *    - Handles complex business logic authorization

@@ -1,15 +1,15 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Behavior;
 
-use Cake\ORM\Behavior;
-use Cake\ORM\Table;
+use ArrayObject;
 use Cake\Datasource\EntityInterface;
 use Cake\Event\EventInterface;
-use Cake\Database\Expression\QueryExpression;
+use Cake\ORM\Behavior;
 use Cake\ORM\Query\SelectQuery;
+use InvalidArgumentException;
+use RuntimeException;
 
 /**
  * PublicId Behavior
@@ -41,7 +41,7 @@ class PublicIdBehavior extends Behavior
 
     /**
      * Characters used in public ID generation (Base62)
-     * 
+     *
      * Excludes visually similar characters for better human readability:
      * - No 0/O confusion
      * - No 1/l/I confusion
@@ -91,7 +91,7 @@ class PublicIdBehavior extends Behavior
 
     /**
      * Before save callback
-     * 
+     *
      * Generates public ID for new entities or regenerates for existing ones if configured
      *
      * @param \Cake\Event\EventInterface $event Event
@@ -99,7 +99,7 @@ class PublicIdBehavior extends Behavior
      * @param \ArrayObject $options Options
      * @return void
      */
-    public function beforeSave(EventInterface $event, EntityInterface $entity, \ArrayObject $options): void
+    public function beforeSave(EventInterface $event, EntityInterface $entity, ArrayObject $options): void
     {
         $field = $this->getConfig('field');
 
@@ -116,7 +116,7 @@ class PublicIdBehavior extends Behavior
 
     /**
      * Generate a unique public ID
-     * 
+     *
      * Uses cryptographically secure random bytes for unpredictability.
      * Checks uniqueness in database and regenerates if collision occurs.
      *
@@ -135,9 +135,9 @@ class PublicIdBehavior extends Behavior
             $attempt++;
 
             if ($attempt >= $maxAttempts) {
-                throw new \RuntimeException(sprintf(
+                throw new RuntimeException(sprintf(
                     'Failed to generate unique public ID after %d attempts. Consider increasing length.',
-                    $maxAttempts
+                    $maxAttempts,
                 ));
             }
         } while ($exists);
@@ -178,7 +178,7 @@ class PublicIdBehavior extends Behavior
         $publicId = $options['publicId'] ?? $options[0] ?? null;
 
         if (!$publicId) {
-            throw new \InvalidArgumentException('Public ID is required for findByPublicId');
+            throw new InvalidArgumentException('Public ID is required for findByPublicId');
         }
 
         return $query->where([$this->_table->aliasField($field) => $publicId]);
@@ -186,7 +186,7 @@ class PublicIdBehavior extends Behavior
 
     /**
      * Get entity by public ID
-     * 
+     *
      * Convenience method similar to Table::get() but using public ID
      *
      * @param string $publicId Public ID
@@ -203,7 +203,7 @@ class PublicIdBehavior extends Behavior
 
     /**
      * Before find callback
-     * 
+     *
      * Allows finding by public_id in conditions automatically
      *
      * @param \Cake\Event\EventInterface $event Event
@@ -211,7 +211,7 @@ class PublicIdBehavior extends Behavior
      * @param \ArrayObject $options Options
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function beforeFind(EventInterface $event, SelectQuery $query, \ArrayObject $options): SelectQuery
+    public function beforeFind(EventInterface $event, SelectQuery $query, ArrayObject $options): SelectQuery
     {
         // This allows automatic translation of public_id conditions
         // Example: $table->find()->where(['public_id' => 'abc123'])

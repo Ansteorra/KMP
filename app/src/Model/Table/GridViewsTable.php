@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -112,6 +111,7 @@ class GridViewsTable extends BaseTable
             ->add('config', 'validJson', [
                 'rule' => function ($value, $context) {
                     json_decode($value);
+
                     return json_last_error() === JSON_ERROR_NONE;
                 },
                 'message' => 'Config must be valid JSON',
@@ -134,13 +134,14 @@ class GridViewsTable extends BaseTable
                 if ($entity->is_system_default && $entity->member_id !== null) {
                     return 'System defaults must not have a member_id';
                 }
+
                 return true;
             },
             'systemDefaultNoMember',
             [
                 'errorField' => 'is_system_default',
                 'message' => 'System defaults must not have a member_id',
-            ]
+            ],
         );
 
         // Only one system default per grid_key
@@ -164,7 +165,7 @@ class GridViewsTable extends BaseTable
             [
                 'errorField' => 'is_system_default',
                 'message' => 'Only one system default allowed per grid',
-            ]
+            ],
         );
 
         // Only one user default per (member_id, grid_key)
@@ -189,7 +190,7 @@ class GridViewsTable extends BaseTable
             [
                 'errorField' => 'is_default',
                 'message' => 'Only one default view allowed per user per grid',
-            ]
+            ],
         );
 
         // Foreign key checks

@@ -1,9 +1,10 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services;
 
+use App\Model\Entity\Member;
+use App\Policy\MemberPolicy;
 use App\Services\AuthorizationService;
 use App\Test\TestCase\BaseTestCase;
 use Authorization\Policy\MapResolver;
@@ -25,7 +26,7 @@ class SecurityDebugTest extends BaseTestCase
 
         // Create authorization service with policy resolver
         $resolver = new MapResolver();
-        $resolver->map(\App\Model\Entity\Member::class, \App\Policy\MemberPolicy::class);
+        $resolver->map(Member::class, MemberPolicy::class);
         $this->AuthService = new AuthorizationService($resolver);
 
         // Clear any previous logs

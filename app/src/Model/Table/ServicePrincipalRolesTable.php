@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -19,7 +18,6 @@ use Cake\Validation\Validator;
  * @property \App\Model\Table\BranchesTable&\Cake\ORM\Association\BelongsTo $Branches
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $ApprovedBy
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $RevokedBy
- *
  * @method \App\Model\Entity\ServicePrincipalRole newEmptyEntity()
  * @method \App\Model\Entity\ServicePrincipalRole newEntity(array $data, array $options = [])
  * @method \App\Model\Entity\ServicePrincipalRole get(mixed $primaryKey, array|string $finder = 'all', \Psr\SimpleCache\CacheInterface|string|null $cache = null, \Closure|string|null $cacheKey = null, mixed ...$args)
@@ -92,7 +90,7 @@ class ServicePrincipalRolesTable extends BaseTable
     public function afterSave($event, $entity, $options): void
     {
         parent::afterSave($event, $entity, $options);
-        
+
         $servicePrincipalId = $entity->service_principal_id;
         Cache::delete('sp_permissions_' . $servicePrincipalId);
         Cache::delete('sp_policies_' . $servicePrincipalId);
@@ -168,7 +166,7 @@ class ServicePrincipalRolesTable extends BaseTable
      * @param \Cake\ORM\Query\SelectQuery $query Query
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findCurrent(\Cake\ORM\Query\SelectQuery $query): \Cake\ORM\Query\SelectQuery
+    public function findCurrent(SelectQuery $query): SelectQuery
     {
         $now = date('Y-m-d');
 

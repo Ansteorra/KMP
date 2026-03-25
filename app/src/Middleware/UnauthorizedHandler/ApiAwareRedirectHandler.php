@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Middleware\UnauthorizedHandler;
@@ -21,7 +20,7 @@ class ApiAwareRedirectHandler extends RedirectHandler
     public function handle(
         Exception $exception,
         ServerRequestInterface $request,
-        array $options = []
+        array $options = [],
     ): ResponseInterface {
         $path = $request->getUri()->getPath();
         if (str_contains($path, '/api/')) {

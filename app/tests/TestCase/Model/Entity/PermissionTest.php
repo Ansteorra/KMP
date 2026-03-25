@@ -1,17 +1,18 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Model\Entity;
 
-use App\Test\TestCase\BaseTestCase;
 use App\Model\Entity\Permission;
+use App\Test\TestCase\BaseTestCase;
 use Cake\ORM\TableRegistry;
 use InvalidArgumentException;
 
 class PermissionTest extends BaseTestCase
 {
-    /** @var \App\Model\Table\PermissionsTable */
+    /**
+     * @var \App\Model\Table\PermissionsTable
+     */
     protected $Permissions;
 
     protected function setUp(): void

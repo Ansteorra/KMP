@@ -1,17 +1,19 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services;
 
+use App\Model\Entity\Branch;
+use App\Model\Entity\Member;
+use App\Policy\BranchPolicy;
+use App\Policy\MemberPolicy;
 use App\Services\AuthorizationService;
 use App\Test\TestCase\BaseTestCase;
 use Authorization\Policy\MapResolver;
-use Cake\ORM\TableRegistry;
 
 /**
  * Tests for branch-scoped authorization
- * 
+ *
  * Validates that permissions with branch scoping work correctly:
  * - Global scope permissions work across all branches
  * - Branch Only permissions work only at specific branch
@@ -20,11 +22,17 @@ use Cake\ORM\TableRegistry;
  */
 class BranchScopedAuthorizationTest extends BaseTestCase
 {
-    /** @var \App\Model\Table\MembersTable */
+    /**
+     * @var \App\Model\Table\MembersTable
+     */
     protected $Members;
-    /** @var \App\Model\Table\BranchesTable */
+    /**
+     * @var \App\Model\Table\BranchesTable
+     */
     protected $Branches;
-    /** @var \App\Services\AuthorizationService */
+    /**
+     * @var \App\Services\AuthorizationService
+     */
     protected $AuthService;
 
     protected function setUp(): void
@@ -36,8 +44,8 @@ class BranchScopedAuthorizationTest extends BaseTestCase
 
         // Create authorization service with policy resolver
         $resolver = new MapResolver();
-        $resolver->map(\App\Model\Entity\Member::class, \App\Policy\MemberPolicy::class);
-        $resolver->map(\App\Model\Entity\Branch::class, \App\Policy\BranchPolicy::class);
+        $resolver->map(Member::class, MemberPolicy::class);
+        $resolver->map(Branch::class, BranchPolicy::class);
         $this->AuthService = new AuthorizationService($resolver);
     }
 
@@ -96,7 +104,7 @@ class BranchScopedAuthorizationTest extends BaseTestCase
         $this->assertContains(
             self::TEST_BRANCH_SOUTHERN_REGION_ID,
             $branchIds,
-            'Devon should have permissions at Southern Region from Regional Officer Management role'
+            'Devon should have permissions at Southern Region from Regional Officer Management role',
         );
     }
 
@@ -168,12 +176,12 @@ class BranchScopedAuthorizationTest extends BaseTestCase
         $this->assertGreaterThanOrEqual(
             count($centralPolicies),
             count($allPolicies),
-            'All policies should include Central policies'
+            'All policies should include Central policies',
         );
         $this->assertGreaterThanOrEqual(
             count($southernPolicies),
             count($allPolicies),
-            'All policies should include Southern policies'
+            'All policies should include Southern policies',
         );
     }
 
@@ -232,7 +240,7 @@ class BranchScopedAuthorizationTest extends BaseTestCase
         $this->assertNotNull($branchAndChildrenPerm, 'Bryce should have Branch and Children permissions');
         $this->assertNotEmpty(
             $branchAndChildrenPerm->branch_ids,
-            'Branch and Children permission should have branch_ids'
+            'Branch and Children permission should have branch_ids',
         );
 
         // The permission should apply to both the branch and its descendants

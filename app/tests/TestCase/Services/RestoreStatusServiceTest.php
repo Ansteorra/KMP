@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services;
@@ -7,6 +6,7 @@ namespace App\Test\TestCase\Services;
 use App\Services\RestoreStatusService;
 use App\Test\TestCase\BaseTestCase;
 use Cake\Cache\Cache;
+use Exception;
 
 class RestoreStatusServiceTest extends BaseTestCase
 {
@@ -38,7 +38,7 @@ class RestoreStatusServiceTest extends BaseTestCase
     {
         try {
             Cache::clear('restore_status');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Cache engine may not support clear
         }
     }

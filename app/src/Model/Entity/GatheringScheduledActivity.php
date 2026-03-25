@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -78,7 +77,7 @@ class GatheringScheduledActivity extends Entity
             return sprintf(
                 '%s - %s',
                 $this->start_datetime->format('l, M j'),
-                $this->start_datetime->format('g:i A')
+                $this->start_datetime->format('g:i A'),
             );
         }
 
@@ -91,7 +90,7 @@ class GatheringScheduledActivity extends Entity
                 '%s - %s to %s',
                 $start->format('l, M j'),
                 $start->format('g:i A'),
-                $end->format('g:i A')
+                $end->format('g:i A'),
             );
         }
 
@@ -101,7 +100,7 @@ class GatheringScheduledActivity extends Entity
             $start->format('l, M j'),
             $start->format('g:i A'),
             $end->format('l, M j'),
-            $end->format('g:i A')
+            $end->format('g:i A'),
         );
     }
 
@@ -135,7 +134,7 @@ class GatheringScheduledActivity extends Entity
 
     /**
      * Virtual field to get display description with fallback logic
-     * 
+     *
      * Priority:
      * 1. Scheduled activity's description (if set)
      * 2. Gathering activity's custom description from junction table (if exists)

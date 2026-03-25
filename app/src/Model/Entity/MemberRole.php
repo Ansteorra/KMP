@@ -1,8 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
+
+use App\KMP\TimezoneHelper;
 
 /**
  * MemberRole Entity
@@ -54,7 +55,7 @@ class MemberRole extends ActiveWindowBaseEntity
 
     /**
      * Virtual field for timezone-aware start_on date display
-     * 
+     *
      * @return string Formatted start date using kingdom default timezone
      */
     protected function _getStartOnToString(): string
@@ -63,12 +64,12 @@ class MemberRole extends ActiveWindowBaseEntity
             return '';
         }
 
-        return \App\KMP\TimezoneHelper::formatDate($this->start_on);
+        return TimezoneHelper::formatDate($this->start_on);
     }
 
     /**
      * Virtual field for timezone-aware expires_on date display
-     * 
+     *
      * @return string Formatted expiration date using kingdom default timezone
      */
     protected function _getExpiresOnToString(): string
@@ -77,6 +78,6 @@ class MemberRole extends ActiveWindowBaseEntity
             return '';
         }
 
-        return \App\KMP\TimezoneHelper::formatDate($this->expires_on);
+        return TimezoneHelper::formatDate($this->expires_on);
     }
 }

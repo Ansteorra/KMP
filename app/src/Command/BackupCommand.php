@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Command;
@@ -11,6 +10,7 @@ use Cake\Command\Command;
 use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
+use Exception;
 
 /**
  * CLI backup management: create and restore backups.
@@ -107,7 +107,7 @@ class BackupCommand extends Command
             ));
 
             return self::CODE_SUCCESS;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $backup->status = 'failed';
             $backup->notes = $e->getMessage();
             $backupsTable->save($backup);
@@ -144,11 +144,13 @@ class BackupCommand extends Command
         $backupService = new BackupService();
         $restoreStatusService = new RestoreStatusService();
 
-        if (!$restoreStatusService->acquireLock([
+        if (
+            !$restoreStatusService->acquireLock([
             'source' => $filename,
             'actor' => 'cli',
             'message' => sprintf('CLI restore starting from %s.', $filename),
-        ])) {
+            ])
+        ) {
             $status = $restoreStatusService->getStatus();
             $io->error((string)($status['message'] ?? 'A restore/import is already running.'));
 
@@ -216,7 +218,7 @@ class BackupCommand extends Command
             ));
 
             return self::CODE_SUCCESS;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $restoreStatusService->markFailed('CLI restore failed: ' . $e->getMessage(), [
                 'source' => $filename,
                 'actor' => 'cli',

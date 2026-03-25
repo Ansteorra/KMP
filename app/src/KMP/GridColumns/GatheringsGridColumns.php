@@ -217,7 +217,7 @@ class GatheringsGridColumns extends BaseGridColumns
                 'key' => 'activity_count',
                 'label' => '# Activities',
                 'type' => 'number',
-                'sortable' => true,
+                'sortable' => false,
                 'filterable' => false,
                 'defaultVisible' => false,
                 'width' => '120px',

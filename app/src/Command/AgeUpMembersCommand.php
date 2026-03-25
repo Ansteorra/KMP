@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Command;
@@ -91,7 +90,7 @@ class AgeUpMembersCommand extends Command
             $totalCandidates,
             $totalCandidates === 1 ? '' : 's',
             $now->toDateString(),
-            $dryRun ? ' (dry-run)' : ''
+            $dryRun ? ' (dry-run)' : '',
         ));
 
         $updated = 0;
@@ -106,7 +105,7 @@ class AgeUpMembersCommand extends Command
             &$updated,
             &$toActive,
             &$toVerifiedMembership,
-            &$errors
+            &$errors,
         ) {
             foreach ($candidates as $member) {
                 $age = $member->age;
@@ -156,7 +155,7 @@ class AgeUpMembersCommand extends Command
                 $updated === 1 ? '' : 's',
                 $toActive,
                 $toVerifiedMembership,
-                $dryRun ? ' [dry-run only]' : ''
+                $dryRun ? ' [dry-run only]' : '',
             ));
         }
 

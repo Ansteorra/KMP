@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\KMP\GridColumns;
@@ -121,6 +120,7 @@ class VerifyQueueGridColumns extends BaseGridColumns
                     if ($cardPath && strlen($cardPath) > 0) {
                         return '<i class="bi bi-card-heading" title="Membership card uploaded"></i>';
                     }
+
                     return '';
                 },
             ],

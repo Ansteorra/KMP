@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Command;
@@ -84,7 +83,7 @@ class SyncActiveWindowStatusesCommand extends Command
                 $alias,
                 $summary['upcoming_to_current'],
                 $summary['current_to_expired'],
-                $summary['errors'] > 0 ? sprintf(' (errors: %d)', $summary['errors']) : ''
+                $summary['errors'] > 0 ? sprintf(' (errors: %d)', $summary['errors']) : '',
             ));
         }
 
@@ -93,7 +92,7 @@ class SyncActiveWindowStatusesCommand extends Command
             'Summary: %d Upcoming→Current, %d Current→Expired%s',
             $overallUpcoming,
             $overallExpired,
-            $overallErrors > 0 ? sprintf(', errors: %d', $overallErrors) : ''
+            $overallErrors > 0 ? sprintf(', errors: %d', $overallErrors) : '',
         ));
 
         return $overallErrors === 0 ? Command::CODE_SUCCESS : Command::CODE_ERROR;
@@ -176,7 +175,7 @@ class SyncActiveWindowStatusesCommand extends Command
             }
 
             $directoryIterator = new RecursiveIteratorIterator(
-                new RecursiveDirectoryIterator($path, RecursiveDirectoryIterator::SKIP_DOTS)
+                new RecursiveDirectoryIterator($path, RecursiveDirectoryIterator::SKIP_DOTS),
             );
 
             foreach ($directoryIterator as $file) {

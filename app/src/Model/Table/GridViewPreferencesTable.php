@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -91,7 +90,7 @@ class GridViewPreferencesTable extends BaseTable
     {
         $rules->add($rules->isUnique(
             ['member_id', 'grid_key'],
-            'Each grid may only have one preference per member.'
+            'Each grid may only have one preference per member.',
         ));
 
         $rules->add($rules->existsIn(['member_id'], 'Members'));
@@ -100,6 +99,7 @@ class GridViewPreferencesTable extends BaseTable
         $rules->add(function ($entity) {
             $hasId = !empty($entity->grid_view_id);
             $hasKey = !empty($entity->grid_view_key);
+
             return $hasId xor $hasKey;
         }, 'viewIdOrKeyRequired', [
             'errorField' => 'grid_view_id',

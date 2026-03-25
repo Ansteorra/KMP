@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 /**
@@ -23,6 +22,7 @@ use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\Table;
 use Cake\ORM\TableRegistry;
 use Cake\Routing\Router;
+use Throwable;
 
 class BaseTable extends Table
 {
@@ -145,8 +145,9 @@ class BaseTable extends Table
 
         try {
             $logsTable = TableRegistry::getTableLocator()->get('ImpersonationActionLogs');
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
             Log::warning('Impersonation log table missing: ' . $exception->getMessage());
+
             return;
         }
 
@@ -175,7 +176,7 @@ class BaseTable extends Table
         ];
         try {
             $metadataJson = json_encode($metadata, JSON_THROW_ON_ERROR);
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
             $metadataJson = null;
         }
 
@@ -193,6 +194,7 @@ class BaseTable extends Table
 
         if ($logEntity->hasErrors()) {
             Log::warning('Failed to build impersonation log entry: ' . json_encode($logEntity->getErrors()));
+
             return;
         }
 

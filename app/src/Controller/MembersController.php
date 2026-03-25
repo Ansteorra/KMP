@@ -1,11 +1,12 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
 
 use App\Form\ResetPasswordForm;
 use App\Identifier\KMPBruteForcePasswordIdentifier;
+use App\KMP\GridColumns\GatheringAttendancesGridColumns;
+use App\KMP\GridColumns\MemberRolesGridColumns;
 use App\KMP\GridColumns\MembersGridColumns;
 use App\KMP\GridColumns\VerifyQueueGridColumns;
 use App\KMP\StaticHelpers;
@@ -22,10 +23,14 @@ use Cake\Http\Exception\ForbiddenException;
 use Cake\Http\Exception\NotFoundException;
 use Cake\Http\Response;
 use Cake\I18n\DateTime;
+use Cake\Log\Log;
 use Cake\Mailer\MailerAwareTrait;
 use Cake\ORM\Query\SelectQuery;
 use Cake\Routing\Router;
+use finfo;
 use Psr\Http\Message\UploadedFileInterface;
+use RuntimeException;
+use Throwable;
 
 /**
  * Manages member CRUD, authentication, profiles, and member discovery.
@@ -42,10 +47,14 @@ class MembersController extends AppController
     use MailerAwareTrait;
     use DataverseGridTrait;
 
-    /** @var array<string> Service injection configuration */
+    /**
+     * @var array<string> Service injection configuration
+     */
     public static array $inject = [CsvExportService::class];
 
-    /** @var \App\Services\CsvExportService */
+    /**
+     * @var \App\Services\CsvExportService
+     */
     protected CsvExportService $csvExportService;
 
     /** Maximum failed quick PIN attempts before temporary lockout. */
@@ -57,10 +66,14 @@ class MembersController extends AppController
     /** Session key for deferred quick-login PIN setup. */
     private const QUICK_LOGIN_SETUP_SESSION_KEY = 'QuickLoginSetup';
 
-    /** Request-scoped flag to instruct login UI to clear stale quick-login config. */
+    /**
+     * Request-scoped flag to instruct login UI to clear stale quick-login config.
+     */
     private bool $quickLoginDisabledForRequest = false;
 
-    /** Request-scoped email used to prefill password login after quick-login reset. */
+    /**
+     * Request-scoped email used to prefill password login after quick-login reset.
+     */
     private string $quickLoginDisabledEmailForRequest = '';
 
     /**
@@ -303,7 +316,7 @@ class MembersController extends AppController
         $this->Authorization->authorize($member, 'view');
 
         // Get system views configuration
-        $systemViews = \App\KMP\GridColumns\MemberRolesGridColumns::getSystemViews([]);
+        $systemViews = MemberRolesGridColumns::getSystemViews([]);
 
         // Debug: Log the base query
         $baseQuery = $this->fetchTable('MemberRoles')
@@ -311,13 +324,13 @@ class MembersController extends AppController
             ->where(['MemberRoles.member_id' => $memberId])
             ->contain(['Roles', 'ApprovedBy', 'Branches']);
 
-        \Cake\Log\Log::debug('Member Roles Base Query SQL: ' . $baseQuery->sql());
-        \Cake\Log\Log::debug('Member Roles Base Query Params: ' . json_encode($baseQuery->getValueBinder()->bindings()));
+        Log::debug('Member Roles Base Query SQL: ' . $baseQuery->sql());
+        Log::debug('Member Roles Base Query Params: ' . json_encode($baseQuery->getValueBinder()->bindings()));
 
         // Use unified trait for grid processing (system views mode)
         $result = $this->processDataverseGrid([
             'gridKey' => "Members.roles.{$memberId}",
-            'gridColumnsClass' => \App\KMP\GridColumns\MemberRolesGridColumns::class,
+            'gridColumnsClass' => MemberRolesGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'MemberRoles',
             'defaultSort' => ['MemberRoles.start_on' => 'DESC'],
@@ -333,7 +346,7 @@ class MembersController extends AppController
             'enableColumnPicker' => false,
         ]);
 
-        \Cake\Log\Log::debug('Member Roles Result Count: ' . count($result['data']));
+        Log::debug('Member Roles Result Count: ' . count($result['data']));
 
         // Set view variables
         $this->set([
@@ -384,17 +397,17 @@ class MembersController extends AppController
         $this->Authorization->authorize($member, 'view');
 
         // Get system views configuration
-        $systemViews = \App\KMP\GridColumns\GatheringAttendancesGridColumns::getSystemViews([]);
+        $systemViews = GatheringAttendancesGridColumns::getSystemViews([]);
 
         // Use unified trait for grid processing (system views mode)
         $result = $this->processDataverseGrid([
             'gridKey' => "Members.gatherings.{$memberId}",
-            'gridColumnsClass' => \App\KMP\GridColumns\GatheringAttendancesGridColumns::class,
+            'gridColumnsClass' => GatheringAttendancesGridColumns::class,
             'baseQuery' => $this->fetchTable('GatheringAttendances')
                 ->find()
                 ->where(['GatheringAttendances.member_id' => $memberId])
                 ->contain([
-                    'Gatherings' => ['Branches', 'GatheringTypes']
+                    'Gatherings' => ['Branches', 'GatheringTypes'],
                 ]),
             'tableName' => 'GatheringAttendances',
             'defaultSort' => ['Gatherings.start_date' => 'DESC'],
@@ -411,7 +424,7 @@ class MembersController extends AppController
         ]);
 
         // Get row actions for the grid
-        $rowActions = \App\KMP\GridColumns\GatheringAttendancesGridColumns::getRowActions();
+        $rowActions = GatheringAttendancesGridColumns::getRowActions();
 
         // Set view variables
         $this->set([
@@ -705,7 +718,7 @@ class MembersController extends AppController
                 Member::STATUS_UNVERIFIED_MINOR,
                 Member::STATUS_MINOR_MEMBERSHIP_VERIFIED,
                 Member::STATUS_MINOR_PARENT_VERIFIED,
-            ]
+            ],
         ]);
     }
 
@@ -746,7 +759,7 @@ class MembersController extends AppController
                         'Gatherings' => function (SelectQuery $q) {
                             return $q->contain(['Branches', 'GatheringTypes'])
                                 ->orderBy(['Gatherings.start_date' => 'ASC']);
-                        }
+                        },
                     ]);
                 },
             ])
@@ -980,9 +993,9 @@ class MembersController extends AppController
         ];
 
         // Prepare watermark image for layout - build full URL for image
-        $graphicPath = WWW_ROOT . 'img' . DS . $message_variables["marshal_auth_graphic"];
+        $graphicPath = WWW_ROOT . 'img' . DS . $message_variables['marshal_auth_graphic'];
         if (file_exists($graphicPath)) {
-            $watermarkimg = "data:image/gif;base64," . base64_encode(file_get_contents($graphicPath));
+            $watermarkimg = 'data:image/gif;base64,' . base64_encode(file_get_contents($graphicPath));
         } else {
             $watermarkimg = null;
         }
@@ -1230,12 +1243,14 @@ class MembersController extends AppController
         $file = $this->request->getData('profile_photo');
         if (!$file instanceof UploadedFileInterface || $file->getSize() <= 0) {
             $this->Flash->error(__('Please choose a profile photo to upload.'));
+
             return $this->redirect($this->referer());
         }
 
         $result = $this->processProfilePhotoUpload($member, $file, (int)$user->id);
         if (!$result['success']) {
             $this->Flash->error($result['message']);
+
             return $this->redirect($this->referer());
         }
         if (!empty($result['warning'])) {
@@ -1268,6 +1283,7 @@ class MembersController extends AppController
 
         if (empty($member->profile_photo_document_id)) {
             $this->Flash->info(__('No profile photo to remove.'));
+
             return $this->redirect(['action' => 'view', $member->id]);
         }
 
@@ -1281,16 +1297,18 @@ class MembersController extends AppController
                 $documentService = new DocumentService();
                 $deleteResult = $documentService->deleteDocument($oldDocumentId);
                 if (!$deleteResult->success) {
-                    throw new \RuntimeException(__('Unable to remove profile photo. Please try again.'));
+                    throw new RuntimeException(__('Unable to remove profile photo. Please try again.'));
                 }
             });
-        } catch (\Throwable $e) {
-            \Cake\Log\Log::error('Profile photo removal failed: ' . $e->getMessage());
+        } catch (Throwable $e) {
+            Log::error('Profile photo removal failed: ' . $e->getMessage());
             $this->Flash->error(__('Unable to remove profile photo. Please try again.'));
+
             return $this->redirect(['action' => 'view', $member->id]);
         }
 
         $this->Flash->success(__('Profile photo removed.'));
+
         return $this->redirect(['action' => 'view', $member->id]);
     }
 
@@ -1326,12 +1344,14 @@ class MembersController extends AppController
         $file = $this->request->getData('profile_photo');
         if (!$file instanceof UploadedFileInterface || $file->getSize() <= 0) {
             $this->Flash->error(__('Please choose a profile photo to upload.'));
+
             return $this->redirect(['action' => 'viewMobileCard']);
         }
 
         $result = $this->processProfilePhotoUpload($member, $file, (int)$member->id);
         if (!$result['success']) {
             $this->Flash->error($result['message']);
+
             return $this->redirect(['action' => 'viewMobileCard']);
         }
         if (!empty($result['warning'])) {
@@ -1434,7 +1454,7 @@ class MembersController extends AppController
         }
 
         $tempPath = $file->getStream()->getMetadata('uri');
-        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
         $actualMimeType = $finfo->file($tempPath);
         if (!in_array($actualMimeType, ['image/png', 'image/jpeg'], true)) {
             return ['success' => false, 'message' => __('File content does not match an allowed image type.')];
@@ -1460,6 +1480,7 @@ class MembersController extends AppController
         $member->profile_photo_document_id = $newDocumentId;
         if (!$this->Members->save($member)) {
             $documentService->deleteDocument($newDocumentId);
+
             return ['success' => false, 'message' => __('Unable to save profile photo. Please try again.')];
         }
 
@@ -1516,7 +1537,7 @@ class MembersController extends AppController
 
     /**
      * Profile method
-     * 
+     *
      * Shows the current user's profile without changing the URL
      *
      * @return \Cake\Http\Response|null|void Renders view
@@ -2061,6 +2082,7 @@ class MembersController extends AppController
         $userAgent = $this->request->getHeaderLine('User-Agent');
         if (StaticHelpers::isMobilePhone($userAgent)) {
             $this->request->getSession()->write('viewMode', 'mobile');
+
             return ['action' => 'viewMobileCard'];
         }
 
@@ -2258,8 +2280,7 @@ class MembersController extends AppController
         string $deviceId,
         string $pin,
         array $metadata = [],
-    ): bool
-    {
+    ): bool {
         if (
             $deviceId === '' ||
             !preg_match('/^[a-zA-Z0-9_-]{16,128}$/', $deviceId) ||
@@ -2609,6 +2630,7 @@ class MembersController extends AppController
             'action' => 'login',
         ]);
     }
+
     public function submitScaMemberInfo()
     {
         $user = $this->Authentication->getIdentity();
@@ -2629,20 +2651,23 @@ class MembersController extends AppController
                 $clientMediaType = $file->getClientMediaType();
                 if (!in_array($clientMediaType, $allowedTypes)) {
                     $this->Flash->error(__('Invalid file type. Only PNG and JPEG images are allowed.'));
+
                     return $this->redirect($this->referer());
                 }
                 $ext = strtolower(pathinfo($file->getClientFilename(), PATHINFO_EXTENSION));
                 if (!in_array($ext, ['png', 'jpg', 'jpeg'])) {
                     $this->Flash->error(__('Invalid file extension. Only .png, .jpg, .jpeg are allowed.'));
+
                     return $this->redirect($this->referer());
                 }
 
                 // Server-side content validation using finfo
                 $tempPath = $file->getStream()->getMetadata('uri');
-                $finfo = new \finfo(FILEINFO_MIME_TYPE);
+                $finfo = new finfo(FILEINFO_MIME_TYPE);
                 $actualMimeType = $finfo->file($tempPath);
                 if (!in_array($actualMimeType, ['image/png', 'image/jpeg'])) {
                     $this->Flash->error(__('File content does not match an allowed image type.'));
+
                     return $this->redirect($this->referer());
                 }
 
@@ -2660,7 +2685,7 @@ class MembersController extends AppController
                 if ($this->Members->save($member)) {
                     $this->Flash->success(__('Membership information has been submitted, please allow several days for our team to review and update the profile.'));
                 } else {
-                    $this->Flash->error("There was an error please try again.");
+                    $this->Flash->error('There was an error please try again.');
                 }
             }
         }
@@ -2691,12 +2716,14 @@ class MembersController extends AppController
                 if (!in_array($clientMediaType, $allowedTypes)) {
                     $this->Flash->error(__('Invalid file type. Only PNG and JPEG images are allowed.'));
                     $this->set(compact('member'));
+
                     return;
                 }
                 $ext = strtolower(pathinfo($file->getClientFilename(), PATHINFO_EXTENSION));
                 if (!in_array($ext, ['png', 'jpg', 'jpeg'])) {
                     $this->Flash->error(__('Invalid file extension. Only .png, .jpg, .jpeg are allowed.'));
                     $this->set(compact('member'));
+
                     return;
                 }
 

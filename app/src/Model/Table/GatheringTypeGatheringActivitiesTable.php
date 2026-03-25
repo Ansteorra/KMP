@@ -1,12 +1,11 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
-use Cake\ORM\RulesChecker;
 
 /**
  * GatheringTypeGatheringActivities Model
@@ -16,7 +15,6 @@ use Cake\ORM\RulesChecker;
  *
  * @property \App\Model\Table\GatheringTypesTable&\Cake\ORM\Association\BelongsTo $GatheringTypes
  * @property \App\Model\Table\GatheringActivitiesTable&\Cake\ORM\Association\BelongsTo $GatheringActivities
- *
  * @method \App\Model\Entity\GatheringTypeGatheringActivity newEmptyEntity()
  * @method \App\Model\Entity\GatheringTypeGatheringActivity newEntity(array $data, array $options = [])
  * @method \App\Model\Entity\GatheringTypeGatheringActivity[] newEntities(array $data, array $options = [])

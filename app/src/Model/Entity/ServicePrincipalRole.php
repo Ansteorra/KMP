@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -33,7 +32,9 @@ use App\KMP\TimezoneHelper;
  */
 class ServicePrincipalRole extends ActiveWindowBaseEntity
 {
-    /** @var array Field combination for type identification */
+    /**
+     * @var array Field combination for type identification
+     */
     public array $typeIdField = ['role_id', 'service_principal_id'];
 
     /**

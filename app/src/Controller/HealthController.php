@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
@@ -8,6 +7,8 @@ use Cake\Cache\Cache;
 use Cake\Core\Configure;
 use Cake\Datasource\ConnectionManager;
 use Cake\Event\EventInterface;
+use Cake\Http\Response;
+use Throwable;
 
 /**
  * Health check controller for load balancers and monitoring.
@@ -28,14 +29,14 @@ class HealthController extends AppController
      *
      * @return \Cake\Http\Response
      */
-    public function index(): \Cake\Http\Response
+    public function index(): Response
     {
         $dbOk = false;
         try {
             $connection = ConnectionManager::get('default');
             $connection->execute('SELECT 1');
             $dbOk = true;
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             // DB is down
         }
 
@@ -45,7 +46,7 @@ class HealthController extends AppController
             Cache::write($key, 'ok', 'default');
             $cacheOk = Cache::read($key, 'default') === 'ok';
             Cache::delete($key, 'default');
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             // Cache is down
         }
 

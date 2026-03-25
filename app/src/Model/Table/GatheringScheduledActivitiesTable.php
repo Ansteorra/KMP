@@ -1,13 +1,14 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
 
-use Cake\I18n\FrozenTime;
+use App\KMP\TimezoneHelper;
+use Cake\I18n\DateTime;
+use Cake\ORM\Query\SelectQuery;
+use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
-use Cake\ORM\RulesChecker;
 
 /**
  * GatheringScheduledActivities Model
@@ -20,7 +21,6 @@ use Cake\ORM\RulesChecker;
  * @property \App\Model\Table\GatheringActivitiesTable&\Cake\ORM\Association\BelongsTo $GatheringActivities
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Creators
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Modifiers
- *
  * @method \App\Model\Entity\GatheringScheduledActivity newEmptyEntity()
  * @method \App\Model\Entity\GatheringScheduledActivity newEntity(array $data, array $options = [])
  * @method \App\Model\Entity\GatheringScheduledActivity[] newEntities(array $data, array $options = [])
@@ -106,6 +106,7 @@ class GatheringScheduledActivitiesTable extends Table
                     if (isset($context['data']['start_datetime']) && $value && $context['data']['start_datetime']) {
                         return $value > $context['data']['start_datetime'];
                     }
+
                     return true;
                 },
                 'message' => 'End date/time must be after start date/time',
@@ -116,6 +117,7 @@ class GatheringScheduledActivitiesTable extends Table
                     if (!empty($context['data']['has_end_time'])) {
                         return !empty($value);
                     }
+
                     return true;
                 },
                 'message' => 'End date/time is required when "Has End Time" is checked',
@@ -165,6 +167,7 @@ class GatheringScheduledActivitiesTable extends Table
             if ($entity->gathering_activity_id === null) {
                 return true;
             }
+
             return $this->GatheringActivities->exists(['id' => $entity->gathering_activity_id]);
         }, 'validGatheringActivity', [
             'errorField' => 'gathering_activity_id',
@@ -176,6 +179,7 @@ class GatheringScheduledActivitiesTable extends Table
             if (!$entity->is_other && empty($entity->gathering_activity_id)) {
                 return false;
             }
+
             return true;
         }, 'activityRequired', [
             'errorField' => 'gathering_activity_id',
@@ -187,6 +191,7 @@ class GatheringScheduledActivitiesTable extends Table
             if ($entity->is_other && !empty($entity->gathering_activity_id)) {
                 return false;
             }
+
             return true;
         }, 'noActivityForOther', [
             'errorField' => 'gathering_activity_id',
@@ -215,29 +220,29 @@ class GatheringScheduledActivitiesTable extends Table
 
             // Get gathering timezone (or default)
             $gatheringTimezone = !empty($gathering->timezone) ? $gathering->timezone :
-                \App\KMP\TimezoneHelper::getAppTimezone();
+                TimezoneHelper::getAppTimezone();
 
             // The gathering's start_date and end_date are already DateTime objects in UTC
             // We just need to ensure they're DateTime objects for comparison
             $gatheringStart = $gathering->start_date;
-            if (!($gatheringStart instanceof \Cake\I18n\DateTime)) {
-                $gatheringStart = new \Cake\I18n\DateTime($gatheringStart);
+            if (!($gatheringStart instanceof DateTime)) {
+                $gatheringStart = new DateTime($gatheringStart);
             }
 
             $gatheringEnd = $gathering->end_date;
-            if (!($gatheringEnd instanceof \Cake\I18n\DateTime)) {
-                $gatheringEnd = new \Cake\I18n\DateTime($gatheringEnd);
+            if (!($gatheringEnd instanceof DateTime)) {
+                $gatheringEnd = new DateTime($gatheringEnd);
             }
 
             // Ensure we're comparing DateTime objects - convert entity values to DateTime if needed
             $startDatetime = $entity->start_datetime;
             if (is_string($startDatetime)) {
-                $startDatetime = new \Cake\I18n\DateTime($startDatetime);
+                $startDatetime = new DateTime($startDatetime);
             }
 
             $endDatetime = $entity->end_datetime;
             if (is_string($endDatetime)) {
-                $endDatetime = new \Cake\I18n\DateTime($endDatetime);
+                $endDatetime = new DateTime($endDatetime);
             }
 
             // Check if scheduled activity start is within range (both are now in UTC)
@@ -271,18 +276,18 @@ class GatheringScheduledActivitiesTable extends Table
 
                 // Get gathering timezone for proper date display
                 $gatheringTimezone = !empty($gathering->timezone) ? $gathering->timezone :
-                    \App\KMP\TimezoneHelper::getAppTimezone();
+                    TimezoneHelper::getAppTimezone();
 
                 // Convert UTC dates to gathering timezone for display in error message
-                $startInGatheringTz = \App\KMP\TimezoneHelper::toUserTimezone(
+                $startInGatheringTz = TimezoneHelper::toUserTimezone(
                     $gathering->start_date,
                     null,
-                    $gatheringTimezone
+                    $gatheringTimezone,
                 );
-                $endInGatheringTz = \App\KMP\TimezoneHelper::toUserTimezone(
+                $endInGatheringTz = TimezoneHelper::toUserTimezone(
                     $gathering->end_date,
                     null,
-                    $gatheringTimezone
+                    $gatheringTimezone,
                 );
 
                 $startDateStr = $startInGatheringTz->format('M j, Y g:i A');
@@ -293,9 +298,9 @@ class GatheringScheduledActivitiesTable extends Table
                     $startDateStr,
                     $gatheringTimezone,
                     $endDateStr,
-                    $gatheringTimezone
+                    $gatheringTimezone,
                 );
-            }
+            },
         ]);
 
         return $rules;
@@ -308,7 +313,7 @@ class GatheringScheduledActivitiesTable extends Table
      * @param array $options Options array
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findOrdered(\Cake\ORM\Query\SelectQuery $query, array $options): \Cake\ORM\Query\SelectQuery
+    public function findOrdered(SelectQuery $query, array $options): SelectQuery
     {
         return $query->orderBy(['start_datetime' => 'ASC']);
     }
@@ -320,7 +325,7 @@ class GatheringScheduledActivitiesTable extends Table
      * @param array $options Options array (requires 'gathering_id' key)
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findByGathering(\Cake\ORM\Query\SelectQuery $query, array $options): \Cake\ORM\Query\SelectQuery
+    public function findByGathering(SelectQuery $query, array $options): SelectQuery
     {
         return $query
             ->where(['GatheringScheduledActivities.gathering_id' => $options['gathering_id']])

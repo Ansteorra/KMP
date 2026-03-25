@@ -1,10 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Model\Entity\WarrantRoster;
+use App\KMP\GridColumns\WarrantRostersGridColumns;
 use App\Services\CsvExportService;
 use App\Services\WarrantManager\WarrantManagerInterface;
 use Cake\Http\Exception\NotFoundException;
@@ -82,12 +81,12 @@ class WarrantRostersController extends AppController
         $baseQuery = $this->Authorization->applyScope($baseQuery);
 
         // Define system views for status filtering
-        $systemViews = \App\KMP\GridColumns\WarrantRostersGridColumns::getSystemViews([]);
+        $systemViews = WarrantRostersGridColumns::getSystemViews([]);
 
         // Use unified trait for grid processing
         $result = $this->processDataverseGrid([
             'gridKey' => 'WarrantRosters.index.main',
-            'gridColumnsClass' => \App\KMP\GridColumns\WarrantRostersGridColumns::class,
+            'gridColumnsClass' => WarrantRostersGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'WarrantRosters',
             'defaultSort' => ['WarrantRosters.created' => 'desc'],
@@ -114,7 +113,7 @@ class WarrantRostersController extends AppController
             'gridState' => $result['gridState'],
             'columns' => $result['columnsMetadata'],
             'visibleColumns' => $result['visibleColumns'],
-            'searchableColumns' => \App\KMP\GridColumns\WarrantRostersGridColumns::getSearchableColumns(),
+            'searchableColumns' => WarrantRostersGridColumns::getSearchableColumns(),
             'dropdownFilterColumns' => $result['dropdownFilterColumns'],
             'filterOptions' => $result['filterOptions'],
             'currentFilters' => $result['currentFilters'],
@@ -167,7 +166,7 @@ class WarrantRostersController extends AppController
                 'approvals_required',
                 'approval_count',
                 'created',
-                'warrant_count' => $query->func()->count('Warrants.id')  // Aggregate warrant count
+                'warrant_count' => $query->func()->count('Warrants.id'),  // Aggregate warrant count
             ])
             ->groupBy(['WarrantRosters.id']);  // Group by roster for proper counting
 

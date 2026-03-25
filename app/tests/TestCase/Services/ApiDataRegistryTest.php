@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services;
@@ -105,6 +104,7 @@ class ApiDataRegistryTest extends BaseTestCase
         $called = false;
         ApiDataRegistry::register('Members', function () use (&$called) {
             $called = true;
+
             return ['members' => []];
         }, [
             ['controller' => 'Members', 'action' => 'view'],
@@ -119,6 +119,7 @@ class ApiDataRegistryTest extends BaseTestCase
         $receivedEntity = null;
         ApiDataRegistry::register('Test', function ($controller, $action, $entity) use (&$receivedEntity) {
             $receivedEntity = $entity;
+
             return [];
         }, [
             ['controller' => 'Members', 'action' => 'view'],

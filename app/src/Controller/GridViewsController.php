@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
@@ -7,9 +6,7 @@ namespace App\Controller;
 use App\KMP\GridViewConfig;
 use App\Services\GridViewService;
 use Cake\Event\EventInterface;
-use Cake\Http\Exception\BadRequestException;
 use Cake\Http\Exception\ForbiddenException;
-use Cake\Http\Exception\NotFoundException;
 
 /**
  * JSON-based REST endpoints for managing saved grid views.
@@ -37,7 +34,7 @@ class GridViewsController extends AppController
         parent::initialize();
 
         $this->gridViewService = new GridViewService(
-            $this->fetchTable('GridViews')
+            $this->fetchTable('GridViews'),
         );
 
         // Set response type to JSON for all actions
@@ -123,6 +120,7 @@ class GridViewsController extends AppController
                 'error' => 'gridKey parameter is required',
             ]);
             $this->response = $this->response->withStatus(400);
+
             return;
         }
 
@@ -159,6 +157,7 @@ class GridViewsController extends AppController
             ]);
             $this->viewBuilder()->setOption('serialize', ['success', 'error']);
             $this->response = $this->response->withStatus(400);
+
             return;
         }
 
@@ -173,6 +172,7 @@ class GridViewsController extends AppController
                 ]);
                 $this->viewBuilder()->setOption('serialize', ['success', 'error']);
                 $this->response = $this->response->withStatus(400);
+
                 return;
             }
         }
@@ -189,6 +189,7 @@ class GridViewsController extends AppController
             ]);
             $this->viewBuilder()->setOption('serialize', ['success', 'error', 'errors']);
             $this->response = $this->response->withStatus(400);
+
             return;
         }
 
@@ -246,6 +247,7 @@ class GridViewsController extends AppController
                     ]);
                     $this->viewBuilder()->setOption('serialize', ['success', 'error']);
                     $this->response = $this->response->withStatus(400);
+
                     return;
                 }
             }
@@ -262,6 +264,7 @@ class GridViewsController extends AppController
                 ]);
                 $this->viewBuilder()->setOption('serialize', ['success', 'error', 'errors']);
                 $this->response = $this->response->withStatus(400);
+
                 return;
             }
 
@@ -305,6 +308,7 @@ class GridViewsController extends AppController
             ]);
             $this->viewBuilder()->setOption('serialize', ['success', 'error']);
             $this->response = $this->response->withStatus(400);
+
             return;
         }
 
@@ -330,7 +334,7 @@ class GridViewsController extends AppController
     /**
      * Set a view as the user's default for a grid (supports user or system views)
      *
-     * @param int|string|null $id View identifier from the route (optional)
+     * @param string|int|null $id View identifier from the route (optional)
      * @return void
      */
     public function setDefault($id = null): void
@@ -345,6 +349,7 @@ class GridViewsController extends AppController
             ]);
             $this->viewBuilder()->setOption('serialize', ['success', 'error']);
             $this->response = $this->response->withStatus(400);
+
             return;
         }
 
@@ -361,6 +366,7 @@ class GridViewsController extends AppController
             ]);
             $this->viewBuilder()->setOption('serialize', ['success', 'error']);
             $this->response = $this->response->withStatus(400);
+
             return;
         }
 
@@ -401,6 +407,7 @@ class GridViewsController extends AppController
             ]);
             $this->viewBuilder()->setOption('serialize', ['success', 'error']);
             $this->response = $this->response->withStatus(400);
+
             return;
         }
 

@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -14,7 +13,6 @@ use Cake\Validation\Validator;
  *
  * @property \App\Model\Table\ServicePrincipalsTable&\Cake\ORM\Association\BelongsTo $ServicePrincipals
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $CreatedByMembers
- *
  * @method \App\Model\Entity\ServicePrincipalToken newEmptyEntity()
  * @method \App\Model\Entity\ServicePrincipalToken newEntity(array $data, array $options = [])
  * @method \App\Model\Entity\ServicePrincipalToken get(mixed $primaryKey, array|string $finder = 'all', \Psr\SimpleCache\CacheInterface|string|null $cache = null, \Closure|string|null $cacheKey = null, mixed ...$args)
@@ -157,7 +155,7 @@ class ServicePrincipalTokensTable extends BaseTable
     {
         $this->updateAll(
             ['last_used_at' => date('Y-m-d H:i:s')],
-            ['id' => $tokenId]
+            ['id' => $tokenId],
         );
     }
 }

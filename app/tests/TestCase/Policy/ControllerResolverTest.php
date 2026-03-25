@@ -1,10 +1,10 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Policy;
 
 use App\Policy\ControllerResolver;
+use App\Policy\ReportsControllerPolicy;
 use App\Test\TestCase\BaseTestCase;
 use Authorization\Policy\Exception\MissingPolicyException;
 
@@ -27,7 +27,7 @@ class ControllerResolverTest extends BaseTestCase
             'prefix' => null,
         ]);
 
-        $this->assertInstanceOf(\App\Policy\ReportsControllerPolicy::class, $policy);
+        $this->assertInstanceOf(ReportsControllerPolicy::class, $policy);
     }
 
     public function testResolvePolicyForArrayWithFalsePlugin(): void
@@ -38,7 +38,7 @@ class ControllerResolverTest extends BaseTestCase
             'prefix' => null,
         ]);
 
-        $this->assertInstanceOf(\App\Policy\ReportsControllerPolicy::class, $policy);
+        $this->assertInstanceOf(ReportsControllerPolicy::class, $policy);
     }
 
     public function testResolvePolicyForPluginController(): void

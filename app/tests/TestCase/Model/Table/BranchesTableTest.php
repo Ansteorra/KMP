@@ -1,16 +1,15 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Model\Table;
 
 use App\Test\TestCase\BaseTestCase;
-use Cake\ORM\Table;
-use Cake\ORM\TableRegistry;
 
 class BranchesTableTest extends BaseTestCase
 {
-    /** @var \App\Model\Table\BranchesTable */
+    /**
+     * @var \App\Model\Table\BranchesTable
+     */
     protected $Branches;
 
     protected function setUp(): void
@@ -115,7 +114,7 @@ class BranchesTableTest extends BaseTestCase
         }
         $duplicate = $this->Branches->newEntity([
             'name' => $root->name,
-            'location' => 'Elsewhere'
+            'location' => 'Elsewhere',
         ]);
         $result = $this->Branches->save($duplicate);
         $this->assertFalse($result, 'Duplicate name should not save');

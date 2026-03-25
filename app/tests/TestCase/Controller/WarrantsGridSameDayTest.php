@@ -1,13 +1,12 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
 
 use App\Model\Entity\Warrant;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
+use Cake\Datasource\EntityInterface;
 use Cake\I18n\DateTime;
-use Cake\I18n\Date;
 
 /**
  * Tests that warrants started today appear in the Current system view.
@@ -26,7 +25,7 @@ class WarrantsGridSameDayTest extends HttpIntegrationTestCase
         $this->authenticateAsSuperUser();
     }
 
-    private function createTestWarrant(DateTime $startOn, DateTime $expiresOn): \Cake\Datasource\EntityInterface
+    private function createTestWarrant(DateTime $startOn, DateTime $expiresOn): EntityInterface
     {
         $warrants = $this->getTableLocator()->get('Warrants');
         $warrant = $warrants->newEntity([
@@ -90,7 +89,7 @@ class WarrantsGridSameDayTest extends HttpIntegrationTestCase
         );
         $name = $saved->get('name');
 
-        // The Current system view should not include this warrant. 
+        // The Current system view should not include this warrant.
         // Use the grid with search to target this specific warrant.
         $this->get('/warrants/grid-data?view_id=sys-warrants-current&search=' . urlencode($name));
         $this->assertResponseOk();

@@ -1,12 +1,13 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\KMP\GridColumns\RolesGridColumns;
 use App\Model\Entity\Permission;
 use App\Services\CsvExportService;
 use Cake\Http\Exception\NotFoundException;
+use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 
 /**
@@ -65,7 +66,7 @@ class RolesController extends AppController
     {
         // Build query with current member count subquery (only active assignments)
         $memberRolesTable = TableRegistry::getTableLocator()->get('MemberRoles');
-        $now = new \Cake\I18n\DateTime();
+        $now = new DateTime();
         $memberCountSubquery = $memberRolesTable->find()
             ->select(['count' => $memberRolesTable->find()->func()->count('*')])
             ->where([
@@ -82,12 +83,12 @@ class RolesController extends AppController
             ->select(['member_count' => $memberCountSubquery]);
 
         // Get system views from GridColumns
-        $systemViews = \App\KMP\GridColumns\RolesGridColumns::getSystemViews([]);
+        $systemViews = RolesGridColumns::getSystemViews([]);
 
         // Use unified trait for grid processing
         $result = $this->processDataverseGrid([
             'gridKey' => 'Roles.index.main',
-            'gridColumnsClass' => \App\KMP\GridColumns\RolesGridColumns::class,
+            'gridColumnsClass' => RolesGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'Roles',
             'defaultSort' => ['Roles.name' => 'asc'],
@@ -109,7 +110,7 @@ class RolesController extends AppController
             'gridState' => $result['gridState'],
             'columns' => $result['columnsMetadata'],
             'visibleColumns' => $result['visibleColumns'],
-            'searchableColumns' => \App\KMP\GridColumns\RolesGridColumns::getSearchableColumns(),
+            'searchableColumns' => RolesGridColumns::getSearchableColumns(),
             'dropdownFilterColumns' => $result['dropdownFilterColumns'],
             'filterOptions' => $result['filterOptions'],
             'currentFilters' => $result['currentFilters'],
@@ -232,7 +233,7 @@ class RolesController extends AppController
             'isEmpty',
             'branches',
             'branch_required',
-            'branchTree'
+            'branchTree',
         ));
     }
 

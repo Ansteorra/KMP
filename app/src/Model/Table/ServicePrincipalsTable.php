@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -17,7 +16,6 @@ use Cake\Validation\Validator;
  * @property \App\Model\Table\ServicePrincipalAuditLogsTable&\Cake\ORM\Association\HasMany $ServicePrincipalAuditLogs
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $CreatedByMembers
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $ModifiedByMembers
- *
  * @method \App\Model\Entity\ServicePrincipal newEmptyEntity()
  * @method \App\Model\Entity\ServicePrincipal newEntity(array $data, array $options = [])
  * @method \App\Model\Entity\ServicePrincipal get(mixed $primaryKey, array|string $finder = 'all', \Psr\SimpleCache\CacheInterface|string|null $cache = null, \Closure|string|null $cacheKey = null, mixed ...$args)

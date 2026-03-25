@@ -1,22 +1,22 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services;
 
+use App\Model\Entity\Member;
+use App\Policy\MemberPolicy;
 use App\Services\AuthorizationService;
 use App\Test\TestCase\BaseTestCase;
 use Authorization\Policy\MapResolver;
 use Cake\Datasource\ConnectionManager;
 use Cake\I18n\DateTime;
-use Cake\ORM\TableRegistry;
 
 /**
  * Tests for authorization edge cases and security features
- * 
+ *
  * Validates critical security scenarios:
  * - Revoked roles should not grant permissions
- * - Expired roles should not grant permissions  
+ * - Expired roles should not grant permissions
  * - Expired warrants should not satisfy warrant requirements
  * - Inactive members should not have permissions requiring active membership
  * - Members without warrants cannot access warrant-required permissions
@@ -26,13 +26,21 @@ use Cake\ORM\TableRegistry;
  */
 class AuthorizationEdgeCasesTest extends BaseTestCase
 {
-    /** @var \App\Model\Table\MembersTable */
+    /**
+     * @var \App\Model\Table\MembersTable
+     */
     protected $Members;
-    /** @var \App\Model\Table\MemberRolesTable */
+    /**
+     * @var \App\Model\Table\MemberRolesTable
+     */
     protected $MemberRoles;
-    /** @var \App\Model\Table\WarrantsTable */
+    /**
+     * @var \App\Model\Table\WarrantsTable
+     */
     protected $Warrants;
-    /** @var \App\Services\AuthorizationService */
+    /**
+     * @var \App\Services\AuthorizationService
+     */
     protected $AuthService;
 
     protected function setUp(): void
@@ -44,13 +52,13 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
 
         // Create authorization service with policy resolver
         $resolver = new MapResolver();
-        $resolver->map(\App\Model\Entity\Member::class, \App\Policy\MemberPolicy::class);
+        $resolver->map(Member::class, MemberPolicy::class);
         $this->AuthService = new AuthorizationService($resolver);
     }
 
     /**
      * Test that revoked roles do not grant permissions
-     * 
+     *
      * Eirik (2875) has member_role 362 (Greater Officer of State) that was revoked (revoker_id = 1073).
      * The revoked role itself should be filtered out by the permissions system.
      * Note: Eirik may have other active instances of the same role, so we verify the
@@ -83,13 +91,13 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
         $this->assertNotContains(
             362,
             $activeMemberRoleIds,
-            'Revoked member_role 362 should not be in active roles'
+            'Revoked member_role 362 should not be in active roles',
         );
     }
 
     /**
      * Test that expired roles do not grant permissions
-     * 
+     *
      * Devon (2874) had member_role 363 (Regional Officer Management) that expired on 2025-08-30.
      * The expired role itself should be filtered out from active roles.
      * Note: Devon may have other active instances of the same role.
@@ -123,13 +131,13 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
         $this->assertNotContains(
             363,
             $activeMemberRoleIds,
-            'Expired member_role 363 should not be in active roles'
+            'Expired member_role 363 should not be in active roles',
         );
     }
 
     /**
      * Test that members without active warrants cannot access warrant-required permissions
-     * 
+     *
      * Many permissions require active warrants (requires_warrant = 1).
      * Members without current warrants should not have these permissions.
      *
@@ -158,14 +166,14 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
         foreach ($permissions as $permission) {
             $this->assertFalse(
                 $permission->requires_warrant ?? false,
-                "Agatha should not have warrant-required permission: {$permission->name}"
+                "Agatha should not have warrant-required permission: {$permission->name}",
             );
         }
     }
 
     /**
      * Test that members with expired warrants cannot access warrant-required permissions
-     * 
+     *
      * Bryce (2872) has expired warrants but also has one current warrant (2505).
      * Only the current warrant should enable warrant-required permissions.
      *
@@ -209,7 +217,7 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
                 $this->assertGreaterThan(
                     0,
                     $currentCount,
-                    "Warrant-required permission '{$permission->name}' requires an active warrant"
+                    "Warrant-required permission '{$permission->name}' requires an active warrant",
                 );
             }
         }
@@ -217,7 +225,7 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
 
     /**
      * Test that members with expired membership lose permissions requiring active membership
-     * 
+     *
      * Temporarily sets a member's membership to expired and verifies
      * that permissions requiring active membership are not granted.
      *
@@ -229,7 +237,7 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
         $conn = ConnectionManager::get('test');
         $conn->execute(
             "UPDATE members SET membership_expires_on = '2025-01-01' WHERE id = ?",
-            [self::TEST_MEMBER_EIRIK_ID]
+            [self::TEST_MEMBER_EIRIK_ID],
         );
 
         // Reload to pick up changes
@@ -240,7 +248,7 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
         $this->assertLessThan(
             time(),
             $expiresTimestamp,
-            'Eirik membership should be expired'
+            'Eirik membership should be expired',
         );
 
         // Load permissions
@@ -250,14 +258,14 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
         foreach ($permissions as $permission) {
             $this->assertFalse(
                 $permission->require_active_membership ?? false,
-                "Expired member should not have active-membership permission: {$permission->name}"
+                "Expired member should not have active-membership permission: {$permission->name}",
             );
         }
     }
 
     /**
      * Test that non-warrantable members cannot get warrant-required permissions
-     * 
+     *
      * Temporarily sets a member as non-warrantable and verifies
      * warrant-required permissions are not granted.
      *
@@ -269,8 +277,8 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
         // Set warrantable to false via direct SQL (more reliable than ORM for test setup)
         $conn = ConnectionManager::get('test');
         $conn->execute(
-            "UPDATE members SET warrantable = ? WHERE id = ?",
-            [0, self::TEST_MEMBER_EIRIK_ID]
+            'UPDATE members SET warrantable = ? WHERE id = ?',
+            [0, self::TEST_MEMBER_EIRIK_ID],
         );
 
         // Reload to pick up changes
@@ -284,14 +292,14 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
         foreach ($permissions as $permission) {
             $this->assertFalse(
                 $permission->requires_warrant ?? false,
-                "Non-warrantable member should not have warrant-required permission: {$permission->name}"
+                "Non-warrantable member should not have warrant-required permission: {$permission->name}",
             );
         }
     }
 
     /**
      * Test age validation for age-restricted permissions
-     * 
+     *
      * Devon (2874) was born in 2002-09, making them 23 years old.
      * Eirik (2875) was born in 2004-12, making them 20 years old.
      * Age-restricted permissions should only be granted if member meets minimum age.
@@ -327,7 +335,7 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
                 $this->assertLessThanOrEqual(
                     $permission->require_min_age,
                     $devonAge,
-                    "Devon should meet age requirement for: {$permission->name}"
+                    "Devon should meet age requirement for: {$permission->name}",
                 );
             }
         }
@@ -337,7 +345,7 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
                 $this->assertLessThanOrEqual(
                     $permission->require_min_age,
                     $eirikAge,
-                    "Eirik should meet age requirement for: {$permission->name}"
+                    "Eirik should meet age requirement for: {$permission->name}",
                 );
             }
         }
@@ -345,7 +353,7 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
 
     /**
      * Test that super user permission bypasses all validation requirements
-     * 
+     *
      * Admin (1) has super user permission which should bypass:
      * - Warrant requirements
      * - Membership expiration
@@ -367,21 +375,21 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
         $otherMember = $this->Members->get(self::TEST_MEMBER_BRYCE_ID);
         $this->assertTrue(
             $admin->checkCan('view', $otherMember),
-            'Super user should be able to view any member'
+            'Super user should be able to view any member',
         );
         $this->assertTrue(
             $admin->checkCan('edit', $otherMember),
-            'Super user should be able to edit any member'
+            'Super user should be able to edit any member',
         );
         $this->assertTrue(
             $admin->checkCan('delete', $otherMember),
-            'Super user should be able to delete any member'
+            'Super user should be able to delete any member',
         );
     }
 
     /**
      * Test permission caching consistency across multiple loads
-     * 
+     *
      * Permissions should be cached and return consistent results.
      * This validates cache integrity for the same member.
      *
@@ -405,20 +413,20 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
         $this->assertEquals(
             $permissionIds1,
             $permissionIds2,
-            'Cached permissions should match original permissions'
+            'Cached permissions should match original permissions',
         );
 
         // Verify cache structure is consistent
         $this->assertSame(
             count($permissions1),
             count($permissions2),
-            'Permission count should be consistent'
+            'Permission count should be consistent',
         );
     }
 
     /**
      * Test policy caching with and without branch filtering
-     * 
+     *
      * Policies should be correctly cached and filtered by branch IDs.
      *
      * @return void
@@ -441,20 +449,20 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
         $this->assertEquals(
             count($filteredPolicies),
             count($filteredPolicies2),
-            'Filtered policy count should be consistent'
+            'Filtered policy count should be consistent',
         );
 
         // Filtered policies should be subset of all policies
         $this->assertLessThanOrEqual(
             count($allPolicies),
             count($filteredPolicies),
-            'Filtered policies should not exceed all policies'
+            'Filtered policies should not exceed all policies',
         );
     }
 
     /**
      * Test member with multiple expired and active roles
-     * 
+     *
      * Member should only have permissions from active roles.
      * This tests the temporal validation filtering.
      *
@@ -499,7 +507,7 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
 
     /**
      * Test member status validation
-     * 
+     *
      * Members with non-verified status should not have permissions requiring active membership.
      * All test members have "verified" status, so we document expected behavior.
      *
@@ -525,7 +533,7 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
                 $this->assertContains(
                     $bryce->status,
                     $allowedStatuses,
-                    "Permission '{$permission->name}' requires active membership but member status is '{$bryce->status}'"
+                    "Permission '{$permission->name}' requires active membership but member status is '{$bryce->status}'",
                 );
             }
         }
@@ -533,7 +541,7 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
 
     /**
      * Test that permission IDs are unique across all permissions
-     * 
+     *
      * Each member should not have duplicate permission IDs.
      *
      * @return void
@@ -549,13 +557,13 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
         $this->assertEquals(
             count($permissionIds),
             count($uniqueIds),
-            'Permission IDs should be unique (no duplicates)'
+            'Permission IDs should be unique (no duplicates)',
         );
     }
 
     /**
      * Test empty permission set behavior
-     * 
+     *
      * Members with no roles should have empty permission set.
      * Agatha (2871) has no active roles after revocations.
      *

@@ -1,25 +1,25 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services;
 
-use Cake\Core\Configure;
 use Cake\Log\Log;
+use Exception;
+use GdImage;
 
 /**
  * Converts uploaded image files to PDF format for consistent document storage.
- * 
+ *
  * Uses GD extension for image processing. Supports JPEG, PNG, GIF, BMP, WEBP formats.
  * Maintains aspect ratio and fits images to standard page sizes (Letter, A4).
- * 
+ *
  * @see \App\Services\ServiceResult Standard service result pattern
  */
 class ImageToPdfConversionService
 {
     /**
      * Supported image formats
-     * 
+     *
      * Note: WEBP support depends on GD library compilation options
      */
     private const SUPPORTED_FORMATS = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'wbmp'];
@@ -67,9 +67,10 @@ class ImageToPdfConversionService
             unset($image);
 
             return $result;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             unset($image);
             Log::error('PDF conversion error: ' . $e->getMessage());
+
             return new ServiceResult(false, 'Error during PDF conversion: ' . $e->getMessage());
         }
     }
@@ -111,7 +112,7 @@ class ImageToPdfConversionService
                 // Load the image
                 $image = $this->loadImage($imagePath, $type);
                 if ($image === false) {
-                    throw new \Exception("Failed to load image: $imagePath");
+                    throw new Exception("Failed to load image: $imagePath");
                 }
 
                 $processedImages[] = $image;
@@ -122,7 +123,7 @@ class ImageToPdfConversionService
                 // Process image (resize and convert to grayscale)
                 $result = $this->processImageForPdf($image, $width, $height, $pageWidth, $pageHeight);
                 if (!$result['success']) {
-                    throw new \Exception($result['error']);
+                    throw new Exception($result['error']);
                 }
 
                 $result['page_width'] = $pageWidth;
@@ -148,7 +149,7 @@ class ImageToPdfConversionService
 
             // Write PDF file
             if (file_put_contents($outputPath, $pdf) === false) {
-                throw new \Exception('Failed to write PDF file');
+                throw new Exception('Failed to write PDF file');
             }
 
             // Clean up image resources
@@ -159,7 +160,7 @@ class ImageToPdfConversionService
             $previewPath = $this->createPreviewFromJpegData($firstPageJpegData);
 
             return new ServiceResult(true, 'Images successfully converted to multi-page PDF', $outputPath);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Clean up any loaded images on error
             foreach ($processedImages as $image) {
                 unset($image);
@@ -168,6 +169,7 @@ class ImageToPdfConversionService
             $previewPath = $this->createPreviewFromJpegData($firstPageJpegData);
 
             Log::error('Multi-image PDF conversion error: ' . $e->getMessage());
+
             return new ServiceResult(false, 'Error during PDF conversion: ' . $e->getMessage());
         }
     }
@@ -203,13 +205,13 @@ class ImageToPdfConversionService
 
     /**
      * Validate and get information about an image file
-     * 
+     *
      * Performs comprehensive validation including:
      * - File existence check
      * - Image format detection
      * - Format support verification
      * - Debug file saving on failure
-     * 
+     *
      * @param string $imagePath Path to image file
      * @param bool $throwException If true, throws exception on failure; if false, returns error in array
      * @return array{success: bool, width?: int, height?: int, type?: int, error?: string}
@@ -221,8 +223,9 @@ class ImageToPdfConversionService
         if (!file_exists($imagePath)) {
             $error = "Image file not found: $imagePath";
             if ($throwException) {
-                throw new \Exception($error);
+                throw new Exception($error);
             }
+
             return ['success' => false, 'error' => $error];
         }
 
@@ -254,8 +257,9 @@ class ImageToPdfConversionService
             }
 
             if ($throwException) {
-                throw new \Exception($error);
+                throw new Exception($error);
             }
+
             return ['success' => false, 'error' => $error];
         }
 
@@ -279,8 +283,9 @@ class ImageToPdfConversionService
         if (!in_array($type, $supportedTypes)) {
             $error = 'Unsupported image format. Supported formats: JPEG, PNG, GIF, BMP, WEBP, WBMP';
             if ($throwException) {
-                throw new \Exception($error);
+                throw new Exception($error);
             }
+
             return ['success' => false, 'error' => $error];
         }
 
@@ -299,7 +304,7 @@ class ImageToPdfConversionService
      * @param int $type Image type constant
      * @return \GdImage|false Image resource or false on failure
      */
-    private function loadImage(string $path, int $type): \GdImage|false
+    private function loadImage(string $path, int $type): GdImage|false
     {
         // Handle basic formats with match
         $image = match ($type) {
@@ -339,7 +344,7 @@ class ImageToPdfConversionService
      * @param string|null $previewPath Output parameter that receives a temporary JPEG path
      * @return \App\Services\ServiceResult
      */
-    private function createSimplePdf(\GdImage $image, int $width, int $height, string $outputPath, int $pageWidth, int $pageHeight, ?string &$previewPath = null): ServiceResult
+    private function createSimplePdf(GdImage $image, int $width, int $height, string $outputPath, int $pageWidth, int $pageHeight, ?string &$previewPath = null): ServiceResult
     {
         $previewPath = null;
         [$imgWidth, $imgHeight] = $this->calculateFitDimensions($width, $height, $pageWidth, $pageHeight);
@@ -357,12 +362,14 @@ class ImageToPdfConversionService
         // Resize the original image to fit
         if (!imagecopyresampled($resizedImage, $image, 0, 0, 0, 0, $imgWidth, $imgHeight, $width, $height)) {
             unset($resizedImage);
+
             return new ServiceResult(false, 'Failed to resize image');
         }
 
         // Convert to grayscale (black and white)
         if (!imagefilter($resizedImage, IMG_FILTER_GRAYSCALE)) {
             unset($resizedImage);
+
             return new ServiceResult(false, 'Failed to convert to grayscale');
         }
 
@@ -375,6 +382,7 @@ class ImageToPdfConversionService
         // Save with lower quality since it's black and white
         if (!imagejpeg($resizedImage, $tempJpeg, 70)) {
             unset($resizedImage);
+
             return new ServiceResult(false, 'Failed to create temporary JPEG file');
         }
 
@@ -549,7 +557,7 @@ class ImageToPdfConversionService
      * @param int $pageHeight Page height in points
      * @return array Result with jpeg_data, jpeg_size, width, height
      */
-    private function processImageForPdf(\GdImage $image, int $width, int $height, int $pageWidth, int $pageHeight): array
+    private function processImageForPdf(GdImage $image, int $width, int $height, int $pageWidth, int $pageHeight): array
     {
         // Get actual dimensions from the image resource
         $actualWidth = imagesx($image);
@@ -570,12 +578,14 @@ class ImageToPdfConversionService
         // Resize the original image to fit - use ACTUAL resource dimensions
         if (!imagecopyresampled($resizedImage, $image, 0, 0, 0, 0, $displayWidth, $displayHeight, $actualWidth, $actualHeight)) {
             unset($resizedImage);
+
             return ['success' => false, 'error' => 'Failed to resize image'];
         }
 
         // Convert to grayscale (black and white)
         if (!imagefilter($resizedImage, IMG_FILTER_GRAYSCALE)) {
             unset($resizedImage);
+
             return ['success' => false, 'error' => 'Failed to convert to grayscale'];
         }
 
@@ -586,6 +596,7 @@ class ImageToPdfConversionService
         $tempJpeg = tempnam(sys_get_temp_dir(), 'waiver_') . '.jpg';
         if (!imagejpeg($resizedImage, $tempJpeg, 70)) {
             unset($resizedImage);
+
             return ['success' => false, 'error' => 'Failed to create JPEG'];
         }
 
@@ -678,7 +689,7 @@ class ImageToPdfConversionService
         ksort($objects);
 
         // Build cross-reference table
-        $xref = "xref\n0 " . ($objNum) . "\n0000000000 65535 f \n";
+        $xref = "xref\n0 " . $objNum . "\n0000000000 65535 f \n";
         $offset = strlen("%PDF-1.4\n");
 
         for ($i = 1; $i < $objNum; $i++) {
@@ -695,7 +706,7 @@ class ImageToPdfConversionService
 
     /**
      * Process mixed uploads (images and PDFs) into a single PDF document.
-     * 
+     *
      * Images are converted to PDF pages, then all PDFs are merged together.
      * Files are processed in the order provided.
      *
@@ -703,7 +714,7 @@ class ImageToPdfConversionService
      * @param string $outputPath Full path where the merged PDF should be saved
      * @param string $pageSize Page size for image conversion: 'letter' or 'a4'
      * @param string|null $previewPath Reference that will receive the path to a preview image
-     * @return ServiceResult Success with page count, or failure with error
+     * @return \App\Services\ServiceResult Success with page count, or failure with error
      */
     public function convertMixedToPdf(array $fileInfos, string $outputPath, string $pageSize = 'letter', ?string &$previewPath = null): ServiceResult
     {
@@ -748,11 +759,11 @@ class ImageToPdfConversionService
                     if ($firstImagePath === null && empty($pdfPaths)) {
                         $firstImagePath = $filePath;
                     }
-                    
+
                     // It's an image - convert to PDF
                     $tempPdf = tempnam(sys_get_temp_dir(), 'waiver_img_pdf_');
                     if ($tempPdf === false) {
-                        throw new \Exception('Failed to create temp file for image conversion');
+                        throw new Exception('Failed to create temp file for image conversion');
                     }
                     $tempPdfPath = $tempPdf . '.pdf';
                     @rename($tempPdf, $tempPdfPath);
@@ -760,7 +771,7 @@ class ImageToPdfConversionService
 
                     $result = $this->convertImageToPdf($filePath, $tempPdfPath, $pageSize);
                     if (!$result->success) {
-                        throw new \Exception("Failed to convert image: {$result->reason}");
+                        throw new Exception("Failed to convert image: {$result->reason}");
                     }
                     // Track converted image with original name
                     $pdfPaths[] = ['path' => $tempPdfPath, 'name' => $originalName];
@@ -776,7 +787,7 @@ class ImageToPdfConversionService
             // Merge all PDFs into one
             $mergeResult = $pdfService->mergePdfs($pdfPaths, $outputPath);
             if (!$mergeResult->success) {
-                throw new \Exception("Failed to merge PDFs: {$mergeResult->reason}");
+                throw new Exception("Failed to merge PDFs: {$mergeResult->reason}");
             }
 
             // Generate thumbnail - use first image if available, otherwise PDF placeholder
@@ -789,7 +800,7 @@ class ImageToPdfConversionService
                 if ($thumbnailTemp !== false) {
                     $thumbnailPath = $thumbnailTemp . '.png';
                     @rename($thumbnailTemp, $thumbnailPath);
-                    
+
                     $thumbResult = $pdfService->generateThumbnail($outputPath, $thumbnailPath);
                     if ($thumbResult->success) {
                         $previewPath = $thumbnailPath;
@@ -807,8 +818,9 @@ class ImageToPdfConversionService
                 'first_file_is_image' => $firstImagePath !== null,
                 'skipped_files' => $mergeResult->data['skipped_files'] ?? [],
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Mixed PDF conversion error: ' . $e->getMessage());
+
             return new ServiceResult(false, 'Error during PDF conversion: ' . $e->getMessage());
         } finally {
             // Clean up temporary files
@@ -829,6 +841,7 @@ class ImageToPdfConversionService
     public function isSupportedImage(string $filePath): bool
     {
         $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+
         return in_array($extension, self::SUPPORTED_FORMATS, true);
     }
 
@@ -884,6 +897,7 @@ class ImageToPdfConversionService
             $thumbnailTemp = tempnam(sys_get_temp_dir(), 'waiver_thumb_');
             if ($thumbnailTemp === false) {
                 imagedestroy($thumbnail);
+
                 return null;
             }
             $thumbnailPath = $thumbnailTemp . '.jpg';
@@ -892,13 +906,16 @@ class ImageToPdfConversionService
             if (!imagejpeg($thumbnail, $thumbnailPath, 75)) {
                 imagedestroy($thumbnail);
                 @unlink($thumbnailPath);
+
                 return null;
             }
 
             imagedestroy($thumbnail);
+
             return $thumbnailPath;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::warning('Failed to generate image thumbnail: ' . $e->getMessage());
+
             return null;
         }
     }
@@ -921,6 +938,7 @@ class ImageToPdfConversionService
             'image/x-ms-bmp',
             'image/x-windows-bmp',
         ];
+
         return in_array($mimeType, $supportedMimeTypes, true);
     }
 
@@ -933,6 +951,7 @@ class ImageToPdfConversionService
     public function isPdf(string $filePath): bool
     {
         $pdfService = new PdfProcessingService();
+
         return $pdfService->isPdf($filePath);
     }
 }

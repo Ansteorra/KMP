@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services\WarrantManager;
@@ -17,28 +16,44 @@ use Cake\I18n\DateTime;
  */
 class WarrantRequest
 {
-    /** @var string Entity type (e.g., 'Branches', 'Activities', 'Direct Grant') */
+    /**
+     * @var string Entity type (e.g., 'Branches', 'Activities', 'Direct Grant')
+     */
     public string $entityType;
 
-    /** @var int Entity primary key ID */
+    /**
+     * @var int Entity primary key ID
+     */
     public int $entityId;
 
-    /** @var int ID of member requesting this warrant */
+    /**
+     * @var int ID of member requesting this warrant
+     */
     public int $requester_id;
 
-    /** @var int ID of member who will receive the warrant */
+    /**
+     * @var int ID of member who will receive the warrant
+     */
     public int $member_id;
 
-    /** @var int|null Optional specific role within the entity */
+    /**
+     * @var int|null Optional specific role within the entity
+     */
     public ?int $member_role_id;
 
-    /** @var DateTime|null Optional custom start date (null = use period default) */
+    /**
+     * @var \Cake\I18n\DateTime|null Optional custom start date (null = use period default)
+     */
     public ?DateTime $start_on;
 
-    /** @var DateTime|null Optional custom end date (null = use period default) */
+    /**
+     * @var \Cake\I18n\DateTime|null Optional custom end date (null = use period default)
+     */
     public ?DateTime $expires_on;
 
-    /** @var string Human-readable warrant title */
+    /**
+     * @var string Human-readable warrant title
+     */
     public string $name;
 
     /**
@@ -49,8 +64,8 @@ class WarrantRequest
      * @param int $entity_id Entity ID
      * @param int $requester_id Requester member ID
      * @param int $member_id Recipient member ID
-     * @param DateTime|null $start_on Optional start date
-     * @param DateTime|null $expires_on Optional end date
+     * @param \Cake\I18n\DateTime|null $start_on Optional start date
+     * @param \Cake\I18n\DateTime|null $expires_on Optional end date
      * @param int|null $member_role_id Optional role within entity
      */
     public function __construct(string $name, string $entity_type, int $entity_id, int $requester_id, int $member_id, ?DateTime $start_on = null, ?DateTime $expires_on = null, ?int $member_role_id = null)

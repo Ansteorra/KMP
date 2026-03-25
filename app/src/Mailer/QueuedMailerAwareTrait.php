@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 /**
@@ -18,13 +17,12 @@ declare(strict_types=1);
 
 namespace App\Mailer;
 
-use App\View\Helper\KmpHelper;
+use App\KMP\StaticHelpers;
 use Cake\Core\App;
 use Cake\Mailer\Exception\MissingMailerException;
 use Cake\Mailer\Mailer;
 use Cake\Mailer\MailerAwareTrait;
 use Cake\ORM\TableRegistry;
-use App\KMP\StaticHelpers;
 use Throwable;
 
 /**
@@ -39,6 +37,7 @@ trait QueuedMailerAwareTrait
     use MailerAwareTrait;
 
     protected Mailer $mailer;
+
     /**
      * Returns a mailer instance.
      *
@@ -59,13 +58,14 @@ trait QueuedMailerAwareTrait
             'action' => $action,
             'vars' => $vars,
         ];
-        $useEmailQueue = (StaticHelpers::getAppSetting("Email.UseQueue", "no", null, true) === "yes");
+        $useEmailQueue = (StaticHelpers::getAppSetting('Email.UseQueue', 'no', null, true) === 'yes');
         if (!$useEmailQueue) {
             $this->sendMailNow($data);
         } else {
             $this->queueMailJob($data);
         }
     }
+
     /**
      * Returns a mailer instance.
      *
@@ -84,6 +84,7 @@ trait QueuedMailerAwareTrait
             throw $e;
         }
     }
+
     /**
      * Queues a mail job to be processed later.
      *

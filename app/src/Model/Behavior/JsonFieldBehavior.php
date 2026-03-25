@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Behavior;
@@ -22,11 +21,11 @@ class JsonFieldBehavior extends Behavior
     /**
      * Add JSON path WHERE condition to a query.
      *
-     * @param SelectQuery $query The query to modify
+     * @param \Cake\ORM\Query\SelectQuery $query The query to modify
      * @param string $field The JSON field name in the table
      * @param string $path JSON path using $.notation (e.g., '$.preferences.email')
      * @param mixed $value Value to compare against
-     * @return SelectQuery Modified query with JSON WHERE condition
+     * @return \Cake\ORM\Query\SelectQuery Modified query with JSON WHERE condition
      */
     public function addJsonWhere(SelectQuery $query, string $field, string $path, mixed $value): SelectQuery
     {
@@ -40,7 +39,7 @@ class JsonFieldBehavior extends Behavior
     /**
      * Build driver-specific JSON extraction expression.
      *
-     * @param SelectQuery $query Query being modified
+     * @param \Cake\ORM\Query\SelectQuery $query Query being modified
      * @param string $field Field name (optionally table-qualified)
      * @param string $path JSON path using $.notation
      * @return mixed SQL expression compatible with QueryExpression::eq()
@@ -57,13 +56,13 @@ class JsonFieldBehavior extends Behavior
 
             $quotedSegments = array_map(
                 static fn(string $segment): string => "'" . str_replace("'", "''", $segment) . "'",
-                $segments
+                $segments,
             );
 
             return $query->newExpr(sprintf(
                 'jsonb_extract_path_text(CAST(%s AS jsonb), %s)',
                 $quotedField,
-                implode(', ', $quotedSegments)
+                implode(', ', $quotedSegments),
             ));
         }
 
@@ -73,7 +72,7 @@ class JsonFieldBehavior extends Behavior
     /**
      * Resolve current database driver short name.
      *
-     * @param SelectQuery $query Query being modified
+     * @param \Cake\ORM\Query\SelectQuery $query Query being modified
      * @return string Driver short class name (e.g., Mysql, Postgres, Sqlite)
      */
     protected function getDriverName(SelectQuery $query): string
@@ -113,7 +112,7 @@ class JsonFieldBehavior extends Behavior
     /**
      * Quote a possibly qualified identifier path.
      *
-     * @param SelectQuery $query Query being modified
+     * @param \Cake\ORM\Query\SelectQuery $query Query being modified
      * @param string $identifier Identifier path (table.column)
      * @return string Quoted identifier path
      */
@@ -123,7 +122,7 @@ class JsonFieldBehavior extends Behavior
 
         return implode('.', array_map(
             static fn(string $part): string => $driver->quoteIdentifier($part),
-            explode('.', $identifier)
+            explode('.', $identifier),
         ));
     }
 }

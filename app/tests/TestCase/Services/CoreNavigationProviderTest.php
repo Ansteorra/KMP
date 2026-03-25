@@ -1,10 +1,8 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services;
 
-use App\Model\Entity\Member;
 use App\Services\CoreNavigationProvider;
 use App\Test\TestCase\BaseTestCase;
 
@@ -85,11 +83,9 @@ class CoreNavigationProviderTest extends BaseTestCase
         $member = $this->getTableLocator()->get('Members')->get(self::ADMIN_MEMBER_ID);
         $items = CoreNavigationProvider::getNavigationItems($member);
 
-        $profileLinks = array_filter($items, fn($item) =>
-            $item['type'] === 'link' &&
+        $profileLinks = array_filter($items, fn($item) => $item['type'] === 'link' &&
             isset($item['url']['action']) &&
-            $item['url']['action'] === 'profile'
-        );
+            $item['url']['action'] === 'profile');
         $this->assertNotEmpty($profileLinks, 'Should contain profile link');
 
         $profileLink = array_values($profileLinks)[0];
@@ -101,11 +97,9 @@ class CoreNavigationProviderTest extends BaseTestCase
         $member = $this->getTableLocator()->get('Members')->get(self::ADMIN_MEMBER_ID);
         $items = CoreNavigationProvider::getNavigationItems($member);
 
-        $cardLinks = array_filter($items, fn($item) =>
-            $item['type'] === 'link' &&
+        $cardLinks = array_filter($items, fn($item) => $item['type'] === 'link' &&
             isset($item['url']['action']) &&
-            $item['url']['action'] === 'viewCard'
-        );
+            $item['url']['action'] === 'viewCard');
         $this->assertNotEmpty($cardLinks, 'Should contain auth card link');
 
         $cardLink = array_values($cardLinks)[0];
@@ -149,12 +143,8 @@ class CoreNavigationProviderTest extends BaseTestCase
         $this->assertNotEmpty($adminItems);
         $this->assertNotEmpty($agathaItems);
 
-        $adminProfile = array_values(array_filter($adminItems, fn($i) =>
-            $i['type'] === 'link' && isset($i['url']['action']) && $i['url']['action'] === 'profile'
-        ));
-        $agathaProfile = array_values(array_filter($agathaItems, fn($i) =>
-            $i['type'] === 'link' && isset($i['url']['action']) && $i['url']['action'] === 'profile'
-        ));
+        $adminProfile = array_values(array_filter($adminItems, fn($i) => $i['type'] === 'link' && isset($i['url']['action']) && $i['url']['action'] === 'profile'));
+        $agathaProfile = array_values(array_filter($agathaItems, fn($i) => $i['type'] === 'link' && isset($i['url']['action']) && $i['url']['action'] === 'profile'));
 
         $this->assertNotEquals($adminProfile[0]['label'], $agathaProfile[0]['label']);
     }

@@ -239,6 +239,7 @@ class AppSettingsTable extends BaseTable
     }
 
     //TODO: Create a caching strategy for this
+
     public function getAllAppSettingsStartWith($key): array
     {
         $settings = $this->find()

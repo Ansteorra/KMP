@@ -1,14 +1,12 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Authenticator;
 
+use App\Model\Entity\ServicePrincipalToken;
 use Authentication\Authenticator\AbstractAuthenticator;
 use Authentication\Authenticator\Result;
 use Authentication\Authenticator\ResultInterface;
-use App\Model\Entity\ServicePrincipal;
-use App\Model\Entity\ServicePrincipalToken;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 use Psr\Http\Message\ServerRequestInterface;
@@ -39,7 +37,9 @@ class ServicePrincipalAuthenticator extends AbstractAuthenticator
         'apiKeyQueryParam' => 'api_key',
     ];
 
-    /** @var int|null Token ID for audit logging */
+    /**
+     * @var int|null Token ID for audit logging
+     */
     protected ?int $authenticatedTokenId = null;
 
     /**
@@ -56,7 +56,7 @@ class ServicePrincipalAuthenticator extends AbstractAuthenticator
             return new Result(
                 null,
                 Result::FAILURE_CREDENTIALS_MISSING,
-                ['No Bearer token provided']
+                ['No Bearer token provided'],
             );
         }
 
@@ -73,7 +73,7 @@ class ServicePrincipalAuthenticator extends AbstractAuthenticator
             return new Result(
                 null,
                 Result::FAILURE_IDENTITY_NOT_FOUND,
-                ['Invalid API token']
+                ['Invalid API token'],
             );
         }
 
@@ -82,7 +82,7 @@ class ServicePrincipalAuthenticator extends AbstractAuthenticator
             return new Result(
                 null,
                 Result::FAILURE_CREDENTIALS_EXPIRED,
-                ['API token has expired']
+                ['API token has expired'],
             );
         }
 
@@ -92,7 +92,7 @@ class ServicePrincipalAuthenticator extends AbstractAuthenticator
             return new Result(
                 null,
                 Result::FAILURE_OTHER,
-                ['Service principal is inactive']
+                ['Service principal is inactive'],
             );
         }
 
@@ -102,7 +102,7 @@ class ServicePrincipalAuthenticator extends AbstractAuthenticator
             return new Result(
                 null,
                 Result::FAILURE_OTHER,
-                ['IP address not allowed']
+                ['IP address not allowed'],
             );
         }
 
@@ -110,13 +110,13 @@ class ServicePrincipalAuthenticator extends AbstractAuthenticator
         $now = DateTime::now();
         $tokensTable->updateAll(
             ['last_used_at' => $now],
-            ['id' => $tokenEntity->id]
+            ['id' => $tokenEntity->id],
         );
-        
+
         $servicePrincipalsTable = TableRegistry::getTableLocator()->get('ServicePrincipals');
         $servicePrincipalsTable->updateAll(
             ['last_used_at' => $now],
-            ['id' => $servicePrincipal->id]
+            ['id' => $servicePrincipal->id],
         );
 
         // 7. Store token ID for audit logging

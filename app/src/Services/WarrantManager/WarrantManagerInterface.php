@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services\WarrantManager;
@@ -25,8 +24,8 @@ interface WarrantManagerInterface
      *
      * @param string $request_name Name for the warrant roster
      * @param string $desc Description of the warrant requests
-     * @param WarrantRequest[] $warrantRequests Array of warrant request objects
-     * @return ServiceResult Success with roster ID, or failure with errors
+     * @param array<\App\Services\WarrantManager\WarrantRequest> $warrantRequests Array of warrant request objects
+     * @return \App\Services\ServiceResult Success with roster ID, or failure with errors
      */
     public function request($request_name, $desc, $warrantRequests): ServiceResult;
 
@@ -35,7 +34,7 @@ interface WarrantManagerInterface
      *
      * @param int $warrant_roster_id ID of the WarrantRoster to approve
      * @param int $approver_id ID of the member providing approval
-     * @return ServiceResult Success if approval recorded, failure with errors
+     * @return \App\Services\ServiceResult Success if approval recorded, failure with errors
      */
     public function approve($warrant_roster_id, $approver_id): ServiceResult;
 
@@ -45,7 +44,7 @@ interface WarrantManagerInterface
      * @param int $warrant_roster_id ID of the WarrantRoster to decline
      * @param int $rejecter_id ID of the member declining
      * @param string $reason Explanation for the decline
-     * @return ServiceResult Success if declined, failure with errors
+     * @return \App\Services\ServiceResult Success if declined, failure with errors
      */
     public function decline($warrant_roster_id, $rejecter_id, $reason): ServiceResult;
 
@@ -55,8 +54,8 @@ interface WarrantManagerInterface
      * @param int $warrant_id ID of the warrant to cancel
      * @param string $reason Explanation for cancellation
      * @param int $rejecter_id ID of member cancelling
-     * @param DateTime $expiresOn When warrant should terminate
-     * @return ServiceResult Always returns success
+     * @param \Cake\I18n\DateTime $expiresOn When warrant should terminate
+     * @return \App\Services\ServiceResult Always returns success
      */
     public function cancel($warrant_id, $reason, $rejecter_id, $expiresOn): ServiceResult;
 
@@ -67,8 +66,8 @@ interface WarrantManagerInterface
      * @param int $entityId ID of the entity instance
      * @param string $reason Explanation for cancellation
      * @param int $rejecter_id ID of member cancelling
-     * @param DateTime $expiresOn When warrants should terminate
-     * @return ServiceResult Always returns success
+     * @param \Cake\I18n\DateTime $expiresOn When warrants should terminate
+     * @return \App\Services\ServiceResult Always returns success
      */
     public function cancelByEntity($entityType, $entityId, $reason, $rejecter_id, $expiresOn): ServiceResult;
 
@@ -78,16 +77,16 @@ interface WarrantManagerInterface
      * @param int $warrant_id ID of the warrant to decline
      * @param string $reason Explanation for decline
      * @param int $rejecter_id ID of member declining
-     * @return ServiceResult Success if declined, failure with errors
+     * @return \App\Services\ServiceResult Success if declined, failure with errors
      */
     public function declineSingleWarrant($warrant_id, $reason, $rejecter_id): ServiceResult;
 
     /**
      * Find or create a warrant period covering the specified date range.
      *
-     * @param DateTime $startOn Desired warrant start date
-     * @param DateTime|null $endOn Desired warrant end date
-     * @return WarrantPeriod|null Matching period, or null if none found
+     * @param \Cake\I18n\DateTime $startOn Desired warrant start date
+     * @param \Cake\I18n\DateTime|null $endOn Desired warrant end date
+     * @return \App\Model\Entity\WarrantPeriod|null Matching period, or null if none found
      */
     public function getWarrantPeriod(DateTime $startOn, ?DateTime $endOn): ?WarrantPeriod;
 }

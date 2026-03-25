@@ -1,12 +1,10 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Mailer;
 
 use App\KMP\StaticHelpers;
 use App\Model\Table\AppSettingsTable;
-use Cake\Log\Log;
 use Cake\Mailer\Mailer;
 
 class KMPMailer extends Mailer
@@ -73,7 +71,7 @@ class KMPMailer extends Mailer
             ->setViewVars([
                 'memberViewUrl' => $url,
                 'memberScaName' => $sca_name,
-                'memberCardPresent' => $membershipCardPresent ? "uploaded" : "not uploaded",
+                'memberCardPresent' => $membershipCardPresent ? 'uploaded' : 'not uploaded',
                 'siteAdminSignature' => StaticHelpers::getAppSetting('Email.SiteAdminSignature'),
             ]);
     }
@@ -88,7 +86,7 @@ class KMPMailer extends Mailer
             ->setViewVars([
                 'memberViewUrl' => $url,
                 'memberScaName' => $sca_name,
-                'memberCardPresent' => $membershipCardPresent ? "uploaded" : "not uploaded",
+                'memberCardPresent' => $membershipCardPresent ? 'uploaded' : 'not uploaded',
                 'siteAdminSignature' => StaticHelpers::getAppSetting('Email.SiteAdminSignature'),
             ]);
     }

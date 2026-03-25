@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Command;
@@ -59,7 +58,7 @@ class SyncMemberWarrantableStatusesCommand extends Command
         $io->out(sprintf(
             'Member warrantable sync started at %s%s',
             $now->toDateTimeString(),
-            $dryRun ? ' (dry-run)' : ''
+            $dryRun ? ' (dry-run)' : '',
         ));
 
         $summary = [
@@ -76,7 +75,7 @@ class SyncMemberWarrantableStatusesCommand extends Command
             $now,
             $recentThreshold,
             $dryRun,
-            &$summary
+            &$summary,
         ) {
             $members = $membersTable->find()
                 ->where([
@@ -117,12 +116,14 @@ class SyncMemberWarrantableStatusesCommand extends Command
                     $member->set('modified_by', 1);
                 }
 
-                if (!$membersTable->save($member, [
+                if (
+                    !$membersTable->save($member, [
                     'atomic' => false,
                     'checkRules' => false,
                     'validate' => false,
                     'callbacks' => false,
-                ])) {
+                    ])
+                ) {
                     $summary['errors']++;
                 }
             }
@@ -133,7 +134,7 @@ class SyncMemberWarrantableStatusesCommand extends Command
         $io->out(sprintf(
             'Scanned %d candidate member%s.',
             $summary['scanned'],
-            $summary['scanned'] === 1 ? '' : 's'
+            $summary['scanned'] === 1 ? '' : 's',
         ));
 
         if ($summary['changed'] === 0) {
@@ -145,7 +146,7 @@ class SyncMemberWarrantableStatusesCommand extends Command
                 $summary['changed'] === 1 ? '' : 's',
                 $summary['became_warrantable'],
                 $summary['became_not_warrantable'],
-                $dryRun ? ' [dry-run only]' : ''
+                $dryRun ? ' [dry-run only]' : '',
             ));
         }
 
@@ -153,7 +154,7 @@ class SyncMemberWarrantableStatusesCommand extends Command
             $io->error(sprintf(
                 'Failed to save %d member%s.',
                 $summary['errors'],
-                $summary['errors'] === 1 ? '' : 's'
+                $summary['errors'] === 1 ? '' : 's',
             ));
 
             return Command::CODE_ERROR;

@@ -1,10 +1,11 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
 
+use Cake\Http\Exception\ForbiddenException;
 use Cake\Http\Exception\NotFoundException;
+use Exception;
 
 /**
  * GatheringStaff Controller
@@ -82,21 +83,21 @@ class GatheringStaffController extends AppController
                 $maxOrder = $this->GatheringStaff->find()
                     ->where([
                         'gathering_id' => $gatheringId,
-                        'is_steward' => true
+                        'is_steward' => true,
                     ])
                     ->select(['max_order' => 'MAX(sort_order)'])
                     ->first();
-                $staff->sort_order = ($maxOrder && isset($maxOrder->max_order)) ? $maxOrder->max_order + 1 : 0;
+                $staff->sort_order = $maxOrder && isset($maxOrder->max_order) ? $maxOrder->max_order + 1 : 0;
             } else {
                 // Get max non-steward sort order
                 $maxOrder = $this->GatheringStaff->find()
                     ->where([
                         'gathering_id' => $gatheringId,
-                        'is_steward' => false
+                        'is_steward' => false,
                     ])
                     ->select(['max_order' => 'MAX(sort_order)'])
                     ->first();
-                $staff->sort_order = ($maxOrder && isset($maxOrder->max_order)) ? $maxOrder->max_order + 1 : 100;
+                $staff->sort_order = $maxOrder && isset($maxOrder->max_order) ? $maxOrder->max_order + 1 : 100;
             }
 
             if ($this->GatheringStaff->save($staff)) {
@@ -127,6 +128,7 @@ class GatheringStaffController extends AppController
         // This shouldn't be reached in normal flow since we're using modals
         // But if someone accesses this directly, redirect to gathering view
         $this->Flash->warning(__('Please use the Add Staff button on the gathering page.'));
+
         return $this->redirect(['controller' => 'Gatherings', 'action' => 'view', $gathering->public_id]);
     }
 
@@ -140,7 +142,7 @@ class GatheringStaffController extends AppController
     public function edit(?int $id = null)
     {
         $staff = $this->GatheringStaff->get($id, [
-            'contain' => ['Gatherings', 'Members']
+            'contain' => ['Gatherings', 'Members'],
         ]);
 
         // Authorize based on the gathering
@@ -183,6 +185,7 @@ class GatheringStaffController extends AppController
         // This shouldn't be reached in normal flow since we're using modals
         // But if someone accesses this directly, redirect to gathering view
         $this->Flash->warning(__('Please use the Edit button on the gathering page.'));
+
         return $this->redirect(['controller' => 'Gatherings', 'action' => 'view', $staff->gathering->public_id]);
     }
 
@@ -197,7 +200,7 @@ class GatheringStaffController extends AppController
     {
         $this->request->allowMethod(['post', 'delete']);
         $staff = $this->GatheringStaff->get($id, [
-            'contain' => ['Gatherings']
+            'contain' => ['Gatherings'],
         ]);
 
         // Authorize based on the gathering
@@ -216,7 +219,7 @@ class GatheringStaffController extends AppController
 
     /**
      * AJAX method to get member contact info using public IDs
-     * 
+     *
      * SECURITY: Public ID-based access control:
      * 1. Requires gathering_public_id that user has edit permission on
      * 2. Uses non-sequential public IDs instead of internal database IDs
@@ -235,6 +238,7 @@ class GatheringStaffController extends AppController
         if (!$memberPublicId || !$gatheringPublicId) {
             $this->set('data', ['error' => 'Member public ID and Gathering public ID required']);
             $this->viewBuilder()->setOption('serialize', 'data');
+
             return;
         }
 
@@ -253,9 +257,9 @@ class GatheringStaffController extends AppController
                 'email' => $member->email_address,
                 'phone' => $member->phone_number,
             ]);
-        } catch (\Cake\Http\Exception\ForbiddenException $e) {
+        } catch (ForbiddenException $e) {
             $this->set('data', ['error' => 'Not authorized to access this information']);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->set('data', ['error' => 'Member or gathering not found']);
         }
 

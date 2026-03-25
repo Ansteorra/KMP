@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services;
@@ -8,6 +7,7 @@ use App\Model\Entity\Document;
 use App\Services\DocumentService;
 use App\Services\ServiceResult;
 use App\Test\TestCase\BaseTestCase;
+use Exception;
 
 class DocumentServiceTest extends BaseTestCase
 {
@@ -20,7 +20,7 @@ class DocumentServiceTest extends BaseTestCase
 
         try {
             $this->service = new DocumentService();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->markTestSkipped('DocumentService initialization failed: ' . $e->getMessage());
         }
     }

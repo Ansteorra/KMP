@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\KMP;
@@ -39,7 +38,7 @@ class PermissionsLoaderWarrantIsolationTest extends BaseTestCase
         // Enable warrant enforcement for all tests in this class
         $this->AppSettings->setAppSetting(
             'KMP.RequireActiveWarrantForSecurity',
-            'yes'
+            'yes',
         );
 
         // Clear ALL caches to ensure fresh computation
@@ -51,7 +50,7 @@ class PermissionsLoaderWarrantIsolationTest extends BaseTestCase
         // Restore warrant setting to default
         $this->AppSettings->setAppSetting(
             'KMP.RequireActiveWarrantForSecurity',
-            'no'
+            'no',
         );
         $this->clearPermissionCaches();
         parent::tearDown();
@@ -132,7 +131,7 @@ class PermissionsLoaderWarrantIsolationTest extends BaseTestCase
         $hasPermission = isset($permissions[$permission->id]);
         $this->assertTrue(
             $hasPermission,
-            "Member with active warrant for role should have permission '{$permission->name}'"
+            "Member with active warrant for role should have permission '{$permission->name}'",
         );
     }
 
@@ -202,7 +201,7 @@ class PermissionsLoaderWarrantIsolationTest extends BaseTestCase
         $this->assertFalse(
             $hasUnwarrantedPermission,
             "Member should NOT get permission '{$otherPermission->name}' from a role " .
-            "that has no active warrant, even though they have warrants for other roles"
+            'that has no active warrant, even though they have warrants for other roles',
         );
     }
 
@@ -235,7 +234,7 @@ class PermissionsLoaderWarrantIsolationTest extends BaseTestCase
 
         $this->assertFalse(
             $hasPermission,
-            "Member with expired warrant should NOT have permission '{$permission->name}'"
+            "Member with expired warrant should NOT have permission '{$permission->name}'",
         );
     }
 
@@ -257,7 +256,7 @@ class PermissionsLoaderWarrantIsolationTest extends BaseTestCase
         // Get the list of members with this permission
         $query = PermissionsLoader::getMembersWithPermissionsQuery(
             $warrantPerm->id,
-            self::KINGDOM_BRANCH_ID
+            self::KINGDOM_BRANCH_ID,
         );
         $memberIds = $query->all()->extract('id')->toArray();
 
@@ -303,7 +302,7 @@ class PermissionsLoaderWarrantIsolationTest extends BaseTestCase
                 0,
                 $activeWarrantCount,
                 "Member {$memberId} returned by getMembersWithPermissionsQuery for " .
-                "'{$warrantPerm->name}' has no active warrant for the granting role"
+                "'{$warrantPerm->name}' has no active warrant for the granting role",
             );
         }
     }
@@ -316,7 +315,7 @@ class PermissionsLoaderWarrantIsolationTest extends BaseTestCase
         // Disable warrant enforcement
         $this->AppSettings->setAppSetting(
             'KMP.RequireActiveWarrantForSecurity',
-            'no'
+            'no',
         );
         $this->clearPermissionCaches();
 
@@ -345,7 +344,7 @@ class PermissionsLoaderWarrantIsolationTest extends BaseTestCase
 
         $this->assertTrue(
             $hasPermission,
-            "With warrant enforcement disabled, permission should be granted without active warrant"
+            'With warrant enforcement disabled, permission should be granted without active warrant',
         );
     }
 }

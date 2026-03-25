@@ -1,10 +1,8 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services;
 
-use App\Model\Entity\Member;
 use App\Services\GridViewService;
 use App\Test\TestCase\BaseTestCase;
 
@@ -12,7 +10,9 @@ class GridViewServiceTest extends BaseTestCase
 {
     protected GridViewService $service;
 
-    /** @var \App\Model\Table\MembersTable */
+    /**
+     * @var \App\Model\Table\MembersTable
+     */
     protected $Members;
 
     protected function setUp(): void

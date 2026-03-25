@@ -1,9 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\KMP\GridColumns\AppSettingsGridColumns;
 use App\KMP\StaticHelpers;
 use App\Services\CsvExportService;
 use Cake\Http\Exception\NotFoundException;
@@ -63,7 +63,7 @@ class AppSettingsController extends AppController
         // Use unified trait for grid processing (saved views mode)
         $result = $this->processDataverseGrid([
             'gridKey' => 'AppSettings.index.main',
-            'gridColumnsClass' => \App\KMP\GridColumns\AppSettingsGridColumns::class,
+            'gridColumnsClass' => AppSettingsGridColumns::class,
             'baseQuery' => $this->AppSettings->find(),
             'tableName' => 'AppSettings',
             'defaultSort' => ['AppSettings.name' => 'ASC'],
@@ -84,7 +84,7 @@ class AppSettingsController extends AppController
             'appSettings' => $result['data'],
             'gridState' => $result['gridState'],
             'emptyAppSetting' => $this->AppSettings->newEmptyEntity(),
-            'rowActions' => \App\KMP\GridColumns\AppSettingsGridColumns::getRowActions(),
+            'rowActions' => AppSettingsGridColumns::getRowActions(),
         ]);
 
         // Determine which template to render based on Turbo-Frame header
@@ -161,6 +161,7 @@ class AppSettingsController extends AppController
                 $this->viewBuilder()->setTemplate('turbo_close_modal');
                 $this->set('refreshFrame', 'app-settings-grid-table');
                 $this->set('flashMessages', $flashMessages);
+
                 return;
             }
 
@@ -178,6 +179,7 @@ class AppSettingsController extends AppController
                 $this->viewBuilder()->setTemplate('turbo_close_modal');
                 $this->set('refreshFrame', 'app-settings-grid-table');
                 $this->set('flashMessages', $flashMessages);
+
                 return;
             }
             $this->Flash->error(

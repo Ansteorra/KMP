@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -17,6 +16,7 @@ use Authorization\IdentityInterface as AuthorizationIdentity;
 use Authorization\Policy\ResultInterface;
 use Cake\I18n\DateTime;
 use Cake\ORM\Exception\MissingTableClassException;
+use Cake\ORM\Table;
 use Cake\ORM\TableRegistry;
 use Cake\Utility\Hash;
 use InvalidArgumentException;
@@ -50,13 +50,19 @@ class Member extends BaseEntity implements
     use LazyLoadEntityTrait;
     use MemberAuthorizationsTrait;
 
-    /** @var array|null Cached permissions */
+    /**
+     * @var array|null Cached permissions
+     */
     protected ?array $_permissions = null;
 
-    /** @var array|null Cached permission IDs */
+    /**
+     * @var array|null Cached permission IDs
+     */
     protected ?array $_permissionIDs = null;
 
-    /** @var \Cake\I18n\DateTime|null Last permissions update */
+    /**
+     * @var \Cake\I18n\DateTime|null Last permissions update
+     */
     protected ?DateTime $_last_permissions_update = null;
 
     // Member Status Constants - Control login ability and system access
@@ -81,7 +87,6 @@ class Member extends BaseEntity implements
 
     /** Minor member with full verification and login capability */
     public const STATUS_VERIFIED_MINOR = 'verified < 18';
-
 
     /**
      * Fields accessible for mass assignment.
@@ -124,7 +129,9 @@ class Member extends BaseEntity implements
         'profile_photo_document_id' => false,
     ];
 
-    /** @var array<string> Fields hidden from serialization */
+    /**
+     * @var array<string> Fields hidden from serialization
+     */
     protected array $_hidden = [
         'password',
         'password_token',
@@ -570,11 +577,12 @@ class Member extends BaseEntity implements
     protected function resolvePolicyClass(mixed $resource): ?string
     {
         // If resource is a Table instance, get the entity class
-        if ($resource instanceof \Cake\ORM\Table) {
+        if ($resource instanceof Table) {
             $entityClass = $resource->getEntityClass();
             if ($entityClass === "Cake\ORM\Entity") {
                 // Generic entity - use table name for policy
                 $tableName = $resource->getAlias();
+
                 return $this->getPolicyClassFromTableName($tableName);
             }
             $resource = new $entityClass();
@@ -608,6 +616,7 @@ class Member extends BaseEntity implements
         // Handle plugin tables (e.g., 'Officers.Offices')
         if (strpos($tableName, '.') !== false) {
             [$plugin, $name] = explode('.', $tableName, 2);
+
             return "{$plugin}\\Policy\\{$name}Policy";
         }
 

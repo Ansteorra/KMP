@@ -1,15 +1,21 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\KMP\GridColumns\GatheringsGridColumns;
+use App\KMP\TimezoneHelper;
 use App\Services\CsvExportService;
 use App\Services\ICalendarService;
+use Cake\Event\EventInterface;
 use Cake\Http\Exception\NotFoundException;
+use Cake\I18n\Date;
+use Cake\Log\Log;
+use Cake\Routing\Router;
 use DateTime;
+use DateTimeInterface;
 use DateTimeZone;
-use Twig\Sandbox\SecurityError;
+use Exception;
 
 /**
  * Gatherings Controller
@@ -24,6 +30,7 @@ use Twig\Sandbox\SecurityError;
 class GatheringsController extends AppController
 {
     use DataverseGridTrait;
+
     /**
      * Service dependency injection configuration
      *
@@ -50,7 +57,7 @@ class GatheringsController extends AppController
      * @param \Cake\Event\EventInterface $event The beforeFilter event
      * @return \Cake\Http\Response|null|void
      */
-    public function beforeFilter(\Cake\Event\EventInterface $event)
+    public function beforeFilter(EventInterface $event)
     {
         parent::beforeFilter($event);
 
@@ -84,9 +91,9 @@ class GatheringsController extends AppController
         $this->Authorization->authorize($securityGathering, 'index');
 
         $currentUser = $this->Authentication->getIdentity();
-        $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
+        $userTimezone = TimezoneHelper::getUserTimezone($currentUser);
 
-        $systemViews = \App\KMP\GridColumns\GatheringsGridColumns::getSystemViews(['timezone' => $userTimezone]);
+        $systemViews = GatheringsGridColumns::getSystemViews(['timezone' => $userTimezone]);
         $queryCallback = $this->buildGatheringSystemViewQueryCallback($userTimezone);
 
         $baseQuery = $this->Gatherings->find()
@@ -114,7 +121,7 @@ class GatheringsController extends AppController
 
         $result = $this->processDataverseGrid([
             'gridKey' => 'Gatherings.index.main',
-            'gridColumnsClass' => \App\KMP\GridColumns\GatheringsGridColumns::class,
+            'gridColumnsClass' => GatheringsGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'Gatherings',
             'defaultSort' => ['Gatherings.start_date' => 'DESC'],
@@ -138,12 +145,12 @@ class GatheringsController extends AppController
             'data' => $result['data'],
             'gatherings' => $result['data'],
             'gridState' => $result['gridState'],
-            'rowActions' => \App\KMP\GridColumns\GatheringsGridColumns::getRowActions(),
+            'rowActions' => GatheringsGridColumns::getRowActions(),
         ]);
 
         // Build URLs for grid
         $queryParams = $this->request->getQueryParams();
-        $dataUrl = \Cake\Routing\Router::url(['action' => 'gridData']);
+        $dataUrl = Router::url(['action' => 'gridData']);
         $tableDataUrl = $dataUrl;
         if (!empty($queryParams)) {
             $tableDataUrl .= '?' . http_build_query($queryParams);
@@ -174,7 +181,7 @@ class GatheringsController extends AppController
      */
     protected function buildGatheringSystemViewQueryCallback(string $userTimezone): callable
     {
-        $boundaries = \App\KMP\GridColumns\GatheringsGridColumns::getSystemViewDateBoundaries($userTimezone);
+        $boundaries = GatheringsGridColumns::getSystemViewDateBoundaries($userTimezone);
 
         return function ($query, $selectedSystemView) use ($boundaries) {
             if (!$selectedSystemView || empty($selectedSystemView['id'])) {
@@ -247,7 +254,7 @@ class GatheringsController extends AppController
         $this->Authorization->authorize($securityGathering, 'index');
 
         $currentUser = $this->Authentication->getIdentity();
-        $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
+        $userTimezone = TimezoneHelper::getUserTimezone($currentUser);
         $timezone = new DateTimeZone($userTimezone);
         $today = new DateTime('now', $timezone);
 
@@ -270,7 +277,7 @@ class GatheringsController extends AppController
         $this->Authorization->authorize($securityGathering, 'index');
 
         $currentUser = $this->Authentication->getIdentity();
-        $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
+        $userTimezone = TimezoneHelper::getUserTimezone($currentUser);
         $timezone = new DateTimeZone($userTimezone);
 
         $year = (int)$this->request->getQuery('year', date('Y'));
@@ -294,7 +301,7 @@ class GatheringsController extends AppController
             if (is_string($weekStartParam) && $weekStartParam !== '') {
                 try {
                     $startDate = new DateTime($weekStartParam, $timezone);
-                } catch (\Exception $exception) {
+                } catch (Exception $exception) {
                     $startDate = null;
                 }
             }
@@ -323,8 +330,8 @@ class GatheringsController extends AppController
             $calendarEnd->modify('+' . (6 - $endDayOfWeek) . ' days');
         }
 
-        $calendarStartUtc = \App\KMP\TimezoneHelper::toUtc($calendarStart->format('Y-m-d H:i:s'), $userTimezone);
-        $calendarEndUtc = \App\KMP\TimezoneHelper::toUtc($calendarEnd->format('Y-m-d H:i:s'), $userTimezone);
+        $calendarStartUtc = TimezoneHelper::toUtc($calendarStart->format('Y-m-d H:i:s'), $userTimezone);
+        $calendarEndUtc = TimezoneHelper::toUtc($calendarEnd->format('Y-m-d H:i:s'), $userTimezone);
 
         $calendarStartUtcString = $calendarStartUtc->format('Y-m-d H:i:s');
         $calendarEndUtcString = $calendarEndUtc->format('Y-m-d H:i:s');
@@ -374,7 +381,7 @@ class GatheringsController extends AppController
 
         $result = $this->processDataverseGrid([
             'gridKey' => 'Gatherings.calendar.main',
-            'gridColumnsClass' => \App\KMP\GridColumns\GatheringsGridColumns::class,
+            'gridColumnsClass' => GatheringsGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'Gatherings',
             'defaultSort' => ['Gatherings.start_date' => 'ASC'],
@@ -418,7 +425,7 @@ class GatheringsController extends AppController
         $nextMonth = (clone $startDate)->modify('+1 month');
 
         $queryParams = $this->request->getQueryParams();
-        if ($view === 'week' && empty($queryParams['week_start']) && $startDate instanceof \DateTimeInterface) {
+        if ($view === 'week' && empty($queryParams['week_start']) && $startDate instanceof DateTimeInterface) {
             $queryParams['week_start'] = $startDate->format('Y-m-d');
         }
 
@@ -441,7 +448,7 @@ class GatheringsController extends AppController
             'gridState' => $result['gridState'],
             'columns' => $result['columnsMetadata'],
             'visibleColumns' => $result['visibleColumns'],
-            'searchableColumns' => \App\KMP\GridColumns\GatheringsGridColumns::getSearchableColumns(),
+            'searchableColumns' => GatheringsGridColumns::getSearchableColumns(),
             'dropdownFilterColumns' => $result['dropdownFilterColumns'],
             'filterOptions' => $result['filterOptions'],
             'currentFilters' => $currentFilters,
@@ -497,10 +504,10 @@ class GatheringsController extends AppController
                     'conditions' => [
                         'OR' => [
                             'GatheringAttendances.share_with_kingdom' => true,
-                        ]
-                    ]
+                        ],
+                    ],
                 ],
-                'Creators' => ['fields' => ['id', 'sca_name']]
+                'Creators' => ['fields' => ['id', 'sca_name']],
             ])
             ->select([
                 'id',
@@ -515,7 +522,7 @@ class GatheringsController extends AppController
                 'branch_id',
                 'gathering_type_id',
                 'created',
-                'modified'
+                'modified',
             ])
             ->firstOrFail();
 
@@ -532,12 +539,12 @@ class GatheringsController extends AppController
             ->find()
             ->where([
                 'gathering_id' => $gathering->id,
-                'member_id' => $currentUser->id
+                'member_id' => $currentUser->id,
             ])
             ->first();
 
         // Check if user can still attend (gathering hasn't ended)
-        $today = \Cake\I18n\Date::now();
+        $today = Date::now();
         $canAttend = $gathering->end_date >= $today;
 
         $this->set(compact('gathering', 'userAttendance', 'canAttend'));
@@ -545,7 +552,7 @@ class GatheringsController extends AppController
 
     /**
      * Attendance Modal - Returns the attendance modal content for AJAX loading
-     * 
+     *
      * This action provides the attendance modal form dynamically for use in the calendar view.
      * It reuses the attendGatheringModal element to ensure consistent UI and functionality.
      *
@@ -567,8 +574,8 @@ class GatheringsController extends AppController
                 'start_date',
                 'end_date',
                 'branch_id',
-                'gathering_type_id'
-            ]
+                'gathering_type_id',
+            ],
         ]);
 
         $this->Authorization->authorize($gathering, 'quickView');
@@ -585,7 +592,7 @@ class GatheringsController extends AppController
                 ->where([
                     'id' => $attendanceId,
                     'member_id' => $currentUser->id,
-                    'gathering_id' => $id
+                    'gathering_id' => $id,
                 ])
                 ->first();
         }
@@ -634,14 +641,14 @@ class GatheringsController extends AppController
                 'Branches' => ['fields' => ['id', 'name']],
                 'GatheringTypes' => ['fields' => ['id', 'name']],
                 'GatheringActivities' => ['fields' => ['id', 'name']],
-                'Creators' => ['fields' => ['id', 'sca_name']]
+                'Creators' => ['fields' => ['id', 'sca_name']],
             ]);
 
         // Apply temporal filtering based on current date and month boundaries
         // Use user's timezone for accurate month boundary calculations
         $currentUser = $this->Authentication->getIdentity();
-        $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
-        $timezone = new \DateTimeZone($userTimezone);
+        $userTimezone = TimezoneHelper::getUserTimezone($currentUser);
+        $timezone = new DateTimeZone($userTimezone);
 
         $today = new DateTime('now', $timezone);
         $today->setTime(0, 0, 0); // Set to start of day for accurate comparisons
@@ -660,10 +667,10 @@ class GatheringsController extends AppController
         $nextMonthEnd->setTime(23, 59, 59);
 
         // Convert boundaries to UTC for database queries (gatherings are stored in UTC)
-        $thisMonthStartUtc = \App\KMP\TimezoneHelper::toUtc($thisMonthStart->format('Y-m-d H:i:s'), $userTimezone);
-        $thisMonthEndUtc = \App\KMP\TimezoneHelper::toUtc($thisMonthEnd->format('Y-m-d H:i:s'), $userTimezone);
-        $nextMonthStartUtc = \App\KMP\TimezoneHelper::toUtc($nextMonthStart->format('Y-m-d H:i:s'), $userTimezone);
-        $nextMonthEndUtc = \App\KMP\TimezoneHelper::toUtc($nextMonthEnd->format('Y-m-d H:i:s'), $userTimezone);
+        $thisMonthStartUtc = TimezoneHelper::toUtc($thisMonthStart->format('Y-m-d H:i:s'), $userTimezone);
+        $thisMonthEndUtc = TimezoneHelper::toUtc($thisMonthEnd->format('Y-m-d H:i:s'), $userTimezone);
+        $nextMonthStartUtc = TimezoneHelper::toUtc($nextMonthStart->format('Y-m-d H:i:s'), $userTimezone);
+        $nextMonthEndUtc = TimezoneHelper::toUtc($nextMonthEnd->format('Y-m-d H:i:s'), $userTimezone);
 
         switch ($state) {
             case 'this_month':
@@ -673,19 +680,19 @@ class GatheringsController extends AppController
                         // Starts this month
                         [
                             'Gatherings.start_date >=' => $thisMonthStartUtc->format('Y-m-d H:i:s'),
-                            'Gatherings.start_date <=' => $thisMonthEndUtc->format('Y-m-d H:i:s')
+                            'Gatherings.start_date <=' => $thisMonthEndUtc->format('Y-m-d H:i:s'),
                         ],
                         // Ends this month
                         [
                             'Gatherings.end_date >=' => $thisMonthStartUtc->format('Y-m-d H:i:s'),
-                            'Gatherings.end_date <=' => $thisMonthEndUtc->format('Y-m-d H:i:s')
+                            'Gatherings.end_date <=' => $thisMonthEndUtc->format('Y-m-d H:i:s'),
                         ],
                         // Spans across this month
                         [
                             'Gatherings.start_date <' => $thisMonthStartUtc->format('Y-m-d H:i:s'),
-                            'Gatherings.end_date >' => $thisMonthEndUtc->format('Y-m-d H:i:s')
-                        ]
-                    ]
+                            'Gatherings.end_date >' => $thisMonthEndUtc->format('Y-m-d H:i:s'),
+                        ],
+                    ],
                 ]);
                 break;
             case 'next_month':
@@ -695,31 +702,31 @@ class GatheringsController extends AppController
                         // Starts next month
                         [
                             'Gatherings.start_date >=' => $nextMonthStartUtc->format('Y-m-d H:i:s'),
-                            'Gatherings.start_date <=' => $nextMonthEndUtc->format('Y-m-d H:i:s')
+                            'Gatherings.start_date <=' => $nextMonthEndUtc->format('Y-m-d H:i:s'),
                         ],
                         // Ends next month
                         [
                             'Gatherings.end_date >=' => $nextMonthStartUtc->format('Y-m-d H:i:s'),
-                            'Gatherings.end_date <=' => $nextMonthEndUtc->format('Y-m-d H:i:s')
+                            'Gatherings.end_date <=' => $nextMonthEndUtc->format('Y-m-d H:i:s'),
                         ],
                         // Spans across next month
                         [
                             'Gatherings.start_date <' => $nextMonthStartUtc->format('Y-m-d H:i:s'),
-                            'Gatherings.end_date >' => $nextMonthEndUtc->format('Y-m-d H:i:s')
-                        ]
-                    ]
+                            'Gatherings.end_date >' => $nextMonthEndUtc->format('Y-m-d H:i:s'),
+                        ],
+                    ],
                 ]);
                 break;
             case 'future':
                 // Gatherings that start after next month
                 $gatheringsQuery = $gatheringsQuery->where([
-                    'Gatherings.start_date >' => $nextMonthEndUtc->format('Y-m-d H:i:s')
+                    'Gatherings.start_date >' => $nextMonthEndUtc->format('Y-m-d H:i:s'),
                 ]);
                 break;
             case 'previous':
                 // Past gatherings that ended before this month
                 $gatheringsQuery = $gatheringsQuery->where([
-                    'Gatherings.end_date <' => $thisMonthStartUtc->format('Y-m-d H:i:s')
+                    'Gatherings.end_date <' => $thisMonthStartUtc->format('Y-m-d H:i:s'),
                 ]);
                 break;
         }
@@ -789,8 +796,8 @@ class GatheringsController extends AppController
                     'Members' => ['fields' => ['id', 'sca_name']],
                     'sort' => [
                         'GatheringStaff.is_steward' => 'DESC',
-                        'GatheringStaff.sort_order' => 'ASC'
-                    ]
+                        'GatheringStaff.sort_order' => 'ASC',
+                    ],
                 ],
                 'Creators' => ['fields' => ['id', 'sca_name']],
                 'GatheringAttendances' => [
@@ -799,15 +806,14 @@ class GatheringsController extends AppController
                         'OR' => [
                             'GatheringAttendances.share_with_hosting_group' => true,
                             'GatheringAttendances.share_with_kingdom' => true,
-                        ]
-                    ]
+                        ],
+                    ],
                 ],
             ])
             ->firstOrFail();
 
         $user = $this->Authentication->getIdentity();
         $canView = $user->can('view', $gathering);
-
 
         //TODO: find a way to do this with out breaking the plugin/core boundry.
         // Check if waivers exist (for activity locking)
@@ -837,7 +843,7 @@ class GatheringsController extends AppController
             ->find()
             ->where([
                 'gathering_id' => $gathering->id,
-                'member_id' => $currentUser->id
+                'member_id' => $currentUser->id,
             ])
             ->first();
 
@@ -861,7 +867,7 @@ class GatheringsController extends AppController
             'availableActivities',
             'totalAttendanceCount',
             'userAttendance',
-            'kingdomAttendances'
+            'kingdomAttendances',
         ));
 
         // Override recordId to use integer ID for plugin cells that expect it
@@ -894,7 +900,7 @@ class GatheringsController extends AppController
             try {
                 $gathering->start_date = new \Cake\I18n\DateTime($startDateParam);
                 $gathering->end_date = new \Cake\I18n\DateTime($startDateParam);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Ignore invalid date — form will show empty fields
             }
         }
@@ -908,14 +914,14 @@ class GatheringsController extends AppController
             // Convert datetime inputs from user/gathering timezone to UTC for storage
             if (!empty($data['start_date'])) {
                 $timezone = !empty($data['timezone']) ? $data['timezone'] :
-                    \App\KMP\TimezoneHelper::getUserTimezone($this->Authentication->getIdentity());
-                $data['start_date'] = \App\KMP\TimezoneHelper::toUtc($data['start_date'], $timezone);
+                    TimezoneHelper::getUserTimezone($this->Authentication->getIdentity());
+                $data['start_date'] = TimezoneHelper::toUtc($data['start_date'], $timezone);
             }
 
             if (!empty($data['end_date'])) {
                 $timezone = !empty($data['timezone']) ? $data['timezone'] :
-                    \App\KMP\TimezoneHelper::getUserTimezone($this->Authentication->getIdentity());
-                $data['end_date'] = \App\KMP\TimezoneHelper::toUtc($data['end_date'], $timezone);
+                    TimezoneHelper::getUserTimezone($this->Authentication->getIdentity());
+                $data['end_date'] = TimezoneHelper::toUtc($data['end_date'], $timezone);
             }
 
             // Default end_date to start_date if not provided
@@ -928,7 +934,7 @@ class GatheringsController extends AppController
             if ($this->Gatherings->save($gathering)) {
                 $this->Flash->success(__(
                     'The gathering "{0}" has been created successfully.',
-                    $gathering->name
+                    $gathering->name,
                 ));
 
                 return $this->redirect(['action' => 'view', $gathering->public_id]);
@@ -944,7 +950,7 @@ class GatheringsController extends AppController
                 }
                 $this->Flash->error(__(
                     'The gathering could not be saved: {0}',
-                    implode(', ', $errorMessages)
+                    implode(', ', $errorMessages),
                 ));
             } else {
                 $this->Flash->error(__('The gathering could not be saved. Please, try again.'));
@@ -998,14 +1004,14 @@ class GatheringsController extends AppController
             // Convert datetime inputs from user/gathering timezone to UTC for storage
             if (!empty($data['start_date'])) {
                 $timezone = !empty($data['timezone']) ? $data['timezone'] :
-                    \App\KMP\TimezoneHelper::getGatheringTimezone($gathering, $this->Authentication->getIdentity());
-                $data['start_date'] = \App\KMP\TimezoneHelper::toUtc($data['start_date'], $timezone);
+                    TimezoneHelper::getGatheringTimezone($gathering, $this->Authentication->getIdentity());
+                $data['start_date'] = TimezoneHelper::toUtc($data['start_date'], $timezone);
             }
 
             if (!empty($data['end_date'])) {
                 $timezone = !empty($data['timezone']) ? $data['timezone'] :
-                    \App\KMP\TimezoneHelper::getGatheringTimezone($gathering, $this->Authentication->getIdentity());
-                $data['end_date'] = \App\KMP\TimezoneHelper::toUtc($data['end_date'], $timezone);
+                    TimezoneHelper::getGatheringTimezone($gathering, $this->Authentication->getIdentity());
+                $data['end_date'] = TimezoneHelper::toUtc($data['end_date'], $timezone);
             }
 
             $gathering = $this->Gatherings->patchEntity($gathering, $data);
@@ -1013,7 +1019,7 @@ class GatheringsController extends AppController
             if ($this->Gatherings->save($gathering)) {
                 $this->Flash->success(__(
                     'The gathering "{0}" has been updated successfully.',
-                    $gathering->name
+                    $gathering->name,
                 ));
 
                 return $this->redirect(['action' => 'view', $gathering->public_id]);
@@ -1029,7 +1035,7 @@ class GatheringsController extends AppController
                 }
                 $this->Flash->error(__(
                     'The gathering could not be saved: {0}',
-                    implode(', ', $errorMessages)
+                    implode(', ', $errorMessages),
                 ));
             } else {
                 $this->Flash->error(__('The gathering could not be saved. Please, try again.'));
@@ -1101,7 +1107,7 @@ class GatheringsController extends AppController
         if ($this->Gatherings->delete($gathering)) {
             $this->Flash->success(__(
                 'The gathering "{0}" has been deleted successfully.',
-                $gatheringName
+                $gatheringName,
             ));
         } else {
             $errors = $gathering->getErrors();
@@ -1115,12 +1121,12 @@ class GatheringsController extends AppController
                 $this->Flash->error(__(
                     'The gathering "{0}" could not be deleted: {1}',
                     $gatheringName,
-                    implode(', ', $errorMessages)
+                    implode(', ', $errorMessages),
                 ));
             } else {
                 $this->Flash->error(__(
                     'The gathering "{0}" could not be deleted. Please, try again.',
-                    $gatheringName
+                    $gatheringName,
                 ));
             }
         }
@@ -1150,8 +1156,9 @@ class GatheringsController extends AppController
         if ($gathering->cancelled_at !== null) {
             $this->Flash->warning(__(
                 'The gathering "{0}" is already cancelled.',
-                $gatheringName
+                $gatheringName,
             ));
+
             return $this->redirect(['action' => 'view', $gathering->public_id]);
         }
 
@@ -1162,12 +1169,12 @@ class GatheringsController extends AppController
         if ($this->Gatherings->save($gathering)) {
             $this->Flash->success(__(
                 'The gathering "{0}" has been cancelled.',
-                $gatheringName
+                $gatheringName,
             ));
         } else {
             $this->Flash->error(__(
                 'The gathering "{0}" could not be cancelled. Please try again.',
-                $gatheringName
+                $gatheringName,
             ));
         }
 
@@ -1195,8 +1202,9 @@ class GatheringsController extends AppController
         if ($gathering->cancelled_at === null) {
             $this->Flash->warning(__(
                 'The gathering "{0}" is not cancelled.',
-                $gatheringName
+                $gatheringName,
             ));
+
             return $this->redirect(['action' => 'view', $gathering->public_id]);
         }
 
@@ -1207,12 +1215,12 @@ class GatheringsController extends AppController
         if ($this->Gatherings->save($gathering)) {
             $this->Flash->success(__(
                 'The gathering "{0}" has been restored.',
-                $gatheringName
+                $gatheringName,
             ));
         } else {
             $this->Flash->error(__(
                 'The gathering "{0}" could not be restored. Please try again.',
-                $gatheringName
+                $gatheringName,
             ));
         }
 
@@ -1232,7 +1240,7 @@ class GatheringsController extends AppController
     {
         $this->request->allowMethod(['post']);
         $gathering = $this->Gatherings->get($id, contain: ['GatheringActivities']);
-        $this->Authorization->authorize($gathering, "edit");
+        $this->Authorization->authorize($gathering, 'edit');
 
         // Check if waivers exist - can't modify activities if they do
         // TODO: Implement when Waivers plugin is available
@@ -1242,8 +1250,9 @@ class GatheringsController extends AppController
 
         if ($hasWaivers) {
             $this->Flash->error(__(
-                'Cannot add activities because waivers have been uploaded for this gathering.'
+                'Cannot add activities because waivers have been uploaded for this gathering.',
             ));
+
             return $this->redirect(['action' => 'view', $gathering->public_id]);
         }
 
@@ -1251,6 +1260,7 @@ class GatheringsController extends AppController
 
         if (empty($activityId)) {
             $this->Flash->error(__('Please select an activity to add.'));
+
             return $this->redirect(['action' => 'view', $gathering->public_id]);
         }
 
@@ -1263,6 +1273,7 @@ class GatheringsController extends AppController
         // Check if activity is already linked
         if (in_array($activityId, $existingIds)) {
             $this->Flash->warning(__('This activity is already part of this gathering.'));
+
             return $this->redirect(['action' => 'view', $gathering->public_id]);
         }
 
@@ -1272,7 +1283,7 @@ class GatheringsController extends AppController
         $linkData = [
             'gathering_id' => $id,
             'gathering_activity_id' => $activityId,
-            'sort_order' => 999 // Will be at the end
+            'sort_order' => 999, // Will be at the end
         ];
 
         // Add custom description if provided
@@ -1305,7 +1316,7 @@ class GatheringsController extends AppController
     {
         $this->request->allowMethod(['post']);
         $gathering = $this->Gatherings->get($gatheringId);
-        $this->Authorization->authorize($gathering, "edit");
+        $this->Authorization->authorize($gathering, 'edit');
 
         // Check if waivers exist - can't modify activities if they do
         // TODO: Implement when Waivers plugin is available
@@ -1315,8 +1326,9 @@ class GatheringsController extends AppController
 
         if ($hasWaivers) {
             $this->Flash->error(__(
-                'Cannot remove activities because waivers have been uploaded for this gathering.'
+                'Cannot remove activities because waivers have been uploaded for this gathering.',
             ));
+
             return $this->redirect(['action' => 'view', $gathering->public_id]);
         }
 
@@ -1324,12 +1336,13 @@ class GatheringsController extends AppController
         $link = $GatheringsGatheringActivities->find()
             ->where([
                 'gathering_id' => $gatheringId,
-                'gathering_activity_id' => $activityId
+                'gathering_activity_id' => $activityId,
             ])
             ->first();
 
         if (!$link) {
             $this->Flash->error(__('Activity link not found.'));
+
             return $this->redirect(['action' => 'view', $gathering->public_id]);
         }
 
@@ -1365,8 +1378,9 @@ class GatheringsController extends AppController
 
         if ($hasWaivers) {
             $this->Flash->error(__(
-                'Cannot edit activity descriptions because waivers have been uploaded for this gathering.'
+                'Cannot edit activity descriptions because waivers have been uploaded for this gathering.',
             ));
+
             return $this->redirect(['action' => 'view', $gathering->public_id]);
         }
 
@@ -1375,6 +1389,7 @@ class GatheringsController extends AppController
 
         if (empty($activityId)) {
             $this->Flash->error(__('Activity ID is required.'));
+
             return $this->redirect(['action' => 'view', $gathering->public_id]);
         }
 
@@ -1382,12 +1397,13 @@ class GatheringsController extends AppController
         $link = $GatheringsGatheringActivities->find()
             ->where([
                 'gathering_id' => $gatheringId,
-                'gathering_activity_id' => $activityId
+                'gathering_activity_id' => $activityId,
             ])
             ->first();
 
         if (!$link) {
             $this->Flash->error(__('Activity link not found.'));
+
             return $this->redirect(['action' => 'view', $gathering->public_id]);
         }
 
@@ -1407,7 +1423,7 @@ class GatheringsController extends AppController
                 }
                 $this->Flash->error(__(
                     'Unable to update activity description: {0}',
-                    implode(', ', $errorMessages)
+                    implode(', ', $errorMessages),
                 ));
             } else {
                 $this->Flash->error(__('Unable to update activity description. Please try again.'));
@@ -1435,7 +1451,7 @@ class GatheringsController extends AppController
         $originalGathering = $this->Gatherings->get($id, contain: [
             'GatheringActivities',
             'GatheringStaff' => ['Members'],
-            'GatheringScheduledActivities' => ['GatheringActivities']
+            'GatheringScheduledActivities' => ['GatheringActivities'],
         ]);
         $this->Authorization->authorize($originalGathering, 'add');
 
@@ -1443,6 +1459,7 @@ class GatheringsController extends AppController
         $gatheringType = $this->Gatherings->GatheringTypes->get($originalGathering->gathering_type_id);
         if (!$gatheringType->clonable) {
             $this->Flash->error(__('This gathering type cannot be cloned.'));
+
             return $this->redirect(['action' => 'view', $originalGathering->public_id]);
         }
 
@@ -1458,14 +1475,14 @@ class GatheringsController extends AppController
         // Convert datetime inputs from user/gathering timezone to UTC for storage
         if (!empty($data['start_date'])) {
             $timezone = !empty($data['timezone']) ? $data['timezone'] :
-                \App\KMP\TimezoneHelper::getUserTimezone($this->Authentication->getIdentity());
-            $data['start_date'] = \App\KMP\TimezoneHelper::toUtc($data['start_date'], $timezone);
+                TimezoneHelper::getUserTimezone($this->Authentication->getIdentity());
+            $data['start_date'] = TimezoneHelper::toUtc($data['start_date'], $timezone);
         }
 
         if (!empty($data['end_date'])) {
             $timezone = !empty($data['timezone']) ? $data['timezone'] :
-                \App\KMP\TimezoneHelper::getUserTimezone($this->Authentication->getIdentity());
-            $data['end_date'] = \App\KMP\TimezoneHelper::toUtc($data['end_date'], $timezone);
+                TimezoneHelper::getUserTimezone($this->Authentication->getIdentity());
+            $data['end_date'] = TimezoneHelper::toUtc($data['end_date'], $timezone);
         }
 
         // Default end_date to start_date if not provided
@@ -1565,7 +1582,7 @@ class GatheringsController extends AppController
                         'email' => $staff->email,
                         'phone' => $staff->phone,
                         'contact_notes' => $staff->contact_notes,
-                        'sort_order' => $staff->sort_order
+                        'sort_order' => $staff->sort_order,
                     ]);
 
                     if ($GatheringStaff->save($newStaff)) {
@@ -1614,7 +1631,7 @@ class GatheringsController extends AppController
                     } else {
                         // Log errors for debugging
                         $errors = $newScheduledActivity->getErrors();
-                        \Cake\Log\Log::error('Failed to clone scheduled activity: ' . json_encode($errors));
+                        Log::error('Failed to clone scheduled activity: ' . json_encode($errors));
                     }
                 }
             }
@@ -1635,12 +1652,12 @@ class GatheringsController extends AppController
                 $this->Flash->success(__(
                     'Gathering "{0}" has been cloned successfully with {1}.',
                     $newGathering->name,
-                    implode(', ', $successParts)
+                    implode(', ', $successParts),
                 ));
             } else {
                 $this->Flash->success(__(
                     'Gathering "{0}" has been cloned successfully.',
-                    $newGathering->name
+                    $newGathering->name,
                 ));
             }
 
@@ -1657,7 +1674,7 @@ class GatheringsController extends AppController
             }
             $this->Flash->error(__(
                 'Could not clone gathering: {0}',
-                implode(', ', $errorMessages)
+                implode(', ', $errorMessages),
             ));
         } else {
             $this->Flash->error(__('Could not clone gathering. Please try again.'));
@@ -1690,12 +1707,12 @@ class GatheringsController extends AppController
         $data['created_by'] = $this->Authentication->getIdentity()->id;
 
         // Convert datetime inputs from gathering/user timezone to UTC for storage
-        $timezone = \App\KMP\TimezoneHelper::getGatheringTimezone($gathering, $this->Authentication->getIdentity());
+        $timezone = TimezoneHelper::getGatheringTimezone($gathering, $this->Authentication->getIdentity());
         if (!empty($data['start_datetime'])) {
-            $data['start_datetime'] = \App\KMP\TimezoneHelper::toUtc($data['start_datetime'], $timezone);
+            $data['start_datetime'] = TimezoneHelper::toUtc($data['start_datetime'], $timezone);
         }
         if (!empty($data['end_datetime'])) {
-            $data['end_datetime'] = \App\KMP\TimezoneHelper::toUtc($data['end_datetime'], $timezone);
+            $data['end_datetime'] = TimezoneHelper::toUtc($data['end_datetime'], $timezone);
         }
 
         // Handle "other" checkbox
@@ -1733,6 +1750,7 @@ class GatheringsController extends AppController
         }
 
         $this->viewBuilder()->setOption('serialize', ['success', 'message', 'data', 'errors']);
+
         return null;
     }
 
@@ -1763,6 +1781,7 @@ class GatheringsController extends AppController
                 'message' => __('Invalid scheduled activity.'),
             ]);
             $this->viewBuilder()->setOption('serialize', ['success', 'message']);
+
             return null;
         }
 
@@ -1770,12 +1789,12 @@ class GatheringsController extends AppController
         $data['modified_by'] = $this->Authentication->getIdentity()->id;
 
         // Convert datetime inputs from gathering/user timezone to UTC for storage
-        $timezone = \App\KMP\TimezoneHelper::getGatheringTimezone($gathering, $this->Authentication->getIdentity());
+        $timezone = TimezoneHelper::getGatheringTimezone($gathering, $this->Authentication->getIdentity());
         if (!empty($data['start_datetime'])) {
-            $data['start_datetime'] = \App\KMP\TimezoneHelper::toUtc($data['start_datetime'], $timezone);
+            $data['start_datetime'] = TimezoneHelper::toUtc($data['start_datetime'], $timezone);
         }
         if (!empty($data['end_datetime'])) {
-            $data['end_datetime'] = \App\KMP\TimezoneHelper::toUtc($data['end_datetime'], $timezone);
+            $data['end_datetime'] = TimezoneHelper::toUtc($data['end_datetime'], $timezone);
         }
 
         // Handle "other" checkbox
@@ -1813,6 +1832,7 @@ class GatheringsController extends AppController
         }
 
         $this->viewBuilder()->setOption('serialize', ['success', 'message', 'data', 'errors']);
+
         return null;
     }
 
@@ -1838,6 +1858,7 @@ class GatheringsController extends AppController
         // Ensure scheduled activity belongs to this gathering
         if ($scheduledActivity->gathering_id != $gathering->id) {
             $this->Flash->error(__('Invalid scheduled activity.'));
+
             return $this->redirect(['action' => 'view', $gathering->public_id]);
         }
 
@@ -1877,15 +1898,15 @@ class GatheringsController extends AppController
                 'GatheringStaff' => [
                     'Members' => ['fields' => ['id', 'sca_name']],
                     'conditions' => ['GatheringStaff.show_on_public_page' => true],
-                    'sort' => ['GatheringStaff.is_steward' => 'DESC', 'GatheringStaff.sort_order' => 'ASC']
+                    'sort' => ['GatheringStaff.is_steward' => 'DESC', 'GatheringStaff.sort_order' => 'ASC'],
                 ],
                 'GatheringActivities' => [
-                    'sort' => ['GatheringsGatheringActivities.sort_order' => 'ASC']
+                    'sort' => ['GatheringsGatheringActivities.sort_order' => 'ASC'],
                 ],
                 'GatheringScheduledActivities' => [
                     'GatheringActivities',
-                    'sort' => ['GatheringScheduledActivities.start_datetime' => 'ASC']
-                ]
+                    'sort' => ['GatheringScheduledActivities.start_datetime' => 'ASC'],
+                ],
             ])
             ->firstOrFail();
 
@@ -1936,7 +1957,7 @@ class GatheringsController extends AppController
             $userAttendance = $attendanceTable->find()
                 ->where([
                     'gathering_id' => $gathering->id,
-                    'member_id' => $user->id
+                    'member_id' => $user->id,
                 ])
                 ->first();
         }
@@ -1961,7 +1982,7 @@ class GatheringsController extends AppController
             'durationDays',
             'user',
             'userAttendance',
-            'kingdomAttendances'
+            'kingdomAttendances',
         ));
     }
 
@@ -1996,7 +2017,7 @@ class GatheringsController extends AppController
             ->orderBy(['Gatherings.start_date' => 'ASC']);
 
         // Apply the same grid filters the calendar UI uses
-        $columnsMetadata = \App\KMP\GridColumns\GatheringsGridColumns::getColumns();
+        $columnsMetadata = GatheringsGridColumns::getColumns();
         $incomingFilters = $this->request->getQuery('filter', []);
         if (!is_array($incomingFilters)) {
             $incomingFilters = [];
@@ -2089,7 +2110,7 @@ class GatheringsController extends AppController
      * @return \Cake\Http\Response iCalendar file download response
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When gathering not found
      */
-    public function downloadCalendar(ICalendarService $iCalendarService, string $publicId = null)
+    public function downloadCalendar(ICalendarService $iCalendarService, ?string $publicId = null)
     {
         if (!$publicId) {
             throw new NotFoundException(__('Gathering not found.'));
@@ -2101,8 +2122,8 @@ class GatheringsController extends AppController
                 'GatheringTypes',
                 'GatheringActivities',
                 'GatheringStaff' => [
-                    'Members' => ['fields' => ['id', 'sca_name']]
-                ]
+                    'Members' => ['fields' => ['id', 'sca_name']],
+                ],
             ])
             ->firstOrFail();
 
@@ -2152,7 +2173,7 @@ class GatheringsController extends AppController
         $this->Authorization->authorize($securityGathering, 'index');
 
         $currentUser = $this->Authentication->getIdentity();
-        $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
+        $userTimezone = TimezoneHelper::getUserTimezone($currentUser);
         $timezone = new DateTimeZone($userTimezone);
         $today = new DateTime('now', $timezone);
 
@@ -2183,7 +2204,7 @@ class GatheringsController extends AppController
         $this->request->allowMethod(['get']);
 
         $currentUser = $this->Authentication->getIdentity();
-        $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
+        $userTimezone = TimezoneHelper::getUserTimezone($currentUser);
         $timezone = new DateTimeZone($userTimezone);
 
         $year = (int)$this->request->getQuery('year', date('Y'));
@@ -2217,8 +2238,8 @@ class GatheringsController extends AppController
         $calendarEnd->setTime(23, 59, 59);
 
         // Convert to UTC for query
-        $calendarStartUtc = \App\KMP\TimezoneHelper::toUtc($calendarStart->format('Y-m-d H:i:s'), $userTimezone);
-        $calendarEndUtc = \App\KMP\TimezoneHelper::toUtc($calendarEnd->format('Y-m-d H:i:s'), $userTimezone);
+        $calendarStartUtc = TimezoneHelper::toUtc($calendarStart->format('Y-m-d H:i:s'), $userTimezone);
+        $calendarEndUtc = TimezoneHelper::toUtc($calendarEnd->format('Y-m-d H:i:s'), $userTimezone);
 
         // Query gatherings
         $gatherings = $this->Gatherings->find()
@@ -2263,8 +2284,8 @@ class GatheringsController extends AppController
         $events = [];
         foreach ($gatherings as $gathering) {
             // Convert dates to user timezone
-            $startLocal = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, $userTimezone);
-            $endLocal = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, $userTimezone);
+            $startLocal = TimezoneHelper::toUserTimezone($gathering->start_date, $userTimezone);
+            $endLocal = TimezoneHelper::toUserTimezone($gathering->end_date, $userTimezone);
 
             $events[] = [
                 'id' => $gathering->id,
@@ -2290,20 +2311,20 @@ class GatheringsController extends AppController
                     ];
                 }, $gathering->gathering_activities ?? []),
                 'user_attending' => !empty($gathering->gathering_attendances),
-                'attendance_id' => !empty($gathering->gathering_attendances) 
-                    ? $gathering->gathering_attendances[0]->id 
+                'attendance_id' => !empty($gathering->gathering_attendances)
+                    ? $gathering->gathering_attendances[0]->id
                     : null,
-                'share_with_kingdom' => !empty($gathering->gathering_attendances) 
-                    ? $gathering->gathering_attendances[0]->share_with_kingdom 
+                'share_with_kingdom' => !empty($gathering->gathering_attendances)
+                    ? $gathering->gathering_attendances[0]->share_with_kingdom
                     : false,
-                'share_with_hosting_group' => !empty($gathering->gathering_attendances) 
-                    ? $gathering->gathering_attendances[0]->share_with_hosting_group 
+                'share_with_hosting_group' => !empty($gathering->gathering_attendances)
+                    ? $gathering->gathering_attendances[0]->share_with_hosting_group
                     : false,
-                'share_with_crown' => !empty($gathering->gathering_attendances) 
-                    ? $gathering->gathering_attendances[0]->share_with_crown 
+                'share_with_crown' => !empty($gathering->gathering_attendances)
+                    ? $gathering->gathering_attendances[0]->share_with_crown
                     : false,
-                'public_note' => !empty($gathering->gathering_attendances) 
-                    ? $gathering->gathering_attendances[0]->public_note 
+                'public_note' => !empty($gathering->gathering_attendances)
+                    ? $gathering->gathering_attendances[0]->public_note
                     : null,
             ];
         }

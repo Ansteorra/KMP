@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Model\Table;
@@ -8,7 +7,9 @@ use App\Test\TestCase\BaseTestCase;
 
 class RolesTableTest extends BaseTestCase
 {
-    /** @var \App\Model\Table\RolesTable */
+    /**
+     * @var \App\Model\Table\RolesTable
+     */
     protected $Roles;
 
     protected function setUp(): void

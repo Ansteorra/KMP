@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
@@ -181,12 +180,14 @@ class BackupsController extends AppController
 
         $identity = $this->request->getAttribute('identity');
         $actor = is_object($identity) && method_exists($identity, 'getIdentifier') ? (string)$identity->getIdentifier() : null;
-        if (!$restoreStatusService->acquireLock([
+        if (
+            !$restoreStatusService->acquireLock([
             'source' => $sourceLabel,
             'backup_id' => $id,
             'actor' => $actor,
             'message' => sprintf('Restore starting from %s.', $sourceLabel),
-        ])) {
+            ])
+        ) {
             $activeStatus = $restoreStatusService->getStatus();
             $activeMessage = (string)($activeStatus['message'] ?? '');
             if ($activeMessage === '') {

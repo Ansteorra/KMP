@@ -1,17 +1,20 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services;
 
 use Cake\Cache\Cache;
+use Cake\Database\Driver\Postgres;
 use Cake\Database\Schema\TableSchemaInterface;
 use Cake\Datasource\ConnectionManager;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\ORM\Locator\LocatorAwareTrait;
+use Cake\Utility\Inflector;
+use DateTimeImmutable;
 use Exception;
 use RuntimeException;
+use Throwable;
 
 /**
  * Database-agnostic backup and restore service.
@@ -73,7 +76,7 @@ class BackupService
         foreach ($tables as $tableName) {
             try {
                 $tableObj = $this->fetchTable(
-                    ucfirst(\Cake\Utility\Inflector::camelize($tableName))
+                    ucfirst(Inflector::camelize($tableName)),
                 );
             } catch (Exception $e) {
                 // Fallback: query directly
@@ -166,7 +169,7 @@ class BackupService
         $connection = ConnectionManager::get('default');
         $schemaCollection = $connection->getSchemaCollection();
         $driver = $connection->getDriver();
-        $isPostgres = $driver instanceof \Cake\Database\Driver\Postgres;
+        $isPostgres = $driver instanceof Postgres;
         $totalRows = 0;
         $processedTables = 0;
 
@@ -617,7 +620,7 @@ SQL;
                 if (!Cache::clear($cacheConfig)) {
                     Log::warning(sprintf('Failed to clear cache config "%s" after restore.', $cacheConfig));
                 }
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 Log::warning(sprintf(
                     'Failed to clear cache config "%s" after restore: %s',
                     $cacheConfig,
@@ -798,7 +801,7 @@ SQL;
         }
 
         try {
-            $parsed = new \DateTimeImmutable($value);
+            $parsed = new DateTimeImmutable($value);
         } catch (Exception) {
             return null;
         }

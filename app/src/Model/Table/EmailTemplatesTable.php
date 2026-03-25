@@ -1,14 +1,13 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use Cake\Database\Schema\TableSchemaInterface;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
-use Cake\Database\Schema\TableSchemaInterface;
 
 /**
  * EmailTemplates Model
@@ -26,7 +25,6 @@ use Cake\Database\Schema\TableSchemaInterface;
  * @method iterable<\App\Model\Entity\EmailTemplate>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\EmailTemplate> saveManyOrFail(iterable $entities, array $options = [])
  * @method iterable<\App\Model\Entity\EmailTemplate>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\EmailTemplate>|false deleteMany(iterable $entities, array $options = [])
  * @method iterable<\App\Model\Entity\EmailTemplate>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\EmailTemplate> deleteManyOrFail(iterable $entities, array $options = [])
- *
  * @mixin \Cake\ORM\Behavior\TimestampBehavior
  */
 class EmailTemplatesTable extends Table
@@ -128,6 +126,7 @@ class EmailTemplatesTable extends Table
                     // Accept valid JSON strings
                     if (is_string($value)) {
                         json_decode($value);
+
                         return json_last_error() === JSON_ERROR_NONE;
                     }
 
@@ -156,9 +155,9 @@ class EmailTemplatesTable extends Table
         $rules->add(
             $rules->isUnique(
                 ['mailer_class', 'action_method'],
-                'A template for this mailer and action already exists'
+                'A template for this mailer and action already exists',
             ),
-            ['errorField' => 'action_method']
+            ['errorField' => 'action_method'],
         );
 
         return $rules;

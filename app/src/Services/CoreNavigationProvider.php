@@ -1,15 +1,13 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services;
 
 use App\Model\Entity\Member;
-use App\KMP\StaticHelpers;
 
 /**
  * Core Navigation Provider
- * 
+ *
  * Provides core application navigation items.
  * Replaces the functionality from App\Event\CallForNavHandler
  */
@@ -18,7 +16,7 @@ class CoreNavigationProvider
     /**
      * Get core navigation items
      *
-     * @param Member $user Current user
+     * @param \App\Model\Entity\Member $user Current user
      * @param array $params Request parameters
      * @return array Navigation items
      */
@@ -40,7 +38,7 @@ class CoreNavigationProvider
                 'url' => [
                     'controller' => 'WarrantRosters',
                     'action' => 'index',
-                    "?" => ['src' => 'action_items']
+                    '?' => ['src' => 'action_items'],
                 ],
                 'badgeClass' => 'bg-danger',
                 'badgeValue' => [
@@ -58,7 +56,7 @@ class CoreNavigationProvider
                 'url' => [
                     'controller' => 'Members',
                     'action' => 'verifyQueue',
-                    "?" => ['src' => 'action_items']
+                    '?' => ['src' => 'action_items'],
                 ],
                 'icon' => 'bi-fingerprint',
                 'badgeClass' => 'bg-danger',
@@ -111,7 +109,7 @@ class CoreNavigationProvider
                 'order' => 0,
                 'url' => [
                     'controller' => 'Members',
-                    'action' => 'profile'
+                    'action' => 'profile',
                 ],
             ],
             [

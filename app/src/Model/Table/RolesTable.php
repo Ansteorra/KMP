@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -103,7 +102,7 @@ class RolesTable extends BaseTable
 
     /**
      * Cache invalidation configuration for security-related caches
-     * 
+     *
      * Role changes affect authorization decisions across the system, so we need
      * to invalidate security-related caches when roles are modified. This ensures
      * permission changes take effect immediately.

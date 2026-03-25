@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\KMP\GridColumns;
@@ -14,8 +13,9 @@ namespace App\KMP\GridColumns;
  */
 class MembersGridColumns extends BaseGridColumns
 {
-
-    /** @var bool Whether PII columns should be included */
+    /**
+     * @var bool Whether PII columns should be included
+     */
     protected static bool $includePii = true;
 
     /**

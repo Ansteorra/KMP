@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -52,7 +51,9 @@ class MemberQuickLoginDevice extends BaseEntity
         'member' => true,
     ];
 
-    /** @var array<string> Fields hidden from serialization */
+    /**
+     * @var array<string> Fields hidden from serialization
+     */
     protected array $_hidden = [
         'pin_hash',
     ];

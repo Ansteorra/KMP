@@ -1,13 +1,14 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Policy;
 
+use App\Model\Entity\Member;
 use App\Policy\WarrantPolicy;
 use App\Policy\WarrantRosterPolicy;
 use App\Policy\WarrantRostersTablePolicy;
 use App\Test\TestCase\BaseTestCase;
+use Cake\ORM\Query\SelectQuery;
 
 /**
  * Tests for warrant-related policies:
@@ -24,7 +25,7 @@ class WarrantPoliciesTest extends BaseTestCase
         $this->Members = $this->getTableLocator()->get('Members');
     }
 
-    protected function loadMember(int $id): \App\Model\Entity\Member
+    protected function loadMember(int $id): Member
     {
         $member = $this->Members->get($id);
         $member->getPermissions();
@@ -208,7 +209,7 @@ class WarrantPoliciesTest extends BaseTestCase
         $table = $this->getTableLocator()->get('WarrantRosters');
         $query = $table->find();
         $result = $policy->scopeAllRosters($admin, $query);
-        $this->assertInstanceOf(\Cake\ORM\Query\SelectQuery::class, $result);
+        $this->assertInstanceOf(SelectQuery::class, $result);
     }
 
     public function testWarrantRostersTablePolicyScopeGridDataReturnsQuery(): void
@@ -218,6 +219,6 @@ class WarrantPoliciesTest extends BaseTestCase
         $table = $this->getTableLocator()->get('WarrantRosters');
         $query = $table->find();
         $result = $policy->scopeGridData($admin, $query);
-        $this->assertInstanceOf(\Cake\ORM\Query\SelectQuery::class, $result);
+        $this->assertInstanceOf(SelectQuery::class, $result);
     }
 }

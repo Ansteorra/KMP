@@ -1,13 +1,14 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Queue\Task;
 
 use App\Services\BackupService;
 use App\Services\BackupStorageService;
+use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\ORM\Locator\LocatorAwareTrait;
+use Exception;
 use Queue\Queue\Task;
 
 /**
@@ -63,7 +64,7 @@ class BackupTask extends Task
 
             // Enforce retention policy
             $this->cleanOldBackups($backupsTable, $storage, $appSettings);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $backup->status = 'failed';
             $backup->notes = $e->getMessage();
             $backupsTable->save($backup);
@@ -83,7 +84,7 @@ class BackupTask extends Task
             return;
         }
 
-        $cutoff = new \Cake\I18n\DateTime("-{$retentionDays} days");
+        $cutoff = new DateTime("-{$retentionDays} days");
         $oldBackups = $backupsTable->find()
             ->where(['created <' => $cutoff, 'status' => 'completed'])
             ->all();
@@ -95,7 +96,7 @@ class BackupTask extends Task
                 }
                 $backupsTable->delete($old);
                 Log::info("Retention cleanup: deleted {$old->filename}");
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 Log::warning("Failed to clean old backup {$old->filename}: " . $e->getMessage());
             }
         }

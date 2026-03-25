@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Command;
@@ -12,6 +11,7 @@ use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
+use Exception;
 
 /**
  * Scheduled backup check — runs from cron, creates a backup if the schedule is due.
@@ -101,7 +101,7 @@ class BackupCheckCommand extends Command
 
             $io->success("Backup completed: {$filename}");
             Log::info("Scheduled backup completed: {$filename}");
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $backup->status = 'failed';
             $backup->notes = $e->getMessage();
             $backupsTable->save($backup);
@@ -127,7 +127,7 @@ class BackupCheckCommand extends Command
                     }
                     $backupsTable->delete($old);
                     $io->out("Retention cleanup: deleted {$old->filename}");
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     Log::warning("Retention cleanup failed for {$old->filename}: " . $e->getMessage());
                 }
             }

@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Command;
@@ -170,6 +169,7 @@ class KmpInstallCommand extends Command
 
         if ($args->getOption('json')) {
             $io->out(json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
             return Command::CODE_SUCCESS;
         }
 

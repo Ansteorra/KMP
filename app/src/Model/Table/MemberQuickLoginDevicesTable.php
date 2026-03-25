@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -11,7 +10,6 @@ use Cake\Validation\Validator;
  * MemberQuickLoginDevices Table
  *
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Members
- *
  * @method \App\Model\Entity\MemberQuickLoginDevice newEmptyEntity()
  * @method \App\Model\Entity\MemberQuickLoginDevice newEntity(array $data, array $options = [])
  * @method \App\Model\Entity\MemberQuickLoginDevice get(mixed $primaryKey, array|string $finder = 'all', \Psr\SimpleCache\CacheInterface|string|null $cache = null, \Closure|string|null $cacheKey = null, mixed ...$args)

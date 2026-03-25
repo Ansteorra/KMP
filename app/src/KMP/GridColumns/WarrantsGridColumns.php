@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\KMP\GridColumns;
@@ -152,7 +151,7 @@ class WarrantsGridColumns extends BaseGridColumns
     {
         return array_filter(
             static::getColumns(),
-            fn($col) => !empty($col['defaultVisible'])
+            fn($col) => !empty($col['defaultVisible']),
         );
     }
 
@@ -167,6 +166,7 @@ class WarrantsGridColumns extends BaseGridColumns
                 $required[] = $key;
             }
         }
+
         return $required;
     }
 

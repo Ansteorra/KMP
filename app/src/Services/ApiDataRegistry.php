@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services;
@@ -13,10 +12,14 @@ namespace App\Services;
  */
 class ApiDataRegistry
 {
-    /** @var array<string, array{callback: callable, routes: array}> */
+    /**
+     * @var array<string, array{callback: callable, routes: array}>
+     */
     private static array $providers = [];
 
-    /** @var bool */
+    /**
+     * @var bool
+     */
     private static bool $initialized = false;
 
     /**
@@ -70,11 +73,14 @@ class ApiDataRegistry
     private static function matchesRoute(array $routes, string $controller, string $action): bool
     {
         foreach ($routes as $route) {
-            if (($route['controller'] ?? null) === $controller
-                && ($route['action'] ?? null) === $action) {
+            if (
+                ($route['controller'] ?? null) === $controller
+                && ($route['action'] ?? null) === $action
+            ) {
                 return true;
             }
         }
+
         return false;
     }
 
@@ -89,11 +95,12 @@ class ApiDataRegistry
     /**
      * Get registered source names.
      *
-     * @return string[]
+     * @return array<string>
      */
     public static function getRegisteredSources(): array
     {
         self::ensureInitialized();
+
         return array_keys(self::$providers);
     }
 

@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services;
@@ -7,6 +6,7 @@ namespace App\Services;
 use App\KMP\KmpIdentityInterface;
 use Authorization\AuthorizationService as rootAuthorizationService;
 use Authorization\AuthorizationServiceInterface;
+use Cake\Core\Configure;
 
 /**
  * Custom authorization service with KMP identity handling.
@@ -27,23 +27,22 @@ class AuthorizationService extends rootAuthorizationService implements Authoriza
     /**
      * Check authorization with proper state management for nested calls.
      *
-     * @param KmpIdentityInterface|null $user The authenticated user
+     * @param \App\KMP\KmpIdentityInterface|null $user The authenticated user
      * @param string $action The action being attempted
      * @param mixed $resource The resource being accessed
      * @param mixed ...$optionalArgs Additional policy arguments
      * @return bool
-     * 
-     * // Check class-level permissions  
+     *
+     * // Check class-level permissions
      * if ($authService->checkCan($currentUser, 'add', 'Members')) {
      *     // User can add new members
      * }
-     * 
+     *
      * // Check with additional context
      * if ($authService->checkCan($currentUser, 'approve', $warrant, $branch)) {
      *     // User can approve warrant in this branch context
      * }
      * ```
-     * 
      * @throws \Authorization\Exception\Exception If policy not found or other authorization errors
      */
     public function checkCan(?KmpIdentityInterface $user, string $action, $resource, ...$optionalArgs): bool
@@ -57,7 +56,7 @@ class AuthorizationService extends rootAuthorizationService implements Authoriza
         $resultBool = is_bool($result) ? $result : $result->getStatus();
 
         // Only log in debug mode
-        if (\Cake\Core\Configure::read('debug')) {
+        if (Configure::read('debug')) {
             $this->logAuthCheck($user, $action, $resource, $resultBool, $optionalArgs);
         }
 
@@ -66,8 +65,8 @@ class AuthorizationService extends rootAuthorizationService implements Authoriza
 
     /**
      * Log an authorization check for debugging purposes
-     * 
-     * @param KmpIdentityInterface|null $user The user performing the check
+     *
+     * @param \App\KMP\KmpIdentityInterface|null $user The user performing the check
      * @param string $action The action being checked
      * @param mixed $resource The resource being accessed
      * @param bool $result The result of the check
@@ -90,7 +89,7 @@ class AuthorizationService extends rootAuthorizationService implements Authoriza
 
     /**
      * Get readable resource information for logging
-     * 
+     *
      * @param mixed $resource The resource
      * @return string
      */
@@ -116,7 +115,7 @@ class AuthorizationService extends rootAuthorizationService implements Authoriza
 
     /**
      * Get the authorization check log (only available in debug mode)
-     * 
+     *
      * @return array
      */
     public static function getAuthCheckLog(): array
@@ -126,7 +125,7 @@ class AuthorizationService extends rootAuthorizationService implements Authoriza
 
     /**
      * Clear the authorization check log
-     * 
+     *
      * @return void
      */
     public static function clearAuthCheckLog(): void

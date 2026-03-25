@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services;
@@ -57,12 +56,11 @@ class ServiceResult
 
     /**
      * Get the data payload
-     * 
+     *
      * Convenience method that returns the data property.
      * Consider checking isSuccess() before calling this method.
-     * 
+     *
      * @return mixed The data payload or null
-     * 
      * @example
      * ```php
      * if ($result->isSuccess()) {
@@ -77,12 +75,11 @@ class ServiceResult
 
     /**
      * Get the error message
-     * 
+     *
      * Convenience method that returns the reason property.
      * Typically used when isSuccess() is false to get the error message.
-     * 
+     *
      * @return string|null The error message or null
-     * 
      * @example
      * ```php
      * if (!$result->isSuccess()) {

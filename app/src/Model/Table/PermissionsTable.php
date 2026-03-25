@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -61,7 +60,7 @@ class PermissionsTable extends BaseTable
 
     /**
      * Cache configuration for permission-related data
-     * 
+     *
      * Permissions are at the core of the authorization system, so changes need
      * to trigger appropriate cache invalidation to ensure security decisions
      * are based on current data.

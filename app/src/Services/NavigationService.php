@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services;
@@ -15,7 +14,7 @@ class NavigationService
     /**
      * Get all navigation items for a user from the registry
      *
-     * @param Member $user Current user
+     * @param \App\Model\Entity\Member $user Current user
      * @param array $params Request parameters
      * @return array All navigation items
      */
@@ -35,7 +34,7 @@ class NavigationService
         ) {
             return call_user_func(
                 [$badgeConfig['class'], $badgeConfig['method']],
-                $badgeConfig['argument']
+                $badgeConfig['argument'],
             );
         }
 
@@ -87,7 +86,7 @@ class NavigationService
      * Get navigation items from a specific source
      *
      * @param string $source Source identifier
-     * @param Member $user Current user
+     * @param \App\Model\Entity\Member $user Current user
      * @param array $params Request parameters
      * @return array Navigation items from the specified source
      */

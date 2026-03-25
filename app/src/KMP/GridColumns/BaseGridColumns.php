@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\KMP\GridColumns;
@@ -12,8 +11,7 @@ namespace App\KMP\GridColumns;
  *
  * @see /docs/9.3-dataverse-grid-complete-guide.md For field naming and grid configuration
  */
-abstract class BaseGridColumns
-implements SystemViewsProviderInterface
+abstract class BaseGridColumns implements SystemViewsProviderInterface
 {
     /**
      * Get all available columns for the grid
@@ -46,6 +44,7 @@ implements SystemViewsProviderInterface
     public static function getColumn(string $key): ?array
     {
         $columns = static::getColumns();
+
         return $columns[$key] ?? null;
     }
 
@@ -58,7 +57,7 @@ implements SystemViewsProviderInterface
     {
         return array_filter(
             static::getColumns(),
-            fn($column) => !empty($column['defaultVisible'])
+            fn($column) => !empty($column['defaultVisible']),
         );
     }
 
@@ -81,6 +80,7 @@ implements SystemViewsProviderInterface
     public static function validateColumnKeys(array $keys): array
     {
         $validKeys = static::getColumnKeys();
+
         return array_diff($keys, $validKeys);
     }
 
@@ -99,6 +99,7 @@ implements SystemViewsProviderInterface
                 $searchable[] = $key;
             }
         }
+
         return $searchable;
     }
 
@@ -122,6 +123,7 @@ implements SystemViewsProviderInterface
                 }
             }
         }
+
         return $dropdown;
     }
 
@@ -140,6 +142,7 @@ implements SystemViewsProviderInterface
                 $filterable[] = $key;
             }
         }
+
         return $filterable;
     }
 
@@ -158,6 +161,7 @@ implements SystemViewsProviderInterface
                 $required[] = $key;
             }
         }
+
         return $required;
     }
 
@@ -176,6 +180,7 @@ implements SystemViewsProviderInterface
                 $sortable[] = $key;
             }
         }
+
         return $sortable;
     }
 }

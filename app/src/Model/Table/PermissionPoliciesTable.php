@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -81,7 +80,7 @@ class PermissionPoliciesTable extends BaseTable
 
     /**
      * Cache configuration for permission policy data
-     * 
+     *
      * Policy changes affect authorization decisions, so we need to invalidate
      * security-related caches when policy associations are modified.
      */

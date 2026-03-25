@@ -1,16 +1,14 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services;
 
 use App\Model\Entity\Member;
-use App\View\Cell\BasePluginCell;
 use Cake\Core\StaticConfigTrait;
 
 /**
  * View Cell Registry Service
- * 
+ *
  * Manages registration and retrieval of view cells from core and plugins.
  * Replaces the event-based cell system for better performance and maintainability.
  */
@@ -54,7 +52,7 @@ class ViewCellRegistry
      * Get all registered view cells for a URL and user
      *
      * @param array $urlParams URL parameters from request
-     * @param Member|null $user The current user
+     * @param \App\Model\Entity\Member|null $user The current user
      * @return array All matching view cells organized by type
      */
     public static function getViewCells(array $urlParams, ?Member $user = null): array
@@ -90,7 +88,7 @@ class ViewCellRegistry
      *
      * @param array $cell Cell configuration
      * @param array $urlParams URL parameters from request
-     * @param Member|null $user Current user
+     * @param \App\Model\Entity\Member|null $user Current user
      * @return bool True if cell should be displayed
      */
     private static function cellMatchesRoute(array $cell, array $urlParams, ?Member $user = null): bool
@@ -102,6 +100,7 @@ class ViewCellRegistry
                 if (isset($cell['authCallback']) && is_callable($cell['authCallback'])) {
                     return call_user_func($cell['authCallback'], $urlParams, $user);
                 }
+
                 return true;
             }
         }
@@ -200,7 +199,7 @@ class ViewCellRegistry
      *
      * @param string $source Source identifier
      * @param array $route Current route information
-     * @param Member|null $user The current user
+     * @param \App\Model\Entity\Member|null $user The current user
      * @return array View cells from the specified source
      */
     public static function getViewCellsFromSource(string $source, array $route, ?Member $user = null): array
@@ -241,6 +240,7 @@ class ViewCellRegistry
     public static function getRegisteredSources(): array
     {
         self::ensureInitialized();
+
         return array_keys(self::$viewCells);
     }
 
@@ -264,6 +264,7 @@ class ViewCellRegistry
     public static function isRegistered(string $source): bool
     {
         self::ensureInitialized();
+
         return isset(self::$viewCells[$source]);
     }
 

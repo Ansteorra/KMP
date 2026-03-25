@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -14,7 +13,6 @@ use Cake\Validation\Validator;
  *
  * @property \App\Model\Table\ServicePrincipalsTable&\Cake\ORM\Association\BelongsTo $ServicePrincipals
  * @property \App\Model\Table\ServicePrincipalTokensTable&\Cake\ORM\Association\BelongsTo $ServicePrincipalTokens
- *
  * @method \App\Model\Entity\ServicePrincipalAuditLog newEmptyEntity()
  * @method \App\Model\Entity\ServicePrincipalAuditLog newEntity(array $data, array $options = [])
  * @method \App\Model\Entity\ServicePrincipalAuditLog get(mixed $primaryKey, array|string $finder = 'all', \Psr\SimpleCache\CacheInterface|string|null $cache = null, \Closure|string|null $cacheKey = null, mixed ...$args)
@@ -173,7 +171,7 @@ class ServicePrincipalAuditLogsTable extends BaseTable
         string $httpMethod,
         ?string $ipAddress = null,
         ?string $requestSummary = null,
-        ?int $responseCode = null
+        ?int $responseCode = null,
     ) {
         $entity = $this->newEntity([
             'service_principal_id' => $servicePrincipalId,

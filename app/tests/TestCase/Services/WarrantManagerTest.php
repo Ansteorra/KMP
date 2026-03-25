@@ -1,9 +1,10 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services;
 
+use App\Model\Entity\WarrantPeriod;
+use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use App\Services\ServiceResult;
 use App\Services\WarrantManager\DefaultWarrantManager;
 use App\Services\WarrantManager\WarrantRequest;
@@ -89,7 +90,7 @@ class WarrantManagerTest extends BaseTestCase
     public function testGetWarrantPeriodReturnsNullForFarFutureDates(): void
     {
         $activeWindowManager = $this->createMock(
-            \App\Services\ActiveWindowManager\ActiveWindowManagerInterface::class
+            ActiveWindowManagerInterface::class,
         );
         $manager = new DefaultWarrantManager($activeWindowManager);
 
@@ -102,7 +103,7 @@ class WarrantManagerTest extends BaseTestCase
     public function testGetWarrantPeriodReturnsEntityForValidDates(): void
     {
         $activeWindowManager = $this->createMock(
-            \App\Services\ActiveWindowManager\ActiveWindowManagerInterface::class
+            ActiveWindowManagerInterface::class,
         );
         $manager = new DefaultWarrantManager($activeWindowManager);
 
@@ -121,13 +122,13 @@ class WarrantManagerTest extends BaseTestCase
 
         $result = $manager->getWarrantPeriod(DateTime::now(), null);
         $this->assertNotNull($result, 'Should return a warrant period for current date');
-        $this->assertInstanceOf(\App\Model\Entity\WarrantPeriod::class, $result);
+        $this->assertInstanceOf(WarrantPeriod::class, $result);
     }
 
     public function testGetWarrantPeriodRespectsEndOnConstraint(): void
     {
         $activeWindowManager = $this->createMock(
-            \App\Services\ActiveWindowManager\ActiveWindowManagerInterface::class
+            ActiveWindowManagerInterface::class,
         );
         $manager = new DefaultWarrantManager($activeWindowManager);
 
@@ -152,7 +153,7 @@ class WarrantManagerTest extends BaseTestCase
     public function testDeclineRejectsNonPendingRoster(): void
     {
         $activeWindowManager = $this->createMock(
-            \App\Services\ActiveWindowManager\ActiveWindowManagerInterface::class
+            ActiveWindowManagerInterface::class,
         );
         $manager = new DefaultWarrantManager($activeWindowManager);
 
@@ -174,7 +175,7 @@ class WarrantManagerTest extends BaseTestCase
     public function testApproveRejectsNonPendingRoster(): void
     {
         $activeWindowManager = $this->createMock(
-            \App\Services\ActiveWindowManager\ActiveWindowManagerInterface::class
+            ActiveWindowManagerInterface::class,
         );
         $manager = new DefaultWarrantManager($activeWindowManager);
 
@@ -195,7 +196,7 @@ class WarrantManagerTest extends BaseTestCase
     public function testCancelNonExistentWarrantReturnsSuccess(): void
     {
         $activeWindowManager = $this->createMock(
-            \App\Services\ActiveWindowManager\ActiveWindowManagerInterface::class
+            ActiveWindowManagerInterface::class,
         );
         $manager = new DefaultWarrantManager($activeWindowManager);
 
@@ -215,7 +216,7 @@ class WarrantManagerTest extends BaseTestCase
     public function testRequestReturnsServiceResult(): void
     {
         $activeWindowManager = $this->createMock(
-            \App\Services\ActiveWindowManager\ActiveWindowManagerInterface::class
+            ActiveWindowManagerInterface::class,
         );
         $manager = new DefaultWarrantManager($activeWindowManager);
 

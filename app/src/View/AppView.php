@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 /**
@@ -19,14 +18,15 @@ namespace App\View;
 
 use BootstrapUI\View\UIViewTrait;
 use Cake\View\View;
+use Templating\View\Helper\IconHelper;
 
 /**
  * Application View
- * 
+ *
  * Base view class for the Kingdom Management Portal (KMP) application.
- * Extends CakePHP's View class with Bootstrap UI integration and 
+ * Extends CakePHP's View class with Bootstrap UI integration and
  * KMP-specific helper loading.
- * 
+ *
  * This class serves as the foundation for all views in the KMP system,
  * providing consistent initialization of:
  * - UI framework integration (Bootstrap)
@@ -34,22 +34,22 @@ use Cake\View\View;
  * - Authentication helpers
  * - KMP-specific utilities
  * - Image processing capabilities
- * 
+ *
  * Key Features:
  * - Automatic Bootstrap UI integration via UIViewTrait
  * - Asset versioning through AssetMix
  * - User authentication context via Identity helper
  * - Image processing with Glide
  * - Custom KMP helper for application-specific components
- * 
+ *
  * Usage:
  * This view is automatically used by all controllers unless explicitly overridden.
  * All helpers loaded here are available in templates without additional loading.
- * 
+ *
  * Helper Dependencies:
  * - AssetMix.AssetMix: Asset compilation and versioning
  * - Authentication.Identity: User authentication context
- * - Bootstrap.Modal: Modal dialog components  
+ * - Bootstrap.Modal: Modal dialog components
  * - Bootstrap.Navbar: Navigation components
  * - Kmp: Custom KMP-specific helper
  * - ADmad/Glide.Glide: Image processing and optimization
@@ -57,7 +57,7 @@ use Cake\View\View;
  * - Tools.Time: Time formatting utilities
  * - Templating.Icon: Icon rendering utilities
  * - Templating.IconSnippet: Icon snippet utilities
- * 
+ *
  * Configuration Notes:
  * - Glide is configured for image processing with secure URLs
  * - Bootstrap UI is initialized without layout override
@@ -73,10 +73,10 @@ class AppView extends View
 
     /**
      * Initialization hook method.
-     * 
+     *
      * Automatically called when the view is instantiated. Sets up all
      * the helpers and UI components needed for KMP templates.
-     * 
+     *
      * Initialization Process:
      * 1. Calls parent initialization
      * 2. Initializes Bootstrap UI framework integration
@@ -84,7 +84,7 @@ class AppView extends View
      * 4. Loads Bootstrap-specific helpers for UI components
      * 5. Configures Glide for image processing
      * 6. Loads additional utility helpers
-     * 
+     *
      * Helper Loading Order:
      * - AssetMix: Must be loaded early for asset management
      * - Identity: Required for permission checks in templates
@@ -92,12 +92,12 @@ class AppView extends View
      * - KMP helper: For application-specific functionality
      * - Glide: For responsive image processing
      * - Utility helpers: For formatting and display
-     * 
+     *
      * Configuration Details:
      * - UIViewTrait is initialized without layout override to maintain flexibility
      * - Glide is configured with secure URLs and image base path
      * - All helpers are immediately available in templates after initialization
-     * 
+     *
      * @return void
      * @throws \Exception If helper loading fails
      */
@@ -156,7 +156,7 @@ class AppView extends View
 
         // Templating helpers require cakephp-templating (require dependency).
         // Guard with class_exists so a missing package degrades gracefully.
-        if (class_exists(\Templating\View\Helper\IconHelper::class)) {
+        if (class_exists(IconHelper::class)) {
             $helpers[] = 'Templating.Icon';
             $helpers[] = 'Templating.IconSnippet';
         }

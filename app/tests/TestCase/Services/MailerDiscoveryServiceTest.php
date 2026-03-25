@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services;
@@ -153,7 +152,7 @@ class MailerDiscoveryServiceTest extends BaseTestCase
             $this->assertStringEndsWith(
                 'Mailer',
                 $mailer['shortName'],
-                "Mailer short name '{$mailer['shortName']}' should end with 'Mailer'"
+                "Mailer short name '{$mailer['shortName']}' should end with 'Mailer'",
             );
         }
     }
@@ -175,7 +174,7 @@ class MailerDiscoveryServiceTest extends BaseTestCase
         $this->assertEquals(
             array_column($firstRun, 'class'),
             array_column($secondRun, 'class'),
-            'Multiple calls should return the same mailer classes'
+            'Multiple calls should return the same mailer classes',
         );
     }
 }

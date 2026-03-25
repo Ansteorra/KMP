@@ -1,10 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 /**
  * Base controller for KMP application.
- * 
+ *
  * Provides shared functionality: request detection, navigation history,
  * plugin validation, view cell management, and Turbo/AJAX handling.
  *
@@ -35,10 +34,14 @@ class AppController extends Controller
     /** @var string Event for plugin view data enhancement */
     public const VIEW_DATA_EVENT = 'KMP.plugins.callForViewData';
 
-    /** @var array View cells from plugins for current request */
+    /**
+     * @var array View cells from plugins for current request
+     */
     protected array $pluginViewCells = [];
 
-    /** @var bool Whether current request is for CSV export (.csv extension) */
+    /**
+     * @var bool Whether current request is for CSV export (.csv extension)
+     */
     protected bool $isCsvRequest = false;
 
     /**
@@ -57,7 +60,7 @@ class AppController extends Controller
      * Handles: CSV detection, plugin validation, navigation history,
      * view cell loading, and Turbo Frame detection.
      *
-     * @param EventInterface $event The beforeFilter event
+     * @param \Cake\Event\EventInterface $event The beforeFilter event
      * @return \Cake\Http\Response|null|void
      */
     public function beforeFilter(EventInterface $event)
@@ -181,7 +184,7 @@ class AppController extends Controller
 
         $currentUser = $this->request->getAttribute('identity');
         // ViewCellRegistry expects a Member entity; pass null for non-Member identities (e.g. ServicePrincipal)
-        $memberUser = ($currentUser instanceof Member) ? $currentUser : null;
+        $memberUser = $currentUser instanceof Member ? $currentUser : null;
         $impersonationService = new ImpersonationService();
         $impersonationState = $impersonationService->getState($session);
         $this->pluginViewCells = ViewCellRegistry::getViewCells($urlParams, $memberUser);
@@ -378,6 +381,7 @@ class AppController extends Controller
 
         if ($mode === 'mobile') {
             $this->Flash->success(__('Switched to {0} view.', $mode));
+
             return $this->redirect([
                 'controller' => 'Members',
                 'action' => 'viewMobileCard',

@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
@@ -21,7 +20,7 @@ trait SuperUserAuthenticatedTrait
 
     /**
      * Set up the test with super user authentication
-     * 
+     *
      * This method:
      * 1. Enables CSRF and security tokens
      * 2. Loads the test super user from the database
@@ -71,6 +70,7 @@ trait SuperUserAuthenticatedTrait
     {
         $membersTable = $this->getTableLocator()->get('Members');
         $member = $membersTable->findByEmailAddress('admin@amp.ansteorra.org')->firstOrFail();
+
         return $member->id;
     }
 

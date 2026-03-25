@@ -1,9 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Policy;
 
+use App\Model\Entity\Member;
 use App\Policy\AppSettingsTablePolicy;
 use App\Policy\BackupsTablePolicy;
 use App\Policy\GatheringActivitiesTablePolicy;
@@ -15,6 +15,7 @@ use App\Policy\ServicePrincipalsTablePolicy;
 use App\Policy\WarrantPeriodsTablePolicy;
 use App\Policy\WarrantsTablePolicy;
 use App\Test\TestCase\BaseTestCase;
+use Cake\ORM\Query\SelectQuery;
 
 /**
  * Tests for thin/marker table policies that extend BasePolicy
@@ -31,7 +32,7 @@ class ThinTablePoliciesTest extends BaseTestCase
         $this->Members = $this->getTableLocator()->get('Members');
     }
 
-    protected function loadMember(int $id): \App\Model\Entity\Member
+    protected function loadMember(int $id): Member
     {
         $member = $this->Members->get($id);
         $member->getPermissions();
@@ -267,7 +268,7 @@ class ThinTablePoliciesTest extends BaseTestCase
         $table = $this->getTableLocator()->get('Warrants');
         $query = $table->find();
         $result = $policy->scopeIndex($admin, $query);
-        $this->assertInstanceOf(\Cake\ORM\Query\SelectQuery::class, $result);
+        $this->assertInstanceOf(SelectQuery::class, $result);
     }
 
     // ── ServicePrincipalsTablePolicy (has canIndex, canAdd) ──
@@ -312,7 +313,7 @@ class ThinTablePoliciesTest extends BaseTestCase
         $table = $this->getTableLocator()->get('ServicePrincipals');
         $query = $table->find();
         $result = $policy->scopeIndex($admin, $query);
-        $this->assertInstanceOf(\Cake\ORM\Query\SelectQuery::class, $result);
+        $this->assertInstanceOf(SelectQuery::class, $result);
     }
 
     // ── RolesTablePolicy (has canDeletePermission, canAddPermission, canSearchMembers) ──
@@ -389,7 +390,7 @@ class ThinTablePoliciesTest extends BaseTestCase
         $table = $this->getTableLocator()->get('Roles');
         $query = $table->find();
         $result = $policy->scopeIndex($admin, $query);
-        $this->assertInstanceOf(\Cake\ORM\Query\SelectQuery::class, $result);
+        $this->assertInstanceOf(SelectQuery::class, $result);
     }
 
     // ── MemberRolesTablePolicy (has canDeactivate) ──

@@ -1,11 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller\Api\V1;
 
 use App\Controller\Api\ApiController;
-
 
 /**
  * Members API Controller
@@ -89,6 +87,7 @@ class MembersController extends ApiController
 
         if (!$member) {
             $this->apiError('NOT_FOUND', 'Member not found', [], 404);
+
             return;
         }
 

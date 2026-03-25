@@ -1,10 +1,7 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
-
-use Cake\ORM\Entity;
 
 /**
  * Document Entity
@@ -73,6 +70,7 @@ class Document extends BaseEntity
         }
 
         $decoded = json_decode($this->metadata, true);
+
         return is_array($decoded) ? $decoded : null;
     }
 

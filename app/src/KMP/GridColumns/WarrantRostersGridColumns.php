@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\KMP\GridColumns;
@@ -8,7 +7,7 @@ use App\Model\Entity\WarrantRoster;
 
 /**
  * Warrant Rosters Grid Column Metadata
- * 
+ *
  * Defines column configuration for the Warrant Rosters Dataverse grid.
  */
 class WarrantRostersGridColumns extends BaseGridColumns
@@ -35,6 +34,7 @@ class WarrantRostersGridColumns extends BaseGridColumns
                 'label' => 'Warrants',
                 'type' => 'number',
                 'sortable' => true,
+                'queryField' => 'warrant_count',
                 'filterable' => false,
                 'defaultVisible' => true,
                 'width' => '100px',

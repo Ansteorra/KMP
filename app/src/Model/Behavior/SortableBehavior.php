@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Behavior;
@@ -32,10 +31,14 @@ class SortableBehavior extends Behavior
         'step' => 1,
     ];
 
-    /** @var array Fields for position queries */
+    /**
+     * @var array Fields for position queries
+     */
     protected $fields;
 
-    /** @var EntityInterface Current entity being processed */
+    /**
+     * @var \Cake\Datasource\EntityInterface Current entity being processed
+     */
     protected $row;
 
     /**
@@ -117,7 +120,9 @@ class SortableBehavior extends Behavior
         return true;
     }
 
-    /** @var bool Prevents recursion during beforeSave */
+    /**
+     * @var bool Prevents recursion during beforeSave
+     */
     private $preventCallOfMoveInEventListener = false;
 
     /**
@@ -192,7 +197,7 @@ class SortableBehavior extends Behavior
     /**
      * Get configured starting position.
      *
-     * @return int|float Starting position value
+     * @return float|int Starting position value
      */
     public function getStart(): int|float
     {
@@ -203,7 +208,7 @@ class SortableBehavior extends Behavior
      * Get position for new entity (end of list).
      *
      * @param array $conditions Optional group conditions
-     * @return int|float Position for new entity
+     * @return float|int Position for new entity
      */
     public function getNew($conditions = []): int|float
     {
@@ -213,7 +218,7 @@ class SortableBehavior extends Behavior
     /**
      * Get configured step increment.
      *
-     * @return int|float Step value
+     * @return float|int Step value
      */
     public function getStep(): int|float
     {
@@ -339,8 +344,8 @@ class SortableBehavior extends Behavior
     /**
      * Auto-assign position on save for new entities or handle position changes.
      *
-     * @param EventInterface $event The beforeSave event
-     * @param EntityInterface $entity The entity being saved
+     * @param \Cake\Event\EventInterface $event The beforeSave event
+     * @param \Cake\Datasource\EntityInterface $entity The entity being saved
      * @return void
      */
     public function beforeSave(EventInterface $event, EntityInterface $entity): void

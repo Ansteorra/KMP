@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services;
@@ -199,7 +198,7 @@ class PdfProcessingServiceTest extends BaseTestCase
 
         $result = $this->service->mergePdfs(
             ['/nonexistent/a.pdf', '/nonexistent/b.pdf'],
-            $outputPath
+            $outputPath,
         );
         $this->assertInstanceOf(ServiceResult::class, $result);
         // Should fail since no pages could be found
@@ -230,7 +229,7 @@ class PdfProcessingServiceTest extends BaseTestCase
         $pdfPath = $this->createTestPdf();
         $result = $this->service->mergePdfs(
             [['path' => $pdfPath, 'name' => 'test.pdf']],
-            $outputPath
+            $outputPath,
         );
 
         $this->assertInstanceOf(ServiceResult::class, $result);
