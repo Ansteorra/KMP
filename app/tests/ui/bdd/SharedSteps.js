@@ -87,3 +87,80 @@ Given("The test inbox is empty", async ({ page }) => {
         console.log('❗️ Delete all button is disabled, skipping emptying inbox');
     }
 });
+
+// ── Reusable DataGrid Step Definitions ──────────────────────────────
+
+When('I search the grid for {string}', async ({ page }, searchText) => {
+    const searchInput = page.locator('[data-grid-filter-target="searchBox"], input[type="search"], .dataTables_filter input').first();
+    await searchInput.fill(searchText);
+    await page.waitForTimeout(500);
+});
+
+Then('the grid should contain {string}', async ({ page }, text) => {
+    const grid = page.locator('table.table, .dataTable, [data-controller*="grid"]').first();
+    await expect(grid).toContainText(text);
+});
+
+Then('the grid should not contain {string}', async ({ page }, text) => {
+    const grid = page.locator('table.table, .dataTable, [data-controller*="grid"]').first();
+    await expect(grid).not.toContainText(text);
+});
+
+When('I click on the grid row containing {string}', async ({ page }, text) => {
+    const row = page.locator(`table tbody tr:has-text("${text}")`).first();
+    await row.click();
+});
+
+// ── Tab Navigation ──────────────────────────────────────────────────
+
+When('I click the {string} tab', async ({ page }, tabName) => {
+    await page.getByRole('tab', { name: tabName }).click();
+    await page.waitForTimeout(300);
+});
+
+Then('the {string} tab should be active', async ({ page }, tabName) => {
+    const tab = page.getByRole('tab', { name: tabName });
+    await expect(tab).toHaveClass(/active/);
+});
+
+Then('I should see {string} in the active tab', async ({ page }, text) => {
+    const activePanel = page.locator('.tab-pane.active.show, .tab-pane.active');
+    await expect(activePanel).toContainText(text);
+});
+
+// ── Form Interactions ───────────────────────────────────────────────
+
+When('I fill in {string} with {string}', async ({ page }, label, value) => {
+    await page.getByLabel(label).fill(value);
+});
+
+When('I select {string} from {string}', async ({ page }, option, label) => {
+    await page.getByLabel(label).selectOption({ label: option });
+});
+
+When('I check the {string} checkbox', async ({ page }, label) => {
+    await page.getByLabel(label).check();
+});
+
+When('I submit the form', async ({ page }) => {
+    await page.getByRole('button', { name: /submit|save/i }).click();
+    await page.waitForLoadState('networkidle');
+});
+
+// ── Navigation ──────────────────────────────────────────────────────
+
+Given('I navigate to {string}', async ({ page }, path) => {
+    await page.goto(path, { waitUntil: 'networkidle' });
+});
+
+Then('I should be on {string}', async ({ page }, path) => {
+    expect(page.url()).toContain(path);
+});
+
+Then('the page should contain {string}', async ({ page }, text) => {
+    await expect(page.locator('body')).toContainText(text);
+});
+
+Then('the page should not contain {string}', async ({ page }, text) => {
+    await expect(page.locator('body')).not.toContainText(text);
+});
