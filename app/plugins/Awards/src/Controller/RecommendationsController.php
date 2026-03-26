@@ -18,6 +18,9 @@ use Cake\ORM\TableRegistry;
 use Exception;
 use PhpParser\Node\Stmt\TryCatch;
 use App\Services\CsvExportService;
+use Awards\Services\RecommendationStateService;
+use Awards\Services\RecommendationFormService;
+use Awards\Services\RecommendationQueryService;
 use Cake\Error\Debugger;
 
 
@@ -104,7 +107,7 @@ class RecommendationsController extends AppController
      * @param CsvExportService $csvExportService Injected CSV export service
      * @return \Cake\Http\Response|null|void Renders view or returns CSV response
      */
-    public function gridData(CsvExportService $csvExportService)
+    public function gridData(CsvExportService $csvExportService, RecommendationQueryService $queryService)
     {
         $emptyRecommendation = $this->Recommendations->newEmptyEntity();
         $this->Authorization->authorize($emptyRecommendation, 'index');
@@ -113,84 +116,18 @@ class RecommendationsController extends AppController
         $user = $this->request->getAttribute('identity');
         $canViewHidden = $user->checkCan('ViewHidden', $emptyRecommendation);
 
-        // Build base query with containments
-        // Join Awards.AwardBranch so branch_type filter can use AwardBranch.type directly
-        $baseQuery = $this->Recommendations->find()
-            ->innerJoinWith('Awards.AwardBranch')
-            ->contain([
-                'Requesters' => function ($q) {
-                    return $q->select(['id', 'sca_name']);
-                },
-                'Members' => function ($q) {
-                    return $q->select(['id', 'sca_name', 'title', 'pronouns', 'pronunciation']);
-                },
-                'Branches' => function ($q) {
-                    return $q->select(['id', 'name', 'type']);
-                },
-                'Awards' => function ($q) {
-                    return $q->select(['id', 'abbreviation', 'branch_id']);
-                },
-                'Awards.Domains' => function ($q) {
-                    return $q->select(['id', 'name']);
-                },
-                // AwardBranch is an aliased association to avoid conflicts with member's Branches
-                'Awards.AwardBranch' => function ($q) {
-                    return $q->select(['id', 'name', 'type']);
-                },
-                'Gatherings' => function ($q) {
-                    return $q->select(['id', 'name', 'start_date', 'end_date']);
-                },
-                'Notes' => function ($q) {
-                    return $q->select(['id', 'entity_id', 'subject', 'body', 'created']);
-                },
-                'Notes.Authors' => function ($q) {
-                    return $q->select(['id', 'sca_name']);
-                },
-                'AssignedGathering' => function ($q) {
-                    return $q->select(['id', 'name', 'cancelled_at']);
-                }
-            ]);
-
-        // Apply hidden state filter if user doesn't have permission
-        if (!$canViewHidden) {
-            $hiddenStates = RecommendationsGridColumns::getHiddenStates();
-            if (!empty($hiddenStates)) {
-                $baseQuery->where(['Recommendations.state NOT IN' => $hiddenStates]);
-            }
-        }
-
-        // Apply authorization scope
+        // Build via service
+        $built = $queryService->buildMainGridQuery(
+            $this->Recommendations,
+            $user->checkCan('edit', $emptyRecommendation),
+        );
+        $baseQuery = $built['query'];
+        $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
         $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
-
-        // Get system views with proper state filter options
-        $systemViews = RecommendationsGridColumns::getSystemViews([]);
+        $built['gridOptions']['baseQuery'] = $baseQuery;
 
         // Use unified trait for grid processing
-        // Note: 'gatherings' column has customFilterHandler defined in RecommendationsGridColumns
-        // which handles the complex multi-table filtering automatically via the trait
-        $result = $this->processDataverseGrid([
-            'gridKey' => 'Awards.Recommendations.index.main',
-            'gridColumnsClass' => RecommendationsGridColumns::class,
-            'baseQuery' => $baseQuery,
-            'tableName' => 'Recommendations',
-            'defaultSort' => ['Recommendations.created' => 'desc'],
-            'defaultPageSize' => 25,
-            'systemViews' => $systemViews,
-            'defaultSystemView' => 'sys-recs-all',
-            'showAllTab' => false,
-            'canAddViews' => true,
-            'canFilter' => true,
-            'canExportCsv' => true,
-            'enableBulkSelection' => $user->checkCan('edit', $emptyRecommendation),
-            'bulkActions' => [
-                [
-                    'key' => 'bulk-edit',
-                    'label' => 'Bulk Edit',
-                    'icon' => 'bi-pencil-square',
-                    'modalTarget' => '#bulkEditRecommendationModal',
-                ],
-            ],
-        ]);
+        $result = $this->processDataverseGrid($built['gridOptions']);
         $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
 
         // Handle CSV export using trait's unified method with data mode
@@ -297,19 +234,11 @@ class RecommendationsController extends AppController
      * @param \Cake\ORM\Query\SelectQuery $query Recommendations query
      * @param bool $canViewHidden Whether hidden rows may be included
      * @return \Cake\ORM\Query\SelectQuery
+     * @deprecated Delegate to RecommendationQueryService::applyHiddenStateVisibility() instead.
      */
     protected function applyHiddenStateVisibility(SelectQuery $query, bool $canViewHidden): SelectQuery
     {
-        if ($canViewHidden) {
-            return $query;
-        }
-
-        $hiddenStates = RecommendationsGridColumns::getHiddenStates();
-        if (!empty($hiddenStates)) {
-            $query->where(['Recommendations.state NOT IN' => $hiddenStates]);
-        }
-
-        return $query;
+        return (new RecommendationQueryService())->applyHiddenStateVisibility($query, $canViewHidden);
     }
 
     /**
@@ -705,7 +634,7 @@ class RecommendationsController extends AppController
      * @param int|null $memberId The member ID whose submissions to show (-1 for current user)
      * @return \Cake\Http\Response|null|void Renders view or returns CSV response
      */
-    public function memberSubmittedRecsGridData(CsvExportService $csvExportService, ?int $memberId = null)
+    public function memberSubmittedRecsGridData(CsvExportService $csvExportService, RecommendationQueryService $queryService, ?int $memberId = null)
     {
         // Resolve member ID
         if ($memberId === null || $memberId === -1) {
@@ -719,41 +648,14 @@ class RecommendationsController extends AppController
         $this->Authorization->authorize($emptyRecommendation, 'ViewSubmittedByMember');
         $canViewHidden = $user->checkCan('ViewHidden', $emptyRecommendation);
 
-        // Build base query filtered by requester
-        $baseQuery = $this->Recommendations->find()
-            ->where(['Recommendations.requester_id' => $memberId])
-            ->contain([
-                'Members' => function ($q) {
-                    return $q->select(['id', 'sca_name']);
-                },
-                'Awards' => function ($q) {
-                    return $q->select(['id', 'abbreviation']);
-                },
-                'Gatherings' => function ($q) {
-                    return $q->select(['id', 'name', 'start_date', 'end_date']);
-                },
-            ]);
-        $baseQuery = $this->applyHiddenStateVisibility($baseQuery, $canViewHidden);
-
-        // Get system views for this context
-        $systemViews = RecommendationsGridColumns::getSystemViews(['context' => 'memberSubmitted']);
+        // Build via service
+        $built = $queryService->buildMemberSubmittedQuery($this->Recommendations, $memberId);
+        $baseQuery = $built['query'];
+        $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
+        $built['gridOptions']['baseQuery'] = $baseQuery;
 
         // Use unified trait for grid processing
-        $result = $this->processDataverseGrid([
-            'gridKey' => 'Awards.Recommendations.memberSubmitted.' . $memberId,
-            'gridColumnsClass' => RecommendationsGridColumns::class,
-            'baseQuery' => $baseQuery,
-            'tableName' => 'Recommendations',
-            'defaultSort' => ['Recommendations.created' => 'desc'],
-            'defaultPageSize' => 15,
-            'systemViews' => $systemViews,
-            'defaultSystemView' => 'sys-recs-submitted-by',
-            'showAllTab' => false,
-            'canAddViews' => false,
-            'canFilter' => true,
-            'canExportCsv' => false,
-            'enableColumnPicker' => false
-        ]);
+        $result = $this->processDataverseGrid($built['gridOptions']);
         $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
 
         // Post-process data
@@ -818,7 +720,7 @@ class RecommendationsController extends AppController
      * @param int|null $memberId The member ID whose received recommendations to show
      * @return \Cake\Http\Response|null|void Renders view or returns CSV response
      */
-    public function recsForMemberGridData(CsvExportService $csvExportService, ?int $memberId = null)
+    public function recsForMemberGridData(CsvExportService $csvExportService, RecommendationQueryService $queryService, ?int $memberId = null)
     {
         // Resolve member ID
         if ($memberId === null || $memberId === -1) {
@@ -833,46 +735,17 @@ class RecommendationsController extends AppController
         $this->Authorization->authorize($emptyRecommendation, 'ViewSubmittedForMember');
         $canViewHidden = $user->checkCan('ViewHidden', $emptyRecommendation);
 
-        // Build base query filtered by member (subject of recommendation)
-        $baseQuery = $this->Recommendations->find()
-            ->where(['Recommendations.member_id' => $memberId])
-            ->contain([
-                'Requesters' => function ($q) {
-                    return $q->select(['id', 'sca_name']);
-                },
-                'Awards' => function ($q) {
-                    return $q->select(['id', 'abbreviation']);
-                },
-                'Gatherings' => function ($q) {
-                    return $q->select(['id', 'name', 'start_date', 'end_date']);
-                },
-                'AssignedGathering' => function ($q) {
-                    return $q->select(['id', 'name', 'cancelled_at']);
-                },
-            ]);
+        // Build via service
+        $built = $queryService->buildRecsForMemberQuery($this->Recommendations, $memberId);
+        $baseQuery = $built['query'];
 
         // Apply authorization scope
         $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
-        $baseQuery = $this->applyHiddenStateVisibility($baseQuery, $canViewHidden);
-
-        // Get system views for this context
-        $systemViews = RecommendationsGridColumns::getSystemViews(['context' => 'recsForMember']);
+        $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
+        $built['gridOptions']['baseQuery'] = $baseQuery;
 
         // Use unified trait for grid processing
-        $result = $this->processDataverseGrid([
-            'gridKey' => 'Awards.Recommendations.forMember.' . $memberId,
-            'gridColumnsClass' => RecommendationsGridColumns::class,
-            'baseQuery' => $baseQuery,
-            'tableName' => 'Recommendations',
-            'defaultSort' => ['Recommendations.created' => 'desc'],
-            'defaultPageSize' => 15,
-            'systemViews' => $systemViews,
-            'defaultSystemView' => 'sys-recs-for-member',
-            'showAllTab' => false,
-            'canAddViews' => false,
-            'canFilter' => true,
-            'canExportCsv' => false,
-        ]);
+        $result = $this->processDataverseGrid($built['gridOptions']);
         $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
 
         // Post-process data
@@ -931,7 +804,7 @@ class RecommendationsController extends AppController
      * @param int|null $gatheringId The gathering ID whose scheduled recommendations to show
      * @return \Cake\Http\Response|null|void Renders view or returns CSV response
      */
-    public function gatheringAwardsGridData(CsvExportService $csvExportService, ?int $gatheringId = null)
+    public function gatheringAwardsGridData(CsvExportService $csvExportService, RecommendationQueryService $queryService, ?int $gatheringId = null)
     {
         if ($gatheringId === null) {
             throw new \Cake\Http\Exception\BadRequestException(__('Gathering ID is required.'));
@@ -951,68 +824,18 @@ class RecommendationsController extends AppController
         $this->Authorization->authorize($recommendation, 'ViewGatheringRecommendations');
         $canViewHidden = $user->checkCan('ViewHidden', $recommendation);
 
-        // Build base query filtered by gathering
-        $baseQuery = $this->Recommendations->find()
-            ->where(['Recommendations.gathering_id' => $gatheringId])
-            ->contain([
-                'Requesters' => function ($q) {
-                    return $q->select(['id', 'sca_name']);
-                },
-                'Members' => function ($q) {
-                    return $q->select(['id', 'sca_name', 'title', 'pronouns', 'pronunciation']);
-                },
-                'Branches' => function ($q) {
-                    return $q->select(['id', 'name', 'type']);
-                },
-                'Awards' => function ($q) {
-                    return $q->select(['id', 'abbreviation', 'branch_id']);
-                },
-                'Awards.Domains' => function ($q) {
-                    return $q->select(['id', 'name']);
-                },
-                'Gatherings' => function ($q) {
-                    return $q->select(['id', 'name', 'start_date', 'end_date']);
-                },
-                'Notes' => function ($q) {
-                    return $q->select(['id', 'entity_id', 'subject', 'body', 'created']);
-                },
-                'Notes.Authors' => function ($q) {
-                    return $q->select(['id', 'sca_name']);
-                },
-                'AssignedGathering' => function ($q) {
-                    return $q->select(['id', 'name', 'cancelled_at']);
-                }
-            ]);
-        $baseQuery = $this->applyHiddenStateVisibility($baseQuery, $canViewHidden);
-
-        // Get system views for this context
-        $systemViews = RecommendationsGridColumns::getSystemViews(['context' => 'gatheringAwards']);
+        // Build via service
+        $built = $queryService->buildGatheringAwardsQuery(
+            $this->Recommendations,
+            $gatheringId,
+            $user->checkCan('edit', $recommendation),
+        );
+        $baseQuery = $built['query'];
+        $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
+        $built['gridOptions']['baseQuery'] = $baseQuery;
 
         // Use unified trait for grid processing
-        $result = $this->processDataverseGrid([
-            'gridKey' => 'Awards.Recommendations.gathering.' . $gatheringId,
-            'gridColumnsClass' => RecommendationsGridColumns::class,
-            'baseQuery' => $baseQuery,
-            'tableName' => 'Recommendations',
-            'defaultSort' => ['Recommendations.member_sca_name' => 'asc'],
-            'defaultPageSize' => 25,
-            'systemViews' => $systemViews,
-            'defaultSystemView' => 'sys-recs-gathering',
-            'showAllTab' => false,
-            'showViewTabs' => true,
-            'canAddViews' => true,
-            'canFilter' => true,
-            'canExportCsv' => true,
-            'enableBulkSelection' => $user->checkCan('edit', $recommendation),
-            'bulkActions' => [
-                [
-                    'key' => 'bulk-edit',
-                    'label' => 'Bulk Edit',
-                    'icon' => 'bi-pencil-square',
-                    'modalTarget' => '#bulkEditRecommendationModal',
-                ],
-            ],
-        ]);
+        $result = $this->processDataverseGrid($built['gridOptions']);
         $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
 
         // Handle CSV export using trait's unified method with data mode
@@ -1106,7 +929,7 @@ class RecommendationsController extends AppController
      * @see \Awards\Model\Entity\Recommendation::getStatuses() For state → status mapping
      * @see \Awards\Model\Table\NotesTable For note creation and management
      */
-    public function updateStates(): ?\Cake\Http\Response
+    public function updateStates(RecommendationStateService $stateService): ?\Cake\Http\Response
     {
         $view = $this->request->getData('view') ?? 'Index';
         $status = $this->request->getData('status') ?? 'All';
@@ -1118,80 +941,26 @@ class RecommendationsController extends AppController
 
         $ids = explode(',', $this->request->getData('ids'));
         $newState = $this->request->getData('newState');
-        $gathering_id = $this->request->getData('gathering_id');
-        $given = $this->request->getData('given');
-        $note = $this->request->getData('note');
-        $close_reason = $this->request->getData('close_reason');
 
         if (empty($ids) || empty($newState)) {
             $this->Flash->error(__('No recommendations selected or new state not specified.'));
         } else {
-            $this->Recommendations->getConnection()->begin();
-            try {
-                $statusList = Recommendation::getStatuses();
-                $newStatus = '';
-
-                // Find the status corresponding to the new state
-                foreach ($statusList as $key => $value) {
-                    foreach ($value as $state) {
-                        if ($state === $newState) {
-                            $newStatus = $key;
-                            break 2;
-                        }
-                    }
-                }
-
-                // Build flat associative array for updateAll
-                $updateFields = [
-                    'state' => $newState,
-                    'status' => $newStatus
-                ];
-
-                if (Recommendation::supportsGatheringAssignmentForState((string)$newState)) {
-                    if ($gathering_id) {
-                        $updateFields['gathering_id'] = $gathering_id;
-                    }
-                } else {
-                    $updateFields['gathering_id'] = null;
-                }
-
-                if ($given) {
-                    // Create DateTime at midnight UTC to preserve the exact date
-                    $updateFields['given'] = new DateTime($given . ' 00:00:00', new \DateTimeZone('UTC'));
-                }
-
-                if ($close_reason) {
-                    $updateFields['close_reason'] = $close_reason;
-                }
-
-                if (!$this->Recommendations->updateAll($updateFields, ['id IN' => $ids])) {
-                    throw new \Exception('Failed to update recommendations');
-                }
-
-                if ($note) {
-                    foreach ($ids as $id) {
-                        $newNote = $this->Recommendations->Notes->newEmptyEntity();
-                        $newNote->entity_id = $id;
-                        $newNote->subject = 'Recommendation Bulk Updated';
-                        $newNote->entity_type = 'Awards.Recommendations';
-                        $newNote->body = $note;
-                        $newNote->author_id = $user->id;
-
-                        if (!$this->Recommendations->Notes->save($newNote)) {
-                            throw new \Exception('Failed to save note');
-                        }
-                    }
-                }
-
-                $this->Recommendations->getConnection()->commit();
-                if (!$this->request->getHeader('Turbo-Frame')) {
+            $success = $stateService->bulkUpdateStates(
+                $this->Recommendations,
+                [
+                    'ids' => $ids,
+                    'newState' => $newState,
+                    'gathering_id' => $this->request->getData('gathering_id'),
+                    'given' => $this->request->getData('given'),
+                    'note' => $this->request->getData('note'),
+                    'close_reason' => $this->request->getData('close_reason'),
+                ],
+                $user->id,
+            );
+            if (!$this->request->getHeader('Turbo-Frame')) {
+                if ($success) {
                     $this->Flash->success(__('The recommendations have been updated.'));
-                }
-            } catch (\Exception $e) {
-                $this->Recommendations->getConnection()->rollback();
-                Log::error('Error updating recommendations: ' . $e->getMessage());
-
-                if (!$this->request->getHeader('Turbo-Frame')) {
+                } else {
                     $this->Flash->error(__('The recommendations could not be updated. Please, try again.'));
                 }
             }
@@ -1690,7 +1459,7 @@ class RecommendationsController extends AppController
      * @return \Cake\Http\Response JSON response indicating success or failure
      * @throws \Cake\Http\Exception\NotFoundException When recommendation not found
      */
-    public function kanbanUpdate(?string $id = null): \Cake\Http\Response
+    public function kanbanUpdate(RecommendationStateService $stateService, ?string $id = null): \Cake\Http\Response
     {
         try {
             $recommendation = $this->Recommendations->get($id);
@@ -1702,42 +1471,13 @@ class RecommendationsController extends AppController
             $message = 'failed';
 
             if ($this->request->is(['patch', 'post', 'put'])) {
-                $recommendation->state = $this->request->getData('newCol');
-                $placeBefore = $this->request->getData('placeBefore');
-                $placeAfter = $this->request->getData('placeAfter');
-
-                $placeAfter = $placeAfter ?? -1;
-                $placeBefore = $placeBefore ?? -1;
-
-                $recommendation->state_date = DateTime::now();
-                $this->Recommendations->getConnection()->begin();
-
-                try {
-                    $failed = false;
-
-                    if (!$this->Recommendations->save($recommendation)) {
-                        throw new \Exception('Failed to save recommendation state');
-                    }
-
-                    if ($placeBefore != -1) {
-                        if (!$this->Recommendations->moveBefore($id, $placeBefore)) {
-                            throw new \Exception('Failed to move recommendation before target');
-                        }
-                    }
-
-                    if ($placeAfter != -1) {
-                        if (!$this->Recommendations->moveAfter($id, $placeAfter)) {
-                            throw new \Exception('Failed to move recommendation after target');
-                        }
-                    }
-
-                    $this->Recommendations->getConnection()->commit();
-                    $message = 'success';
-                } catch (\Exception $e) {
-                    $this->Recommendations->getConnection()->rollback();
-                    Log::error('Error updating kanban: ' . $e->getMessage());
-                    $message = 'failed';
-                }
+                $message = $stateService->kanbanMove(
+                    $this->Recommendations,
+                    $recommendation,
+                    $this->request->getData('newCol'),
+                    $this->request->getData('placeBefore'),
+                    $this->request->getData('placeAfter'),
+                );
             }
 
             return $this->response
@@ -1806,7 +1546,7 @@ class RecommendationsController extends AppController
      * @see edit() For form submission handling
      * @see turboQuickEditForm() For a streamlined quick-edit variant
      */
-    public function turboEditForm(?string $id = null): ?\Cake\Http\Response
+    public function turboEditForm(RecommendationFormService $formService, ?string $id = null): ?\Cake\Http\Response
     {
         try {
             $recommendation = $this->Recommendations->get($id, contain: [
@@ -1816,7 +1556,7 @@ class RecommendationsController extends AppController
                 'Awards',
                 'Gatherings',
                 'AssignedGathering',
-                'Awards.Domains'
+                'Awards.Domains',
             ]);
 
             if (!$recommendation) {
@@ -1824,71 +1564,12 @@ class RecommendationsController extends AppController
             }
 
             $this->Authorization->authorize($recommendation, 'view');
-            $recommendation->domain_id = $recommendation->award->domain_id;
-
-            // Get data for form dropdowns and options
-            $awardsDomains = $this->Recommendations->Awards->Domains->find('list', limit: 200)->all();
-            $awardsLevels = $this->Recommendations->Awards->Levels->find('list', limit: 200)->all();
-
-            $branches = $this->Recommendations->Awards->Branches
-                ->find('list', keyPath: function ($entity) {
-                    return $entity->id . '|' . ($entity->can_have_members == 1 ? 'true' : 'false');
-                })
-                ->where(['can_have_members' => true])
-                ->orderBy(['name' => 'ASC'])
-                ->toArray();
-
-            $awards = $this->Recommendations->Awards->find('all', limit: 200)
-                ->select(['id', 'name', 'specialties'])
-                ->where(['domain_id' => $recommendation->domain_id])
-                ->all();
-
-            // Get filtered gatherings for this award
-            // If status is "Given", show all gatherings (past and future) for retroactive entry
-            $futureOnly = ($recommendation->status !== 'Given');
-            $selectedRecommendationGatheringIds = [];
-            foreach (($recommendation->gatherings ?? []) as $selectedGathering) {
-                $selectedRecommendationGatheringIds[] = (int)$selectedGathering->id;
-            }
-            $gatheringData = $this->getFilteredGatheringsForAward(
-                $recommendation->award_id,
-                $recommendation->member_id,
-                $futureOnly,
-                $recommendation->gathering_id,  // Include the currently assigned gathering
-                $selectedRecommendationGatheringIds
+            $viewVars = $formService->prepareEditFormData(
+                $this->Recommendations,
+                $recommendation,
+                [$this, 'getFilteredGatheringsForAward'],
             );
-            $gatheringList = $gatheringData['gatherings'];
-            $cancelledGatheringIds = $gatheringData['cancelledGatheringIds'];
-
-            // Check if the assigned gathering is cancelled
-            $assignedGatheringCancelled = false;
-            if ($recommendation->assigned_gathering && $recommendation->assigned_gathering->cancelled_at !== null) {
-                $assignedGatheringCancelled = true;
-            }
-
-            // Format status list for dropdown
-            $statusList = Recommendation::getStatuses();
-            foreach ($statusList as $key => $value) {
-                $states = $value;
-                $statusList[$key] = [];
-                foreach ($states as $state) {
-                    $statusList[$key][$state] = $state;
-                }
-            }
-
-            $rules = StaticHelpers::getAppSetting('Awards.RecommendationStateRules');
-            $this->set(compact(
-                'rules',
-                'recommendation',
-                'branches',
-                'awards',
-                'gatheringList',
-                'cancelledGatheringIds',
-                'awardsDomains',
-                'awardsLevels',
-                'statusList',
-                'assignedGatheringCancelled'
-            ));
+            $this->set($viewVars);
             return null;
         } catch (\Cake\Datasource\Exception\RecordNotFoundException $e) {
             throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
@@ -1909,7 +1590,7 @@ class RecommendationsController extends AppController
      * @see edit() For form submission handling
      * @see kanbanUpdate() For drag-and-drop state transitions
      */
-    public function turboQuickEditForm(?string $id = null): ?\Cake\Http\Response
+    public function turboQuickEditForm(RecommendationFormService $formService, ?string $id = null): ?\Cake\Http\Response
     {
         try {
             $recommendation = $this->Recommendations->get($id, contain: [
@@ -1919,7 +1600,7 @@ class RecommendationsController extends AppController
                 'Awards',
                 'Gatherings',
                 'AssignedGathering',
-                'Awards.Domains'
+                'Awards.Domains',
             ]);
 
             if (!$recommendation) {
@@ -1927,71 +1608,12 @@ class RecommendationsController extends AppController
             }
 
             $this->Authorization->authorize($recommendation, 'view');
-            $recommendation->domain_id = $recommendation->award->domain_id;
-
-            // Get data for form dropdowns and options
-            $awardsDomains = $this->Recommendations->Awards->Domains->find('list', limit: 200)->all();
-            $awardsLevels = $this->Recommendations->Awards->Levels->find('list', limit: 200)->all();
-
-            $branches = $this->Recommendations->Awards->Branches
-                ->find('list', keyPath: function ($entity) {
-                    return $entity->id . '|' . ($entity->can_have_members == 1 ? 'true' : 'false');
-                })
-                ->where(['can_have_members' => true])
-                ->orderBy(['name' => 'ASC'])
-                ->toArray();
-
-            $awards = $this->Recommendations->Awards->find('all', limit: 200)
-                ->select(['id', 'name', 'specialties'])
-                ->where(['domain_id' => $recommendation->domain_id])
-                ->all();
-
-            // Get filtered gatherings for this award
-            // If status is "Given", show all gatherings (past and future) for retroactive entry
-            $futureOnly = ($recommendation->status !== 'Given');
-            $selectedRecommendationGatheringIds = [];
-            foreach (($recommendation->gatherings ?? []) as $selectedGathering) {
-                $selectedRecommendationGatheringIds[] = (int)$selectedGathering->id;
-            }
-            $gatheringData = $this->getFilteredGatheringsForAward(
-                $recommendation->award_id,
-                $recommendation->member_id,
-                $futureOnly,
-                $recommendation->gathering_id,  // Include the currently assigned gathering
-                $selectedRecommendationGatheringIds
+            $viewVars = $formService->prepareEditFormData(
+                $this->Recommendations,
+                $recommendation,
+                [$this, 'getFilteredGatheringsForAward'],
             );
-            $gatheringList = $gatheringData['gatherings'];
-            $cancelledGatheringIds = $gatheringData['cancelledGatheringIds'];
-
-            // Check if the assigned gathering is cancelled
-            $assignedGatheringCancelled = false;
-            if ($recommendation->assigned_gathering && $recommendation->assigned_gathering->cancelled_at !== null) {
-                $assignedGatheringCancelled = true;
-            }
-
-            // Format status list for dropdown
-            $statusList = Recommendation::getStatuses();
-            foreach ($statusList as $key => $value) {
-                $states = $value;
-                $statusList[$key] = [];
-                foreach ($states as $state) {
-                    $statusList[$key][$state] = $state;
-                }
-            }
-
-            $rules = StaticHelpers::getAppSetting('Awards.RecommendationStateRules');
-            $this->set(compact(
-                'rules',
-                'recommendation',
-                'branches',
-                'awards',
-                'gatheringList',
-                'cancelledGatheringIds',
-                'awardsDomains',
-                'awardsLevels',
-                'statusList',
-                'assignedGatheringCancelled'
-            ));
+            $this->set($viewVars);
             return null;
         } catch (\Cake\Datasource\Exception\RecordNotFoundException $e) {
             throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
@@ -2011,56 +1633,15 @@ class RecommendationsController extends AppController
      * @see turboEditForm() For individual recommendation editing
      * @see \App\KMP\StaticHelpers::getAppSetting() For configuration loading
      */
-    public function turboBulkEditForm(): ?\Cake\Http\Response
+    public function turboBulkEditForm(RecommendationFormService $formService): ?\Cake\Http\Response
     {
         try {
             $recommendation = $this->Recommendations->newEmptyEntity();
             $this->Authorization->authorize($recommendation, 'view');
 
-            // Get branch list for dropdown
-            $branches = $this->Recommendations->Awards->Branches
-                ->find('list', keyPath: function ($entity) {
-                    return $entity->id . '|' . ($entity->can_have_members == 1 ? 'true' : 'false');
-                })
-                ->where(['can_have_members' => true])
-                ->orderBy(['name' => 'ASC'])
-                ->toArray();
+            $viewVars = $formService->prepareBulkEditFormData($this->Recommendations);
+            $this->set($viewVars);
 
-            // Get gatherings data
-            $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
-            $gatheringsData = $gatheringsTable->find()
-                ->contain(['Branches' => function ($q) {
-                    return $q->select(['id', 'name']);
-                }])
-                ->select(['id', 'name', 'start_date', 'end_date', 'cancelled_at', 'Branches.name'])
-                ->orderBy(['start_date' => 'ASC'])
-                ->all();
-
-            // Format status list for dropdown
-            $statusList = Recommendation::getStatuses();
-            foreach ($statusList as $key => $value) {
-                $states = $value;
-                $statusList[$key] = [];
-                foreach ($states as $state) {
-                    $statusList[$key][$state] = $state;
-                }
-            }
-
-            // Format gathering list for dropdown, tracking cancelled gatherings
-            $gatheringList = [];
-            $cancelledGatheringIds = [];
-            foreach ($gatheringsData as $gathering) {
-                $label = $gathering->name . ' in ' . $gathering->branch->name . ' on '
-                    . $gathering->start_date->toDateString() . ' - ' . $gathering->end_date->toDateString();
-                if ($gathering->cancelled_at !== null) {
-                    $label = '[CANCELLED] ' . $label;
-                    $cancelledGatheringIds[] = $gathering->id;
-                }
-                $gatheringList[$gathering->id] = $label;
-            }
-
-            $rules = StaticHelpers::getAppSetting('Awards.RecommendationStateRules');
-            $this->set(compact('rules', 'branches', 'gatheringList', 'statusList', 'cancelledGatheringIds'));
             return null;
         } catch (\Exception $e) {
             Log::error('Error in bulk edit form: ' . $e->getMessage());
@@ -2079,7 +1660,7 @@ class RecommendationsController extends AppController
      * @param array<int> $includeGatheringIds Additional gathering IDs to include (for recommendation-selected gatherings).
      * @return array Associative array mapping gathering ID => formatted display string ("Name in Branch on YYYY-MM-DD - YYYY-MM-DD"); entries with an asterisk indicate the member is attending and sharing with crown.
      */
-    protected function getFilteredGatheringsForAward(
+    public function getFilteredGatheringsForAward(
         int $awardId,
         ?int $memberId = null,
         bool $futureOnly = true,

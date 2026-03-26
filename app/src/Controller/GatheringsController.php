@@ -6,12 +6,14 @@ namespace App\Controller;
 use App\KMP\GridColumns\GatheringsGridColumns;
 use App\KMP\TimezoneHelper;
 use App\Services\CsvExportService;
+use App\Services\GatheringActivityService;
+use App\Services\GatheringCloneService;
+use App\Services\GatheringScheduleService;
 use App\Services\ICalendarService;
 use Cake\Event\EventInterface;
 use Cake\Http\Exception\NotFoundException;
 use Cake\I18n\Date;
 use Cake\I18n\DateTime as CakeDateTime;
-use Cake\Log\Log;
 use Cake\Routing\Router;
 use DateTime;
 use DateTimeInterface;
@@ -37,7 +39,13 @@ class GatheringsController extends AppController
      *
      * @var array<string> Service injection configuration
      */
-    public static array $inject = [CsvExportService::class, ICalendarService::class];
+    public static array $inject = [
+        CsvExportService::class,
+        GatheringActivityService::class,
+        GatheringCloneService::class,
+        GatheringScheduleService::class,
+        ICalendarService::class,
+    ];
 
     /**
      * Initialize controller
@@ -1245,19 +1253,13 @@ class GatheringsController extends AppController
      * @return \Cake\Http\Response|null Redirects to view.
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
-    public function addActivity($id = null)
+    public function addActivity(GatheringActivityService $activityService, $id = null)
     {
         $this->request->allowMethod(['post']);
         $gathering = $this->Gatherings->get($id, contain: ['GatheringActivities']);
         $this->Authorization->authorize($gathering, 'edit');
 
-        // Check if waivers exist - can't modify activities if they do
-        // TODO: Implement when Waivers plugin is available
-        $hasWaivers = false;
-        // $hasWaivers = $this->fetchTable('Waivers.GatheringWaivers')
-        //     ->find()->where(['gathering_id' => $id])->count() > 0;
-
-        if ($hasWaivers) {
+        if ($activityService->hasWaiverLock((int)$id)) {
             $this->Flash->error(__(
                 'Cannot add activities because waivers have been uploaded for this gathering.',
             ));
@@ -1273,40 +1275,17 @@ class GatheringsController extends AppController
             return $this->redirect(['action' => 'view', $gathering->public_id]);
         }
 
-        // Get custom description if provided
+        $existingIds = array_column($gathering->gathering_activities, 'id');
         $customDescription = $this->request->getData('custom_description');
 
-        // Get existing activity IDs
-        $existingIds = array_column($gathering->gathering_activities, 'id');
+        $result = $activityService->addActivity(
+            (int)$id,
+            (int)$activityId,
+            $existingIds,
+            $customDescription,
+        );
 
-        // Check if activity is already linked
-        if (in_array($activityId, $existingIds)) {
-            $this->Flash->warning(__('This activity is already part of this gathering.'));
-
-            return $this->redirect(['action' => 'view', $gathering->public_id]);
-        }
-
-        // Link the new activity
-        $GatheringsGatheringActivities = $this->fetchTable('GatheringsGatheringActivities');
-
-        $linkData = [
-            'gathering_id' => $id,
-            'gathering_activity_id' => $activityId,
-            'sort_order' => 999, // Will be at the end
-        ];
-
-        // Add custom description if provided
-        if (!empty(trim($customDescription))) {
-            $linkData['custom_description'] = trim($customDescription);
-        }
-
-        $link = $GatheringsGatheringActivities->newEntity($linkData);
-
-        if ($GatheringsGatheringActivities->save($link)) {
-            $this->Flash->success(__('Activity added successfully.'));
-        } else {
-            $this->Flash->error(__('Unable to add activity. Please try again.'));
-        }
+        $this->Flash->{$result['type']}($result['message']);
 
         return $this->redirect(['action' => 'view', $gathering->public_id]);
     }
@@ -1321,19 +1300,13 @@ class GatheringsController extends AppController
      * @return \Cake\Http\Response|null Redirects to view.
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
-    public function removeActivity($gatheringId = null, $activityId = null)
+    public function removeActivity(GatheringActivityService $activityService, $gatheringId = null, $activityId = null)
     {
         $this->request->allowMethod(['post']);
         $gathering = $this->Gatherings->get($gatheringId);
         $this->Authorization->authorize($gathering, 'edit');
 
-        // Check if waivers exist - can't modify activities if they do
-        // TODO: Implement when Waivers plugin is available
-        $hasWaivers = false;
-        // $hasWaivers = $this->fetchTable('Waivers.GatheringWaivers')
-        //     ->find()->where(['gathering_id' => $gatheringId])->count() > 0;
-
-        if ($hasWaivers) {
+        if ($activityService->hasWaiverLock((int)$gatheringId)) {
             $this->Flash->error(__(
                 'Cannot remove activities because waivers have been uploaded for this gathering.',
             ));
@@ -1341,25 +1314,8 @@ class GatheringsController extends AppController
             return $this->redirect(['action' => 'view', $gathering->public_id]);
         }
 
-        $GatheringsGatheringActivities = $this->fetchTable('GatheringsGatheringActivities');
-        $link = $GatheringsGatheringActivities->find()
-            ->where([
-                'gathering_id' => $gatheringId,
-                'gathering_activity_id' => $activityId,
-            ])
-            ->first();
-
-        if (!$link) {
-            $this->Flash->error(__('Activity link not found.'));
-
-            return $this->redirect(['action' => 'view', $gathering->public_id]);
-        }
-
-        if ($GatheringsGatheringActivities->delete($link)) {
-            $this->Flash->success(__('Activity removed successfully.'));
-        } else {
-            $this->Flash->error(__('Unable to remove activity. Please try again.'));
-        }
+        $result = $activityService->removeActivity((int)$gatheringId, (int)$activityId);
+        $this->Flash->{$result['type']}($result['message']);
 
         return $this->redirect(['action' => 'view', $gathering->public_id]);
     }
@@ -1373,19 +1329,13 @@ class GatheringsController extends AppController
      * @return \Cake\Http\Response|null Redirects to view.
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
-    public function editActivityDescription($gatheringId = null)
+    public function editActivityDescription(GatheringActivityService $activityService, $gatheringId = null)
     {
         $this->request->allowMethod(['post']);
         $gathering = $this->Gatherings->get($gatheringId);
         $this->Authorization->authorize($gathering);
 
-        // Check if waivers exist - can't modify activities if they do
-        // TODO: Implement when Waivers plugin is available
-        $hasWaivers = false;
-        // $hasWaivers = $this->fetchTable('Waivers.GatheringWaivers')
-        //     ->find()->where(['gathering_id' => $gatheringId])->count() > 0;
-
-        if ($hasWaivers) {
+        if ($activityService->hasWaiverLock((int)$gatheringId)) {
             $this->Flash->error(__(
                 'Cannot edit activity descriptions because waivers have been uploaded for this gathering.',
             ));
@@ -1394,50 +1344,20 @@ class GatheringsController extends AppController
         }
 
         $activityId = $this->request->getData('activity_id');
-        $customDescription = $this->request->getData('custom_description');
-
         if (empty($activityId)) {
             $this->Flash->error(__('Activity ID is required.'));
 
             return $this->redirect(['action' => 'view', $gathering->public_id]);
         }
 
-        $GatheringsGatheringActivities = $this->fetchTable('GatheringsGatheringActivities');
-        $link = $GatheringsGatheringActivities->find()
-            ->where([
-                'gathering_id' => $gatheringId,
-                'gathering_activity_id' => $activityId,
-            ])
-            ->first();
+        $customDescription = $this->request->getData('custom_description');
+        $result = $activityService->editDescription(
+            (int)$gatheringId,
+            (int)$activityId,
+            $customDescription,
+        );
 
-        if (!$link) {
-            $this->Flash->error(__('Activity link not found.'));
-
-            return $this->redirect(['action' => 'view', $gathering->public_id]);
-        }
-
-        // Update the custom description (can be empty to clear it)
-        $link->custom_description = !empty(trim($customDescription)) ? trim($customDescription) : null;
-
-        if ($GatheringsGatheringActivities->save($link)) {
-            $this->Flash->success(__('Activity description updated successfully.'));
-        } else {
-            $errors = $link->getErrors();
-            if (!empty($errors)) {
-                $errorMessages = [];
-                foreach ($errors as $fieldErrors) {
-                    foreach ($fieldErrors as $error) {
-                        $errorMessages[] = $error;
-                    }
-                }
-                $this->Flash->error(__(
-                    'Unable to update activity description: {0}',
-                    implode(', ', $errorMessages),
-                ));
-            } else {
-                $this->Flash->error(__('Unable to update activity description. Please try again.'));
-            }
-        }
+        $this->Flash->{$result['type']}($result['message']);
 
         return $this->redirect(['action' => 'view', $gathering->public_id]);
     }
@@ -1452,7 +1372,7 @@ class GatheringsController extends AppController
      * @return \Cake\Http\Response|null Redirects on success.
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
-    public function clone($id = null)
+    public function clone(GatheringCloneService $cloneService, $id = null)
     {
         $this->request->allowMethod(['post']);
 
@@ -1507,172 +1427,27 @@ class GatheringsController extends AppController
             $clonedStaff = 0;
             $clonedSchedule = 0;
 
-            // Clone activities from source gathering, then backfill required template activities
             if (!empty($data['clone_activities'])) {
-                $GatheringsGatheringActivities = $this->fetchTable('GatheringsGatheringActivities');
-                $clonedActivityIds = [];
-
-                // First: copy all activities from the source gathering
-                foreach ($originalGathering->gathering_activities as $activity) {
-                    $link = $GatheringsGatheringActivities->newEntity([
-                        'gathering_id' => $newGathering->id,
-                        'gathering_activity_id' => $activity->id,
-                        'sort_order' => $activity->_joinData->sort_order ?? 999,
-                        'custom_description' => $activity->_joinData->custom_description ?? null,
-                    ]);
-
-                    if ($GatheringsGatheringActivities->save($link)) {
-                        $clonedActivities++;
-                        $clonedActivityIds[$activity->id] = true;
-                    }
-                }
-
-                // Second: add any required template activities missing from the source
-                $templateActivities = $this->fetchTable('GatheringTypeGatheringActivities')->find()
-                    ->where([
-                        'gathering_type_id' => $newGathering->gathering_type_id,
-                        'not_removable' => true,
-                    ])
-                    ->all();
-
-                $maxSort = 0;
-                foreach ($originalGathering->gathering_activities as $a) {
-                    $order = $a->_joinData->sort_order ?? 0;
-                    if ($order > $maxSort) {
-                        $maxSort = $order;
-                    }
-                }
-
-                foreach ($templateActivities as $tmpl) {
-                    if (isset($clonedActivityIds[$tmpl->gathering_activity_id])) {
-                        // Already cloned from source — ensure not_removable is set
-                        $existing = $GatheringsGatheringActivities->find()
-                            ->where([
-                                'gathering_id' => $newGathering->id,
-                                'gathering_activity_id' => $tmpl->gathering_activity_id,
-                            ])
-                            ->first();
-                        if ($existing && !$existing->not_removable) {
-                            $existing->not_removable = true;
-                            $GatheringsGatheringActivities->save($existing);
-                        }
-                        continue;
-                    }
-
-                    // Required activity missing from source — add it
-                    $maxSort++;
-                    $link = $GatheringsGatheringActivities->newEntity([
-                        'gathering_id' => $newGathering->id,
-                        'gathering_activity_id' => $tmpl->gathering_activity_id,
-                        'sort_order' => $maxSort,
-                    ]);
-                    $link->not_removable = true;
-                    if ($GatheringsGatheringActivities->save($link)) {
-                        $clonedActivities++;
-                    }
-                }
+                $clonedActivities = $cloneService->cloneActivities($originalGathering, $newGathering);
             } else {
                 // Not cloning activities — let template sync run normally
                 $this->Gatherings->syncTemplateActivities($newGathering);
             }
 
-            // Clone staff if requested
             if (!empty($data['clone_staff'])) {
-                $GatheringStaff = $this->fetchTable('GatheringStaff');
-
-                foreach ($originalGathering->gathering_staff as $staff) {
-                    $newStaff = $GatheringStaff->newEntity([
-                        'gathering_id' => $newGathering->id,
-                        'member_id' => $staff->member_id,
-                        'sca_name' => $staff->sca_name,
-                        'role' => $staff->role,
-                        'is_steward' => $staff->is_steward,
-                        'show_on_public_page' => $staff->show_on_public_page,
-                        'email' => $staff->email,
-                        'phone' => $staff->phone,
-                        'contact_notes' => $staff->contact_notes,
-                        'sort_order' => $staff->sort_order,
-                    ]);
-
-                    if ($GatheringStaff->save($newStaff)) {
-                        $clonedStaff++;
-                    }
-                }
+                $clonedStaff = $cloneService->cloneStaff($originalGathering, $newGathering);
             }
 
-            // Clone schedule if requested
             if (!empty($data['clone_schedule'])) {
-                $GatheringScheduledActivities = $this->fetchTable('GatheringScheduledActivities');
-
-                // Calculate the time offset between original and new gathering
-                // Both dates are now DateTime objects (already converted to UTC)
-                $originalStart = $originalGathering->start_date;
-                $newStart = $newGathering->start_date;
-
-                // Calculate difference in seconds for precise time offset
-                $timeDiff = $newStart->getTimestamp() - $originalStart->getTimestamp();
-
-                foreach ($originalGathering->gathering_scheduled_activities as $scheduledActivity) {
-                    // Clone the datetime objects to avoid modifying the originals
-                    $newStartDateTime = clone $scheduledActivity->start_datetime;
-                    $newStartDateTime = $newStartDateTime->modify(sprintf('%+d seconds', $timeDiff));
-
-                    $newEndDateTime = null;
-                    if ($scheduledActivity->end_datetime) {
-                        $newEndDateTime = clone $scheduledActivity->end_datetime;
-                        $newEndDateTime = $newEndDateTime->modify(sprintf('%+d seconds', $timeDiff));
-                    }
-
-                    $newScheduledActivity = $GatheringScheduledActivities->newEntity([
-                        'gathering_id' => $newGathering->id,
-                        'gathering_activity_id' => $scheduledActivity->gathering_activity_id,
-                        'start_datetime' => $newStartDateTime,
-                        'end_datetime' => $newEndDateTime,
-                        'has_end_time' => !empty($scheduledActivity->end_datetime),
-                        'display_title' => $scheduledActivity->display_title,
-                        'description' => $scheduledActivity->description,
-                        'pre_register' => $scheduledActivity->pre_register ?? false,
-                        'is_other' => $scheduledActivity->is_other ?? false,
-                    ]);
-
-                    if ($GatheringScheduledActivities->save($newScheduledActivity)) {
-                        $clonedSchedule++;
-                    } else {
-                        // Log errors for debugging
-                        $errors = $newScheduledActivity->getErrors();
-                        Log::error('Failed to clone scheduled activity: ' . json_encode($errors));
-                    }
-                }
+                $clonedSchedule = $cloneService->cloneSchedule($originalGathering, $newGathering);
             }
 
-            // Build success message
-            $successParts = [];
-            if ($clonedActivities > 0) {
-                $successParts[] = __('{0} {1}', $clonedActivities, __n('activity', 'activities', $clonedActivities));
-            }
-            if ($clonedStaff > 0) {
-                $successParts[] = __('{0} {1}', $clonedStaff, __n('staff member', 'staff members', $clonedStaff));
-            }
-            if ($clonedSchedule > 0) {
-                $successParts[] = __(
-                    '{0} {1}',
-                    $clonedSchedule,
-                    __n('scheduled activity', 'scheduled activities', $clonedSchedule),
-                );
-            }
-
-            if (!empty($successParts)) {
-                $this->Flash->success(__(
-                    'Gathering "{0}" has been cloned successfully with {1}.',
-                    $newGathering->name,
-                    implode(', ', $successParts),
-                ));
-            } else {
-                $this->Flash->success(__(
-                    'Gathering "{0}" has been cloned successfully.',
-                    $newGathering->name,
-                ));
-            }
+            $this->Flash->success($cloneService->buildSuccessMessage(
+                $newGathering->name,
+                $clonedActivities,
+                $clonedStaff,
+                $clonedSchedule,
+            ));
 
             return $this->redirect(['action' => 'view', $newGathering->public_id]);
         }
@@ -1704,7 +1479,7 @@ class GatheringsController extends AppController
      * @param string|null $id Gathering id
      * @return \Cake\Http\Response|null JSON response
      */
-    public function addScheduledActivity($publicId = null)
+    public function addScheduledActivity(GatheringScheduleService $scheduleService, $publicId = null)
     {
         $this->request->allowMethod(['post']);
         $this->viewBuilder()->setClassName('Json');
@@ -1712,56 +1487,13 @@ class GatheringsController extends AppController
         $gathering = $this->Gatherings->find('byPublicId', [$publicId])->firstOrFail();
         $this->Authorization->authorize($gathering, 'edit');
 
-        $scheduledActivitiesTable = $this->fetchTable('GatheringScheduledActivities');
-        $scheduledActivity = $scheduledActivitiesTable->newEmptyEntity();
+        $result = $scheduleService->add(
+            $this->request->getData(),
+            $gathering,
+            $this->Authentication->getIdentity(),
+        );
 
-        $data = $this->request->getData();
-        $data['gathering_id'] = $gathering->id;
-        $data['created_by'] = $this->Authentication->getIdentity()->id;
-
-        // Convert datetime inputs from gathering/user timezone to UTC for storage
-        $timezone = TimezoneHelper::getGatheringTimezone($gathering, $this->Authentication->getIdentity());
-        if (!empty($data['start_datetime'])) {
-            $data['start_datetime'] = TimezoneHelper::toUtc($data['start_datetime'], $timezone);
-        }
-        if (!empty($data['end_datetime'])) {
-            $data['end_datetime'] = TimezoneHelper::toUtc($data['end_datetime'], $timezone);
-        }
-
-        // Handle "other" checkbox
-        if (!empty($data['is_other'])) {
-            $data['gathering_activity_id'] = null;
-        }
-
-        // Handle "has_end_time" checkbox - clear end_datetime if unchecked
-        if (empty($data['has_end_time'])) {
-            $data['end_datetime'] = null;
-        }
-
-        $scheduledActivity = $scheduledActivitiesTable->patchEntity($scheduledActivity, $data);
-
-        if ($scheduledActivitiesTable->save($scheduledActivity)) {
-            $this->set([
-                'success' => true,
-                'message' => __('Scheduled activity added successfully.'),
-                'data' => $scheduledActivity,
-            ]);
-        } else {
-            $errors = $scheduledActivity->getErrors();
-            $errorMessages = [];
-            foreach ($errors as $fieldErrors) {
-                foreach ($fieldErrors as $error) {
-                    $errorMessages[] = is_string($error) ? $error : implode(', ', $error);
-                }
-            }
-
-            $this->set([
-                'success' => false,
-                'message' => __('Could not add scheduled activity.'),
-                'errors' => $errorMessages,
-            ]);
-        }
-
+        $this->set($result);
         $this->viewBuilder()->setOption('serialize', ['success', 'message', 'data', 'errors']);
 
         return null;
@@ -1776,74 +1508,25 @@ class GatheringsController extends AppController
      * @param string|null $id Scheduled activity id
      * @return \Cake\Http\Response|null JSON response
      */
-    public function editScheduledActivity($gatheringPublicId = null, $id = null)
-    {
+    public function editScheduledActivity(
+        GatheringScheduleService $scheduleService,
+        $gatheringPublicId = null,
+        $id = null,
+    ) {
         $this->request->allowMethod(['post', 'put', 'patch']);
         $this->viewBuilder()->setClassName('Json');
 
         $gathering = $this->Gatherings->find('byPublicId', [$gatheringPublicId])->firstOrFail();
         $this->Authorization->authorize($gathering, 'edit');
 
-        $scheduledActivitiesTable = $this->fetchTable('GatheringScheduledActivities');
-        $scheduledActivity = $scheduledActivitiesTable->get($id);
+        $result = $scheduleService->edit(
+            (int)$id,
+            $this->request->getData(),
+            $gathering,
+            $this->Authentication->getIdentity(),
+        );
 
-        // Ensure scheduled activity belongs to this gathering
-        if ($scheduledActivity->gathering_id != $gathering->id) {
-            $this->set([
-                'success' => false,
-                'message' => __('Invalid scheduled activity.'),
-            ]);
-            $this->viewBuilder()->setOption('serialize', ['success', 'message']);
-
-            return null;
-        }
-
-        $data = $this->request->getData();
-        $data['modified_by'] = $this->Authentication->getIdentity()->id;
-
-        // Convert datetime inputs from gathering/user timezone to UTC for storage
-        $timezone = TimezoneHelper::getGatheringTimezone($gathering, $this->Authentication->getIdentity());
-        if (!empty($data['start_datetime'])) {
-            $data['start_datetime'] = TimezoneHelper::toUtc($data['start_datetime'], $timezone);
-        }
-        if (!empty($data['end_datetime'])) {
-            $data['end_datetime'] = TimezoneHelper::toUtc($data['end_datetime'], $timezone);
-        }
-
-        // Handle "other" checkbox
-        if (!empty($data['is_other'])) {
-            $data['gathering_activity_id'] = null;
-        }
-
-        // Handle "has_end_time" checkbox - clear end_datetime if unchecked
-        if (empty($data['has_end_time'])) {
-            $data['end_datetime'] = null;
-        }
-
-        $scheduledActivity = $scheduledActivitiesTable->patchEntity($scheduledActivity, $data);
-
-        if ($scheduledActivitiesTable->save($scheduledActivity)) {
-            $this->set([
-                'success' => true,
-                'message' => __('Scheduled activity updated successfully.'),
-                'data' => $scheduledActivity,
-            ]);
-        } else {
-            $errors = $scheduledActivity->getErrors();
-            $errorMessages = [];
-            foreach ($errors as $fieldErrors) {
-                foreach ($fieldErrors as $error) {
-                    $errorMessages[] = is_string($error) ? $error : implode(', ', $error);
-                }
-            }
-
-            $this->set([
-                'success' => false,
-                'message' => __('Could not update scheduled activity.'),
-                'errors' => $errorMessages,
-            ]);
-        }
-
+        $this->set($result);
         $this->viewBuilder()->setOption('serialize', ['success', 'message', 'data', 'errors']);
 
         return null;
@@ -1858,27 +1541,24 @@ class GatheringsController extends AppController
      * @param string|null $id Scheduled activity id
      * @return \Cake\Http\Response|null Redirect response
      */
-    public function deleteScheduledActivity($gatheringPublicId = null, $id = null)
-    {
+    public function deleteScheduledActivity(
+        GatheringScheduleService $scheduleService,
+        $gatheringPublicId = null,
+        $id = null,
+    ) {
         $this->request->allowMethod(['post', 'delete']);
 
         $gathering = $this->Gatherings->find('byPublicId', [$gatheringPublicId])->firstOrFail();
         $this->Authorization->authorize($gathering, 'edit');
 
-        $scheduledActivitiesTable = $this->fetchTable('GatheringScheduledActivities');
-        $scheduledActivity = $scheduledActivitiesTable->get($id);
+        $result = $scheduleService->delete((int)$id, $gathering);
 
-        // Ensure scheduled activity belongs to this gathering
-        if ($scheduledActivity->gathering_id != $gathering->id) {
-            $this->Flash->error(__('Invalid scheduled activity.'));
-
-            return $this->redirect(['action' => 'view', $gathering->public_id]);
-        }
-
-        if ($scheduledActivitiesTable->delete($scheduledActivity)) {
-            $this->Flash->success(__('Scheduled activity deleted successfully.'));
+        if (!empty($result['invalidOwner'])) {
+            $this->Flash->error($result['message']);
+        } elseif ($result['success']) {
+            $this->Flash->success($result['message']);
         } else {
-            $this->Flash->error(__('Could not delete scheduled activity. Please try again.'));
+            $this->Flash->error($result['message']);
         }
 
         return $this->redirect(['action' => 'view', $gathering->public_id]);

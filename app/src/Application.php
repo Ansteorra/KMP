@@ -59,9 +59,17 @@ use App\Services\AuthorizationService as KmpAuthorizationService;
 use App\Services\CoreNavigationProvider;
 use App\Services\CoreViewCellProvider;
 use App\Services\CsvExportService;
+use App\Services\GatheringActivityService;
+use App\Services\GatheringCloneService;
+use App\Services\GatheringScheduleService;
 use App\Services\ICalendarService;
 use App\Services\ImpersonationService;
+use App\Services\MemberAuthenticationService;
+use App\Services\MemberProfileService;
+use App\Services\MemberRegistrationService;
+use App\Services\MemberSearchService;
 use App\Services\NavigationRegistry;
+use App\Services\QuickLoginDeviceService;
 use App\Services\ViewCellRegistry;
 use App\Services\WarrantManager\DefaultWarrantManager;
 use App\Services\WarrantManager\WarrantManagerInterface;
@@ -642,6 +650,18 @@ class Application extends BaseApplication implements
         $container->add(
             ImpersonationService::class,
         );
+
+        // Member services extracted from MembersController
+        $container->add(MemberAuthenticationService::class);
+        $container->add(MemberRegistrationService::class);
+        $container->add(MemberProfileService::class);
+        $container->add(MemberSearchService::class);
+        $container->add(QuickLoginDeviceService::class);
+
+        // Gathering services extracted from GatheringsController
+        $container->add(GatheringActivityService::class);
+        $container->add(GatheringScheduleService::class);
+        $container->add(GatheringCloneService::class);
     }
 
     /**

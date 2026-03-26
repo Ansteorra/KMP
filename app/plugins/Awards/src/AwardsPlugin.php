@@ -17,6 +17,9 @@ use App\Services\NavigationRegistry;
 use App\Services\ViewCellRegistry;
 use Awards\Services\AwardsNavigationProvider;
 use Awards\Services\AwardsViewCellProvider;
+use Awards\Services\RecommendationFormService;
+use Awards\Services\RecommendationQueryService;
+use Awards\Services\RecommendationStateService;
 use App\KMP\StaticHelpers;
 
 /**
@@ -228,5 +231,10 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
      * @param \Cake\Core\ContainerInterface $container The container to update
      * @return void
      */
-    public function services(ContainerInterface $container): void {}
+    public function services(ContainerInterface $container): void
+    {
+        $container->add(RecommendationStateService::class);
+        $container->add(RecommendationFormService::class);
+        $container->add(RecommendationQueryService::class);
+    }
 }

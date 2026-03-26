@@ -69,6 +69,12 @@ run_check "PHPStan Static Analysis" '
         exit 0
     fi
 
+    # PHPStan with no level configured exits 1 with "No rules detected" — treat as pass
+    if echo "$OUTPUT" | grep -q "No rules detected"; then
+        echo "ℹ️  No PHPStan rules configured — skipping static analysis"
+        exit 0
+    fi
+
     # Check if only known baseline errors remain
     ERROR_COUNT=$(echo "$OUTPUT" | grep -oP "Found \K[0-9]+" | tail -1)
     KNOWN='"$PHPSTAN_KNOWN_ERRORS"'

@@ -2288,13 +2288,15 @@ class MembersController extends AppController
     private function getProxyHeaders(): array
     {
         $headers = [];
-        foreach ([
-            'CloudFront-Viewer-City',
-            'CloudFront-Viewer-Country-Region',
-            'CloudFront-Viewer-Country',
-            'CF-IPCountry',
-            'X-AppEngine-Country',
-        ] as $name) {
+        foreach (
+            [
+                'CloudFront-Viewer-City',
+                'CloudFront-Viewer-Country-Region',
+                'CloudFront-Viewer-Country',
+                'CF-IPCountry',
+                'X-AppEngine-Country',
+            ] as $name
+        ) {
             $value = $this->request->getHeaderLine($name);
             if ($value !== '') {
                 $headers[$name] = $value;
@@ -2446,7 +2448,12 @@ class MembersController extends AppController
                 if ($member->age > 17) {
                     $emailVars = $regService->buildAdultRegistrationEmailVars($member);
                     $this->queueMail('KMP', 'newRegistration', $member->email_address, $emailVars['registrationVars']);
-                    $this->queueMail('KMP', 'notifySecretaryOfNewMember', $member->email_address, $emailVars['secretaryVars']);
+                    $this->queueMail(
+                        'KMP',
+                        'notifySecretaryOfNewMember',
+                        $member->email_address,
+                        $emailVars['secretaryVars'],
+                    );
                     $this->Flash->success(__(
                         'Your registration has been submitted. '
                         . 'Please check your email for a link '
