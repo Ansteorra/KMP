@@ -4,11 +4,11 @@ Feature: Award Recommendations
     So that deserving members can be recognized
 
     Scenario: View the public recommendations page
-        Given I am logged in as "admin@test.com"
+        Given I am logged in as "admin@amp.ansteorra.org"
         When I navigate to "/awards/recommendations"
         Then I should be on a page containing "Recommendation"
 
     Scenario: Access submit recommendation page
-        Given I am logged in as "admin@test.com"
+        Given I am logged in as "admin@amp.ansteorra.org"
         When I navigate to "/awards/recommendations/submit-recommendation"
         Then I should be on a page containing "Recommendation"

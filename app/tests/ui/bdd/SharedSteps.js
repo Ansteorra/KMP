@@ -6,13 +6,12 @@ const { Given, When, Then } = createBdd();
 // check if user is logged in
 Given('I am logged in as {string}', async ({ page }, emailAddress) => {
     // Navigate to the login page
-    await page.goto('https://localhost:8080/', { waitUntil: 'networkidle' });
     await page.goto('/members/login', { waitUntil: 'networkidle' });
 
     // Fill in the login form with admin credentials
-    await page.getByRole('textbox', { name: 'Email Address' }).fill(emailAddress);
-    await page.getByRole('textbox', { name: 'Password' }).fill('Password123');
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.locator('#email-address').fill(emailAddress);
+    await page.locator('#password').fill('TestPassword');
+    await page.locator('input[type="submit"][value="Sign in"]').click();
     await page.waitForTimeout(1000); // Wait for the login to complete
 });
 
@@ -49,15 +48,19 @@ When('I open the email with subject {string}', async ({ page }, subject) => {
 });
 
 Then('the email should start with the body:', async ({ page }, expectedContent) => {
-    // Example: Check if the email body contains the expected content
     const emailBody = await page.locator('#nav-plain-text div').textContent();
-    expect(emailBody).toContain(expectedContent);
+    // Normalize non-breaking spaces and middots that email formatters add
+    const normalized = emailBody.replace(/[·\u00B7\u00A0]/g, ' ').replace(/\s+/g, ' ').trim();
+    const expectedNormalized = expectedContent.replace(/\s+/g, ' ').trim();
+    expect(normalized).toContain(expectedNormalized);
 });
 
 // Authorization Queue Steps
 When('I click on my name {string}', async ({ page }, userName) => {
-    // Click on the user's name in the navigation or profile area
-    await page.locator(`.nav-link span:has-text('${userName}')`).click();
+    // Click on the user's name link in the sidebar navigation
+    const nameLink = page.locator(`a.nav-link:has-text("${userName}")`).first();
+    await nameLink.click();
+    await page.waitForTimeout(500);
 });
 
 When('I click on the {string} link', async ({ page }, linkText) => {
@@ -91,8 +94,21 @@ Given("The test inbox is empty", async ({ page }) => {
 // ── Reusable DataGrid Step Definitions ──────────────────────────────
 
 When('I search the grid for {string}', async ({ page }, searchText) => {
-    const searchInput = page.locator('[data-grid-filter-target="searchBox"], input[type="search"], .dataTables_filter input').first();
+    await page.waitForSelector('table.table tbody tr', { state: 'visible', timeout: 30000 });
+    const filterBtn = page.locator('#filterDropdown, button:has-text("Filter")').first();
+    await filterBtn.click();
+    await page.waitForTimeout(300);
+    const searchInput = page.locator('[data-grid-view-target="searchInput"]');
     await searchInput.fill(searchText);
+    // Press Enter triggers turbo-frame navigation — wait for the network round-trip
+    await Promise.all([
+        page.waitForResponse(resp => resp.url().includes('search=') && resp.status() === 200, { timeout: 30000 }),
+        searchInput.press('Enter'),
+    ]);
+    // Wait for the turbo-frame table body to re-render
+    await page.waitForTimeout(1000);
+    // Close the filter dropdown to avoid overlapping table buttons
+    await page.keyboard.press('Escape');
     await page.waitForTimeout(500);
 });
 
@@ -163,4 +179,37 @@ Then('the page should contain {string}', async ({ page }, text) => {
 
 Then('the page should not contain {string}', async ({ page }, text) => {
     await expect(page.locator('body')).not.toContainText(text);
+});
+
+Then('I should be on a page containing {string}', async ({ page }, text) => {
+    await expect(page.locator('body')).toContainText(text);
+});
+
+Then('the grid should show {int} or more results', async ({ page }, minCount) => {
+    // Wait for turbo-frame grid to load
+    await page.waitForSelector('table.table tbody tr, .dataTable tbody tr', { state: 'visible', timeout: 30000 });
+    const rows = page.locator('table.table tbody tr, .dataTable tbody tr');
+    const count = await rows.count();
+    expect(count).toBeGreaterThanOrEqual(minCount);
+});
+
+When('I search for {string} in the grid search box', async ({ page }, searchText) => {
+    // Grid search is inside Filter dropdown — click to open it first
+    await page.waitForSelector('table.table tbody tr', { state: 'visible', timeout: 30000 });
+    const filterBtn = page.locator('#filterDropdown, button:has-text("Filter")').first();
+    await filterBtn.click();
+    await page.waitForTimeout(300);
+    const searchInput = page.locator('[data-grid-view-target="searchInput"]');
+    await searchInput.fill(searchText);
+    await searchInput.press('Enter');
+    await page.waitForTimeout(2000);
+    // Close the filter dropdown to avoid overlapping table buttons
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(500);
+});
+
+Then('the grid should show results containing {string}', async ({ page }, text) => {
+    await page.waitForSelector('table.table tbody tr', { state: 'visible', timeout: 30000 });
+    const grid = page.locator('table.table, .dataTable').first();
+    await expect(grid).toContainText(text);
 });
