@@ -265,6 +265,10 @@ trait DataverseGridTrait
                             $fieldName = $relationParts[1];
                             $searchConditions['OR'][$associationName . '.' . $fieldName . ' LIKE'] = '%'
                                 . $searchTerm . '%';
+                        } elseif (!empty($columnMeta['queryField'])) {
+                            // For deeper relation paths (3+ parts), use queryField directly
+                            $searchConditions['OR'][$columnMeta['queryField'] . ' LIKE'] = '%'
+                                . $searchTerm . '%';
                         }
                     } else {
                         $searchConditions['OR'][$tableName . '.' . $columnKey . ' LIKE'] = '%' . $searchTerm . '%';
