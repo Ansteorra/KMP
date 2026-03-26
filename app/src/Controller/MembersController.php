@@ -13,8 +13,12 @@ use App\KMP\StaticHelpers;
 use App\Mailer\QueuedMailerAwareTrait;
 use App\Model\Entity\Member;
 use App\Services\CsvExportService;
-use App\Services\DocumentService;
 use App\Services\ImpersonationService;
+use App\Services\MemberAuthenticationService;
+use App\Services\MemberProfileService;
+use App\Services\MemberRegistrationService;
+use App\Services\MemberSearchService;
+use App\Services\QuickLoginDeviceService;
 use Authentication\PasswordHasher\DefaultPasswordHasher;
 use Cake\Datasource\Exception\RecordNotFoundException;
 use Cake\Event\EventInterface;
@@ -23,14 +27,10 @@ use Cake\Http\Exception\ForbiddenException;
 use Cake\Http\Exception\NotFoundException;
 use Cake\Http\Response;
 use Cake\I18n\DateTime;
-use Cake\Log\Log;
 use Cake\Mailer\MailerAwareTrait;
 use Cake\ORM\Query\SelectQuery;
 use Cake\Routing\Router;
-use finfo;
 use Psr\Http\Message\UploadedFileInterface;
-use RuntimeException;
-use Throwable;
 
 /**
  * Manages member CRUD, authentication, profiles, and member discovery.
@@ -1223,19 +1223,14 @@ class MembersController extends AppController
      *
      * @param mixed $id
      */
-    public function sendMobileCardEmail($id = null)
+    public function sendMobileCardEmail(MemberProfileService $profileService, $id = null)
     {
         $member = $this->Members->get($id);
         if (!$member) {
             throw new NotFoundException();
         }
         $this->Authorization->authorize($member);
-        $url = Router::url([
-            'controller' => 'Members',
-            'action' => 'ViewMobileCard',
-            'plugin' => null,
-            '_full' => true,
-        ]);
+        $url = $profileService->buildMobileCardUrl();
         $vars = [
             'url' => $url,
         ];
@@ -1250,7 +1245,7 @@ class MembersController extends AppController
      *
      * @return \Cake\Http\Response Redirect response
      */
-    public function uploadProfilePhoto(): Response
+    public function uploadProfilePhoto(MemberProfileService $profileService): Response
     {
         $this->request->allowMethod(['post', 'put']);
 
@@ -1279,7 +1274,7 @@ class MembersController extends AppController
             return $this->redirect($this->referer());
         }
 
-        $result = $this->processProfilePhotoUpload($member, $file, (int)$user->id);
+        $result = $profileService->processProfilePhotoUpload($member, $file, (int)$user->id);
         if (!$result['success']) {
             $this->Flash->error($result['message']);
 
@@ -1300,7 +1295,7 @@ class MembersController extends AppController
      * @param int|null $id Member ID
      * @return \Cake\Http\Response Redirect response
      */
-    public function removeProfilePhoto(?int $id = null): Response
+    public function removeProfilePhoto(MemberProfileService $profileService, ?int $id = null): Response
     {
         $this->request->allowMethod(['post', 'delete']);
 
@@ -1319,27 +1314,14 @@ class MembersController extends AppController
             return $this->redirect(['action' => 'view', $member->id]);
         }
 
-        $oldDocumentId = (int)$member->profile_photo_document_id;
-        $connection = $this->Members->getConnection();
-        try {
-            $connection->transactional(function () use ($member, $oldDocumentId): void {
-                $member->profile_photo_document_id = null;
-                $this->Members->saveOrFail($member);
-
-                $documentService = new DocumentService();
-                $deleteResult = $documentService->deleteDocument($oldDocumentId);
-                if (!$deleteResult->success) {
-                    throw new RuntimeException(__('Unable to remove profile photo. Please try again.'));
-                }
-            });
-        } catch (Throwable $e) {
-            Log::error('Profile photo removal failed: ' . $e->getMessage());
-            $this->Flash->error(__('Unable to remove profile photo. Please try again.'));
+        $result = $profileService->removeProfilePhoto($member, (int)$member->profile_photo_document_id);
+        if (!$result['success']) {
+            $this->Flash->error($result['message']);
 
             return $this->redirect(['action' => 'view', $member->id]);
         }
 
-        $this->Flash->success(__('Profile photo removed.'));
+        $this->Flash->success($result['message']);
 
         return $this->redirect(['action' => 'view', $member->id]);
     }
@@ -1349,7 +1331,7 @@ class MembersController extends AppController
      *
      * @return \Cake\Http\Response Redirect response
      */
-    public function mobileCardUploadProfilePhoto(?string $id = null): Response
+    public function mobileCardUploadProfilePhoto(MemberProfileService $profileService, ?string $id = null): Response
     {
         $this->request->allowMethod(['post', 'put']);
         $currentUser = $this->Authentication->getIdentity();
@@ -1380,7 +1362,7 @@ class MembersController extends AppController
             return $this->redirect(['action' => 'viewMobileCard']);
         }
 
-        $result = $this->processProfilePhotoUpload($member, $file, (int)$member->id);
+        $result = $profileService->processProfilePhotoUpload($member, $file, (int)$member->id);
         if (!$result['success']) {
             $this->Flash->error($result['message']);
 
@@ -1401,7 +1383,7 @@ class MembersController extends AppController
      * @param int|null $id Member ID
      * @return \Cake\Http\Response Inline file response
      */
-    public function profilePhoto(?int $id = null): Response
+    public function profilePhoto(MemberProfileService $profileService, ?int $id = null): Response
     {
         $member = $this->Members->find()
             ->contain(['ProfilePhoto'])
@@ -1415,11 +1397,7 @@ class MembersController extends AppController
             throw new NotFoundException();
         }
 
-        $documentService = new DocumentService();
-        $response = $documentService->getDocumentInlineResponse(
-            $member->profile_photo,
-            'member_profile_photo_' . $member->id . '.jpg',
-        );
+        $response = $profileService->getProfilePhotoResponse($member, 'member_profile_photo_');
         if ($response === null) {
             throw new NotFoundException();
         }
@@ -1432,7 +1410,7 @@ class MembersController extends AppController
      *
      * @return \Cake\Http\Response Inline file response
      */
-    public function mobileCardPhoto(): Response
+    public function mobileCardPhoto(MemberProfileService $profileService): Response
     {
         $currentUser = $this->Authentication->getIdentity();
         if (!$currentUser) {
@@ -1458,81 +1436,12 @@ class MembersController extends AppController
             throw new NotFoundException();
         }
 
-        $documentService = new DocumentService();
-        $response = $documentService->getDocumentInlineResponse(
-            $member->profile_photo,
-            'member_mobile_card_photo_' . $member->id . '.jpg',
-        );
+        $response = $profileService->getProfilePhotoResponse($member, 'member_mobile_card_photo_');
         if ($response === null) {
             throw new NotFoundException();
         }
 
         return $response;
-    }
-
-    /**
-     * @return array{success:bool,message:string,warning?:bool}
-     */
-    private function processProfilePhotoUpload(Member $member, UploadedFileInterface $file, int $uploaderId): array
-    {
-        $clientMediaType = (string)$file->getClientMediaType();
-        if ($clientMediaType !== '' && !str_starts_with($clientMediaType, 'image/')) {
-            return ['success' => false, 'message' => __('Invalid file type. Only PNG and JPEG images are allowed.')];
-        }
-
-        $ext = strtolower(pathinfo((string)$file->getClientFilename(), PATHINFO_EXTENSION));
-        if (!in_array($ext, ['png', 'jpg', 'jpeg'], true)) {
-            return ['success' => false, 'message' => __('Invalid file extension. Only .png, .jpg, .jpeg are allowed.')];
-        }
-
-        $tempPath = $file->getStream()->getMetadata('uri');
-        $finfo = new finfo(FILEINFO_MIME_TYPE);
-        $actualMimeType = $finfo->file($tempPath);
-        if (!in_array($actualMimeType, ['image/png', 'image/jpeg'], true)) {
-            return ['success' => false, 'message' => __('File content does not match an allowed image type.')];
-        }
-
-        $documentService = new DocumentService();
-        $uploadResult = $documentService->createDocument(
-            $file,
-            'Members.ProfilePhoto',
-            (int)$member->id,
-            $uploaderId,
-            ['type' => 'profile_photo'],
-            'member-profile-photos',
-            ['png', 'jpg', 'jpeg'],
-        );
-        if (!$uploadResult->success) {
-            return ['success' => false, 'message' => $uploadResult->reason ?? __('Unable to upload profile photo.')];
-        }
-
-        $newDocumentId = (int)$uploadResult->data;
-        $oldDocumentId = $member->profile_photo_document_id
-            ? (int)$member->profile_photo_document_id
-            : null;
-
-        $member->profile_photo_document_id = $newDocumentId;
-        if (!$this->Members->save($member)) {
-            $documentService->deleteDocument($newDocumentId);
-
-            return ['success' => false, 'message' => __('Unable to save profile photo. Please try again.')];
-        }
-
-        if ($oldDocumentId && $oldDocumentId !== $newDocumentId) {
-            $deleteResult = $documentService->deleteDocument($oldDocumentId);
-            if (!$deleteResult->success) {
-                return [
-                    'success' => true,
-                    'warning' => true,
-                    'message' => __(
-                        'Profile photo updated, but old photo '
-                        . 'cleanup failed.',
-                    ),
-                ];
-            }
-        }
-
-        return ['success' => true, 'message' => __('Profile photo updated.')];
     }
 
     /**
@@ -1682,31 +1591,13 @@ class MembersController extends AppController
     /**
      * Search members.
      */
-    public function searchMembers()
+    public function searchMembers(MemberSearchService $searchService)
     {
-        $q = $this->request->getQuery('q');
-        //detect th and replace with Þ
-        $nq = $q;
-        if (preg_match('/th/', $q)) {
-            $nq = str_replace('th', 'Þ', $q);
-        }
-        //detect Þ and replace with th
-        $uq = $q;
-        if (preg_match('/Þ/', $q)) {
-            $uq = str_replace('Þ', 'th', $q);
-        }
         $this->Authorization->skipAuthorization();
         $this->request->allowMethod(['get']);
         $this->viewBuilder()->setClassName('Ajax');
-        $query = $this->Members
-            ->find('all')
-            ->where([
-                'status <>' => Member::STATUS_DEACTIVATED,
-                'OR' => [['sca_name LIKE' => "%$q%"], ['sca_name LIKE' => "%$nq%"], ['sca_name LIKE' => "%$uq%"]],
-            ])
-            ->select(['id', 'sca_name'])
-            ->limit(10);
-        //$query = $this->Authorization->applyScope($query);
+        $variants = $searchService->buildThornVariants($this->request->getQuery('q'));
+        $query = $searchService->searchQuery($variants['q'], $variants['nq'], $variants['uq']);
         $this->response = $this->response
             ->withType('application/json')
             ->withStringBody(json_encode($query));
@@ -1851,55 +1742,28 @@ class MembersController extends AppController
     /**
      * Auto complete.
      */
-    public function autoComplete()
+    public function autoComplete(MemberSearchService $searchService)
     {
-        //TODO: Audit for Privacy
-
-        $q = $this->request->getQuery('q');
-        //detect th and replace with Þ
-        $nq = $q;
-        if (preg_match('/th/', $q)) {
-            $nq = str_replace('th', 'Þ', $q);
-        }
-        //detect Þ and replace with th
-        $uq = $q;
-        if (preg_match('/Þ/', $q)) {
-            $uq = str_replace('Þ', 'th', $q);
-        }
-
         $this->Authorization->skipAuthorization();
         $this->request->allowMethod(['get']);
         $this->viewBuilder()->setClassName('Ajax');
-        $query = $this->Members
-            ->find('all')
-            ->where([
-                'status <>' => Member::STATUS_DEACTIVATED,
-                'OR' => [['sca_name LIKE' => "%$q%"], ['sca_name LIKE' => "%$nq%"], ['sca_name LIKE' => "%$uq%"]],
-            ])
-            ->select(['id', 'public_id', 'sca_name'])
-            ->limit(50);
+        $variants = $searchService->buildThornVariants($this->request->getQuery('q'));
+        $q = $variants['q'];
+        $nq = $variants['nq'];
+        $uq = $variants['uq'];
+        $query = $searchService->searchQuery($q, $nq, $uq, 50, ['id', 'public_id', 'sca_name']);
         $this->set(compact('query', 'q', 'nq', 'uq'));
     }
 
     /**
      * Email taken.
      */
-    public function emailTaken()
+    public function emailTaken(MemberSearchService $searchService)
     {
-        $email = $this->request->getQuery('email');
         $this->Authorization->skipAuthorization();
         $this->request->allowMethod(['get']);
         $this->viewBuilder()->setClassName('Ajax');
-        $emailUsed = $this->Members
-            ->find('all')
-            ->where(['email_address' => $email])
-            ->count();
-        $result = '';
-        if ($emailUsed > 0) {
-            $result = true;
-        } else {
-            $result = false;
-        }
+        $result = $searchService->isEmailTaken($this->request->getQuery('email'));
         $this->response = $this->response
             ->withType('application/json')
             ->withStringBody(json_encode($result));
@@ -1950,37 +1814,20 @@ class MembersController extends AppController
     /**
      * Forgot password.
      */
-    public function forgotPassword()
+    public function forgotPassword(MemberAuthenticationService $authService)
     {
         $this->Authorization->skipAuthorization();
         if ($this->request->is('post')) {
-            $member = $this->Members
-                ->find()
-                ->where([
-                    'email_address' => $this->request->getData('email_address'),
-                ])
-                ->first();
-            if ($member) {
-                $member->password_token = StaticHelpers::generateToken(32);
-                $member->password_token_expires_on = DateTime::now()->addDays(
-                    1,
-                );
-                $this->Members->save($member);
-                $url = Router::url([
-                    'controller' => 'Members',
-                    'action' => 'resetPassword',
-                    'plugin' => null,
-                    '_full' => true,
-                    $member->password_token,
-                ]);
-                $vars = [
-                    'url' => $url,
-                ];
-                $this->queueMail('KMP', 'resetPassword', $member->email_address, $vars);
+            $result = $authService->generatePasswordResetToken(
+                (string)$this->request->getData('email_address'),
+            );
+            if ($result['found']) {
+                $vars = ['url' => $result['resetUrl']];
+                $this->queueMail('KMP', 'resetPassword', $result['email'], $vars);
                 $this->Flash->success(
                     __(
                         'Password reset request sent to ' .
-                            $member->email_address,
+                            $result['email'],
                     ),
                 );
 
@@ -1989,9 +1836,7 @@ class MembersController extends AppController
                 $this->Flash->error(
                     __(
                         'Your email was not found, please contact the Marshalate Secretary at ' .
-                            StaticHelpers::getAppSetting(
-                                'Activity.SecretaryEmail',
-                            ),
+                            $result['secretaryEmail'],
                     ),
                 );
             }
@@ -2007,42 +1852,30 @@ class MembersController extends AppController
      *
      * @param mixed $token
      */
-    public function resetPassword($token = null)
+    public function resetPassword(MemberAuthenticationService $authService, $token = null)
     {
         $this->Authorization->skipAuthorization();
-        $member = $this->Members
-            ->find()
-            ->where(['password_token' => $token])
-            ->first();
-        if ($member) {
-            if ($member->password_token_expires_on < DateTime::now()) {
-                $this->Flash->error('Invalid Token, please request a new one.');
-
-                return $this->redirect(['action' => 'forgotPassword']);
-            }
-            $passwordReset = new ResetPasswordForm();
-            if (
-                $this->request->is('post') &&
-                $passwordReset->validate($this->request->getData())
-            ) {
-                $member->password = $this->request->getData('new_password');
-                $member->password_token = null;
-                $member->password_token_expires_on = null;
-                $member->failed_login_attempts = 0;
-                $this->Members->save($member);
-                $this->Flash->success(__('Password successfully reset'));
-
-                return $this->redirect(['action' => 'login']);
-            }
-            $headerImage = StaticHelpers::getAppSetting(
-                'KMP.Login.Graphic',
-            );
-            $this->set(compact('headerImage', 'passwordReset'));
-        } else {
+        $tokenResult = $authService->validateResetToken($token);
+        if (!$tokenResult['valid']) {
             $this->Flash->error('Invalid Token, please request a new one.');
 
             return $this->redirect(['action' => 'forgotPassword']);
         }
+        $member = $tokenResult['member'];
+        $passwordReset = $tokenResult['form'];
+        if (
+            $this->request->is('post') &&
+            $passwordReset->validate($this->request->getData())
+        ) {
+            $authService->resetPassword($member, $this->request->getData('new_password'));
+            $this->Flash->success(__('Password successfully reset'));
+
+            return $this->redirect(['action' => 'login']);
+        }
+        $headerImage = StaticHelpers::getAppSetting(
+            'KMP.Login.Graphic',
+        );
+        $this->set(compact('headerImage', 'passwordReset'));
     }
 
     #endregion
@@ -2052,7 +1885,7 @@ class MembersController extends AppController
     /**
      * login logic
      */
-    public function login()
+    public function login(MemberAuthenticationService $authService, QuickLoginDeviceService $quickLoginService)
     {
         $this->Authorization->skipAuthorization();
         $this->quickLoginDisabledForRequest = false;
@@ -2060,7 +1893,7 @@ class MembersController extends AppController
         if ($this->request->is('post')) {
             $loginMethod = (string)$this->request->getData('login_method', 'password');
             if ($loginMethod === 'quick_pin') {
-                $quickLoginResponse = $this->attemptQuickPinLogin();
+                $quickLoginResponse = $this->attemptQuickPinLogin($quickLoginService);
                 if ($quickLoginResponse instanceof Response) {
                     return $quickLoginResponse;
                 }
@@ -2081,49 +1914,7 @@ class MembersController extends AppController
 
                     return $this->redirect($redirectTarget);
                 }
-                $errors = $result->getErrors();
-                if (
-                    isset($errors['KMPBruteForcePassword']) &&
-                    count($errors['KMPBruteForcePassword']) > 0
-                ) {
-                    $message = $errors['KMPBruteForcePassword'][0];
-                    switch ($message) {
-                        case 'Account Locked':
-                            $this->Flash->error(
-                                'Your account has been locked. Please try again later.',
-                            );
-                            break;
-                        case 'Account Not Verified':
-                            $contactAddress = StaticHelpers::getAppSetting(
-                                'Members.AccountVerificationContactEmail',
-                            );
-                            $this->Flash->error(
-                                'Your account is being verified. This '
-                                . 'process may take several days after '
-                                . 'you have verified your email address. '
-                                . 'Please contact ' . $contactAddress
-                                . ' if you have not been verified '
-                                . 'within a week.',
-                            );
-                            break;
-                        case 'Account Disabled':
-                            $contactAddress = StaticHelpers::getAppSetting(
-                                'Members.AccountDisabledContactEmail',
-                            );
-                            $this->Flash->error(
-                                'Your account deactivated. Please contact '
-                                    . $contactAddress . ' if you feel this is in error.',
-                            );
-                            break;
-                        default:
-                            $this->Flash->error(
-                                'Your email or password is incorrect.',
-                            );
-                            break;
-                    }
-                } else {
-                    $this->Flash->error('Your email or password is incorrect.');
-                }
+                $this->Flash->error($authService->categorizeLoginError($result));
             }
         }
         $headerImage = StaticHelpers::getAppSetting(
@@ -2260,7 +2051,7 @@ class MembersController extends AppController
      *
      * @return \Cake\Http\Response|null|void
      */
-    public function setupQuickLoginPin()
+    public function setupQuickLoginPin(QuickLoginDeviceService $quickLoginService)
     {
         $this->Authorization->skipAuthorization();
         $identity = $this->request->getAttribute('identity');
@@ -2296,11 +2087,15 @@ class MembersController extends AppController
             } elseif ($pin !== $pinConfirm) {
                 $this->Flash->error(__('Quick login PIN confirmation does not match.'));
             } elseif (
-                $this->saveQuickLoginDevicePin(
+                $quickLoginService->saveDevicePin(
                     $identity,
                     (string)$pendingSetup['device_id'],
                     $pin,
-                    $this->collectQuickLoginDeviceMetadata(),
+                    $quickLoginService->collectDeviceMetadata(
+                        $this->request->getHeaderLine('User-Agent'),
+                        $this->request->clientIp(),
+                        $this->getProxyHeaders(),
+                    ),
                 )
             ) {
                 $this->clearPendingQuickLoginSetup();
@@ -2366,58 +2161,6 @@ class MembersController extends AppController
     }
 
     /**
-     * Persist or update a quick-login device PIN and metadata for a member.
-     *
-     * @param \App\Model\Entity\Member $member Member enabling quick login.
-     * @param string $deviceId Stable browser/device identifier.
-     * @param string $pin Raw numeric PIN to hash and store.
-     * @param array<string, string|null> $metadata Enrollment metadata.
-     * @return bool True when the device record was saved.
-     */
-    private function saveQuickLoginDevicePin(
-        Member $member,
-        string $deviceId,
-        string $pin,
-        array $metadata = [],
-    ): bool {
-        if (
-            $deviceId === '' ||
-            !preg_match('/^[a-zA-Z0-9_-]{16,128}$/', $deviceId) ||
-            !preg_match('/^\d{4,10}$/', $pin)
-        ) {
-            return false;
-        }
-
-        /** @var \App\Model\Table\MemberQuickLoginDevicesTable $quickLoginDevices */
-        $quickLoginDevices = $this->fetchTable('MemberQuickLoginDevices');
-        $device = $quickLoginDevices->find()
-            ->where([
-                'device_id' => $deviceId,
-            ])
-            ->first();
-
-        if ($device === null) {
-            $device = $quickLoginDevices->newEmptyEntity();
-        }
-
-        $device->member_id = (int)$member->id;
-        $device->device_id = $deviceId;
-        $device->pin_hash = (new DefaultPasswordHasher())->hash($pin);
-        $device->failed_attempts = 0;
-        $device->last_failed_login = null;
-        $device->last_used = DateTime::now();
-        $device->configured_ip_address = $metadata['configured_ip_address'] ?? null;
-        $device->configured_location_hint = $metadata['configured_location_hint'] ?? null;
-        $device->configured_os = $metadata['configured_os'] ?? null;
-        $device->configured_browser = $metadata['configured_browser'] ?? null;
-        $device->configured_user_agent = $metadata['configured_user_agent'] ?? null;
-        $device->last_used_ip_address = $metadata['last_used_ip_address'] ?? null;
-        $device->last_used_location_hint = $metadata['last_used_location_hint'] ?? null;
-
-        return (bool)$quickLoginDevices->save($device);
-    }
-
-    /**
      * Clear any pending quick-login setup state from the current session.
      *
      * @return void
@@ -2430,9 +2173,10 @@ class MembersController extends AppController
     /**
      * Attempt authentication using quick-login PIN credentials from the login form.
      *
+     * @param \App\Services\QuickLoginDeviceService $quickLoginService Quick-login device service.
      * @return \Cake\Http\Response|null Redirect response on successful login, otherwise null.
      */
-    private function attemptQuickPinLogin(): ?Response
+    private function attemptQuickPinLogin(QuickLoginDeviceService $quickLoginService): ?Response
     {
         $emailAddress = trim((string)$this->request->getData('email_address', ''));
         $pin = trim((string)$this->request->getData('quick_login_pin', ''));
@@ -2506,7 +2250,10 @@ class MembersController extends AppController
         $device->failed_attempts = 0;
         $device->last_failed_login = null;
         $device->last_used = DateTime::now();
-        $usageMetadata = $this->collectQuickLoginUsageMetadata();
+        $usageMetadata = $quickLoginService->collectUsageMetadata(
+            $this->request->clientIp(),
+            $this->getProxyHeaders(),
+        );
         $device->last_used_ip_address = $usageMetadata['last_used_ip_address'] ?? null;
         $device->last_used_location_hint = $usageMetadata['last_used_location_hint'] ?? null;
         $quickLoginDevices->save($device);
@@ -2527,155 +2274,34 @@ class MembersController extends AppController
     private function flagQuickLoginOutOfSync(string $emailAddress): void
     {
         $this->quickLoginDisabledForRequest = true;
-        $this->quickLoginDisabledEmailForRequest = $this->truncateString(trim($emailAddress), 255) ?? '';
+        $email = trim($emailAddress);
+        $this->quickLoginDisabledEmailForRequest = strlen($email) > 255 ? substr($email, 0, 255) : $email;
         $this->Flash
             ->error(__('Quick login was disabled on this device. Please sign in with your email and password.'));
     }
 
     /**
-     * Build metadata for quick-login device enrollment.
+     * Extract proxy headers relevant for geolocation from the current request.
      *
-     * @return array<string, string|null>
+     * @return array<string, string>
      */
-    private function collectQuickLoginDeviceMetadata(): array
+    private function getProxyHeaders(): array
     {
-        $userAgent = $this->truncateString($this->request->getHeaderLine('User-Agent'), 512);
-        $usageMetadata = $this->collectQuickLoginUsageMetadata();
-
-        return [
-            'configured_ip_address' => $usageMetadata['last_used_ip_address'] ?? null,
-            'configured_location_hint' => $usageMetadata['last_used_location_hint'] ?? null,
-            'configured_os' => $this->detectOperatingSystem($userAgent ?? ''),
-            'configured_browser' => $this->detectBrowser($userAgent ?? ''),
-            'configured_user_agent' => $userAgent,
-            'last_used_ip_address' => $usageMetadata['last_used_ip_address'] ?? null,
-            'last_used_location_hint' => $usageMetadata['last_used_location_hint'] ?? null,
-        ];
-    }
-
-    /**
-     * Build metadata for quick-login usage events.
-     *
-     * @return array<string, string|null>
-     */
-    private function collectQuickLoginUsageMetadata(): array
-    {
-        return [
-            'last_used_ip_address' => $this->truncateString($this->request->clientIp(), 45),
-            'last_used_location_hint' => $this->extractLocationHint(),
-        ];
-    }
-
-    /**
-     * Derive a friendly operating-system label from a user-agent string.
-     *
-     * @param string $userAgent HTTP user-agent header value.
-     * @return string|null Detected OS label or null when unavailable.
-     */
-    private function detectOperatingSystem(string $userAgent): ?string
-    {
-        if ($userAgent === '') {
-            return null;
-        }
-
-        $signatures = [
-            'iPhone' => 'iOS (iPhone)',
-            'iPad' => 'iPadOS',
-            'Android' => 'Android',
-            'Windows NT 10.0' => 'Windows 10/11',
-            'Windows NT 6.3' => 'Windows 8.1',
-            'Windows NT 6.1' => 'Windows 7',
-            'Mac OS X' => 'macOS',
-            'CrOS' => 'ChromeOS',
-            'Linux' => 'Linux',
-        ];
-        foreach ($signatures as $needle => $label) {
-            if (stripos($userAgent, $needle) !== false) {
-                return $label;
+        $headers = [];
+        foreach ([
+            'CloudFront-Viewer-City',
+            'CloudFront-Viewer-Country-Region',
+            'CloudFront-Viewer-Country',
+            'CF-IPCountry',
+            'X-AppEngine-Country',
+        ] as $name) {
+            $value = $this->request->getHeaderLine($name);
+            if ($value !== '') {
+                $headers[$name] = $value;
             }
         }
 
-        return 'Unknown';
-    }
-
-    /**
-     * Derive a friendly browser label from a user-agent string.
-     *
-     * @param string $userAgent HTTP user-agent header value.
-     * @return string|null Detected browser label or null when unavailable.
-     */
-    private function detectBrowser(string $userAgent): ?string
-    {
-        if ($userAgent === '') {
-            return null;
-        }
-
-        $signatures = [
-            'Edg/' => 'Microsoft Edge',
-            'SamsungBrowser/' => 'Samsung Internet',
-            'CriOS/' => 'Google Chrome (iOS)',
-            'Chrome/' => 'Google Chrome',
-            'FxiOS/' => 'Mozilla Firefox (iOS)',
-            'Firefox/' => 'Mozilla Firefox',
-            'Safari/' => 'Safari',
-        ];
-        foreach ($signatures as $needle => $label) {
-            if (stripos($userAgent, $needle) !== false) {
-                return $label;
-            }
-        }
-
-        return 'Unknown';
-    }
-
-    /**
-     * Build a best-effort location hint from available proxy headers.
-     *
-     * @return string|null Location summary for quick-login device metadata.
-     */
-    private function extractLocationHint(): ?string
-    {
-        $city = $this->truncateString($this->request->getHeaderLine('CloudFront-Viewer-City'), 60);
-        $region = $this->truncateString($this->request->getHeaderLine('CloudFront-Viewer-Country-Region'), 20);
-
-        $country = null;
-        foreach (['CloudFront-Viewer-Country', 'CF-IPCountry', 'X-AppEngine-Country'] as $headerName) {
-            $headerValue = $this->truncateString($this->request->getHeaderLine($headerName), 20);
-            if ($headerValue !== null) {
-                $country = strtoupper($headerValue);
-                break;
-            }
-        }
-
-        $parts = array_values(array_filter(
-            [$city, $region, $country],
-            static fn(?string $part): bool => $part !== null,
-        ));
-        if (empty($parts)) {
-            return null;
-        }
-
-        return $this->truncateString(implode(', ', $parts), 120);
-    }
-
-    /**
-     * Trim and truncate an optional string to the configured maximum length.
-     *
-     * @param string|null $value Raw string value.
-     * @param int $maxLength Maximum allowed length.
-     * @return string|null Normalized string or null when empty.
-     */
-    private function truncateString(?string $value, int $maxLength): ?string
-    {
-        $normalized = trim((string)$value);
-        if ($normalized === '') {
-            return null;
-        }
-        if (strlen($normalized) <= $maxLength) {
-            return $normalized;
-        }
-
-        return substr($normalized, 0, $maxLength);
+        return $headers;
     }
 
     /**
@@ -2741,7 +2367,7 @@ class MembersController extends AppController
     /**
      * Submit sca member info.
      */
-    public function submitScaMemberInfo()
+    public function submitScaMemberInfo(MemberRegistrationService $regService)
     {
         $user = $this->Authentication->getIdentity();
         $targetMemberId = $this->request->getData('member_id');
@@ -2756,42 +2382,13 @@ class MembersController extends AppController
         if ($this->request->is('put')) {
             $file = $this->request->getData('member_card');
             if ($file->getSize() > 0) {
-                // Validate file type before saving (security fix)
-                $allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/pjpeg'];
-                $clientMediaType = $file->getClientMediaType();
-                if (!in_array($clientMediaType, $allowedTypes)) {
-                    $this->Flash->error(__('Invalid file type. Only PNG and JPEG images are allowed.'));
+                $uploadResult = $regService->processScaCardUpload($file);
+                if (!$uploadResult['success']) {
+                    $this->Flash->error($uploadResult['message']);
 
                     return $this->redirect($this->referer());
                 }
-                $ext = strtolower(pathinfo($file->getClientFilename(), PATHINFO_EXTENSION));
-                if (!in_array($ext, ['png', 'jpg', 'jpeg'])) {
-                    $this->Flash->error(__('Invalid file extension. Only .png, .jpg, .jpeg are allowed.'));
-
-                    return $this->redirect($this->referer());
-                }
-
-                // Server-side content validation using finfo
-                $tempPath = $file->getStream()->getMetadata('uri');
-                $finfo = new finfo(FILEINFO_MIME_TYPE);
-                $actualMimeType = $finfo->file($tempPath);
-                if (!in_array($actualMimeType, ['image/png', 'image/jpeg'])) {
-                    $this->Flash->error(__('File content does not match an allowed image type.'));
-
-                    return $this->redirect($this->referer());
-                }
-
-                $storageLoc = WWW_ROOT . '../images/uploaded/';
-                $fileName = StaticHelpers::generateToken(10);
-                StaticHelpers::ensureDirectoryExists($storageLoc, 0755);
-                $file->moveTo(WWW_ROOT . '../images/uploaded/' . $fileName);
-                $fileResult = StaticHelpers::saveScaledImage($fileName, 500, 700, $storageLoc, $storageLoc);
-                if (!$fileResult) {
-                    $this->Flash->error('Error saving image, please try again.');
-                }
-                //trim the path off of the filename
-                $fileName = substr($fileResult, strrpos($fileResult, '/') + 1);
-                $member->membership_card_path = $fileName;
+                $member->membership_card_path = $uploadResult['fileName'];
                 if ($this->Members->save($member)) {
                     $this->Flash->success(__(
                         'Membership information has been submitted, '
@@ -2809,7 +2406,7 @@ class MembersController extends AppController
     /**
      * Register.
      */
-    public function register()
+    public function register(MemberRegistrationService $regService)
     {
         $allowRegistration = StaticHelpers::getAppSetting(
             'KMP.EnablePublicRegistration',
@@ -2827,53 +2424,17 @@ class MembersController extends AppController
         if ($this->request->is('post')) {
             $file = $this->request->getData('member_card');
             if ($file->getSize() > 0) {
-                // Validate file type before saving (security fix)
-                $allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/pjpeg'];
-                $clientMediaType = $file->getClientMediaType();
-                if (!in_array($clientMediaType, $allowedTypes)) {
-                    $this->Flash->error(__('Invalid file type. Only PNG and JPEG images are allowed.'));
+                $uploadResult = $regService->processCardUpload($file);
+                if (!$uploadResult['success']) {
+                    $this->Flash->error($uploadResult['message']);
                     $this->set(compact('member'));
 
                     return;
                 }
-                $ext = strtolower(pathinfo($file->getClientFilename(), PATHINFO_EXTENSION));
-                if (!in_array($ext, ['png', 'jpg', 'jpeg'])) {
-                    $this->Flash->error(__('Invalid file extension. Only .png, .jpg, .jpeg are allowed.'));
-                    $this->set(compact('member'));
-
-                    return;
-                }
-
-                $storageLoc = WWW_ROOT . '../images/uploaded/';
-                $fileName = StaticHelpers::generateToken(10);
-                StaticHelpers::ensureDirectoryExists($storageLoc, 0755);
-                $file->moveTo(WWW_ROOT . '../images/uploaded/' . $fileName);
-                $fileResult = StaticHelpers::saveScaledImage($fileName, 500, 700, $storageLoc, $storageLoc);
-                if (!$fileResult) {
-                    $this->Flash->error('Error saving image, please try again.');
-                }
-                //trim the path off of the filename
-                $fileName = substr($fileResult, strrpos($fileResult, '/') + 1);
-                $member->membership_card_path = $fileName;
+                $member->membership_card_path = $uploadResult['fileName'];
             }
-            $member->sca_name = $this->request->getData('sca_name');
-            $member->branch_id = $this->request->getData('branch_id');
-            $member->first_name = $this->request->getData('first_name');
-            $member->middle_name = $this->request->getData('middle_name');
-            $member->last_name = $this->request->getData('last_name');
-            $member->street_address = $this->request->getData('street_address');
-            $member->city = $this->request->getData('city');
-            $member->state = $this->request->getData('state');
-            $member->zip = $this->request->getData('zip');
-            $member->phone_number = $this->request->getData('phone_number');
-            $member->email_address = $this->request->getData('email_address');
-            $member->birth_month = (int)$this->request->getData('birth_month');
-            $member->birth_year = (int)$this->request->getData('birth_year');
-            if ($member->age > 17) {
-                $member->password_token = StaticHelpers::generateToken(32);
-                $member->password_token_expires_on = DateTime::now()->addDays(1);
-            }
-            $member->password = StaticHelpers::generateToken(12);
+            $regService->applyRegistrationData($member, $this->request->getData());
+            $regService->assignStatusAndTokens($member);
             if ($member->getErrors()) {
                 $this->Flash->error(
                     __('The Member could not be saved. Please, try again.'),
@@ -2881,65 +2442,19 @@ class MembersController extends AppController
 
                 return $this->redirect(['action' => 'login']);
             }
-            if ($member->age > 17) {
-                $member->status = Member::STATUS_ACTIVE;
-            } else {
-                $member->status = Member::STATUS_UNVERIFIED_MINOR;
-            }
-            if ($this->Members->save($member)) {
+            if ($regService->saveMember($member)) {
                 if ($member->age > 17) {
-                    $url = Router::url([
-                        'controller' => 'Members',
-                        'action' => 'resetPassword',
-                        'plugin' => null,
-                        '_full' => true,
-                        $member->password_token,
-                    ]);
-                    $vars = [
-                        'url' => $url,
-                        'sca_name' => $member->sca_name,
-                    ];
-                    $this->queueMail('KMP', 'newRegistration', $member->email_address, $vars);
-                    $url = Router::url([
-                        'controller' => 'Members',
-                        'action' => 'view',
-                        'plugin' => null,
-                        '_full' => true,
-                        $member->id,
-                    ]);
-                    $vars = [
-                        'url' => $url,
-                        'sca_name' => $member->sca_name,
-                    ];
-                    if ($member->membership_card_path != null && strlen($member->membership_card_path) > 0) {
-                        $vars['membershipCardPresent'] = true;
-                    } else {
-                        $vars['membershipCardPresent'] = false;
-                    }
-                    $this->queueMail('KMP', 'notifySecretaryOfNewMember', $member->email_address, $vars);
+                    $emailVars = $regService->buildAdultRegistrationEmailVars($member);
+                    $this->queueMail('KMP', 'newRegistration', $member->email_address, $emailVars['registrationVars']);
+                    $this->queueMail('KMP', 'notifySecretaryOfNewMember', $member->email_address, $emailVars['secretaryVars']);
                     $this->Flash->success(__(
                         'Your registration has been submitted. '
                         . 'Please check your email for a link '
                         . 'to set up your password.',
                     ));
                 } else {
-                    $url = Router::url([
-                        'controller' => 'Members',
-                        'action' => 'view',
-                        'plugin' => null,
-                        '_full' => true,
-                        $member->id,
-                    ]);
-                    $vars = [
-                        'url' => $url,
-                        'sca_name' => $member->sca_name,
-                    ];
-                    if ($member->membership_card_path != null && strlen($member->membership_card_path) > 0) {
-                        $vars['membershipCardPresent'] = true;
-                    } else {
-                        $vars['membershipCardPresent'] = false;
-                    }
-                    $this->queueMail('KMP', 'notifySecretaryOfNewMinorMember', $member->email_address, $vars);
+                    $secretaryVars = $regService->buildMinorRegistrationEmailVars($member);
+                    $this->queueMail('KMP', 'notifySecretaryOfNewMinorMember', $member->email_address, $secretaryVars);
                     $this->Flash->success(__(
                         'Your registration has been submitted. '
                         . 'The Kingdom Secretary will need to '
