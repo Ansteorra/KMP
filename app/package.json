@@ -57,8 +57,11 @@
         "face-api.js": "^0.22.2",
         "guifier": "^1.0.33",
         "pdfjs-dist": "^5.4.624",
+        "picomatch": "^4.0.4",
         "popper.js": "^1.16.1",
-        "qrcode": "^1.5.4"
+        "qrcode": "^1.5.4",
+        "smol-toml": "^1.6.1",
+        "undici": "^7.24.6"
     },
     "browserslist": [
         "defaults"
