@@ -541,7 +541,7 @@ trait DataverseGridTrait
             $expressionSkipColumns = array_unique(array_merge($configSkipFilterColumns, $autoSkipFilterColumns));
             $expression = $gridViewConfig->extractExpression(
                 $selectedSystemView['config'],
-                $baseQuery->clause('where') ?? $baseQuery->newExpr(),
+                $baseQuery->newExpr(),
                 $tableName,
                 $expressionSkipColumns,
                 $columnsMetadata,
@@ -561,7 +561,7 @@ trait DataverseGridTrait
             // Check if view has expression tree (preferred)
             $expression = $gridViewConfig->extractExpression(
                 $viewConfig,
-                $baseQuery->clause('where') ?? $baseQuery->newExpr(),
+                $baseQuery->newExpr(),
                 $tableName,
                 $skipFilterColumns,
                 $columnsMetadata,

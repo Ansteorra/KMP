@@ -232,6 +232,17 @@ class OfficersGridColumns extends BaseGridColumns
                     ['value' => 'Not Required', 'label' => 'Not Required'],
                 ],
                 'description' => 'Current warrant status for this officer',
+                'cellRenderer' => function ($value, $row, $view) {
+                    $badgeClasses = [
+                        'Active' => 'bg-success',
+                        'Pending' => 'bg-warning text-dark',
+                        'Missing' => 'bg-danger',
+                        'Not Required' => 'bg-secondary',
+                    ];
+                    $class = $badgeClasses[$value] ?? 'bg-secondary';
+                    $text = $value ?? 'Unknown';
+                    return '<span class="badge ' . $class . '">' . h($text) . '</span>';
+                },
             ],
 
             'start_on' => [
