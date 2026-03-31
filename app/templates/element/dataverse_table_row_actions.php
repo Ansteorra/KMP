@@ -157,13 +157,18 @@ foreach ($actions as $action):
                 $confirmMessage = $processTemplate($action['confirmMessage'], $row);
             }
 
+            // Wrap in data-turbo="false" to prevent Turbo from intercepting
+            // the form submission. CakePHP's postLink uses requestSubmit()
+            // which fires a submit event Turbo would otherwise capture,
+            // causing a TurboFrameMissingError when the redirect response
+            // doesn't contain the expected turbo-frame.
+            echo '<div data-turbo="false" style="display:contents;">';
             echo $this->Form->postLink($label, $urlParams, [
                 'escape' => false,
                 'class' => $buttonClass,
                 'confirm' => $confirmMessage,
-                'data-turbo-frame' => '_top',
             ]);
-            echo ' ';
+            echo '</div> ';
             break;
 
         case 'link':
