@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Behavior;
@@ -21,9 +20,9 @@ class ActiveWindowBehavior extends Behavior
     /**
      * Find records starting in the future or not yet expired.
      *
-     * @param SelectQuery $query The query to modify
-     * @param Datetime|null $effectiveDate Date to check against (defaults to now)
-     * @return SelectQuery Modified query with upcoming conditions
+     * @param \Cake\ORM\Query\SelectQuery $query The query to modify
+     * @param \Cake\I18n\Datetime|null $effectiveDate Date to check against (defaults to now)
+     * @return \Cake\ORM\Query\SelectQuery Modified query with upcoming conditions
      */
     public function findUpcoming(SelectQuery $query, ?Datetime $effectiveDate = null): SelectQuery
     {
@@ -34,15 +33,21 @@ class ActiveWindowBehavior extends Behavior
             $effectiveDate = Datetime::now();
         }
 
-        return $query->where([$alias . '.start_on >' => $effectiveDate, 'or' => [$alias . '.expires_on >' => $effectiveDate, $alias . '.expires_on IS' => null]]);
+        return $query->where([
+            $alias . '.start_on >' => $effectiveDate,
+            'or' => [
+                $alias . '.expires_on >' => $effectiveDate,
+                $alias . '.expires_on IS' => null,
+            ],
+        ]);
     }
 
     /**
      * Find records currently active (started and not expired).
      *
-     * @param SelectQuery $query The query to modify
-     * @param Datetime|null $effectiveDate Date to check against (defaults to now)
-     * @return SelectQuery Modified query with current active conditions
+     * @param \Cake\ORM\Query\SelectQuery $query The query to modify
+     * @param \Cake\I18n\Datetime|null $effectiveDate Date to check against (defaults to now)
+     * @return \Cake\ORM\Query\SelectQuery Modified query with current active conditions
      */
     public function findCurrent(SelectQuery $query, ?Datetime $effectiveDate = null): SelectQuery
     {
@@ -52,15 +57,21 @@ class ActiveWindowBehavior extends Behavior
             $effectiveDate = Datetime::now();
         }
 
-        return $query->where([$alias . '.start_on <=' => $effectiveDate, 'or' => [$alias . '.expires_on >=' => $effectiveDate, $alias . '.expires_on IS' => null]]);
+        return $query->where([
+            $alias . '.start_on <=' => $effectiveDate,
+            'or' => [
+                $alias . '.expires_on >=' => $effectiveDate,
+                $alias . '.expires_on IS' => null,
+            ],
+        ]);
     }
 
     /**
      * Find records that have expired (expires_on < effective date).
      *
-     * @param SelectQuery $query The query to modify
-     * @param Datetime|null $effectiveDate Date to check against (defaults to now)
-     * @return SelectQuery Modified query with expired conditions
+     * @param \Cake\ORM\Query\SelectQuery $query The query to modify
+     * @param \Cake\I18n\Datetime|null $effectiveDate Date to check against (defaults to now)
+     * @return \Cake\ORM\Query\SelectQuery Modified query with expired conditions
      */
     public function findPrevious(SelectQuery $query, ?Datetime $effectiveDate = null): SelectQuery
     {

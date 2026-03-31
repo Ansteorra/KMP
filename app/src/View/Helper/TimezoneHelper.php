@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\View\Helper;
@@ -8,6 +7,7 @@ use App\KMP\TimezoneHelper as TzHelper;
 use App\Model\Entity\Gathering;
 use App\Model\Entity\Member;
 use Cake\Datasource\EntityInterface;
+use Cake\I18n\Date;
 use Cake\I18n\DateTime;
 use Cake\I18n\I18n;
 use Cake\View\Helper;
@@ -167,12 +167,13 @@ class TimezoneHelper extends Helper
         $converted = TzHelper::toUserTimezone($datetime, $member, null, $gathering);
 
         if ($intlDateFormat !== null || $intlTimeFormat !== null) {
-            $locale = $this->getView()->getRequest()?->getAttribute('locale') ?? I18n::getLocale() ?? Locale::getDefault();
+            $locale = $this->getView()
+                ->getRequest()?->getAttribute('locale') ?? I18n::getLocale() ?? Locale::getDefault();
             $formatter = new IntlDateFormatter(
                 $locale,
                 $intlDateFormat ?? IntlDateFormatter::FULL,
                 $intlTimeFormat ?? IntlDateFormatter::NONE,
-                $converted->getTimezone()->getName()
+                $converted->getTimezone()->getName(),
             );
             $formatted = $formatter->format($converted);
         } else {
@@ -250,6 +251,7 @@ class TimezoneHelper extends Helper
         $format = $format ?? TzHelper::DISPLAY_DATE_FORMAT;
 
         $converted = TzHelper::toUserTimezone($datetime, $member, null, $gathering);
+
         return TzHelper::formatDate($converted, $format);
     }
 
@@ -272,6 +274,7 @@ class TimezoneHelper extends Helper
         $format = $format ?? TzHelper::DISPLAY_TIME_FORMAT;
 
         $converted = TzHelper::toUserTimezone($datetime, $member, null, $gathering);
+
         return TzHelper::formatTime($converted, $format);
     }
 
@@ -296,6 +299,7 @@ class TimezoneHelper extends Helper
         $format = $format ?? 'Y-m-d\TH:i'; // HTML5 datetime-local format
 
         $converted = TzHelper::toUserTimezone($datetime, $member, null, $gathering);
+
         return $converted->format($format);
     }
 
@@ -314,7 +318,7 @@ class TimezoneHelper extends Helper
         $end,
         string $separator = ' - ',
         ?string $format = null,
-        $member = null
+        $member = null,
     ): string {
         if ($start === null && $end === null) {
             return '';
@@ -363,14 +367,14 @@ class TimezoneHelper extends Helper
                 '%s %s - %s',
                 $startConverted->format(TzHelper::DISPLAY_DATE_FORMAT),
                 $startConverted->format(TzHelper::DISPLAY_TIME_FORMAT),
-                $endConverted->format(TzHelper::DISPLAY_TIME_FORMAT)
+                $endConverted->format(TzHelper::DISPLAY_TIME_FORMAT),
             );
         } else {
             // Different days: show date range only
             return sprintf(
                 '%s - %s',
                 $startConverted->format(TzHelper::DISPLAY_DATE_FORMAT),
-                $endConverted->format(TzHelper::DISPLAY_DATE_FORMAT)
+                $endConverted->format(TzHelper::DISPLAY_DATE_FORMAT),
             );
         }
     }
@@ -384,6 +388,7 @@ class TimezoneHelper extends Helper
     public function getUserTimezone($member = null): string
     {
         $member = $member ?? $this->currentUser;
+
         return TzHelper::getUserTimezone($member);
     }
 
@@ -398,7 +403,7 @@ class TimezoneHelper extends Helper
     public function getAbbreviation($datetime = null, ?string $timezone = null, $member = null): string
     {
         // Convert Date to DateTime if needed
-        if ($datetime instanceof \Cake\I18n\Date) {
+        if ($datetime instanceof Date) {
             $datetime = new DateTime($datetime->format('Y-m-d') . ' 12:00:00');
         } elseif (is_string($datetime)) {
             $datetime = new DateTime($datetime);
@@ -453,7 +458,7 @@ class TimezoneHelper extends Helper
             '<div class="%s"><i class="bi bi-clock"></i> Times shown in %s (%s)</div>',
             h($class),
             h($timezone),
-            h($abbr)
+            h($abbr),
         );
     }
 

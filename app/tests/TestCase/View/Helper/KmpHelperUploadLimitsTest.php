@@ -1,11 +1,10 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\View\Helper;
 
-use App\View\Helper\KmpHelper;
 use App\Test\TestCase\BaseTestCase;
+use App\View\Helper\KmpHelper;
 use Cake\View\View;
 
 /**
@@ -100,7 +99,7 @@ class KmpHelperUploadLimitsTest extends BaseTestCase
 
         $this->assertEquals(
             min($limits['uploadMaxFilesize'], $limits['postMaxSize']),
-            $limits['maxFileSize']
+            $limits['maxFileSize'],
         );
     }
 

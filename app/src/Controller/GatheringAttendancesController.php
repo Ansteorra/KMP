@@ -1,13 +1,16 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\KMP\TimezoneHelper;
 use Cake\Http\Response;
-use Cake\I18n\DateTime;
 use Cake\I18n\Date;
+use Cake\Log\Log;
 use Cake\Routing\Router;
+use DateTime;
+use DateTimeZone;
+use Exception;
 
 /**
  * GatheringAttendances Controller
@@ -23,7 +26,7 @@ class GatheringAttendancesController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        
+
         // Authorize table-level actions
         $this->Authorization->authorizeModel('myRsvps', 'mobileRsvp', 'mobileUnrsvp', 'mobileUpdateRsvp');
     }
@@ -33,7 +36,7 @@ class GatheringAttendancesController extends AppController
      */
     private function wantsJson(): bool
     {
-        return $this->request->is('ajax') || 
+        return $this->request->is('ajax') ||
                $this->request->accepts('application/json') ||
                $this->request->getHeaderLine('Accept') === 'application/json';
     }
@@ -66,22 +69,27 @@ class GatheringAttendancesController extends AppController
             // Validate that the gathering exists and is valid for attendance
             try {
                 $gathering = $this->GatheringAttendances->Gatherings->get($data['gathering_id']);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 if ($this->wantsJson()) {
                     return $this->jsonResponse(['success' => false, 'error' => 'Gathering not found'], 404);
                 }
                 $this->Flash->error(__('Gathering not found.'));
+
                 return $this->redirect($this->referer());
             }
-            
+
             $today = Date::now();
 
             // Check if gathering has already ended
             if ($gathering->end_date < $today) {
                 if ($this->wantsJson()) {
-                    return $this->jsonResponse(['success' => false, 'error' => 'Cannot register for a gathering that has already ended'], 400);
+                    return $this->jsonResponse(
+                        ['success' => false, 'error' => 'Cannot register for a gathering that has already ended'],
+                        400,
+                    );
                 }
                 $this->Flash->error(__('Cannot register for a gathering that has already ended.'));
+
                 return $this->redirect($this->referer());
             }
 
@@ -108,7 +116,7 @@ class GatheringAttendancesController extends AppController
                             'id' => $gatheringAttendance->id,
                             'gathering_id' => $gatheringAttendance->gathering_id,
                             'member_id' => $gatheringAttendance->member_id,
-                        ]
+                        ],
                     ]);
                 }
                 $this->Flash->success(__('Your attendance has been registered.'));
@@ -124,7 +132,7 @@ class GatheringAttendancesController extends AppController
                     }
                     $errorMessage = implode(', ', $errorMessages);
                 }
-                
+
                 if ($this->wantsJson()) {
                     return $this->jsonResponse(['success' => false, 'error' => $errorMessage], 400);
                 }
@@ -158,6 +166,7 @@ class GatheringAttendancesController extends AppController
             $today = Date::now();
             if ($gatheringAttendance->gathering->end_date < $today) {
                 $this->Flash->error(__('Cannot update attendance for a gathering that has already ended.'));
+
                 return $this->redirect($this->referer());
             }
 
@@ -201,11 +210,12 @@ class GatheringAttendancesController extends AppController
 
         try {
             $gatheringAttendance = $this->GatheringAttendances->get($id);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             if ($this->wantsJson()) {
                 return $this->jsonResponse(['success' => false, 'error' => 'Attendance record not found'], 404);
             }
             $this->Flash->error(__('Attendance record not found.'));
+
             return $this->redirect($this->referer());
         }
 
@@ -215,11 +225,11 @@ class GatheringAttendancesController extends AppController
             if ($this->wantsJson()) {
                 return $this->jsonResponse([
                     'success' => true,
-                    'message' => 'Your attendance has been removed.'
+                    'message' => 'Your attendance has been removed.',
                 ]);
             }
             $this->Flash->success(__('Your attendance has been removed.'));
-            \Cake\Log\Log::debug('Successfully deleted attendance ID: ' . $id);
+            Log::debug('Successfully deleted attendance ID: ' . $id);
         } else {
             $errors = $gatheringAttendance->getErrors();
             $errorMessage = 'Unable to remove your attendance. Please try again.';
@@ -231,11 +241,11 @@ class GatheringAttendancesController extends AppController
                     }
                 }
                 $errorMessage = implode(', ', $errorMessages);
-                \Cake\Log\Log::error('Failed to delete attendance: ' . $errorMessage);
+                Log::error('Failed to delete attendance: ' . $errorMessage);
             } else {
-                \Cake\Log\Log::error('Failed to delete attendance ID: ' . $id . ' - no error details');
+                Log::error('Failed to delete attendance ID: ' . $id . ' - no error details');
             }
-            
+
             if ($this->wantsJson()) {
                 return $this->jsonResponse(['success' => false, 'error' => $errorMessage], 400);
             }
@@ -253,27 +263,27 @@ class GatheringAttendancesController extends AppController
     public function mobileRsvp()
     {
         $this->request->allowMethod(['post']);
-        
+
         $data = $this->request->getData();
-        
+
         // Validate gathering_id
         if (empty($data['gathering_id'])) {
             return $this->jsonResponse(['success' => false, 'error' => 'Gathering ID required'], 400);
         }
-        
+
         try {
             $gathering = $this->GatheringAttendances->Gatherings->get($data['gathering_id']);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return $this->jsonResponse(['success' => false, 'error' => 'Gathering not found'], 404);
         }
-        
+
         $today = Date::now();
         if ($gathering->end_date < $today) {
             return $this->jsonResponse(['success' => false, 'error' => 'Cannot RSVP to a past gathering'], 400);
         }
-        
+
         $currentUser = $this->Authentication->getIdentity();
-        
+
         // Check if already attending
         $existing = $this->GatheringAttendances->find()
             ->where([
@@ -281,15 +291,15 @@ class GatheringAttendancesController extends AppController
                 'member_id' => $currentUser->id,
             ])
             ->first();
-        
+
         if ($existing) {
             return $this->jsonResponse([
-                'success' => false, 
+                'success' => false,
                 'error' => 'You are already registered for this gathering',
-                'attendance_id' => $existing->id
+                'attendance_id' => $existing->id,
             ], 400);
         }
-        
+
         // Create attendance
         $gatheringAttendance = $this->GatheringAttendances->newEntity([
             'gathering_id' => $data['gathering_id'],
@@ -301,9 +311,9 @@ class GatheringAttendancesController extends AppController
             'public_note' => $data['public_note'] ?? null,
             'created_by' => $currentUser->id,
         ]);
-        
+
         $this->Authorization->authorize($gatheringAttendance, 'add');
-        
+
         if ($this->GatheringAttendances->save($gatheringAttendance)) {
             return $this->jsonResponse([
                 'success' => true,
@@ -311,10 +321,10 @@ class GatheringAttendancesController extends AppController
                 'data' => [
                     'id' => $gatheringAttendance->id,
                     'gathering_id' => $gatheringAttendance->gathering_id,
-                ]
+                ],
             ]);
         }
-        
+
         return $this->jsonResponse(['success' => false, 'error' => 'Failed to save RSVP'], 500);
     }
 
@@ -327,34 +337,34 @@ class GatheringAttendancesController extends AppController
     public function mobileUpdateRsvp(?string $id = null)
     {
         $this->request->allowMethod(['post', 'patch', 'put']);
-        
+
         if (!$id) {
             return $this->jsonResponse(['success' => false, 'error' => 'Attendance ID required'], 400);
         }
-        
+
         try {
             $gatheringAttendance = $this->GatheringAttendances->get($id, contain: ['Gatherings']);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return $this->jsonResponse(['success' => false, 'error' => 'Attendance not found'], 404);
         }
-        
+
         $this->Authorization->authorize($gatheringAttendance, 'edit');
-        
+
         $data = $this->request->getData();
-        
+
         // Only allow updating visibility fields
         $allowedFields = ['share_with_kingdom', 'share_with_hosting_group', 'share_with_crown', 'public_note'];
         $updateData = array_intersect_key($data, array_flip($allowedFields));
-        
+
         $gatheringAttendance = $this->GatheringAttendances->patchEntity($gatheringAttendance, $updateData);
-        
+
         if ($this->GatheringAttendances->save($gatheringAttendance)) {
             return $this->jsonResponse([
                 'success' => true,
-                'message' => 'RSVP updated!'
+                'message' => 'RSVP updated!',
             ]);
         }
-        
+
         return $this->jsonResponse(['success' => false, 'error' => 'Failed to update RSVP'], 500);
     }
 
@@ -367,26 +377,26 @@ class GatheringAttendancesController extends AppController
     public function mobileUnrsvp(?string $id = null)
     {
         $this->request->allowMethod(['post', 'delete']);
-        
+
         if (!$id) {
             return $this->jsonResponse(['success' => false, 'error' => 'Attendance ID required'], 400);
         }
-        
+
         try {
             $gatheringAttendance = $this->GatheringAttendances->get($id, contain: ['Gatherings']);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return $this->jsonResponse(['success' => false, 'error' => 'Attendance not found'], 404);
         }
-        
+
         $this->Authorization->authorize($gatheringAttendance, 'delete');
-        
+
         if ($this->GatheringAttendances->delete($gatheringAttendance)) {
             return $this->jsonResponse([
                 'success' => true,
-                'message' => 'RSVP removed.'
+                'message' => 'RSVP removed.',
             ]);
         }
-        
+
         return $this->jsonResponse(['success' => false, 'error' => 'Failed to remove RSVP'], 500);
     }
 
@@ -398,12 +408,12 @@ class GatheringAttendancesController extends AppController
     public function myRsvps()
     {
         $currentUser = $this->Authentication->getIdentity();
-        
+
         // Use user's timezone for accurate "today" comparison
-        $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
-        $todayInUserTz = new \DateTime('now', new \DateTimeZone($userTimezone));
+        $userTimezone = TimezoneHelper::getUserTimezone($currentUser);
+        $todayInUserTz = new DateTime('now', new DateTimeZone($userTimezone));
         $todayDate = $todayInUserTz->format('Y-m-d');
-        
+
         // Upcoming RSVPs (events that haven't ended yet in user's timezone)
         $upcomingAttendances = $this->GatheringAttendances->find()
             ->contain([
@@ -418,7 +428,7 @@ class GatheringAttendancesController extends AppController
             ])
             ->order(['Gatherings.start_date' => 'ASC'])
             ->all();
-        
+
         // Past RSVPs (events that have ended) - limit to last 90 days for performance
         $pastCutoff = (clone $todayInUserTz)->modify('-90 days')->format('Y-m-d');
         $pastAttendances = $this->GatheringAttendances->find()
@@ -435,16 +445,16 @@ class GatheringAttendancesController extends AppController
             ])
             ->order(['Gatherings.start_date' => 'DESC'])
             ->all();
-        
+
         if ($this->wantsJson()) {
             $data = ['upcoming' => [], 'past' => []];
-            $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
-            
+            $userTimezone = TimezoneHelper::getUserTimezone($currentUser);
+
             foreach ($upcomingAttendances as $attendance) {
                 $gathering = $attendance->gathering;
-                $startLocal = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, $userTimezone);
-                $endLocal = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, $userTimezone);
-                
+                $startLocal = TimezoneHelper::toUserTimezone($gathering->start_date, $userTimezone);
+                $endLocal = TimezoneHelper::toUserTimezone($gathering->end_date, $userTimezone);
+
                 $data['upcoming'][] = [
                     'attendance_id' => $attendance->id,
                     'gathering' => [
@@ -470,12 +480,12 @@ class GatheringAttendancesController extends AppController
                     'note' => $attendance->public_note,
                 ];
             }
-            
+
             foreach ($pastAttendances as $attendance) {
                 $gathering = $attendance->gathering;
-                $startLocal = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, $userTimezone);
-                $endLocal = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, $userTimezone);
-                
+                $startLocal = TimezoneHelper::toUserTimezone($gathering->start_date, $userTimezone);
+                $endLocal = TimezoneHelper::toUserTimezone($gathering->end_date, $userTimezone);
+
                 $data['past'][] = [
                     'attendance_id' => $attendance->id,
                     'gathering' => [
@@ -501,10 +511,10 @@ class GatheringAttendancesController extends AppController
                     'note' => $attendance->public_note,
                 ];
             }
-            
+
             return $this->jsonResponse(['success' => true, 'data' => $data]);
         }
-        
+
         // For non-JSON requests, set view variables
         $this->set('upcomingAttendances', $upcomingAttendances);
         $this->set('pastAttendances', $pastAttendances);

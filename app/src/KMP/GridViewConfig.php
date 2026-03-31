@@ -1,8 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\KMP;
+
+use Cake\Database\Expression\QueryExpression;
 
 /**
  * Configuration validator and normalizer for grid views.
@@ -114,7 +115,7 @@ class GridViewConfig
             $pageSize = (int)$config['pageSize'];
             $normalized['pageSize'] = max(
                 self::MIN_PAGE_SIZE,
-                min(self::MAX_PAGE_SIZE, $pageSize)
+                min(self::MAX_PAGE_SIZE, $pageSize),
             );
         }
 
@@ -173,7 +174,7 @@ class GridViewConfig
                 $errors[] = sprintf(
                     'Page size must be between %d and %d',
                     self::MIN_PAGE_SIZE,
-                    self::MAX_PAGE_SIZE
+                    self::MAX_PAGE_SIZE,
                 );
             }
         }
@@ -403,16 +404,22 @@ class GridViewConfig
      */
     public static function extractExpression(
         array $config,
-        \Cake\Database\Expression\QueryExpression $queryExpression,
+        QueryExpression $queryExpression,
         string $tableName = '',
         array $skipColumns = [],
-        array $columnsMetadata = []
-    ): ?\Cake\Database\Expression\QueryExpression {
+        array $columnsMetadata = [],
+    ): ?QueryExpression {
         if (!isset($config['expression']) || !is_array($config['expression'])) {
             return null;
         }
 
-        return self::buildExpression($config['expression'], $queryExpression, $tableName, $skipColumns, $columnsMetadata);
+        return self::buildExpression(
+            $config['expression'],
+            $queryExpression,
+            $tableName,
+            $skipColumns,
+            $columnsMetadata,
+        );
     }
 
     /**
@@ -427,11 +434,11 @@ class GridViewConfig
      */
     protected static function buildExpression(
         array $expression,
-        \Cake\Database\Expression\QueryExpression $queryExpression,
+        QueryExpression $queryExpression,
         string $tableName,
         array $skipColumns = [],
-        array $columnsMetadata = []
-    ): \Cake\Database\Expression\QueryExpression {
+        array $columnsMetadata = [],
+    ): QueryExpression {
         // Check if this is a group (OR/AND) or a single condition
         if (isset($expression['type']) && in_array(strtoupper($expression['type']), ['OR', 'AND'], true)) {
             // This is a group - create new expression with specified conjunction
@@ -453,7 +460,13 @@ class GridViewConfig
                 if (isset($condition['type']) && in_array(strtoupper($condition['type']), ['OR', 'AND'], true)) {
                     // Nested group - recurse
                     $nestedExp = $queryExpression->newExpr();
-                    $groupConditions[] = self::buildExpression($condition, $nestedExp, $tableName, $skipColumns, $columnsMetadata);
+                    $groupConditions[] = self::buildExpression(
+                        $condition,
+                        $nestedExp,
+                        $tableName,
+                        $skipColumns,
+                        $columnsMetadata,
+                    );
                 } else {
                     // Leaf condition - convert to CakePHP condition array
                     $leafConditions = self::buildLeafCondition($condition, $tableName, $skipColumns, $columnsMetadata);
@@ -505,7 +518,7 @@ class GridViewConfig
         array $condition,
         string $tableName,
         array $skipColumns = [],
-        array $columnsMetadata = []
+        array $columnsMetadata = [],
     ): array {
         $field = $condition['field'] ?? null;
         $operator = $condition['operator'] ?? null;
@@ -594,6 +607,7 @@ class GridViewConfig
                         $conditions[$qualifiedField . ' <='] = $value[1];
                     }
                 }
+
                 return $conditions;
 
             default:
@@ -705,7 +719,7 @@ class GridViewConfig
 
         return max(
             self::MIN_PAGE_SIZE,
-            min(self::MAX_PAGE_SIZE, $pageSize)
+            min(self::MAX_PAGE_SIZE, $pageSize),
         );
     }
 }

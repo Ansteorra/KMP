@@ -1,10 +1,7 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
-
-use Cake\ORM\Entity;
 
 /**
  * EmailTemplate Entity
@@ -70,6 +67,7 @@ class EmailTemplate extends BaseEntity
         // Shouldn't happen with JSON type, but handle string just in case
         if (is_string($value)) {
             $decoded = json_decode($value, true);
+
             return is_array($decoded) ? $decoded : [];
         }
 

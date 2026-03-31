@@ -16,12 +16,17 @@ interface KmpIdentityInterface extends CakeIdentityInterface
      */
     public function getAsMember(): Member;
 
+    /**
+     * Get identifier.
+     *
+     * @return array|string|int|null
+     */
     public function getIdentifier(): array|string|int|null;
 
     /**
      * sets the authorization service.
      *
-     * @return \App\KMP\KmpIdentityInterface
+     * @return self
      */
     public function setAuthorization(AuthorizationServiceInterface $auth): self;
 

@@ -1,14 +1,15 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
 
 use App\KMP\GridViewConfig;
+use App\KMP\StaticHelpers;
 use App\Model\Entity\Member;
 use App\Services\GridViewService;
+use Cake\Http\Response;
 use Cake\Log\Log;
-use Cake\ORM\Query;
+use DateTimeInterface;
 
 /**
  * Unified grid processing for dataverse-style grids with saved views, filters, and sorting.
@@ -55,7 +56,6 @@ trait DataverseGridTrait
      * NOTE: Authorization scope must be applied to baseQuery BEFORE calling this method.
      * Use `$baseQuery = $this->Authorization->applyScope($baseQuery, 'index');` in your
      * controller before passing the query to processDataverseGrid().
-     *
      * @return array Result array with keys: data, gridState, columnsMetadata, etc.
      */
     protected function processDataverseGrid(array $config): array
@@ -88,14 +88,14 @@ trait DataverseGridTrait
         // These columns have complex filter logic defined in the GridColumns class
         $customFilterColumns = array_filter(
             $columnsMetadata,
-            fn($col) => !empty($col['customFilterHandler'])
+            fn($col) => !empty($col['customFilterHandler']),
         );
 
         // Get columns that require custom filtering (skipAutoFilter: true OR have customFilterHandler)
         // These columns should be excluded from automatic WHERE clause application
         $autoSkipFilterColumns = array_keys(array_filter(
             $columnsMetadata,
-            fn($col) => !empty($col['skipAutoFilter']) || !empty($col['customFilterHandler'])
+            fn($col) => !empty($col['skipAutoFilter']) || !empty($col['customFilterHandler']),
         ));
 
         // Get date-range filter columns (needed for filter application)
@@ -103,13 +103,13 @@ trait DataverseGridTrait
         // need to be applied even when user filtering is disabled
         $dateRangeFilterColumns = array_filter(
             $columnsMetadata,
-            fn($col) => !empty($col['filterable']) && ($col['filterType'] ?? null) === 'date-range'
+            fn($col) => !empty($col['filterable']) && ($col['filterType'] ?? null) === 'date-range',
         );
 
         // Get grid view service
         $gridViewService = new GridViewService(
             $this->fetchTable('GridViews'),
-            new GridViewConfig()
+            new GridViewConfig(),
         );
 
         // Get current member
@@ -121,7 +121,6 @@ trait DataverseGridTrait
         $dirtyFilters = $canFilter && isset($dirtyFlags['filters']);
         $dirtySearch = isset($dirtyFlags['search']);
         $dirtySort = isset($dirtyFlags['sort']);
-        $dirtyColumns = isset($dirtyFlags['columns']);
 
         // Check if user explicitly wants to ignore default
         $ignoreDefault = $this->request->getQuery('ignore_default');
@@ -264,7 +263,12 @@ trait DataverseGridTrait
                         if (count($relationParts) === 2) {
                             $associationName = ucfirst($relationParts[0]) . 's';
                             $fieldName = $relationParts[1];
-                            $searchConditions['OR'][$associationName . '.' . $fieldName . ' LIKE'] = '%' . $searchTerm . '%';
+                            $searchConditions['OR'][$associationName . '.' . $fieldName . ' LIKE'] = '%'
+                                . $searchTerm . '%';
+                        } elseif (!empty($columnMeta['queryField'])) {
+                            // For deeper relation paths (3+ parts), use queryField directly
+                            $searchConditions['OR'][$columnMeta['queryField'] . ' LIKE'] = '%'
+                                . $searchTerm . '%';
                         }
                     } else {
                         $searchConditions['OR'][$tableName . '.' . $columnKey . ' LIKE'] = '%' . $searchTerm . '%';
@@ -308,10 +312,14 @@ trait DataverseGridTrait
             }
 
             // Merge system view skipFilterColumns with config and autoSkip columns
-            $systemViewSkipColumns = ($dirtyFilters || $hasIncomingFilters)
+            $systemViewSkipColumns = $dirtyFilters || $hasIncomingFilters
                 ? []
                 : ($systemViewDefaults['skipFilterColumns'] ?? []);
-            $skipFilterColumns = array_unique(array_merge($configSkipFilterColumns, $autoSkipFilterColumns, $systemViewSkipColumns));
+            $skipFilterColumns = array_unique(array_merge(
+                $configSkipFilterColumns,
+                $autoSkipFilterColumns,
+                $systemViewSkipColumns,
+            ));
         }
 
         // Determine which filters to apply:
@@ -336,24 +344,37 @@ trait DataverseGridTrait
                     if (($columnMeta['filterType'] ?? null) === 'is-populated') {
                         // Use filterQueryField if specified, otherwise use queryField, fallback to column key
                         $fieldToCheck = $columnMeta['filterQueryField'] ?? $columnMeta['queryField'] ?? $columnKey;
-                        $qualifiedField = strpos($fieldToCheck, '.') === false ? $tableName . '.' . $fieldToCheck : $fieldToCheck;
+                        $qualifiedField = strpos(
+                            $fieldToCheck,
+                            '.',
+                        ) === false ? $tableName . '.' . $fieldToCheck : $fieldToCheck;
 
                         // Normalize filterValue - if it's an array, take the first value
                         $normalizedValue = is_array($filterValue) ? ($filterValue[0] ?? null) : $filterValue;
 
                         // filterValue should be 'yes' (populated) or 'no' (not populated)
-                        if ($normalizedValue === 'yes' || $normalizedValue === '1' || $normalizedValue === 1 || $normalizedValue === true) {
+                        if (
+                            $normalizedValue === 'yes'
+                            || $normalizedValue === '1'
+                            || $normalizedValue === 1
+                            || $normalizedValue === true
+                        ) {
                             // IS NOT NULL AND NOT EMPTY
                             $baseQuery->where(function ($exp) use ($qualifiedField) {
                                 return $exp->and([
-                                    $qualifiedField . ' IS NOT' => null
+                                    $qualifiedField . ' IS NOT' => null,
                                 ]);
                             });
-                        } elseif ($normalizedValue === 'no' || $normalizedValue === '0' || $normalizedValue === 0 || $normalizedValue === false) {
+                        } elseif (
+                            $normalizedValue === 'no'
+                            || $normalizedValue === '0'
+                            || $normalizedValue === 0
+                            || $normalizedValue === false
+                        ) {
                             // IS NULL OR EMPTY
                             $baseQuery->where(function ($exp) use ($qualifiedField) {
                                 return $exp->or([
-                                    $qualifiedField . ' IS' => null
+                                    $qualifiedField . ' IS' => null,
                                 ]);
                             });
                         }
@@ -362,7 +383,10 @@ trait DataverseGridTrait
 
                     // Use queryField if available (for relation columns), otherwise use column key
                     $fieldToFilter = $columnMeta['queryField'] ?? $columnKey;
-                    $qualifiedField = strpos($fieldToFilter, '.') === false ? $tableName . '.' . $fieldToFilter : $fieldToFilter;
+                    $qualifiedField = strpos(
+                        $fieldToFilter,
+                        '.',
+                    ) === false ? $tableName . '.' . $fieldToFilter : $fieldToFilter;
 
                     if (is_array($filterValue)) {
                         if ($columnMeta['type'] === 'boolean') {
@@ -404,7 +428,11 @@ trait DataverseGridTrait
                 $endDate = $canFilter ? $this->request->getQuery($endParam) : null;
 
                 // Apply user defaults only if canFilter is true
-                if ($canFilter && ($startDate === null || $startDate === '') && isset($dateRangeDefaults[$startParam])) {
+                if (
+                    $canFilter
+                    && ($startDate === null || $startDate === '')
+                    && isset($dateRangeDefaults[$startParam])
+                ) {
                     $startDate = $dateRangeDefaults[$startParam];
                 }
                 if ($canFilter && ($endDate === null || $endDate === '') && isset($dateRangeDefaults[$endParam])) {
@@ -447,7 +475,15 @@ trait DataverseGridTrait
                     }
                     if ($endDate !== null && $endDate !== '') {
                         if (!in_array($columnKey, $skipFilterColumns, true)) {
-                            $baseQuery->where([$qualifiedField . ' <=' => $endDate]);
+                            // When end date is date-only (no time), extend to end of day
+                            // so DATETIME columns include all records from that day.
+                            // Without this, '2026-03-25' becomes '2026-03-25 00:00:00'
+                            // excluding any records with a time after midnight.
+                            $effectiveEndDate = $endDate;
+                            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $endDate)) {
+                                $effectiveEndDate = $endDate . ' 23:59:59';
+                            }
+                            $baseQuery->where([$qualifiedField . ' <=' => $effectiveEndDate]);
                         }
                         // Add to current filters for display as pill
                         $currentFilters[$endParam] = $endDate;
@@ -467,7 +503,7 @@ trait DataverseGridTrait
                 $currentFilters,
                 $currentView,
                 $selectedSystemView,
-                $dirtyFilters
+                $dirtyFilters,
             );
         }
 
@@ -505,10 +541,10 @@ trait DataverseGridTrait
             $expressionSkipColumns = array_unique(array_merge($configSkipFilterColumns, $autoSkipFilterColumns));
             $expression = $gridViewConfig->extractExpression(
                 $selectedSystemView['config'],
-                $baseQuery->clause('where') ?? $baseQuery->newExpr(),
+                $baseQuery->newExpr(),
                 $tableName,
                 $expressionSkipColumns,
-                $columnsMetadata
+                $columnsMetadata,
             );
 
             if ($expression !== null && count($expression) > 0) {
@@ -525,10 +561,10 @@ trait DataverseGridTrait
             // Check if view has expression tree (preferred)
             $expression = $gridViewConfig->extractExpression(
                 $viewConfig,
-                $baseQuery->clause('where') ?? $baseQuery->newExpr(),
+                $baseQuery->newExpr(),
                 $tableName,
                 $skipFilterColumns,
-                $columnsMetadata
+                $columnsMetadata,
             );
 
             if ($expression !== null && count($expression) > 0) {
@@ -587,15 +623,20 @@ trait DataverseGridTrait
 
         if ($sortField && $sortDirection) {
             $columnMeta = $columnsMetadata[$sortField] ?? null;
-            if ($columnMeta && isset($columnMeta['queryField'])) {
-                $actualSortField = $columnMeta['queryField'];
-            } elseif (strpos($sortField, '.') === false) {
-                $actualSortField = $tableName . '.' . $sortField;
+            if ($columnMeta && !empty($columnMeta['sortable'])) {
+                if (isset($columnMeta['queryField'])) {
+                    $actualSortField = $columnMeta['queryField'];
+                } elseif (strpos($sortField, '.') === false) {
+                    $actualSortField = $tableName . '.' . $sortField;
+                } else {
+                    $actualSortField = $sortField;
+                }
+                $baseQuery->orderBy([$actualSortField => strtoupper($sortDirection)]);
+                $currentSort = ['field' => $sortField, 'direction' => $sortDirection];
             } else {
-                $actualSortField = $sortField;
+                // Column not sortable or not found — fall back to default sort
+                $baseQuery->orderBy($defaultSort);
             }
-            $baseQuery->orderBy([$actualSortField => strtoupper($sortDirection)]);
-            $currentSort = ['field' => $sortField, 'direction' => $sortDirection];
         } elseif ($currentView && !$dirtySort) {
             $viewConfig = $currentView->getConfigArray();
             if (!empty($viewConfig['sort'])) {
@@ -604,15 +645,19 @@ trait DataverseGridTrait
                     $sortField = $sortConfig['field'];
                     $sortDirection = $sortConfig['direction'];
                     $columnMeta = $columnsMetadata[$sortField] ?? null;
-                    if ($columnMeta && isset($columnMeta['queryField'])) {
-                        $actualSortField = $columnMeta['queryField'];
-                    } elseif (strpos($sortField, '.') === false) {
-                        $actualSortField = $tableName . '.' . $sortField;
+                    if ($columnMeta && !empty($columnMeta['sortable'])) {
+                        if (isset($columnMeta['queryField'])) {
+                            $actualSortField = $columnMeta['queryField'];
+                        } elseif (strpos($sortField, '.') === false) {
+                            $actualSortField = $tableName . '.' . $sortField;
+                        } else {
+                            $actualSortField = $sortField;
+                        }
+                        $baseQuery->orderBy([$actualSortField => strtoupper($sortDirection)]);
+                        $currentSort = ['field' => $sortField, 'direction' => $sortDirection];
                     } else {
-                        $actualSortField = $sortField;
+                        $baseQuery->orderBy($defaultSort);
                     }
-                    $baseQuery->orderBy([$actualSortField => strtoupper($sortDirection)]);
-                    $currentSort = ['field' => $sortField, 'direction' => $sortDirection];
                 } else {
                     $baseQuery->orderBy($defaultSort);
                 }
@@ -656,7 +701,7 @@ trait DataverseGridTrait
         // Check if there are any searchable columns (for search functionality)
         $hasSearchableColumns = !empty(array_filter(
             $columnsMetadata,
-            fn($col) => !empty($col['searchable'])
+            fn($col) => !empty($col['searchable']),
         ));
 
         // Get dropdown filter columns and prepare filter options
@@ -747,7 +792,7 @@ trait DataverseGridTrait
             enableColumnPicker: $enableColumnPicker,
             lockedFilters: $lockedFilters,
             enableBulkSelection: $enableBulkSelection,
-            bulkActions: $bulkActions
+            bulkActions: $bulkActions,
         );
 
         // Return all results
@@ -775,8 +820,8 @@ trait DataverseGridTrait
      * @param array|null $selectedSystemView Currently selected system view
      * @param array|null $systemViews All available system views
      * @param iterable $availableViews Collection of saved views
-     * @param Member|null $currentMember Authenticated member
-     * @param int|string|null $preferredViewId Preferred view ID from user preferences
+     * @param \App\Model\Entity\Member|null $currentMember Authenticated member
+     * @param string|int|null $preferredViewId Preferred view ID from user preferences
      * @param string $search Current search term
      * @param array $filters Active filters by column key
      * @param array $filterOptions Available filter options by column key
@@ -827,7 +872,7 @@ trait DataverseGridTrait
         bool $enableColumnPicker,
         array $lockedFilters = [],
         bool $enableBulkSelection = false,
-        array $bulkActions = []
+        array $bulkActions = [],
     ): array {
         // Format views based on whether we're using system or saved views
         $formattedViews = [];
@@ -950,8 +995,15 @@ trait DataverseGridTrait
                 'currentName' => $currentName,
                 'preferredId' => $preferredViewId,
                 'systemDefaultId' => $systemDefaultId,
-                'isPreferred' => $currentView && $preferredViewId !== null ? ((int)$currentView->id === $preferredViewId) : ($selectedSystemView && $preferredViewId !== null && $selectedSystemView['id'] === $preferredViewId),
-                'isDefault' => $currentView ? ($preferredViewId !== null && (int)$currentView->id === $preferredViewId) : ($selectedSystemView && $preferredViewId !== null && $selectedSystemView['id'] === $preferredViewId),
+                'isPreferred' => $currentView && $preferredViewId !== null
+                    ? ((int)$currentView->id === $preferredViewId)
+                    : ($selectedSystemView && $preferredViewId !== null
+                        && $selectedSystemView['id'] === $preferredViewId),
+                'isDefault' => $currentView
+                    ? ($preferredViewId !== null
+                        && (int)$currentView->id === $preferredViewId)
+                    : ($selectedSystemView && $preferredViewId !== null
+                        && $selectedSystemView['id'] === $preferredViewId),
                 'isUserDefault' => $currentView ? $currentView->isUserDefault() : ($preferredViewId !== null),
                 'available' => $formattedViews,
             ],
@@ -988,12 +1040,12 @@ trait DataverseGridTrait
      * Load filter options from a data source
      *
      * Supports multiple formats for filterOptionsSource:
-     * 
+     *
      * 1. **Simple string** (table name): Uses 'id' for value, 'name' for label
      *    ```php
      *    'filterOptionsSource' => 'Branches'
      *    ```
-     * 
+     *
      * 2. **Array with table**: Database table with full control
      *    ```php
      *    'filterOptionsSource' => [
@@ -1004,7 +1056,7 @@ trait DataverseGridTrait
      *        'order' => ['name' => 'ASC'],      // Optional: sort order (default: labelField ASC)
      *    ]
      *    ```
-     * 
+     *
      * 3. **Array with appSetting**: Load from app settings (YAML array)
      *    ```php
      *    'filterOptionsSource' => [
@@ -1023,7 +1075,7 @@ trait DataverseGridTrait
      *    ```
      *    The method should return array of ['value' => string, 'label' => string].
      *
-     * @param string|array $source Source identifier string (table name) or configuration array
+     * @param array|string $source Source identifier string (table name) or configuration array
      * @return array Filter options as array of ['value' => string, 'label' => string]
      */
     protected function loadFilterOptions(string|array $source): array
@@ -1031,7 +1083,7 @@ trait DataverseGridTrait
         // Handle app setting source
         if (is_array($source) && !empty($source['appSetting'])) {
             $settingKey = $source['appSetting'];
-            $values = \App\KMP\StaticHelpers::getAppSetting($settingKey);
+            $values = StaticHelpers::getAppSetting($settingKey);
 
             if (!is_array($values)) {
                 return [];
@@ -1039,7 +1091,7 @@ trait DataverseGridTrait
 
             return array_map(
                 fn($value) => ['value' => (string)$value, 'label' => (string)$value],
-                $values
+                $values,
             );
         }
 
@@ -1100,7 +1152,7 @@ trait DataverseGridTrait
         return array_map(
             fn($id, $name) => ['value' => (string)$id, 'label' => $name],
             array_keys($results),
-            $results
+            $results,
         );
     }
 
@@ -1126,7 +1178,7 @@ trait DataverseGridTrait
         if (!empty($systemViewConfig['skipFilterColumns']) && is_array($systemViewConfig['skipFilterColumns'])) {
             $defaults['skipFilterColumns'] = array_values(array_filter(
                 $systemViewConfig['skipFilterColumns'],
-                fn($value) => is_string($value) && $value !== ''
+                fn($value) => is_string($value) && $value !== '',
             ));
         }
 
@@ -1225,10 +1277,10 @@ trait DataverseGridTrait
      *
      * Generates a CSV export response from the grid processing result.
      * Supports two modes:
-     * 
+     *
      * 1. **Query Mode** (default): Uses the query from result to build SQL SELECT statements.
      *    Best for simple fields that map directly to database columns.
-     * 
+     *
      * 2. **Data Mode**: Pass pre-processed data with computed/virtual fields already populated.
      *    Best for exports that include calculated fields, virtual properties, or complex
      *    transformations that can't be done in SQL.
@@ -1254,8 +1306,8 @@ trait DataverseGridTrait
         $csvExportService,
         string $entityName,
         ?string $tableName = null,
-        ?iterable $data = null
-    ): \Cake\Http\Response {
+        ?iterable $data = null,
+    ): Response {
         // Determine table name for fetchTable (supports plugin tables like 'Awards.Recommendations')
         if ($tableName === null) {
             $tableName = ucfirst($entityName); // Default: capitalize entity name (e.g., 'members' -> 'Members')
@@ -1276,7 +1328,12 @@ trait DataverseGridTrait
             $transformedData = $this->buildExportDataFromEntities($data, $visibleColumns, $columnsMetadata);
         } else {
             // Query Mode: Build SQL SELECT and execute query
-            $transformedData = $this->buildExportDataFromQuery($result['query'], $visibleColumns, $columnsMetadata, $tableName);
+            $transformedData = $this->buildExportDataFromQuery(
+                $result['query'],
+                $visibleColumns,
+                $columnsMetadata,
+                $tableName,
+            );
         }
 
         // Generate filename with current view name
@@ -1343,8 +1400,12 @@ trait DataverseGridTrait
      * @param string $tableName Full table name for model alias extraction
      * @return array Transformed data ready for CSV export
      */
-    protected function buildExportDataFromQuery($query, array $visibleColumns, array $columnsMetadata, string $tableName): array
-    {
+    protected function buildExportDataFromQuery(
+        $query,
+        array $visibleColumns,
+        array $columnsMetadata,
+        string $tableName,
+    ): array {
         // Extract model alias for SQL field references (e.g., 'Awards.Recommendations' -> 'Recommendations')
         $modelAlias = str_contains($tableName, '.') ? substr($tableName, strrpos($tableName, '.') + 1) : $tableName;
 
@@ -1364,7 +1425,10 @@ trait DataverseGridTrait
             }
 
             // Skip columns that require data mode (have renderField but no queryField, or have exportValue callback)
-            if (!empty($columnMeta['exportValue']) || (!empty($columnMeta['renderField']) && empty($columnMeta['queryField']))) {
+            if (
+                !empty($columnMeta['exportValue'])
+                || (!empty($columnMeta['renderField']) && empty($columnMeta['queryField']))
+            ) {
                 continue;
             }
 
@@ -1419,12 +1483,14 @@ trait DataverseGridTrait
         // 1. Check for custom exportValue callback
         if (!empty($columnMeta['exportValue']) && is_callable($columnMeta['exportValue'])) {
             $value = call_user_func($columnMeta['exportValue'], $entity, $columnKey, $columnMeta);
+
             return $this->formatExportValue($value);
         }
 
         // 2. Check for renderField path (nested entity access)
         if (!empty($columnMeta['renderField'])) {
             $value = $this->resolveNestedValue($entity, $columnMeta['renderField']);
+
             return $this->formatExportValue($value);
         }
 
@@ -1483,7 +1549,7 @@ trait DataverseGridTrait
             return '';
         }
 
-        if ($value instanceof \DateTimeInterface) {
+        if ($value instanceof DateTimeInterface) {
             return $value->format('Y-m-d H:i:s');
         }
 
@@ -1591,7 +1657,7 @@ trait DataverseGridTrait
         array $currentFilters,
         $currentView,
         ?array $selectedSystemView,
-        bool $dirtyFilters
+        bool $dirtyFilters,
     ) {
         foreach ($customFilterColumns as $columnKey => $columnMeta) {
             $handler = $columnMeta['customFilterHandler'];
@@ -1616,7 +1682,12 @@ trait DataverseGridTrait
 
             // 2. Check current filters (may have been set from query or system view defaults)
             // Use explicit null/empty-string check to allow valid falsey values like 0, "0", false
-            if ($filterValue === null && isset($currentFilters[$columnKey]) && $currentFilters[$columnKey] !== null && $currentFilters[$columnKey] !== '') {
+            if (
+                $filterValue === null
+                && isset($currentFilters[$columnKey])
+                && $currentFilters[$columnKey] !== null
+                && $currentFilters[$columnKey] !== ''
+            ) {
                 $filterValue = $currentFilters[$columnKey];
             }
 

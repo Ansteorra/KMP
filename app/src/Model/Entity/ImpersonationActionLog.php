@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -30,7 +29,9 @@ use Cake\ORM\Entity;
  */
 class ImpersonationActionLog extends Entity
 {
-    /** @inheritDoc */
+    /**
+     * @inheritDoc
+     */
     protected array $_accessible = [
         'impersonator_id' => true,
         'impersonated_member_id' => true,

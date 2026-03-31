@@ -1,9 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\KMP\GridColumns\WarrantPeriodsGridColumns;
 use App\Services\CsvExportService;
 
 /**
@@ -57,7 +57,7 @@ class WarrantPeriodsController extends AppController
         // Use unified trait for grid processing
         $result = $this->processDataverseGrid([
             'gridKey' => 'WarrantPeriods.index.main',
-            'gridColumnsClass' => \App\KMP\GridColumns\WarrantPeriodsGridColumns::class,
+            'gridColumnsClass' => WarrantPeriodsGridColumns::class,
             'baseQuery' => $this->WarrantPeriods->find(),
             'tableName' => 'WarrantPeriods',
             'defaultSort' => ['WarrantPeriods.start_date' => 'desc'],
@@ -79,7 +79,7 @@ class WarrantPeriodsController extends AppController
             'gridState' => $result['gridState'],
             'columns' => $result['columnsMetadata'],
             'visibleColumns' => $result['visibleColumns'],
-            'searchableColumns' => \App\KMP\GridColumns\WarrantPeriodsGridColumns::getSearchableColumns(),
+            'searchableColumns' => WarrantPeriodsGridColumns::getSearchableColumns(),
             'dropdownFilterColumns' => $result['dropdownFilterColumns'],
             'filterOptions' => $result['filterOptions'],
             'currentFilters' => $result['currentFilters'],

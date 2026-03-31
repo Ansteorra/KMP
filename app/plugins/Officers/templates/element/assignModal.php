@@ -2,6 +2,12 @@
 $officeOptions = [];
 
 if (!function_exists('addOptions')) {
+/**
+ * Add options.
+ *
+ * @param mixed $office
+ * @param mixed $depth
+ */
 function addOptions($office, $depth, &$officeOptions)
 {
     if (!isset($officeOptions[$office['id']])) {

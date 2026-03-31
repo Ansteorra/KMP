@@ -39,7 +39,7 @@ class JsonFieldBehaviorTest extends TestCase
     public function testAddJsonWhereUsesPostgresExpression(): void
     {
         $table = new Table(['table' => 'members']);
-        $behavior = new class($table) extends JsonFieldBehavior {
+        $behavior = new class ($table) extends JsonFieldBehavior {
             protected function getDriverName(SelectQuery $query): string
             {
                 return 'Postgres';
@@ -61,7 +61,7 @@ class JsonFieldBehaviorTest extends TestCase
     public function testAddJsonWhereRejectsInvalidPostgresPath(): void
     {
         $table = new Table(['table' => 'members']);
-        $behavior = new class($table) extends JsonFieldBehavior {
+        $behavior = new class ($table) extends JsonFieldBehavior {
             protected function getDriverName(SelectQuery $query): string
             {
                 return 'Postgres';

@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Event;
@@ -10,15 +9,15 @@ use Cake\Event\EventListenerInterface;
 
 /**
  * CallForCellsHandlerBase - Event-based view cell handler
- * 
+ *
  * @deprecated This event-based system is being replaced by ViewCellRegistry.
  * Please migrate to using ViewCellRegistry::register() in your plugin's bootstrap method.
- * 
+ *
  * Migration guide:
  * 1. Create a ViewCellProvider class for your plugin
  * 2. Register it in your plugin's bootstrap() method using ViewCellRegistry::register()
  * 3. Remove the CallForCellsHandler from your plugin
- * 
+ *
  * This class will be removed in a future version.
  */
 class CallForCellsHandlerBase implements EventListenerInterface
@@ -26,6 +25,11 @@ class CallForCellsHandlerBase implements EventListenerInterface
     protected string $pluginName = '';
     protected array $viewsToTest = [];
 
+    /**
+     * Get the list of implemented event listeners.
+     *
+     * @return array
+     */
     public function implementedEvents(): array
     {
         return [
@@ -35,6 +39,11 @@ class CallForCellsHandlerBase implements EventListenerInterface
         ];
     }
 
+    /**
+     * Call for view cells.
+     *
+     * @param mixed $event
+     */
     public function callForViewCells($event)
     {
         if ($this->pluginName && !StaticHelpers::pluginEnabled($this->pluginName)) {

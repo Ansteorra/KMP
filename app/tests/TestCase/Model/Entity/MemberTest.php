@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Model\Entity;
@@ -30,6 +29,7 @@ class MemberTest extends BaseTestCase
             'membership_expires_on' => new Date(date('Y-m-d', strtotime('+1 year'))),
         ];
         $merged = array_merge($defaults, $data);
+
         return new Member($merged);
     }
 
@@ -42,6 +42,7 @@ class MemberTest extends BaseTestCase
             'status' => Member::STATUS_UNVERIFIED_MINOR,
         ];
         $merged = array_merge($defaults, $data);
+
         return new Member($merged);
     }
 

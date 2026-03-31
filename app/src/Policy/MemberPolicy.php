@@ -1,11 +1,11 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Policy;
 
 use App\KMP\KmpIdentityInterface;
 use App\Model\Entity\BaseEntity;
+use App\Model\Entity\Member;
 use Cake\ORM\Table;
 
 /**
@@ -23,7 +23,7 @@ class MemberPolicy extends BasePolicy
      */
     public function canView(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
     {
-        if ($entity instanceof \App\Model\Entity\Member && $user instanceof \App\Model\Entity\Member && $user->canManageMember($entity)) {
+        if ($entity instanceof Member && $user instanceof Member && $user->canManageMember($entity)) {
             return true;
         }
 
@@ -34,13 +34,13 @@ class MemberPolicy extends BasePolicy
      * Check if $user can view PII for a Member
      *
      * @param \App\KMP\KmpIdentityInterface $user The user.
-     * @param \App\Model\Entity\BaseEntity|Table $entity
+     * @param \App\Model\Entity\BaseEntity|\Cake\ORM\Table $entity
      * @param mixed ...$optionalArgs Optional arguments
      * @return bool
      */
     public function canViewPii(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
     {
-        if ($entity instanceof \App\Model\Entity\Member && $user instanceof \App\Model\Entity\Member && $user->canManageMember($entity)) {
+        if ($entity instanceof Member && $user instanceof Member && $user->canManageMember($entity)) {
             return true;
         }
 
@@ -53,7 +53,7 @@ class MemberPolicy extends BasePolicy
      * Check if $user can view their own profile
      *
      * @param \App\KMP\KmpIdentityInterface $user The user.
-     * @param \App\Model\Entity\BaseEntity|Table $entity
+     * @param \App\Model\Entity\BaseEntity|\Cake\ORM\Table $entity
      * @param mixed ...$optionalArgs Optional arguments
      * @return bool
      */
@@ -72,23 +72,28 @@ class MemberPolicy extends BasePolicy
      */
     public function canPartialEdit(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
     {
-        if ($entity instanceof \App\Model\Entity\Member && $user instanceof \App\Model\Entity\Member && $user->canManageMember($entity)) {
+        if ($entity instanceof Member && $user instanceof Member && $user->canManageMember($entity)) {
             return true;
         }
 
         return false;
     }
 
+    /**
+     * Check if user can submit sca member info.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user
+     * @param \App\Model\Entity\BaseEntity $entity
+     * @return bool
+     */
     public function canSubmitScaMemberInfo(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
     {
-        if ($entity instanceof \App\Model\Entity\Member && $user instanceof \App\Model\Entity\Member && $user->canManageMember($entity)) {
+        if ($entity instanceof Member && $user instanceof Member && $user->canManageMember($entity)) {
             return true;
         }
 
         return false;
     }
-
-
 
     /**
      * Check if $user can view card
@@ -100,7 +105,7 @@ class MemberPolicy extends BasePolicy
      */
     public function canViewCard(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
     {
-        if ($entity instanceof \App\Model\Entity\Member && $user instanceof \App\Model\Entity\Member && $user->canManageMember($entity)) {
+        if ($entity instanceof Member && $user instanceof Member && $user->canManageMember($entity)) {
             return true;
         }
         $method = __FUNCTION__;
@@ -118,7 +123,7 @@ class MemberPolicy extends BasePolicy
      */
     public function canSendMobileCardEmail(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
     {
-        if ($entity instanceof \App\Model\Entity\Member && $user instanceof \App\Model\Entity\Member && $user->canManageMember($entity)) {
+        if ($entity instanceof Member && $user instanceof Member && $user->canManageMember($entity)) {
             return true;
         }
         $method = __FUNCTION__;
@@ -136,7 +141,7 @@ class MemberPolicy extends BasePolicy
      */
     public function canAddNote(KmpIdentityInterface $user, BaseEntity|Table $entity, mixed ...$optionalArgs): bool
     {
-        if ($entity instanceof \App\Model\Entity\Member && $user instanceof \App\Model\Entity\Member && $user->canManageMember($entity)) {
+        if ($entity instanceof Member && $user instanceof Member && $user->canManageMember($entity)) {
             return true;
         }
         $method = __FUNCTION__;
@@ -148,13 +153,16 @@ class MemberPolicy extends BasePolicy
      * Check if $user can view additional information for a Member
      *
      * @param \App\KMP\KmpIdentityInterface $user The user.
-     * @param \App\Model\Entity\BaseEntity|Table $entity
+     * @param \App\Model\Entity\BaseEntity|\Cake\ORM\Table $entity
      * @param mixed ...$optionalArgs Optional arguments
      * @return bool
      */
-    public function canViewAdditionalInformation(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
-    {
-        if ($entity instanceof \App\Model\Entity\Member && $user instanceof \App\Model\Entity\Member && $user->canManageMember($entity)) {
+    public function canViewAdditionalInformation(
+        KmpIdentityInterface $user,
+        BaseEntity|Table $entity,
+        ...$optionalArgs,
+    ): bool {
+        if ($entity instanceof Member && $user instanceof Member && $user->canManageMember($entity)) {
             return true;
         }
 
@@ -173,7 +181,7 @@ class MemberPolicy extends BasePolicy
      */
     public function canChangePassword(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
     {
-        if ($entity instanceof \App\Model\Entity\Member && $user instanceof \App\Model\Entity\Member && $user->canManageMember($entity)) {
+        if ($entity instanceof Member && $user instanceof Member && $user->canManageMember($entity)) {
             return true;
         }
         $method = __FUNCTION__;
@@ -191,7 +199,7 @@ class MemberPolicy extends BasePolicy
      */
     public function canViewCardJson(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
     {
-        if ($entity instanceof \App\Model\Entity\Member && $user instanceof \App\Model\Entity\Member && $user->canManageMember($entity)) {
+        if ($entity instanceof Member && $user instanceof Member && $user->canManageMember($entity)) {
             return true;
         }
         $method = __FUNCTION__;
@@ -221,8 +229,11 @@ class MemberPolicy extends BasePolicy
      * @param mixed ...$optionalArgs Optional arguments
      * @return bool
      */
-    public function canImportExpirationDates(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
-    {
+    public function canImportExpirationDates(
+        KmpIdentityInterface $user,
+        BaseEntity $entity,
+        mixed ...$optionalArgs,
+    ): bool {
         $method = __FUNCTION__;
 
         return $this->_hasPolicy($user, $method, $entity);
@@ -236,7 +247,7 @@ class MemberPolicy extends BasePolicy
      * @param mixed ...$optionalArgs Optional arguments
      * @return bool
      */
-    function canVerifyMembership(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
+    public function canVerifyMembership(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
 
@@ -251,7 +262,7 @@ class MemberPolicy extends BasePolicy
      * @param mixed ...$optionalArgs Optional arguments
      * @return bool
      */
-    function canVerifyQueue(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
+    public function canVerifyQueue(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
 
@@ -266,9 +277,9 @@ class MemberPolicy extends BasePolicy
      * @param mixed ...$optionalArgs Optional arguments
      * @return bool
      */
-    function canEditAdditionalInfo(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
+    public function canEditAdditionalInfo(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
     {
-        if ($entity instanceof \App\Model\Entity\Member && $user instanceof \App\Model\Entity\Member && $user->canManageMember($entity)) {
+        if ($entity instanceof Member && $user instanceof Member && $user->canManageMember($entity)) {
             return true;
         }
         $method = __FUNCTION__;

@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Policy;
@@ -68,11 +67,11 @@ class MembersTablePolicy extends BasePolicy
      * Check if user can verify queue
      *
      * @param \App\KMP\KmpIdentityInterface $user User
-     * @param \App\Model\Entity\BaseEntity|Cake\ORM\Table $entity Entity
+     * @param \App\Model\Entity\BaseEntity|\App\Policy\Cake\ORM\Table $entity Entity
      * @param mixed ...$optionalArgs Optional arguments
      * @return bool
      */
-    function canVerifyQueue(KmpIdentityInterface $user, BaseEntity|Table $entity, mixed ...$optionalArgs): bool
+    public function canVerifyQueue(KmpIdentityInterface $user, BaseEntity|Table $entity, mixed ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
 
@@ -84,12 +83,15 @@ class MembersTablePolicy extends BasePolicy
      * Uses the same authorization as the verifyQueue action
      *
      * @param \App\KMP\KmpIdentityInterface $user User
-     * @param \App\Model\Entity\BaseEntity|Cake\ORM\Table $entity Entity
+     * @param \App\Model\Entity\BaseEntity|\App\Policy\Cake\ORM\Table $entity Entity
      * @param mixed ...$optionalArgs Optional arguments
      * @return bool
      */
-    public function canVerifyQueueGridData(KmpIdentityInterface $user, BaseEntity|Table $entity, mixed ...$optionalArgs): bool
-    {
+    public function canVerifyQueueGridData(
+        KmpIdentityInterface $user,
+        BaseEntity|Table $entity,
+        mixed ...$optionalArgs,
+    ): bool {
         return $this->canVerifyQueue($user, $entity, ...$optionalArgs);
     }
 
@@ -97,7 +99,7 @@ class MembersTablePolicy extends BasePolicy
      * Check if user can export member data to CSV
      *
      * @param \App\KMP\KmpIdentityInterface $user User
-     * @param \App\Model\Entity\BaseEntity|Cake\ORM\Table $entity Entity
+     * @param \App\Model\Entity\BaseEntity|\App\Policy\Cake\ORM\Table $entity Entity
      * @param mixed ...$optionalArgs Optional arguments
      * @return bool
      */

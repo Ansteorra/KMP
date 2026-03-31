@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -37,7 +36,7 @@ class WarrantsTable extends BaseTable
 
         // Configure table basics for warrant management
         $this->setTable('warrants');
-        $this->setDisplayField('status');    // Status is primary identifier
+        $this->setDisplayField('status'); // Status is primary identifier
         $this->setPrimaryKey('id');
 
         $this->addBehavior('Timestamp');
@@ -45,40 +44,40 @@ class WarrantsTable extends BaseTable
         // Core warrant recipient - INNER join ensures warrant has recipient
         $this->belongsTo('Members', [
             'foreignKey' => 'member_id',
-            'joinType' => 'INNER',              // Warrant must have recipient
+            'joinType' => 'INNER', // Warrant must have recipient
         ]);
 
         // Administrative tracking - Member who revoked warrant (optional)
         $this->belongsTo('RevokedBy', [
             'className' => 'Members',
             'foreignKey' => 'revoker_id',
-            'joinType' => 'LEFT',               // Only set when warrant is revoked
+            'joinType' => 'LEFT', // Only set when warrant is revoked
             'propertyName' => 'revoked_by',
         ]);
 
         // Batch approval system - INNER join ensures warrant is in roster
         $this->belongsTo('WarrantRosters', [
             'foreignKey' => 'warrant_roster_id',
-            'joinType' => 'INNER',              // Warrant must be in approval batch
+            'joinType' => 'INNER', // Warrant must be in approval batch
         ]);
 
         // RBAC integration - Links warrant to specific role assignment
         $this->belongsTo('MemberRoles', [
-            'foreignKey' => 'member_role_id',   // Optional for direct grants
+            'foreignKey' => 'member_role_id', // Optional for direct grants
         ]);
 
         // Audit trail - Member who created warrant request
         $this->belongsTo('CreatedByMember', [
             'className' => 'Members',
             'foreignKey' => 'created_by',
-            'joinType' => 'LEFT',               // Tracked by Footprint behavior
+            'joinType' => 'LEFT', // Tracked by Footprint behavior
         ]);
 
         // Audit trail - Member who last modified warrant
         $this->belongsTo('ModfiedByMember', [
             'className' => 'Members',
             'foreignKey' => 'modified_by',
-            'joinType' => 'LEFT',               // Tracked by Footprint behavior
+            'joinType' => 'LEFT', // Tracked by Footprint behavior
         ]);
 
         // Temporal entity behavior - Provides status management and lifecycle operations
@@ -102,7 +101,7 @@ class WarrantsTable extends BaseTable
         // Core warrant recipient validation
         $validator
             ->integer('member_id')
-            ->notEmptyString('member_id');      // Warrant must have recipient
+            ->notEmptyString('member_id'); // Warrant must have recipient
 
         // Batch approval system validation
         $validator
@@ -113,13 +112,13 @@ class WarrantsTable extends BaseTable
         $validator
             ->scalar('entity_type')
             ->maxLength('entity_type', 255)
-            ->allowEmptyString('entity_type');  // Optional for direct grants
+            ->allowEmptyString('entity_type'); // Optional for direct grants
 
         // Warranted entity validation
         $validator
             ->integer('entity_id')
-            ->requirePresence('entity_id', 'create')  // Required on creation
-            ->notEmptyString('entity_id');      // Must specify warranted entity
+            ->requirePresence('entity_id', 'create') // Required on creation
+            ->notEmptyString('entity_id'); // Must specify warranted entity
 
         // RBAC integration validation
         $validator
@@ -133,7 +132,7 @@ class WarrantsTable extends BaseTable
 
         $validator
             ->dateTime('start_on')
-            ->allowEmptyDateTime('start_on');   // Can start immediately
+            ->allowEmptyDateTime('start_on'); // Can start immediately
 
         $validator
             ->dateTime('approved_date')
@@ -143,7 +142,7 @@ class WarrantsTable extends BaseTable
         $validator
             ->scalar('status')
             ->maxLength('status', 20)
-            ->notEmptyString('status');         // Status required for lifecycle
+            ->notEmptyString('status'); // Status required for lifecycle
 
         // Revocation tracking validation
         $validator
@@ -153,12 +152,12 @@ class WarrantsTable extends BaseTable
 
         $validator
             ->integer('revoker_id')
-            ->allowEmptyString('revoker_id');   // Optional - set when revoked
+            ->allowEmptyString('revoker_id'); // Optional - set when revoked
 
         // Audit trail validation
         $validator
             ->integer('created_by')
-            ->allowEmptyString('created_by');   // Tracked by Footprint behavior
+            ->allowEmptyString('created_by'); // Tracked by Footprint behavior
 
         return $validator;
     }

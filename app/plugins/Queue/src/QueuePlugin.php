@@ -29,11 +29,21 @@ class QueuePlugin extends BasePlugin implements KMPPluginInterface
 {
 
 	protected int $_migrationOrder = 0;
+ /**
+  * Get migration order.
+  *
+  * @return int
+  */
 	public function getMigrationOrder(): int
 	{
 		return $this->_migrationOrder;
 	}
 
+ /**
+  * Constructor.
+  *
+  * @param mixed $config
+  */
 	public function __construct($config = [])
 	{
 		if (!isset($config['migrationOrder'])) {

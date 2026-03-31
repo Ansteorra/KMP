@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -33,6 +32,11 @@ class ImpersonationSessionLog extends Entity
         'impersonated_member' => true,
     ];
 
+    /**
+     * Get the created virtual field.
+     *
+     * @return ?\Cake\I18n\FrozenTime
+     */
     protected function _getCreated(): ?FrozenTime
     {
         $created = $this->_fields['created'] ?? null;

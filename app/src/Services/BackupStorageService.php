@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services;
@@ -26,6 +25,9 @@ class BackupStorageService
     private FlysystemFilesystem $filesystem;
     private string $adapter;
 
+    /**
+     * Constructor.
+     */
     public function __construct()
     {
         $this->initializeFilesystem();
@@ -102,6 +104,11 @@ class BackupStorageService
         return $this->adapter;
     }
 
+    /**
+     * Initialize filesystem.
+     *
+     * @return void
+     */
     private function initializeFilesystem(): void
     {
         $config = Configure::read('Documents.storage', []);
@@ -176,6 +183,11 @@ class BackupStorageService
         }
     }
 
+    /**
+     * Initialize local adapter.
+     *
+     * @return void
+     */
     private function initializeLocalAdapter(): void
     {
         $backupDir = ROOT . DS . 'backups';

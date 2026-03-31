@@ -9,6 +9,15 @@ use Cake\ORM\TableRegistry;
 
 class DefaultReadOnlyDepartmentService implements ReadOnlyDepartmentServiceInterface
 {
+    /**
+     * List all records.
+     *
+     * @param KmpIdentityInterface $identity
+     * @param array $filters
+     * @param int $page
+     * @param int $limit
+     * @return array
+     */
     public function list(KmpIdentityInterface $identity, array $filters, int $page, int $limit): array
     {
         $table = TableRegistry::getTableLocator()->get('Officers.Departments');
@@ -44,6 +53,13 @@ class DefaultReadOnlyDepartmentService implements ReadOnlyDepartmentServiceInter
         ];
     }
 
+    /**
+     * Get by id.
+     *
+     * @param KmpIdentityInterface $identity
+     * @param int $id
+     * @return ?array
+     */
     public function getById(KmpIdentityInterface $identity, int $id): ?array
     {
         $row = TableRegistry::getTableLocator()
@@ -71,6 +87,12 @@ class DefaultReadOnlyDepartmentService implements ReadOnlyDepartmentServiceInter
         return $payload;
     }
 
+    /**
+     * Format department.
+     *
+     * @param object $row
+     * @return array
+     */
     protected function formatDepartment(object $row): array
     {
         return [
@@ -82,6 +104,13 @@ class DefaultReadOnlyDepartmentService implements ReadOnlyDepartmentServiceInter
         ];
     }
 
+    /**
+     * Assert that can view.
+     *
+     * @param KmpIdentityInterface $identity
+     * @param object $entity
+     * @return void
+     */
     protected function assertCanView(KmpIdentityInterface $identity, object $entity): void
     {
         if (!$identity->can('view', $entity)) {

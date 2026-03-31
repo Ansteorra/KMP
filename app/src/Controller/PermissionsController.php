@@ -1,9 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\KMP\GridColumns\PermissionsGridColumns;
 use App\KMP\PermissionsLoader;
 use App\Services\CsvExportService;
 use Cake\Http\Exception\BadRequestException;
@@ -33,7 +33,15 @@ class PermissionsController extends AppController
 
         // Configure model-level authorization for specific actions
         // These actions will have automatic model authorization applied
-        $this->Authorization->authorizeModel('index', 'add', 'matrix', 'gridData', 'exportPolicies', 'importPolicies', 'previewImport');
+        $this->Authorization->authorizeModel(
+            'index',
+            'add',
+            'matrix',
+            'gridData',
+            'exportPolicies',
+            'importPolicies',
+            'previewImport',
+        );
     }
 
     /**
@@ -63,12 +71,11 @@ class PermissionsController extends AppController
     public function gridData(CsvExportService $csvExportService)
     {
         // Get system views from GridColumns
-        $systemViews = \App\KMP\GridColumns\PermissionsGridColumns::getSystemViews([]);
 
         // Use unified trait for grid processing
         $result = $this->processDataverseGrid([
             'gridKey' => 'Permissions.index.main',
-            'gridColumnsClass' => \App\KMP\GridColumns\PermissionsGridColumns::class,
+            'gridColumnsClass' => PermissionsGridColumns::class,
             'baseQuery' => $this->Permissions->find(),
             'tableName' => 'Permissions',
             'defaultSort' => ['Permissions.name' => 'asc'],
@@ -90,7 +97,7 @@ class PermissionsController extends AppController
             'gridState' => $result['gridState'],
             'columns' => $result['columnsMetadata'],
             'visibleColumns' => $result['visibleColumns'],
-            'searchableColumns' => \App\KMP\GridColumns\PermissionsGridColumns::getSearchableColumns(),
+            'searchableColumns' => PermissionsGridColumns::getSearchableColumns(),
             'dropdownFilterColumns' => $result['dropdownFilterColumns'],
             'filterOptions' => $result['filterOptions'],
             'currentFilters' => $result['currentFilters'],
@@ -136,7 +143,7 @@ class PermissionsController extends AppController
         // Load permission with related data for comprehensive view
         $permission = $this->Permissions->get(
             $id,
-            contain: ['Roles', 'PermissionPolicies'],  // Include roles and policies
+            contain: ['Roles', 'PermissionPolicies'], // Include roles and policies
         );
 
         if (!$permission) {
@@ -159,8 +166,8 @@ class PermissionsController extends AppController
             $roles = $this->Permissions->Roles
                 ->find('list')
                 ->where([
-                    'NOT' => ['id IN' => $currentRoleIds],  // Exclude already assigned
-                    'is_system !=' => true                   // Exclude system roles
+                    'NOT' => ['id IN' => $currentRoleIds], // Exclude already assigned
+                    'is_system !=' => true, // Exclude system roles
                 ])
                 ->all();
         } else {
@@ -201,7 +208,7 @@ class PermissionsController extends AppController
             );
 
             // Security controls for permission creation
-            $permission->is_system = false;  // New permissions are never system permissions
+            $permission->is_system = false; // New permissions are never system permissions
 
             // Only super users can create super user permissions
             if (!$this->Authentication->getIdentity()->isSuperUser()) {
@@ -280,6 +287,7 @@ class PermissionsController extends AppController
                     ->withType('application/json')
                     ->withStringBody(json_encode(true));
                 $this->response->withStatus(200);
+
                 return $this->response;
             }
 
@@ -289,12 +297,14 @@ class PermissionsController extends AppController
                     ->withType('application/json')
                     ->withStringBody(json_encode(true));
                 $this->response->withStatus(200);
+
                 return $this->response;
             } else {
                 $this->response = $this->response
                     ->withType('application/json')
                     ->withStringBody(json_encode(false));
                 $this->response->withStatus(500);
+
                 return $this->response;
             }
         } else {
@@ -317,12 +327,14 @@ class PermissionsController extends AppController
                         ->withType('application/json')
                         ->withStringBody(json_encode(true));
                     $this->response->withStatus(200);
+
                     return $this->response;
                 } else {
                     $this->response = $this->response
                         ->withType('application/json')
                         ->withStringBody(json_encode(false));
                     $this->response->withStatus(500);
+
                     return $this->response;
                 }
             } else {
@@ -331,6 +343,7 @@ class PermissionsController extends AppController
                     ->withType('application/json')
                     ->withStringBody(json_encode(false));
                 $this->response->withStatus(500);
+
                 return $this->response;
             }
         }
@@ -381,7 +394,7 @@ class PermissionsController extends AppController
                     'class' => $policyClass,
                     'className' => $className,
                     'method' => $method,
-                    'display' => str_replace('can', '', $method),  // Clean display name
+                    'display' => str_replace('can', '', $method), // Clean display name
                 ];
             }
         }

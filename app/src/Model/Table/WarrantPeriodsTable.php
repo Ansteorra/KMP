@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -46,7 +45,7 @@ use Cake\Validation\Validator;
  * ```php
  * // Creating period templates
  * $warrantPeriodsTable = $this->getTableLocator()->get('WarrantPeriods');
- * 
+ *
  * // Standard annual period template
  * $annualPeriod = $warrantPeriodsTable->newEntity([
  *     'start_date' => '2024-01-01',
@@ -54,7 +53,7 @@ use Cake\Validation\Validator;
  *     'created_by' => $administratorId
  * ]);
  * $warrantPeriodsTable->save($annualPeriod);
- * 
+ *
  * // Quarterly period template
  * $quarterlyPeriod = $warrantPeriodsTable->newEntity([
  *     'start_date' => '2024-01-01',
@@ -62,7 +61,7 @@ use Cake\Validation\Validator;
  *     'created_by' => $administratorId
  * ]);
  * $warrantPeriodsTable->save($quarterlyPeriod);
- * 
+ *
  * // Finding available period templates
  * $availablePeriods = $warrantPeriodsTable->find()
  *     ->where(['start_date >=' => date('Y-m-d')])
@@ -76,7 +75,7 @@ use Cake\Validation\Validator;
  * $periodsQuery = $warrantPeriodsTable->find()
  *     ->orderDesc('created')
  *     ->contain(['CreatedByMember']);
- * 
+ *
  * // Temporal validation queries
  * $overlappingPeriods = $warrantPeriodsTable->find()
  *     ->where([
@@ -86,7 +85,7 @@ use Cake\Validation\Validator;
  *         ]
  *     ])
  *     ->toArray();
- * 
+ *
  * // Period lifecycle operations
  * $activePeriods = $warrantPeriodsTable->find()
  *     ->where([
@@ -97,7 +96,6 @@ use Cake\Validation\Validator;
  * ```
  *
  * @see \App\Model\Entity\WarrantPeriod For warrant period entity functionality
- *
  * @method \App\Model\Entity\WarrantPeriod newEmptyEntity()
  * @method \App\Model\Entity\WarrantPeriod newEntity(array $data, array $options = [])
  * @method array<\App\Model\Entity\WarrantPeriod> newEntities(array $data, array $options = [])
@@ -197,7 +195,7 @@ class WarrantPeriodsTable extends BaseTable
      *     'end_date' => '2024-12-31',
      *     'created_by' => 123  // Optional administrative tracking
      * ]);
-     * 
+     *
      * // Validation will enforce required fields and date formats
      * if ($warrantPeriodsTable->save($period)) {
      *     // Period template created successfully

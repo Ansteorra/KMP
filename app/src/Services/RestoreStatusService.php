@@ -1,10 +1,11 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services;
 
 use Cake\Cache\Cache;
+use DateTimeImmutable;
+use DateTimeInterface;
 
 /**
  * Tracks restore lock and restore progress in shared cache.
@@ -153,7 +154,12 @@ class RestoreStatusService
 
         if ($lock !== null) {
             $lastUpdateAt = (string)($status['updated_at'] ?? $status['started_at'] ?? '');
-            if (($status['status'] ?? null) === 'running' && $this->isOlderThanSeconds($lastUpdateAt, self::STALE_PROGRESS_SECONDS)) {
+            if (
+                ($status['status'] ?? null) === 'running' && $this->isOlderThanSeconds(
+                    $lastUpdateAt,
+                    self::STALE_PROGRESS_SECONDS,
+                )
+            ) {
                 $now = $this->nowIso();
                 Cache::delete(self::LOCK_KEY, self::CACHE_CONFIG);
                 $status['locked'] = false;
@@ -198,6 +204,11 @@ class RestoreStatusService
         return $status;
     }
 
+    /**
+     * Check if locked.
+     *
+     * @return bool
+     */
     public function isLocked(): bool
     {
         return $this->readActiveLock() !== null;
@@ -260,6 +271,11 @@ class RestoreStatusService
         return $lock;
     }
 
+    /**
+     * Clear expired lock.
+     *
+     * @return void
+     */
     private function clearExpiredLock(): void
     {
         $this->readActiveLock();
@@ -273,44 +289,68 @@ class RestoreStatusService
         Cache::write(self::STATUS_KEY, $status, self::CACHE_CONFIG);
     }
 
+    /**
+     * Now iso.
+     *
+     * @return string
+     */
     private function nowIso(): string
     {
-        return (new \DateTimeImmutable('now'))->format(\DateTimeInterface::ATOM);
+        return (new DateTimeImmutable('now'))->format(DateTimeInterface::ATOM);
     }
 
+    /**
+     * Iso after seconds.
+     *
+     * @param int $seconds
+     * @return string
+     */
     private function isoAfterSeconds(int $seconds): string
     {
-        return (new \DateTimeImmutable('now'))
+        return (new DateTimeImmutable('now'))
             ->modify(sprintf('+%d seconds', $seconds))
-            ->format(\DateTimeInterface::ATOM);
+            ->format(DateTimeInterface::ATOM);
     }
 
+    /**
+     * Check if expired.
+     *
+     * @param string $isoValue
+     * @return bool
+     */
     private function isExpired(string $isoValue): bool
     {
         if ($isoValue === '') {
             return false;
         }
 
-        $expiresAt = \DateTimeImmutable::createFromFormat(\DateTimeInterface::ATOM, $isoValue);
-        if (!$expiresAt instanceof \DateTimeImmutable) {
+        $expiresAt = DateTimeImmutable::createFromFormat(DateTimeInterface::ATOM, $isoValue);
+        if (!$expiresAt instanceof DateTimeImmutable) {
             return false;
         }
 
-        return $expiresAt <= new \DateTimeImmutable('now');
+        return $expiresAt <= new DateTimeImmutable('now');
     }
 
+    /**
+     * Check if older than seconds.
+     *
+     * @param string $isoValue
+     * @param int $seconds
+     * @return bool
+     */
     private function isOlderThanSeconds(string $isoValue, int $seconds): bool
     {
         if ($isoValue === '') {
             return false;
         }
 
-        $date = \DateTimeImmutable::createFromFormat(\DateTimeInterface::ATOM, $isoValue);
-        if (!$date instanceof \DateTimeImmutable) {
+        $date = DateTimeImmutable::createFromFormat(DateTimeInterface::ATOM, $isoValue);
+        if (!$date instanceof DateTimeImmutable) {
             return false;
         }
 
-        $threshold = (new \DateTimeImmutable('now'))->modify(sprintf('-%d seconds', $seconds));
+        $threshold = (new DateTimeImmutable('now'))->modify(sprintf('-%d seconds', $seconds));
 
         return $date <= $threshold;
     }

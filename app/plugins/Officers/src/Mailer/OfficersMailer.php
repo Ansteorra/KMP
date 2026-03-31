@@ -19,6 +19,17 @@ class OfficersMailer extends Mailer
         parent::__construct();
     }
 
+    /**
+     * Send notification of hire.
+     *
+     * @param string $to
+     * @param string $memberScaName
+     * @param string $officeName
+     * @param string $branchName
+     * @param string $hireDate
+     * @param string $endDate
+     * @param bool $requiresWarrant
+     */
     public function notifyOfHire(
         string $to,
         string $memberScaName,

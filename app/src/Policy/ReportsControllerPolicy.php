@@ -1,11 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Policy;
 
 use App\KMP\KmpIdentityInterface;
-use App\Model\Entity\BaseEntity;
 use Authorization\Policy\ResultInterface;
 
 class ReportsControllerPolicy extends BasePolicy

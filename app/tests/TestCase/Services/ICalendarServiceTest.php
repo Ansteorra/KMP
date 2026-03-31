@@ -1,13 +1,12 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services;
 
-use App\Services\ICalendarService;
 use App\Model\Entity\Gathering;
-use Cake\I18n\DateTime;
+use App\Services\ICalendarService;
 use App\Test\TestCase\BaseTestCase;
+use Cake\I18n\DateTime;
 
 /**
  * ICalendarService Test Case
@@ -67,10 +66,10 @@ class ICalendarServiceTest extends BaseTestCase
 
         // Mock related entities
         $gathering->branch = (object)[
-            'name' => 'Test Branch'
+            'name' => 'Test Branch',
         ];
         $gathering->gathering_type = (object)[
-            'name' => 'Test Type'
+            'name' => 'Test Type',
         ];
 
         $result = $this->ICalendarService->generateICalendar($gathering);
@@ -108,10 +107,10 @@ class ICalendarServiceTest extends BaseTestCase
         ]);
 
         $gathering->branch = (object)[
-            'name' => 'Test Branch'
+            'name' => 'Test Branch',
         ];
         $gathering->gathering_type = (object)[
-            'name' => 'Festival'
+            'name' => 'Festival',
         ];
 
         $result = $this->ICalendarService->generateICalendar($gathering);

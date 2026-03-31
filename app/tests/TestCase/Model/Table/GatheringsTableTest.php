@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Model\Table;
@@ -12,7 +11,9 @@ use App\Test\TestCase\BaseTestCase;
  */
 class GatheringsTableTest extends BaseTestCase
 {
-    /** @var \App\Model\Table\GatheringsTable */
+    /**
+     * @var \App\Model\Table\GatheringsTable
+     */
     protected $Gatherings;
 
     /**

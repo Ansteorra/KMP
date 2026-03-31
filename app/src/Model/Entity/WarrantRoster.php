@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -88,13 +87,13 @@ namespace App\Model\Entity;
  *     'planned_start_on' => '2024-01-01',
  *     'planned_expires_on' => '2024-03-31'
  * ]);
- * 
+ *
  * // Checking approval status
  * if ($warrantRoster->hasRequiredApprovals()) {
  *     // Roster has sufficient approvals for warrant activation
  *     $warrantRoster->status = WarrantRoster::STATUS_APPROVED;
  * }
- * 
+ *
  * // Status checking for workflow management
  * switch ($warrantRoster->status) {
  *     case WarrantRoster::STATUS_PENDING:
@@ -118,7 +117,7 @@ namespace App\Model\Entity;
  *     ->where(['warrant_roster_id' => $rosterId])
  *     ->contain(['Members', 'MemberRoles'])
  *     ->toArray();
- * 
+ *
  * // Approval workflow management
  * $approvalsTable = TableRegistry::getTableLocator()->get('WarrantRosterApprovals');
  * $pendingApprovals = $approvalsTable->find()
@@ -153,7 +152,6 @@ namespace App\Model\Entity;
  * @see \App\Model\Table\WarrantRostersTable For roster data management
  * @see \App\Model\Entity\Warrant For individual warrant functionality
  * @see \App\Model\Entity\WarrantRosterApproval For approval tracking
- *
  * @property int $id
  * @property string $name
  * @property string $description
@@ -264,10 +262,10 @@ class WarrantRoster extends BaseEntity
      *     // Continue approval workflow
      *     $this->requestAdditionalApprovals($warrantRoster);
      * }
-     * 
+     *
      * // Administrative status management
-     * $status = $warrantRoster->hasRequiredApprovals() 
-     *     ? WarrantRoster::STATUS_APPROVED 
+     * $status = $warrantRoster->hasRequiredApprovals()
+     *     ? WarrantRoster::STATUS_APPROVED
      *     : WarrantRoster::STATUS_PENDING;
      * ```
      *

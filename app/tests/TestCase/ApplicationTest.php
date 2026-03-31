@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 /**
@@ -19,19 +18,18 @@ declare(strict_types=1);
 namespace App\Test\TestCase;
 
 use App\Application;
+use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Cake\Core\Configure;
 use Cake\Error\Middleware\ErrorHandlerMiddleware;
 use Cake\Http\MiddlewareQueue;
 use Cake\Routing\Middleware\AssetMiddleware;
 use Cake\Routing\Middleware\RoutingMiddleware;
-use App\Test\TestCase\Support\HttpIntegrationTestCase;
 
 /**
  * ApplicationTest class
  */
 class ApplicationTest extends HttpIntegrationTestCase
 {
-
     /**
      * Test bootstrap in production.
      *

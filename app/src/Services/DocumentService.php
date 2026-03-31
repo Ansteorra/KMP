@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services;
@@ -14,6 +13,7 @@ use Cake\Http\Response;
 use Cake\Log\Log;
 use Cake\ORM\Locator\LocatorAwareTrait;
 use Exception;
+use Laminas\Diactoros\Stream;
 use Laminas\Diactoros\UploadedFile;
 use League\Flysystem\AwsS3V3\AwsS3V3Adapter;
 use League\Flysystem\Filesystem as FlysystemFilesystem;
@@ -23,10 +23,10 @@ use Throwable;
 
 /**
  * Centralized document management service for file uploads, storage, and retrieval.
- * 
+ *
  * Uses Flysystem to abstract storage operations across local filesystem, Azure Blob Storage, and S3.
  * Configuration via 'Documents' key in config/app_local.php.
- * 
+ *
  * @see \App\Services\ServiceResult Standard service result pattern
  */
 class DocumentService
@@ -216,7 +216,7 @@ class DocumentService
         if (!is_dir($this->localBasePath)) {
             if (!mkdir($this->localBasePath, 0755, true)) {
                 throw new RuntimeException(
-                    sprintf('Failed to create storage directory: %s', $this->localBasePath)
+                    sprintf('Failed to create storage directory: %s', $this->localBasePath),
                 );
             }
         }
@@ -224,7 +224,7 @@ class DocumentService
         // Verify directory is writable
         if (!is_writable($this->localBasePath)) {
             // Attempt to fix permissions
-            if (!@chmod($this->localBasePath, 0755)) {
+            if (!chmod($this->localBasePath, 0755)) {
                 Log::warning('Failed to set permissions on storage directory', [
                     'path' => $this->localBasePath,
                 ]);
@@ -235,8 +235,8 @@ class DocumentService
                 throw new RuntimeException(
                     sprintf(
                         'Storage directory is not writable: %s. Please check directory permissions.',
-                        $this->localBasePath
-                    )
+                        $this->localBasePath,
+                    ),
                 );
             }
         }
@@ -269,6 +269,7 @@ class DocumentService
 
             if (empty($connectionString)) {
                 Log::error('Azure storage connection string not configured for document retrieval');
+
                 return null;
             }
 
@@ -277,9 +278,11 @@ class DocumentService
                 $containerClient = $blobServiceClient->getContainerClient($container);
                 $containerClient->createIfNotExists();
                 $adapter = new AzureBlobStorageAdapter($containerClient, $prefix);
+
                 return new FlysystemFilesystem($adapter);
             } catch (Exception $e) {
                 Log::error('Failed to initialize Azure filesystem for retrieval: ' . $e->getMessage());
+
                 return null;
             }
         } elseif ($adapterType === 's3') {
@@ -296,6 +299,7 @@ class DocumentService
 
             if (empty($bucket)) {
                 Log::error('S3 bucket not configured for document retrieval');
+
                 return null;
             }
 
@@ -304,6 +308,7 @@ class DocumentService
                     'S3 storage adapter dependencies missing for retrieval. ' .
                         'Install with: composer require league/flysystem-aws-s3-v3.',
                 );
+
                 return null;
             }
 
@@ -331,9 +336,11 @@ class DocumentService
 
                 $s3Client = new S3Client($clientConfig);
                 $adapter = new AwsS3V3Adapter($s3Client, $bucket, $prefix);
+
                 return new FlysystemFilesystem($adapter);
             } catch (Throwable $e) {
                 Log::error('Failed to initialize S3 filesystem for retrieval: ' . $e->getMessage());
+
                 return null;
             }
         } elseif ($adapterType === 'local') {
@@ -343,14 +350,17 @@ class DocumentService
 
             if (!is_dir($basePath)) {
                 Log::error('Local storage path does not exist: ' . $basePath);
+
                 return null;
             }
 
             $adapter = new LocalFilesystemAdapter($basePath);
+
             return new FlysystemFilesystem($adapter);
         }
 
         Log::error('Unknown storage adapter type: ' . $adapterType);
+
         return null;
     }
 
@@ -494,7 +504,7 @@ class DocumentService
                     $stats = fstat($resource);
                     $fileSize = $stats['size'] ?? null;
                     // Reattach the resource to the stream
-                    $fileStream = new \Laminas\Diactoros\Stream($resource);
+                    $fileStream = new Stream($resource);
                 }
             } catch (Exception $e) {
                 Log::warning('Could not determine file size for validation', [
@@ -550,7 +560,7 @@ class DocumentService
             Log::error('Failed to store file');
 
             if ($previewTempPath !== null && file_exists($previewTempPath)) {
-                @unlink($previewTempPath);
+                unlink($previewTempPath);
             }
 
             return new ServiceResult(
@@ -594,7 +604,7 @@ class DocumentService
             ]);
 
             if ($previewTempPath !== null && file_exists($previewTempPath)) {
-                @unlink($previewTempPath);
+                unlink($previewTempPath);
             }
 
             return new ServiceResult(
@@ -656,6 +666,7 @@ class DocumentService
                 'document_id' => $document->id,
                 'storage_adapter' => $documentAdapter,
             ]);
+
             return null;
         }
 
@@ -755,6 +766,7 @@ class DocumentService
                 'document_id' => $document->id,
                 'storage_adapter' => $documentAdapter,
             ]);
+
             return null;
         }
 
@@ -827,7 +839,7 @@ class DocumentService
             $encodedFilename = rawurlencode($inlineName);
             $response = $response->withHeader(
                 'Content-Disposition',
-                "inline; filename=\"{$inlineName}\"; filename*=UTF-8''{$encodedFilename}"
+                "inline; filename=\"{$inlineName}\"; filename*=UTF-8''{$encodedFilename}",
             );
 
             return $response;
@@ -899,7 +911,11 @@ class DocumentService
             $fullPath = $basePath . DIRECTORY_SEPARATOR . $relativePath;
             $resolvedPath = realpath($fullPath);
 
-            if ($resolvedPath !== false && file_exists($resolvedPath) && strpos($resolvedPath, realpath($basePath)) === 0) {
+            if (
+                $resolvedPath !== false
+                && file_exists($resolvedPath)
+                && strpos($resolvedPath, realpath($basePath)) === 0
+            ) {
                 $response = new Response();
 
                 return $response->withFile(
@@ -1088,24 +1104,30 @@ class DocumentService
             return new ServiceResult(false, 'Temporary preview image missing.');
         }
 
-        $previewRelativePath = preg_replace('/\\.pdf$/i', '_preview.jpg', $relativePdfPath) ?? ($relativePdfPath . '_preview.jpg');
+        $previewRelativePath = preg_replace(
+            '/\\.pdf$/i',
+            '_preview.jpg',
+            $relativePdfPath,
+        ) ?? $relativePdfPath . '_preview.jpg';
         $sanitizedRelativePath = $this->sanitizePath($previewRelativePath);
 
         try {
             if ($this->adapter === 'local') {
-                $destination = $this->localBasePath . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $sanitizedRelativePath);
+                $destination = $this->localBasePath
+                    . DIRECTORY_SEPARATOR
+                    . str_replace('/', DIRECTORY_SEPARATOR, $sanitizedRelativePath);
                 $directory = dirname($destination);
 
                 if (!is_dir($directory) && !mkdir($directory, 0755, true) && !is_dir($directory)) {
                     return new ServiceResult(false, 'Failed to prepare directory for preview image.');
                 }
 
-                if (file_exists($destination) && !@unlink($destination)) {
+                if (file_exists($destination) && !unlink($destination)) {
                     return new ServiceResult(false, 'Failed to replace existing preview image.');
                 }
 
-                if (!@rename($tempPreviewPath, $destination)) {
-                    if (!@copy($tempPreviewPath, $destination)) {
+                if (!rename($tempPreviewPath, $destination)) {
+                    if (!copy($tempPreviewPath, $destination)) {
                         return new ServiceResult(false, 'Failed to copy preview into storage.');
                     }
                 }
@@ -1129,7 +1151,7 @@ class DocumentService
             return new ServiceResult(false, $e->getMessage());
         } finally {
             if (file_exists($tempPreviewPath)) {
-                @unlink($tempPreviewPath);
+                unlink($tempPreviewPath);
             }
         }
     }

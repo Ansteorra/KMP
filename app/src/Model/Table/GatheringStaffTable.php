@@ -1,9 +1,11 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use ArrayObject;
+use Cake\Datasource\EntityInterface;
+use Cake\Event\EventInterface;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
@@ -16,7 +18,6 @@ use Cake\Validation\Validator;
  *
  * @property \App\Model\Table\GatheringsTable&\Cake\ORM\Association\BelongsTo $Gatherings
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Members
- *
  * @method \App\Model\Entity\GatheringStaff newEmptyEntity()
  * @method \App\Model\Entity\GatheringStaff newEntity(array $data, array $options = [])
  * @method \App\Model\Entity\GatheringStaff[] newEntities(array $data, array $options = [])
@@ -46,7 +47,7 @@ class GatheringStaffTable extends Table
         $this->addBehavior('Timestamp');
         $this->addBehavior('Muffin/Footprint.Footprint');
         $this->addBehavior('Muffin/Trash.Trash', [
-            'field' => 'deleted'
+            'field' => 'deleted',
         ]);
 
         $this->belongsTo('Gatherings', [
@@ -140,8 +141,8 @@ class GatheringStaffTable extends Table
             'memberOrScaName',
             [
                 'errorField' => 'member_id',
-                'message' => 'Must specify either a member or an SCA name, but not both.'
-            ]
+                'message' => 'Must specify either a member or an SCA name, but not both.',
+            ],
         );
 
         // Custom rule: Stewards must have email OR phone
@@ -156,8 +157,8 @@ class GatheringStaffTable extends Table
             'stewardContactInfo',
             [
                 'errorField' => 'email',
-                'message' => 'Stewards must provide either an email address or phone number.'
-            ]
+                'message' => 'Stewards must provide either an email address or phone number.',
+            ],
         );
 
         return $rules;
@@ -197,7 +198,7 @@ class GatheringStaffTable extends Table
      * @param \ArrayObject $options Options
      * @return void
      */
-    public function beforeSave(\Cake\Event\EventInterface $event, \Cake\Datasource\EntityInterface $entity, \ArrayObject $options): void
+    public function beforeSave(EventInterface $event, EntityInterface $entity, ArrayObject $options): void
     {
         // Stewards must always show on public page
         if ($entity->is_steward) {
@@ -209,7 +210,7 @@ class GatheringStaffTable extends Table
             // Only copy if not already provided
             if (empty($entity->email) && empty($entity->phone)) {
                 $member = $this->Members->get($entity->member_id, [
-                    'fields' => ['email_address', 'phone_number']
+                    'fields' => ['email_address', 'phone_number'],
                 ]);
 
                 if (!empty($member->email_address)) {

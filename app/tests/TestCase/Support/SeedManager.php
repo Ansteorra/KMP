@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Support;
@@ -7,6 +6,7 @@ namespace App\Test\TestCase\Support;
 use Cake\Database\Driver\Postgres;
 use Cake\Datasource\ConnectionManager;
 use Cake\TestSuite\Fixture\SchemaLoader;
+use Exception;
 use RuntimeException;
 
 /**
@@ -43,6 +43,7 @@ final class SeedManager
         // For Postgres, migrations create the schema; we skip the MySQL seed.
         if (self::isPostgres($connection)) {
             self::$seedLoaded = true;
+
             return;
         }
 
@@ -77,7 +78,7 @@ final class SeedManager
             $conn = ConnectionManager::get($connection);
 
             return $conn->getDriver() instanceof Postgres;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return false;
         }
     }

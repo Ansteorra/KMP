@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase;
@@ -56,7 +55,7 @@ abstract class BaseTestCase extends TestCase
 
     /**
      * Synthetic test member - Regional Armored Marshal
-     * Email: devon@ampdemo.com  
+     * Email: devon@ampdemo.com
      * SCA Name: Devon Regional Armored Demoer
      * Has roles in Central Region (12) and Southern Region (13)
      */
@@ -281,7 +280,7 @@ abstract class BaseTestCase extends TestCase
         string $table,
         int $expectedCount,
         array $conditions = [],
-        string $message = ''
+        string $message = '',
     ): void {
         $tableObject = $this->getTableLocator()->get($table);
         $query = $tableObject->find();

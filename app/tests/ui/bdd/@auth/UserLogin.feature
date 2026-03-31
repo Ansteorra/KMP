@@ -25,13 +25,13 @@ Feature: User Authentication
 
     Scenario: Successfully log in with valid credentials
         When I enter valid admin credentials
-            | email    | admin@test.com |
-            | password | Password123    |
+            | email    | admin@amp.ansteorra.org |
+            | password | TestPassword            |
         And I submit the login form
         Then I should be successfully logged in
         And I should see the flash message "Welcome Admin von Admin!"
 
     Scenario: When I am logged in I can log out
-        Given I am logged in as "admin@test.com"
+        Given I am logged in as "admin@amp.ansteorra.org"
         When I logout
         Then I should see the login form

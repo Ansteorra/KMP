@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 /**
@@ -30,7 +29,7 @@ class StaticHelpers
      * @return void
      * @throws \Exception When directory creation fails
      */
-    static function ensureDirectoryExists(string $dirname, int $visibility): void
+    public static function ensureDirectoryExists(string $dirname, int $visibility): void
     {
         // Quick return if directory already exists
         if (is_dir($dirname)) {
@@ -41,7 +40,7 @@ class StaticHelpers
         error_clear_last();
 
         // Attempt to create directory recursively with specified permissions
-        if (!@mkdir($dirname, $visibility, true)) {
+        if (!mkdir($dirname, $visibility, true)) {
             // Capture mkdir error for exception message
             $mkdirError = error_get_last();
         }
@@ -69,8 +68,13 @@ class StaticHelpers
      * @param string $moveToDir Destination directory path
      * @return string Full path to scaled image, or empty string on failure
      */
-    static function saveScaledImage(string $imageName, int $newWidth, int $newHeight, string $uploadDir, string $moveToDir): string
-    {
+    public static function saveScaledImage(
+        string $imageName,
+        int $newWidth,
+        int $newHeight,
+        string $uploadDir,
+        string $moveToDir,
+    ): string {
         // Build source image path
         $path = $uploadDir . '/' . $imageName;
 
@@ -145,7 +149,7 @@ class StaticHelpers
      * @return string Random alphanumeric token
      * @see \Cake\Utility\Security::randomString()
      */
-    static function generateToken(int $length = 32): string
+    public static function generateToken(int $length = 32): string
     {
         return Security::randomString($length);
     }
@@ -157,7 +161,7 @@ class StaticHelpers
      * @return bool True if deleted or doesn't exist
      * @throws \Exception If deletion fails
      */
-    static function deleteFile(string $path): bool
+    public static function deleteFile(string $path): bool
     {
         // If file doesn't exist, consider deletion successful (idempotent)
         if (!file_exists($path)) {
@@ -168,7 +172,7 @@ class StaticHelpers
         error_clear_last();
 
         // Attempt to delete file using @ to suppress warnings
-        if (!@unlink($path)) {
+        if (!unlink($path)) {
             // Get the last error that occurred during unlink
             $error = error_get_last();
             throw new Exception($error['message']);
@@ -189,7 +193,7 @@ class StaticHelpers
      * @param mixed $fallback Value if path not found or validation fails
      * @return mixed Extracted value or fallback
      */
-    static function getValue(string $path, mixed $array, $minLength = 0, $fallback = null): mixed
+    public static function getValue(string $path, mixed $array, $minLength = 0, $fallback = null): mixed
     {
         // Split path into navigation segments
         $path = explode('->', $path);
@@ -202,10 +206,10 @@ class StaticHelpers
             // Check for conditional formatting syntax: prefix(key)suffix
             if (strpos($key, '(') !== false) {
                 $key = explode('(', $key);
-                $prepend = $key[0];  // Text before parentheses
+                $prepend = $key[0]; // Text before parentheses
                 $key = explode(')', $key[1]);
                 $postpend = $key[1]; // Text after parentheses
-                $key = $key[0];      // Key inside parentheses
+                $key = $key[0]; // Key inside parentheses
             }
             $temp = &$temp[$key];
         }
@@ -245,7 +249,7 @@ class StaticHelpers
      * @return string Processed template
      * @see getValue()
      */
-    static function processTemplate(string $string, mixed $data, $minLength = 0, $missingValue = ''): string
+    public static function processTemplate(string $string, mixed $data, $minLength = 0, $missingValue = ''): string
     {
         $matches = [];
 
@@ -271,7 +275,7 @@ class StaticHelpers
      * @return bool True if setting equals 'yes'
      * @see getAppSetting()
      */
-    static function pluginEnabled($pluginName): bool
+    public static function pluginEnabled($pluginName): bool
     {
         return self::getAppSetting('Plugin.' . $pluginName . '.Active', 'no') == 'yes';
     }
@@ -287,7 +291,7 @@ class StaticHelpers
      * @throws \Exception Re-throws non-database exceptions
      * @see \App\Model\Table\AppSettingsTable::getAppSetting()
      */
-    static function getAppSetting(string $key, ?string $fallback = null, $type = null, $required = false): mixed
+    public static function getAppSetting(string $key, ?string $fallback = null, $type = null, $required = false): mixed
     {
         try {
             // First priority: Check CakePHP Configure system
@@ -321,7 +325,7 @@ class StaticHelpers
      * @return array Matching settings (key => value), empty on error
      * @see \App\Model\Table\AppSettingsTable::getAllAppSettingsStartWith()
      */
-    static function getAppSettingsStartWith(string $key): array
+    public static function getAppSettingsStartWith(string $key): array
     {
         try {
             // Access AppSettings table for bulk retrieval
@@ -345,7 +349,7 @@ class StaticHelpers
      * @throws \Exception Re-throws non-database exceptions
      * @see \App\Model\Table\AppSettingsTable::deleteAppSetting()
      */
-    static function deleteAppSetting(string $key, bool $forceDelete = false): bool
+    public static function deleteAppSetting(string $key, bool $forceDelete = false): bool
     {
         try {
             // Access AppSettings table for deletion operation
@@ -375,7 +379,7 @@ class StaticHelpers
      * @return bool True if saved successfully
      * @see \App\Model\Table\AppSettingsTable::setAppSetting()
      */
-    static function setAppSetting(string $key, $value, $type = null, $required = false): bool
+    public static function setAppSetting(string $key, $value, $type = null, $required = false): bool
     {
         try {
             // Access AppSettings table for persistence operation
@@ -397,7 +401,7 @@ class StaticHelpers
      * @param array $path Route array with controller, action, optional plugin/params
      * @return string Normalized lowercase path (e.g., "awards/awards/index")
      */
-    static function makePathString($path): string
+    public static function makePathString($path): string
     {
         // Build base path from controller and action
         $pathString = $path['controller'] . '/' . $path['action'];
@@ -425,7 +429,7 @@ class StaticHelpers
      * @param string $escapeChar Escape character (default: '\\')
      * @return string CSV formatted string
      */
-    static function arrayToCsv(array $data, $delimiter = ',', $enclosure = '"', $escapeChar = '\\'): string
+    public static function arrayToCsv(array $data, $delimiter = ',', $enclosure = '"', $escapeChar = '\\'): string
     {
         $csvString = '';
 
@@ -457,7 +461,7 @@ class StaticHelpers
      * @param string $string Input string
      * @return string HTML-safe string for attribute values
      */
-    static function makeSafeForHtmlAttribute($string): string
+    public static function makeSafeForHtmlAttribute($string): string
     {
         return htmlspecialchars($string, ENT_QUOTES, 'UTF-8');
     }
@@ -471,7 +475,7 @@ class StaticHelpers
      * @param string $userAgent The HTTP User-Agent string
      * @return bool True if mobile phone, false otherwise
      */
-    static function isMobilePhone(string $userAgent): bool
+    public static function isMobilePhone(string $userAgent): bool
     {
         // Must have Mobile in UA (excludes tablets)
         if (stripos($userAgent, 'Mobile') === false) {

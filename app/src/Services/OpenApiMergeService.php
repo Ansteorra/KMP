@@ -1,11 +1,11 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services;
 
 use Cake\Core\Plugin;
 use Cake\Log\Log;
+use Exception;
 use Symfony\Component\Yaml\Yaml;
 
 /**
@@ -36,7 +36,7 @@ class OpenApiMergeService
             try {
                 $fragment = Yaml::parseFile($fragmentPath);
                 $base = $this->merge($base, $fragment);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 Log::warning("OpenAPI: failed to merge fragment from {$pluginName}: {$e->getMessage()}");
             }
         }

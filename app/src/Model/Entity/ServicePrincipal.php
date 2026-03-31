@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -14,6 +13,7 @@ use Authorization\Policy\ResultInterface;
 use Cake\ORM\TableRegistry;
 use Cake\Utility\Hash;
 use Cake\Utility\Security;
+use RuntimeException;
 
 /**
  * ServicePrincipal Entity - API Client Identity for Third-Party Integrations
@@ -41,10 +41,14 @@ class ServicePrincipal extends BaseEntity implements
     AuthorizationIdentity,
     AuthenticationIdentity
 {
-    /** @var \Authorization\AuthorizationServiceInterface|null */
+    /**
+     * @var \Authorization\AuthorizationServiceInterface|null
+     */
     protected ?AuthorizationServiceInterface $authorization = null;
 
-    /** @var array|null Cached permissions */
+    /**
+     * @var array|null Cached permissions
+     */
     protected ?array $_permissions = null;
 
     /**
@@ -61,7 +65,9 @@ class ServicePrincipal extends BaseEntity implements
         'modified' => true,
     ];
 
-    /** @var array<string> Fields hidden from serialization */
+    /**
+     * @var array<string> Fields hidden from serialization
+     */
     protected array $_hidden = [
         'client_secret_hash',
     ];
@@ -152,7 +158,7 @@ class ServicePrincipal extends BaseEntity implements
         if ($ipLong === false || $subnetLong === false) {
             return false;
         }
-        $mask = -1 << (32 - $bits);
+        $mask = -1 << 32 - $bits;
 
         return ($ipLong & $mask) === ($subnetLong & $mask);
     }
@@ -176,6 +182,7 @@ class ServicePrincipal extends BaseEntity implements
     public function setAuthorization(AuthorizationServiceInterface $service): self
     {
         $this->authorization = $service;
+
         return $this;
     }
 
@@ -200,7 +207,7 @@ class ServicePrincipal extends BaseEntity implements
     public function can(string $action, mixed $resource, ...$optionalArgs): bool
     {
         if ($this->authorization === null) {
-            throw new \RuntimeException('Authorization service not set on ServicePrincipal');
+            throw new RuntimeException('Authorization service not set on ServicePrincipal');
         }
 
         if (is_string($resource)) {
@@ -223,7 +230,7 @@ class ServicePrincipal extends BaseEntity implements
     public function checkCan(string $action, mixed $resource, ...$optionalArgs): bool
     {
         if ($this->authorization === null) {
-            throw new \RuntimeException('Authorization service not set on ServicePrincipal');
+            throw new RuntimeException('Authorization service not set on ServicePrincipal');
         }
 
         if (is_string($resource)) {
@@ -246,7 +253,7 @@ class ServicePrincipal extends BaseEntity implements
     public function canResult(string $action, mixed $resource, ...$optionalArgs): ResultInterface
     {
         if ($this->authorization === null) {
-            throw new \RuntimeException('Authorization service not set on ServicePrincipal');
+            throw new RuntimeException('Authorization service not set on ServicePrincipal');
         }
 
         if (is_string($resource)) {
@@ -269,7 +276,7 @@ class ServicePrincipal extends BaseEntity implements
     public function applyScope(string $action, mixed $resource, mixed ...$optionalArgs): mixed
     {
         if ($this->authorization === null) {
-            throw new \RuntimeException('Authorization service not set on ServicePrincipal');
+            throw new RuntimeException('Authorization service not set on ServicePrincipal');
         }
 
         return $this->authorization->applyScope($this, $action, $resource, ...$optionalArgs);
@@ -285,6 +292,7 @@ class ServicePrincipal extends BaseEntity implements
         if ($this->_permissions === null) {
             $this->_permissions = PermissionsLoader::getServicePrincipalPermissions($this->id);
         }
+
         return $this->_permissions;
     }
 
@@ -321,6 +329,7 @@ class ServicePrincipal extends BaseEntity implements
                 return true;
             }
         }
+
         return false;
     }
 
@@ -337,6 +346,7 @@ class ServicePrincipal extends BaseEntity implements
         $member = new Member();
         $member->id = null;
         $member->sca_name = '[Service: ' . $this->name . ']';
+
         return $member;
     }
 

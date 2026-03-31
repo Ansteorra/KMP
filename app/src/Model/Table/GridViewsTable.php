@@ -1,9 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\Validation\Validator;
 
@@ -112,6 +112,7 @@ class GridViewsTable extends BaseTable
             ->add('config', 'validJson', [
                 'rule' => function ($value, $context) {
                     json_decode($value);
+
                     return json_last_error() === JSON_ERROR_NONE;
                 },
                 'message' => 'Config must be valid JSON',
@@ -134,13 +135,14 @@ class GridViewsTable extends BaseTable
                 if ($entity->is_system_default && $entity->member_id !== null) {
                     return 'System defaults must not have a member_id';
                 }
+
                 return true;
             },
             'systemDefaultNoMember',
             [
                 'errorField' => 'is_system_default',
                 'message' => 'System defaults must not have a member_id',
-            ]
+            ],
         );
 
         // Only one system default per grid_key
@@ -164,7 +166,7 @@ class GridViewsTable extends BaseTable
             [
                 'errorField' => 'is_system_default',
                 'message' => 'Only one system default allowed per grid',
-            ]
+            ],
         );
 
         // Only one user default per (member_id, grid_key)
@@ -189,7 +191,7 @@ class GridViewsTable extends BaseTable
             [
                 'errorField' => 'is_default',
                 'message' => 'Only one default view allowed per user per grid',
-            ]
+            ],
         );
 
         // Foreign key checks
@@ -210,7 +212,7 @@ class GridViewsTable extends BaseTable
      * @param array<string, mixed> $options Options including 'gridKey' and optionally 'memberId'
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findByGrid($query, array $options)
+    public function findByGrid($query, array $options): SelectQuery
     {
         $gridKey = $options['gridKey'] ?? null;
         $memberId = $options['memberId'] ?? null;
@@ -247,7 +249,7 @@ class GridViewsTable extends BaseTable
      * @param array<string, mixed> $options Options including 'gridKey'
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findSystemDefault($query, array $options)
+    public function findSystemDefault($query, array $options): SelectQuery
     {
         $gridKey = $options['gridKey'] ?? null;
 
@@ -269,7 +271,7 @@ class GridViewsTable extends BaseTable
      * @param array<string, mixed> $options Options including 'gridKey' and 'memberId'
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findUserDefault($query, array $options)
+    public function findUserDefault($query, array $options): SelectQuery
     {
         $gridKey = $options['gridKey'] ?? null;
         $memberId = $options['memberId'] ?? null;

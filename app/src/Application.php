@@ -1,14 +1,13 @@
 <?php
-
 declare(strict_types=1);
 
 /**
  * Kingdom Management Portal (KMP) - Main Application Class
- * 
+ *
  * This file contains the core Application class that bootstraps the entire KMP system.
  * It handles middleware configuration, dependency injection, authentication setup,
  * authorization configuration, and plugin registration.
- * 
+ *
  * The Application class serves as the central orchestrator for:
  * - Middleware stack configuration (security, CSRF, routing, etc.)
  * - Authentication and authorization service setup
@@ -16,28 +15,27 @@ declare(strict_types=1);
  * - Plugin system initialization
  * - Core application settings management
  * - Navigation system registration
- * 
+ *
  * Architecture Pattern: This follows the Application Service pattern with
  * middleware composition, providing a single entry point for all HTTP requests
  * and establishing the security, routing, and service boundaries.
- * 
+ *
  * Security Features:
  * - CSRF protection with secure cookie settings
  * - Comprehensive security headers (CSP, HSTS, XSS protection)
  * - Session-based authentication with form fallback
  * - Role-based authorization with policy resolution
  * - Brute force protection for login attempts
- * 
+ *
  * Performance Considerations:
  * - Table locator optimization for CLI vs web contexts
  * - Asset middleware caching configuration
  * - Service container for dependency injection efficiency
- * 
+ *
  * @copyright Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
  * @link      https://cakephp.org CakePHP(tm) Project
  * @since     3.3.0
  * @license   https://opensource.org/licenses/mit-license.php MIT License
- * 
  * @package   App
  * @author    KMP Development Team
  * @version   25.01.11.a
@@ -50,20 +48,29 @@ namespace App;
 
 // Authentication usings
 
-use App\Services\NavigationRegistry;
-use App\Services\CoreNavigationProvider;
-use App\Services\ViewCellRegistry;
-use App\Services\CoreViewCellProvider;
-use App\KMP\KmpIdentityInterface; // Add this line
+use App\KMP\KmpIdentityInterface;
+// Add this line
 use App\KMP\StaticHelpers;
 // Authorization usings
 use App\Policy\ControllerResolver;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use App\Services\ActiveWindowManager\DefaultActiveWindowManager;
 use App\Services\AuthorizationService as KmpAuthorizationService;
+use App\Services\CoreNavigationProvider;
+use App\Services\CoreViewCellProvider;
 use App\Services\CsvExportService;
-use App\Services\ImpersonationService;
+use App\Services\GatheringActivityService;
+use App\Services\GatheringCloneService;
+use App\Services\GatheringScheduleService;
 use App\Services\ICalendarService;
+use App\Services\ImpersonationService;
+use App\Services\MemberAuthenticationService;
+use App\Services\MemberProfileService;
+use App\Services\MemberRegistrationService;
+use App\Services\MemberSearchService;
+use App\Services\NavigationRegistry;
+use App\Services\QuickLoginDeviceService;
+use App\Services\ViewCellRegistry;
 use App\Services\WarrantManager\DefaultWarrantManager;
 use App\Services\WarrantManager\WarrantManagerInterface;
 use Authentication\AuthenticationService;
@@ -83,7 +90,6 @@ use Cake\Core\Configure;
 use Cake\Core\ContainerInterface;
 use Cake\Datasource\FactoryLocator;
 use Cake\Error\Middleware\ErrorHandlerMiddleware;
-use Cake\Event\EventManager;
 use Cake\Http\BaseApplication;
 use Cake\Http\Middleware\BodyParserMiddleware;
 use Cake\Http\Middleware\CsrfProtectionMiddleware;
@@ -102,7 +108,7 @@ use Psr\Http\Message\ServerRequestInterface;
  *
  * This is the main application class that orchestrates the entire KMP system.
  * It extends CakePHP's BaseApplication to provide KMP-specific functionality
- * including authentication, authorization, middleware configuration, and 
+ * including authentication, authorization, middleware configuration, and
  * dependency injection setup.
  *
  * Key Responsibilities:
@@ -141,7 +147,6 @@ use Psr\Http\Message\ServerRequestInterface;
  * @extends \Cake\Http\BaseApplication<\App\Application>
  * @implements \Authentication\AuthenticationServiceProviderInterface
  * @implements \Authorization\AuthorizationServiceProviderInterface
- * 
  * @see \App\Services\NavigationRegistry Navigation system
  * @see \App\KMP\StaticHelpers Application settings management
  * @see \App\Services\AuthorizationService Custom authorization logic
@@ -214,18 +219,19 @@ class Application extends BaseApplication implements
         // This replaces the old event-based system for better performance
         // The callback approach allows for lazy loading of navigation items
         NavigationRegistry::register(
-            'core',                                                              // Source identifier
-            [],                                                                  // Static navigation items (none for core)
-            function ($user, $params) {                                          // Dynamic callback for navigation generation
+            'core', // Source identifier
+            [], // Static navigation items (none for core)
+            function ($user, $params) {
+                                          // Dynamic callback for navigation generation
                 return CoreNavigationProvider::getNavigationItems($user, $params);
-            }
+            },
         );
 
         // Register core view cells (mobile menu items, etc.)
         ViewCellRegistry::register(
             'core',
             [],
-            [CoreViewCellProvider::class, 'getViewCells']
+            [CoreViewCellProvider::class, 'getViewCells'],
         );
 
         // Version-based application configuration management
@@ -243,54 +249,59 @@ class Application extends BaseApplication implements
             }
 
             // Core KMP Settings - Basic application configuration
-            StaticHelpers::getAppSetting('KMP.BranchInitRun', '', null, true);                           // Tracks branch initialization
-            StaticHelpers::getAppSetting('KMP.KingdomName', 'please_set', null, true);                  // Primary kingdom identifier
+            StaticHelpers::getAppSetting('KMP.BranchInitRun', '', null, true); // Tracks branch initialization
+            StaticHelpers::getAppSetting('KMP.KingdomName', 'please_set', null, true); // Primary kingdom identifier
             StaticHelpers::getAppSetting('KMP.LongSiteTitle', 'Kingdom Management Portal', null, true); // Full application name
-            StaticHelpers::getAppSetting('KMP.ShortSiteTitle', 'KMP', null, true);                      // Abbreviated name for headers
-            StaticHelpers::getAppSetting('KMP.BannerLogo', 'badge.png', null, true);                    // Main site logo
-            StaticHelpers::getAppSetting('KMP.Login.Graphic', 'populace_badge.png', null, true);        // Login page graphic
-            StaticHelpers::getAppSetting('KMP.EnablePublicRegistration', 'yes', null, true);            // Allow public sign-ups
-            StaticHelpers::getAppSetting('KMP.DefaultTimezone', 'America/Chicago', null, true);         // Default timezone for date/time display
-            StaticHelpers::getAppSetting('App.version', '0.0.0', null, true);                           // Application version tracking
+            StaticHelpers::getAppSetting('KMP.ShortSiteTitle', 'KMP', null, true); // Abbreviated name for headers
+            StaticHelpers::getAppSetting('KMP.BannerLogo', 'badge.png', null, true); // Main site logo
+            StaticHelpers::getAppSetting('KMP.Login.Graphic', 'populace_badge.png', null, true); // Login page graphic
+            StaticHelpers::getAppSetting('KMP.EnablePublicRegistration', 'yes', null, true); // Allow public sign-ups
+            StaticHelpers::getAppSetting('KMP.DefaultTimezone', 'America/Chicago', null, true); // Default timezone for date/time display
+            StaticHelpers::getAppSetting('App.version', '0.0.0', null, true); // Application version tracking
 
             // Member Card Display Settings - Visual presentation of member information
-            StaticHelpers::getAppSetting('Member.ViewCard.Graphic', 'auth_card_back.gif', null, true);         // Card background image
-            StaticHelpers::getAppSetting('Member.ViewCard.HeaderColor', 'gold', null, true);                   // Card header color scheme
-            StaticHelpers::getAppSetting('Member.ViewCard.Template', 'view_card', null, true);                 // Desktop card template
-            StaticHelpers::getAppSetting('Member.ViewMobileCard.Template', 'view_mobile_card', null, true);    // Mobile card template
-            StaticHelpers::getAppSetting('Member.MobileCard.ThemeColor', 'gold', null, true);                  // Mobile theme color
-            StaticHelpers::getAppSetting('Member.MobileCard.BgColor', 'gold', null, true);                     // Mobile background color
+            StaticHelpers::getAppSetting('Member.ViewCard.Graphic', 'auth_card_back.gif', null, true); // Card background image
+            StaticHelpers::getAppSetting('Member.ViewCard.HeaderColor', 'gold', null, true); // Card header color scheme
+            StaticHelpers::getAppSetting('Member.ViewCard.Template', 'view_card', null, true); // Desktop card template
+            StaticHelpers::getAppSetting('Member.ViewMobileCard.Template', 'view_mobile_card', null, true); // Mobile card template
+            StaticHelpers::getAppSetting('Member.MobileCard.ThemeColor', 'gold', null, true); // Mobile theme color
+            StaticHelpers::getAppSetting('Member.MobileCard.BgColor', 'gold', null, true); // Mobile background color
 
             // Member Management Email Settings - Contact addresses for various member processes
-            StaticHelpers::getAppSetting('Members.AccountVerificationContactEmail', 'please_set', null, true);  // Account verification support
-            StaticHelpers::getAppSetting('Members.AccountDisabledContactEmail', 'please_set', null, true);      // Disabled account support
-            StaticHelpers::getAppSetting('Members.NewMemberSecretaryEmail', 'member@test.com', null, true);     // New member notifications
-            StaticHelpers::getAppSetting('Members.NewMinorSecretaryEmail', 'minorSet@test.com', null, true);    // Minor member notifications
+            StaticHelpers::getAppSetting('Members.AccountVerificationContactEmail', 'please_set', null, true); // Account verification support
+            StaticHelpers::getAppSetting('Members.AccountDisabledContactEmail', 'please_set', null, true); // Disabled account support
+            StaticHelpers::getAppSetting('Members.NewMemberSecretaryEmail', 'member@test.com', null, true); // New member notifications
+            StaticHelpers::getAppSetting('Members.NewMinorSecretaryEmail', 'minorSet@test.com', null, true); // Minor member notifications
 
             // Email System Configuration - Global email settings
-            StaticHelpers::getAppSetting('Email.SystemEmailFromAddress', 'site@test.com', null, true);  // System sender address
-            StaticHelpers::getAppSetting('Email.SiteAdminSignature', 'site', null, true);               // Default email signature
+            StaticHelpers::getAppSetting('Email.SystemEmailFromAddress', 'site@test.com', null, true); // System sender address
+            StaticHelpers::getAppSetting('Email.SiteAdminSignature', 'site', null, true); // Default email signature
 
             // Activity Management Settings - Event and activity coordination
-            StaticHelpers::getAppSetting('Activity.SecretaryEmail', 'please_set', null, true);  // Activity coordinator email
-            StaticHelpers::getAppSetting('Activity.SecretaryName', 'please_set', null, true);   // Activity coordinator name
+            StaticHelpers::getAppSetting('Activity.SecretaryEmail', 'please_set', null, true); // Activity coordinator email
+            StaticHelpers::getAppSetting('Activity.SecretaryName', 'please_set', null, true); // Activity coordinator name
 
             // Warrant System Configuration - Officer warrant management
-            StaticHelpers::getAppSetting('Warrant.LastCheck', DateTime::now()->subDays(1)->toDateString(), null, true);  // Last warrant validation
-            StaticHelpers::getAppSetting('KMP.RequireActiveWarrantForSecurity', 'yes', null, true);                     // Warrant requirement for security roles
-            StaticHelpers::getAppSetting('Warrant.RosterApprovalsRequired', '2', null, true);                           // Number of approvals needed for roster changes
+            StaticHelpers::getAppSetting('Warrant.LastCheck', DateTime::now()->subDays(1)->toDateString(), null, true); // Last warrant validation
+            StaticHelpers::getAppSetting('KMP.RequireActiveWarrantForSecurity', 'yes', null, true); // Warrant requirement for security roles
+            StaticHelpers::getAppSetting('Warrant.RosterApprovalsRequired', '2', null, true); // Number of approvals needed for roster changes
 
             // Help and Documentation Settings
-            StaticHelpers::getAppSetting('KMP.AppSettings.HelpUrl', 'https://github.com/Ansteorra/KMP/wiki/App-Settings', null, true);  // Settings help URL
+            StaticHelpers::getAppSetting(
+                'KMP.AppSettings.HelpUrl',
+                'https://github.com/Ansteorra/KMP/wiki/App-Settings',
+                null,
+                true,
+            ); // Settings help URL
 
             // Branch Type Configuration - Organizational structure definitions
             // Uses YAML format for complex data structures
             StaticHelpers::getAppSetting('Branches.Types', yaml_emit([
-                'Kingdom',          // Top-level organization
-                'Principality',     // Major subdivision of kingdom
-                'Region',           // Geographic grouping of local groups
-                'Local Group',      // Individual chapters (Barony, Shire, etc.)
-                'N/A',             // Special case for non-geographic roles
+                'Kingdom', // Top-level organization
+                'Principality', // Major subdivision of kingdom
+                'Region', // Geographic grouping of local groups
+                'Local Group', // Individual chapters (Barony, Shire, etc.)
+                'N/A', // Special case for non-geographic roles
             ]), 'yaml', true);
         }
     }
@@ -387,7 +398,7 @@ class Application extends BaseApplication implements
                         $request->getUri()->getPath(),
                         $response->getStatusCode(),
                         $durationMs,
-                        memory_get_peak_usage(true) / 1048576
+                        memory_get_peak_usage(true) / 1048576,
                     ),
                     ['scope' => ['app.performance']],
                 );
@@ -420,21 +431,38 @@ class Application extends BaseApplication implements
                 }
 
                 // Build CSP policy
-                $csp = "default-src 'self'; " .                                              // Default to same origin
-                    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://maps.googleapis.com; " .  // Allow CDN scripts, Leaflet (unpkg), and Google Maps
-                    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://fonts.googleapis.com; " . // Allow Google Fonts and Leaflet CSS
-                    "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net;" .    // Font sources
-                    "img-src 'self' data: https:; " .                                // Allow HTTPS images and data URIs
-                    "connect-src 'self' https://api.github.com https://maps.googleapis.com https://places.googleapis.com https://tile.openstreetmap.org https://a.tile.openstreetmap.org https://b.tile.openstreetmap.org https://c.tile.openstreetmap.org; " .       // AJAX/fetch restrictions - allow GitHub API, Google Maps, Places API, and OpenStreetMap tiles
-                    "frame-src 'self' https://www.google.com; " .                    // iframe restrictions - allow Google Maps embeds
-                    "object-src 'none'; " .                                          // Disable plugins
-                    "base-uri 'self'; " .                                            // Prevent base tag attacks
-                    "form-action 'self'; " .                                         // Form submission restrictions
-                    "frame-ancestors 'self'";                                        // Embedding restrictions
+                $csp = "default-src 'self'; "
+                    // Allow CDN scripts, Leaflet (unpkg), and Google Maps
+                    . "script-src 'self' 'unsafe-inline' 'unsafe-eval' "
+                    . 'https://cdn.jsdelivr.net https://unpkg.com '
+                    . 'https://maps.googleapis.com; '
+                    // Allow Google Fonts and Leaflet CSS
+                    . "style-src 'self' 'unsafe-inline' "
+                    . 'https://cdn.jsdelivr.net https://unpkg.com '
+                    . 'https://fonts.googleapis.com; '
+                    // Font sources
+                    . "font-src 'self' data: https://fonts.gstatic.com "
+                    . 'https://cdn.jsdelivr.net;'
+                    // Allow HTTPS images and data URIs
+                    . "img-src 'self' data: https:; "
+                    // AJAX/fetch restrictions
+                    . "connect-src 'self' https://api.github.com "
+                    . 'https://maps.googleapis.com '
+                    . 'https://places.googleapis.com '
+                    . 'https://tile.openstreetmap.org '
+                    . 'https://a.tile.openstreetmap.org '
+                    . 'https://b.tile.openstreetmap.org '
+                    . 'https://c.tile.openstreetmap.org; '
+                    // iframe restrictions - allow Google Maps embeds
+                    . "frame-src 'self' https://www.google.com; "
+                    . "object-src 'none'; "
+                    . "base-uri 'self'; "
+                    . "form-action 'self'; "
+                    . "frame-ancestors 'self'";
 
                 // Add upgrade-insecure-requests only in production/UAT
                 if (!$isDevelopment) {
-                    $csp .= "; upgrade-insecure-requests";                           // Auto-upgrade HTTP to HTTPS
+                    $csp .= '; upgrade-insecure-requests'; // Auto-upgrade HTTP to HTTPS
                 }
 
                 // Comprehensive Content Security Policy
@@ -446,7 +474,7 @@ class Application extends BaseApplication implements
             // Handles CSS, JS, images, and other static assets
             ->add(
                 new AssetMiddleware([
-                    'cacheTime' => Configure::read('Asset.cacheTime'),  // Use configured cache time
+                    'cacheTime' => Configure::read('Asset.cacheTime'), // Use configured cache time
                 ]),
             )
 
@@ -484,6 +512,7 @@ class Application extends BaseApplication implements
                         }
                     }
                 }
+
                 return $handler->handle($request);
             })
 
@@ -493,12 +522,19 @@ class Application extends BaseApplication implements
             // Documentation: https://book.cakephp.org/4/en/security/csrf.html#cross-site-request-forgery-csrf-middleware
             ->add(
                 (new CsrfProtectionMiddleware([
-                    'httponly' => true,    // Prevent JavaScript access to CSRF cookie
-                    'secure' => filter_var(env('REQUIRE_HTTPS', !Configure::read('debug') ? 'true' : 'false'), FILTER_VALIDATE_BOOLEAN),
-                    'sameSite' => filter_var(env('REQUIRE_HTTPS', !Configure::read('debug') ? 'true' : 'false'), FILTER_VALIDATE_BOOLEAN) ? 'Strict' : 'Lax',
+                    'httponly' => true, // Prevent JavaScript access to CSRF cookie
+                    'secure' => filter_var(
+                        env('REQUIRE_HTTPS', !Configure::read('debug') ? 'true' : 'false'),
+                        FILTER_VALIDATE_BOOLEAN,
+                    ),
+                    'sameSite' => filter_var(
+                        env('REQUIRE_HTTPS', !Configure::read('debug') ? 'true' : 'false'),
+                        FILTER_VALIDATE_BOOLEAN,
+                    ) ? 'Strict' : 'Lax',
                 ]))->skipCheckCallback(function ($request) {
                     // Skip CSRF for API routes (Bearer token provides security)
                     $path = $request->getUri()->getPath();
+
                     return str_starts_with($path, '/api/');
                 }),
             )
@@ -519,12 +555,12 @@ class Application extends BaseApplication implements
                     'requireAuthorizationCheck' => true,
                     // Handle unauthorized access attempts
                     'unauthorizedHandler' => [
-                        'className' => 'ApiAwareRedirect',            // JSON errors for API routes, redirect for web
-                        'url' => '/pages/unauthorized',              // Unauthorized access page
-                        'queryParam' => 'redirectUrl',               // Store original URL for post-login redirect
-                        'exceptions' => [                            // Exception types that trigger redirect
-                            MissingIdentityException::class,         // User not logged in
-                            ForbiddenException::class,               // User lacks permission
+                        'className' => 'ApiAwareRedirect', // JSON errors for API routes, redirect for web
+                        'url' => '/pages/unauthorized', // Unauthorized access page
+                        'queryParam' => 'redirectUrl', // Store original URL for post-login redirect
+                        'exceptions' => [ // Exception types that trigger redirect
+                            MissingIdentityException::class, // User not logged in
+                            ForbiddenException::class, // User lacks permission
                         ],
                     ],
                 ]),
@@ -554,7 +590,7 @@ class Application extends BaseApplication implements
      *
      * 2. **WarrantManagerInterface**: Handles warrant lifecycle management
      *    including creation, approval, expiration, and renewal processes.
-     *    - Implementation: DefaultWarrantManager  
+     *    - Implementation: DefaultWarrantManager
      *    - Dependencies: ActiveWindowManagerInterface (for date management)
      *    - Purpose: Officer warrant processing and workflow management
      *    - Usage: Officer appointments, warrant approvals, roster management
@@ -583,7 +619,7 @@ class Application extends BaseApplication implements
      * @return void
      * @throws \Cake\Core\Exception\CakeException If service registration fails
      * @see \App\Services\ActiveWindowManager\ActiveWindowManagerInterface Date-bounded entity management
-     * @see \App\Services\WarrantManager\WarrantManagerInterface Warrant lifecycle management  
+     * @see \App\Services\WarrantManager\WarrantManagerInterface Warrant lifecycle management
      * @see \App\Services\CsvExportService CSV export functionality
      * @link https://book.cakephp.org/4/en/development/dependency-injection.html CakePHP Dependency Injection
      */
@@ -592,28 +628,40 @@ class Application extends BaseApplication implements
         // Register ActiveWindowManager for date-bounded entity management
         // This service handles entities that have validity periods (start/end dates)
         $container->add(
-            ActiveWindowManagerInterface::class,   // Interface for dependency injection
-            DefaultActiveWindowManager::class,     // Concrete implementation
+            ActiveWindowManagerInterface::class, // Interface for dependency injection
+            DefaultActiveWindowManager::class, // Concrete implementation
         );
 
         // Register WarrantManager for warrant lifecycle management
         // Depends on ActiveWindowManager for handling warrant validity periods
         $container->add(
-            WarrantManagerInterface::class,        // Interface for dependency injection
-            DefaultWarrantManager::class,          // Concrete implementation
-        )->addArgument(ActiveWindowManagerInterface::class);  // Inject ActiveWindowManager dependency
+            WarrantManagerInterface::class, // Interface for dependency injection
+            DefaultWarrantManager::class, // Concrete implementation
+        )->addArgument(ActiveWindowManagerInterface::class); // Inject ActiveWindowManager dependency
 
         // Register CSV export service for data export functionality
         // No dependencies required - provides standalone export capabilities
         $container->add(
-            CsvExportService::class,               // Concrete class (no interface needed)
+            CsvExportService::class, // Concrete class (no interface needed)
         );
         $container->add(
-            ICalendarService::class,               // Concrete class (no interface needed)
+            ICalendarService::class, // Concrete class (no interface needed)
         );
         $container->add(
             ImpersonationService::class,
         );
+
+        // Member services extracted from MembersController
+        $container->add(MemberAuthenticationService::class);
+        $container->add(MemberRegistrationService::class);
+        $container->add(MemberProfileService::class);
+        $container->add(MemberSearchService::class);
+        $container->add(QuickLoginDeviceService::class);
+
+        // Gathering services extracted from GatheringsController
+        $container->add(GatheringActivityService::class);
+        $container->add(GatheringScheduleService::class);
+        $container->add(GatheringCloneService::class);
     }
 
     /**
@@ -673,7 +721,7 @@ class Application extends BaseApplication implements
         ServerRequestInterface $request,
     ): AuthenticationServiceInterface {
         $service = new AuthenticationService();
-        
+
         // Check if this is an API request
         $path = $request->getUri()->getPath();
         $isApiRequest = str_starts_with($path, '/api/');
@@ -701,34 +749,34 @@ class Application extends BaseApplication implements
         // Configure authentication service behavior
         // Defines where users are redirected when authentication is required
         $service->setConfig([
-            'unauthenticatedRedirect' => Router::url([        // Redirect target for unauthenticated users
-                'prefix' => false,                            // No route prefix
-                'plugin' => null,                             // Core application (no plugin)
-                'controller' => 'Members',                    // MembersController
-                'action' => 'login',                          // login action
+            'unauthenticatedRedirect' => Router::url([ // Redirect target for unauthenticated users
+                'prefix' => false, // No route prefix
+                'plugin' => null, // Core application (no plugin)
+                'controller' => 'Members', // MembersController
+                'action' => 'login', // login action
             ]),
-            'queryParam' => 'redirect',                       // Query parameter for post-login redirect URL
+            'queryParam' => 'redirect', // Query parameter for post-login redirect URL
         ]);
 
         // Define credential field mapping for database lookup
         // Maps form field names to database column names
         $fields = [
-            AbstractIdentifier::CREDENTIAL_USERNAME => 'email_address',  // Use email as username
-            AbstractIdentifier::CREDENTIAL_PASSWORD => 'password',       // Password field name
+            AbstractIdentifier::CREDENTIAL_USERNAME => 'email_address', // Use email as username
+            AbstractIdentifier::CREDENTIAL_PASSWORD => 'password', // Password field name
         ];
 
         // Load authenticators in order of precedence
         // Session authenticator should always be first for performance
-        $service->loadAuthenticator('Authentication.Session');          // Check existing sessions first
+        $service->loadAuthenticator('Authentication.Session'); // Check existing sessions first
 
         // Form authenticator handles login form submissions
         $service->loadAuthenticator('Authentication.Form', [
-            'fields' => $fields,                             // Field mapping configuration
-            'loginUrl' => Router::url([                      // Form submission target URL
-                'prefix' => false,                           // No route prefix
-                'plugin' => null,                            // Core application
-                'controller' => 'Members',                   // MembersController
-                'action' => 'login',                         // login action
+            'fields' => $fields, // Field mapping configuration
+            'loginUrl' => Router::url([ // Form submission target URL
+                'prefix' => false, // No route prefix
+                'plugin' => null, // Core application
+                'controller' => 'Members', // MembersController
+                'action' => 'login', // login action
             ]),
         ]);
 
@@ -736,21 +784,21 @@ class Application extends BaseApplication implements
         // This replaces the standard password identifier with enhanced security
         $service->loadIdentifier('KMPBruteForcePassword', [
             'resolver' => [
-                'className' => 'Authentication.Orm',         // Use ORM for database lookups
-                'userModel' => 'Members',                    // Members table for user data
+                'className' => 'Authentication.Orm', // Use ORM for database lookups
+                'userModel' => 'Members', // Members table for user data
             ],
-            'fields' => $fields,                             // Field mapping for credentials
+            'fields' => $fields, // Field mapping for credentials
 
             // Password hasher configuration with fallback support
             // Allows migration from legacy password formats to modern hashing
             'passwordHasher' => [
-                'className' => 'Authentication.Fallback',    // Fallback hasher for migration
+                'className' => 'Authentication.Fallback', // Fallback hasher for migration
                 'hashers' => [
-                    'Authentication.Default',                // Modern bcrypt hashing (preferred)
+                    'Authentication.Default', // Modern bcrypt hashing (preferred)
                     [
-                        'className' => 'Authentication.Legacy',  // Legacy password support
-                        'hashType' => 'md5',                     // Old MD5 hashing (deprecated)
-                        'salt' => false,                         // No salt for legacy MD5
+                        'className' => 'Authentication.Legacy', // Legacy password support
+                        'hashType' => 'md5', // Old MD5 hashing (deprecated)
+                        'salt' => false, // No salt for legacy MD5
                     ],
                 ],
             ],
@@ -781,7 +829,7 @@ class Application extends BaseApplication implements
      *    - Handles data scoping (users only see data they're authorized for)
      *    - Example: MemberPolicy::canView(), BranchPolicy::canEdit()
      *
-     * 2. **Controller Resolver**: Handles controller-level authorization  
+     * 2. **Controller Resolver**: Handles controller-level authorization
      *    - Resolves policies for controller actions
      *    - Provides application-level access control
      *    - Handles complex business logic authorization
@@ -821,8 +869,8 @@ class Application extends BaseApplication implements
     ): AuthorizationServiceInterface {
         // Create resolver collection with multiple authorization strategies
         // Order matters: ORM resolver is checked first, then controller resolver
-        $lastResortResolver = new ControllerResolver();     // Controller-level authorization (fallback)
-        $ormResolver = new OrmResolver();                   // Entity-level authorization (primary)
+        $lastResortResolver = new ControllerResolver(); // Controller-level authorization (fallback)
+        $ormResolver = new OrmResolver(); // Entity-level authorization (primary)
         $resolver = new ResolverCollection([$ormResolver, $lastResortResolver]);
 
         // Return custom authorization service with enhanced functionality

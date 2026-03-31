@@ -471,7 +471,6 @@ class OfficersController extends AppController
      */
     public function officersByWarrantStatus($state)
     {
-
         if ($state != 'current' && $state == 'pending' && $state == 'previous') {
             throw new \Cake\Http\Exception\NotFoundException();
         }

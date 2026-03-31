@@ -26,7 +26,6 @@ class InitActivities extends BaseMigration
      */
     public function up(): void
     {
-
         $this->table("activities_activity_groups", ['id' => false])
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
@@ -316,6 +315,9 @@ class InitActivities extends BaseMigration
         $manager->seed($seeder);
     }
 
+    /**
+     * Reverse the migration.
+     */
     public function down()
     {
         $this->table("activities_authorization_approvals")

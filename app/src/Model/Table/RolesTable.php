@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -33,7 +32,7 @@ class RolesTable extends BaseTable
 
         // Basic table configuration
         $this->setTable('roles');
-        $this->setDisplayField('name');  // Used in form dropdowns and string representation
+        $this->setDisplayField('name'); // Used in form dropdowns and string representation
         $this->setPrimaryKey('id');
 
         // Primary many-to-many relationship with Members through MemberRoles junction
@@ -47,7 +46,7 @@ class RolesTable extends BaseTable
         $this->hasMany('MemberRoles', [
             'foreignKey' => 'role_id',
             'bindingKey' => 'id',
-            'joinType' => 'LEFT',  // Preserves roles even if no assignments exist
+            'joinType' => 'LEFT', // Preserves roles even if no assignments exist
         ]);
 
         // Specialized temporal associations using custom finders
@@ -56,21 +55,21 @@ class RolesTable extends BaseTable
         // Currently active role assignments (within start_on and expires_on dates)
         $this->hasMany('CurrentMemberRoles', [
             'className' => 'MemberRoles',
-            'finder' => 'current',  // Uses custom finder to filter by date
+            'finder' => 'current', // Uses custom finder to filter by date
             'foreignKey' => 'role_id',
         ]);
 
         // Future role assignments (start_on date in the future)
         $this->hasMany('UpcomingMemberRoles', [
             'className' => 'MemberRoles',
-            'finder' => 'upcoming',  // Filters for future start dates
+            'finder' => 'upcoming', // Filters for future start dates
             'foreignKey' => 'role_id',
         ]);
 
         // Expired or completed role assignments
         $this->hasMany('PreviousMemberRoles', [
             'className' => 'MemberRoles',
-            'finder' => 'previous',  // Filters for past/expired assignments
+            'finder' => 'previous', // Filters for past/expired assignments
             'foreignKey' => 'role_id',
         ]);
 
@@ -96,14 +95,14 @@ class RolesTable extends BaseTable
         ]);
 
         // Standard CakePHP behaviors for audit trail and data management
-        $this->addBehavior('Timestamp');       // Automatic created/modified timestamps
-        $this->addBehavior('Muffin/Footprint.Footprint');  // Track who created/modified
-        $this->addBehavior('Muffin/Trash.Trash');          // Soft deletion support
+        $this->addBehavior('Timestamp'); // Automatic created/modified timestamps
+        $this->addBehavior('Muffin/Footprint.Footprint'); // Track who created/modified
+        $this->addBehavior('Muffin/Trash.Trash'); // Soft deletion support
     }
 
     /**
      * Cache invalidation configuration for security-related caches
-     * 
+     *
      * Role changes affect authorization decisions across the system, so we need
      * to invalidate security-related caches when roles are modified. This ensures
      * permission changes take effect immediately.
@@ -123,11 +122,11 @@ class RolesTable extends BaseTable
     {
         // Role name validation - critical for role identification and security
         $validator
-            ->scalar('name')                    // Must be a string value
-            ->maxLength('name', 255)           // Database field limit
+            ->scalar('name') // Must be a string value
+            ->maxLength('name', 255) // Database field limit
             ->requirePresence('name', 'create') // Required when creating new roles
-            ->notEmptyString('name')           // Cannot be empty or whitespace only
-            ->add('name', 'unique', [          // Must be unique across all roles
+            ->notEmptyString('name') // Cannot be empty or whitespace only
+            ->add('name', 'unique', [ // Must be unique across all roles
                 'rule' => 'validateUnique',
                 'provider' => 'table',
             ]);

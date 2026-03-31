@@ -10,6 +10,9 @@ use Cake\ORM\TableRegistry;
 
 class DefaultActiveWindowManager implements ActiveWindowManagerInterface
 {
+    /**
+     * Constructor.
+     */
     public function __construct()
     {
     }
@@ -57,7 +60,16 @@ class DefaultActiveWindowManager implements ActiveWindowManagerInterface
             }
             $previousEntities = $peQuery->all();
             foreach ($previousEntities as $pe) {
-                if (!$this->stop($entityType, $pe->id, $memberId, ActiveWindowBaseEntity::REPLACED_STATUS, '', $startOn)) {
+                if (
+                    !$this->stop(
+                        $entityType,
+                        $pe->id,
+                        $memberId,
+                        ActiveWindowBaseEntity::REPLACED_STATUS,
+                        '',
+                        $startOn,
+                    )
+                ) {
                     return new ServiceResult(false, "Failed to expire current $entityType");
                 }
             }

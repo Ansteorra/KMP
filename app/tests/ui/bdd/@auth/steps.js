@@ -39,51 +39,40 @@ When('I navigate to a protected route {string}', async ({ page }, route) => {
 
 // Form visibility steps  
 Then('I should see the login form', async ({ page }) => {
-    const loginForm = page.locator('form').filter({ hasText: /login|sign in/i });
-    const currentUrl = page.url();
-
-    if (currentUrl.includes('login') || await loginForm.count() > 0) {
-        await expect(loginForm.first()).toBeVisible();
-    }
+    const loginController = page.locator('[data-controller="login-device-auth"]');
+    await expect(loginController).toBeVisible();
 });
 
 Then('I should see the email address field', async ({ page }) => {
-    const emailField = page.locator('input[type="email"], input[name="email_address"]');
-    await expect(emailField).toBeVisible();
+    await expect(page.locator('#email-address')).toBeVisible();
 });
 
 Then('I should see the password field', async ({ page }) => {
-    const passwordField = page.locator('input[type="password"], input[name="password"]');
-    await expect(passwordField).toBeVisible();
+    await expect(page.locator('#password')).toBeVisible();
 });
 
 // Form submission steps
 When('I submit the login form without entering credentials', async ({ page }) => {
-    const submitButton = page.locator('input[type="submit"]');
-    await submitButton.click();
+    await page.locator('input[type="submit"][value="Sign in"]').click();
     await page.waitForTimeout(1000);
 });
 
 When('I enter invalid credentials', async ({ page }, dataTable) => {
     const data = dataTable.rowsHash();
 
-    const emailField = page.locator('input[type="email"], input[name="email_address"]');
-    const passwordField = page.locator('input[type="password"], input[name="password"]');
-
-    await emailField.fill(data.email);
-    await passwordField.fill(data.password);
+    await page.locator('#email-address').fill(data.email);
+    await page.locator('#password').fill(data.password);
 });
 
 When('I enter valid admin credentials', async ({ page }, dataTable) => {
     const data = dataTable.rowsHash();
 
-    await page.getByRole('textbox', { name: 'Email Address' }).fill(data.email);
-    await page.getByRole('textbox', { name: 'Password' }).fill(data.password);
+    await page.locator('#email-address').fill(data.email);
+    await page.locator('#password').fill(data.password);
 });
 
 When('I submit the login form', async ({ page }) => {
-    const submitButton = page.getByRole('button', { name: 'Sign in' });
-    await submitButton.click();
+    await page.locator('input[type="submit"][value="Sign in"]').click();
     await page.waitForTimeout(2000);
 });
 

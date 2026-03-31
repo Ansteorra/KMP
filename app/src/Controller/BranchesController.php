@@ -1,9 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\KMP\GridColumns\BranchesGridColumns;
 use App\KMP\StaticHelpers;
 use App\Services\CsvExportService;
 use Cake\Database\Exception\DatabaseException;
@@ -86,7 +86,7 @@ class BranchesController extends AppController
         // Sort by 'lft' (left value) to maintain hierarchical tree order
         $result = $this->processDataverseGrid([
             'gridKey' => 'Branches.index.main',
-            'gridColumnsClass' => \App\KMP\GridColumns\BranchesGridColumns::class,
+            'gridColumnsClass' => BranchesGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'Branches',
             'defaultSort' => ['Branches.lft' => 'asc'],
@@ -112,7 +112,7 @@ class BranchesController extends AppController
             'gridState' => $result['gridState'],
             'columns' => $result['columnsMetadata'],
             'visibleColumns' => $result['visibleColumns'],
-            'searchableColumns' => \App\KMP\GridColumns\BranchesGridColumns::getSearchableColumns(),
+            'searchableColumns' => BranchesGridColumns::getSearchableColumns(),
             'dropdownFilterColumns' => $result['dropdownFilterColumns'],
             'filterOptions' => $result['filterOptions'],
             'currentFilters' => $result['currentFilters'],
@@ -287,7 +287,10 @@ class BranchesController extends AppController
                 },
                 'Members' => function ($q) {
                     return $q
-                        ->select(['id', 'sca_name', 'branch_id', 'membership_number', 'membership_expires_on', 'status', 'birth_month', 'birth_year'])
+                        ->select([
+                            'id', 'sca_name', 'branch_id', 'membership_number',
+                            'membership_expires_on', 'status', 'birth_month', 'birth_year',
+                        ])
                         ->orderBy(['sca_name' => 'ASC']);
                 },
             ])
@@ -371,7 +374,10 @@ class BranchesController extends AppController
                 },
                 'Members' => function ($q) {
                     return $q
-                        ->select(['id', 'sca_name', 'branch_id', 'membership_number', 'membership_expires_on', 'status', 'birth_month', 'birth_year'])
+                        ->select([
+                            'id', 'sca_name', 'branch_id', 'membership_number',
+                            'membership_expires_on', 'status', 'birth_month', 'birth_year',
+                        ])
                         ->orderBy(['sca_name' => 'ASC']);
                 },
             ])
@@ -450,6 +456,7 @@ class BranchesController extends AppController
                 $branch_types[$branchType] = $branchType;
             }
             $this->set(compact('branch_types'));
+
             return $this->render('view');
         }
     }

@@ -19,7 +19,6 @@ class RolePolicy extends BasePolicy
      * @param mixed ...$optionalArgs Optional arguments.
      * @return bool
      */
-
     public function canDeletePermission(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
     {
         $method = __FUNCTION__;

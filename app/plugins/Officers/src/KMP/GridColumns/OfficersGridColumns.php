@@ -154,6 +154,23 @@ class OfficersGridColumns extends BaseGridColumns
                 'renderField' => 'office.name',
                 'queryField' => 'Offices.name',
                 'description' => 'Office position held',
+                'cellRenderer' => function ($value, $row, $view) {
+                    $officeName = $row->office->name ?? null;
+                    if ($officeName === null) {
+                        return '<span class="text-muted">—</span>';
+                    }
+                    if (!empty($row->deputy_description)) {
+                        $officeName .= ' (' . $row->deputy_description . ')';
+                    }
+                    return h($officeName);
+                },
+                'exportValue' => function ($entity, $columnKey, $columnMeta) {
+                    $officeName = $entity->office->name ?? '';
+                    if (!empty($entity->deputy_description)) {
+                        $officeName .= ' (' . $entity->deputy_description . ')';
+                    }
+                    return $officeName;
+                },
             ],
 
             'deputy_description' => [
@@ -215,6 +232,17 @@ class OfficersGridColumns extends BaseGridColumns
                     ['value' => 'Not Required', 'label' => 'Not Required'],
                 ],
                 'description' => 'Current warrant status for this officer',
+                'cellRenderer' => function ($value, $row, $view) {
+                    $badgeClasses = [
+                        'Active' => 'bg-success',
+                        'Pending' => 'bg-warning text-dark',
+                        'Missing' => 'bg-danger',
+                        'Not Required' => 'bg-secondary',
+                    ];
+                    $class = $badgeClasses[$value] ?? 'bg-secondary';
+                    $text = $value ?? 'Unknown';
+                    return '<span class="badge ' . $class . '">' . h($text) . '</span>';
+                },
             ],
 
             'start_on' => [

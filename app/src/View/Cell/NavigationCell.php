@@ -1,34 +1,32 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\View\Cell;
 
-use App\KMP\StaticHelpers;
 use App\Services\NavigationRegistry;
-use Cake\View\Cell;
 use Cake\Routing\Router;
+use Cake\View\Cell;
 
 /**
  * Navigation cell
- * 
+ *
  * View Cell responsible for building and organizing the complete navigation menu structure
  * for the KMP application. This cell handles the complex logic of organizing navigation
  * items into hierarchical menus with proper active state detection and permission-based filtering.
- * 
+ *
  * The cell works with the NavigationRegistry service to collect navigation items from
  * various plugins and core modules, then organizes them into a structured menu hierarchy
  * with parent categories, main links, and sublinks.
- * 
+ *
  * Key Features:
  * - Dynamic menu generation based on user permissions
  * - Hierarchical organization (Parent > Child > Sublink)
  * - Active state detection for current page highlighting
  * - Plugin-extensible navigation system
  * - Responsive menu structure support
- * 
+ *
  * Template: templates/cell/Navigation/display.php
- * 
+ *
  * @package App\View\Cell
  * @see \App\Services\NavigationRegistry Navigation item collection service
  */
@@ -36,7 +34,7 @@ class NavigationCell extends Cell
 {
     /**
      * List of valid options that can be passed into this cell's constructor.
-     * 
+     *
      * Currently empty as this cell doesn't accept configuration options,
      * but maintained for future extensibility.
      *
@@ -46,35 +44,36 @@ class NavigationCell extends Cell
 
     /**
      * Initialization logic run at the end of object construction.
-     * 
+     *
      * Currently no initialization required, but maintained for
      * potential future setup needs.
      *
      * @return void
      */
-    public function initialize(): void {}
+    public function initialize(): void
+    {
+    }
 
     /**
      * Default display method for building navigation menu
-     * 
+     *
      * Collects navigation items from the NavigationRegistry based on the current user
      * and request context, then organizes them into a hierarchical menu structure.
      * The resulting menu includes proper active state detection and permission filtering.
-     * 
+     *
      * Process Flow:
      * 1. Extract current user and request parameters
      * 2. Collect navigation items from registry (filtered by permissions)
      * 3. Organize items into hierarchical structure
      * 4. Set organized menu for template rendering
-     * 
+     *
      * The menu structure returned includes:
      * - Parent categories with children
      * - Main navigation links
      * - Sublinks under main categories
      * - Active state flags for current page
-     * 
+     *
      * @return void Menu data is set via $this->set() for template access
-     * 
      * @see \App\Services\NavigationRegistry::getNavigationItems() Item collection
      * @see organizeMenu() Menu hierarchy organization
      */
@@ -98,24 +97,23 @@ class NavigationCell extends Cell
 
     /**
      * Organize navigation items into hierarchical menu structure
-     * 
+     *
      * Takes the flat array of navigation items from the registry and organizes them
      * into a hierarchical structure with parents, children, and sublinks. Also handles
      * active state detection based on the current request URL.
-     * 
+     *
      * Menu Organization:
      * - Parent items: Top-level categories (type='parent')
-     * - Main links: Direct children of parents (mergePath length = 1)  
+     * - Main links: Direct children of parents (mergePath length = 1)
      * - Sublinks: Third-level items under main links (mergePath length > 1)
-     * 
+     *
      * Active State Logic:
      * - Marks current page and its parent hierarchy as active
      * - Uses exact URL matching and wildcard pattern matching
      * - Only one active path is marked to prevent conflicts
-     * 
+     *
      * @param array $menuItems Flat array of navigation items from NavigationRegistry
      * @return array Hierarchically organized menu structure with active states
-     * 
      * @example
      * ```php
      * // Input: Flat navigation items
@@ -124,8 +122,8 @@ class NavigationCell extends Cell
      *   ['type' => 'link', 'label' => 'View All', 'mergePath' => ['Members'], 'url' => '/members'],
      *   ['type' => 'link', 'label' => 'Add Member', 'mergePath' => ['Members', 'View All'], 'url' => '/members/add']
      * ]
-     * 
-     * // Output: Hierarchical structure  
+     *
+     * // Output: Hierarchical structure
      * [
      *   'Members' => [
      *     'label' => 'Members',
@@ -137,7 +135,7 @@ class NavigationCell extends Cell
      * ]
      * ```
      */
-    protected function organizeMenu($menuItems, $user)
+    protected function organizeMenu($menuItems, $user): array
     {
         $currentRequestString = $this->request->getUri()->getPath(); //$this->request->getParam('controller') . '/' . $this->request->getParam('action');
         $currentQueryString = $this->request->getUri()->getQuery();
@@ -161,7 +159,7 @@ class NavigationCell extends Cell
             if (isset($item['url'])) {
                 $url = $item['url'];
                 $url['plugin'] = $url['plugin'] ?? false;
-                if (!($user->canAccessUrl($url))) {
+                if (!$user->canAccessUrl($url)) {
                     continue;
                 }
             }
@@ -228,7 +226,8 @@ class NavigationCell extends Cell
                 $sublink['expanded'] = true;
             }
 
-            $parents[$sublink['mergePath'][0]]['children'][$sublink['mergePath'][1]]['sublinks'][$sublink['label']] = $sublink;
+            $parents[$sublink['mergePath'][0]]['children'][$sublink['mergePath'][1]]['sublinks'][$sublink['label']] =
+                $sublink;
         }
         //sort parents by order
         uasort($parents, function ($a, $b) {
@@ -260,38 +259,36 @@ class NavigationCell extends Cell
 
     /**
      * Determine if a navigation link is active based on current request
-     * 
+     *
      * Checks if the given navigation link should be marked as active by comparing
      * its URL and active paths against the current request string. Supports both
      * exact matching and wildcard pattern matching for flexible active state detection.
-     * 
+     *
      * Active State Matching:
      * 1. Exact URL match: Link URL exactly matches current request
      * 2. Active paths: Link defines specific paths that should mark it active
      * 3. Wildcard matching: Paths ending with '*' match URL prefixes
-     * 
+     *
      * @param array $link Navigation link item with 'url' and optional 'activePaths'
      * @param string $currentRequestString Normalized current request path (controller/action/params)
      * @return bool True if the link should be marked as active
-     * 
      * @example
      * ```php
      * // Exact match
      * $link = ['url' => '/members/index'];
      * $current = 'members/index';
      * // Returns: true
-     * 
+     *
      * // Wildcard match
      * $link = ['url' => '/members', 'activePaths' => ['members/*']];
      * $current = 'members/view/123';
      * // Returns: true (matches wildcard pattern)
-     * 
+     *
      * // No match
      * $link = ['url' => '/branches'];
      * $current = 'members/index';
      * // Returns: false
      * ```
-     * 
      * @see \App\KMP\StaticHelpers::makePathString() URL normalization helper
      */
     protected function isActive($link, $currentRequestString): bool
@@ -323,13 +320,27 @@ class NavigationCell extends Cell
         return false;
     }
 
+    /**
+     * Check if has badge.
+     *
+     * @param mixed $link
+     * @param mixed $currentRequestString
+     * @return bool
+     */
     protected function hasBadge($link, $currentRequestString): bool
     {
         if (isset($link['badgeResult']) && ($link['badgeResult'] > 0)) {
             return true;
         }
+
         return false;
     }
+
+    /**
+     * Get badge status.
+     *
+     * @param mixed $badgeConfig
+     */
     protected function getBadgeStatus($badgeConfig)
     {
         if (
@@ -338,7 +349,7 @@ class NavigationCell extends Cell
         ) {
             return call_user_func(
                 [$badgeConfig['class'], $badgeConfig['method']],
-                $badgeConfig['argument']
+                $badgeConfig['argument'],
             );
         } else {
             return (int)$badgeConfig;

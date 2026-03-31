@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Command;
@@ -11,6 +10,7 @@ use Cake\Command\Command;
 use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
+use Exception;
 
 /**
  * CLI backup management: create and restore backups.
@@ -21,11 +21,22 @@ use Cake\Console\ConsoleOptionParser;
  */
 class BackupCommand extends Command
 {
+    /**
+     * Get the default command name.
+     *
+     * @return string
+     */
     public static function defaultName(): string
     {
         return 'backup';
     }
 
+    /**
+     * Configure the command option parser.
+     *
+     * @param \Cake\Console\ConsoleOptionParser $parser
+     * @return \Cake\Console\ConsoleOptionParser
+     */
     protected function buildOptionParser(ConsoleOptionParser $parser): ConsoleOptionParser
     {
         $parser
@@ -47,6 +58,13 @@ class BackupCommand extends Command
         return $parser;
     }
 
+    /**
+     * Execute the command.
+     *
+     * @param \Cake\Console\Arguments $args
+     * @param \Cake\Console\ConsoleIo $io
+     * @return ?int
+     */
     public function execute(Arguments $args, ConsoleIo $io): ?int
     {
         $action = $args->getArgument('action');
@@ -71,6 +89,13 @@ class BackupCommand extends Command
         };
     }
 
+    /**
+     * Do create.
+     *
+     * @param string $key
+     * @param \Cake\Console\ConsoleIo $io
+     * @return int
+     */
     private function doCreate(string $key, ConsoleIo $io): int
     {
         $backupService = new BackupService();
@@ -107,7 +132,7 @@ class BackupCommand extends Command
             ));
 
             return self::CODE_SUCCESS;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $backup->status = 'failed';
             $backup->notes = $e->getMessage();
             $backupsTable->save($backup);
@@ -117,6 +142,14 @@ class BackupCommand extends Command
         }
     }
 
+    /**
+     * Do restore.
+     *
+     * @param string $key
+     * @param \Cake\Console\Arguments $args
+     * @param \Cake\Console\ConsoleIo $io
+     * @return int
+     */
     private function doRestore(string $key, Arguments $args, ConsoleIo $io): int
     {
         $filename = $args->getArgument('file');
@@ -144,11 +177,13 @@ class BackupCommand extends Command
         $backupService = new BackupService();
         $restoreStatusService = new RestoreStatusService();
 
-        if (!$restoreStatusService->acquireLock([
+        if (
+            !$restoreStatusService->acquireLock([
             'source' => $filename,
             'actor' => 'cli',
             'message' => sprintf('CLI restore starting from %s.', $filename),
-        ])) {
+            ])
+        ) {
             $status = $restoreStatusService->getStatus();
             $io->error((string)($status['message'] ?? 'A restore/import is already running.'));
 
@@ -177,7 +212,13 @@ class BackupCommand extends Command
                         'actor' => 'cli',
                     ]));
 
-                    if ($phase === 'table_restored' && isset($progress['tables_processed'], $progress['table_count'], $progress['rows_processed'])) {
+                    if (
+                        $phase === 'table_restored' && isset(
+                            $progress['tables_processed'],
+                            $progress['table_count'],
+                            $progress['rows_processed'],
+                        )
+                    ) {
                         $io->out(sprintf(
                             'Progress: %d/%d tables, %s rows.',
                             (int)$progress['tables_processed'],
@@ -216,7 +257,7 @@ class BackupCommand extends Command
             ));
 
             return self::CODE_SUCCESS;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $restoreStatusService->markFailed('CLI restore failed: ' . $e->getMessage(), [
                 'source' => $filename,
                 'actor' => 'cli',
@@ -229,12 +270,19 @@ class BackupCommand extends Command
         }
     }
 
+    /**
+     * Format bytes.
+     *
+     * @param int $bytes
+     * @return string
+     */
     private function formatBytes(int $bytes): string
     {
         $units = ['B', 'KB', 'MB', 'GB'];
         $i = 0;
         $size = (float)$bytes;
-        while ($size >= 1024 && $i < count($units) - 1) {
+        $unitsCount = count($units) - 1;
+        while ($size >= 1024 && $i < $unitsCount) {
             $size /= 1024;
             $i++;
         }

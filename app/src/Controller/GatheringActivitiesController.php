@@ -1,9 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\KMP\GridColumns\GatheringActivitiesGridColumns;
 use App\Services\CsvExportService;
 
 /**
@@ -51,7 +51,7 @@ class GatheringActivitiesController extends AppController
         // Use unified trait for grid processing
         $result = $this->processDataverseGrid([
             'gridKey' => 'GatheringActivities.index.main',
-            'gridColumnsClass' => \App\KMP\GridColumns\GatheringActivitiesGridColumns::class,
+            'gridColumnsClass' => GatheringActivitiesGridColumns::class,
             'baseQuery' => $this->GatheringActivities->find(),
             'tableName' => 'GatheringActivities',
             'defaultSort' => ['GatheringActivities.name' => 'asc'],
@@ -73,7 +73,7 @@ class GatheringActivitiesController extends AppController
             'gridState' => $result['gridState'],
             'columns' => $result['columnsMetadata'],
             'visibleColumns' => $result['visibleColumns'],
-            'searchableColumns' => \App\KMP\GridColumns\GatheringActivitiesGridColumns::getSearchableColumns(),
+            'searchableColumns' => GatheringActivitiesGridColumns::getSearchableColumns(),
             'dropdownFilterColumns' => $result['dropdownFilterColumns'],
             'filterOptions' => $result['filterOptions'],
             'currentFilters' => $result['currentFilters'],
@@ -113,7 +113,7 @@ class GatheringActivitiesController extends AppController
     public function view($id = null)
     {
         $gatheringActivity = $this->GatheringActivities->get($id, contain: [
-            'Gatherings'
+            'Gatherings',
         ]);
 
         $this->Authorization->authorize($gatheringActivity);
@@ -137,7 +137,7 @@ class GatheringActivitiesController extends AppController
             if ($this->GatheringActivities->save($gatheringActivity)) {
                 $this->Flash->success(__(
                     'The activity "{0}" has been created successfully.',
-                    $gatheringActivity->name
+                    $gatheringActivity->name,
                 ));
 
                 return $this->redirect(['action' => 'index']);
@@ -146,14 +146,14 @@ class GatheringActivitiesController extends AppController
             $errors = $gatheringActivity->getErrors();
             if (!empty($errors)) {
                 $errorMessages = [];
-                foreach ($errors as $field => $fieldErrors) {
+                foreach ($errors as $fieldErrors) {
                     foreach ($fieldErrors as $error) {
                         $errorMessages[] = $error;
                     }
                 }
                 $this->Flash->error(__(
                     'The gathering activity could not be saved: {0}',
-                    implode(', ', $errorMessages)
+                    implode(', ', $errorMessages),
                 ));
             } else {
                 $this->Flash->error(__('The gathering activity could not be saved. Please, try again.'));
@@ -181,7 +181,7 @@ class GatheringActivitiesController extends AppController
             if ($this->GatheringActivities->save($gatheringActivity)) {
                 $this->Flash->success(__(
                     'The activity "{0}" has been updated successfully.',
-                    $gatheringActivity->name
+                    $gatheringActivity->name,
                 ));
 
                 return $this->redirect(['action' => 'view', $id]);
@@ -190,14 +190,14 @@ class GatheringActivitiesController extends AppController
             $errors = $gatheringActivity->getErrors();
             if (!empty($errors)) {
                 $errorMessages = [];
-                foreach ($errors as $field => $fieldErrors) {
+                foreach ($errors as $fieldErrors) {
                     foreach ($fieldErrors as $error) {
                         $errorMessages[] = $error;
                     }
                 }
                 $this->Flash->error(__(
                     'The gathering activity could not be updated: {0}',
-                    implode(', ', $errorMessages)
+                    implode(', ', $errorMessages),
                 ));
             } else {
                 $this->Flash->error(__('The gathering activity could not be saved. Please, try again.'));
@@ -231,9 +231,10 @@ class GatheringActivitiesController extends AppController
 
         if ($gatheringCount > 0) {
             $this->Flash->error(__(
-                'Cannot delete activity "{0}" because it is used by {1} gathering(s). Please remove this activity from those gatherings first.',
+                'Cannot delete activity "{0}" because it is used by {1} gathering(s).'
+                    . ' Please remove this activity from those gatherings first.',
                 $activityName,
-                $gatheringCount
+                $gatheringCount,
             ));
 
             return $this->redirect(['action' => 'index']);
@@ -246,9 +247,10 @@ class GatheringActivitiesController extends AppController
 
         if ($waiverCount > 0) {
             $this->Flash->error(__(
-                'Cannot delete activity "{0}" because it has {1} waiver requirement(s) associated with it. Please remove the waiver requirements first.',
+                'Cannot delete activity "{0}" because it has {1} waiver requirement(s)'
+                    . ' associated with it. Please remove the waiver requirements first.',
                 $activityName,
-                $waiverCount
+                $waiverCount,
             ));
 
             return $this->redirect(['action' => 'index']);
@@ -257,13 +259,13 @@ class GatheringActivitiesController extends AppController
         if ($this->GatheringActivities->delete($gatheringActivity)) {
             $this->Flash->success(__(
                 'The activity "{0}" has been deleted successfully.',
-                $activityName
+                $activityName,
             ));
         } else {
             $errors = $gatheringActivity->getErrors();
             if (!empty($errors)) {
                 $errorMessages = [];
-                foreach ($errors as $field => $fieldErrors) {
+                foreach ($errors as $fieldErrors) {
                     foreach ($fieldErrors as $error) {
                         $errorMessages[] = $error;
                     }
@@ -271,12 +273,12 @@ class GatheringActivitiesController extends AppController
                 $this->Flash->error(__(
                     'The activity "{0}" could not be deleted: {1}',
                     $activityName,
-                    implode(', ', $errorMessages)
+                    implode(', ', $errorMessages),
                 ));
             } else {
                 $this->Flash->error(__(
                     'The activity "{0}" could not be deleted. Please, try again.',
-                    $activityName
+                    $activityName,
                 ));
             }
         }

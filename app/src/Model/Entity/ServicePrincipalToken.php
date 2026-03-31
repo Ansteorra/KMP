@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -39,7 +38,9 @@ class ServicePrincipalToken extends BaseEntity
         'created_by' => true,
     ];
 
-    /** @var array<string> Fields hidden from serialization */
+    /**
+     * @var array<string> Fields hidden from serialization
+     */
     protected array $_hidden = [
         'token_hash',
     ];

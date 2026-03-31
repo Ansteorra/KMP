@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Policy;
@@ -10,7 +9,9 @@ use App\Model\Entity\Permission;
 use Authorization\IdentityInterface;
 use Authorization\Policy\BeforePolicyInterface;
 use Authorization\Policy\ResultInterface;
+use Cake\Log\Log;
 use Cake\ORM\Table;
+use ReflectionMethod;
 
 class BasePolicy implements BeforePolicyInterface
 {
@@ -38,7 +39,7 @@ class BasePolicy implements BeforePolicyInterface
         if (is_array($resource) && $user instanceof KmpIdentityInterface) {
             $method = 'can' . ucfirst($action);
             if (method_exists($this, $method)) {
-                $ref = new \ReflectionMethod($this, $method);
+                $ref = new ReflectionMethod($this, $method);
                 if ($ref->getDeclaringClass()->getName() === self::class) {
                     return $this->_hasPolicyForUrl($user, $method, $resource);
                 }
@@ -94,7 +95,7 @@ class BasePolicy implements BeforePolicyInterface
      * Check if $user can view RolesPermissions
      *
      * @param \App\KMP\KmpIdentityInterface $user The user.
-     * @param \App\Model\Entity\BaseEntity|Cake\ORM\Table $entity
+     * @param \App\Model\Entity\BaseEntity|\App\Policy\Cake\ORM\Table $entity
      * @return bool
      */
     public function canView(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
@@ -118,7 +119,6 @@ class BasePolicy implements BeforePolicyInterface
         return $this->_hasPolicy($user, $method, $entity);
     }
 
-
     /**
      * Check if $user can view role
      *
@@ -131,6 +131,12 @@ class BasePolicy implements BeforePolicyInterface
         return $this->canIndex($user, $entity, ...$optionalArgs);
     }
 
+    /**
+     * Apply scope for index action.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user
+     * @param mixed $query
+     */
     public function scopeIndex(KmpIdentityInterface $user, $query)
     {
         $table = $query->getRepository();
@@ -163,25 +169,33 @@ class BasePolicy implements BeforePolicyInterface
      * @param \App\Model\Entity\BaseEntity|\Cake\ORM\Table $entity
      * @return bool
      */
-    protected function _hasPolicy(KmpIdentityInterface $user, string $policyMethod, BaseEntity|Table $entity, ?int $branchId = null, $grantSource = null): bool
-    {
+    protected function _hasPolicy(
+        KmpIdentityInterface $user,
+        string $policyMethod,
+        BaseEntity|Table $entity,
+        ?int $branchId = null,
+        $grantSource = null,
+    ): bool {
         if ($this->_isSuperUser($user)) {
             return true;
         }
         $policyClass = static::class;
         $policies = $this->_getPolicies($user);
         if (empty($policies)) {
-            \Cake\Log\Log::write('debug', 'No policies found for user: ' . $user->getIdentifier());
+            Log::write('debug', 'No policies found for user: ' . $user->getIdentifier());
+
             return false;
         }
         $policyClassData = $policies[$policyClass] ?? null;
         if (empty($policyClassData)) {
-            \Cake\Log\Log::write('debug', 'No policies found for class: ' . $policyClass);
+            Log::write('debug', 'No policies found for class: ' . $policyClass);
+
             return false;
         }
         $policyMethodData = $policyClassData[$policyMethod] ?? null;
         if (empty($policyMethodData)) {
-            \Cake\Log\Log::write('debug', 'No policies found for method: ' . $policyClass . "-" . $policyMethod);
+            Log::write('debug', 'No policies found for method: ' . $policyClass . '-' . $policyMethod);
+
             return false;
         }
         //check if we have a grant source to check
@@ -190,10 +204,11 @@ class BasePolicy implements BeforePolicyInterface
                 $grantSource->entity_type != $policyMethodData->entity_type
                 || $grantSource->entity_id != $policyMethodData->entity_id
             ) {
-                \Cake\Log\Log::write('debug', 'Grant source does not match policy method data');
-                \Cake\Log\Log::write('debug', 'User: ' . $user->getIdentifier());
-                \Cake\Log\Log::write('debug', 'Policy class: ' . $policyClass);
-                \Cake\Log\Log::write('debug', 'Policy method: ' . $policyMethod);
+                Log::write('debug', 'Grant source does not match policy method data');
+                Log::write('debug', 'User: ' . $user->getIdentifier());
+                Log::write('debug', 'Policy class: ' . $policyClass);
+                Log::write('debug', 'Policy method: ' . $policyMethod);
+
                 return false;
             }
         }
@@ -212,7 +227,8 @@ class BasePolicy implements BeforePolicyInterface
             if (in_array($branchId, $policyMethodData->branch_ids)) {
                 return true;
             }
-            \Cake\Log\Log::write('debug', 'Branch id does not match policy method data');
+            Log::write('debug', 'Branch id does not match policy method data');
+
             return false;
         } else {
             //if the entity is not a base entity, we assume it is a table and we return true
@@ -227,8 +243,13 @@ class BasePolicy implements BeforePolicyInterface
      * @param Array|\Cake\ORM\Table $entity
      * @return bool
      */
-    protected function _hasPolicyForUrl(KmpIdentityInterface $user, string $policyMethod, array $urlProps, ?int $branchId = null, $grantSource = null): bool
-    {
+    protected function _hasPolicyForUrl(
+        KmpIdentityInterface $user,
+        string $policyMethod,
+        array $urlProps,
+        ?int $branchId = null,
+        $grantSource = null,
+    ): bool {
         if ($this->_isSuperUser($user)) {
             return true;
         }
@@ -254,6 +275,7 @@ class BasePolicy implements BeforePolicyInterface
                 return false;
             }
         }
+
         return true;
     }
 

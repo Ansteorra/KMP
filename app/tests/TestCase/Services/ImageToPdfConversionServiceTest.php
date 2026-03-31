@@ -1,11 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services;
 
 use App\Services\ImageToPdfConversionService;
-use Cake\Core\Configure;
 use App\Test\TestCase\BaseTestCase;
 
 /**
@@ -75,7 +73,7 @@ class ImageToPdfConversionServiceTest extends BaseTestCase
         // Clean up tracked temp files (e.g., preview paths)
         foreach ($this->tempFiles as $file) {
             if (file_exists($file)) {
-                @unlink($file);
+                unlink($file);
             }
         }
         $this->tempFiles = [];
@@ -137,6 +135,7 @@ class ImageToPdfConversionServiceTest extends BaseTestCase
     private function outputPath(string $name): string
     {
         $path = $this->testImagesDir . $name;
+
         return $path;
     }
 
@@ -166,7 +165,7 @@ class ImageToPdfConversionServiceTest extends BaseTestCase
             $jpegPath,
             $outputPath,
             'letter',
-            $previewPath
+            $previewPath,
         );
         $this->trackTempFile($previewPath);
 
@@ -312,7 +311,7 @@ class ImageToPdfConversionServiceTest extends BaseTestCase
             $colorPath,
             $outputPath,
             'letter',
-            $previewPath
+            $previewPath,
         );
         $this->trackTempFile($previewPath);
 
@@ -321,7 +320,7 @@ class ImageToPdfConversionServiceTest extends BaseTestCase
 
         // Verify grayscale via the preview JPEG (R == G == B for every sampled pixel)
         if ($previewPath !== null && file_exists($previewPath)) {
-            $preview = @imagecreatefromjpeg($previewPath);
+            $preview = imagecreatefromjpeg($previewPath);
             $this->assertNotFalse($preview, 'Preview should be a loadable JPEG');
             // Sample center pixel
             $rgb = imagecolorat($preview, (int)(imagesx($preview) / 2), (int)(imagesy($preview) / 2));
@@ -352,7 +351,7 @@ class ImageToPdfConversionServiceTest extends BaseTestCase
             $widePath,
             $outputPath,
             'letter',
-            $previewPath
+            $previewPath,
         );
         $this->trackTempFile($previewPath);
 
@@ -365,7 +364,7 @@ class ImageToPdfConversionServiceTest extends BaseTestCase
             $this->assertGreaterThan(
                 $info[1],
                 $info[0],
-                'Preview of a landscape image should be wider than tall'
+                'Preview of a landscape image should be wider than tall',
             );
         }
         $this->assertFileExists($outputPath);
@@ -479,7 +478,7 @@ class ImageToPdfConversionServiceTest extends BaseTestCase
         // Test validation through convertImageToPdf with a non-existent file
         $result = $this->ImageToPdfConversionService->convertImageToPdf(
             '/nonexistent/file.jpg',
-            TMP . 'test_output.pdf'
+            TMP . 'test_output.pdf',
         );
 
         $this->assertFalse($result->isSuccess());
@@ -506,7 +505,7 @@ class ImageToPdfConversionServiceTest extends BaseTestCase
             [$img1, $img2, $img3],
             $outputPath,
             'letter',
-            $previewPath
+            $previewPath,
         );
         $this->trackTempFile($previewPath);
 

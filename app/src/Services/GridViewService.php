@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services;
@@ -137,7 +136,7 @@ class GridViewService
      *
      * @param string $gridKey Grid identifier
      * @param \App\Model\Entity\Member $member Member to check
-     * @return int|string|null Preferred view identifier if set
+     * @return string|int|null Preferred view identifier if set
      */
     public function getUserPreferenceViewId(string $gridKey, Member $member): int|string|null
     {
@@ -199,7 +198,7 @@ class GridViewService
      * @param \App\Model\Entity\Member $member Owner of the view
      * @return \App\Model\Entity\GridView|false
      */
-    public function createView(array $data, Member $member)
+    public function createView(array $data, Member $member): GridView|false
     {
         // Ensure member_id is set correctly
         $data['member_id'] = $member->id;
@@ -223,7 +222,7 @@ class GridViewService
      * @param \App\Model\Entity\Member $member Member making the update
      * @return \App\Model\Entity\GridView|false
      */
-    public function updateView(int $viewId, array $data, Member $member)
+    public function updateView(int $viewId, array $data, Member $member): GridView|false
     {
         $view = $this->getView($viewId, $member);
 
@@ -293,10 +292,11 @@ class GridViewService
      * @param string $gridKey Grid identifier for validation
      * @return bool Success
      */
+
     /**
      * Set a user's default view for a grid. Accepts either int (user view) or string (system view).
      *
-     * @param int|string $viewIdOrKey
+     * @param string|int $viewIdOrKey
      * @param int $memberId
      * @param string $gridKey
      * @return bool
@@ -304,6 +304,7 @@ class GridViewService
     public function setUserDefault($viewIdOrKey, int $memberId, string $gridKey): bool
     {
         $connection = $this->gridViewsTable->getConnection();
+
         return (bool)$connection->transactional(function () use ($viewIdOrKey, $memberId, $gridKey) {
             if (!$this->clearUserDefault($memberId, $gridKey)) {
                 return false;
@@ -337,6 +338,7 @@ class GridViewService
                 $data['grid_view_key'] = $viewIdOrKey;
             }
             $preference = $this->preferencesTable->patchEntity($preference, $data);
+
             return (bool)$this->preferencesTable->save($preference);
         });
     }
@@ -384,6 +386,7 @@ class GridViewService
 
         if ($legacyDefault && $legacyDefault->is_default) {
             $legacyDefault->is_default = false;
+
             return (bool)$this->gridViewsTable->save($legacyDefault);
         }
 
@@ -396,7 +399,7 @@ class GridViewService
      * @param array<string, mixed> $data View data
      * @return \App\Model\Entity\GridView|false
      */
-    public function createSystemDefault(array $data)
+    public function createSystemDefault(array $data): GridView|false
     {
         // Enforce system default properties
         $data['member_id'] = null;

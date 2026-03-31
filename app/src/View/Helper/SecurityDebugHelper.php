@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\View\Helper;
@@ -7,16 +6,16 @@ namespace App\View\Helper;
 use App\KMP\KmpIdentityInterface;
 use App\Model\Entity\Permission;
 use App\Services\AuthorizationService;
-use Cake\View\Helper;
 use Cake\Core\Configure;
+use Cake\View\Helper;
 
 /**
  * Security Debug Helper
- * 
+ *
  * Provides debugging information about user permissions, policies, and authorization checks.
  * Only active when debug mode is enabled. Displays policies with branch scope info
  * and authorization check log from the current request.
- * 
+ *
  * @property \Cake\View\Helper\HtmlHelper $Html
  */
 class SecurityDebugHelper extends Helper
@@ -25,7 +24,7 @@ class SecurityDebugHelper extends Helper
 
     /**
      * Display complete security debug information
-     * 
+     *
      * @param \App\KMP\KmpIdentityInterface|null $user The current user
      * @return string HTML output of security information
      */
@@ -50,7 +49,7 @@ class SecurityDebugHelper extends Helper
 
     /**
      * Display user policies with branch scope information
-     * 
+     *
      * @param \App\KMP\KmpIdentityInterface $user The current user
      * @return string HTML output of user policies
      */
@@ -70,8 +69,12 @@ class SecurityDebugHelper extends Helper
 
         if ($isSuperUser) {
             $output .= '<div class="alert alert-warning mb-3">';
-            $output .= '<strong>⚠️ Super User Detected:</strong> This user has super user privileges and bypasses all policy checks. ';
-            $output .= 'The policies shown below are explicitly assigned, but this user has access to ALL actions regardless of policy assignments.';
+            $output .= '<strong>⚠️ Super User Detected:</strong> '
+                . 'This user has super user privileges and '
+                . 'bypasses all policy checks. ';
+            $output .= 'The policies shown below are explicitly '
+                . 'assigned, but this user has access to ALL '
+                . 'actions regardless of policy assignments.';
             $output .= '</div>';
         }
 
@@ -79,6 +82,7 @@ class SecurityDebugHelper extends Helper
             $msg = $isSuperUser ?
                 'No explicit policies assigned (super user has full access anyway).' :
                 'User has no policies assigned.';
+
             return $output . '<div class="alert alert-info">' . $msg . '</div></div>';
         }
 
@@ -88,7 +92,8 @@ class SecurityDebugHelper extends Helper
             $totalMethods += count($methods);
         }
 
-        $output .= '<p class="text-muted mb-2">Showing ' . count($policies) . ' policy classes with ' . $totalMethods . ' total methods</p>';
+        $output .= '<p class="text-muted mb-2">Showing '
+            . count($policies) . ' policy classes with ' . $totalMethods . ' total methods</p>';
 
         $output .= '<div class="table-responsive">';
         $output .= '<table class="table table-sm table-bordered table-hover">';
@@ -132,7 +137,7 @@ class SecurityDebugHelper extends Helper
 
     /**
      * Display authorization checks that occurred during this request
-     * 
+     *
      * @return string HTML output of authorization checks
      */
     public function displayAuthorizationChecks(): string
@@ -181,7 +186,7 @@ class SecurityDebugHelper extends Helper
 
     /**
      * Format message for no user
-     * 
+     *
      * @return string
      */
     protected function formatNoUserInfo(): string
@@ -191,19 +196,20 @@ class SecurityDebugHelper extends Helper
 
     /**
      * Get short class name from fully qualified class name
-     * 
+     *
      * @param string $className Full class name
      * @return string Short class name
      */
     protected function getShortClassName(string $className): string
     {
         $parts = explode('\\', $className);
+
         return end($parts);
     }
 
     /**
      * Format scoping rule for display
-     * 
+     *
      * @param string $scopingRule The scoping rule constant
      * @return string Formatted scoping rule
      */
@@ -220,7 +226,7 @@ class SecurityDebugHelper extends Helper
 
     /**
      * Format branch IDs for display
-     * 
+     *
      * @param object $policyData Policy data object
      * @return string Formatted branch information
      */
@@ -239,6 +245,7 @@ class SecurityDebugHelper extends Helper
         if (count($branchIds) > 5) {
             $shown = array_slice($branchIds, 0, 5);
             $remaining = count($branchIds) - 5;
+
             return implode(', ', $shown) . ' <small class="text-muted">(+' . $remaining . ' more)</small>';
         }
 

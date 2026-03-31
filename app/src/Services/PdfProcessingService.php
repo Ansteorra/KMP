@@ -1,16 +1,16 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services;
 
 use Cake\Log\Log;
+use Exception;
 use setasign\Fpdi\Fpdi;
 use Smalot\PdfParser\Parser;
 
 /**
  * Handles PDF file operations for waiver uploads.
- * 
+ *
  * Provides PDF validation, page counting, merging, and thumbnail generation.
  * Uses pure PHP libraries (smalot/pdfparser, setasign/fpdi) with no external dependencies.
  */
@@ -26,7 +26,7 @@ class PdfProcessingService
      * Validate that a file is a valid PDF
      *
      * @param string $filePath Path to the PDF file
-     * @return ServiceResult Success with page count in data, or failure with error message
+     * @return \App\Services\ServiceResult Success with page count in data, or failure with error message
      */
     public function validatePdf(string $filePath): ServiceResult
     {
@@ -37,6 +37,7 @@ class PdfProcessingService
         $fileSize = filesize($filePath);
         if ($fileSize > self::MAX_PDF_SIZE) {
             $maxMb = self::MAX_PDF_SIZE / 1024 / 1024;
+
             return new ServiceResult(false, "PDF file exceeds maximum size of {$maxMb}MB");
         }
 
@@ -67,8 +68,9 @@ class PdfProcessingService
                 'page_count' => $pageCount,
                 'file_size' => $fileSize,
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('PDF validation error: ' . $e->getMessage());
+
             return new ServiceResult(false, 'Unable to read PDF file: ' . $e->getMessage());
         }
     }
@@ -85,6 +87,7 @@ class PdfProcessingService
         if (!$result->success) {
             return 0;
         }
+
         return $result->data['page_count'] ?? 0;
     }
 
@@ -93,7 +96,7 @@ class PdfProcessingService
      *
      * @param array $pdfPaths Array of paths to PDF files
      * @param string $outputPath Path for the merged output PDF
-     * @return ServiceResult Success with total page count, or failure with error
+     * @return \App\Services\ServiceResult Success with total page count, or failure with error
      */
     public function mergePdfs(array $pdfInfos, string $outputPath): ServiceResult
     {
@@ -121,6 +124,7 @@ class PdfProcessingService
                 return new ServiceResult(false, 'Failed to copy PDF file');
             }
             $pageCount = $this->getPageCount($outputPath);
+
             return new ServiceResult(true, null, ['page_count' => $pageCount]);
         }
 
@@ -149,10 +153,12 @@ class PdfProcessingService
                         $fpdi->useTemplate($templateId);
                         $totalPages++;
                     }
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     // Check if this is the compression/parser error
-                    if (strpos($e->getMessage(), 'compression technique') !== false ||
-                        strpos($e->getMessage(), 'not supported by the free parser') !== false) {
+                    if (
+                        strpos($e->getMessage(), 'compression technique') !== false ||
+                        strpos($e->getMessage(), 'not supported by the free parser') !== false
+                    ) {
                         Log::warning("Skipping PDF with unsupported compression: {$pdfName}");
                         $skippedFiles[] = $pdfName;
                         continue;
@@ -164,8 +170,15 @@ class PdfProcessingService
 
             if ($totalPages === 0) {
                 if (!empty($skippedFiles)) {
-                    return new ServiceResult(false, 'Could not process PDF files. Some PDFs use compression not supported by this system. Please try uploading images instead, or use a simpler PDF format.');
+                    return new ServiceResult(
+                        false,
+                        'Could not process PDF files. Some PDFs use '
+                        . 'compression not supported by this system. '
+                        . 'Please try uploading images instead, or '
+                        . 'use a simpler PDF format.',
+                    );
                 }
+
                 return new ServiceResult(false, 'No pages found in PDF files');
             }
 
@@ -178,15 +191,16 @@ class PdfProcessingService
             }
 
             return new ServiceResult(true, null, $result);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('PDF merge error: ' . $e->getMessage());
+
             return new ServiceResult(false, 'Failed to merge PDF files: ' . $e->getMessage());
         }
     }
 
     /**
      * Generate a placeholder thumbnail for a PDF
-     * 
+     *
      * Since we don't have ImageMagick/Ghostscript, we create a simple
      * branded placeholder image showing the page count.
      *
@@ -194,10 +208,14 @@ class PdfProcessingService
      * @param string $outputPath Path for the thumbnail image (PNG)
      * @param int $width Thumbnail width in pixels (default: 200)
      * @param int $height Thumbnail height in pixels (default: 260)
-     * @return ServiceResult Success or failure
+     * @return \App\Services\ServiceResult Success or failure
      */
-    public function generateThumbnail(string $pdfPath, string $outputPath, int $width = 200, int $height = 260): ServiceResult
-    {
+    public function generateThumbnail(
+        string $pdfPath,
+        string $outputPath,
+        int $width = 200,
+        int $height = 260,
+    ): ServiceResult {
         $pageCount = $this->getPageCount($pdfPath);
         if ($pageCount === 0) {
             return new ServiceResult(false, 'Unable to read PDF page count');
@@ -238,14 +256,14 @@ class PdfProcessingService
         // Draw lines to represent text
         for ($i = 0; $i < 4; $i++) {
             $lineY = $iconY + 20 + ($i * 12);
-            $lineWidth = ($i === 3) ? 30 : 40;
+            $lineWidth = $i === 3 ? 30 : 40;
             imagefilledrectangle(
                 $image,
                 (int)($iconX + 10),
                 (int)$lineY,
                 (int)($iconX + 10 + $lineWidth),
                 (int)($lineY + 6),
-                $iconColor
+                $iconColor,
             );
         }
 

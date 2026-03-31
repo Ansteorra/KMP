@@ -1,10 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 /**
  * Base controller for KMP application.
- * 
+ *
  * Provides shared functionality: request detection, navigation history,
  * plugin validation, view cell management, and Turbo/AJAX handling.
  *
@@ -35,10 +34,14 @@ class AppController extends Controller
     /** @var string Event for plugin view data enhancement */
     public const VIEW_DATA_EVENT = 'KMP.plugins.callForViewData';
 
-    /** @var array View cells from plugins for current request */
+    /**
+     * @var array View cells from plugins for current request
+     */
     protected array $pluginViewCells = [];
 
-    /** @var bool Whether current request is for CSV export (.csv extension) */
+    /**
+     * @var bool Whether current request is for CSV export (.csv extension)
+     */
     protected bool $isCsvRequest = false;
 
     /**
@@ -57,7 +60,7 @@ class AppController extends Controller
      * Handles: CSV detection, plugin validation, navigation history,
      * view cell loading, and Turbo Frame detection.
      *
-     * @param EventInterface $event The beforeFilter event
+     * @param \Cake\Event\EventInterface $event The beforeFilter event
      * @return \Cake\Http\Response|null|void
      */
     public function beforeFilter(EventInterface $event)
@@ -80,7 +83,12 @@ class AppController extends Controller
                 $this->Flash->error("The plugin $plugin is not enabled.");
                 $currentUser = $this->request->getAttribute('identity');
                 if ($currentUser != null) {
-                    $this->redirect(['plugin' => null, 'controller' => 'Members', 'action' => 'view', $currentUser->id]);
+                    $this->redirect([
+                        'plugin' => null,
+                        'controller' => 'Members',
+                        'action' => 'view',
+                        $currentUser->id,
+                    ]);
                 } else {
                     $this->redirect(['plugin' => null, 'controller' => 'Members', 'action' => 'login']);
                 }
@@ -139,7 +147,8 @@ class AppController extends Controller
         }
 
         // Exclude AJAX/Turbo/POST requests from history
-        $isAjax = $this->request->is('ajax') || $this->request->is('json') || $this->request->is('xml') || $this->request->is('csv');
+        $isAjax = $this->request
+            ->is('ajax') || $this->request->is('json') || $this->request->is('xml') || $this->request->is('csv');
         $turboRequest = $this->request->getHeader('Turbo-Frame') != null;
         $isAjax = $isAjax || $turboRequest;
         if (!$isNoStack) {
@@ -162,7 +171,6 @@ class AppController extends Controller
 
             if ($pageStack[$historyCount - 1] != $currentUrl) {
                 $pageStack[] = $currentUrl;
-                $historyCount++;
             }
         }
 
@@ -181,7 +189,7 @@ class AppController extends Controller
 
         $currentUser = $this->request->getAttribute('identity');
         // ViewCellRegistry expects a Member entity; pass null for non-Member identities (e.g. ServicePrincipal)
-        $memberUser = ($currentUser instanceof Member) ? $currentUser : null;
+        $memberUser = $currentUser instanceof Member ? $currentUser : null;
         $impersonationService = new ImpersonationService();
         $impersonationState = $impersonationService->getState($session);
         $this->pluginViewCells = ViewCellRegistry::getViewCells($urlParams, $memberUser);
@@ -206,7 +214,7 @@ class AppController extends Controller
         } elseif (is_array($recordId) && count($recordId) == 0) {
             $recordId = -1;
         } elseif (is_array($recordId)) {
-            foreach ($recordId as $key => $value) {
+            foreach ($recordId as $value) {
                 $recordId .= $value . ', ';
             }
         }
@@ -265,6 +273,13 @@ class AppController extends Controller
         return $response;
     }
 
+    /**
+     * Check if restore lock bypass route.
+     *
+     * @param string $controller
+     * @param string $action
+     * @return bool
+     */
     private function isRestoreLockBypassRoute(string $controller, string $action): bool
     {
         if ($controller === 'backups' && in_array($action, ['index', 'status', 'restore'], true)) {
@@ -378,6 +393,7 @@ class AppController extends Controller
 
         if ($mode === 'mobile') {
             $this->Flash->success(__('Switched to {0} view.', $mode));
+
             return $this->redirect([
                 'controller' => 'Members',
                 'action' => 'viewMobileCard',

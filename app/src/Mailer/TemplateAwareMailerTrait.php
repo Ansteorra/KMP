@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Mailer;
@@ -9,10 +8,12 @@ use App\Services\EmailTemplateRendererService;
 use Cake\Log\Log;
 use Cake\Mailer\Message;
 use Cake\ORM\Locator\LocatorAwareTrait;
+use Cake\Utility\Inflector;
+use Exception;
 
 /**
  * Trait for using database-stored email templates
- * 
+ *
  * This trait intercepts the email rendering pipeline to use database templates
  * when available, falling back to file-based templates if not found.
  */
@@ -29,7 +30,7 @@ trait TemplateAwareMailerTrait
     public function render(string $content = ''): array
     {
         Log::debug('TemplateAwareMailerTrait::render() called', [
-            'mailer_class' => get_class($this),
+            'mailer_class' => static::class,
             'current_action' => $this->getCurrentAction(),
             'content_length' => strlen($content),
         ]);
@@ -47,7 +48,12 @@ trait TemplateAwareMailerTrait
         if ($dbTemplate !== null && $dbTemplate->is_active) {
             Log::debug('Using database template for rendering (template is active)');
             $result = $this->renderFromDb($dbTemplate, $content);
-            Log::debug('render() returning - HTML: ' . strlen($result[Message::MESSAGE_HTML] ?? '') . ' chars, TEXT: ' . strlen($result[Message::MESSAGE_TEXT] ?? '') . ' chars');
+            $htmlLen = strlen($result[Message::MESSAGE_HTML] ?? '');
+            $textLen = strlen($result[Message::MESSAGE_TEXT] ?? '');
+            Log::debug(
+                'render() returning - HTML: ' . $htmlLen
+                . ' chars, TEXT: ' . $textLen . ' chars',
+            );
 
             // IMPORTANT: Also set the message body directly on the message object
             // This ensures the content is available when the email is sent
@@ -74,7 +80,7 @@ trait TemplateAwareMailerTrait
         // Ensure template name is set correctly (convert camelCase to snake_case)
         $action = $this->getCurrentAction();
         if ($action !== null && empty($this->viewBuilder()->getTemplate())) {
-            $templateName = \Cake\Utility\Inflector::underscore($action);
+            $templateName = Inflector::underscore($action);
             $this->viewBuilder()->setTemplate($templateName);
         }
 
@@ -158,19 +164,20 @@ trait TemplateAwareMailerTrait
         $action = $this->getCurrentAction();
 
         Log::debug('getDbTemplate() called', [
-            'mailer_class' => get_class($this),
+            'mailer_class' => static::class,
             'action' => $action,
         ]);
 
         if (empty($action)) {
             Log::debug('No action found (empty), cannot load template');
+
             return null;
         }
 
         try {
             /** @var \App\Model\Table\EmailTemplatesTable $templatesTable */
             $templatesTable = $this->fetchTable('EmailTemplates');
-            $className = get_class($this);
+            $className = static::class;
 
             Log::debug('Searching for template', [
                 'mailer_class' => $className,
@@ -185,9 +192,9 @@ trait TemplateAwareMailerTrait
             ]);
 
             return $template;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to fetch email template from database', [
-                'mailer_class' => get_class($this),
+                'mailer_class' => static::class,
                 'action' => $action,
                 'error' => $e->getMessage(),
             ]);
@@ -219,7 +226,7 @@ trait TemplateAwareMailerTrait
             }
 
             // Look for a method in this class that's not magic or internal
-            if ($trace['class'] === get_class($this)) {
+            if ($trace['class'] === static::class) {
                 $function = $trace['function'];
 
                 // Skip constructor, magic methods, and trait methods

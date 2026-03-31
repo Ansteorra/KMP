@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\View\Helper;
@@ -14,11 +13,11 @@ use Cake\View\Helper\HtmlHelper;
 
 /**
  * KMP View Helper providing custom UI components and template utilities.
- * 
+ *
  * Features: auto-complete controls, block management, data conversion (CSV),
  * boolean display, application settings access, and navigation cell rendering.
  * Available in templates as $this->Kmp->methodName().
- * 
+ *
  * @see \App\KMP\StaticHelpers For core utility functions
  * @see \App\View\AppView For view integration
  */
@@ -26,18 +25,24 @@ class KmpHelper extends Helper
 {
     /**
      * Main view reference for block management across view cells.
-     * 
-     * @var AppView|null
+     *
+     * @var \App\View\AppView|null
      */
     private static ?AppView $mainView = null;
 
     /**
      * Tracks the currently open block name.
-     * 
+     *
      * @var string
      */
     private static string $currentOpenBlock = '';
 
+    /**
+     * Run before view rendering.
+     *
+     * @param \Cake\Event\Event $event
+     * @return void
+     */
     public function beforeRender(Event $event): void
     {
         // Each cell has its own view, but the first one created is the main
@@ -60,14 +65,13 @@ class KmpHelper extends Helper
 
     /**
      * Convert array data to CSV format for download/export.
-     * 
+     *
      * Delegates to StaticHelpers for consistent CSV formatting across
      * the application. Useful for generating CSV exports from view data.
-     * 
+     *
      * @param array $data Array of data to convert to CSV
      * @return string CSV formatted string
      * @see \App\KMP\StaticHelpers::arrayToCsv() For implementation details
-     * 
      * @example
      * ```php
      * $csvData = $this->Kmp->makeCsv([
@@ -84,7 +88,7 @@ class KmpHelper extends Helper
 
     /**
      * Start a named view block for content organization.
-     * 
+     *
      * @param string $block Name of the block to start
      * @return string Current content of the block (if any)
      */
@@ -99,7 +103,7 @@ class KmpHelper extends Helper
 
     /**
      * End the currently open view block.
-     * 
+     *
      * @return void
      */
     public function endBlock(): void
@@ -111,9 +115,9 @@ class KmpHelper extends Helper
 
     /**
      * Render a combo box control with predefined options.
-     * 
+     *
      * Creates a dropdown with optional custom value entry.
-     * 
+     *
      * @param mixed $Form The CakePHP Form helper instance
      * @param string $inputField Name of the display input field
      * @param string $resultField Name of the hidden field for selected value
@@ -132,7 +136,7 @@ class KmpHelper extends Helper
         ?string $label = null,
         bool $required = false,
         bool $allowOtherValues = false,
-        array $additionalAttrs = []
+        array $additionalAttrs = [],
     ): string {
         return $this->_View->element('comboBoxControl', compact(
             'Form',
@@ -142,16 +146,16 @@ class KmpHelper extends Helper
             'label',
             'required',
             'allowOtherValues',
-            'additionalAttrs'
+            'additionalAttrs',
         ));
     }
 
     /**
      * Render auto complete control using element.
-     * 
+     *
      * Creates an autocomplete input that loads suggestions from a URL endpoint.
      * Uses Stimulus.js autocomplete controller for JavaScript functionality.
-     * 
+     *
      * @param mixed $Form The CakePHP Form helper instance
      * @param string $inputField Name of the display input field
      * @param string $resultField Name of the hidden field for selected value
@@ -172,7 +176,7 @@ class KmpHelper extends Helper
         bool $required = false,
         bool $allowOtherValues = false,
         int $minLength = 1,
-        array $additionalAttrs = []
+        array $additionalAttrs = [],
     ): string {
         return $this->_View->element('autoCompleteControl', compact(
             'Form',
@@ -183,15 +187,15 @@ class KmpHelper extends Helper
             'required',
             'allowOtherValues',
             'minLength',
-            'additionalAttrs'
+            'additionalAttrs',
         ));
     }
 
     /**
      * Returns a boolean icon for visual representation of true/false values.
-     * 
+     *
      * Uses Bootstrap icons: green check-circle-fill for true, red x-circle for false.
-     * 
+     *
      * @param bool $value The boolean value to represent
      * @param \Cake\View\Helper\HtmlHelper $Html CakePHP HTML helper instance
      * @param array $options Additional HTML attributes for the icon
@@ -206,11 +210,11 @@ class KmpHelper extends Helper
 
     /**
      * Render application navigation using cell.
-     * 
+     *
      * Delegates to AppNavCell for main navigation rendering.
-     * 
+     *
      * @param array $appNav Navigation configuration array
-     * @param Member $user Current authenticated user
+     * @param \App\Model\Entity\Member $user Current authenticated user
      * @param array $navBarState Current navigation state
      * @return string Rendered navigation HTML
      */
@@ -221,7 +225,7 @@ class KmpHelper extends Helper
 
     /**
      * Get application setting from the database configuration.
-     * 
+     *
      * @param string $key The setting key to retrieve
      * @param string|null $fallback Default value if setting not found
      * @return mixed The setting value or fallback
@@ -233,7 +237,7 @@ class KmpHelper extends Helper
 
     /**
      * Get application settings that start with a specific key prefix.
-     * 
+     *
      * @param string $key The prefix to search for in setting keys
      * @return array Array of settings where keys start with the prefix
      */
@@ -244,7 +248,7 @@ class KmpHelper extends Helper
 
     /**
      * Get Mix script URL with versioning for cache busting.
-     * 
+     *
      * @param string $script The script filename/path relative to webroot/js
      * @param mixed $Url CakePHP URL helper instance
      * @return string Versioned script URL with hash parameter
@@ -252,27 +256,29 @@ class KmpHelper extends Helper
     public function getMixScriptUrl(string $script, $Url): string
     {
         $url = $Url->script($script);
+
         return (new Mix())($url);
     }
 
     /**
      * Get Mix style URL with versioning for cache busting.
-     * 
-     * @param string $css The CSS filename/path relative to webroot/css  
+     *
+     * @param string $css The CSS filename/path relative to webroot/css
      * @param mixed $Url CakePHP URL helper instance
      * @return string Versioned CSS URL with hash parameter
      */
     public function getMixStyleUrl(string $css, $Url): string
     {
         $url = $Url->css($css);
+
         return (new Mix())($url);
     }
 
     /**
      * Get PHP upload configuration limits in bytes.
-     * 
+     *
      * Returns the smaller of upload_max_filesize and post_max_size.
-     * 
+     *
      * @return array Array with 'maxFileSize' in bytes and 'formatted' human-readable string
      */
     public function getUploadLimits(): array
@@ -296,10 +302,10 @@ class KmpHelper extends Helper
 
     /**
      * Parse PHP size notation to bytes
-     * 
+     *
      * Converts PHP ini size notation (e.g., '25M', '2G', '512K') to bytes.
      * Handles various formats used in php.ini configuration.
-     * 
+     *
      * @param string $size Size string from PHP ini setting
      * @return int Size in bytes
      */
@@ -325,7 +331,7 @@ class KmpHelper extends Helper
 
     /**
      * Format bytes to human-readable string
-     * 
+     *
      * @param int $bytes Size in bytes
      * @param int $precision Decimal precision
      * @return string Formatted size string (e.g., '25MB', '1.5GB')
@@ -334,7 +340,9 @@ class KmpHelper extends Helper
     {
         $units = ['B', 'KB', 'MB', 'GB', 'TB'];
 
-        for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {
+        $unitsCount = count($units) - 1;
+
+        for ($i = 0; $bytes > 1024 && $i < $unitsCount; $i++) {
             $bytes /= 1024;
         }
 

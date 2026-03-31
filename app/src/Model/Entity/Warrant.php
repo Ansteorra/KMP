@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -13,7 +12,6 @@ namespace App\Model\Entity;
  * Lifecycle: Pending → Current → Expired/Deactivated/Cancelled/Declined/Replaced
  *
  * @see /docs/4.3-warrant-lifecycle.md For complete warrant documentation
- *
  * @property int $id Primary key
  * @property int $member_id Member receiving warrant
  * @property int $warrant_roster_id Batch approval reference
@@ -36,9 +34,13 @@ class Warrant extends ActiveWindowBaseEntity
     public const PENDING_STATUS = 'Pending';
     public const DECLINED_STATUS = 'Declined';
 
-    /** @var array<string> Type ID field for ActiveWindow behavior */
+    /**
+     * @var array<string> Type ID field for ActiveWindow behavior
+     */
     public array $typeIdField = ['member_role_id'];
-    /** @var array<string, bool> Mass assignment fields */
+    /**
+     * @var array<string, bool> Mass assignment fields
+     */
     protected array $_accessible = [
         'member_id' => true,
         'warrant_roster_id' => true,

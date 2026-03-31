@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services\ActiveWindowManager;
@@ -27,13 +26,13 @@ interface ActiveWindowManagerInterface
      * @param string $entityType Table name (e.g., 'MemberRoles', 'Activities')
      * @param int $entityId Entity primary key ID
      * @param int $memberId Member performing action (audit trail)
-     * @param DateTime $startOn When window should begin
-     * @param DateTime|null $expiresOn When window should end (null = no expiration)
+     * @param \Cake\I18n\DateTime $startOn When window should begin
+     * @param \Cake\I18n\DateTime|null $expiresOn When window should end (null = no expiration)
      * @param int|null $termYears Alternative: calculate end from term length
      * @param int|null $grantRoleId Optional role to grant when window starts
      * @param bool $closeExisting Auto-close overlapping existing windows
      * @param int|null $branchId Branch context for role assignments
-     * @return ServiceResult Success/failure with details
+     * @return \App\Services\ServiceResult Success/failure with details
      */
     public function start(
         string $entityType,
@@ -58,8 +57,8 @@ interface ActiveWindowManagerInterface
      * @param int $memberId Member stopping window (audit trail)
      * @param string $status Final status code (DEACTIVATED_STATUS, etc.)
      * @param string $reason Explanation for stopping
-     * @param DateTime $expiresOn When window should terminate
-     * @return ServiceResult Success/failure with details
+     * @param \Cake\I18n\DateTime $expiresOn When window should terminate
+     * @return \App\Services\ServiceResult Success/failure with details
      */
     public function stop(
         string $entityType,

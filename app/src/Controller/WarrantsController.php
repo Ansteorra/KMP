@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
@@ -7,11 +6,10 @@ namespace App\Controller;
 use App\KMP\GridColumns\WarrantsGridColumns;
 use App\Model\Entity\Warrant;
 use App\Services\CsvExportService;
-use App\Services\GridViewService;
 use App\Services\WarrantManager\WarrantManagerInterface;
 use Cake\Http\Exception\NotFoundException;
-use Cake\I18n\FrozenDate;
 use Cake\I18n\DateTime;
+use Cake\I18n\FrozenDate;
 
 /**
  * Manages warrant lifecycle: listing, filtering, deactivation, and CSV export.
@@ -56,7 +54,9 @@ class WarrantsController extends AppController
      *
      * @return \Cake\Http\Response|null|void
      */
-    public function index() {}
+    public function index()
+    {
+    }
 
     /**
      * Index DV - Dataverse-style warrant grid with nested turbo-frames
@@ -78,7 +78,7 @@ class WarrantsController extends AppController
         // Use unified trait for grid processing (system views mode)
         $result = $this->processDataverseGrid([
             'gridKey' => 'Warrants.index.main',
-            'gridColumnsClass' => \App\KMP\GridColumns\WarrantsGridColumns::class,
+            'gridColumnsClass' => WarrantsGridColumns::class,
             'baseQuery' => $this->Warrants->find(),
             'tableName' => 'Warrants',
             'defaultSort' => ['Warrants.start_on' => 'ASC', 'Members.sca_name' => 'ASC'],
@@ -118,7 +118,7 @@ class WarrantsController extends AppController
         // Use unified trait for grid processing (system views mode)
         $result = $this->processDataverseGrid([
             'gridKey' => 'Warrants.index.main',
-            'gridColumnsClass' => \App\KMP\GridColumns\WarrantsGridColumns::class,
+            'gridColumnsClass' => WarrantsGridColumns::class,
             'baseQuery' => $this->Warrants->find(),
             'tableName' => 'Warrants',
             'defaultSort' => ['Warrants.start_on' => 'ASC', 'Members.sca_name' => 'ASC'],
@@ -145,7 +145,7 @@ class WarrantsController extends AppController
             'gridState' => $result['gridState'],
             'columns' => $result['columnsMetadata'],
             'visibleColumns' => $result['visibleColumns'],
-            'searchableColumns' => \App\KMP\GridColumns\WarrantsGridColumns::getSearchableColumns(),
+            'searchableColumns' => WarrantsGridColumns::getSearchableColumns(),
             'dropdownFilterColumns' => $result['dropdownFilterColumns'],
             'filterOptions' => $result['filterOptions'],
             'currentFilters' => $result['currentFilters'],
@@ -204,34 +204,34 @@ class WarrantsController extends AppController
             case 'current':
                 // Active warrants providing RBAC temporal validation
                 $warrantsQuery = $warrantsQuery->where([
-                    'Warrants.expires_on >=' => $today,           // Not expired
-                    'Warrants.start_on <=' => $today,             // Already started
-                    'Warrants.status' => Warrant::CURRENT_STATUS  // Active status
+                    'Warrants.expires_on >=' => $today, // Not expired
+                    'Warrants.start_on <=' => $today, // Already started
+                    'Warrants.status' => Warrant::CURRENT_STATUS, // Active status
                 ]);
                 break;
             case 'upcoming':
                 // Future warrants scheduled for activation
                 $warrantsQuery = $warrantsQuery->where([
-                    'Warrants.start_on >' => $today,              // Future start date
-                    'Warrants.status' => Warrant::CURRENT_STATUS  // Approved status
+                    'Warrants.start_on >' => $today, // Future start date
+                    'Warrants.status' => Warrant::CURRENT_STATUS, // Approved status
                 ]);
                 break;
             case 'pending':
                 // Warrants awaiting approval through roster system
                 $warrantsQuery = $warrantsQuery->where([
-                    'Warrants.status' => Warrant::PENDING_STATUS
+                    'Warrants.status' => Warrant::PENDING_STATUS,
                 ]);
                 break;
             case 'previous':
                 // Expired or administratively terminated warrants
                 $warrantsQuery = $warrantsQuery->where([
                     'OR' => [
-                        'Warrants.expires_on <' => $today,        // Expired by date
-                        'Warrants.status IN ' => [                // Terminated by admin
+                        'Warrants.expires_on <' => $today, // Expired by date
+                        'Warrants.status IN ' => [ // Terminated by admin
                             Warrant::DEACTIVATED_STATUS,
-                            Warrant::EXPIRED_STATUS
-                        ]
-                    ]
+                            Warrant::EXPIRED_STATUS,
+                        ],
+                    ],
                 ]);
                 break;
         }
@@ -242,7 +242,7 @@ class WarrantsController extends AppController
         // CSV export for filtered warrant data
         if ($this->isCsvRequest()) {
             return $csvExportService->outputCsv(
-                $warrantsQuery->order(['Members.sca_name' => 'asc']),  // Alphabetical order
+                $warrantsQuery->order(['Members.sca_name' => 'asc']), // Alphabetical order
                 'warrants.csv',
             );
         }
@@ -294,15 +294,15 @@ class WarrantsController extends AppController
                 'revoker_id',
                 'warrant_roster_id',
                 'status',
-                'revoked_reason'
+                'revoked_reason',
             ])
             // Optimize association loading
             ->contain([
                 'Members' => function ($q) {
-                    return $q->select(['id', 'sca_name']);  // Member identification
+                    return $q->select(['id', 'sca_name']); // Member identification
                 },
                 'RevokedBy' => function ($q) {
-                    return $q->select(['id', 'sca_name']);  // Revocation audit
+                    return $q->select(['id', 'sca_name']); // Revocation audit
                 },
             ]);
     }
@@ -328,7 +328,7 @@ class WarrantsController extends AppController
         // Load warrant with member data for authorization context
         $warrant = $this->Warrants->find()
             ->where(['Warrants.id' => $id])
-            ->contain(['Members'])                  // Load for authorization
+            ->contain(['Members']) // Load for authorization
             ->first();
 
         // Validate warrant exists
@@ -341,20 +341,22 @@ class WarrantsController extends AppController
 
         // Delegate to WarrantManager service for business logic
         $wResult = $wService->cancel(
-            (int)$id,                                       // Warrant ID
-            'Deactivated from Warrant List',                // Audit reason
+            (int)$id, // Warrant ID
+            'Deactivated from Warrant List', // Audit reason
             $this->Authentication->getIdentity()->get('id'), // Administrator ID
-            DateTime::now()                                 // Deactivation timestamp
+            DateTime::now(), // Deactivation timestamp
         );
 
         // Handle service result and provide user feedback
         if (!$wResult->success) {
             $this->Flash->error($wResult->reason);
+
             return $this->redirect($this->referer());
         }
 
         // Success feedback and redirect
         $this->Flash->success(__('The warrant has been deactivated.'));
+
         return $this->redirect($this->referer());
     }
 }

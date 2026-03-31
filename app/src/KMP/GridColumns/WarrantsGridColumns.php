@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\KMP\GridColumns;
@@ -105,13 +104,34 @@ class WarrantsGridColumns extends BaseGridColumns
                 'width' => '140px',
                 'alignment' => 'center',
                 'filterOptions' => [
-                    ['value' => ActiveWindowBaseEntity::CURRENT_STATUS, 'label' => ActiveWindowBaseEntity::CURRENT_STATUS],
-                    ['value' => ActiveWindowBaseEntity::UPCOMING_STATUS, 'label' => ActiveWindowBaseEntity::UPCOMING_STATUS],
-                    ['value' => ActiveWindowBaseEntity::EXPIRED_STATUS, 'label' => ActiveWindowBaseEntity::EXPIRED_STATUS],
-                    ['value' => ActiveWindowBaseEntity::DEACTIVATED_STATUS, 'label' => ActiveWindowBaseEntity::DEACTIVATED_STATUS],
-                    ['value' => ActiveWindowBaseEntity::RELEASED_STATUS, 'label' => ActiveWindowBaseEntity::RELEASED_STATUS],
-                    ['value' => ActiveWindowBaseEntity::REPLACED_STATUS, 'label' => ActiveWindowBaseEntity::REPLACED_STATUS],
-                    ['value' => ActiveWindowBaseEntity::CANCELLED_STATUS, 'label' => ActiveWindowBaseEntity::CANCELLED_STATUS],
+                    [
+                        'value' => ActiveWindowBaseEntity::CURRENT_STATUS,
+                        'label' => ActiveWindowBaseEntity::CURRENT_STATUS,
+                    ],
+                    [
+                        'value' => ActiveWindowBaseEntity::UPCOMING_STATUS,
+                        'label' => ActiveWindowBaseEntity::UPCOMING_STATUS,
+                    ],
+                    [
+                        'value' => ActiveWindowBaseEntity::EXPIRED_STATUS,
+                        'label' => ActiveWindowBaseEntity::EXPIRED_STATUS,
+                    ],
+                    [
+                        'value' => ActiveWindowBaseEntity::DEACTIVATED_STATUS,
+                        'label' => ActiveWindowBaseEntity::DEACTIVATED_STATUS,
+                    ],
+                    [
+                        'value' => ActiveWindowBaseEntity::RELEASED_STATUS,
+                        'label' => ActiveWindowBaseEntity::RELEASED_STATUS,
+                    ],
+                    [
+                        'value' => ActiveWindowBaseEntity::REPLACED_STATUS,
+                        'label' => ActiveWindowBaseEntity::REPLACED_STATUS,
+                    ],
+                    [
+                        'value' => ActiveWindowBaseEntity::CANCELLED_STATUS,
+                        'label' => ActiveWindowBaseEntity::CANCELLED_STATUS,
+                    ],
                     ['value' => Warrant::PENDING_STATUS, 'label' => Warrant::PENDING_STATUS],
                     ['value' => Warrant::DECLINED_STATUS, 'label' => Warrant::DECLINED_STATUS],
                 ],
@@ -152,7 +172,7 @@ class WarrantsGridColumns extends BaseGridColumns
     {
         return array_filter(
             static::getColumns(),
-            fn($col) => !empty($col['defaultVisible'])
+            fn($col) => !empty($col['defaultVisible']),
         );
     }
 
@@ -167,6 +187,7 @@ class WarrantsGridColumns extends BaseGridColumns
                 $required[] = $key;
             }
         }
+
         return $required;
     }
 

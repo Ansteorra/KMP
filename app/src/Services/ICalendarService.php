@@ -1,11 +1,14 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services;
 
+use App\KMP\TimezoneHelper;
 use App\Model\Entity\Gathering;
 use Cake\I18n\DateTime;
+use DateTime as NativeDateTime;
+use DateTimeZone;
+use Exception;
 
 /**
  * iCalendar Service
@@ -58,8 +61,8 @@ class ICalendarService
         $lines[] = 'DTSTAMP:' . $this->formatDateTime($now);
 
         // Convert UTC stored dates to gathering's timezone for proper display
-        $startInTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, null, null, $gathering);
-        $endInTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, null, null, $gathering);
+        $startInTz = TimezoneHelper::toUserTimezone($gathering->start_date, null, null, $gathering);
+        $endInTz = TimezoneHelper::toUserTimezone($gathering->end_date, null, null, $gathering);
 
         // Event dates - use full date-time format with timezone
         if ($timezone !== 'UTC') {
@@ -185,8 +188,8 @@ class ICalendarService
         $now = DateTime::now();
         $lines[] = 'DTSTAMP:' . $this->formatDateTime($now);
 
-        $startInTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, null, null, $gathering);
-        $endInTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, null, null, $gathering);
+        $startInTz = TimezoneHelper::toUserTimezone($gathering->start_date, null, null, $gathering);
+        $endInTz = TimezoneHelper::toUserTimezone($gathering->end_date, null, null, $gathering);
 
         if ($timezone !== 'UTC') {
             $lines[] = 'DTSTART;TZID=' . $timezone . ':' . $startInTz->format('Ymd\THis');
@@ -257,8 +260,8 @@ class ICalendarService
 
         // Show formatted date/time in gathering's timezone
         if (!empty($gathering->timezone)) {
-            $startInTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, null, null, $gathering);
-            $endInTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, null, null, $gathering);
+            $startInTz = TimezoneHelper::toUserTimezone($gathering->start_date, null, null, $gathering);
+            $endInTz = TimezoneHelper::toUserTimezone($gathering->end_date, null, null, $gathering);
 
             $parts[] = '';
             $parts[] = 'Start: ' . $startInTz->format('l, F j, Y g:i A T');
@@ -313,7 +316,8 @@ class ICalendarService
     protected function formatDateTime(DateTime $dateTime): string
     {
         // Convert to UTC for iCalendar standard
-        $utc = $dateTime->setTimezone(new \DateTimeZone('UTC'));
+        $utc = $dateTime->setTimezone(new DateTimeZone('UTC'));
+
         return $utc->format('Ymd\THis\Z');
     }
 
@@ -372,16 +376,19 @@ class ICalendarService
                 $line .= '\n';
             }
 
-            while (strlen($part) > 0) {
+            $partLen = strlen($part);
+            while ($partLen > 0) {
                 $remaining = $maxLength - strlen($line);
 
-                if (strlen($part) <= $remaining) {
+                if ($partLen <= $remaining) {
                     $line .= $part;
                     $part = '';
+                    $partLen = 0;
                 } else {
                     $chunk = substr($part, 0, $remaining);
                     $line .= $chunk;
                     $part = substr($part, $remaining);
+                    $partLen = strlen($part);
 
                     // Add line with folding
                     $result .= $line . "\r\n ";
@@ -426,16 +433,16 @@ class ICalendarService
         $lines = [];
 
         try {
-            $tz = new \DateTimeZone($timezoneId);
+            $tz = new DateTimeZone($timezoneId);
 
             // Get transitions for the current year and next year to handle DST properly
-            $now = new \DateTime('now', $tz);
-            $startOfYear = new \DateTime('first day of january this year', $tz);
-            $endOfNextYear = new \DateTime('last day of december next year', $tz);
+            $now = new NativeDateTime('now', $tz);
+            $startOfYear = new NativeDateTime('first day of january this year', $tz);
+            $endOfNextYear = new NativeDateTime('last day of december next year', $tz);
 
             $transitions = $tz->getTransitions(
                 $startOfYear->getTimestamp(),
-                $endOfNextYear->getTimestamp()
+                $endOfNextYear->getTimestamp(),
             );
 
             if (empty($transitions)) {
@@ -465,7 +472,7 @@ class ICalendarService
                         continue; // Skip the first entry (it's a reference point)
                     }
 
-                    $dt = new \DateTime($transition['time']);
+                    $dt = new NativeDateTime($transition['time']);
                     $isDst = $transition['isdst'];
                     $offset = $transition['offset'];
                     $prevOffset = $transitions[$i - 1]['offset'];
@@ -475,14 +482,14 @@ class ICalendarService
                             'dtstart' => $dt->format('Ymd\THis'),
                             'offsetfrom' => $this->formatTimezoneOffset($prevOffset),
                             'offsetto' => $this->formatTimezoneOffset($offset),
-                            'tzname' => $transition['abbr']
+                            'tzname' => $transition['abbr'],
                         ];
                     } elseif (!$isDst && $standard === null) {
                         $standard = [
                             'dtstart' => $dt->format('Ymd\THis'),
                             'offsetfrom' => $this->formatTimezoneOffset($prevOffset),
                             'offsetto' => $this->formatTimezoneOffset($offset),
-                            'tzname' => $transition['abbr']
+                            'tzname' => $transition['abbr'],
                         ];
                     }
                 }
@@ -509,7 +516,7 @@ class ICalendarService
 
                 $lines[] = 'END:VTIMEZONE';
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // If timezone generation fails, return empty array
             // The calendar will fall back to UTC
             return [];

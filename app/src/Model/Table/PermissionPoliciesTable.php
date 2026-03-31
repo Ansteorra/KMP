@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -35,14 +34,14 @@ class PermissionPoliciesTable extends BaseTable
 
         // Basic table configuration
         $this->setTable('permission_policies');
-        $this->setDisplayField('policy_class');  // Used in form dropdowns, shows policy class name
+        $this->setDisplayField('policy_class'); // Used in form dropdowns, shows policy class name
         $this->setPrimaryKey('id');
 
         // Required association with Permissions - policies must have valid permissions
         // Uses INNER JOIN to ensure all policies have associated permissions
         $this->belongsTo('Permissions', [
             'foreignKey' => 'permission_id',
-            'joinType' => 'INNER',  // Enforces that policies must have valid permissions
+            'joinType' => 'INNER', // Enforces that policies must have valid permissions
         ]);
     }
 
@@ -59,35 +58,35 @@ class PermissionPoliciesTable extends BaseTable
     {
         // Permission ID validation - must reference valid permission
         $validator
-            ->integer('permission_id')           // Must be integer value
-            ->notEmptyString('permission_id');   // Required field
+            ->integer('permission_id') // Must be integer value
+            ->notEmptyString('permission_id'); // Required field
 
         // Policy class validation - must be valid class name
         $validator
-            ->scalar('policy_class')                    // Must be string value
-            ->maxLength('policy_class', 255)           // Database field limit
+            ->scalar('policy_class') // Must be string value
+            ->maxLength('policy_class', 255) // Database field limit
             ->requirePresence('policy_class', 'create') // Required when creating policies
-            ->notEmptyString('policy_class');          // Cannot be empty
+            ->notEmptyString('policy_class'); // Cannot be empty
 
         // Policy method validation - must be valid method name
         $validator
-            ->scalar('policy_method')                    // Must be string value
-            ->maxLength('policy_method', 255)           // Database field limit
+            ->scalar('policy_method') // Must be string value
+            ->maxLength('policy_method', 255) // Database field limit
             ->requirePresence('policy_method', 'create') // Required when creating policies
-            ->notEmptyString('policy_method');          // Cannot be empty
+            ->notEmptyString('policy_method'); // Cannot be empty
 
         return $validator;
     }
 
     /**
      * Cache configuration for permission policy data
-     * 
+     *
      * Policy changes affect authorization decisions, so we need to invalidate
      * security-related caches when policy associations are modified.
      */
-    protected const CACHES_TO_CLEAR = [];           // No specific caches to clear
-    protected const ID_CACHES_TO_CLEAR = [];       // No ID-based caches to clear
-    protected const CACHE_GROUPS_TO_CLEAR = ['security'];  // Clear security cache group
+    protected const CACHES_TO_CLEAR = []; // No specific caches to clear
+    protected const ID_CACHES_TO_CLEAR = []; // No ID-based caches to clear
+    protected const CACHE_GROUPS_TO_CLEAR = ['security']; // Clear security cache group
 
     /**
      * Business rules for permission policy data integrity

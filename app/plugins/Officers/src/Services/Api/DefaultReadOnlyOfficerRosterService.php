@@ -10,6 +10,15 @@ use Cake\ORM\TableRegistry;
 
 class DefaultReadOnlyOfficerRosterService implements ReadOnlyOfficerRosterServiceInterface
 {
+    /**
+     * List all records.
+     *
+     * @param KmpIdentityInterface $identity
+     * @param array $filters
+     * @param int $page
+     * @param int $limit
+     * @return array
+     */
     public function list(KmpIdentityInterface $identity, array $filters, int $page, int $limit): array
     {
         $table = TableRegistry::getTableLocator()->get('Officers.Officers');
@@ -62,6 +71,13 @@ class DefaultReadOnlyOfficerRosterService implements ReadOnlyOfficerRosterServic
         ];
     }
 
+    /**
+     * Get by id.
+     *
+     * @param KmpIdentityInterface $identity
+     * @param int $id
+     * @return ?array
+     */
     public function getById(KmpIdentityInterface $identity, int $id): ?array
     {
         $row = TableRegistry::getTableLocator()->get('Officers.Officers')->find()
@@ -78,6 +94,13 @@ class DefaultReadOnlyOfficerRosterService implements ReadOnlyOfficerRosterServic
         return $this->formatOfficer($row, true);
     }
 
+    /**
+     * Format officer.
+     *
+     * @param object $row
+     * @param bool $detailed
+     * @return array
+     */
     protected function formatOfficer(object $row, bool $detailed = false): array
     {
         $payload = [
@@ -106,6 +129,13 @@ class DefaultReadOnlyOfficerRosterService implements ReadOnlyOfficerRosterServic
         return $payload;
     }
 
+    /**
+     * Assert that can view.
+     *
+     * @param KmpIdentityInterface $identity
+     * @param object $entity
+     * @return void
+     */
     protected function assertCanView(KmpIdentityInterface $identity, object $entity): void
     {
         if (!$identity->can('view', $entity)) {

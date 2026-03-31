@@ -68,16 +68,24 @@ class ResetDatabaseCommand extends Command
 
                 // Get all tables based on database driver
                 if (stripos($driverName, 'mysql') !== false) {
-                    $query = $db->execute('SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ?', [$dbConfig['database']]);
+                    $query = $db->execute(
+                        'SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ?',
+                        [$dbConfig['database']],
+                    );
                     $tables = $query->fetchAll(PDO::FETCH_COLUMN);
                 } elseif (stripos($driverName, 'postgres') !== false) {
                     $query = $db->execute("SELECT tablename FROM pg_tables WHERE schemaname = 'public'");
                     $tables = $query->fetchAll(PDO::FETCH_COLUMN);
                 } elseif (stripos($driverName, 'sqlite') !== false) {
-                    $query = $db->execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
+                    $query =
+                        $db->execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
                     $tables = $query->fetchAll(PDO::FETCH_COLUMN);
                 } elseif (stripos($driverName, 'sqlserver') !== false) {
-                    $query = $db->execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_SCHEMA = 'dbo'");
+                    $query = $db->execute(
+                        'SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES '
+                        . "WHERE TABLE_TYPE = 'BASE TABLE' "
+                        . "AND TABLE_SCHEMA = 'dbo'",
+                    );
                     $tables = $query->fetchAll(PDO::FETCH_COLUMN);
                 } else {
                     // Fallback to original method for unsupported databases

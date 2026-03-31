@@ -1,14 +1,15 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\KMP\GridColumns\EmailTemplatesGridColumns;
 use App\Services\CsvExportService;
-use App\Services\MailerDiscoveryService;
 use App\Services\EmailTemplateRendererService;
-use Cake\Http\Exception\NotFoundException;
+use App\Services\MailerDiscoveryService;
+use Cake\Event\EventInterface;
 use Cake\Log\Log;
+use Cake\Utility\Inflector;
 
 /**
  * EmailTemplates Controller
@@ -38,7 +39,7 @@ class EmailTemplatesController extends AppController
      * @param \Cake\Event\EventInterface $event The beforeFilter event.
      * @return \Cake\Http\Response|null|void
      */
-    public function beforeFilter(\Cake\Event\EventInterface $event)
+    public function beforeFilter(EventInterface $event)
     {
         parent::beforeFilter($event);
 
@@ -75,7 +76,7 @@ class EmailTemplatesController extends AppController
         // Use unified trait for grid processing
         $result = $this->processDataverseGrid([
             'gridKey' => 'EmailTemplates.index.main',
-            'gridColumnsClass' => \App\KMP\GridColumns\EmailTemplatesGridColumns::class,
+            'gridColumnsClass' => EmailTemplatesGridColumns::class,
             'baseQuery' => $this->EmailTemplates->find(),
             'tableName' => 'EmailTemplates',
             'defaultSort' => ['EmailTemplates.mailer_class' => 'asc'],
@@ -97,7 +98,7 @@ class EmailTemplatesController extends AppController
             'gridState' => $result['gridState'],
             'columns' => $result['columnsMetadata'],
             'visibleColumns' => $result['visibleColumns'],
-            'searchableColumns' => \App\KMP\GridColumns\EmailTemplatesGridColumns::getSearchableColumns(),
+            'searchableColumns' => EmailTemplatesGridColumns::getSearchableColumns(),
             'dropdownFilterColumns' => $result['dropdownFilterColumns'],
             'filterOptions' => $result['filterOptions'],
             'currentFilters' => $result['currentFilters'],
@@ -230,7 +231,7 @@ class EmailTemplatesController extends AppController
         // Get current method info for reference
         $methodInfo = $discoveryService->getMailerMethodInfo(
             $emailTemplate->mailer_class,
-            $emailTemplate->action_method
+            $emailTemplate->action_method,
         );
 
         $this->set(compact('emailTemplate', 'allMailers', 'methodInfo'));
@@ -281,7 +282,7 @@ class EmailTemplatesController extends AppController
                 // Check if template already exists
                 $existing = $this->EmailTemplates->findForMailer(
                     $mailer['class'],
-                    $method['name']
+                    $method['name'],
                 );
 
                 if ($existing !== null) {
@@ -315,7 +316,7 @@ class EmailTemplatesController extends AppController
         $this->Flash->success(__(
             'Synchronization complete. Created {0} new templates, skipped {1} existing templates.',
             $created,
-            $skipped
+            $skipped,
         ));
 
         return $this->redirect(['action' => 'index']);
@@ -390,7 +391,7 @@ class EmailTemplatesController extends AppController
         $actionMethod = $emailTemplate->action_method;
 
         // Convert action method from camelCase to snake_case for file names
-        $templateName = \Cake\Utility\Inflector::underscore($actionMethod);
+        $templateName = Inflector::underscore($actionMethod);
 
         // Convert class name to path
         if (str_starts_with($mailerClass, 'App\\Mailer\\')) {
@@ -451,6 +452,7 @@ class EmailTemplatesController extends AppController
             function ($matches) {
                 // Strip $ prefix from variable names in the condition
                 $condition = preg_replace('/\$([a-zA-Z_][a-zA-Z0-9_]*)/', '$1', $matches[1]);
+
                 return '{{#if ' . trim($condition) . '}}';
             },
             $content,
@@ -467,7 +469,10 @@ class EmailTemplatesController extends AppController
 
         // Strip PHP elseif blocks and warn — not supported in the safe DSL
         if (preg_match('/<\?php\s+elseif\s*\((.+?)\)\s*:\s*\?>/', $content)) {
-            Log::warning('Email template conversion encountered <?php elseif (...) : ?> block — stripping (not supported in safe DSL)');
+            Log::warning(
+                'Email template conversion encountered <?php elseif (...) : ?>'
+                . ' block \xe2\x80\x94 stripping (not supported in safe DSL)',
+            );
             $content = preg_replace('/<\?php\s+elseif\s*\((.+?)\)\s*:\s*\?>/', '', $content);
         }
 

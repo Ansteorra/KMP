@@ -55,7 +55,6 @@ class BranchOfficersCell extends Cell
      */
     public function display($id)
     {
-
         $branch = $this->fetchTable("Branches")
             ->find('byPublicId', [$id])
             ->select(['id', 'parent_id', 'type', 'domain'])

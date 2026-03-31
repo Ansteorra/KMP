@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -35,7 +34,7 @@ class PermissionsTable extends BaseTable
 
         // Basic table configuration
         $this->setTable('permissions');
-        $this->setDisplayField('name');  // Used in form dropdowns and string representation
+        $this->setDisplayField('name'); // Used in form dropdowns and string representation
         $this->setPrimaryKey('id');
 
         // Many-to-many relationship with Roles through roles_permissions junction
@@ -50,25 +49,25 @@ class PermissionsTable extends BaseTable
         // Uses replace strategy for efficient policy management
         $this->hasMany('PermissionPolicies', [
             'foreignKey' => 'permission_id',
-            'saveStrategy' => 'replace',  // Replaces all policies when saving
+            'saveStrategy' => 'replace', // Replaces all policies when saving
         ]);
 
         // Standard CakePHP behaviors for audit trail and data management
-        $this->addBehavior('Timestamp');       // Automatic created/modified timestamps
-        $this->addBehavior('Muffin/Footprint.Footprint');  // Track who created/modified
-        $this->addBehavior('Muffin/Trash.Trash');          // Soft deletion support
+        $this->addBehavior('Timestamp'); // Automatic created/modified timestamps
+        $this->addBehavior('Muffin/Footprint.Footprint'); // Track who created/modified
+        $this->addBehavior('Muffin/Trash.Trash'); // Soft deletion support
     }
 
     /**
      * Cache configuration for permission-related data
-     * 
+     *
      * Permissions are at the core of the authorization system, so changes need
      * to trigger appropriate cache invalidation to ensure security decisions
      * are based on current data.
      */
-    protected const CACHES_TO_CLEAR = [];           // No specific caches to clear
-    protected const ID_CACHES_TO_CLEAR = [];       // No ID-based caches to clear
-    protected const CACHE_GROUPS_TO_CLEAR = ['security'];  // Clear security cache group
+    protected const CACHES_TO_CLEAR = []; // No specific caches to clear
+    protected const ID_CACHES_TO_CLEAR = []; // No ID-based caches to clear
+    protected const CACHE_GROUPS_TO_CLEAR = ['security']; // Clear security cache group
 
     /**
      * Default validation rules for permission data
@@ -83,25 +82,25 @@ class PermissionsTable extends BaseTable
     {
         // Permission name validation - critical for permission identification
         $validator
-            ->scalar('name')                    // Must be a string value
-            ->maxLength('name', 255)           // Database field limit
+            ->scalar('name') // Must be a string value
+            ->maxLength('name', 255) // Database field limit
             ->requirePresence('name', 'create') // Required when creating new permissions
-            ->notEmptyString('name');          // Cannot be empty or whitespace only
+            ->notEmptyString('name'); // Cannot be empty or whitespace only
 
         // Membership requirement flag validation
         $validator
-            ->boolean('require_active_membership')    // Must be boolean value
-            ->notEmptyString('require_active_membership');  // Required field
+            ->boolean('require_active_membership') // Must be boolean value
+            ->notEmptyString('require_active_membership'); // Required field
 
         // Background check requirement flag validation
         $validator
-            ->boolean('require_active_background_check')    // Must be boolean value
-            ->notEmptyString('require_active_background_check');  // Required field
+            ->boolean('require_active_background_check') // Must be boolean value
+            ->notEmptyString('require_active_background_check'); // Required field
 
         // Minimum age requirement validation
         $validator
-            ->integer('require_min_age')       // Must be integer value
-            ->notEmptyString('require_min_age');  // Required field (0 = no age requirement)
+            ->integer('require_min_age') // Must be integer value
+            ->notEmptyString('require_min_age'); // Required field (0 = no age requirement)
 
         // System permission flag validation
         $validator->boolean('is_system')->notEmptyString('is_system');

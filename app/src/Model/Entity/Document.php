@@ -1,10 +1,7 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
-
-use Cake\ORM\Entity;
 
 /**
  * Document Entity
@@ -73,6 +70,7 @@ class Document extends BaseEntity
         }
 
         $decoded = json_decode($this->metadata, true);
+
         return is_array($decoded) ? $decoded : null;
     }
 
@@ -87,7 +85,8 @@ class Document extends BaseEntity
         $units = ['B', 'KB', 'MB', 'GB'];
         $unitIndex = 0;
 
-        while ($bytes >= 1024 && $unitIndex < count($units) - 1) {
+        $unitsCount = count($units) - 1;
+        while ($bytes >= 1024 && $unitIndex < $unitsCount) {
             $bytes /= 1024;
             $unitIndex++;
         }

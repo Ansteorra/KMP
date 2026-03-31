@@ -30,6 +30,11 @@ class AddViewOfficersPermission extends BaseMigration
         $tbl->save($perm);
     }
 
+    /**
+     * Reverse the migration.
+     *
+     * @return void
+     */
     public function down(): void
     {
         $tbl = TableRegistry::getTableLocator()->get('Permissions');

@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\KMP\GridColumns;
@@ -29,7 +28,10 @@ class PermissionsGridColumns extends BaseGridColumns
                 'description' => __('System-defined permissions'),
                 'canManage' => false,
                 'config' => [
-                    'columns' => ['name', 'scoping_rule', 'require_active_membership', 'require_active_background_check', 'is_super_user'],
+                    'columns' => [
+                        'name', 'scoping_rule', 'require_active_membership',
+                        'require_active_background_check', 'is_super_user',
+                    ],
                     'filters' => [
                         ['field' => 'is_system', 'operator' => 'eq', 'value' => '1'],
                     ],
@@ -41,7 +43,10 @@ class PermissionsGridColumns extends BaseGridColumns
                 'description' => __('User-defined permissions'),
                 'canManage' => false,
                 'config' => [
-                    'columns' => ['name', 'scoping_rule', 'require_active_membership', 'require_active_background_check', 'requires_warrant'],
+                    'columns' => [
+                        'name', 'scoping_rule', 'require_active_membership',
+                        'require_active_background_check', 'requires_warrant',
+                    ],
                     'filters' => [
                         ['field' => 'is_system', 'operator' => 'eq', 'value' => '0'],
                     ],
@@ -53,7 +58,10 @@ class PermissionsGridColumns extends BaseGridColumns
                 'description' => __('Permissions requiring a warrant'),
                 'canManage' => false,
                 'config' => [
-                    'columns' => ['name', 'scoping_rule', 'require_active_membership', 'require_active_background_check', 'is_system'],
+                    'columns' => [
+                        'name', 'scoping_rule', 'require_active_membership',
+                        'require_active_background_check', 'is_system',
+                    ],
                     'filters' => [
                         ['field' => 'requires_warrant', 'operator' => 'eq', 'value' => '1'],
                     ],
@@ -108,7 +116,10 @@ class PermissionsGridColumns extends BaseGridColumns
                 'filterOptions' => [
                     ['value' => Permission::SCOPE_GLOBAL, 'label' => Permission::SCOPE_GLOBAL],
                     ['value' => Permission::SCOPE_BRANCH_ONLY, 'label' => Permission::SCOPE_BRANCH_ONLY],
-                    ['value' => Permission::SCOPE_BRANCH_AND_CHILDREN, 'label' => Permission::SCOPE_BRANCH_AND_CHILDREN],
+                    [
+                        'value' => Permission::SCOPE_BRANCH_AND_CHILDREN,
+                        'label' => Permission::SCOPE_BRANCH_AND_CHILDREN,
+                    ],
                 ],
             ],
 

@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
@@ -19,6 +18,11 @@ use Cake\I18n\DateTime;
  */
 class MemberRolesController extends AppController
 {
+    /**
+     * Set up this component.
+     *
+     * @return void
+     */
     public function initialize(): void
     {
         parent::initialize();
@@ -141,6 +145,12 @@ class MemberRolesController extends AppController
         return $this->redirect($this->referer());
     }
 
+    /**
+     * Deactivate.
+     *
+     * @param \App\Services\ActiveWindowManager\ActiveWindowManagerInterface $awService
+     * @param mixed $id
+     */
     public function deactivate(ActiveWindowManagerInterface $awService, $id = null)
     {
         $this->request->allowMethod(['post']);
@@ -159,7 +169,16 @@ class MemberRolesController extends AppController
         }
         $this->Authorization->authorize($memberRole, 'Deactivate');
 
-        if (!$awService->stop('MemberRoles', (int)$id, $this->Authentication->getIdentity()->get('id'), MemberRole::DEACTIVATED_STATUS, '', DateTime::now())) {
+        if (
+            !$awService->stop(
+                'MemberRoles',
+                (int)$id,
+                $this->Authentication->getIdentity()->get('id'),
+                MemberRole::DEACTIVATED_STATUS,
+                '',
+                DateTime::now(),
+            )
+        ) {
             $this->Flash->error(
                 __(
                     'The Member role could not be deactivated. Please, try again.',
@@ -176,9 +195,14 @@ class MemberRolesController extends AppController
         return $this->redirect($this->referer());
     }
 
+    /**
+     * Role member roles.
+     *
+     * @param mixed $state
+     * @param mixed $id
+     */
     public function roleMemberRoles($state, $id)
     {
-
         if ($state != 'current' && $state == 'upcoming' && $state == 'previous') {
             throw new NotFoundException();
         }
@@ -205,10 +229,18 @@ class MemberRolesController extends AppController
         $this->set(compact('memberRoles', 'role', 'state'));
     }
 
+    /**
+     * Add conditions.
+     *
+     * @param mixed $query
+     */
     protected function addConditions($query)
     {
         return $query
-            ->select(['id', 'role_id', 'member_id', 'approver_id', 'entity_type', 'entity_id', 'start_on', 'expires_on', 'revoker_id'])
+            ->select([
+                'id', 'role_id', 'member_id', 'approver_id', 'entity_type',
+                'entity_id', 'start_on', 'expires_on', 'revoker_id',
+            ])
             ->contain([
                 'Members' => function ($q) {
                     return $q->select(['id', 'sca_name']);

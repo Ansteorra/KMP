@@ -1,16 +1,16 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Policy;
 
 use App\KMP\KmpIdentityInterface;
 use App\Model\Entity\BaseEntity;
+use App\Model\Entity\Member;
 use Cake\ORM\Table;
 
 /**
  * GatheringAttendance policy
- * 
+ *
  * Extends BasePolicy to leverage the standard RBAC permission system while also
  * allowing members to manage their own gathering attendance records.
  */
@@ -19,7 +19,7 @@ class GatheringAttendancePolicy extends BasePolicy
     /**
      * Check if user can add gathering attendance
      *
-     * Users can register their own attendance or users with appropriate 
+     * Users can register their own attendance or users with appropriate
      * permissions can register attendance for others.
      *
      * @param \App\KMP\KmpIdentityInterface $user The user.
@@ -43,7 +43,7 @@ class GatheringAttendancePolicy extends BasePolicy
     /**
      * Check if user can edit gathering attendance
      *
-     * Users can edit their own attendance or users with appropriate 
+     * Users can edit their own attendance or users with appropriate
      * permissions can edit others' attendance.
      *
      * @param \App\KMP\KmpIdentityInterface $user The user.
@@ -65,7 +65,7 @@ class GatheringAttendancePolicy extends BasePolicy
     /**
      * Check if user can delete gathering attendance
      *
-     * Users can delete their own attendance or users with appropriate 
+     * Users can delete their own attendance or users with appropriate
      * permissions can delete others' attendance.
      *
      * @param \App\KMP\KmpIdentityInterface $user The user.
@@ -87,7 +87,7 @@ class GatheringAttendancePolicy extends BasePolicy
     /**
      * Check if user can view gathering attendance
      *
-     * Users can view their own attendance or users with appropriate 
+     * Users can view their own attendance or users with appropriate
      * permissions can view others' attendance.
      *
      * @param \App\KMP\KmpIdentityInterface $user The user.
@@ -121,9 +121,10 @@ class GatheringAttendancePolicy extends BasePolicy
             return false;
         }
 
-        if ($user instanceof \App\Model\Entity\Member) {
-            $target = new \App\Model\Entity\Member();
+        if ($user instanceof Member) {
+            $target = new Member();
             $target->id = $memberId;
+
             return $user->canManageMember($target);
         }
 

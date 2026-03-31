@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\KMP;
@@ -21,4 +20,3 @@ interface KMPApiPluginInterface
      */
     public function registerApiRoutes(RouteBuilder $builder): void;
 }
-

@@ -68,6 +68,9 @@ abstract class ActiveWindowBaseEntity extends BaseEntity
         $this->set('expires_on', $expiresOn->toDateTimeString());
     }
 
+    /**
+     * Get the expires on to string virtual field.
+     */
     protected function _getExpiresOnToString()
     {
         if ($this->expires_on == null) {
@@ -77,6 +80,9 @@ abstract class ActiveWindowBaseEntity extends BaseEntity
         return $this->expires_on->toDateString();
     }
 
+    /**
+     * Get the start on to string virtual field.
+     */
     protected function _getStartOnToString()
     {
         return $this->start_on->toDateString();

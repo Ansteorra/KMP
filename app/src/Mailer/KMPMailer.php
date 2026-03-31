@@ -1,12 +1,10 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Mailer;
 
 use App\KMP\StaticHelpers;
 use App\Model\Table\AppSettingsTable;
-use Cake\Log\Log;
 use Cake\Mailer\Mailer;
 
 class KMPMailer extends Mailer
@@ -15,12 +13,22 @@ class KMPMailer extends Mailer
 
     protected AppSettingsTable $appSettings;
 
+    /**
+     * Constructor.
+     */
     public function __construct()
     {
         parent::__construct();
         $this->appSettings = $this->getTableLocator()->get('AppSettings');
     }
 
+    /**
+     * Reset password.
+     *
+     * @param mixed $to
+     * @param mixed $url
+     * @return void
+     */
     public function resetPassword($to, $url): void
     {
         $sendFrom = StaticHelpers::getAppSetting('Email.SystemEmailFromAddress');
@@ -34,6 +42,13 @@ class KMPMailer extends Mailer
             ]);
     }
 
+    /**
+     * Mobile card.
+     *
+     * @param mixed $to
+     * @param mixed $url
+     * @return void
+     */
     public function mobileCard($to, $url): void
     {
         $sendFrom = StaticHelpers::getAppSetting('Email.SystemEmailFromAddress');
@@ -47,13 +62,21 @@ class KMPMailer extends Mailer
             ]);
     }
 
+    /**
+     * New registration.
+     *
+     * @param mixed $to
+     * @param mixed $url
+     * @param mixed $sca_name
+     * @return void
+     */
     public function newRegistration($to, $url, $sca_name): void
     {
         $sendFrom = StaticHelpers::getAppSetting('Email.SystemEmailFromAddress');
         $portalName = StaticHelpers::getAppSetting('KMP.LongSiteTitle');
         $this->setTo($to)
             ->setFrom($sendFrom)
-            ->setSubject("Welcome $sca_name to $portalName")
+            ->setSubject('Welcome ' . $sca_name . ' to ' . $portalName)
             ->setViewVars([
                 'email' => $to,
                 'passwordResetUrl' => $url,
@@ -63,6 +86,15 @@ class KMPMailer extends Mailer
             ]);
     }
 
+    /**
+     * Notify secretary of new member.
+     *
+     * @param mixed $to
+     * @param mixed $url
+     * @param mixed $sca_name
+     * @param mixed $membershipCardPresent
+     * @return void
+     */
     public function notifySecretaryOfNewMember($to, $url, $sca_name, $membershipCardPresent): void
     {
         $sendFrom = StaticHelpers::getAppSetting('Email.SystemEmailFromAddress');
@@ -73,11 +105,20 @@ class KMPMailer extends Mailer
             ->setViewVars([
                 'memberViewUrl' => $url,
                 'memberScaName' => $sca_name,
-                'memberCardPresent' => $membershipCardPresent ? "uploaded" : "not uploaded",
+                'memberCardPresent' => $membershipCardPresent ? 'uploaded' : 'not uploaded',
                 'siteAdminSignature' => StaticHelpers::getAppSetting('Email.SiteAdminSignature'),
             ]);
     }
 
+    /**
+     * Notify secretary of new minor member.
+     *
+     * @param mixed $to
+     * @param mixed $url
+     * @param mixed $sca_name
+     * @param mixed $membershipCardPresent
+     * @return void
+     */
     public function notifySecretaryOfNewMinorMember($to, $url, $sca_name, $membershipCardPresent): void
     {
         $sendFrom = StaticHelpers::getAppSetting('Email.SystemEmailFromAddress');
@@ -88,11 +129,21 @@ class KMPMailer extends Mailer
             ->setViewVars([
                 'memberViewUrl' => $url,
                 'memberScaName' => $sca_name,
-                'memberCardPresent' => $membershipCardPresent ? "uploaded" : "not uploaded",
+                'memberCardPresent' => $membershipCardPresent ? 'uploaded' : 'not uploaded',
                 'siteAdminSignature' => StaticHelpers::getAppSetting('Email.SiteAdminSignature'),
             ]);
     }
 
+    /**
+     * Notify of warrant.
+     *
+     * @param string $to
+     * @param string $memberScaName
+     * @param string $warrantName
+     * @param string $warrantStart
+     * @param string $warrantExpires
+     * @return void
+     */
     public function notifyOfWarrant(
         string $to,
         string $memberScaName,

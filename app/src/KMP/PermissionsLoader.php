@@ -1,14 +1,13 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\KMP;
 
 use App\Model\Entity\Member;
 use App\Model\Entity\Permission;
-use App\Model\Entity\ServicePrincipal;
 use App\Model\Entity\Warrant;
 use Cake\Cache\Cache;
+use Cake\Database\Expression\IdentifierExpression;
 use Cake\I18n\DateTime;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\TableRegistry;
@@ -28,7 +27,6 @@ use ReflectionMethod;
  */
 class PermissionsLoader
 {
-
     /**
      * Get complete permissions set for member.
      *
@@ -59,9 +57,9 @@ class PermissionsLoader
                 'Permissions.name',
                 'Permissions.scoping_rule',
                 'Permissions.is_super_user',
-                'MemberRoles.branch_id',    // Branch context for permission
-                'MemberRoles.entity_id',    // Associated entity (if any)
-                'MemberRoles.entity_type',  // Associated entity type (if any)
+                'MemberRoles.branch_id', // Branch context for permission
+                'MemberRoles.entity_id', // Associated entity (if any)
+                'MemberRoles.entity_type', // Associated entity type (if any)
             ])
             ->contain(['PermissionPolicies']) // Include policy framework data
             ->where(['Members.id' => $memberId]) // Filter for specific member
@@ -110,14 +108,15 @@ class PermissionsLoader
                     'is_super_user' => $permission->is_super_user,
                     'branch_ids' => [],
                     'entity_id' => $entity_id,
-                    'entity_type' =>  $entity_type,
+                    'entity_type' => $entity_type,
                 ];
 
                 // 5. Policy Framework Integration
                 if ($permission->permission_policies) {
                     foreach ($permission->permission_policies as $policy) {
                         // Build policy class -> method -> policy ID mapping
-                        $permissions[$permission->id]->policies[$policy->policy_class][$policy->policy_method] = $policy->id;
+                        $permissions[$permission->id]->policies[$policy->policy_class][$policy->policy_method] = $policy
+                            ->id;
                     }
                 }
 
@@ -157,7 +156,7 @@ class PermissionsLoader
      * @param array|null $branchIds Optional array of branch IDs to filter policies by
      * @return array Nested array of policy classes, methods, and authorization data
      */
-    public static function getPolicies($id, ?array $branchIds = null)
+    public static function getPolicies($id, ?array $branchIds = null): array
     {
         // 1. Cache Strategy - Check for cached policy mappings
         $cacheKey = 'permissions_policies' . $id;
@@ -199,7 +198,7 @@ class PermissionsLoader
                                 // Merge branch IDs for non-global permissions
                                 $policies[$policyClass][$method]->branch_ids = array_merge(
                                     $policies[$policyClass][$method]->branch_ids,
-                                    $permission->branch_ids
+                                    $permission->branch_ids,
                                 );
                             }
                         }
@@ -261,7 +260,7 @@ class PermissionsLoader
      *
      * @param int $permissionId The permission ID to search for
      * @param int $branch_id The branch context for scoped permission checking
-     * @return SelectQuery Query object ready for execution or further modification
+     * @return \Cake\ORM\Query\SelectQuery Query object ready for execution or further modification
      */
     public static function getMembersWithPermissionsQuery(int $permissionId, int $branch_id): SelectQuery
     {
@@ -313,8 +312,8 @@ class PermissionsLoader
      * background checks, age restrictions, and warrant requirements (when enabled).
      * Used by all permission checking operations for consistent validation.
      *
-     * @param SelectQuery $q Base query to apply validation clauses to
-     * @return SelectQuery Query with validation chain applied
+     * @param \Cake\ORM\Query\SelectQuery $q Base query to apply validation clauses to
+     * @return \Cake\ORM\Query\SelectQuery Query with validation chain applied
      */
     protected static function validPermissionClauses(SelectQuery $q): SelectQuery
     {
@@ -325,11 +324,14 @@ class PermissionsLoader
         $warrantsTable = TableRegistry::getTableLocator()->get('Warrants');
 
         // Build efficient subquery for warrant validation
+        // Correlate with outer query's Members.id to ensure we only check
+        // warrants belonging to the specific member being evaluated
         $warrantSubquery = $warrantsTable->find()
             ->select(['Warrants.member_role_id']) // Only need role linkage
             ->where([
-                'Warrants.start_on <' => $now,           // Warrant has started
-                'Warrants.expires_on >' => $now,         // Warrant hasn't expired
+                'Warrants.member_id' => new IdentifierExpression('Members.id'),
+                'Warrants.start_on <' => $now, // Warrant has started
+                'Warrants.expires_on >' => $now, // Warrant hasn't expired
                 'Warrants.status' => Warrant::CURRENT_STATUS, // Warrant is active
             ]);
 
@@ -339,7 +341,7 @@ class PermissionsLoader
                 // Role Assignment Temporal Validation
                 'MemberRoles.start_on < ' => DateTime::now(), // Role assignment has started
                 'OR' => [
-                    'MemberRoles.expires_on IS ' => null,      // Permanent role assignment
+                    'MemberRoles.expires_on IS ' => null, // Permanent role assignment
                     'MemberRoles.expires_on >' => DateTime::now(), // Or hasn't expired
                 ],
                 // Revocation Check - exclude explicitly revoked roles
@@ -354,7 +356,7 @@ class PermissionsLoader
                         // Permission requires membership - validate status and expiration
                         'Members.status IN ' => [
                             Member::STATUS_VERIFIED_MEMBERSHIP, // Full verified member
-                            Member::STATUS_VERIFIED_MINOR,      // Verified minor member
+                            Member::STATUS_VERIFIED_MINOR, // Verified minor member
                         ],
                         'Members.membership_expires_on >' => DateTime::now(), // Membership is current
                     ],
@@ -391,8 +393,8 @@ class PermissionsLoader
                     'Permissions.requires_warrant' => false, // Permission doesn't require warrant
                     'AND' => [
                         // Permission requires warrant - validate member eligibility and active warrant
-                        'Members.warrantable' => true,              // Member is eligible for warrants
-                        'MemberRoles.id IN' => $warrantSubquery,    // Role has active warrant
+                        'Members.warrantable' => true, // Member is eligible for warrants
+                        'MemberRoles.id IN' => $warrantSubquery, // Role has active warrant
                     ],
                 ],
             ]);
@@ -523,7 +525,7 @@ class PermissionsLoader
     /**
      * Get complete permissions set for a service principal.
      *
-     * Loads all permissions through ServicePrincipalRoles with role validation and 
+     * Loads all permissions through ServicePrincipalRoles with role validation and
      * temporal boundaries. Similar to getPermissions() but for service principals.
      * Results are cached with key `sp_permissions_{servicePrincipalId}`.
      *
@@ -610,7 +612,8 @@ class PermissionsLoader
 
                 if ($permission->permission_policies) {
                     foreach ($permission->permission_policies as $policy) {
-                        $permissions[$permission->id]->policies[$policy->policy_class][$policy->policy_method] = $policy->id;
+                        $permissions[$permission->id]->policies[$policy->policy_class][$policy->policy_method] = $policy
+                            ->id;
                     }
                 }
 
@@ -682,7 +685,7 @@ class PermissionsLoader
                             } elseif ($policies[$policyClass][$method]->scoping_rule != Permission::SCOPE_GLOBAL) {
                                 $policies[$policyClass][$method]->branch_ids = array_merge(
                                     $policies[$policyClass][$method]->branch_ids,
-                                    $permission->branch_ids
+                                    $permission->branch_ids,
                                 );
                             }
                         }

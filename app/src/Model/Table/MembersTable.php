@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -12,6 +11,8 @@ use Cake\Event\Event;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\TableRegistry;
 use Cake\Validation\Validator;
+use DateTimeZone;
+use Exception;
 
 /**
  * Members Table - Central repository for user management.
@@ -21,7 +22,6 @@ use Cake\Validation\Validator;
  *
  * @see /docs/4.1.1-members-table-reference.md for detailed API documentation
  * @see /docs/4.1-member-lifecycle.md for status system and workflows
- *
  * @property \App\Model\Table\MemberRolesTable&\Cake\ORM\Association\HasMany $MemberRoles
  * @property \App\Model\Table\MemberRolesTable&\Cake\ORM\Association\HasMany $CurrentMemberRoles
  * @property \App\Model\Table\MemberRolesTable&\Cake\ORM\Association\HasMany $UpcomingMemberRoles
@@ -33,7 +33,6 @@ use Cake\Validation\Validator;
  * @property \App\Model\Table\GatheringAttendancesTable&\Cake\ORM\Association\HasMany $GatheringAttendances
  * @property \App\Model\Table\MemberQuickLoginDevicesTable&\Cake\ORM\Association\HasMany $MemberQuickLoginDevices
  * @property \App\Model\Table\DocumentsTable&\Cake\ORM\Association\BelongsTo $ProfilePhoto
- *
  * @method \App\Model\Entity\Member newEmptyEntity()
  * @method \App\Model\Entity\Member newEntity(array $data, array $options = [])
  * @method array<\App\Model\Entity\Member> newEntities(array $data, array $options = [])
@@ -277,9 +276,10 @@ class MembersTable extends BaseTable
                         return true; // Allow empty - will use app default
                     }
                     try {
-                        new \DateTimeZone($value);
+                        new DateTimeZone($value);
+
                         return true;
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         return false;
                     }
                 },
@@ -300,7 +300,10 @@ class MembersTable extends BaseTable
     public function buildRules(RulesChecker $rules): RulesChecker
     {
         $rules->add($rules->isUnique(['email_address']), ['errorField' => 'email_address']);
-        $rules->add($rules->existsIn(['profile_photo_document_id'], 'ProfilePhoto'), ['errorField' => 'profile_photo_document_id']);
+        $rules->add(
+            $rules->existsIn(['profile_photo_document_id'], 'ProfilePhoto'),
+            ['errorField' => 'profile_photo_document_id'],
+        );
 
         return $rules;
     }
@@ -329,7 +332,7 @@ class MembersTable extends BaseTable
      *
      * @return int Number of members requiring validation review
      */
-    static function getValidationQueueCount(): int
+    public static function getValidationQueueCount(): int
     {
         // Get the count of pending validations  based on the members status
         $membersTable = TableRegistry::getTableLocator()->get('Members');
@@ -348,7 +351,7 @@ class MembersTable extends BaseTable
                     ],
                     ['Members.status IN' => [
                         Member::STATUS_UNVERIFIED_MINOR,
-                        Member::STATUS_MINOR_MEMBERSHIP_VERIFIED
+                        Member::STATUS_MINOR_MEMBERSHIP_VERIFIED,
                     ]],
                 ],
             ])->count();

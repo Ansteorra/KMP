@@ -1,12 +1,14 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services;
 
+use Cake\ORM\TableRegistry;
+use Exception;
+
 /**
  * Core View Cell Provider
- * 
+ *
  * Provides view cells for core app features (non-plugin functionality).
  * Registers mobile menu items for Calendar, My RSVPs, and other core features.
  */
@@ -35,7 +37,7 @@ class CoreViewCellProvider
             'icon' => 'bi-calendar-event',
             'url' => ['controller' => 'Gatherings', 'action' => 'mobileCalendar', 'plugin' => null],
             'order' => 35,
-            'color' => 'events',  // Section-specific color
+            'color' => 'events', // Section-specific color
             'badge' => null,
             'validRoutes' => [], // Show on all mobile pages
             'authCallback' => function ($urlParams, $user) {
@@ -44,13 +46,14 @@ class CoreViewCellProvider
                     return false;
                 }
                 try {
-                    $gatheringsTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Gatherings');
+                    $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
                     $gathering = $gatheringsTable->newEmptyEntity();
+
                     return $user->checkCan('index', $gathering);
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     return true; // Default to showing if permission check fails
                 }
-            }
+            },
         ];
 
         // My RSVPs - Mobile menu item
@@ -60,10 +63,10 @@ class CoreViewCellProvider
             'icon' => 'bi-calendar-check',
             'url' => ['controller' => 'GatheringAttendances', 'action' => 'myRsvps', 'plugin' => null],
             'order' => 36,
-            'color' => 'rsvps',  // Section-specific color
+            'color' => 'rsvps', // Section-specific color
             'badge' => null,
             'validRoutes' => [], // Show on all mobile pages
-            'authCallback' => fn($urlParams, $user) => $user !== null
+            'authCallback' => fn($urlParams, $user) => $user !== null,
         ];
 
         return $cells;

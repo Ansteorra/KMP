@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Policy;
@@ -10,7 +9,7 @@ use Cake\ORM\Table;
 
 /**
  * EmailTemplatesTable Policy
- * 
+ *
  * Controls access to email template table-level operations
  */
 class EmailTemplatesTablePolicy extends BasePolicy

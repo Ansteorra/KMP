@@ -1,13 +1,14 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Model\Table;
 
 use App\Model\Entity\Member;
+use App\Model\Table\MembersTable;
 use App\Test\TestCase\BaseTestCase;
+use Cake\I18n\Date;
 use Cake\ORM\Table;
-use Cake\Datasource\EntityInterface;
+use InvalidArgumentException;
 
 /**
  * MembersTableTest
@@ -17,7 +18,9 @@ use Cake\Datasource\EntityInterface;
  */
 class MembersTableTest extends BaseTestCase
 {
-    /** @var \App\Model\Table\MembersTable */
+    /**
+     * @var \App\Model\Table\MembersTable
+     */
     protected Table $Members;
 
     protected function setUp(): void
@@ -53,6 +56,7 @@ class MembersTableTest extends BaseTestCase
             'status' => Member::STATUS_VERIFIED_MEMBERSHIP,
             'branch_id' => self::KINGDOM_BRANCH_ID,
         ];
+
         return array_replace($data, $overrides);
     }
 
@@ -98,7 +102,7 @@ class MembersTableTest extends BaseTestCase
 
     public function testInvalidStatusThrowsException(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $entity = $this->Members->newEntity($this->validMemberData(['status' => 'not_a_valid_status']));
         // Access status to ensure setter executed during patching
         $entity->status;
@@ -121,7 +125,7 @@ class MembersTableTest extends BaseTestCase
     public function testWarrantableReviewReasonGenerationWithoutSave(): void
     {
         $entity = $this->Members->newEntity($this->validMemberData([
-            'membership_expires_on' => new \Cake\I18n\Date('+1 year'),
+            'membership_expires_on' => new Date('+1 year'),
         ]));
         $entity->warrantableReview();
         $this->assertTrue($entity->warrantable, 'Should be warrantable with valid data');
@@ -129,7 +133,7 @@ class MembersTableTest extends BaseTestCase
 
         // Break criteria
         $entity->birth_year = (int)date('Y') - 10; // under 18
-        $entity->membership_expires_on = new \Cake\I18n\Date('-1 day');
+        $entity->membership_expires_on = new Date('-1 day');
         $entity->warrantableReview();
         $this->assertFalse($entity->warrantable, 'Should not be warrantable now');
         $this->assertContains('Member is under 18', $entity->non_warrantable_reasons);
@@ -159,7 +163,7 @@ class MembersTableTest extends BaseTestCase
                     ]],
                 ],
             ])->count();
-        $staticCount = \App\Model\Table\MembersTable::getValidationQueueCount();
+        $staticCount = MembersTable::getValidationQueueCount();
         $this->assertSame($manualCount, $staticCount, 'Static method count should match manual query');
     }
 }

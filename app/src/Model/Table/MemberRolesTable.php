@@ -72,6 +72,14 @@ class MemberRolesTable extends BaseTable
         $this->addBehavior('ActiveWindow');
     }
 
+    /**
+     * Run after an entity is saved.
+     *
+     * @param mixed $event
+     * @param mixed $entity
+     * @param mixed $options
+     * @return void
+     */
     public function afterSave($event, $entity, $options): void
     {
         $memberId = $entity->member_id;

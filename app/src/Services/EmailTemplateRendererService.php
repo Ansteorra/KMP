@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services;
@@ -10,7 +9,7 @@ use Parsedown;
 
 /**
  * Service for rendering email templates with variable substitution
- * 
+ *
  * HTML templates are stored as Markdown and converted to HTML during rendering
  */
 class EmailTemplateRendererService
@@ -28,6 +27,7 @@ class EmailTemplateRendererService
         $this->parsedown = new Parsedown();
         $this->parsedown->setSafeMode(false); // Allow HTML in markdown
     }
+
     /**
      * Render a template by replacing variables with values
      *
@@ -70,7 +70,7 @@ class EmailTemplateRendererService
 
     /**
      * Render HTML template
-     * 
+     *
      * The html_template field stores Markdown, which is converted to HTML during rendering.
      * Variables are substituted BEFORE markdown conversion to allow variables in links, etc.
      *
@@ -82,6 +82,7 @@ class EmailTemplateRendererService
     {
         if (empty($template->html_template)) {
             Log::debug('No HTML template to render');
+
             return null;
         }
 
@@ -108,7 +109,7 @@ class EmailTemplateRendererService
 
     /**
      * Render HTML body only (without wrapper)
-     * 
+     *
      * Used when you need just the content without the HTML structure wrapper.
      *
      * @param \App\Model\Entity\EmailTemplate $emailTemplate
@@ -170,7 +171,11 @@ class EmailTemplateRendererService
                 $content = $matches[2];
 
                 if (str_contains($content, '{{#if')) {
-                    Log::warning('EmailTemplateRendererService: nested {{#if}} blocks detected — innermost resolved first');
+                    Log::warning(
+                        'EmailTemplateRendererService: nested '
+                        . '{{#if}} blocks detected — innermost '
+                        . 'resolved first',
+                    );
                 }
 
                 if ($this->evaluateCondition($condition, $vars)) {
@@ -181,7 +186,11 @@ class EmailTemplateRendererService
             }, $template);
 
             if ($result === null) {
-                Log::error('EmailTemplateRendererService: preg_replace_callback returned null (PCRE error) in processConditionals');
+                Log::error(
+                    'EmailTemplateRendererService: '
+                    . 'preg_replace_callback returned null '
+                    . '(PCRE error) in processConditionals',
+                );
 
                 return $template;
             }

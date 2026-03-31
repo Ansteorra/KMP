@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
@@ -60,14 +59,14 @@ class BranchesControllerTest extends HttpIntegrationTestCase
     {
         // Create initial branch then attempt duplicate via controller
         $branches = $this->getTableLocator()->get('Branches');
-        $initial = $branches->save($branches->newEntity([
+        $branches->save($branches->newEntity([
             'name' => 'Duplicate Root',
-            'location' => 'Loc1'
+            'location' => 'Loc1',
         ]));
         $data = [
             'name' => 'Duplicate Root',
             'location' => 'Loc2',
-            'branch_links' => json_encode(['website' => 'https://example.com'])
+            'branch_links' => json_encode(['website' => 'https://example.com']),
         ];
         $this->post('/branches/add', $data);
         $this->assertResponseOk();
@@ -100,5 +99,4 @@ class BranchesControllerTest extends HttpIntegrationTestCase
         $this->delete('/branches/delete/ZZZZZZZZ');
         $this->assertResponseCode(404);
     }
-
 }

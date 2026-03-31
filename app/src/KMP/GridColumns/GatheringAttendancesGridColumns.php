@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\KMP\GridColumns;
@@ -130,6 +129,7 @@ class GatheringAttendancesGridColumns extends BaseGridColumns
                     if ($cancelledAt !== null) {
                         return '<span class="badge bg-danger">' . __('Cancelled') . '</span>';
                     }
+
                     return '<span class="badge bg-success">' . __('Active') . '</span>';
                 },
             ],
@@ -169,6 +169,7 @@ class GatheringAttendancesGridColumns extends BaseGridColumns
 
                     // Show date range
                     $endFormatted = $view->Timezone->date($endDate, 'm/d/Y');
+
                     return h($startFormatted) . ' – ' . h($endFormatted);
                 },
             ],
@@ -180,13 +181,12 @@ class GatheringAttendancesGridColumns extends BaseGridColumns
                 'sortable' => true,
                 'filterable' => true,
                 'filterType' => 'date-range',
-                'defaultVisible' => false,  // Hidden by default since date range shows both
+                'defaultVisible' => false, // Hidden by default since date range shows both
                 'width' => '140px',
                 'alignment' => 'left',
                 'renderField' => 'gathering.start_date',
                 'queryField' => 'Gatherings.start_date',
             ],
-
 
             'end_date' => [
                 'key' => 'end_date',
@@ -195,7 +195,7 @@ class GatheringAttendancesGridColumns extends BaseGridColumns
                 'sortable' => true,
                 'filterable' => true,
                 'filterType' => 'date-range',
-                'defaultVisible' => false,  // Hidden by default since date range shows both
+                'defaultVisible' => false, // Hidden by default since date range shows both
                 'width' => '140px',
                 'alignment' => 'left',
                 'renderField' => 'gathering.end_date',
@@ -248,7 +248,7 @@ class GatheringAttendancesGridColumns extends BaseGridColumns
     {
         return array_filter(
             static::getColumns(),
-            fn($col) => !empty($col['defaultVisible'])
+            fn($col) => !empty($col['defaultVisible']),
         );
     }
 
@@ -263,6 +263,7 @@ class GatheringAttendancesGridColumns extends BaseGridColumns
                 $required[] = $key;
             }
         }
+
         return $required;
     }
 
@@ -277,6 +278,7 @@ class GatheringAttendancesGridColumns extends BaseGridColumns
                 $searchable[] = $col['queryField'] ?? $key;
             }
         }
+
         return $searchable;
     }
 
@@ -290,7 +292,7 @@ class GatheringAttendancesGridColumns extends BaseGridColumns
     {
         return array_filter(
             static::getColumns(),
-            fn($col) => !empty($col['filterable']) && ($col['filterType'] ?? null) === 'date-range'
+            fn($col) => !empty($col['filterable']) && ($col['filterType'] ?? null) === 'date-range',
         );
     }
 

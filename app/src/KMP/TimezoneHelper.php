@@ -1,11 +1,11 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\KMP;
 
 use Cake\I18n\DateTime;
 use DateTimeZone;
+use Exception;
 use InvalidArgumentException;
 
 /**
@@ -171,9 +171,10 @@ class TimezoneHelper
 
             if (!empty($timezone) && self::isValidTimezone($timezone)) {
                 self::$appTimezoneCache = $timezone;
+
                 return $timezone;
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // AppSettings not available yet (e.g., during installation)
             // Fall through to null
         }
@@ -194,7 +195,7 @@ class TimezoneHelper
         $datetime,
         $member = null,
         ?string $fallbackTimezone = null,
-        $gathering = null
+        $gathering = null,
     ): ?DateTime {
         if ($datetime === null) {
             return null;
@@ -299,7 +300,7 @@ class TimezoneHelper
         $datetime,
         $member = null,
         string $format = self::DISPLAY_DATETIME_FORMAT,
-        bool $includeTimezone = false
+        bool $includeTimezone = false,
     ): string {
         if ($datetime === null) {
             return '';
@@ -380,6 +381,7 @@ class TimezoneHelper
         }
 
         $dt = $datetime->setTimezone(new DateTimeZone($timezone));
+
         return $dt->format('T');
     }
 
@@ -393,8 +395,9 @@ class TimezoneHelper
     {
         try {
             new DateTimeZone($timezone);
+
             return true;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return false;
         }
     }
@@ -417,6 +420,7 @@ class TimezoneHelper
         if (!$grouped) {
             $list = array_combine($identifiers, $identifiers);
             self::$timezoneListCache = $list;
+
             return $list;
         }
 

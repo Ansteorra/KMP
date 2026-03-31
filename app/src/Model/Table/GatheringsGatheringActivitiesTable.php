@@ -1,12 +1,11 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
-use Cake\ORM\RulesChecker;
 
 /**
  * GatheringsGatheringActivities Model
@@ -15,7 +14,6 @@ use Cake\ORM\RulesChecker;
  *
  * @property \App\Model\Table\GatheringsTable&\Cake\ORM\Association\BelongsTo $Gatherings
  * @property \App\Model\Table\GatheringActivitiesTable&\Cake\ORM\Association\BelongsTo $GatheringActivities
- *
  * @method \App\Model\Entity\GatheringsGatheringActivity newEmptyEntity()
  * @method \App\Model\Entity\GatheringsGatheringActivity newEntity(array $data, array $options = [])
  * @method \App\Model\Entity\GatheringsGatheringActivity[] newEntities(array $data, array $options = [])
@@ -99,10 +97,16 @@ class GatheringsGatheringActivitiesTable extends Table
     public function buildRules(RulesChecker $rules): RulesChecker
     {
         $rules->add($rules->existsIn(['gathering_id'], 'Gatherings'), ['errorField' => 'gathering_id']);
-        $rules->add($rules->existsIn(['gathering_activity_id'], 'GatheringActivities'), ['errorField' => 'gathering_activity_id']);
+        $rules->add(
+            $rules->existsIn(['gathering_activity_id'], 'GatheringActivities'),
+            ['errorField' => 'gathering_activity_id'],
+        );
 
         // Ensure unique combination of gathering_id and gathering_activity_id
-        $rules->add($rules->isUnique(['gathering_id', 'gathering_activity_id'], 'This activity is already assigned to this gathering.'));
+        $rules->add($rules->isUnique(
+            ['gathering_id', 'gathering_activity_id'],
+            'This activity is already assigned to this gathering.',
+        ));
 
         return $rules;
     }

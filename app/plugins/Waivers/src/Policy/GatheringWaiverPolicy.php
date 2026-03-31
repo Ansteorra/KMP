@@ -27,6 +27,13 @@ use Cake\ORM\TableRegistry;
  */
 class GatheringWaiverPolicy extends BasePolicy
 {
+    /**
+     * Check if user can download.
+     *
+     * @param KmpIdentityInterface $user
+     * @param BaseEntity $entity
+     * @return bool
+     */
     public function canDownload(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
@@ -47,18 +54,39 @@ class GatheringWaiverPolicy extends BasePolicy
         return $this->canDownload($user, $entity, ...$optionalArgs);
     }
 
+    /**
+     * Check if user can preview.
+     *
+     * @param KmpIdentityInterface $user
+     * @param BaseEntity $entity
+     * @return bool
+     */
     public function canPreview(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
         return $this->_hasPolicy($user, $method, $entity);
     }
 
+    /**
+     * Check if user can change waiver type.
+     *
+     * @param KmpIdentityInterface $user
+     * @param BaseEntity $entity
+     * @return bool
+     */
     public function canChangeWaiverType(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
         return $this->_hasPolicy($user, $method, $entity);
     }
 
+    /**
+     * Check if user can view gathering waivers.
+     *
+     * @param KmpIdentityInterface $user
+     * @param BaseEntity $entity
+     * @return bool
+     */
     public function canViewGatheringWaivers(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         // Check standard permission first
@@ -70,6 +98,13 @@ class GatheringWaiverPolicy extends BasePolicy
         return $this->_isGatheringStewardForWaiver($user, $entity);
     }
 
+    /**
+     * Check if user can needing waivers.
+     *
+     * @param KmpIdentityInterface $user
+     * @param BaseEntity $entity
+     * @return bool
+     */
     public function canNeedingWaivers(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         // Check standard permission first
@@ -81,6 +116,13 @@ class GatheringWaiverPolicy extends BasePolicy
         return $this->_isGatheringStewardForWaiver($user, $entity, checkClosure: true);
     }
 
+    /**
+     * Check if user can upload waivers.
+     *
+     * @param KmpIdentityInterface $user
+     * @param BaseEntity $entity
+     * @return bool
+     */
     public function canUploadWaivers(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         // Check standard permission first
@@ -92,6 +134,13 @@ class GatheringWaiverPolicy extends BasePolicy
         return $this->_isGatheringStewardForWaiver($user, $entity, checkClosure: true);
     }
 
+    /**
+     * Check if user can close waivers.
+     *
+     * @param KmpIdentityInterface $user
+     * @param BaseEntity $entity
+     * @return bool
+     */
     public function canCloseWaivers(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;

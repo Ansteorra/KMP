@@ -16,6 +16,10 @@ use App\Services\NavigationRegistry;
 use App\Services\ViewCellRegistry;
 use Waivers\Services\WaiversNavigationProvider;
 use Waivers\Services\WaiversViewCellProvider;
+use Waivers\Services\WaiverDashboardService;
+use Waivers\Services\WaiverFileService;
+use Waivers\Services\WaiverMobileService;
+use Waivers\Services\WaiverStateService;
 use App\KMP\StaticHelpers;
 
 /**
@@ -172,9 +176,10 @@ class WaiversPlugin extends BasePlugin implements KMPPluginInterface
      */
     public function services(ContainerInterface $container): void
     {
-        // Register services here
-        // Example:
-        // $container->add(TemplateServiceInterface::class, DefaultTemplateService::class);
+        $container->add(WaiverStateService::class);
+        $container->add(WaiverFileService::class);
+        $container->add(WaiverDashboardService::class);
+        $container->add(WaiverMobileService::class);
     }
 
     /**

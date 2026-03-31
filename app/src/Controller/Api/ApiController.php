@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller\Api;
@@ -13,7 +12,7 @@ use Cake\Http\Response;
 /**
  * Base API Controller - Foundation for all API endpoints
  *
- * Provides JSON-only responses, API-specific error handling, and 
+ * Provides JSON-only responses, API-specific error handling, and
  * service principal authentication support.
  */
 abstract class ApiController extends AppController
@@ -97,6 +96,7 @@ abstract class ApiController extends AppController
         }
 
         $originalData = $identity->getOriginalData();
+
         return $originalData instanceof ServicePrincipal;
     }
 
@@ -132,7 +132,7 @@ abstract class ApiController extends AppController
         string $code,
         string $message,
         array $details = [],
-        int $statusCode = 400
+        int $statusCode = 400,
     ): void {
         $this->response = $this->response->withStatus($statusCode);
 

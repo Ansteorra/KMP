@@ -172,6 +172,11 @@ class OfficersTable extends BaseTable
         }
     }
 
+    /**
+     * Check officer status.
+     *
+     * @return void
+     */
     protected function checkOfficerStatus(): void
     {
         $this->updateAll(
@@ -259,8 +264,6 @@ class OfficersTable extends BaseTable
      */
     public function addDisplayConditionsAndFields($q, $type)
     {
-
-
         $rejectFragment = $q->func()->concat([
             'Released by ',
             "RevokedBy.sca_name" => 'identifier',

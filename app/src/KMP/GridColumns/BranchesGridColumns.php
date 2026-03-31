@@ -1,12 +1,11 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\KMP\GridColumns;
 
 /**
  * Branches Grid Column Metadata
- * 
+ *
  * Provides tree-aware rendering with visual hierarchy indicators.
  */
 class BranchesGridColumns extends BaseGridColumns
@@ -22,6 +21,11 @@ class BranchesGridColumns extends BaseGridColumns
         return [];
     }
 
+    /**
+     * Get columns.
+     *
+     * @return array
+     */
     public static function getColumns(): array
     {
         return [
@@ -158,7 +162,7 @@ class BranchesGridColumns extends BaseGridColumns
 
     /**
      * Custom cell renderer for tree path display.
-     * 
+     *
      * Renders the branch hierarchy with visual indentation.
      *
      * @param mixed $value The cell value (path string)

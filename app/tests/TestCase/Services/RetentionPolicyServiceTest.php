@@ -1,12 +1,11 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services;
 
 use App\Services\RetentionPolicyService;
-use Cake\I18n\Date;
 use App\Test\TestCase\BaseTestCase;
+use Cake\I18n\Date;
 
 /**
  * App\Services\RetentionPolicyService Test Case

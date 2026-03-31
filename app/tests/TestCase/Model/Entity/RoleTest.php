@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Model\Entity;
@@ -9,7 +8,9 @@ use Cake\ORM\TableRegistry;
 
 class RoleTest extends BaseTestCase
 {
-    /** @var \App\Model\Table\RolesTable */
+    /**
+     * @var \App\Model\Table\RolesTable
+     */
     protected $Roles;
 
     protected function setUp(): void
@@ -23,7 +24,7 @@ class RoleTest extends BaseTestCase
         $entity = $this->Roles->newEntity([
             'name' => 'Mass Assign Role',
             'permissions' => [
-                ['id' => $this->Roles->Permissions->find()->select('id')->first()->id]
+                ['id' => $this->Roles->Permissions->find()->select('id')->first()->id],
             ],
         ]);
         $this->assertSame('Mass Assign Role', $entity->name);

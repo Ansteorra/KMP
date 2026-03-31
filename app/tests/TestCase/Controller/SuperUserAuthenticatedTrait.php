@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
@@ -9,10 +8,10 @@ use Cake\TestSuite\IntegrationTestTrait;
 /**
  * SuperUserAuthenticatedTrait
  *
- * @deprecated Use TestAuthenticationHelper (via HttpIntegrationTestCase) instead.
+ * @deprecated Use TestAuthenticationHelperTrait (via HttpIntegrationTestCase) instead.
  *   This trait writes to the database and is incompatible with transaction rollback.
  *   Extend HttpIntegrationTestCase and call $this->authenticateAsSuperUser() instead.
- * @see \App\Test\TestCase\TestAuthenticationHelper
+ * @see \App\Test\TestCase\TestAuthenticationHelperTrait
  * @see \App\Test\TestCase\Support\HttpIntegrationTestCase
  */
 trait SuperUserAuthenticatedTrait
@@ -21,7 +20,7 @@ trait SuperUserAuthenticatedTrait
 
     /**
      * Set up the test with super user authentication
-     * 
+     *
      * This method:
      * 1. Enables CSRF and security tokens
      * 2. Loads the test super user from the database
@@ -71,6 +70,7 @@ trait SuperUserAuthenticatedTrait
     {
         $membersTable = $this->getTableLocator()->get('Members');
         $member = $membersTable->findByEmailAddress('admin@amp.ansteorra.org')->firstOrFail();
+
         return $member->id;
     }
 

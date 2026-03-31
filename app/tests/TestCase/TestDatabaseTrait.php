@@ -1,15 +1,15 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase;
 
 use App\Test\TestCase\Support\SeedManager;
 use Cake\Datasource\ConnectionManager;
+use InvalidArgumentException;
 
 /**
  * TestDatabaseTrait
- * 
+ *
  * Trait to help manage test database state.
  * Provides methods to reset database to a clean state between tests.
  */
@@ -22,7 +22,7 @@ trait TestDatabaseTrait
 
     /**
      * Start a database transaction before test
-     * 
+     *
      * @return void
      */
     protected function startDatabaseTransaction(): void
@@ -36,7 +36,7 @@ trait TestDatabaseTrait
 
     /**
      * Rollback database transaction after test
-     * 
+     *
      * @return void
      */
     protected function rollbackDatabaseTransaction(): void
@@ -50,9 +50,9 @@ trait TestDatabaseTrait
 
     /**
      * Reset the test database to clean state
-     * 
+     *
      * WARNING: This is expensive. Only use when necessary.
-     * 
+     *
      * @return void
      */
     protected function resetTestDatabase(): void
@@ -62,7 +62,7 @@ trait TestDatabaseTrait
 
     /**
      * Insert test-specific data
-     * 
+     *
      * @param string $table Table name
      * @param array $data Data to insert
      * @return void
@@ -75,7 +75,7 @@ trait TestDatabaseTrait
 
     /**
      * Clean up a specific table for testing
-     * 
+     *
      * @param string $table Table name
      * @param array $where Where conditions (optional)
      * @return void
@@ -88,8 +88,8 @@ trait TestDatabaseTrait
         if (empty($where)) {
             // Validate table name to prevent SQL injection
             if (!preg_match('/^[A-Za-z0-9_]+$/', $table)) {
-                throw new \InvalidArgumentException(
-                    "Invalid table name: '{$table}'. Table names must contain only alphanumeric characters and underscores."
+                throw new InvalidArgumentException(
+                    "Invalid table name: '{$table}'. Table names must contain only alphanumeric characters and underscores.",
                 );
             }
 

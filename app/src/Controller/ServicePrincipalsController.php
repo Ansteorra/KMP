@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
@@ -34,7 +33,7 @@ class ServicePrincipalsController extends AppController
             'revokeToken',
             'addRole',
             'revokeRole',
-            'toggleActive'
+            'toggleActive',
         );
     }
 
@@ -155,7 +154,6 @@ class ServicePrincipalsController extends AppController
                     'bearer_token' => null,
                 ]);
 
-
                 // Generate initial token
                 $token = ServicePrincipalToken::generateToken();
                 $tokenEntity = $this->fetchTable('ServicePrincipalTokens')->newEntity([
@@ -164,7 +162,11 @@ class ServicePrincipalsController extends AppController
                 ]);
                 $tokenEntity->set('token_hash', ServicePrincipalToken::hashToken($token));
                 if (!$this->fetchTable('ServicePrincipalTokens')->save($tokenEntity)) {
-                    $this->Flash->error(__('Service principal created but initial token could not be saved. Generate a new token manually.'));
+                    $this->Flash->error(__(
+                        'Service principal created but initial token could not be saved.'
+                        . ' Generate a new token manually.',
+                    ));
+
                     return $this->redirect(['action' => 'credentials', $servicePrincipal->id]);
                 }
 
@@ -173,7 +175,10 @@ class ServicePrincipalsController extends AppController
                 $credentials['bearer_token'] = $token;
                 $this->request->getSession()->write('ServicePrincipal.newCredentials', $credentials);
 
-                $this->Flash->success(__('Service principal created. Save the credentials shown below - they will not be displayed again.'));
+                $this->Flash->success(__(
+                    'Service principal created. Save the credentials shown below'
+                    . ' - they will not be displayed again.',
+                ));
 
                 return $this->redirect(['action' => 'credentials', $servicePrincipal->id]);
             }

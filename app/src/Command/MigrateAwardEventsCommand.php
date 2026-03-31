@@ -1,19 +1,20 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Model\Entity\GatheringActivity;
+use App\Model\Entity\GatheringType;
 use Cake\Command\Command;
 use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 use Cake\ORM\TableRegistry;
-use Cake\I18n\FrozenTime;
+use Exception;
 
 /**
  * Migrate Award Events Command
- * 
+ *
  * Migrates legacy Award Events to the new Gatherings system with the following steps:
  * 1. Create a "Kingdom Court" gathering activity
  * 2. Associate all awards with the "Kingdom Court" activity
@@ -21,7 +22,7 @@ use Cake\I18n\FrozenTime;
  * 4. Create gatherings for each award event
  * 5. Add "Kingdom Court" activity to each new gathering
  * 6. Update award recommendations to reference gatherings instead of events
- * 
+ *
  * Usage:
  *   bin/cake migrate_award_events
  *   bin/cake migrate_award_events --dry-run
@@ -82,6 +83,7 @@ class MigrateAwardEventsCommand extends Command
             $kingdomCourtActivity = $this->createKingdomCourtActivity();
             if (!$kingdomCourtActivity) {
                 $io->error('Failed to create Kingdom Court activity');
+
                 return Command::CODE_ERROR;
             }
 
@@ -92,6 +94,7 @@ class MigrateAwardEventsCommand extends Command
             $gatheringType = $this->createKingdomCalendarEventType();
             if (!$gatheringType) {
                 $io->error('Failed to create Kingdom Calendar Event gathering type');
+
                 return Command::CODE_ERROR;
             }
 
@@ -109,10 +112,11 @@ class MigrateAwardEventsCommand extends Command
             }
 
             return Command::CODE_SUCCESS;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $io->error('Migration failed: ' . $e->getMessage());
             $io->out('Stack trace:');
             $io->out($e->getTraceAsString());
+
             return Command::CODE_ERROR;
         }
     }
@@ -122,7 +126,7 @@ class MigrateAwardEventsCommand extends Command
      *
      * @return \App\Model\Entity\GatheringActivity|null
      */
-    protected function createKingdomCourtActivity()
+    protected function createKingdomCourtActivity(): ?GatheringActivity
     {
         $this->io->out('<info>Step 1: Creating Kingdom Court activity...</info>');
 
@@ -135,6 +139,7 @@ class MigrateAwardEventsCommand extends Command
 
         if ($existing) {
             $this->io->out('  - Kingdom Court activity already exists (ID: ' . $existing->id . ')');
+
             return $existing;
         }
 
@@ -144,6 +149,7 @@ class MigrateAwardEventsCommand extends Command
             $mock = $gatheringActivitiesTable->newEmptyEntity();
             $mock->id = 999999; // Fake ID for dry run
             $mock->name = 'Kingdom Court';
+
             return $mock;
         }
 
@@ -154,10 +160,12 @@ class MigrateAwardEventsCommand extends Command
 
         if ($gatheringActivitiesTable->save($activity)) {
             $this->io->success('  ✓ Created Kingdom Court activity (ID: ' . $activity->id . ')');
+
             return $activity;
         } else {
             $this->io->error('  ✗ Failed to create Kingdom Court activity');
             $this->io->out('    Errors: ' . json_encode($activity->getErrors()));
+
             return null;
         }
     }
@@ -182,6 +190,7 @@ class MigrateAwardEventsCommand extends Command
 
         if ($this->dryRun) {
             $this->io->out("  - [DRY RUN] Would associate {$count} awards with activity ID {$activityId}");
+
             return;
         }
 
@@ -222,7 +231,7 @@ class MigrateAwardEventsCommand extends Command
      *
      * @return \App\Model\Entity\GatheringType|null
      */
-    protected function createKingdomCalendarEventType()
+    protected function createKingdomCalendarEventType(): ?GatheringType
     {
         $this->io->out('<info>Step 3: Creating Kingdom Calendar Event gathering type...</info>');
 
@@ -235,6 +244,7 @@ class MigrateAwardEventsCommand extends Command
 
         if ($existing) {
             $this->io->out('  - Kingdom Calendar Event type already exists (ID: ' . $existing->id . ')');
+
             return $existing;
         }
 
@@ -244,6 +254,7 @@ class MigrateAwardEventsCommand extends Command
             $mock = $gatheringTypesTable->newEmptyEntity();
             $mock->id = 999999; // Fake ID for dry run
             $mock->name = 'Kingdom Calendar Event';
+
             return $mock;
         }
 
@@ -254,10 +265,12 @@ class MigrateAwardEventsCommand extends Command
 
         if ($gatheringTypesTable->save($type)) {
             $this->io->success('  ✓ Created Kingdom Calendar Event gathering type (ID: ' . $type->id . ')');
+
             return $type;
         } else {
             $this->io->error('  ✗ Failed to create Kingdom Calendar Event gathering type');
             $this->io->out('    Errors: ' . json_encode($type->getErrors()));
+
             return null;
         }
     }
@@ -298,7 +311,8 @@ class MigrateAwardEventsCommand extends Command
                 ->first();
 
             if ($existing) {
-                $this->io->out("  - Gathering already exists for event '{$event->name}' (Gathering ID: {$existing->id})");
+                $this->io
+                    ->out("  - Gathering already exists for event '{$event->name}' (Gathering ID: {$existing->id})");
                 $eventGatheringMap[$event->id] = $existing->id;
                 $skipped++;
                 continue;
@@ -318,7 +332,7 @@ class MigrateAwardEventsCommand extends Command
                 'gathering_type_id' => $gatheringTypeId,
                 'branch_id' => $event->branch_id,
                 'description' => $event->description . ' (Migrated from legacy award event system)',
-                'created_by' => 1
+                'created_by' => 1,
             ]);
 
             if ($gatheringsTable->save($gathering)) {
@@ -333,9 +347,9 @@ class MigrateAwardEventsCommand extends Command
                 ]);
 
                 if ($gatheringActivitiesGatheringsTable->save($activityAssoc)) {
-                    $this->io->out("    ✓ Added Kingdom Court activity to gathering");
+                    $this->io->out('    ✓ Added Kingdom Court activity to gathering');
                 } else {
-                    $this->io->warning("    - Failed to add Kingdom Court activity to gathering");
+                    $this->io->warning('    - Failed to add Kingdom Court activity to gathering');
                 }
             } else {
                 $this->io->error("  ✗ Failed to create gathering for event '{$event->name}'");
@@ -373,7 +387,11 @@ class MigrateAwardEventsCommand extends Command
 
         foreach ($recommendations as $recommendation) {
             if (!isset($eventGatheringMap[$recommendation->event_id])) {
-                $this->io->warning("    - No gathering found for event ID {$recommendation->event_id}, skipping recommendation {$recommendation->id}");
+                $this->io->warning(
+                    '    - No gathering found for event ID '
+                    . "{$recommendation->event_id}, skipping "
+                    . "recommendation {$recommendation->id}",
+                );
                 $skippedRecommendations++;
                 continue;
             }
@@ -381,7 +399,12 @@ class MigrateAwardEventsCommand extends Command
             $gatheringId = $eventGatheringMap[$recommendation->event_id];
 
             if ($this->dryRun) {
-                $this->io->out("    - [DRY RUN] Would update recommendation {$recommendation->id}: event_id {$recommendation->event_id} -> gathering_id {$gatheringId}");
+                $this->io->out(
+                    '    - [DRY RUN] Would update recommendation '
+                    . "{$recommendation->id}: event_id "
+                    . "{$recommendation->event_id} -> "
+                    . "gathering_id {$gatheringId}",
+                );
                 $updatedRecommendations++;
                 continue;
             }
@@ -396,7 +419,8 @@ class MigrateAwardEventsCommand extends Command
             }
         }
 
-        $this->io->success("    ✓ Updated {$updatedRecommendations} recommendations, skipped {$skippedRecommendations}");
+        $this->io
+            ->success("    ✓ Updated {$updatedRecommendations} recommendations, skipped {$skippedRecommendations}");
 
         // Step 7: Update awards_recommendations_events.event_id to gathering_id
         // This is a junction table without a model, so we use direct queries
@@ -404,7 +428,7 @@ class MigrateAwardEventsCommand extends Command
 
         // Get all records with event_id
         $query = $connection->execute(
-            'SELECT id, event_id FROM awards_recommendations_events WHERE event_id IS NOT NULL'
+            'SELECT id, event_id FROM awards_recommendations_events WHERE event_id IS NOT NULL',
         );
         $recommendationsEvents = $query->fetchAll('assoc');
 
@@ -424,7 +448,12 @@ class MigrateAwardEventsCommand extends Command
             $gatheringId = $eventGatheringMap[$eventId];
 
             if ($this->dryRun) {
-                $this->io->out("    - [DRY RUN] Would update awards_recommendations_events {$recordId}: event_id {$eventId} -> gathering_id {$gatheringId}");
+                $this->io->out(
+                    '    - [DRY RUN] Would update '
+                    . "awards_recommendations_events {$recordId}: "
+                    . "event_id {$eventId} -> gathering_id "
+                    . "{$gatheringId}",
+                );
                 $updatedRecEvents++;
                 continue;
             }
@@ -433,11 +462,15 @@ class MigrateAwardEventsCommand extends Command
             $connection->execute(
                 'UPDATE awards_recommendations_events SET gathering_id = ?, event_id = NULL WHERE id = ?',
                 [$gatheringId, $recordId],
-                ['integer', 'integer']
+                ['integer', 'integer'],
             );
             $updatedRecEvents++;
         }
 
-        $this->io->success("    ✓ Updated {$updatedRecEvents} awards_recommendations_events records, skipped {$skippedRecEvents}");
+        $this->io->success(
+            "    ✓ Updated {$updatedRecEvents} "
+            . 'awards_recommendations_events records, '
+            . "skipped {$skippedRecEvents}",
+        );
     }
 }

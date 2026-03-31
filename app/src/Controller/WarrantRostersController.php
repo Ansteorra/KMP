@@ -1,10 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Model\Entity\WarrantRoster;
+use App\KMP\GridColumns\WarrantRostersGridColumns;
 use App\Services\CsvExportService;
 use App\Services\WarrantManager\WarrantManagerInterface;
 use Cake\Http\Exception\NotFoundException;
@@ -82,12 +81,12 @@ class WarrantRostersController extends AppController
         $baseQuery = $this->Authorization->applyScope($baseQuery);
 
         // Define system views for status filtering
-        $systemViews = \App\KMP\GridColumns\WarrantRostersGridColumns::getSystemViews([]);
+        $systemViews = WarrantRostersGridColumns::getSystemViews([]);
 
         // Use unified trait for grid processing
         $result = $this->processDataverseGrid([
             'gridKey' => 'WarrantRosters.index.main',
-            'gridColumnsClass' => \App\KMP\GridColumns\WarrantRostersGridColumns::class,
+            'gridColumnsClass' => WarrantRostersGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'WarrantRosters',
             'defaultSort' => ['WarrantRosters.created' => 'desc'],
@@ -114,7 +113,7 @@ class WarrantRostersController extends AppController
             'gridState' => $result['gridState'],
             'columns' => $result['columnsMetadata'],
             'visibleColumns' => $result['visibleColumns'],
-            'searchableColumns' => \App\KMP\GridColumns\WarrantRostersGridColumns::getSearchableColumns(),
+            'searchableColumns' => WarrantRostersGridColumns::getSearchableColumns(),
             'dropdownFilterColumns' => $result['dropdownFilterColumns'],
             'filterOptions' => $result['filterOptions'],
             'currentFilters' => $result['currentFilters'],
@@ -155,7 +154,7 @@ class WarrantRostersController extends AppController
         // Build base query with creator information
         $query = $this->WarrantRosters->find()
             ->contain(['CreatedByMember' => function ($q) {
-                return $q->select(['id', 'sca_name']);  // Minimal member data for performance
+                return $q->select(['id', 'sca_name']); // Minimal member data for performance
             }]);
 
         // Add warrant counting with matching for rosters that have warrants
@@ -167,9 +166,9 @@ class WarrantRostersController extends AppController
                 'approvals_required',
                 'approval_count',
                 'created',
-                'warrant_count' => $query->func()->count('Warrants.id')  // Aggregate warrant count
+                'warrant_count' => $query->func()->count('Warrants.id'), // Aggregate warrant count
             ])
-            ->groupBy(['WarrantRosters.id']);  // Group by roster for proper counting
+            ->groupBy(['WarrantRosters.id']); // Group by roster for proper counting
 
         // Apply status filter
         $query = $query->where(['WarrantRosters.status' => $state]);
@@ -291,7 +290,7 @@ class WarrantRostersController extends AppController
      * @return \Cake\Http\Response Redirect to roster view
      * @throws \Cake\Http\Exception\NotFoundException When roster not found
      */
-    function approve(WarrantManagerInterface $wManager, $id = null)
+    public function approve(WarrantManagerInterface $wManager, $id = null)
     {
         // Require POST request for security
         $this->request->allowMethod(['post']);
@@ -340,7 +339,11 @@ class WarrantRostersController extends AppController
         $this->Authorization->authorize($warrantRoster);
 
         // Process decline through WarrantManager service with standard reason
-        $wmResult = $wManager->decline($warrantRoster->id, $this->Authentication->getIdentity()->getIdentifier(), 'Declined from Warrant Roster View');
+        $wmResult = $wManager->decline(
+            $warrantRoster->id,
+            $this->Authentication->getIdentity()->getIdentifier(),
+            'Declined from Warrant Roster View',
+        );
 
         if ($wmResult->success) {
             $this->Flash->success(__('The declination has been been processed.'));
@@ -388,7 +391,11 @@ class WarrantRostersController extends AppController
         $this->Authorization->authorize($warrant);
 
         // Process individual warrant decline through WarrantManager
-        $wResult = $wService->declineSingleWarrant((int)$warrant_id, 'Declined Warrant', $this->Authentication->getIdentity()->get('id'));
+        $wResult = $wService->declineSingleWarrant(
+            (int)$warrant_id,
+            'Declined Warrant',
+            $this->Authentication->getIdentity()->get('id'),
+        );
 
         if (!$wResult->success) {
             $this->Flash->error($wResult->reason);
@@ -397,7 +404,11 @@ class WarrantRostersController extends AppController
         }
 
         // Provide comprehensive feedback about warrant and office impacts
-        $this->Flash->success(__('The warrant has been deactivated. If this warrant is associated with an office, the officer has been released however they have not been notified.  Please notify them at your earliest convienence.'));
+        $this->Flash->success(__(
+            'The warrant has been deactivated. If this warrant is associated with an office,'
+            . ' the officer has been released however they have not been notified.'
+            . '  Please notify them at your earliest convienence.',
+        ));
 
         return $this->redirect($this->referer());
     }

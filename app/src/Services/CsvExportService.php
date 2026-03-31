@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services;
@@ -20,10 +19,10 @@ class CsvExportService
      *
      * Uses php://temp streams for memory efficiency. Returns Response with download headers.
      *
-     * @param QueryInterface|iterable $data Source data (query, array, or iterable)
+     * @param \Cake\Datasource\QueryInterface|iterable $data Source data (query, array, or iterable)
      * @param string $filename Desired filename for download
      * @param array|null $headers Optional explicit column headers
-     * @return Response HTTP response configured for CSV download
+     * @return \Cake\Http\Response HTTP response configured for CSV download
      */
     public function outputCsv(iterable $data, string $filename = 'export.csv', ?array $headers = null): Response
     {

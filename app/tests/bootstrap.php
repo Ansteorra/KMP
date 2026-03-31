@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 /**
@@ -18,7 +17,9 @@ declare(strict_types=1);
 
 use App\Test\TestCase\Support\SeedManager;
 use Cake\Core\Configure;
+use Cake\Database\SchemaCache;
 use Cake\Datasource\ConnectionManager;
+use Cake\ORM\TableRegistry;
 use Migrations\Migrations;
 
 /**
@@ -37,12 +38,16 @@ $runtimeTmp = $runtimeRoot . 'tmp' . DIRECTORY_SEPARATOR;
 $runtimeLogs = $runtimeRoot . 'logs' . DIRECTORY_SEPARATOR;
 
 if (!defined('TMP') && !is_writable($projectRoot . DIRECTORY_SEPARATOR . 'tmp')) {
-    @mkdir($runtimeTmp, 0777, true);
+    if (!is_dir($runtimeTmp)) {
+        mkdir($runtimeTmp, 0777, true);
+    }
     define('TMP', $runtimeTmp);
 }
 
 if (!defined('LOGS') && !is_writable($projectRoot . DIRECTORY_SEPARATOR . 'logs')) {
-    @mkdir($runtimeLogs, 0777, true);
+    if (!is_dir($runtimeLogs)) {
+        mkdir($runtimeLogs, 0777, true);
+    }
     define('LOGS', $runtimeLogs);
 }
 
@@ -54,15 +59,17 @@ if (empty($_SERVER['HTTP_HOST']) && !Configure::read('App.fullBaseUrl')) {
 
 // Keep document storage under writable test temp path.
 $testDocumentPath = TMP . 'uploaded';
-@mkdir($testDocumentPath, 0777, true);
+if (!is_dir($testDocumentPath)) {
+    mkdir($testDocumentPath, 0777, true);
+}
 Configure::write('Documents.storage.local.path', $testDocumentPath);
 
 // DebugKit skips settings these connection config if PHP SAPI is CLI / PHPDBG.
 // But since PagesControllerTest is run with debug enabled and DebugKit is loaded
 // in application, without setting up these config DebugKit errors out.
 ConnectionManager::setConfig('test_debug_kit', [
-    'className' => "Cake\Database\Connection",
-    'driver' => "Cake\Database\Driver\Sqlite",
+    'className' => 'Cake\Database\Connection',
+    'driver' => 'Cake\Database\Driver\Sqlite',
     'database' => TMP . 'debug_kit.sqlite',
     'encoding' => 'utf8',
     'cacheMetadata' => true,
@@ -73,11 +80,11 @@ ConnectionManager::alias('test_debug_kit', 'debug_kit');
 ConnectionManager::alias('test', 'default');
 
 // Ensure tmp and logs directories exist and are writable for tests
-@mkdir(LOGS, 0777, true);
-@mkdir(TMP, 0777, true);
-@mkdir(TMP . 'cache', 0777, true);
-@mkdir(TMP . 'sessions', 0777, true);
-@mkdir(TMP . 'tests', 0777, true);
+foreach ([LOGS, TMP, TMP . 'cache', TMP . 'sessions', TMP . 'tests'] as $dir) {
+    if (!is_dir($dir)) {
+        mkdir($dir, 0777, true);
+    }
+}
 
 // Fixate sessionid early on, as php7.2+
 // does not allow the sessionid to be set after stdout
@@ -112,10 +119,10 @@ if (SeedManager::isPostgres('test')) {
     foreach ($settings as [$name, $value]) {
         try {
             $conn->execute(
-                "INSERT INTO app_settings (name, value, created, modified) VALUES (?, ?, ?, ?)",
-                [$name, $value, $now, $now]
+                'INSERT INTO app_settings (name, value, created, modified) VALUES (?, ?, ?, ?)',
+                [$name, $value, $now, $now],
             );
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Setting may already exist from migration seed
         }
     }
@@ -144,7 +151,7 @@ if (SeedManager::isPostgres('test')) {
                 birth_year = EXCLUDED.birth_year,
                 modified = EXCLUDED.modified,
                 modified_by = EXCLUDED.modified_by",
-            [$id, '$2y$10$test-test-test-test-test-test-test-test-test', $scaName, $firstName, $lastName, $email, $status, $membershipExpiresOn, $warrantable, $birthYear, $now, $now]
+            [$id, '$2y$10$test-test-test-test-test-test-test-test-test', $scaName, $firstName, $lastName, $email, $status, $membershipExpiresOn, $warrantable, $birthYear, $now, $now],
         );
     }
 
@@ -152,82 +159,82 @@ if (SeedManager::isPostgres('test')) {
         "INSERT INTO roles (id, name, is_system, created, modified, created_by, modified_by)
          VALUES (9001, 'Edge Case Role', false, ?, ?, 1, 1)
          ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, modified = EXCLUDED.modified, modified_by = EXCLUDED.modified_by",
-        [$now, $now]
+        [$now, $now],
     );
     $conn->execute(
         "INSERT INTO roles (id, name, is_system, created, modified, created_by, modified_by)
          VALUES (9002, 'Edge Case Active Role', false, ?, ?, 1, 1)
          ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, modified = EXCLUDED.modified, modified_by = EXCLUDED.modified_by",
-        [$now, $now]
+        [$now, $now],
     );
     $conn->execute(
         "INSERT INTO permissions (id, name, is_system, is_super_user, scoping_rule, created, modified, created_by, modified_by)
          VALUES (9901, 'Edge Case Test Permission', false, false, 'Global', ?, ?, 1, 1)
          ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, modified = EXCLUDED.modified, modified_by = EXCLUDED.modified_by",
-        [$now, $now]
+        [$now, $now],
     );
     $conn->execute(
         "INSERT INTO roles_permissions (id, permission_id, role_id, created, created_by)
          VALUES (9901, 9901, 9002, ?, 1)
          ON CONFLICT (id) DO NOTHING",
-        [$now]
+        [$now],
     );
     $conn->execute(
         "INSERT INTO permission_policies (id, permission_id, policy_class, policy_method)
          VALUES (9901, 9901, 'App\\\\Policy\\\\MemberPolicy', 'canView')
-         ON CONFLICT (id) DO NOTHING"
+         ON CONFLICT (id) DO NOTHING",
     );
 
     $conn->execute(
         "INSERT INTO member_roles (id, member_id, role_id, start_on, expires_on, approver_id, revoker_id, created, modified, created_by, modified_by, branch_id)
          VALUES (362, 2875, 9001, NOW() - INTERVAL '30 days', NOW() + INTERVAL '365 days', 1, 1, ?, ?, 1, 1, NULL)
          ON CONFLICT (id) DO UPDATE SET member_id = EXCLUDED.member_id, role_id = EXCLUDED.role_id, revoker_id = EXCLUDED.revoker_id, expires_on = EXCLUDED.expires_on, modified = EXCLUDED.modified, modified_by = EXCLUDED.modified_by",
-        [$now, $now]
+        [$now, $now],
     );
     $conn->execute(
         "INSERT INTO member_roles (id, member_id, role_id, start_on, expires_on, approver_id, revoker_id, created, modified, created_by, modified_by, branch_id)
          VALUES (363, 2874, 9001, NOW() - INTERVAL '365 days', NOW() - INTERVAL '30 days', 1, NULL, ?, ?, 1, 1, NULL)
          ON CONFLICT (id) DO UPDATE SET member_id = EXCLUDED.member_id, role_id = EXCLUDED.role_id, revoker_id = EXCLUDED.revoker_id, expires_on = EXCLUDED.expires_on, modified = EXCLUDED.modified, modified_by = EXCLUDED.modified_by",
-        [$now, $now]
+        [$now, $now],
     );
     $conn->execute(
         "INSERT INTO member_roles (id, member_id, role_id, start_on, expires_on, approver_id, revoker_id, created, modified, created_by, modified_by, branch_id)
          VALUES (99021, 2872, 9002, NOW() - INTERVAL '30 days', NOW() + INTERVAL '365 days', 1, NULL, ?, ?, 1, 1, NULL)
          ON CONFLICT (id) DO UPDATE SET member_id = EXCLUDED.member_id, role_id = EXCLUDED.role_id, revoker_id = EXCLUDED.revoker_id, expires_on = EXCLUDED.expires_on, modified = EXCLUDED.modified, modified_by = EXCLUDED.modified_by",
-        [$now, $now]
+        [$now, $now],
     );
     $conn->execute(
         "INSERT INTO member_roles (id, member_id, role_id, start_on, expires_on, approver_id, revoker_id, created, modified, created_by, modified_by, branch_id)
          VALUES (99022, 2874, 9002, NOW() - INTERVAL '30 days', NOW() + INTERVAL '365 days', 1, NULL, ?, ?, 1, 1, NULL)
          ON CONFLICT (id) DO UPDATE SET member_id = EXCLUDED.member_id, role_id = EXCLUDED.role_id, revoker_id = EXCLUDED.revoker_id, expires_on = EXCLUDED.expires_on, modified = EXCLUDED.modified, modified_by = EXCLUDED.modified_by",
-        [$now, $now]
+        [$now, $now],
     );
 
     $conn->execute(
         "INSERT INTO warrant_rosters (id, name, approvals_required, approval_count, status, created, modified, created_by, modified_by)
          VALUES (9901, 'Edge Case Warrant Roster', 1, 1, 'Current', ?, ?, 1, 1)
          ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, modified = EXCLUDED.modified, modified_by = EXCLUDED.modified_by",
-        [$now, $now]
+        [$now, $now],
     );
     $conn->execute(
         "INSERT INTO warrants (id, name, member_id, warrant_roster_id, entity_id, member_role_id, start_on, expires_on, status, created, modified, created_by, modified_by)
          VALUES (99011, 'Bryce Current Warrant', 2872, 9901, 0, 99021, NOW() - INTERVAL '30 days', NOW() + INTERVAL '365 days', 'Current', ?, ?, 1, 1)
          ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status, start_on = EXCLUDED.start_on, expires_on = EXCLUDED.expires_on, modified = EXCLUDED.modified, modified_by = EXCLUDED.modified_by",
-        [$now, $now]
+        [$now, $now],
     );
     $conn->execute(
         "INSERT INTO warrants (id, name, member_id, warrant_roster_id, entity_id, member_role_id, start_on, expires_on, status, created, modified, created_by, modified_by)
          VALUES (99012, 'Bryce Expired Warrant', 2872, 9901, 0, 99021, NOW() - INTERVAL '365 days', NOW() - INTERVAL '30 days', 'Expired', ?, ?, 1, 1)
          ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status, start_on = EXCLUDED.start_on, expires_on = EXCLUDED.expires_on, modified = EXCLUDED.modified, modified_by = EXCLUDED.modified_by",
-        [$now, $now]
+        [$now, $now],
     );
 }
 
 // Clear cached table metadata so CakePHP sees columns added by migrations.
 // Without this, Table objects may use stale schema from before migrate() ran.
 $testConn = ConnectionManager::get('test');
-(new \Cake\Database\SchemaCache($testConn))->clear();
-\Cake\ORM\TableRegistry::getTableLocator()->clear();
+(new SchemaCache($testConn))->clear();
+TableRegistry::getTableLocator()->clear();
 
 // Fix stale seed data dates: extend expired test member roles to far-future dates
 // so time-sensitive tests remain stable across environments.
@@ -239,24 +246,24 @@ if (!SeedManager::isPostgres('test')) {
 
     // Extend membership expiration for all synthetic test members so permission queries work
     $conn->execute(
-        "UPDATE members SET membership_expires_on = ? WHERE id IN (2871, 2872, 2874, 2875) AND membership_expires_on < NOW()",
-        [$farFuture]
+        'UPDATE members SET membership_expires_on = ? WHERE id IN (2871, 2872, 2874, 2875) AND membership_expires_on < NOW()',
+        [$farFuture],
     );
 
     // Devon (2874) needs active Regional Officer Management role at Central Region (branch 12)
     // for multi-region permission tests. Role 363 was revoked, so create a replacement if needed.
     $existingActive = $conn->execute(
-        "SELECT COUNT(*) as cnt FROM member_roles WHERE member_id = 2874 AND role_id = 1118 AND branch_id = 12 AND revoker_id IS NULL AND expires_on > NOW()"
+        'SELECT COUNT(*) as cnt FROM member_roles WHERE member_id = 2874 AND role_id = 1118 AND branch_id = 12 AND revoker_id IS NULL AND expires_on > NOW()',
     )->fetch('assoc');
     if ($existingActive && (int)$existingActive['cnt'] === 0) {
         $conn->execute(
             "INSERT INTO member_roles (member_id, role_id, branch_id, start_on, expires_on, approver_id, entity_type, created, modified, created_by, modified_by) VALUES (2874, 1118, 12, NOW(), ?, 1, 'Officers.Officers', NOW(), NOW(), 1, 1)",
-            [$farFuture]
+            [$farFuture],
         );
     }
     // Devon (2874) roles at local branches (370, 371) - extend if expired
     $conn->execute(
-        "UPDATE member_roles SET expires_on = ? WHERE id IN (370, 371) AND expires_on < NOW()",
-        [$farFuture]
+        'UPDATE member_roles SET expires_on = ? WHERE id IN (370, 371) AND expires_on < NOW()',
+        [$farFuture],
     );
 }

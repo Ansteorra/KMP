@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Command;
@@ -9,13 +8,14 @@ use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 use Cake\Datasource\ConnectionManager;
+use RuntimeException;
 
 /**
  * GeneratePublicIds Command
- * 
+ *
  * Generates public IDs for existing records in tables that have the public_id column
  * but haven't had IDs generated yet.
- * 
+ *
  * Usage:
  *   bin/cake generate_public_ids members
  *   bin/cake generate_public_ids --all
@@ -83,6 +83,7 @@ class GeneratePublicIdsCommand extends Command
             $io->out('  bin/cake generate_public_ids members');
             $io->out('  bin/cake generate_public_ids members branches gatherings');
             $io->out('  bin/cake generate_public_ids --all');
+
             return static::CODE_ERROR;
         }
 
@@ -104,12 +105,14 @@ class GeneratePublicIdsCommand extends Command
             foreach ($tables as $table) {
                 if (!in_array($table, $schemaCollection->listTables())) {
                     $io->error(sprintf('Table "%s" does not exist', $table));
+
                     return static::CODE_ERROR;
                 }
 
                 $schema = $schemaCollection->describe($table);
                 if (!$schema->hasColumn($field)) {
                     $io->error(sprintf('Table "%s" does not have a "%s" column', $table, $field));
+
                     return static::CODE_ERROR;
                 }
             }
@@ -169,7 +172,7 @@ class GeneratePublicIdsCommand extends Command
         string $field,
         int $length,
         bool $dryRun,
-        ConsoleIo $io
+        ConsoleIo $io,
     ): int {
         // Find records without public_id
         $query = $connection->selectQuery()
@@ -187,6 +190,7 @@ class GeneratePublicIdsCommand extends Command
 
         if ($count === 0) {
             $io->out('  No records need public IDs');
+
             return 0;
         }
 
@@ -231,7 +235,7 @@ class GeneratePublicIdsCommand extends Command
         string $field,
         int $length,
         string $charset,
-        int $charsetLength
+        int $charsetLength,
     ): string {
         $maxAttempts = 10;
         $attempt = 0;
@@ -252,10 +256,10 @@ class GeneratePublicIdsCommand extends Command
             $attempt++;
 
             if ($attempt >= $maxAttempts) {
-                throw new \RuntimeException(sprintf(
+                throw new RuntimeException(sprintf(
                     'Failed to generate unique public ID for %s after %d attempts',
                     $table,
-                    $maxAttempts
+                    $maxAttempts,
                 ));
             }
         } while ($exists);

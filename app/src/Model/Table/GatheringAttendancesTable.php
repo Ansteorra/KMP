@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -7,9 +6,10 @@ namespace App\Model\Table;
 use ArrayObject;
 use Cake\Datasource\EntityInterface;
 use Cake\Event\EventInterface;
+use Cake\ORM\Query\SelectQuery;
+use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
-use Cake\ORM\RulesChecker;
 
 /**
  * GatheringAttendances Model
@@ -21,7 +21,6 @@ use Cake\ORM\RulesChecker;
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Members
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Creators
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Modifiers
- *
  * @method \App\Model\Entity\GatheringAttendance newEmptyEntity()
  * @method \App\Model\Entity\GatheringAttendance newEntity(array $data, array $options = [])
  * @method \App\Model\Entity\GatheringAttendance[] newEntities(array $data, array $options = [])
@@ -51,7 +50,7 @@ class GatheringAttendancesTable extends Table
         $this->addBehavior('Timestamp');
         $this->addBehavior('Muffin/Footprint.Footprint');
         $this->addBehavior('Muffin/Trash.Trash', [
-            'field' => 'deleted'
+            'field' => 'deleted',
         ]);
 
         $this->belongsTo('Gatherings', [
@@ -129,7 +128,7 @@ class GatheringAttendancesTable extends Table
         // Ensure unique combination of gathering_id and member_id
         $rules->add($rules->isUnique(['gathering_id', 'member_id'], [
             'allowMultipleNulls' => false,
-            'message' => __('This member already has an attendance record for this gathering.')
+            'message' => __('This member already has an attendance record for this gathering.'),
         ]));
 
         return $rules;
@@ -172,7 +171,7 @@ class GatheringAttendancesTable extends Table
      * @param \Cake\ORM\Query\SelectQuery $query The query to modify
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findPublic($query)
+    public function findPublic($query): SelectQuery
     {
         return $query->where(['is_public' => true]);
     }
@@ -183,7 +182,7 @@ class GatheringAttendancesTable extends Table
      * @param \Cake\ORM\Query\SelectQuery $query The query to modify
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findSharedWithKingdom($query)
+    public function findSharedWithKingdom($query): SelectQuery
     {
         return $query->where(['share_with_kingdom' => true]);
     }
@@ -194,7 +193,7 @@ class GatheringAttendancesTable extends Table
      * @param \Cake\ORM\Query\SelectQuery $query The query to modify
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findSharedWithHostingGroup($query)
+    public function findSharedWithHostingGroup($query): SelectQuery
     {
         return $query->where(['share_with_hosting_group' => true]);
     }
@@ -205,7 +204,7 @@ class GatheringAttendancesTable extends Table
      * @param \Cake\ORM\Query\SelectQuery $query The query to modify
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findSharedWithCrown($query)
+    public function findSharedWithCrown($query): SelectQuery
     {
         return $query->where(['share_with_crown' => true]);
     }
@@ -216,14 +215,14 @@ class GatheringAttendancesTable extends Table
      * @param \Cake\ORM\Query\SelectQuery $query The query to modify
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findShared($query)
+    public function findShared($query): SelectQuery
     {
         return $query->where([
             'OR' => [
                 'share_with_kingdom' => true,
                 'share_with_hosting_group' => true,
                 'share_with_crown' => true,
-            ]
+            ],
         ]);
     }
 

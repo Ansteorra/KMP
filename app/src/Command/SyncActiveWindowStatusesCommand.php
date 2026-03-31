@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Command;
@@ -84,7 +83,7 @@ class SyncActiveWindowStatusesCommand extends Command
                 $alias,
                 $summary['upcoming_to_current'],
                 $summary['current_to_expired'],
-                $summary['errors'] > 0 ? sprintf(' (errors: %d)', $summary['errors']) : ''
+                $summary['errors'] > 0 ? sprintf(' (errors: %d)', $summary['errors']) : '',
             ));
         }
 
@@ -93,7 +92,7 @@ class SyncActiveWindowStatusesCommand extends Command
             'Summary: %d Upcoming→Current, %d Current→Expired%s',
             $overallUpcoming,
             $overallExpired,
-            $overallErrors > 0 ? sprintf(', errors: %d', $overallErrors) : ''
+            $overallErrors > 0 ? sprintf(', errors: %d', $overallErrors) : '',
         ));
 
         return $overallErrors === 0 ? Command::CODE_SUCCESS : Command::CODE_ERROR;
@@ -163,7 +162,8 @@ class SyncActiveWindowStatusesCommand extends Command
         if ($plugin === null) {
             $paths = App::classPath('Model/Table');
         } else {
-            $pluginPath = Plugin::path($plugin) . 'src' . DIRECTORY_SEPARATOR . 'Model' . DIRECTORY_SEPARATOR . 'Table' . DIRECTORY_SEPARATOR;
+            $pluginPath = Plugin::path($plugin)
+                . 'src' . DIRECTORY_SEPARATOR . 'Model' . DIRECTORY_SEPARATOR . 'Table' . DIRECTORY_SEPARATOR;
             $paths = [
                 $pluginPath,
             ];
@@ -176,7 +176,7 @@ class SyncActiveWindowStatusesCommand extends Command
             }
 
             $directoryIterator = new RecursiveIteratorIterator(
-                new RecursiveDirectoryIterator($path, RecursiveDirectoryIterator::SKIP_DOTS)
+                new RecursiveDirectoryIterator($path, RecursiveDirectoryIterator::SKIP_DOTS),
             );
 
             foreach ($directoryIterator as $file) {
@@ -190,7 +190,7 @@ class SyncActiveWindowStatusesCommand extends Command
                 }
 
                 $class = substr($filename, 0, -4); // Remove .php
-                $alias = substr($class, 0, -5);    // Remove Table suffix
+                $alias = substr($class, 0, -5); // Remove Table suffix
                 if ($alias !== '') {
                     $aliases[] = $alias;
                 }

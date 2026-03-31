@@ -10,6 +10,15 @@ use Cake\ORM\TableRegistry;
 
 class DefaultReadOnlyOfficeService implements ReadOnlyOfficeServiceInterface
 {
+    /**
+     * List all records.
+     *
+     * @param KmpIdentityInterface $identity
+     * @param array $filters
+     * @param int $page
+     * @param int $limit
+     * @return array
+     */
     public function list(KmpIdentityInterface $identity, array $filters, int $page, int $limit): array
     {
         $table = TableRegistry::getTableLocator()->get('Officers.Offices');
@@ -53,6 +62,13 @@ class DefaultReadOnlyOfficeService implements ReadOnlyOfficeServiceInterface
         ];
     }
 
+    /**
+     * Get by id.
+     *
+     * @param KmpIdentityInterface $identity
+     * @param int $id
+     * @return ?array
+     */
     public function getById(KmpIdentityInterface $identity, int $id): ?array
     {
         $row = TableRegistry::getTableLocator()->get('Officers.Offices')->find()
@@ -74,6 +90,12 @@ class DefaultReadOnlyOfficeService implements ReadOnlyOfficeServiceInterface
         return $payload;
     }
 
+    /**
+     * Format office.
+     *
+     * @param object $row
+     * @return array
+     */
     protected function formatOffice(object $row): array
     {
         return [
@@ -91,6 +113,13 @@ class DefaultReadOnlyOfficeService implements ReadOnlyOfficeServiceInterface
         ];
     }
 
+    /**
+     * Assert that can view.
+     *
+     * @param KmpIdentityInterface $identity
+     * @param object $entity
+     * @return void
+     */
     protected function assertCanView(KmpIdentityInterface $identity, object $entity): void
     {
         if (!$identity->can('view', $entity)) {

@@ -1,11 +1,10 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
 
-use Awards\Model\Entity\Recommendation;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
+use Awards\Model\Entity\Recommendation;
 use Cake\I18n\DateTime;
 
 /**

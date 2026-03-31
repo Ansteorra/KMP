@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
@@ -8,7 +7,7 @@ use App\Test\TestCase\Support\HttpIntegrationTestCase;
 
 /**
  * Example Test Demonstrating Test Super User Authentication
- * 
+ *
  * This test class shows how to use authenticateAsSuperUser()
  * via HttpIntegrationTestCase to solve permission issues in tests.
  */

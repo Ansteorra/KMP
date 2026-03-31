@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Model\Table;
@@ -8,7 +7,9 @@ use App\Test\TestCase\BaseTestCase;
 
 class PermissionsTableTest extends BaseTestCase
 {
-    /** @var \App\Model\Table\PermissionsTable */
+    /**
+     * @var \App\Model\Table\PermissionsTable
+     */
     protected $Permissions;
 
     protected function setUp(): void

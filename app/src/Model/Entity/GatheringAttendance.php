@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -94,10 +93,10 @@ class GatheringAttendance extends BaseEntity
 
     /**
      * Get the branch ID for policy scoping
-     * 
+     *
      * Returns the branch_id of the gathering this attendance is for.
      * This is used by the BasePolicy for branch-based permission scoping.
-     * 
+     *
      * The gathering's branch_id is used because attendance records should
      * follow the same permission scoping as the gathering itself - if you
      * can manage a gathering's branch, you can manage attendance for that gathering.

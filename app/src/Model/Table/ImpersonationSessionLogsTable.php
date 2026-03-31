@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -12,6 +11,12 @@ use Cake\Validation\Validator;
  */
 class ImpersonationSessionLogsTable extends BaseTable
 {
+    /**
+     * Set up this component.
+     *
+     * @param array $config
+     * @return void
+     */
     public function initialize(array $config): void
     {
         parent::initialize($config);
@@ -30,6 +35,12 @@ class ImpersonationSessionLogsTable extends BaseTable
         ]);
     }
 
+    /**
+     * Define default validation rules.
+     *
+     * @param \Cake\Validation\Validator $validator
+     * @return \Cake\Validation\Validator
+     */
     public function validationDefault(Validator $validator): Validator
     {
         $validator
@@ -60,6 +71,12 @@ class ImpersonationSessionLogsTable extends BaseTable
         return $validator;
     }
 
+    /**
+     * Define application-level rules.
+     *
+     * @param \Cake\ORM\RulesChecker $rules
+     * @return \Cake\ORM\RulesChecker
+     */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
         $rules->add($rules->existsIn(['impersonator_id'], 'Impersonators'));

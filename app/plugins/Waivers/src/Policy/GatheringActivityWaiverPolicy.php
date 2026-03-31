@@ -20,6 +20,13 @@ use App\Policy\BasePolicy;
 class GatheringActivityWaiverPolicy extends BasePolicy
 {
 
+    /**
+     * Get available waiver types.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user
+     * @param \App\Model\Entity\BaseEntity $entity
+     * @return bool
+     */
     public function availableWaiverTypes(\App\KMP\KmpIdentityInterface $user, \App\Model\Entity\BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;

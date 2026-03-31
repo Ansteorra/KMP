@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
@@ -15,6 +14,11 @@ use Exception;
  */
 class TableAdminController extends AppController
 {
+    /**
+     * Index.
+     *
+     * @return void
+     */
     public function index(): void
     {
         $this->request->allowMethod(['get', 'post']);
@@ -85,12 +89,18 @@ class TableAdminController extends AppController
                             if (!empty($sqlResultRows)) {
                                 $sqlResultColumns = array_keys($sqlResultRows[0]);
                             }
-                            $sqlMessage = __('Query executed successfully. Returned {0} row(s).', count($sqlResultRows));
+                            $sqlMessage = __(
+                                'Query executed successfully. Returned {0} row(s).',
+                                count($sqlResultRows),
+                            );
                             if ($sqlTruncated) {
                                 $sqlMessage .= ' ' . __('Results were limited to the first {0} row(s).', $sqlMaxRows);
                             }
                         } else {
-                            $sqlMessage = __('Statement executed successfully. {0} row(s) affected.', (int)$statement->rowCount());
+                            $sqlMessage = __(
+                                'Statement executed successfully. {0} row(s) affected.',
+                                (int)$statement->rowCount(),
+                            );
                             if ($mutationType !== null) {
                                 $sqlMessage .= ' ' . __('{0} was wrapped in a transaction.', $mutationType);
                             }
@@ -181,6 +191,11 @@ class TableAdminController extends AppController
         ];
     }
 
+    /**
+     * Require super user.
+     *
+     * @return void
+     */
     private function requireSuperUser(): void
     {
         $identity = $this->request->getAttribute('identity');
@@ -189,6 +204,12 @@ class TableAdminController extends AppController
         }
     }
 
+    /**
+     * Get mutation type.
+     *
+     * @param string $sql
+     * @return ?string
+     */
     private function getMutationType(string $sql): ?string
     {
         if (!preg_match('/^\s*(insert|update|delete)\b/i', $sql, $matches)) {
@@ -198,6 +219,12 @@ class TableAdminController extends AppController
         return strtoupper($matches[1]);
     }
 
+    /**
+     * Get confirmation required type.
+     *
+     * @param string $sql
+     * @return ?string
+     */
     private function getConfirmationRequiredType(string $sql): ?string
     {
         if (!preg_match('/^\s*(insert|update|delete|truncate)\b/i', $sql, $matches)) {

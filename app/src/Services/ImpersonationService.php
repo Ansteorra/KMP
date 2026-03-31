@@ -1,16 +1,16 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services;
 
 use App\Model\Entity\Member;
+use Cake\Cache\Cache;
 use Cake\Http\Session;
 use Cake\I18n\FrozenTime;
 use Cake\Log\Log;
 use Cake\ORM\TableRegistry;
 use Cake\Routing\Router;
-use Cake\Cache\Cache;
+use Throwable;
 
 /**
  * Manages impersonation session metadata for super user actions.
@@ -66,10 +66,12 @@ class ImpersonationService
         }
 
         try {
-            $impersonator = TableRegistry::getTableLocator()->get('Members')->get((int)($state['impersonator_id'] ?? 0));
-            $impersonated = TableRegistry::getTableLocator()->get('Members')->get((int)($state['impersonated_member_id'] ?? 0));
+            $impersonator = TableRegistry::getTableLocator()->get('Members')
+                ->get((int)($state['impersonator_id'] ?? 0));
+            $impersonated = TableRegistry::getTableLocator()->get('Members')
+                ->get((int)($state['impersonated_member_id'] ?? 0));
             $this->logSessionEvent('stop', $impersonator, $impersonated);
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
             Log::warning('Failed to record impersonation session stop: ' . $exception->getMessage());
         }
 
@@ -116,8 +118,9 @@ class ImpersonationService
 
         try {
             $logsTable = $tableLocator->get('ImpersonationSessionLogs');
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
             Log::warning('Unable to access ImpersonationSessionLogs table: ' . $exception->getMessage());
+
             return;
         }
 
@@ -133,6 +136,7 @@ class ImpersonationService
         $log = $logsTable->newEntity($data, ['accessibleFields' => ['*' => true]]);
         if ($log->hasErrors()) {
             Log::warning('Failed to create impersonation session log entry: ' . json_encode($log->getErrors()));
+
             return;
         }
 
@@ -146,7 +150,7 @@ class ImpersonationService
     {
         try {
             Cache::delete('navigation_items');
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
             Log::warning('Failed clearing navigation cache: ' . $exception->getMessage());
         }
 

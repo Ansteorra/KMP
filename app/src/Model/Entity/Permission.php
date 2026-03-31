@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -58,6 +57,11 @@ class Permission extends BaseEntity
         'roles' => true,
     ];
 
+    /**
+     * Set the scoping rule virtual field.
+     *
+     * @param mixed $value
+     */
     protected function _setScopingRule($value)
     {
         //the status must be one of the constants defined in this class

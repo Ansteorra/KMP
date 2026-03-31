@@ -1,40 +1,39 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
 
 /**
  * Branch Entity - Hierarchical Organizational Structure for KMP
- * 
+ *
  * Represents a branch in the KMP organizational hierarchy, supporting nested tree structures
  * for kingdoms, principalities, baronies, shires, and other administrative divisions.
  * Provides organizational scoping for members, roles, permissions, and activities.
- * 
+ *
  * **Tree Structure Features:**
  * - Hierarchical organization using nested set model (Tree behavior)
  * - Parent-child relationships with unlimited depth
  * - Automatic tree integrity maintenance and recovery
  * - Efficient descendant and ancestor queries with caching
- * 
+ *
  * **Member Management:**
  * - Associates members to specific organizational units
  * - Controls member visibility and authorization scope
  * - Supports branch-specific role assignments and permissions
  * - Enables organizational reporting and analytics
- * 
+ *
  * **Configuration & Links:**
  * - JSON-based links storage for external resources and websites
  * - Configurable branch types (Kingdom, Principality, Barony, Shire, etc.)
  * - Domain association for organization-specific branding
  * - Member enrollment controls and visibility settings
- * 
+ *
  * **Authorization Integration:**
  * - Implements getBranchId() for authorization system compatibility
  * - Supports branch-scoped permissions and data access control
  * - Enables hierarchical permission inheritance through tree structure
  * - Integrates with policy-based authorization framework
- * 
+ *
  * **Usage Examples:**
  * ```php
  * // Basic branch information
@@ -42,17 +41,17 @@ namespace App\Model\Entity;
  * echo $branch->name;          // "Kingdom of Atlantia"
  * echo $branch->location;      // "Eastern United States"
  * echo $branch->type;          // "Kingdom"
- * 
+ *
  * // Tree operations
  * $children = $branch->children;           // Direct child branches
  * $descendants = $branch->getAllDescendants(); // All descendant branches
  * $parents = $branch->getAllParents();     // Path to root
- * 
+ *
  * // Member associations
  * foreach ($branch->members as $member) {
  *     echo $member->sca_name;
  * }
- * 
+ *
  * // JSON links configuration
  * $branch->links = [
  *     'website' => 'https://atlantia.sca.org',
@@ -60,7 +59,7 @@ namespace App\Model\Entity;
  *     'newsletter' => 'https://acorn.atlantia.sca.org'
  * ];
  * ```
- * 
+ *
  * **Database Schema:**
  * - id: Primary key
  * - name: Unique branch name
@@ -72,7 +71,7 @@ namespace App\Model\Entity;
  * - domain: Associated domain for branding and access
  * - lft/rght: Nested set model tree structure fields
  * - created/modified: Timestamp tracking with user attribution
- * 
+ *
  * @property int $id Primary key identifier
  * @property string $public_id Public-facing identifier for URL routing
  * @property string $name Unique branch name (e.g., "Kingdom of Atlantia")
@@ -92,11 +91,10 @@ namespace App\Model\Entity;
  * @property \Cake\I18n\DateTime|null $modified Last modification timestamp
  * @property int|null $created_by ID of user who created this branch
  * @property int|null $modified_by ID of user who last modified this branch
- * 
+ *
  * @property \App\Model\Entity\Branch|null $parent Parent branch entity
  * @property \App\Model\Entity\Branch[] $children Direct child branch entities
  * @property \App\Model\Entity\Member[] $members Members associated with this branch
- * 
  * @see \App\Model\Table\BranchesTable For tree operations and caching strategies
  * @see \App\Controller\BranchesController For branch management workflows
  * @see \App\Policy\BranchPolicy For authorization rules and permissions
@@ -130,7 +128,7 @@ class Branch extends BaseEntity
      *         'website' => 'https://windmastershill.atlantia.sca.org'
      *     ]
      * ]);
-     * 
+     *
      * // Update existing branch
      * $branchesTable->patchEntity($branch, [
      *     'location' => 'Updated Location',
@@ -147,37 +145,37 @@ class Branch extends BaseEntity
 
     /**
      * Get branch ID for authorization system compatibility.
-     * 
+     *
      * Implements the getBranchId() pattern required by the KMP authorization
      * system. For Branch entities, this returns the entity's own ID since
      * branches are the primary organizational scope for authorization.
-     * 
+     *
      * **Authorization Integration:**
      * - Enables branch-scoped policy authorization
      * - Supports hierarchical permission inheritance
      * - Integrates with PermissionsLoader for role-based access control
      * - Used by AuthorizationService for scope validation
-     * 
+     *
      * **Hierarchical Permissions:**
      * The authorization system uses this ID in combination with the tree
      * structure to determine:
      * - Direct branch permissions (this branch only)
      * - Inherited permissions (from parent branches)
      * - Descendant permissions (applied to child branches)
-     * 
+     *
      * **Usage Examples:**
      * ```php
      * // Direct authorization check
      * $user->checkCan('edit', $branch);  // Uses $branch->getBranchId()
-     * 
+     *
      * // Policy-based authorization
      * $this->Authorization->authorize($branch);  // In controller
-     * 
+     *
      * // Permission inheritance
      * $kingdoms = $user->getPermission('manage_branches')->branch_ids;
      * // Includes all descendant branches through tree hierarchy
      * ```
-     * 
+     *
      * @return int|null The branch's own ID for authorization scoping, or null if entity is new
      * @see \App\Model\Entity\BaseEntity::getBranchId() Base implementation pattern
      * @see \App\KMP\PermissionsLoader For hierarchical permission processing

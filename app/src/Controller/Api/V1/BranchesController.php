@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller\Api\V1;
@@ -15,6 +14,11 @@ use App\Services\ApiDataRegistry;
  */
 class BranchesController extends ApiController
 {
+    /**
+     * Set up this component.
+     *
+     * @return void
+     */
     public function initialize(): void
     {
         parent::initialize();
@@ -86,6 +90,7 @@ class BranchesController extends ApiController
 
         if (!$branch) {
             $this->apiError('NOT_FOUND', 'Branch not found', [], 404);
+
             return;
         }
 

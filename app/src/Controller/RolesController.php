@@ -1,12 +1,13 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\KMP\GridColumns\RolesGridColumns;
 use App\Model\Entity\Permission;
 use App\Services\CsvExportService;
 use Cake\Http\Exception\NotFoundException;
+use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 
 /**
@@ -65,7 +66,7 @@ class RolesController extends AppController
     {
         // Build query with current member count subquery (only active assignments)
         $memberRolesTable = TableRegistry::getTableLocator()->get('MemberRoles');
-        $now = new \Cake\I18n\DateTime();
+        $now = new DateTime();
         $memberCountSubquery = $memberRolesTable->find()
             ->select(['count' => $memberRolesTable->find()->func()->count('*')])
             ->where([
@@ -81,13 +82,10 @@ class RolesController extends AppController
             ->select($this->Roles)
             ->select(['member_count' => $memberCountSubquery]);
 
-        // Get system views from GridColumns
-        $systemViews = \App\KMP\GridColumns\RolesGridColumns::getSystemViews([]);
-
         // Use unified trait for grid processing
         $result = $this->processDataverseGrid([
             'gridKey' => 'Roles.index.main',
-            'gridColumnsClass' => \App\KMP\GridColumns\RolesGridColumns::class,
+            'gridColumnsClass' => RolesGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'Roles',
             'defaultSort' => ['Roles.name' => 'asc'],
@@ -109,7 +107,7 @@ class RolesController extends AppController
             'gridState' => $result['gridState'],
             'columns' => $result['columnsMetadata'],
             'visibleColumns' => $result['visibleColumns'],
-            'searchableColumns' => \App\KMP\GridColumns\RolesGridColumns::getSearchableColumns(),
+            'searchableColumns' => RolesGridColumns::getSearchableColumns(),
             'dropdownFilterColumns' => $result['dropdownFilterColumns'],
             'filterOptions' => $result['filterOptions'],
             'currentFilters' => $result['currentFilters'],
@@ -156,7 +154,7 @@ class RolesController extends AppController
         $role = $this->Roles->get(
             $id,
             contain: [
-                'Permissions',  // Include all permissions assigned to this role
+                'Permissions', // Include all permissions assigned to this role
             ],
         );
 
@@ -182,7 +180,7 @@ class RolesController extends AppController
         if ($branch_required) {
             $branches = TableRegistry::getTableLocator()
                 ->get('Branches')
-                ->find('treeList', spacer: '--')  // Hierarchical list format
+                ->find('treeList', spacer: '--') // Hierarchical list format
                 ->orderBy(['name' => 'ASC']);
         }
 
@@ -213,7 +211,7 @@ class RolesController extends AppController
         if (count($currentPermissionIds) > 0) {
             $permissions = $this->Roles->Permissions
                 ->find('list')
-                ->where(['NOT' => ['id IN' => $currentPermissionIds]])  // Exclude assigned
+                ->where(['NOT' => ['id IN' => $currentPermissionIds]]) // Exclude assigned
                 ->all();
         } else {
             // No permissions assigned yet, show all available permissions
@@ -223,7 +221,7 @@ class RolesController extends AppController
         // Load branch hierarchy for descendant operations
         $branchTree = TableRegistry::getTableLocator()
             ->get('Branches')
-            ->getAllDecendentIds(1);  // Get all branches under root
+            ->getAllDecendentIds(1); // Get all branches under root
 
         $this->set(compact(
             'role',
@@ -232,7 +230,7 @@ class RolesController extends AppController
             'isEmpty',
             'branches',
             'branch_required',
-            'branchTree'
+            'branchTree',
         ));
     }
 
@@ -294,9 +292,9 @@ class RolesController extends AppController
         $role = $this->Roles->get(
             $id,
             contain: [
-                'MemberRoles.Members',      // Member assignment history
-                'MemberRoles.ApprovedBy',   // Approval tracking
-                'Permissions',              // Associated permissions
+                'MemberRoles.Members', // Member assignment history
+                'MemberRoles.ApprovedBy', // Approval tracking
+                'Permissions', // Associated permissions
             ],
         );
 
@@ -362,7 +360,8 @@ class RolesController extends AppController
         $permission = $this->Roles->Permissions->get($permission_id);
 
         // Check if permission is already assigned to prevent duplicates
-        for ($i = 0; $i < count($role->permissions); $i++) {
+        $permissionCount = count($role->permissions);
+        for ($i = 0; $i < $permissionCount; $i++) {
             if ($role->permissions[$i]->id == $permission_id) {
                 $this->Flash->error(
                     __('The permission is already assigned to the role.'),
@@ -374,7 +373,7 @@ class RolesController extends AppController
 
         // Add the permission to the role's permission collection
         $role->permissions[] = $permission;
-        $role->setDirty('permissions', true);  // Mark association as modified
+        $role->setDirty('permissions', true); // Mark association as modified
 
         if ($this->Roles->save($role)) {
             $this->Flash->success(
@@ -420,14 +419,15 @@ class RolesController extends AppController
         $this->Authorization->authorize($role);
 
         // Load permission for validation
-        $permission = $this->Roles->Permissions->get($permission_id);
+        $this->Roles->Permissions->get($permission_id);
 
         // Find and remove the permission from the role's collection
-        for ($i = 0; $i < count($role->permissions); $i++) {
+        $permissionCount = count($role->permissions);
+        for ($i = 0; $i < $permissionCount; $i++) {
             if ($role->permissions[$i]->id == $permission_id) {
                 // Remove permission from collection
                 unset($role->permissions[$i]);
-                $role->setDirty('permissions', true);  // Mark association as modified
+                $role->setDirty('permissions', true); // Mark association as modified
 
                 if ($this->Roles->save($role)) {
                     $this->Flash->success(

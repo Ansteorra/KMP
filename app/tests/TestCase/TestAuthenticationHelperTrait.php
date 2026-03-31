@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase;
@@ -7,8 +6,8 @@ namespace App\Test\TestCase;
 use Cake\ORM\TableRegistry;
 
 /**
- * TestAuthenticationHelper
- * 
+ * TestAuthenticationHelperTrait
+ *
  * Helper trait for authenticating test users in integration tests.
  * Provides convenient methods to authenticate as the test super user
  * or other predefined test accounts.
@@ -16,11 +15,11 @@ use Cake\ORM\TableRegistry;
  * Sessions must contain a Member entity (not a plain array) because
  * the authorization middleware expects KmpIdentityInterface.
  */
-trait TestAuthenticationHelper
+trait TestAuthenticationHelperTrait
 {
     /**
      * Authenticate as the test super user
-     * 
+     *
      * Loads the admin member from the database and sets it in the session.
      * The authorization layer will check permissions via PermissionsLoader.
      *
@@ -38,7 +37,7 @@ trait TestAuthenticationHelper
 
     /**
      * Authenticate as the admin user
-     * 
+     *
      * Alias for authenticateAsSuperUser() — same admin account.
      *
      * @return void
@@ -50,7 +49,7 @@ trait TestAuthenticationHelper
 
     /**
      * Authenticate as a custom user by member ID
-     * 
+     *
      * Loads the member from the database. The member must exist in seed data.
      *
      * @param int $memberId The ID of the member to authenticate as
@@ -101,6 +100,7 @@ trait TestAuthenticationHelper
                 return (int)$auth['id'];
             }
         }
+
         return null;
     }
 

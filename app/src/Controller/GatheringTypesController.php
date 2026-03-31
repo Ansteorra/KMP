@@ -1,9 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\KMP\GridColumns\GatheringTypesGridColumns;
 use App\Services\CsvExportService;
 
 /**
@@ -51,7 +51,7 @@ class GatheringTypesController extends AppController
         // Use unified trait for grid processing
         $result = $this->processDataverseGrid([
             'gridKey' => 'GatheringTypes.index.main',
-            'gridColumnsClass' => \App\KMP\GridColumns\GatheringTypesGridColumns::class,
+            'gridColumnsClass' => GatheringTypesGridColumns::class,
             'baseQuery' => $this->GatheringTypes->find(),
             'tableName' => 'GatheringTypes',
             'defaultSort' => ['GatheringTypes.name' => 'asc'],
@@ -73,7 +73,7 @@ class GatheringTypesController extends AppController
             'gridState' => $result['gridState'],
             'columns' => $result['columnsMetadata'],
             'visibleColumns' => $result['visibleColumns'],
-            'searchableColumns' => \App\KMP\GridColumns\GatheringTypesGridColumns::getSearchableColumns(),
+            'searchableColumns' => GatheringTypesGridColumns::getSearchableColumns(),
             'dropdownFilterColumns' => $result['dropdownFilterColumns'],
             'filterOptions' => $result['filterOptions'],
             'currentFilters' => $result['currentFilters'],
@@ -120,7 +120,10 @@ class GatheringTypesController extends AppController
         $this->Authorization->authorize($gatheringType);
 
         // Get all available activities for the add activity modal
-        $availableActivities = $this->GatheringTypes->GatheringActivities->find('list', order: ['name' => 'ASC'])->all();
+        $availableActivities = $this->GatheringTypes->GatheringActivities->find(
+            'list',
+            order: ['name' => 'ASC'],
+        )->all();
 
         $this->set(compact('gatheringType', 'availableActivities'));
     }
@@ -140,7 +143,7 @@ class GatheringTypesController extends AppController
             if ($this->GatheringTypes->save($gatheringType)) {
                 $this->Flash->success(__(
                     'The gathering type "{0}" has been created successfully.',
-                    $gatheringType->name
+                    $gatheringType->name,
                 ));
 
                 return $this->redirect(['action' => 'view', $gatheringType->id]);
@@ -149,14 +152,14 @@ class GatheringTypesController extends AppController
             $errors = $gatheringType->getErrors();
             if (!empty($errors)) {
                 $errorMessages = [];
-                foreach ($errors as $field => $fieldErrors) {
+                foreach ($errors as $fieldErrors) {
                     foreach ($fieldErrors as $error) {
                         $errorMessages[] = $error;
                     }
                 }
                 $this->Flash->error(__(
                     'The gathering type could not be saved: {0}',
-                    implode(', ', $errorMessages)
+                    implode(', ', $errorMessages),
                 ));
             } else {
                 $this->Flash->error(__('The gathering type could not be saved. Please, try again.'));
@@ -183,7 +186,7 @@ class GatheringTypesController extends AppController
             if ($this->GatheringTypes->save($gatheringType)) {
                 $this->Flash->success(__(
                     'The gathering type "{0}" has been updated successfully.',
-                    $gatheringType->name
+                    $gatheringType->name,
                 ));
 
                 return $this->redirect(['action' => 'view', $id]);
@@ -192,14 +195,14 @@ class GatheringTypesController extends AppController
             $errors = $gatheringType->getErrors();
             if (!empty($errors)) {
                 $errorMessages = [];
-                foreach ($errors as $field => $fieldErrors) {
+                foreach ($errors as $fieldErrors) {
                     foreach ($fieldErrors as $error) {
                         $errorMessages[] = $error;
                     }
                 }
                 $this->Flash->error(__(
                     'The gathering type could not be saved: {0}',
-                    implode(', ', $errorMessages)
+                    implode(', ', $errorMessages),
                 ));
             } else {
                 $this->Flash->error(__('The gathering type could not be saved. Please, try again.'));
@@ -229,9 +232,10 @@ class GatheringTypesController extends AppController
 
         if ($gatheringCount > 0) {
             $this->Flash->error(__(
-                'Cannot delete gathering type "{0}" because it is used by {1} gathering(s). Please reassign or delete those gatherings first.',
+                'Cannot delete gathering type "{0}" because it is used by {1} gathering(s).'
+                    . ' Please reassign or delete those gatherings first.',
                 $gatheringType->name,
-                $gatheringCount
+                $gatheringCount,
             ));
 
             return $this->redirect(['action' => 'index']);
@@ -240,12 +244,12 @@ class GatheringTypesController extends AppController
         if ($this->GatheringTypes->delete($gatheringType)) {
             $this->Flash->success(__(
                 'The gathering type "{0}" has been deleted successfully.',
-                $gatheringType->name
+                $gatheringType->name,
             ));
         } else {
             $this->Flash->error(__(
                 'The gathering type "{0}" could not be deleted. Please, try again.',
-                $gatheringType->name
+                $gatheringType->name,
             ));
         }
 
@@ -265,13 +269,14 @@ class GatheringTypesController extends AppController
     {
         $this->request->allowMethod(['post']);
         $gatheringType = $this->GatheringTypes->get($id, contain: ['GatheringActivities']);
-        $this->Authorization->authorize($gatheringType, "edit");
+        $this->Authorization->authorize($gatheringType, 'edit');
 
         $activityId = $this->request->getData('activity_id');
         $notRemovable = (bool)$this->request->getData('not_removable', false);
 
         if (empty($activityId)) {
             $this->Flash->error(__('Please select an activity to add.'));
+
             return $this->redirect(['action' => 'view', $id]);
         }
 
@@ -281,6 +286,7 @@ class GatheringTypesController extends AppController
         // Check if activity is already linked
         if (in_array($activityId, $existingIds)) {
             $this->Flash->warning(__('This activity is already part of this gathering type.'));
+
             return $this->redirect(['action' => 'view', $id]);
         }
 
@@ -318,24 +324,26 @@ class GatheringTypesController extends AppController
     {
         $this->request->allowMethod(['post']);
         $gatheringType = $this->GatheringTypes->get($gatheringTypeId);
-        $this->Authorization->authorize($gatheringType, "edit");
+        $this->Authorization->authorize($gatheringType, 'edit');
 
         $GatheringTypeGatheringActivities = $this->fetchTable('GatheringTypeGatheringActivities');
         $link = $GatheringTypeGatheringActivities->find()
             ->where([
                 'gathering_type_id' => $gatheringTypeId,
-                'gathering_activity_id' => $activityId
+                'gathering_activity_id' => $activityId,
             ])
             ->first();
 
         if (!$link) {
             $this->Flash->error(__('Template activity link not found.'));
+
             return $this->redirect(['action' => 'view', $gatheringTypeId]);
         }
 
         // Check if the activity is marked as not removable
         if ($link->not_removable) {
             $this->Flash->error(__('This template activity cannot be removed.'));
+
             return $this->redirect(['action' => 'view', $gatheringTypeId]);
         }
 

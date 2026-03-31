@@ -1,12 +1,11 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services;
 
-use Cake\Core\App;
 use Cake\Mailer\Mailer;
 use DirectoryIterator;
+use Exception;
 use ReflectionClass;
 use ReflectionMethod;
 use ReflectionNamedType;
@@ -88,7 +87,7 @@ class MailerDiscoveryService
                 if (!empty($mailerInfo['methods'])) {
                     $mailers[] = $mailerInfo;
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Skip classes that can't be analyzed
                 continue;
             }
@@ -263,7 +262,7 @@ class MailerDiscoveryService
                     }
                 }
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // If we can't read the file, return empty array
             return [];
         }
@@ -300,7 +299,7 @@ class MailerDiscoveryService
             if (preg_match('/->setSubject\(([^)]+)\)/i', $methodSource, $matches)) {
                 return $matches[1]; // Return the raw expression
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return null;
         }
 
@@ -343,7 +342,7 @@ class MailerDiscoveryService
             }
 
             return $this->analyzeMailerClass($className, $reflection);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return null;
         }
     }

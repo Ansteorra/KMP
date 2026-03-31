@@ -17,6 +17,11 @@ class InitOffices extends BaseMigration
         return false;
     }
 
+    /**
+     * Run the migration up.
+     *
+     * @return void
+     */
     public function up(): void
     {
         $this->table("officers_departments", ['id' => false])
@@ -349,6 +354,9 @@ class InitOffices extends BaseMigration
 
 
 
+    /**
+     * Reverse the migration.
+     */
     public function down()
     {
         $this->table("officers_offices")

@@ -1,9 +1,10 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use App\Model\Entity\ServicePrincipalAuditLog;
+use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\Validation\Validator;
 
@@ -14,7 +15,6 @@ use Cake\Validation\Validator;
  *
  * @property \App\Model\Table\ServicePrincipalsTable&\Cake\ORM\Association\BelongsTo $ServicePrincipals
  * @property \App\Model\Table\ServicePrincipalTokensTable&\Cake\ORM\Association\BelongsTo $ServicePrincipalTokens
- *
  * @method \App\Model\Entity\ServicePrincipalAuditLog newEmptyEntity()
  * @method \App\Model\Entity\ServicePrincipalAuditLog newEntity(array $data, array $options = [])
  * @method \App\Model\Entity\ServicePrincipalAuditLog get(mixed $primaryKey, array|string $finder = 'all', \Psr\SimpleCache\CacheInterface|string|null $cache = null, \Closure|string|null $cacheKey = null, mixed ...$args)
@@ -131,7 +131,7 @@ class ServicePrincipalAuditLogsTable extends BaseTable
      * @param int $servicePrincipalId Service principal ID
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findForServicePrincipal($query, int $servicePrincipalId)
+    public function findForServicePrincipal($query, int $servicePrincipalId): SelectQuery
     {
         return $query
             ->where(['ServicePrincipalAuditLogs.service_principal_id' => $servicePrincipalId])
@@ -145,7 +145,7 @@ class ServicePrincipalAuditLogsTable extends BaseTable
      * @param int $limit Number of entries
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findRecent($query, int $limit = 100)
+    public function findRecent($query, int $limit = 100): SelectQuery
     {
         return $query
             ->orderBy(['ServicePrincipalAuditLogs.created' => 'DESC'])
@@ -173,8 +173,8 @@ class ServicePrincipalAuditLogsTable extends BaseTable
         string $httpMethod,
         ?string $ipAddress = null,
         ?string $requestSummary = null,
-        ?int $responseCode = null
-    ) {
+        ?int $responseCode = null,
+    ): ServicePrincipalAuditLog|false {
         $entity = $this->newEntity([
             'service_principal_id' => $servicePrincipalId,
             'token_id' => $tokenId,

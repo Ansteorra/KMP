@@ -1,17 +1,20 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services;
 
 use Cake\Cache\Cache;
+use Cake\Database\Driver\Postgres;
 use Cake\Database\Schema\TableSchemaInterface;
 use Cake\Datasource\ConnectionManager;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\ORM\Locator\LocatorAwareTrait;
+use Cake\Utility\Inflector;
+use DateTimeImmutable;
 use Exception;
 use RuntimeException;
+use Throwable;
 
 /**
  * Database-agnostic backup and restore service.
@@ -73,7 +76,7 @@ class BackupService
         foreach ($tables as $tableName) {
             try {
                 $tableObj = $this->fetchTable(
-                    ucfirst(\Cake\Utility\Inflector::camelize($tableName))
+                    ucfirst(Inflector::camelize($tableName)),
                 );
             } catch (Exception $e) {
                 // Fallback: query directly
@@ -166,7 +169,7 @@ class BackupService
         $connection = ConnectionManager::get('default');
         $schemaCollection = $connection->getSchemaCollection();
         $driver = $connection->getDriver();
-        $isPostgres = $driver instanceof \Cake\Database\Driver\Postgres;
+        $isPostgres = $driver instanceof Postgres;
         $totalRows = 0;
         $processedTables = 0;
 
@@ -287,13 +290,19 @@ class BackupService
                         'rows_processed' => $totalRows,
                     ],
                 );
-                $notValidatedConstraintCount = $this->restorePostgresForeignKeys($connection, $driver, $droppedForeignKeys);
+                $notValidatedConstraintCount = $this->restorePostgresForeignKeys(
+                    $connection,
+                    $driver,
+                    $droppedForeignKeys,
+                );
                 if ($notValidatedConstraintCount > 0) {
                     $this->reportProgress(
                         $progressReporter,
                         'finalizing_constraints',
                         sprintf(
-                            'Restore completed with warnings: %d foreign key constraints were left NOT VALID due existing orphaned data.',
+                            'Restore completed with warnings: %d foreign '
+                            . 'key constraints were left NOT VALID due '
+                            . 'existing orphaned data.',
                             $notValidatedConstraintCount,
                         ),
                         [
@@ -512,6 +521,14 @@ class BackupService
         return $notValidatedConstraintCount;
     }
 
+    /**
+     * Fetch postgres foreign key definition.
+     *
+     * @param mixed $connection
+     * @param string $tableName
+     * @param string $constraintName
+     * @return ?string
+     */
     private function fetchPostgresForeignKeyDefinition($connection, string $tableName, string $constraintName): ?string
     {
         $sql = <<<'SQL'
@@ -539,6 +556,13 @@ SQL;
         return $definition;
     }
 
+    /**
+     * Get insert batch size.
+     *
+     * @param int $columnCount
+     * @param bool $isPostgres
+     * @return int
+     */
     private function getInsertBatchSize(int $columnCount, bool $isPostgres): int
     {
         if (!$isPostgres) {
@@ -591,8 +615,12 @@ SQL;
      * @param callable(array<string, mixed>):void|null $progressReporter
      * @param array<string, mixed> $context
      */
-    private function reportProgress(?callable $progressReporter, string $phase, string $message, array $context = []): void
-    {
+    private function reportProgress(
+        ?callable $progressReporter,
+        string $phase,
+        string $message,
+        array $context = [],
+    ): void {
         if ($progressReporter === null) {
             return;
         }
@@ -617,7 +645,7 @@ SQL;
                 if (!Cache::clear($cacheConfig)) {
                     Log::warning(sprintf('Failed to clear cache config "%s" after restore.', $cacheConfig));
                 }
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 Log::warning(sprintf(
                     'Failed to clear cache config "%s" after restore: %s',
                     $cacheConfig,
@@ -798,7 +826,7 @@ SQL;
         }
 
         try {
-            $parsed = new \DateTimeImmutable($value);
+            $parsed = new DateTimeImmutable($value);
         } catch (Exception) {
             return null;
         }
@@ -886,7 +914,13 @@ SQL;
             return (int)$value;
         }
 
-        if (is_string($value) && $value !== '' && in_array($columnType, ['float', 'decimal'], true) && is_numeric($value)) {
+        if (
+            is_string($value) && $value !== '' && in_array(
+                $columnType,
+                ['float', 'decimal'],
+                true,
+            ) && is_numeric($value)
+        ) {
             return (float)$value;
         }
 
@@ -916,11 +950,23 @@ SQL;
         return ['converted' => true, 'value' => $encoded];
     }
 
+    /**
+     * Check if integer like type.
+     *
+     * @param string $columnType
+     * @return bool
+     */
     private function isIntegerLikeType(string $columnType): bool
     {
         return in_array($columnType, ['boolean', 'integer', 'biginteger', 'smallinteger', 'tinyinteger'], true);
     }
 
+    /**
+     * Check if numeric column type.
+     *
+     * @param string $columnType
+     * @return bool
+     */
     private function isNumericColumnType(string $columnType): bool
     {
         return $this->isIntegerLikeType($columnType) || in_array($columnType, ['float', 'decimal'], true);

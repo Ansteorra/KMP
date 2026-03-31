@@ -1,10 +1,8 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
 
-use App\Model\Entity\Member;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Cake\I18n\FrozenTime;
 

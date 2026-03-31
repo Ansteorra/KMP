@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -30,6 +29,9 @@ class AppSetting extends BaseEntity
         'required' => true,
     ];
 
+    /**
+     * Get the raw value virtual field.
+     */
     protected function _getRawValue()
     {
         if (($this->type ?? 'string') === 'password' || $this->name === 'Backup.encryptionKey') {
@@ -46,18 +48,31 @@ class AppSetting extends BaseEntity
         }
     }
 
+    /**
+     * Set the raw value virtual field.
+     *
+     * @param mixed $value
+     * @return void
+     */
     protected function _setRawValue($value): void
     {
         switch ($this->type) {
             case 'json':
                 $this->value = json_decode($value);
+                // no break
             case 'yaml':
                 $this->value = yaml_parse($value);
+                // no break
             default:
                 $this->value = $value;
         }
     }
 
+    /**
+     * Set the value virtual field.
+     *
+     * @param mixed $value
+     */
     protected function _setValue($value)
     {
         if ($this->saving) {
@@ -73,6 +88,11 @@ class AppSetting extends BaseEntity
         }
     }
 
+    /**
+     * Get the value virtual field.
+     *
+     * @param mixed $value
+     */
     protected function _getValue($value)
     {
         if ($this->saving) {
@@ -83,10 +103,12 @@ class AppSetting extends BaseEntity
                 if (is_string($value)) {
                     return json_decode($value, true);
                 }
+                // no break
             case 'yaml':
                 if (is_string($value)) {
                     return yaml_parse($value);
                 }
+                // no break
             default:
                 return $value;
         }

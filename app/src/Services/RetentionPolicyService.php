@@ -1,20 +1,18 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services;
 
 use Cake\I18n\Date;
-use Cake\Log\Log;
 
 /**
  * Calculates document retention dates based on JSON retention policy definitions.
- * 
+ *
  * Interprets retention rules with anchor types (gathering_end_date, upload_date, permanent)
  * and duration fields (years, months, days) to determine document expiration dates.
- * 
+ *
  * Policy JSON format: {"anchor": "gathering_end_date", "years": 2, "months": 0, "days": 0}
- * 
+ *
  * @see \Waivers\Model\Entity\WaiverType Source of retention policy JSON
  * @see \App\Services\ServiceResult Standard service result pattern
  */
@@ -33,11 +31,10 @@ class RetentionPolicyService
      * @param \Cake\I18n\Date|null $uploadDate Upload date (required for upload_date anchor, defaults to today)
      * @return \App\Services\ServiceResult Success with Date object (or null for permanent retention), or failure with error message
      */
-
     public function calculateRetentionDate(
         string $policyJson,
         ?Date $gatheringEndDate = null,
-        ?Date $uploadDate = null
+        ?Date $uploadDate = null,
     ): ServiceResult {
         // Parse and validate policy JSON
         $validationResult = $this->validatePolicy($policyJson);
@@ -58,7 +55,7 @@ class RetentionPolicyService
         if ($anchorDate === null) {
             return new ServiceResult(
                 false,
-                "Missing required date for anchor type '{$policy['anchor']}'"
+                "Missing required date for anchor type '{$policy['anchor']}'",
             );
         }
 
@@ -73,7 +70,7 @@ class RetentionPolicyService
             $anchorDate,
             $years,
             $months,
-            $days
+            $days,
         );
 
         return new ServiceResult(true, null, $retentionDate);
@@ -106,7 +103,7 @@ class RetentionPolicyService
         if (!in_array($policy['anchor'], self::VALID_ANCHORS, true)) {
             return new ServiceResult(
                 false,
-                'Invalid anchor type. Must be one of: ' . implode(', ', self::VALID_ANCHORS)
+                'Invalid anchor type. Must be one of: ' . implode(', ', self::VALID_ANCHORS),
             );
         }
 
@@ -118,7 +115,7 @@ class RetentionPolicyService
             if (!$hasDuration) {
                 return new ServiceResult(
                     false,
-                    'Retention policy must specify at least one duration (years, months, or days)'
+                    'Retention policy must specify at least one duration (years, months, or days)',
                 );
             }
         }
@@ -179,6 +176,7 @@ class RetentionPolicyService
     public function isExpired(Date $retentionDate, ?Date $checkDate = null): bool
     {
         $checkDate = $checkDate ?? Date::now();
+
         return $retentionDate->lessThan($checkDate);
     }
 

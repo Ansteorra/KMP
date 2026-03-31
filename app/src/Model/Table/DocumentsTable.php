@@ -1,12 +1,12 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use Cake\ORM\Query\SelectQuery;
+use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
-use Cake\ORM\RulesChecker;
 
 /**
  * Documents Model
@@ -16,7 +16,6 @@ use Cake\ORM\RulesChecker;
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Uploaders
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Creators
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Modifiers
- *
  * @method \App\Model\Entity\Document newEmptyEntity()
  * @method \App\Model\Entity\Document newEntity(array $data, array $options = [])
  * @method \App\Model\Entity\Document[] newEntities(array $data, array $options = [])
@@ -164,7 +163,7 @@ class DocumentsTable extends Table
      * @param array $options Options including 'entity_type' and 'entity_id'
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findByEntity(\Cake\ORM\Query\SelectQuery $query, array $options): \Cake\ORM\Query\SelectQuery
+    public function findByEntity(SelectQuery $query, array $options): SelectQuery
     {
         if (!isset($options['entity_type']) || !isset($options['entity_id'])) {
             return $query;

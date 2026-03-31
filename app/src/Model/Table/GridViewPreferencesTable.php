@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -16,6 +15,12 @@ use Cake\Validation\Validator;
  */
 class GridViewPreferencesTable extends BaseTable
 {
+    /**
+     * Set up this component.
+     *
+     * @param array $config
+     * @return void
+     */
     public function initialize(array $config): void
     {
         parent::initialize($config);
@@ -58,6 +63,12 @@ class GridViewPreferencesTable extends BaseTable
         ]);
     }
 
+    /**
+     * Define default validation rules.
+     *
+     * @param \Cake\Validation\Validator $validator
+     * @return \Cake\Validation\Validator
+     */
     public function validationDefault(Validator $validator): Validator
     {
         $validator
@@ -87,11 +98,17 @@ class GridViewPreferencesTable extends BaseTable
         return $validator;
     }
 
+    /**
+     * Define application-level rules.
+     *
+     * @param \Cake\ORM\RulesChecker $rules
+     * @return \Cake\ORM\RulesChecker
+     */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
         $rules->add($rules->isUnique(
             ['member_id', 'grid_key'],
-            'Each grid may only have one preference per member.'
+            'Each grid may only have one preference per member.',
         ));
 
         $rules->add($rules->existsIn(['member_id'], 'Members'));
@@ -100,6 +117,7 @@ class GridViewPreferencesTable extends BaseTable
         $rules->add(function ($entity) {
             $hasId = !empty($entity->grid_view_id);
             $hasKey = !empty($entity->grid_view_key);
+
             return $hasId xor $hasKey;
         }, 'viewIdOrKeyRequired', [
             'errorField' => 'grid_view_id',

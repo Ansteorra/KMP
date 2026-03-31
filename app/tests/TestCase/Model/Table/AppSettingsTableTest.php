@@ -1,14 +1,13 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Model\Table;
 
 use App\Model\Table\AppSettingsTable;
+use App\Test\TestCase\BaseTestCase;
 use Cake\Cache\Cache;
 use Cake\Datasource\EntityInterface;
 use Cake\Datasource\Exception\RecordNotFoundException;
-use App\Test\TestCase\BaseTestCase;
 use Exception;
 
 /**
@@ -197,7 +196,7 @@ class AppSettingsTableTest extends BaseTestCase
         $connection->update(
             'app_settings',
             ['value' => 'modified-value'],
-            ['name' => $uniqueName]
+            ['name' => $uniqueName],
         );
 
         // Should return cached value, not updated value

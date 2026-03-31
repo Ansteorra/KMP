@@ -21,6 +21,11 @@ class AddQueueEngineManagerPermission extends BaseMigration
         );
     }
 
+    /**
+     * Reverse the migration.
+     *
+     * @return void
+     */
     public function down(): void
     {
         $this->execute("DELETE FROM permissions WHERE name = 'Can Manage Queue Engine'");

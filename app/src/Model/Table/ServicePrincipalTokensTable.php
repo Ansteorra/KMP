@@ -1,9 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\Validation\Validator;
 
@@ -14,7 +14,6 @@ use Cake\Validation\Validator;
  *
  * @property \App\Model\Table\ServicePrincipalsTable&\Cake\ORM\Association\BelongsTo $ServicePrincipals
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $CreatedByMembers
- *
  * @method \App\Model\Entity\ServicePrincipalToken newEmptyEntity()
  * @method \App\Model\Entity\ServicePrincipalToken newEntity(array $data, array $options = [])
  * @method \App\Model\Entity\ServicePrincipalToken get(mixed $primaryKey, array|string $finder = 'all', \Psr\SimpleCache\CacheInterface|string|null $cache = null, \Closure|string|null $cacheKey = null, mixed ...$args)
@@ -123,7 +122,7 @@ class ServicePrincipalTokensTable extends BaseTable
      * @param \Cake\ORM\Query\SelectQuery $query Query
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findActive($query)
+    public function findActive($query): SelectQuery
     {
         $now = date('Y-m-d H:i:s');
 
@@ -142,7 +141,7 @@ class ServicePrincipalTokensTable extends BaseTable
      * @param string $tokenHash Token hash
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function findByHash($query, string $tokenHash)
+    public function findByHash($query, string $tokenHash): SelectQuery
     {
         return $query->where(['ServicePrincipalTokens.token_hash' => $tokenHash]);
     }
@@ -157,7 +156,7 @@ class ServicePrincipalTokensTable extends BaseTable
     {
         $this->updateAll(
             ['last_used_at' => date('Y-m-d H:i:s')],
-            ['id' => $tokenId]
+            ['id' => $tokenId],
         );
     }
 }
