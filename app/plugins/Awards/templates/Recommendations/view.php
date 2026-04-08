@@ -19,22 +19,9 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?php $this->KMP->endBlock() ?>
 <?= $this->KMP->startBlock("recordActions") ?>
 <?php if ($user->checkCan('edit', $recommendation)) : ?>
-    <button type="button" class="btn btn-primary btn-sm edit-rec" data-bs-toggle="modal" data-bs-target="#editModal"
-        data-controller="outlet-btn" data-action="click->outlet-btn#fireNotice"
-        data-outlet-btn-btn-data-value='{ "id":<?= $recommendation->id ?>}'>Edit</button>
-    <?php
-    echo $this->Form->postLink(
-        __("Delete"),
-        ["action" => "delete", $recommendation->id],
-        [
-            "confirm" => __(
-                "Are you sure you want to delete recommendation for {0}?",
-                h($recommendation->member_sca_name . ' about ' . $recommendation->award->name),
-            ),
-            "title" => __("Delete"),
-            "class" => "btn btn-danger btn-sm",
-        ],
-    ); ?>
+<button type="button" class="btn btn-primary btn-sm edit-rec" data-bs-toggle="modal" data-bs-target="#editModal"
+    data-controller="outlet-btn" data-action="click->outlet-btn#fireNotice"
+    data-outlet-btn-btn-data-value='{ "id":<?= $recommendation->id ?>}'>Edit</button>
 <?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("recordDetails") ?>
@@ -128,39 +115,39 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <th scope="row"><?= __('Suggested Gatherings') ?></th>
     <td>
         <ul>
-            <?php foreach ($recommendation->gatherings as $gathering) : 
+            <?php foreach ($recommendation->gatherings as $gathering) :
                 $isCancelled = $gathering->cancelled_at !== null;
             ?>
-                <li>
-                    <?php if ($isCancelled): ?><span class="text-danger fw-bold">[CANCELLED]</span> <?php endif; ?>
-                    <?= $this->Html->link($gathering->name, ['controller' => 'Gatherings', 'action' => 'view', $gathering->public_id, 'plugin' => null], $isCancelled ? ['class' => 'text-danger'] : []) ?>
-                    <?php if ($recommendation->gathering_id == $gathering->id) {
+            <li>
+                <?php if ($isCancelled): ?><span class="text-danger fw-bold">[CANCELLED]</span> <?php endif; ?>
+                <?= $this->Html->link($gathering->name, ['controller' => 'Gatherings', 'action' => 'view', $gathering->public_id, 'plugin' => null], $isCancelled ? ['class' => 'text-danger'] : []) ?>
+                <?php if ($recommendation->gathering_id == $gathering->id) {
                         echo " (Plan to Give)";
                     } ?>
-                </li>
+            </li>
             <?php endforeach; ?>
         </ul>
     </td>
 </tr>
 <?php if (!empty($memberAttendanceGatherings)) : ?>
-    <tr>
-        <th scope="row"><?= __('Member\'s Planned Attendance') ?></th>
-        <td>
-            <ul>
-                <?php foreach ($memberAttendanceGatherings as $gathering) : ?>
-                    <li>
-                        <?= $this->Html->link($gathering->name, ['controller' => 'Gatherings', 'action' => 'view', $gathering->public_id, 'plugin' => null]) ?>
-                        <?php if ($gathering->start_date) : ?>
-                            <small class="text-muted">(<?= $gathering->start_date->format('M j, Y') ?>)</small>
-                        <?php endif; ?>
-                    </li>
-                <?php endforeach; ?>
-            </ul>
-            <small class="text-muted">
-                <i class="bi bi-info-circle"></i> Events the member has indicated they plan to attend
-            </small>
-        </td>
-    </tr>
+<tr>
+    <th scope="row"><?= __('Member\'s Planned Attendance') ?></th>
+    <td>
+        <ul>
+            <?php foreach ($memberAttendanceGatherings as $gathering) : ?>
+            <li>
+                <?= $this->Html->link($gathering->name, ['controller' => 'Gatherings', 'action' => 'view', $gathering->public_id, 'plugin' => null]) ?>
+                <?php if ($gathering->start_date) : ?>
+                <small class="text-muted">(<?= $gathering->start_date->format('M j, Y') ?>)</small>
+                <?php endif; ?>
+            </li>
+            <?php endforeach; ?>
+        </ul>
+        <small class="text-muted">
+            <i class="bi bi-info-circle"></i> Events the member has indicated they plan to attend
+        </small>
+    </td>
+</tr>
 <?php endif; ?>
 <tr>
     <th scope="row"><?= __('Call Into Court') ?></th>
