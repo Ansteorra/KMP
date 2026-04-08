@@ -314,8 +314,9 @@ class BackupService
                     );
                 }
             } else {
-                // MySQL: disable FK checks for the duration of the import.
+                // MySQL: disable FK and CHECK constraints for the duration of the import.
                 $connection->execute('SET FOREIGN_KEY_CHECKS = 0');
+                $connection->execute('SET check_constraint_checks = 0');
 
                 foreach ($tablesToRestore as $tableName => $rows) {
                     $this->reportProgress($progressReporter, 'restoring_table', sprintf(
@@ -391,6 +392,7 @@ class BackupService
                 }
 
                 $connection->execute('SET FOREIGN_KEY_CHECKS = 1');
+                $connection->execute('SET check_constraint_checks = 1');
             }
 
             $this->reportProgress($progressReporter, 'finalizing', 'Finalizing restore.', [
@@ -422,6 +424,7 @@ class BackupService
             try {
                 if (!$isPostgres) {
                     $connection->execute('SET FOREIGN_KEY_CHECKS = 1');
+                    $connection->execute('SET check_constraint_checks = 1');
                 }
             } catch (Exception $ignored) {
             }
