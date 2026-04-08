@@ -87,7 +87,7 @@ class AzureCommunicationTransport extends ApiTransport
                 'subject' => $message->getOriginalSubject(),
             ],
             'recipients' => [
-                'to' => $this->formatRecipients($message->getTo()),
+                'to' => $this->formatAzureRecipients($message->getTo()),
             ],
         ];
 
@@ -101,17 +101,17 @@ class AzureCommunicationTransport extends ApiTransport
 
         $cc = $message->getCc();
         if (!empty($cc)) {
-            $payload['recipients']['cc'] = $this->formatRecipients($cc);
+            $payload['recipients']['cc'] = $this->formatAzureRecipients($cc);
         }
 
         $bcc = $message->getBcc();
         if (!empty($bcc)) {
-            $payload['recipients']['bcc'] = $this->formatRecipients($bcc);
+            $payload['recipients']['bcc'] = $this->formatAzureRecipients($bcc);
         }
 
         $replyTo = $message->getReplyTo();
         if (!empty($replyTo)) {
-            $payload['replyTo'] = $this->formatRecipients($replyTo);
+            $payload['replyTo'] = $this->formatAzureRecipients($replyTo);
         }
 
         $attachments = $this->formatAttachments($message);
@@ -174,6 +174,25 @@ class AzureCommunicationTransport extends ApiTransport
 
         $this->endpoint = rtrim($parts['endpoint'], '/');
         $this->accessKey = $parts['accesskey'];
+    }
+
+    /**
+     * Convert addresses to Azure's recipient format (address + displayName).
+     *
+     * @param array<string, string> $addresses CakePHP address map
+     * @return array<int, array{address: string, displayName: string}>
+     */
+    private function formatAzureRecipients(array $addresses): array
+    {
+        $recipients = [];
+        foreach ($addresses as $email => $name) {
+            $recipients[] = [
+                'address' => $email,
+                'displayName' => $name !== $email ? $name : '',
+            ];
+        }
+
+        return $recipients;
     }
 
     /**
