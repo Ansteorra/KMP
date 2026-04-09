@@ -94,13 +94,9 @@ echo $this->KMP->startBlock('pageTitle') ?>
 </tr>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock('tabButtons') ?>
-<?php
-// Check if user can view members (PII requires permission)
-$canViewMembers = $branch->can_have_members && $user->checkCan('index', 'Members');
-?>
 <!-- Branch view tabs with ordering:
      Order 1: Officers plugin tab (if enabled)
-     Order 10: Members tab (primary data - requires permission)
+     Order 10: Members tab (primary data - requires branch-scoped permission)
      Order 15: Gatherings tab (branch events)
      Order 20: Sub-branches tab (secondary data) -->
 <?php if ($canViewMembers) : ?>

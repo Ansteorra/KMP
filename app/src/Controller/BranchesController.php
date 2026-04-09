@@ -285,20 +285,34 @@ class BranchesController extends AppController
                 'Contacts' => function ($q) {
                     return $q->select(['id', 'public_id', 'sca_name']);
                 },
-                'Members' => function ($q) {
-                    return $q
-                        ->select([
-                            'id', 'sca_name', 'branch_id', 'membership_number',
-                            'membership_expires_on', 'status', 'birth_month', 'birth_year',
-                        ])
-                        ->orderBy(['sca_name' => 'ASC']);
-                },
             ])
             ->firstOrFail();
         if (!$branch) {
             throw new NotFoundException();
         }
         $this->Authorization->authorize($branch);
+
+        // Check if user can view members scoped to this specific branch
+        $user = $this->request->getAttribute('identity');
+        $canViewMembers = false;
+        if ($branch->can_have_members) {
+            $memberProbe = $this->fetchTable('Members')->newEmptyEntity();
+            $memberProbe->branch_id = $branch->id;
+            $canViewMembers = $user->checkCan('index', $memberProbe);
+        }
+
+        // Only load members when the user is authorized for this branch
+        if ($canViewMembers) {
+            $branch->members = $this->fetchTable('Members')->find()
+                ->select([
+                    'id', 'sca_name', 'branch_id', 'membership_number',
+                    'membership_expires_on', 'status', 'birth_month', 'birth_year',
+                ])
+                ->where(['Members.branch_id' => $branch->id])
+                ->orderBy(['sca_name' => 'ASC'])
+                ->toArray();
+        }
+
         // get the children for the branch
         $branch->children = $this->Branches
             ->find('children', for: $branch->id, direct: true)
@@ -313,9 +327,7 @@ class BranchesController extends AppController
             $branch_types[$branchType] = $branchType;
         }
 
-        // get a list of required offices and officers for the branch
-
-        $this->set(compact('branch', 'treeList', 'branch_types'));
+        $this->set(compact('branch', 'treeList', 'branch_types', 'canViewMembers'));
     }
 
     /**
@@ -372,20 +384,34 @@ class BranchesController extends AppController
                 'Contacts' => function ($q) {
                     return $q->select(['id', 'public_id', 'sca_name']);
                 },
-                'Members' => function ($q) {
-                    return $q
-                        ->select([
-                            'id', 'sca_name', 'branch_id', 'membership_number',
-                            'membership_expires_on', 'status', 'birth_month', 'birth_year',
-                        ])
-                        ->orderBy(['sca_name' => 'ASC']);
-                },
             ])
             ->firstOrFail();
         if (!$branch) {
             throw new NotFoundException();
         }
         $this->Authorization->authorize($branch);
+
+        // Check if user can view members scoped to this specific branch
+        $user = $this->request->getAttribute('identity');
+        $canViewMembers = false;
+        if ($branch->can_have_members) {
+            $memberProbe = $this->fetchTable('Members')->newEmptyEntity();
+            $memberProbe->branch_id = $branch->id;
+            $canViewMembers = $user->checkCan('index', $memberProbe);
+        }
+
+        // Only load members when the user is authorized for this branch
+        if ($canViewMembers) {
+            $branch->members = $this->fetchTable('Members')->find()
+                ->select([
+                    'id', 'sca_name', 'branch_id', 'membership_number',
+                    'membership_expires_on', 'status', 'birth_month', 'birth_year',
+                ])
+                ->where(['Members.branch_id' => $branch->id])
+                ->orderBy(['sca_name' => 'ASC'])
+                ->toArray();
+        }
+
         if ($this->request->is(['patch', 'post', 'put'])) {
             // Resolve contact public_id to internal id
             $contactPublicId = $this->request->getData('contact_id');
@@ -442,7 +468,7 @@ class BranchesController extends AppController
         $treeList = $this->Branches
             ->find('list')
             ->orderBy(['name' => 'ASC']);
-        $this->set(compact('branch', 'treeList'));
+        $this->set(compact('branch', 'treeList', 'canViewMembers'));
         // Mirror MembersController pattern: GET edit displays view template with modal
         if ($this->request->is('get')) {
             // Load children for the view template
