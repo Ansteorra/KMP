@@ -145,6 +145,9 @@ func (d *DockerProvider) Install(cfg *DeployConfig) error {
 		SMTPUser:              valueOrDefault(cfg.StorageConfig["smtp_user"], ""),
 		SMTPPass:              valueOrDefault(cfg.StorageConfig["smtp_pass"], ""),
 		EmailFrom:             valueOrDefault(cfg.StorageConfig["email_from"], "noreply@localhost"),
+		EmailDriver:           valueOrDefault(cfg.StorageConfig["email_driver"], "smtp"),
+		EmailApiKey:           cfg.StorageConfig["email_api_key"],
+		AzureCommunicationConnectionString: cfg.StorageConfig["azure_communication_connection_string"],
 		StorageType:           cfg.StorageType,
 		AzureConnectionString: cfg.StorageConfig["azure_connection_string"],
 		AzureContainer:        valueOrDefault(cfg.StorageConfig["azure_container"], "documents"),
@@ -478,11 +481,14 @@ type templateData struct {
 	DBRootPassword     string
 	DBPassword         string
 	// Email
-	SMTPHost  string
-	SMTPPort  string
-	SMTPUser  string
-	SMTPPass  string
-	EmailFrom string
+	EmailDriver                       string // "smtp", "azure", "sendgrid", "resend"
+	SMTPHost                          string
+	SMTPPort                          string
+	SMTPUser                          string
+	SMTPPass                          string
+	EmailFrom                         string
+	EmailApiKey                       string // API key for SendGrid/Resend
+	AzureCommunicationConnectionString string // Azure Communication Services connection string
 	// Storage
 	StorageType string
 	// Azure Blob Storage
