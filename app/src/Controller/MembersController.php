@@ -1494,6 +1494,7 @@ class MembersController extends AppController
      */
     public function profile()
     {
+        $this->Authorization->skipAuthorization();
         $user = $this->Authentication->getIdentity();
         if (!$user) {
             throw new NotFoundException(__('User not authenticated.'));
