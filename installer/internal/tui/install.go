@@ -417,15 +417,19 @@ func newSmtpInputs() []textinput.Model {
 func newAzureCommInputs() []textinput.Model {
 	specs := []struct {
 		placeholder string
+		echoPass    bool
 	}{
-		{"noreply@mykingdom.org"},
-		{"endpoint=https://xxx.communication.azure.com/;accesskey=BASE64KEY"},
+		{"noreply@mykingdom.org", false},
+		{"endpoint=https://xxx.communication.azure.com/;accesskey=BASE64KEY", true},
 	}
 	inputs := make([]textinput.Model, len(specs))
 	for i, s := range specs {
 		t := textinput.New()
 		t.Placeholder = s.placeholder
 		t.Width = 60
+		if s.echoPass {
+			t.EchoMode = textinput.EchoPassword
+		}
 		inputs[i] = t
 	}
 	inputs[0].Focus()
@@ -922,19 +926,25 @@ func (m *InstallModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					// SMTP — show form
 					m.emailSubStep = 1
 					m.smtpFocusIdx = 0
-					m.smtpInputs = newSmtpInputs()
+					if m.smtpInputs == nil {
+						m.smtpInputs = newSmtpInputs()
+					}
 					m.smtpInputs[0].Focus()
 				} else if m.emailChoice == 2 {
 					// Azure Communication Services
 					m.emailSubStep = 1
 					m.emailApiFocusIdx = 0
-					m.emailApiInputs = newAzureCommInputs()
+					if m.emailApiInputs == nil {
+						m.emailApiInputs = newAzureCommInputs()
+					}
 					m.emailApiInputs[0].Focus()
 				} else {
 					// SendGrid or Resend — API key form
 					m.emailSubStep = 1
 					m.emailApiFocusIdx = 0
-					m.emailApiInputs = newEmailApiKeyInputs()
+					if m.emailApiInputs == nil {
+						m.emailApiInputs = newEmailApiKeyInputs()
+					}
 					m.emailApiInputs[0].Focus()
 				}
 			case "esc":
@@ -1010,7 +1020,6 @@ func (m *InstallModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			var cmd tea.Cmd
 			m.emailApiInputs[m.emailApiFocusIdx], cmd = m.emailApiInputs[m.emailApiFocusIdx].Update(msg)
-			return m, cmd
 			return m, cmd
 		}
 

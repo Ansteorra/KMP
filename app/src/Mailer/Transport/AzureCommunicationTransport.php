@@ -50,7 +50,7 @@ class AzureCommunicationTransport extends ApiTransport
         $this->parseConnectionString();
 
         $payload = $this->buildPayload($message);
-        $jsonBody = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $jsonBody = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
 
         $path = '/emails:send';
         $query = 'api-version=' . $this->getConfig('apiVersion');
@@ -173,6 +173,13 @@ class AzureCommunicationTransport extends ApiTransport
         }
 
         $this->endpoint = rtrim($parts['endpoint'], '/');
+
+        $decoded = base64_decode($parts['accesskey'], true);
+        if ($decoded === false) {
+            throw new RuntimeException(
+                'AzureCommunicationTransport: connection string "accesskey" is not valid base64.',
+            );
+        }
         $this->accessKey = $parts['accesskey'];
     }
 

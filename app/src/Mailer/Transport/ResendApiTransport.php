@@ -42,7 +42,7 @@ class ResendApiTransport extends ApiTransport
         }
 
         $payload = $this->buildPayload($message);
-        $jsonBody = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $jsonBody = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
 
         $response = $this->getHttpClient()->post(
             $this->getConfig('endpoint'),

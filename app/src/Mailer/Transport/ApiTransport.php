@@ -74,13 +74,31 @@ abstract class ApiTransport extends AbstractTransport
     }
 
     /**
+     * Validate that the message has at least one recipient.
+     *
+     * @param \Cake\Mailer\Message $message The email message.
+     * @throws \RuntimeException If no recipients are set.
+     */
+    protected function checkRecipient(Message $message): void
+    {
+        if (empty($message->getTo()) && empty($message->getCc()) && empty($message->getBcc())) {
+            throw new RuntimeException('Email message has no recipients (to, cc, or bcc).');
+        }
+    }
+
+    /**
      * Get the sender address from a Message.
      *
+     * @param \Cake\Mailer\Message $message The email message.
      * @return array{email: string, name: string}
+     * @throws \RuntimeException If no sender is set.
      */
     protected function getSender(Message $message): array
     {
         $from = $message->getFrom();
+        if (empty($from)) {
+            throw new RuntimeException('Email message has no sender (from) address.');
+        }
         $email = array_key_first($from);
 
         return [
