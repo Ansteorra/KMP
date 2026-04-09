@@ -80,12 +80,22 @@ class MemberRolesTable extends BaseTable
      * @param mixed $options
      * @return void
      */
+    protected const CACHE_GROUPS_TO_CLEAR = ['security'];
+
     public function afterSave($event, $entity, $options): void
     {
+        parent::afterSave($event, $entity, $options);
         $memberId = $entity->member_id;
-        // Clear cached descendants and parents for the saved branch.
-        Cache::delete('permissions_policies' . $memberId);
-        Cache::delete('member_permissions' . $memberId);
+        Cache::delete('permissions_policies' . $memberId, 'member_permissions');
+        Cache::delete('member_permissions' . $memberId, 'member_permissions');
+    }
+
+    public function afterDelete($event, $entity, $options): void
+    {
+        parent::afterDelete($event, $entity, $options);
+        $memberId = $entity->member_id;
+        Cache::delete('permissions_policies' . $memberId, 'member_permissions');
+        Cache::delete('member_permissions' . $memberId, 'member_permissions');
     }
 
     /**
