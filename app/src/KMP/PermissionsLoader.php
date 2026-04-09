@@ -275,7 +275,7 @@ class PermissionsLoader
         // 3. Build Subquery with Validation Chain
         $subquery = $permissionsTable
             ->find()
-            ->cache('permissions_members' . $permissionId, 'permissions'); // Cache for performance
+            ->cache('permissions_members' . $permissionId, 'permissions_structure');
 
         // Apply comprehensive validation chain (same as getPermissions)
         $subquery = self::validPermissionClauses($subquery)
