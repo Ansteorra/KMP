@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Controller;
@@ -124,7 +125,7 @@ class MembersController extends AppController
         if ($impersonationService->isActive($session)) {
             throw new BadRequestException(__(
                 'You are already impersonating another member. '
-                . 'Stop impersonating before starting a new session.',
+                    . 'Stop impersonating before starting a new session.',
             ));
         }
 
@@ -324,14 +325,10 @@ class MembersController extends AppController
         // Get system views configuration
         $systemViews = MemberRolesGridColumns::getSystemViews([]);
 
-        // Debug: Log the base query
         $baseQuery = $this->fetchTable('MemberRoles')
             ->find()
             ->where(['MemberRoles.member_id' => $memberId])
             ->contain(['Roles', 'ApprovedBy', 'Branches']);
-
-        Log::debug('Member Roles Base Query SQL: ' . $baseQuery->sql());
-        Log::debug('Member Roles Base Query Params: ' . json_encode($baseQuery->getValueBinder()->bindings()));
 
         // Use unified trait for grid processing (system views mode)
         $result = $this->processDataverseGrid([
@@ -351,8 +348,6 @@ class MembersController extends AppController
             'showFilterPills' => false,
             'enableColumnPicker' => false,
         ]);
-
-        Log::debug('Member Roles Result Count: ' . count($result['data']));
 
         // Set view variables
         $this->set([
@@ -1089,15 +1084,15 @@ class MembersController extends AppController
                 if ($member->age < 18) {
                     $this->Flash->success(__(
                         'The Member has been saved and the minor '
-                        . 'registration email has been sent for '
-                        . 'verification.',
+                            . 'registration email has been sent for '
+                            . 'verification.',
                     ));
                     $this->getMailer('KMP')->send('notifySecretaryOfNewMinorMember', [$member]);
                 } else {
                     $this->Flash->success(__(
                         'The Member has been saved. Please ask the '
-                        . "member to use 'forgot password' to set "
-                        . 'their password.',
+                            . "member to use 'forgot password' to set "
+                            . 'their password.',
                     ));
                 }
 
@@ -1504,7 +1499,7 @@ class MembersController extends AppController
             throw new NotFoundException(__('User not authenticated.'));
         }
 
-        return $this->view((string)$user->id);
+        return $this->redirect(['action' => 'view', $user->id]);
     }
 
     /**
@@ -2394,8 +2389,8 @@ class MembersController extends AppController
                 if ($this->Members->save($member)) {
                     $this->Flash->success(__(
                         'Membership information has been submitted, '
-                        . 'please allow several days for our team to '
-                        . 'review and update the profile.',
+                            . 'please allow several days for our team to '
+                            . 'review and update the profile.',
                     ));
                 } else {
                     $this->Flash->error('There was an error please try again.');
@@ -2456,17 +2451,17 @@ class MembersController extends AppController
                     );
                     $this->Flash->success(__(
                         'Your registration has been submitted. '
-                        . 'Please check your email for a link '
-                        . 'to set up your password.',
+                            . 'Please check your email for a link '
+                            . 'to set up your password.',
                     ));
                 } else {
                     $secretaryVars = $regService->buildMinorRegistrationEmailVars($member);
                     $this->queueMail('KMP', 'notifySecretaryOfNewMinorMember', $member->email_address, $secretaryVars);
                     $this->Flash->success(__(
                         'Your registration has been submitted. '
-                        . 'The Kingdom Secretary will need to '
-                        . 'verify your account with your parent '
-                        . 'or guardian',
+                            . 'The Kingdom Secretary will need to '
+                            . 'verify your account with your parent '
+                            . 'or guardian',
                     ));
                 }
 

@@ -60,6 +60,11 @@ trait DataverseGridTrait
      */
     protected function processDataverseGrid(array $config): array
     {
+        // Release PHP session lock early so concurrent turbo-frame requests
+        // from the same user are not serialized by the file-based session handler.
+        // Grid endpoints are read-only and do not need to write session data.
+        $this->request->getSession()->close();
+
         // Extract configuration
         $gridKey = $config['gridKey'];
         $gridColumnsClass = $config['gridColumnsClass'];

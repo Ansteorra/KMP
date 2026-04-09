@@ -44,7 +44,7 @@ echo $this->Modal->create(__("Update Profile Photo"), [
                     <path
                         d="M2 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm10.5 3a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0M4.5 7a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0M8 8a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5m-5 5.5a3.5 3.5 0 0 1 7 0z" />
                 </svg>
-                <img src="#" hidden alt="<?= __('Profile photo preview') ?>" class="w-100"
+                <img hidden alt="<?= __('Profile photo preview') ?>" class="w-100"
                     data-image-preview-target="preview">
             </div>
             <div class="card-footer">

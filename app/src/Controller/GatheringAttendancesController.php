@@ -229,7 +229,6 @@ class GatheringAttendancesController extends AppController
                 ]);
             }
             $this->Flash->success(__('Your attendance has been removed.'));
-            Log::debug('Successfully deleted attendance ID: ' . $id);
         } else {
             $errors = $gatheringAttendance->getErrors();
             $errorMessage = 'Unable to remove your attendance. Please try again.';
