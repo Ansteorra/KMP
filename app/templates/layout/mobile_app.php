@@ -85,9 +85,6 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
     <!-- CSS -->
     <?= $this->AssetMix->css('app') ?>
 
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="/bootstrap_u_i/font/bootstrap-icons.min.css">
-
     <style>
     /* ============================================
            KMP Mobile PWA - Medieval Realm Theme
