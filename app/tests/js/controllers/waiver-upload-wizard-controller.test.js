@@ -1,5 +1,5 @@
-// Mock pdfjs-dist before importing the controller
-jest.mock('pdfjs-dist', () => ({
+// Mock pdfjs-dist/webpack.mjs before importing the controller
+jest.mock('pdfjs-dist/webpack.mjs', () => ({
     GlobalWorkerOptions: { workerSrc: '' },
     getDocument: jest.fn(() => ({
         promise: Promise.resolve({
