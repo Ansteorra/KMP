@@ -41,7 +41,7 @@ When('I submit a public recommendation for the unmatched recipient {string}', as
         && resp.status() === 200
     );
     await recipientInput.press('Tab');
-    await page.waitForTimeout(300);
+    await expect(page.locator('[data-awards-rec-add-target="branch"]')).toHaveJSProperty('hidden', false);
 
     await chooseComboboxOption(page, '#branch_name-disp', 'Out of Kingdom');
     await chooseComboboxOption(page, '#domain_name-disp', 'General');
@@ -62,5 +62,5 @@ When('I submit a public recommendation for the unmatched recipient {string}', as
 Then('the recommendation row for {string} should not link to a member profile', async ({ page }, recipient) => {
     const row = page.locator('table tbody tr', { hasText: recipient }).first();
     await expect(row).toContainText(recipient);
-    await expect(row.locator(`a:has-text("${recipient}")`)).toHaveCount(0);
+    await expect(row.locator('a').filter({ hasText: recipient })).toHaveCount(0);
 });

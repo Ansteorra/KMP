@@ -180,10 +180,10 @@ class AwardsRecommendationAddForm extends Controller {
                         //create list item
                         awardList.push({ value: award.id, text: award.name, data: award });
                         //create tab info
-                        var tabButton = document.createElement("li");
+                        const tabButton = document.createElement("li");
                         tabButton.classList.add("nav-item");
                         tabButton.setAttribute("role", "presentation");
-                        var button = document.createElement("button");
+                        const button = document.createElement("button");
                         button.classList.add("nav-link");
                         if (active == "active") {
                             button.classList.add("active");
@@ -199,7 +199,7 @@ class AwardsRecommendationAddForm extends Controller {
                         button.setAttribute("aria-selected", selected);
                         button.innerHTML = award.name;
                         tabButton.appendChild(button);
-                        var tabContent = document.createElement("div");
+                        const tabContent = document.createElement("div");
                         tabContent.classList.add("tab-pane");
                         tabContent.classList.add("fade");
                         if (show == "show") {
@@ -258,6 +258,7 @@ class AwardsRecommendationAddForm extends Controller {
     loadScaMemberInfo(event) {
         //reset member metadata area
         this.externalLinksTarget.innerHTML = "";
+        // Priority: hidden autocomplete selection, selected event detail, then raw text input fallback.
         const memberPublicId = this.getAutocompleteValue(this.scaMemberTarget)
             || (event?.detail?.selected ? String(event.detail.value ?? "").trim() : "")
             || (event?.detail ? "" : (typeof event?.target?.value === "string" ? event.target.value.trim() : ""));
@@ -285,7 +286,7 @@ class AwardsRecommendationAddForm extends Controller {
                 this.externalLinksTarget.innerHTML = "";
                 let keys = Object.keys(data.external_links);
                 if (keys.length > 0) {
-                    var LinksTitle = document.createElement("div");
+                    const LinksTitle = document.createElement("div");
                     LinksTitle.innerHTML = "<h5>Public Links</h5>";
                     LinksTitle.classList.add("col-12");
                     this.externalLinksTarget.appendChild(LinksTitle);
@@ -300,7 +301,7 @@ class AwardsRecommendationAddForm extends Controller {
                         this.externalLinksTarget.appendChild(div);
                     }
                 } else {
-                    var noLink = document.createElement("div");
+                    const noLink = document.createElement("div");
                     noLink.innerHTML = "<h5>No links available</h5>";
                     noLink.classList.add("col-12");
                     this.externalLinksTarget.appendChild(noLink);
