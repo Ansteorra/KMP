@@ -447,6 +447,27 @@ describe('AutoCompleteController', () => {
         expect(controller.sibling).toHaveBeenCalledWith(true);
     });
 
+    test('onArrowDownKeydown selects first rendered combobox option from object-backed list', () => {
+        setupController();
+        controller.resultsTarget.innerHTML = `
+            <li id="opt-1" role="option" data-ac-value="1" aria-selected="false">General</li>
+            <li id="opt-2" role="option" data-ac-value="2" aria-selected="false">Service</li>
+        `;
+        controller.resultsTarget.querySelectorAll('li').forEach((item) => {
+            item.scrollIntoView = jest.fn();
+        });
+        controller._selectOptions = [
+            { value: '1', text: 'General' },
+            { value: '2', text: 'Service' },
+        ];
+        controller.resultsShown = true;
+
+        controller.onArrowDownKeydown({ key: 'ArrowDown', preventDefault: jest.fn() });
+
+        expect(controller.resultsTarget.querySelector('#opt-1').getAttribute('aria-selected')).toBe('true');
+        expect(controller.inputTarget.getAttribute('aria-activedescendant')).toBe('opt-1');
+    });
+
     test('onArrowUpKeydown calls preventDefault and selects via sibling', () => {
         setupController();
         const mockElement = document.createElement('li');
@@ -864,6 +885,22 @@ describe('AutoCompleteController', () => {
         expect(opt1.getAttribute('aria-selected')).toBeNull();
         expect(opt1.classList.contains('active')).toBe(false);
         expect(opt2.getAttribute('aria-selected')).toBe('true');
+    });
+
+    test('select resolves object-backed option to rendered result item', () => {
+        setupController();
+        controller.resultsTarget.innerHTML = `
+            <li id="opt-1" role="option" data-ac-value="1" aria-selected="false">General</li>
+            <li id="opt-2" role="option" data-ac-value="2" aria-selected="false">Service</li>
+        `;
+        const opt2 = controller.resultsTarget.querySelector('#opt-2');
+        opt2.scrollIntoView = jest.fn();
+
+        controller.select({ value: '2', text: 'Service' });
+
+        expect(opt2.getAttribute('aria-selected')).toBe('true');
+        expect(opt2.classList.contains('active')).toBe(true);
+        expect(controller.inputTarget.getAttribute('aria-activedescendant')).toBe('opt-2');
     });
 
     // ==================== selectedOption / sibling ====================

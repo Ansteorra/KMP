@@ -58,7 +58,7 @@ $this->KMP->endBlock(); ?>
                         3,
                         [
                             'data-awards-rec-add-target' => 'scaMember',
-                            'data-action' => 'change->awards-rec-add#loadScaMemberInfo ready->awards-rec-add#acConnected'
+                            'data-action' => 'autocomplete.change->awards-rec-add#loadScaMemberInfo ready->awards-rec-add#acConnected'
                         ]
                     );
                     echo $this->Form->control('not_found', [

@@ -15,7 +15,10 @@ describe('AwardsRecommendationEditForm', () => {
                   data-awards-rec-edit-gatherings-url-value="/awards/gatherings"
                   data-awards-rec-edit-gatherings-lookup-url-value="/awards/gatherings-lookup"
                   action="/awards/recommendations/edit/1">
-                <input type="hidden" data-awards-rec-edit-target="scaMember" value="">
+                <div data-awards-rec-edit-target="scaMember">
+                    <input type="hidden" data-ac-target="hidden" value="">
+                    <input type="hidden" data-ac-target="hiddenText" value="">
+                </div>
                 <input type="hidden" data-awards-rec-edit-target="notFound" value="">
                 <input type="hidden" data-awards-rec-edit-target="branch" value="">
                 <div data-awards-rec-edit-target="externalLinks"></div>
@@ -323,6 +326,34 @@ describe('AwardsRecommendationEditForm', () => {
         expect(controller.notFoundTarget.checked).toBe(true);
         expect(controller.branchTarget.hidden).toBe(false);
         expect(controller.branchTarget.disabled).toBe(false);
+    });
+
+    test('loadScaMemberInfo shows branch when autocomplete has no selected member', () => {
+        jest.spyOn(controller.branchTarget, 'focus').mockImplementation(() => {});
+
+        controller.loadScaMemberInfo({
+            detail: { value: 'Definitely Not In KMP', textValue: 'Definitely Not In KMP', selected: null },
+            target: controller.scaMemberTarget,
+        });
+
+        expect(controller.notFoundTarget.checked).toBe(true);
+        expect(controller.branchTarget.hidden).toBe(false);
+        expect(controller.branchTarget.disabled).toBe(false);
+    });
+
+    test('loadScaMemberInfo loads member from autocomplete hidden value', () => {
+        const spy = jest.spyOn(controller, 'loadMember').mockImplementation(() => {});
+        controller.scaMemberTarget.querySelector('[data-ac-target="hidden"]').value = '123';
+
+        controller.loadScaMemberInfo({
+            detail: { value: '123', textValue: 'Known Member', selected: document.createElement('li') },
+            target: controller.scaMemberTarget,
+        });
+
+        expect(controller.notFoundTarget.checked).toBe(false);
+        expect(controller.branchTarget.hidden).toBe(true);
+        expect(controller.branchTarget.disabled).toBe(true);
+        expect(spy).toHaveBeenCalledWith(123);
     });
 
     // --- loadMember ---

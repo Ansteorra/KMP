@@ -114,6 +114,16 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'width' => '180px',
                 'alignment' => 'left',
                 'clickAction' => 'navigate:/members/view/:member_id',
+                'clickActionPermission' => static function ($row, $identity): bool {
+                    $memberId = is_array($row) ? ($row['member_id'] ?? null) : ($row->member_id ?? null);
+                    $memberId = is_numeric($memberId) ? (int)$memberId : null;
+
+                    return $memberId !== null
+                        && $memberId > 0
+                        && $identity !== null
+                        && method_exists($identity, 'checkCan')
+                        && $identity->checkCan('view', 'Members');
+                },
                 'description' => 'SCA name of member being recommended',
             ],
 

@@ -41,7 +41,7 @@ class RecommendationsController extends AppController
     use DataverseGridTrait;
 
     /**
-     * Configure authentication - allows unauthenticated submitRecommendation.
+     * Configure authentication for public recommendation submission helpers.
      * 
      * @param \Cake\Event\EventInterface $event The beforeFilter event instance
      * @return \Cake\Http\Response|null|void
@@ -51,7 +51,8 @@ class RecommendationsController extends AppController
         parent::beforeFilter($event);
 
         $this->Authentication->allowUnauthenticated([
-            'submitRecommendation'
+            'submitRecommendation',
+            'gatheringsForAward',
         ]);
 
         return null;
@@ -1812,8 +1813,11 @@ class RecommendationsController extends AppController
         $this->Authorization->skipAuthorization();
 
         try {
+            $identity = $this->Authentication->getIdentity();
+
             // Get member_id from query params if provided
             $memberId = $this->request->getQuery('member_id');
+            $includeAttendance = $identity !== null && is_string($memberId) && trim($memberId) !== '';
 
             // Get status from query params to determine if we should show all gatherings
             $status = $this->request->getQuery('status');
@@ -1871,7 +1875,7 @@ class RecommendationsController extends AppController
 
             // Get attendance information for the member if member_id provided
             $attendanceMap = [];
-            if ($memberId) {
+            if ($includeAttendance) {
                 // member_id is passed as a public_id, so we need to look up the internal ID
                 $membersTable = $this->fetchTable('Members');
                 $member = $membersTable->find('byPublicId', publicId: $memberId)->first();
