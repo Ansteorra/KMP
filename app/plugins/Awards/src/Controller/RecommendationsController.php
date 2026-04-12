@@ -41,7 +41,7 @@ class RecommendationsController extends AppController
     use DataverseGridTrait;
 
     /**
-     * Configure authentication - allows unauthenticated submitRecommendation.
+     * Configure authentication for public recommendation submission helpers.
      * 
      * @param \Cake\Event\EventInterface $event The beforeFilter event instance
      * @return \Cake\Http\Response|null|void
@@ -51,7 +51,8 @@ class RecommendationsController extends AppController
         parent::beforeFilter($event);
 
         $this->Authentication->allowUnauthenticated([
-            'submitRecommendation'
+            'submitRecommendation',
+            'gatheringsForAward',
         ]);
 
         return null;

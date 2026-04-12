@@ -289,7 +289,12 @@ class AwardsRecommendationEditForm extends Controller {
     loadScaMemberInfo(event) {
         this.externalLinksTarget.innerHTML = "";
 
-        let memberId = Number(event.target.value.replace(/_/g, ""));
+        const hiddenTarget = this.scaMemberTarget?.querySelector?.('[data-ac-target="hidden"]');
+        const rawMemberValue = (hiddenTarget && typeof hiddenTarget.value === "string" && hiddenTarget.value.trim() !== "")
+            ? hiddenTarget.value.trim()
+            : (event?.detail?.selected ? String(event.detail.value ?? "").trim() : "")
+                || (event?.detail ? "" : (typeof event?.target?.value === "string" ? event.target.value.trim() : ""));
+        let memberId = Number(rawMemberValue.replace(/_/g, ""));
         if (memberId > 0) {
             this.notFoundTarget.checked = false;
             this.branchTarget.hidden = true;

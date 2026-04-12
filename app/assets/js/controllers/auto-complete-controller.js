@@ -203,6 +203,14 @@ class AutoComplete extends Controller {
         this.makeDataListItems();
     }
 
+    get selectedOption() {
+        return this.resultsTarget.querySelector(activeSelector);
+    }
+
+    get renderedOptions() {
+        return Array.from(this.resultsTarget.querySelectorAll(optionSelector));
+    }
+
     connect() {
         this.close()
 
@@ -362,7 +370,7 @@ class AutoComplete extends Controller {
     }
 
     sibling(next) {
-        const options = this.options
+        const options = this.renderedOptions.length > 0 ? this.renderedOptions : this.options
         const selected = this.selectedOption
         const index = options.indexOf(selected)
         const sibling = next ? options[index + 1] : options[index - 1]
@@ -370,16 +378,38 @@ class AutoComplete extends Controller {
         return sibling || def
     }
 
+    resolveSelectionTarget(target) {
+        if (target instanceof Element) {
+            return target
+        }
+
+        const targetValue = target?.value != null ? String(target.value) : null
+        const targetText = target?.text != null ? String(target.text) : null
+
+        return this.renderedOptions.find((option) => {
+            if (targetValue !== null && option.getAttribute("data-ac-value") == targetValue) {
+                return true
+            }
+
+            return targetText !== null && option.textContent.trim() == targetText
+        }) || null
+    }
+
     select(target) {
+        const option = this.resolveSelectionTarget(target)
+        if (!option) {
+            return
+        }
+
         const previouslySelected = this.selectedOption
         if (previouslySelected) {
             previouslySelected.removeAttribute("aria-selected")
             previouslySelected.classList.remove(...this.selectedClassesOrDefault)
         }
-        target.setAttribute("aria-selected", "true")
-        target.classList.add(...this.selectedClassesOrDefault)
-        this.inputTarget.setAttribute("aria-activedescendant", target.id)
-        target.scrollIntoView({ behavior: "auto", block: "nearest" })
+        option.setAttribute("aria-selected", "true")
+        option.classList.add(...this.selectedClassesOrDefault)
+        this.inputTarget.setAttribute("aria-activedescendant", option.id)
+        option.scrollIntoView({ behavior: "auto", block: "nearest" })
     }
 
     onInputChangeTriggered = (event) => {
