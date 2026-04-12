@@ -962,10 +962,15 @@ describe('AutoCompleteController', () => {
         setupController({ allowOther: false });
         controller._selectOptions = [{ value: '1', text: 'Known Item' }];
         controller.inputTarget.value = 'Known Item';
+        const handler = jest.fn();
+        controller.element.addEventListener('autocomplete.change', handler);
 
         controller.onTabKeydown({});
 
         expect(controller.hiddenTarget.value).toBe('1');
+        expect(handler).toHaveBeenCalledWith(expect.objectContaining({
+            detail: expect.objectContaining({ value: '1', textValue: 'Known Item' })
+        }));
     });
 
     test('onTabKeydown with empty input calls clear', () => {
@@ -976,6 +981,41 @@ describe('AutoCompleteController', () => {
         controller.onTabKeydown({});
 
         expect(controller.clear).toHaveBeenCalled();
+    });
+
+    test('onTabKeydown cancels pending debounced input clearing for exact matches', () => {
+        jest.useFakeTimers();
+        try {
+            setupController({ allowOther: false, delay: 300 });
+            controller._selectOptions = [{ value: '1', text: 'Known Item' }];
+            controller.connect();
+            controller.inputTarget.value = 'Known Item';
+
+            controller.onInputChange();
+            controller.onTabKeydown({});
+            jest.advanceTimersByTime(300);
+
+            expect(controller.hiddenTarget.value).toBe('1');
+            expect(controller.hiddenTextTarget.value).toBe('Known Item');
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    test('onInputBlur without allowOther commits exact text match and fires change event', () => {
+        setupController({ allowOther: false });
+        controller._selectOptions = [{ value: '1', text: 'Known Item' }];
+        controller.inputTarget.value = 'Known Item';
+        controller.state = 'open';
+        const handler = jest.fn();
+        controller.element.addEventListener('autocomplete.change', handler);
+
+        controller.onInputBlur();
+
+        expect(controller.hiddenTarget.value).toBe('1');
+        expect(handler).toHaveBeenCalledWith(expect.objectContaining({
+            detail: expect.objectContaining({ value: '1', textValue: 'Known Item' })
+        }));
     });
 
     // ==================== Disconnect ====================

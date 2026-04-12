@@ -3,12 +3,11 @@ const { expect } = require('@playwright/test');
 
 const { Given, When, Then } = createBdd();
 
-async function chooseComboboxOption(page, inputSelector, text) {
+async function commitComboboxByTyping(page, inputSelector, hiddenSelector, text) {
     const input = page.locator(inputSelector);
     await input.fill(text);
-    const option = page.locator("[role='option']", { hasText: text }).first();
-    await option.waitFor({ state: 'visible', timeout: 5000 });
-    await option.click();
+    await input.press('Tab');
+    await expect(page.locator(hiddenSelector)).toHaveValue(/.+/);
 }
 
 When('I enter {string} as an unmatched recommendation recipient', async ({ page }, recipient) => {
@@ -43,16 +42,18 @@ When('I submit a public recommendation for the unmatched recipient {string}', as
     await recipientInput.press('Tab');
     await expect(page.locator('[data-awards-rec-add-target="branch"]')).toHaveJSProperty('hidden', false);
 
-    await chooseComboboxOption(page, '#branch_name-disp', 'Out of Kingdom');
-    await chooseComboboxOption(page, '#domain_name-disp', 'General');
-    await page.waitForResponse(resp =>
+    await commitComboboxByTyping(page, '#branch_name-disp', '[name="branch_id"]', 'Out of Kingdom');
+    const awardResponse = page.waitForResponse(resp =>
         resp.url().includes('/awards/awards/awards-by-domain/')
         && resp.status() === 200
     );
+    await commitComboboxByTyping(page, '#domain_name-disp', '[name="domain_id"]', 'General');
+    await awardResponse;
+    await expect(page.locator('#award_name-disp')).toBeEnabled();
 
     const firstAward = page.locator('#award_descriptions button[data-award-id]').first();
     const firstAwardText = (await firstAward.textContent()).trim();
-    await chooseComboboxOption(page, '#award_name-disp', firstAwardText);
+    await commitComboboxByTyping(page, '#award_name-disp', '[name="award_id"]', firstAwardText);
 
     await page.locator('#recommendation_reason').fill('Public submission regression coverage for a non-member recipient.');
     await page.getByRole('button', { name: /submit/i }).click();
