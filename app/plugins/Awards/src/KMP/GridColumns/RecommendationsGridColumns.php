@@ -341,6 +341,23 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'description' => 'Award being recommended',
             ],
 
+            'level_name' => [
+                'key' => 'level_name',
+                'label' => 'Award Level',
+                'type' => 'relation',
+                'sortable' => false,
+                'searchable' => false,
+                'filterable' => true,
+                'filterType' => 'dropdown',
+                'filterOptionsSource' => 'Awards.Levels',
+                'defaultVisible' => false,
+                'width' => '140px',
+                'alignment' => 'left',
+                'renderField' => 'award.level.name',
+                'queryField' => 'Levels.id',
+                'description' => 'Award precedence level',
+            ],
+
             'specialty' => [
                 'key' => 'specialty',
                 'label' => 'Specialty',
@@ -499,7 +516,7 @@ class RecommendationsGridColumns extends BaseGridColumns
 
             'branch_type' => [
                 'key' => 'branch_type',
-                'label' => 'Award Level',
+                'label' => 'Award Scope',
                 'type' => 'relation',
                 'sortable' => false,
                 'searchable' => false,
@@ -518,7 +535,7 @@ class RecommendationsGridColumns extends BaseGridColumns
                     ['value' => 'Principality', 'label' => 'Principality'],
                     ['value' => 'Local Group', 'label' => 'Local Group'],
                 ],
-                'description' => 'Branch type of the awarding entity (Kingdom, Principality, Barony)',
+                'description' => 'Scope of the awarding entity (Kingdom, Principality, Local Group)',
             ],
         ];
     }
