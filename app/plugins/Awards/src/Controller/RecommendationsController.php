@@ -834,6 +834,7 @@ class RecommendationsController extends AppController
             $user->checkCan('edit', $recommendation),
         );
         $baseQuery = $built['query'];
+        $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
         $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
         $built['gridOptions']['baseQuery'] = $baseQuery;
 
