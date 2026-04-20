@@ -32,6 +32,7 @@ class RecommendationQueryService
     {
         $baseQuery = $recommendationsTable->find()
             ->innerJoinWith('Awards.AwardBranch')
+            ->leftJoinWith('Awards.Domains')
             ->innerJoinWith('Awards.Levels')
             ->contain([
                 'Requesters' => function ($q) {
@@ -110,6 +111,7 @@ class RecommendationQueryService
         $baseQuery = $recommendationsTable->find()
             ->where(['Recommendations.requester_id' => $memberId])
             ->innerJoinWith('Awards.AwardBranch')
+            ->leftJoinWith('Awards.Domains')
             ->innerJoinWith('Awards.Levels')
             ->contain([
                 'Members' => function ($q) {
@@ -162,6 +164,7 @@ class RecommendationQueryService
         $baseQuery = $recommendationsTable->find()
             ->where(['Recommendations.member_id' => $memberId])
             ->innerJoinWith('Awards.AwardBranch')
+            ->leftJoinWith('Awards.Domains')
             ->innerJoinWith('Awards.Levels')
             ->contain([
                 'Requesters' => function ($q) {
@@ -217,6 +220,7 @@ class RecommendationQueryService
         $baseQuery = $recommendationsTable->find()
             ->where(['Recommendations.gathering_id' => $gatheringId])
             ->innerJoinWith('Awards.AwardBranch')
+            ->leftJoinWith('Awards.Domains')
             ->innerJoinWith('Awards.Levels')
             ->contain([
                 'Requesters' => function ($q) {
