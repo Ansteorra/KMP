@@ -213,6 +213,7 @@
 
 turbo-frame#waiver-upload {
     display: block;
+    position: relative;
 }
 
 turbo-frame#waiver-upload[busy] {

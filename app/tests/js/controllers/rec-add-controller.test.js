@@ -11,7 +11,10 @@ describe('AwardsRecommendationAddForm', () => {
                   data-awards-rec-add-public-profile-url-value="/members/public-profile"
                   data-awards-rec-add-award-list-url-value="/awards/list"
                   data-awards-rec-add-gatherings-url-value="/awards/gatherings">
-                <input type="hidden" data-awards-rec-add-target="scaMember" value="">
+                <div data-awards-rec-add-target="scaMember">
+                    <input type="hidden" data-ac-target="hidden" value="">
+                    <input type="hidden" data-ac-target="hiddenText" value="">
+                </div>
                 <input type="checkbox" data-awards-rec-add-target="notFound">
                 <input type="hidden" data-awards-rec-add-target="branch" value="">
                 <div data-awards-rec-add-target="externalLinks"></div>
@@ -163,7 +166,7 @@ describe('AwardsRecommendationAddForm', () => {
             })
         }));
 
-        controller.scaMemberTarget.value = '42';
+        controller.scaMemberTarget.querySelector('[data-ac-target="hidden"]').value = '42';
         controller.updateGatherings('5');
         await new Promise(r => setTimeout(r, 0));
 
@@ -181,7 +184,7 @@ describe('AwardsRecommendationAddForm', () => {
             json: () => Promise.resolve({ gatherings: [] })
         }));
 
-        controller.scaMemberTarget.value = '';
+        controller.scaMemberTarget.querySelector('[data-ac-target="hidden"]').value = '';
         controller.updateGatherings('5');
         await new Promise(r => setTimeout(r, 0));
 
@@ -280,6 +283,34 @@ describe('AwardsRecommendationAddForm', () => {
         expect(controller.branchTarget.disabled).toBe(false);
     });
 
+    test('loadScaMemberInfo shows branch when autocomplete has no selected member', () => {
+        jest.spyOn(controller.branchTarget, 'focus').mockImplementation(() => {});
+
+        controller.loadScaMemberInfo({
+            detail: { value: 'Definitely Not In KMP', textValue: 'Definitely Not In KMP', selected: null },
+            target: controller.scaMemberTarget,
+        });
+
+        expect(controller.notFoundTarget.checked).toBe(true);
+        expect(controller.branchTarget.hidden).toBe(false);
+        expect(controller.branchTarget.disabled).toBe(false);
+    });
+
+    test('loadScaMemberInfo loads member from autocomplete hidden value', () => {
+        const spy = jest.spyOn(controller, 'loadMember').mockImplementation(() => {});
+        controller.scaMemberTarget.querySelector('[data-ac-target="hidden"]').value = '123';
+
+        controller.loadScaMemberInfo({
+            detail: { value: '123', textValue: 'Known Member', selected: document.createElement('li') },
+            target: controller.scaMemberTarget,
+        });
+
+        expect(controller.notFoundTarget.checked).toBe(false);
+        expect(controller.branchTarget.hidden).toBe(true);
+        expect(controller.branchTarget.disabled).toBe(true);
+        expect(spy).toHaveBeenCalledWith('123');
+    });
+
     // --- loadMember ---
 
     test('loadMember displays external links', async () => {
@@ -327,8 +358,12 @@ describe('AwardsRecommendationAddForm', () => {
 
     test('acConnected initializes scaMember target', () => {
         controller.scaMemberTarget.value = 'test';
+        controller.scaMemberTarget.querySelector('[data-ac-target="hidden"]').value = '123';
+        controller.scaMemberTarget.querySelector('[data-ac-target="hiddenText"]').value = 'Known Member';
         controller.acConnected({ detail: { awardsRecAddTarget: 'scaMember' } });
         expect(controller.scaMemberTarget.value).toBe('');
+        expect(controller.scaMemberTarget.querySelector('[data-ac-target="hidden"]').value).toBe('');
+        expect(controller.scaMemberTarget.querySelector('[data-ac-target="hiddenText"]').value).toBe('');
     });
 
     test('acConnected initializes specialty target', () => {
