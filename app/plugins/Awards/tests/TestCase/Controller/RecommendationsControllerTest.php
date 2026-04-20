@@ -4,15 +4,69 @@ declare(strict_types=1);
 namespace Awards\Test\TestCase\Controller;
 
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
+use Cake\Cache\Cache;
 use Cake\I18n\DateTime;
 
 class RecommendationsControllerTest extends HttpIntegrationTestCase
 {
+    /**
+     * @var list<int>
+     */
+    private array $createdPermissionPolicyIds = [];
+
+    /**
+     * @var list<int>
+     */
+    private array $createdMemberRoleIds = [];
+
+    /**
+     * @var list<int>
+     */
+    private array $createdAwardIds = [];
+
+    /**
+     * @var list<int>
+     */
+    private array $createdRecommendationIds = [];
+
     protected function setUp(): void
     {
         parent::setUp();
+        $this->disableTransactions();
         $this->enableCsrfToken();
         $this->enableSecurityToken();
+    }
+
+    protected function tearDown(): void
+    {
+        if ($this->createdRecommendationIds !== []) {
+            $this->getTableLocator()->get('Awards.Recommendations')->deleteAll([
+                'id IN' => $this->createdRecommendationIds,
+            ]);
+        }
+
+        if ($this->createdAwardIds !== []) {
+            $this->getTableLocator()->get('Awards.Awards')->deleteAll([
+                'id IN' => $this->createdAwardIds,
+            ]);
+        }
+
+        if ($this->createdMemberRoleIds !== []) {
+            $this->getTableLocator()->get('MemberRoles')->deleteAll([
+                'id IN' => $this->createdMemberRoleIds,
+            ]);
+        }
+
+        if ($this->createdPermissionPolicyIds !== []) {
+            $this->getTableLocator()->get('PermissionPolicies')->deleteAll([
+                'id IN' => $this->createdPermissionPolicyIds,
+            ]);
+        }
+
+        Cache::delete('member_permissions' . self::TEST_MEMBER_AGATHA_ID, 'member_permissions');
+        Cache::delete('permissions_policies' . self::TEST_MEMBER_AGATHA_ID, 'member_permissions');
+
+        parent::tearDown();
     }
 
     public function testGatheringAwardsGridDataAppliesRecommendationScope(): void
@@ -42,6 +96,7 @@ class RecommendationsControllerTest extends HttpIntegrationTestCase
         ]);
         $savedPolicy = $permissionPolicies->save($viewGatheringPolicy);
         $this->assertNotFalse($savedPolicy);
+        $this->createdPermissionPolicyIds[] = $savedPolicy->id;
 
         $activeRole = $memberRoles->newEmptyEntity();
         $activeRole->member_id = self::TEST_MEMBER_AGATHA_ID;
@@ -52,6 +107,7 @@ class RecommendationsControllerTest extends HttpIntegrationTestCase
         $activeRole->expires_on = DateTime::now()->modify('+30 days');
         $savedRole = $memberRoles->save($activeRole);
         $this->assertNotFalse($savedRole);
+        $this->createdMemberRoleIds[] = $savedRole->id;
 
         $allowedAward = $awards->newEntity([
             'name' => 'Scope Test Non-Armigerous Award',
@@ -62,6 +118,7 @@ class RecommendationsControllerTest extends HttpIntegrationTestCase
         ]);
         $savedAllowedAward = $awards->save($allowedAward);
         $this->assertNotFalse($savedAllowedAward);
+        $this->createdAwardIds[] = $savedAllowedAward->id;
 
         $blockedAward = $awards->newEntity([
             'name' => 'Scope Test Armigerous Award',
@@ -72,6 +129,7 @@ class RecommendationsControllerTest extends HttpIntegrationTestCase
         ]);
         $savedBlockedAward = $awards->save($blockedAward);
         $this->assertNotFalse($savedBlockedAward);
+        $this->createdAwardIds[] = $savedBlockedAward->id;
 
         $allowedRecommendation = $recommendations->newEntity([
             'requester_id' => $member->id,
@@ -92,6 +150,7 @@ class RecommendationsControllerTest extends HttpIntegrationTestCase
         ]);
         $savedAllowedRecommendation = $recommendations->save($allowedRecommendation);
         $this->assertNotFalse($savedAllowedRecommendation);
+        $this->createdRecommendationIds[] = $savedAllowedRecommendation->id;
 
         $blockedRecommendation = $recommendations->newEntity([
             'requester_id' => $member->id,
@@ -112,6 +171,7 @@ class RecommendationsControllerTest extends HttpIntegrationTestCase
         ]);
         $savedBlockedRecommendation = $recommendations->save($blockedRecommendation);
         $this->assertNotFalse($savedBlockedRecommendation);
+        $this->createdRecommendationIds[] = $savedBlockedRecommendation->id;
 
         $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
 
