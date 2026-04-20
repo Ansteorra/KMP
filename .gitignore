@@ -35,3 +35,5 @@ app/backups
 app/tests/mutation-reports/
 app/cookies.txt
 app/tests/nav-debug.png
+deploy/azure/nightly.env
+deploy/azure/.azure-outputs.json
