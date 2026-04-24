@@ -41,6 +41,11 @@ $this->KMP->endBlock(); ?>
         echo $this->Form->control('insignia');
         echo $this->Form->control('badge');
         echo $this->Form->control('charter');
+        echo $this->Form->control('is_disabled', [
+            'type' => 'checkbox',
+            'label' => __('Disabled'),
+            'checked' => !$award->is_active,
+        ]);
         echo $this->Form->control('domain_id', ['options' => $awardsDomains]);
         echo $this->Form->control('level_id', ['options' => $awardsLevels]);
         echo $this->Form->control('branch_id', ['options' => $branches]);

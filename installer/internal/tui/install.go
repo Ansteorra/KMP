@@ -138,10 +138,12 @@ type InstallModel struct {
 	mysqlSSL     bool // require SSL for external MySQL
 
 	// Email configuration
-	emailChoice  int // 0=skip, 1=smtp
-	emailSubStep int // 0=choice, 1=smtp form
-	smtpInputs   []textinput.Model
-	smtpFocusIdx int
+	emailChoice    int // 0=skip, 1=smtp, 2=azure, 3=sendgrid, 4=resend
+	emailSubStep   int // 0=choice, 1=form
+	smtpInputs     []textinput.Model
+	smtpFocusIdx   int
+	emailApiInputs []textinput.Model // inputs for API-based drivers (from, key/conn-string)
+	emailApiFocusIdx int
 
 	// Storage configuration
 	storageChoice   int // 0=local, 1=s3, 2=azure
@@ -315,15 +317,33 @@ func (m *InstallModel) loadDefaults() {
 	}
 	m.mysqlSSL = dep.MySQLSSL
 
-	// Email / SMTP
-	if smtpHost := dep.StorageConfig["smtp_host"]; smtpHost != "" {
-		m.emailChoice = 1
-		m.smtpInputs = newSmtpInputs()
-		m.smtpInputs[0].SetValue(smtpHost)
-		m.smtpInputs[1].SetValue(dep.StorageConfig["smtp_port"])
-		m.smtpInputs[2].SetValue(dep.StorageConfig["email_from"])
-		m.smtpInputs[3].SetValue(dep.StorageConfig["smtp_user"])
-		m.smtpInputs[4].SetValue(dep.StorageConfig["smtp_pass"])
+	// Email configuration
+	switch dep.StorageConfig["email_driver"] {
+	case "azure":
+		m.emailChoice = 2
+		m.emailApiInputs = newAzureCommInputs()
+		m.emailApiInputs[0].SetValue(dep.StorageConfig["email_from"])
+		m.emailApiInputs[1].SetValue(dep.StorageConfig["azure_communication_connection_string"])
+	case "sendgrid":
+		m.emailChoice = 3
+		m.emailApiInputs = newEmailApiKeyInputs()
+		m.emailApiInputs[0].SetValue(dep.StorageConfig["email_from"])
+		m.emailApiInputs[1].SetValue(dep.StorageConfig["email_api_key"])
+	case "resend":
+		m.emailChoice = 4
+		m.emailApiInputs = newEmailApiKeyInputs()
+		m.emailApiInputs[0].SetValue(dep.StorageConfig["email_from"])
+		m.emailApiInputs[1].SetValue(dep.StorageConfig["email_api_key"])
+	default:
+		if smtpHost := dep.StorageConfig["smtp_host"]; smtpHost != "" {
+			m.emailChoice = 1
+			m.smtpInputs = newSmtpInputs()
+			m.smtpInputs[0].SetValue(smtpHost)
+			m.smtpInputs[1].SetValue(dep.StorageConfig["smtp_port"])
+			m.smtpInputs[2].SetValue(dep.StorageConfig["email_from"])
+			m.smtpInputs[3].SetValue(dep.StorageConfig["smtp_user"])
+			m.smtpInputs[4].SetValue(dep.StorageConfig["smtp_pass"])
+		}
 	}
 
 	// Storage
@@ -385,6 +405,50 @@ func newSmtpInputs() []textinput.Model {
 		t := textinput.New()
 		t.Placeholder = s.placeholder
 		t.Width = 44
+		if s.echoPass {
+			t.EchoMode = textinput.EchoPassword
+		}
+		inputs[i] = t
+	}
+	inputs[0].Focus()
+	return inputs
+}
+
+func newAzureCommInputs() []textinput.Model {
+	specs := []struct {
+		placeholder string
+		echoPass    bool
+	}{
+		{"noreply@mykingdom.org", false},
+		{"endpoint=https://xxx.communication.azure.com/;accesskey=BASE64KEY", true},
+	}
+	inputs := make([]textinput.Model, len(specs))
+	for i, s := range specs {
+		t := textinput.New()
+		t.Placeholder = s.placeholder
+		t.Width = 60
+		if s.echoPass {
+			t.EchoMode = textinput.EchoPassword
+		}
+		inputs[i] = t
+	}
+	inputs[0].Focus()
+	return inputs
+}
+
+func newEmailApiKeyInputs() []textinput.Model {
+	specs := []struct {
+		placeholder string
+		echoPass    bool
+	}{
+		{"noreply@mykingdom.org", false},
+		{"API key", true},
+	}
+	inputs := make([]textinput.Model, len(specs))
+	for i, s := range specs {
+		t := textinput.New()
+		t.Placeholder = s.placeholder
+		t.Width = 50
 		if s.echoPass {
 			t.EchoMode = textinput.EchoPassword
 		}
@@ -571,9 +635,16 @@ func (m *InstallModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	// Pass through to SMTP inputs when in email form sub-step
-	if m.step == stepEmail && m.emailSubStep == 1 && m.smtpFocusIdx < len(m.smtpInputs) {
+	if m.step == stepEmail && m.emailSubStep == 1 && m.emailChoice == 1 && m.smtpFocusIdx < len(m.smtpInputs) {
 		var cmd tea.Cmd
 		m.smtpInputs[m.smtpFocusIdx], cmd = m.smtpInputs[m.smtpFocusIdx].Update(msg)
+		return m, cmd
+	}
+
+	// Pass through to API email inputs when in email form sub-step
+	if m.step == stepEmail && m.emailSubStep == 1 && m.emailChoice >= 2 && m.emailApiFocusIdx < len(m.emailApiInputs) {
+		var cmd tea.Cmd
+		m.emailApiInputs[m.emailApiFocusIdx], cmd = m.emailApiInputs[m.emailApiFocusIdx].Update(msg)
 		return m, cmd
 	}
 
@@ -833,14 +904,14 @@ func (m *InstallModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case stepEmail:
 		if m.emailSubStep == 0 {
-			// Choice: skip or SMTP
+			// Choice: skip, SMTP, Azure, SendGrid, Resend
 			switch key {
 			case "up", "k":
 				if m.cursor > 0 {
 					m.cursor--
 				}
 			case "down", "j":
-				if m.cursor < 1 {
+				if m.cursor < 4 {
 					m.cursor++
 				}
 			case "enter":
@@ -851,20 +922,37 @@ func (m *InstallModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					m.cursor = 0
 					m.storageChoice = 0
 					m.storageSubStep = 0
-				} else {
+				} else if m.emailChoice == 1 {
 					// SMTP — show form
 					m.emailSubStep = 1
 					m.smtpFocusIdx = 0
-					m.smtpInputs = newSmtpInputs()
+					if m.smtpInputs == nil {
+						m.smtpInputs = newSmtpInputs()
+					}
 					m.smtpInputs[0].Focus()
+				} else if m.emailChoice == 2 {
+					// Azure Communication Services
+					m.emailSubStep = 1
+					m.emailApiFocusIdx = 0
+					if m.emailApiInputs == nil {
+						m.emailApiInputs = newAzureCommInputs()
+					}
+					m.emailApiInputs[0].Focus()
+				} else {
+					// SendGrid or Resend — API key form
+					m.emailSubStep = 1
+					m.emailApiFocusIdx = 0
+					if m.emailApiInputs == nil {
+						m.emailApiInputs = newEmailApiKeyInputs()
+					}
+					m.emailApiInputs[0].Focus()
 				}
 			case "esc":
 				m.step = stepDatabase
 				m.cursor = m.database
 			}
-		} else {
-			// SMTP form sub-step — key events handled via Update pass-through
-			// but navigation keys are intercepted here first
+		} else if m.emailChoice == 1 {
+			// SMTP form sub-step
 			switch key {
 			case "tab", "down":
 				if done := advanceFormFocus(m.smtpInputs, &m.smtpFocusIdx, 1); done {
@@ -883,7 +971,6 @@ func (m *InstallModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 			case "enter":
-				// Advance field or submit if on last
 				if done := advanceFormFocus(m.smtpInputs, &m.smtpFocusIdx, 1); done {
 					m.step = stepStorage
 					m.cursor = 0
@@ -896,9 +983,43 @@ func (m *InstallModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.cursor = m.emailChoice
 				return m, nil
 			}
-			// Pass remaining key events to the active text input
 			var cmd tea.Cmd
 			m.smtpInputs[m.smtpFocusIdx], cmd = m.smtpInputs[m.smtpFocusIdx].Update(msg)
+			return m, cmd
+		} else {
+			// API email form sub-step (Azure, SendGrid, Resend)
+			switch key {
+			case "tab", "down":
+				if done := advanceFormFocus(m.emailApiInputs, &m.emailApiFocusIdx, 1); done {
+					m.step = stepStorage
+					m.cursor = 0
+					m.storageChoice = 0
+					m.storageSubStep = 0
+				}
+				return m, nil
+			case "shift+tab", "up":
+				if m.emailApiFocusIdx == 0 {
+					m.emailSubStep = 0
+					m.cursor = m.emailChoice
+				} else {
+					advanceFormFocus(m.emailApiInputs, &m.emailApiFocusIdx, -1) //nolint:errcheck
+				}
+				return m, nil
+			case "enter":
+				if done := advanceFormFocus(m.emailApiInputs, &m.emailApiFocusIdx, 1); done {
+					m.step = stepStorage
+					m.cursor = 0
+					m.storageChoice = 0
+					m.storageSubStep = 0
+				}
+				return m, nil
+			case "esc":
+				m.emailSubStep = 0
+				m.cursor = m.emailChoice
+				return m, nil
+			}
+			var cmd tea.Cmd
+			m.emailApiInputs[m.emailApiFocusIdx], cmd = m.emailApiInputs[m.emailApiFocusIdx].Update(msg)
 			return m, cmd
 		}
 
@@ -1122,6 +1243,12 @@ func (m *InstallModel) runInstall() tea.Cmd {
 			smtpVals[i] = m.smtpInputs[i].Value()
 		}
 	}
+	var emailApiVals [2]string
+	for i := range m.emailApiInputs {
+		if i < len(m.emailApiInputs) {
+			emailApiVals[i] = m.emailApiInputs[i].Value()
+		}
+	}
 
 	// Capture storage config
 	storageChoiceIdx := m.storageChoice
@@ -1173,11 +1300,24 @@ func (m *InstallModel) runInstall() tea.Cmd {
 		}
 
 		if smtpEnabled {
+			storageConfig["email_driver"] = "smtp"
 			storageConfig["smtp_host"] = smtpVals[0]
 			storageConfig["smtp_port"] = smtpVals[1]
 			storageConfig["email_from"] = smtpVals[2]
 			storageConfig["smtp_user"] = smtpVals[3]
 			storageConfig["smtp_pass"] = smtpVals[4]
+		} else if m.emailChoice == 2 {
+			storageConfig["email_driver"] = "azure"
+			storageConfig["email_from"] = emailApiVals[0]
+			storageConfig["azure_communication_connection_string"] = emailApiVals[1]
+		} else if m.emailChoice == 3 {
+			storageConfig["email_driver"] = "sendgrid"
+			storageConfig["email_from"] = emailApiVals[0]
+			storageConfig["email_api_key"] = emailApiVals[1]
+		} else if m.emailChoice == 4 {
+			storageConfig["email_driver"] = "resend"
+			storageConfig["email_from"] = emailApiVals[0]
+			storageConfig["email_api_key"] = emailApiVals[1]
 		}
 
 		cfg := &providers.DeployConfig{
@@ -1573,7 +1713,10 @@ func (m *InstallModel) viewEmail() string {
 		s.WriteString("  Configure email delivery (optional):\n\n")
 		choices := []string{
 			"Skip — configure email after installation",
-			"Configure SMTP (send notifications, password resets, etc.)",
+			"SMTP (traditional mail server)",
+			"Azure Communication Services (API)",
+			"SendGrid (API)",
+			"Resend (API)",
 		}
 		for i, c := range choices {
 			cursor := "  ○ "
@@ -1584,7 +1727,7 @@ func (m *InstallModel) viewEmail() string {
 			}
 			s.WriteString(style.Render(cursor+c) + "\n")
 		}
-	} else {
+	} else if m.emailChoice == 1 {
 		// SMTP form
 		s.WriteString("  SMTP Configuration\n\n")
 		labels := []string{"Host", "Port", "From Address", "Username", "Password"}
@@ -1598,6 +1741,42 @@ func (m *InstallModel) viewEmail() string {
 			s.WriteString(ls.Render(fmt.Sprintf("%s%-14s", prefix, label+":")) + " ")
 			s.WriteString(m.smtpInputs[i].View() + "\n")
 		}
+	} else if m.emailChoice == 2 {
+		// Azure Communication Services form
+		s.WriteString("  Azure Communication Services\n\n")
+		labels := []string{"From Address", "Connection String"}
+		for i, label := range labels {
+			focused := m.emailApiFocusIdx == i
+			prefix := "  "
+			ls := lipgloss.NewStyle()
+			if focused {
+				ls = ls.Bold(true).Foreground(lipgloss.Color("#7D56F4"))
+			}
+			s.WriteString(ls.Render(fmt.Sprintf("%s%-20s", prefix, label+":")) + " ")
+			s.WriteString(m.emailApiInputs[i].View() + "\n")
+		}
+		s.WriteString("\n" + components.SubtleStyle.Render("  Find this in Azure Portal → Communication Services → Keys."))
+	} else {
+		// SendGrid / Resend form
+		driverName := "SendGrid"
+		hint := "  Create an API key at https://app.sendgrid.com/settings/api_keys"
+		if m.emailChoice == 4 {
+			driverName = "Resend"
+			hint = "  Create an API key at https://resend.com/api-keys"
+		}
+		s.WriteString(fmt.Sprintf("  %s Configuration\n\n", driverName))
+		labels := []string{"From Address", "API Key"}
+		for i, label := range labels {
+			focused := m.emailApiFocusIdx == i
+			prefix := "  "
+			ls := lipgloss.NewStyle()
+			if focused {
+				ls = ls.Bold(true).Foreground(lipgloss.Color("#7D56F4"))
+			}
+			s.WriteString(ls.Render(fmt.Sprintf("%s%-14s", prefix, label+":")) + " ")
+			s.WriteString(m.emailApiInputs[i].View() + "\n")
+		}
+		s.WriteString("\n" + components.SubtleStyle.Render(hint))
 	}
 
 	return components.BoxStyle.Render(s.String())

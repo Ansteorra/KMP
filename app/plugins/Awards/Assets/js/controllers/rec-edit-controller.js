@@ -25,6 +25,7 @@ class AwardsRecommendationEditForm extends Controller {
         "externalLinks",
         "domain",
         "award",
+        "currentAwardId",
         "reason",
         "gatherings",
         "specialty",
@@ -226,6 +227,9 @@ class AwardsRecommendationEditForm extends Controller {
     /** Fetch awards for domain and populate award selection with autocomplete. */
     populateAwardDescriptions(event) {
         let url = this.awardListUrlValue + "/" + event.target.value;
+        if (this.hasCurrentAwardIdTarget && this.currentAwardIdTarget.value) {
+            url += `?current_award_id=${encodeURIComponent(this.currentAwardIdTarget.value)}`;
+        }
         fetch(url, this.optionsForFetch())
             .then(response => response.json())
             .then(data => {
@@ -289,7 +293,12 @@ class AwardsRecommendationEditForm extends Controller {
     loadScaMemberInfo(event) {
         this.externalLinksTarget.innerHTML = "";
 
-        let memberId = Number(event.target.value.replace(/_/g, ""));
+        const hiddenTarget = this.scaMemberTarget?.querySelector?.('[data-ac-target="hidden"]');
+        const rawMemberValue = (hiddenTarget && typeof hiddenTarget.value === "string" && hiddenTarget.value.trim() !== "")
+            ? hiddenTarget.value.trim()
+            : (event?.detail?.selected ? String(event.detail.value ?? "").trim() : "")
+                || (event?.detail ? "" : (typeof event?.target?.value === "string" ? event.target.value.trim() : ""));
+        let memberId = Number(rawMemberValue.replace(/_/g, ""));
         if (memberId > 0) {
             this.notFoundTarget.checked = false;
             this.branchTarget.hidden = true;

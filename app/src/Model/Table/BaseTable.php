@@ -82,6 +82,26 @@ class BaseTable extends Table
      */
     public function afterDelete($event, $entity, $options): void
     {
+        // Phase 1: Clear static cache entries
+        if (!empty($this::CACHES_TO_CLEAR)) {
+            foreach ($this::CACHES_TO_CLEAR as $cache) {
+                Cache::delete($cache[0], $cache[1]);
+            }
+        }
+
+        // Phase 2: Clear entity-ID-based cache entries
+        if (!empty($this::ID_CACHES_TO_CLEAR)) {
+            foreach ($this::ID_CACHES_TO_CLEAR as $cache) {
+                Cache::delete($cache[0] . $entity->id, $cache[1]);
+            }
+        }
+
+        // Phase 3: Clear cache groups entirely
+        if (!empty($this::CACHE_GROUPS_TO_CLEAR)) {
+            foreach ($this::CACHE_GROUPS_TO_CLEAR as $cache) {
+                Cache::clearGroup($cache);
+            }
+        }
         $this->logImpersonationAction('delete', $entity);
     }
 

@@ -13,6 +13,34 @@ use App\KMP\GridColumns\BaseGridColumns;
 class AwardsGridColumns extends BaseGridColumns
 {
     /**
+     * Get row action configurations for awards shown in a gathering activity context.
+     *
+     * @param int $activityId Gathering activity identifier.
+     * @return array<string, array<string, mixed>>
+     */
+    public static function getActivityRowActions(int $activityId): array
+    {
+        return [
+            'removeActivity' => [
+                'key' => 'removeActivity',
+                'type' => 'postLink',
+                'label' => '',
+                'icon' => 'bi-x-circle-fill',
+                'class' => 'btn btn-sm btn-danger',
+                'url' => [
+                    'plugin' => 'Awards',
+                    'controller' => 'Awards',
+                    'action' => 'remove-activity',
+                    'idField' => 'id',
+                    'extraArgs' => [$activityId],
+                ],
+                'confirmMessage' => 'Remove "{{name}}" from this activity?',
+                'turbo' => true,
+            ],
+        ];
+    }
+
+    /**
      * Get column metadata for the awards grid
      *
      * @return array<string, array<string, mixed>>
@@ -89,6 +117,23 @@ class AwardsGridColumns extends BaseGridColumns
                 'renderField' => 'branch.name',
                 'width' => '150px',
                 'alignment' => 'left',
+            ],
+            'disabled' => [
+                'key' => 'disabled',
+                'label' => __('Disabled'),
+                'type' => 'boolean',
+                'sortable' => true,
+                'filterable' => true,
+                'filterType' => 'dropdown',
+                'queryField' => 'Awards.is_active',
+                'renderField' => 'disabled',
+                'defaultVisible' => true,
+                'width' => '100px',
+                'alignment' => 'center',
+                'filterOptions' => [
+                    ['value' => '0', 'label' => 'Yes'],
+                    ['value' => '1', 'label' => 'No'],
+                ],
             ],
             'description' => [
                 'key' => 'description',

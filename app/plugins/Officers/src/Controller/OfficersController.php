@@ -347,7 +347,7 @@ class OfficersController extends AppController
             'canExportCsv' => false,
             'showFilterPills' => false,
         ];
-        if ($context = 'member') {
+        if ($context === 'member') {
             $gridConfig['canExportCsv'] = false;
             $gridConfig['canFilter'] = true;
             $gridConfig['lockedFilters'] = ['status'];

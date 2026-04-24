@@ -57,6 +57,16 @@ body {
     opacity: 0.7;
 }
 
+/* Login card responsive sizing */
+.login-card {
+    width: 100%;
+    max-width: 26rem;
+}
+
+.login-card .card-body {
+    padding-bottom: 2rem;
+}
+
 /* Mobile-friendly adjustments */
 @media (max-width: 576px) {
     body {
@@ -133,19 +143,7 @@ body {
         padding-right: 1rem !important;
         font-size: 0.85rem;
     }
-}
 
-/* Login card responsive sizing */
-.login-card {
-    width: 100%;
-    max-width: 26rem;
-}
-
-.login-card .card-body {
-    padding-bottom: 2rem;
-}
-
-@media (max-width: 576px) {
     .login-card {
         width: 100%;
         max-width: 100%;

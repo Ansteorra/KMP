@@ -53,7 +53,7 @@ mix.setPublicPath('./webroot')
     .js('assets/js/index.js', 'webroot/js')
     .extract(['bootstrap', 'popper.js', '@hotwired/turbo', '@hotwired/stimulus', '@hotwired/stimulus-webpack-helpers'], 'webroot/js/core.js')
     .webpackConfig({
-        devtool: "source-map",
+        devtool: mix.inProduction() ? false : "source-map",
         resolve: {
             fallback: {
                 fs: false,
@@ -88,5 +88,8 @@ mix.setPublicPath('./webroot')
     .css('plugins/Waivers/assets/css/waivers.css', 'webroot/css/waivers.css')
     .css('plugins/Waivers/assets/css/waiver-upload.css', 'webroot/css/waiver-upload.css')
     .copyDirectory('node_modules/@fortawesome/fontawesome-free/webfonts', 'webroot/fonts')
-    .version()
-    .sourceMaps();
+    .version();
+
+if (!mix.inProduction()) {
+    mix.sourceMaps();
+}

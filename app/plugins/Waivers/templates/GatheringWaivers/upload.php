@@ -7,8 +7,8 @@
  * @var array $waiverStatusSummary
  */
 
-// Include wizard CSS
-echo $this->Html->css('Waivers./css/waiver-upload-wizard', ['block' => true]);
+// Include the built waiver upload stylesheet via AssetMix.
+$this->append('css', $this->AssetMix->css('waiver-upload'));
 
 $waiverTypesData = [];
 if (!empty($requiredWaiverTypes)) {

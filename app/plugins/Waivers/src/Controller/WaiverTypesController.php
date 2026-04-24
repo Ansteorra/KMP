@@ -220,12 +220,8 @@ class WaiverTypesController extends AppController
             $data = $this->request->getData();
             $templateSource = $data['template_source'] ?? 'none';
 
-            Log::debug('Edit - Template Source: ' . $templateSource);
-            Log::debug('Edit - Has template_file: ' . (isset($data['template_file']) ? 'YES' : 'NO'));
-
             // Store the old document_id before making changes
             $oldDocumentId = $waiverType->document_id;
-            Log::debug('Edit - Old document_id: ' . ($oldDocumentId ?? 'NULL'));
 
             // Remove file upload and URL fields from data before patching
             unset($data['template_file'], $data['template_url'], $data['template_source']);
@@ -236,22 +232,15 @@ class WaiverTypesController extends AppController
                 // Handle template file upload or external URL
                 $templateResult = $this->_handleTemplateUpload($this->request->getData(), $waiverType);
 
-                Log::debug('Edit - Template Result: ' . ($templateResult ? json_encode($templateResult) : 'NULL'));
-
                 if ($templateResult !== null) {
                     // Delete old document if we're replacing it
                     if (!empty($oldDocumentId) && $templateSource !== 'none') {
-                        Log::debug('Edit - Deleting old document: ' . $oldDocumentId);
                         $deleteResult = $this->DocumentService->deleteDocument($oldDocumentId);
-                        Log::debug('Edit - Delete result: ' . ($deleteResult->success ? 'SUCCESS' : 'FAILED'));
                     }
 
                     // Clear both fields, then set the new values
                     $waiverType->document_id = $templateResult['document_id'];
                     $waiverType->template_path = $templateResult['template_path'];
-
-                    Log::debug('Edit - New document_id: ' . ($waiverType->document_id ?? 'NULL'));
-                    Log::debug('Edit - New template_path: ' . ($waiverType->template_path ?? 'NULL'));
 
                     // Update document entity_id if document was created
                     if (!empty($templateResult['document_id'])) {
@@ -259,11 +248,9 @@ class WaiverTypesController extends AppController
                             $templateResult['document_id'],
                             $waiverType->id
                         );
-                        Log::debug('Edit - Entity ID update result: ' . ($updateResult->success ? 'SUCCESS' : 'FAILED'));
                     }
 
                     $saveResult = $this->WaiverTypes->save($waiverType);
-                    Log::debug('Edit - Final save result: ' . ($saveResult ? 'SUCCESS' : 'FAILED'));
 
                     // TODO: Add back Documents reload when Documents table and document_id column are implemented
                     // Reload the entity to get the fresh Document association
@@ -428,14 +415,6 @@ class WaiverTypesController extends AppController
         }
         $this->Authorization->authorize($waiverType, 'downloadTemplate');
 
-        Log::debug('Download - Waiver Type ID: ' . $id);
-        Log::debug('Download - document_id: ' . ($waiverType->document_id ?? 'NULL'));
-        Log::debug('Download - template_path: ' . ($waiverType->template_path ?? 'NULL'));
-        if ($waiverType->document) {
-            Log::debug('Download - Document file_path: ' . $waiverType->document->file_path);
-            Log::debug('Download - Document original_filename: ' . $waiverType->document->original_filename);
-        }
-
         // Check if external URL template exists
         if (!empty($waiverType->template_path)) {
             // If it's an external URL, redirect to it
@@ -475,19 +454,14 @@ class WaiverTypesController extends AppController
     {
         $templateSource = $data['template_source'] ?? 'none';
 
-        Log::debug('Template source: ' . $templateSource);
-
         // Handle external URL
         if ($templateSource === 'url' && !empty($data['template_url'])) {
-            Log::debug('Using external URL: ' . $data['template_url']);
             return ['template_path' => $data['template_url'], 'document_id' => null];
         }
 
         // Handle file upload using DocumentService
         if ($templateSource === 'upload' && isset($data['template_file'])) {
             $file = $data['template_file'];
-
-            Log::debug('File object type: ' . get_class($file));
 
             // Check if file is valid uploaded file object
             if (!is_object($file) || !method_exists($file, 'getSize')) {

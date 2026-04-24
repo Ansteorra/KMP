@@ -40,12 +40,12 @@ $this->KMP->endBlock(); ?>
             "Recommendation For",
             true,
             true,
-            3,
-            [
-                'data-awards-rec-add-target' => 'scaMember',
-                'data-action' => 'change->awards-rec-add#loadScaMemberInfo ready->awards-rec-add#acConnected'
-            ]
-        );
+        3,
+        [
+            'data-awards-rec-add-target' => 'scaMember',
+            'data-action' => 'autocomplete.change->awards-rec-add#loadScaMemberInfo ready->awards-rec-add#acConnected'
+        ]
+    );
         echo $this->Form->control('not_found', [
             'type' => 'checkbox',
             'label' => "Name not registered in " . $this->KMP->getAppSetting("KMP.ShortSiteTitle") . " database",
