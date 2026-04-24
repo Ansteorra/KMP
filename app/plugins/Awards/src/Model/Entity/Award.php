@@ -23,6 +23,9 @@ use App\Model\Entity\BaseEntity;
  * @property int $domain_id
  * @property int $level_id
  * @property int $branch_id
+ * @property bool $is_active
+ * @property bool $disabled
+ * @property string $disabled_label
  * @property \Cake\I18n\DateTime|null $open_date
  * @property \Cake\I18n\DateTime|null $close_date
  * @property \Cake\I18n\DateTime|null $modified
@@ -52,6 +55,7 @@ class Award extends BaseEntity
         'domain_id' => true,
         'level_id' => true,
         'branch_id' => true,
+        'is_active' => true,
         'modified' => true,
         'created' => true,
         'created_by' => true,
@@ -91,5 +95,25 @@ class Award extends BaseEntity
     protected function _getBranchName(): ?string
     {
         return $this->branch?->name ?? null;
+    }
+
+    /**
+     * Get disabled status for grid and form display.
+     *
+     * @return bool
+     */
+    protected function _getDisabled(): bool
+    {
+        return !$this->is_active;
+    }
+
+    /**
+     * Get disabled status label for grid display.
+     *
+     * @return string
+     */
+    protected function _getDisabledLabel(): string
+    {
+        return $this->disabled ? 'Yes' : 'No';
     }
 }
