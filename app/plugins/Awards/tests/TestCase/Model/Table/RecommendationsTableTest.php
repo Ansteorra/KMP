@@ -48,7 +48,7 @@ class RecommendationsTableTest extends BaseTestCase
 
         $savedRecommendation = $this->Recommendations->save($recommendation);
 
-        $this->assertNotFalse($savedRecommendation);
+        $this->assertInstanceOf(Recommendation::class, $savedRecommendation);
         $this->assertSame($activeAward->id, $savedRecommendation->award_id);
     }
 

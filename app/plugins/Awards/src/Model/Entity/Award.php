@@ -104,7 +104,7 @@ class Award extends BaseEntity
      */
     protected function _getDisabled(): bool
     {
-        return !$this->is_active;
+        return !((bool)($this->is_active ?? true));
     }
 
     /**
@@ -114,6 +114,6 @@ class Award extends BaseEntity
      */
     protected function _getDisabledLabel(): string
     {
-        return $this->disabled ? 'Yes' : 'No';
+        return $this->disabled ? (string)__('Yes') : (string)__('No');
     }
 }

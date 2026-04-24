@@ -24,9 +24,7 @@ persist_directory() {
         rm -f "$source_path"
     elif [ -d "$source_path" ]; then
         mkdir -p "$persist_path"
-        if find "$source_path" -mindepth 1 -maxdepth 1 -print -quit >/dev/null 2>&1; then
-            cp -a "$source_path"/. "$persist_path"/
-        fi
+        cp -an "$source_path"/. "$persist_path"/ 2>/dev/null || true
         rm -rf "$source_path"
     fi
 
@@ -50,7 +48,9 @@ persist_file() {
         fi
         rm -f "$source_path"
     elif [ -f "$source_path" ]; then
-        cp -a "$source_path" "$persist_path"
+        if [ ! -e "$persist_path" ]; then
+            cp -a "$source_path" "$persist_path"
+        fi
         rm -f "$source_path"
     elif [ ! -f "$persist_path" ]; then
         return
