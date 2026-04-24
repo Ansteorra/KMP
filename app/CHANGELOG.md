@@ -3,8 +3,22 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: 9ef4fb16ab83e9575c16f6221aa37be6b9f91803 -->
-<!-- LAST_SYNCED_DATE: 2026-03-04 -->
+<!-- LAST_SYNCED_COMMIT: 54b10cffa420a9b657b163092fcb4bfc9c282923 -->
+<!-- LAST_SYNCED_DATE: 2026-04-24 -->
+
+## April 2026
+
+### KMP 1.4.3 Hotfix Release
+
+KMP 1.4.3 focuses on stabilizing awards workflows after 1.4.2 and adds a safer way to retire awards from new recommendations without losing history.
+
+- Awards can now be marked inactive so they stop appearing in new recommendation forms while existing recommendations keep their recorded award
+- Public award recommendation submission now works again for non-member recipients, preserves typed autocomplete selections, and shows the correct states to authorized viewers
+- Recommendation grids now have stronger award-level and domain filtering with tighter permission scoping for gathering-related results
+- Waiver upload pages once again load the correct production PDF and CSS assets
+- Member/profile navigation avoids duplicate page loads more reliably, and permission changes invalidate cached access rules correctly
+
+📅 April 24, 2026 · `Announcement`
 
 ## March 2026
 
