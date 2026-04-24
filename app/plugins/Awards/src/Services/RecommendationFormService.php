@@ -87,9 +87,12 @@ class RecommendationFormService
 
         $branches = $this->buildBranchesList($awardsTable);
 
-        $awards = $awardsTable->find('all', limit: 200)
+        $awards = $awardsTable->find('selectable', [
+                'domain_id' => $recommendation->domain_id,
+                'current_award_id' => $recommendation->award_id,
+            ])
             ->select(['id', 'name', 'specialties'])
-            ->where(['domain_id' => $recommendation->domain_id])
+            ->limit(200)
             ->all();
 
         // Get filtered gatherings for this award
