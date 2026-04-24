@@ -222,8 +222,45 @@ class RecommendationsTable extends BaseTable
         $rules->add($rules->existsIn(['member_id'], 'Members'), ['errorField' => 'member_id']);
         $rules->add($rules->existsIn(['branch_id'], 'Branches'), ['errorField' => 'branch_id']);
         $rules->add($rules->existsIn(['award_id'], 'Awards'), ['errorField' => 'award_id']);
+        $rules->add(
+            fn(EntityInterface $entity) => $this->isAwardSelectableForRecommendation($entity),
+            'awardSelection',
+            [
+                'errorField' => 'award_id',
+                'message' => 'This award is inactive and can no longer be selected for new recommendations.',
+            ],
+        );
 
         return $rules;
+    }
+
+    /**
+     * Allow inactive awards only when an existing recommendation keeps its current award.
+     *
+     * @param \Cake\Datasource\EntityInterface $entity Recommendation entity being saved
+     * @return bool
+     */
+    protected function isAwardSelectableForRecommendation(EntityInterface $entity): bool
+    {
+        if (!$entity instanceof Recommendation || $entity->award_id === null) {
+            return true;
+        }
+
+        if (!$entity->isNew() && !$entity->isDirty('award_id')) {
+            return true;
+        }
+
+        $award = $this->Awards->find()
+            ->select(['id', 'is_active'])
+            ->where(['Awards.id' => $entity->award_id])
+            ->disableHydration()
+            ->first();
+
+        if ($award === null) {
+            return true;
+        }
+
+        return (bool)$award['is_active'];
     }
 
     /**

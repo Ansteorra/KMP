@@ -203,6 +203,14 @@ class AutoComplete extends Controller {
         this.makeDataListItems();
     }
 
+    get selectedOption() {
+        return this.resultsTarget.querySelector(activeSelector);
+    }
+
+    get renderedOptions() {
+        return Array.from(this.resultsTarget.querySelectorAll(optionSelector));
+    }
+
     connect() {
         this.close()
 
@@ -362,7 +370,7 @@ class AutoComplete extends Controller {
     }
 
     sibling(next) {
-        const options = this.options
+        const options = this.renderedOptions.length > 0 ? this.renderedOptions : this.options
         const selected = this.selectedOption
         const index = options.indexOf(selected)
         const sibling = next ? options[index + 1] : options[index - 1]
@@ -370,16 +378,60 @@ class AutoComplete extends Controller {
         return sibling || def
     }
 
+    resolveSelectionTarget(target) {
+        if (target instanceof Element) {
+            return target
+        }
+
+        const targetValue = target?.value != null ? String(target.value) : null
+        const targetText = target?.text != null ? String(target.text) : null
+
+        return this.renderedOptions.find((option) => {
+            if (targetValue !== null && option.getAttribute("data-ac-value") == targetValue) {
+                return true
+            }
+
+            return targetText !== null && option.textContent.trim() == targetText
+        }) || null
+    }
+
     select(target) {
+        const option = this.resolveSelectionTarget(target)
+        if (!option) {
+            return
+        }
+
         const previouslySelected = this.selectedOption
         if (previouslySelected) {
             previouslySelected.removeAttribute("aria-selected")
             previouslySelected.classList.remove(...this.selectedClassesOrDefault)
         }
-        target.setAttribute("aria-selected", "true")
-        target.classList.add(...this.selectedClassesOrDefault)
-        this.inputTarget.setAttribute("aria-activedescendant", target.id)
-        target.scrollIntoView({ behavior: "auto", block: "nearest" })
+        option.setAttribute("aria-selected", "true")
+        option.classList.add(...this.selectedClassesOrDefault)
+        this.inputTarget.setAttribute("aria-activedescendant", option.id)
+        option.scrollIntoView({ behavior: "auto", block: "nearest" })
+    }
+
+    cancelPendingInputChange() {
+        if (typeof this.onInputChange?.cancel === "function") {
+            this.onInputChange.cancel()
+        }
+    }
+
+    commitExactTextMatch() {
+        const newValue = this.inputTarget.value
+        const option = this._selectOptions.find(option => option.text == newValue && option.enabled != false)
+        if (!option) {
+            this.value = ""
+            return false
+        }
+
+        this.cancelPendingInputChange()
+        this.value = option.value
+        this.fireChangeEvent(String(option.value), option.text, this.resolveSelectionTarget(option))
+        this.hideAndRemoveOptions()
+
+        return true
     }
 
     onInputChangeTriggered = (event) => {
@@ -433,9 +485,7 @@ class AutoComplete extends Controller {
             this.fireChangeEvent(this.inputTarget.value, this.inputTarget.value, null);
         } else {
             if (this.inputTarget.value != "") {
-                let newValue = this.inputTarget.value;
-                let option = this._selectOptions.find(option => option.text == newValue && option.enabled != false);
-                this.value = option ? option.value : "";
+                this.commitExactTextMatch();
             } else {
                 this.clear();
             }
@@ -463,9 +513,7 @@ class AutoComplete extends Controller {
                 this.fireChangeEvent(this.inputTarget.value, this.inputTarget.value, null);
             } else {
                 if (this.inputTarget.value != "") {
-                    let newValue = this.inputTarget.value;
-                    let option = this._selectOptions.find(option => option.text == newValue && option.enabled != false);
-                    this.value = option ? option.value : "";
+                    this.commitExactTextMatch();
                 } else {
                     this.clear();
                 }
@@ -478,6 +526,7 @@ class AutoComplete extends Controller {
     commit(selected) {
         this.hiddenTextTarget.value = this.inputTarget.value;
         if (selected.getAttribute("aria-disabled") === "true") return
+        this.cancelPendingInputChange()
 
         if (selected instanceof HTMLAnchorElement) {
             selected.click()
@@ -527,6 +576,7 @@ class AutoComplete extends Controller {
     }
 
     clear() {
+        this.cancelPendingInputChange()
         this.inputTarget.value = "";
         if (this.hasHiddenTarget) this.hiddenTarget.value = "";
         if (this.hasHiddenTextTarget) this.hiddenTextTarget.value = "";
@@ -719,10 +769,20 @@ class AutoComplete extends Controller {
 const debounce = (fn, delay = 10) => {
     let timeoutId = null
 
-    return (...args) => {
+    const debounced = (...args) => {
         clearTimeout(timeoutId)
-        timeoutId = setTimeout(fn, delay)
+        timeoutId = setTimeout(() => {
+            timeoutId = null
+            fn(...args)
+        }, delay)
     }
+
+    debounced.cancel = () => {
+        clearTimeout(timeoutId)
+        timeoutId = null
+    }
+
+    return debounced
 }
 
 if (!window.Controllers) {

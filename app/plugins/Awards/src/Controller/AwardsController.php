@@ -21,6 +21,23 @@ use Awards\Controller\AppController;
 class AwardsController extends AppController
 {
     use DataverseGridTrait;
+
+    /**
+     * Convert disabled checkbox input into the persisted active flag.
+     *
+     * @param array<string, mixed> $data Submitted award form data.
+     * @return array<string, mixed>
+     */
+    protected function normalizeAwardFormData(array $data): array
+    {
+        if (array_key_exists('is_disabled', $data)) {
+            $data['is_active'] = !$data['is_disabled'];
+            unset($data['is_disabled']);
+        }
+
+        return $data;
+    }
+
     /**
      * Initialize Awards Controller.
      * 
@@ -61,18 +78,7 @@ class AwardsController extends AppController
     public function gridData(\App\Services\CsvExportService $csvExportService)
     {
         // Build base query with domain, level, and branch info
-        $baseQuery = $this->Awards->find()
-            ->contain([
-                'Domains' => function ($q) {
-                    return $q->select(['id', 'name']);
-                },
-                'Levels' => function ($q) {
-                    return $q->select(['id', 'name']);
-                },
-                'Branches' => function ($q) {
-                    return $q->select(['id', 'name']);
-                }
-            ]);
+        $baseQuery = $this->buildAwardsGridBaseQuery();
 
         // Use unified trait for grid processing
         $result = $this->processDataverseGrid([
@@ -132,6 +138,114 @@ class AwardsController extends AppController
             $this->viewBuilder()->setTemplatePath('element');
             $this->viewBuilder()->setTemplate('dv_grid_content');
         }
+    }
+
+    /**
+     * Provide award grid data scoped to a gathering activity.
+     *
+     * Uses the shared awards grid columns and an activity-specific remove row action.
+     *
+     * @param int|null $activityId Gathering activity identifier.
+     * @return \Cake\Http\Response|null|void
+     */
+    public function activityAwardsGridData(?int $activityId = null)
+    {
+        if ($activityId === null) {
+            throw new \Cake\Http\Exception\BadRequestException(__('Activity ID is required.'));
+        }
+
+        $gatheringActivity = $this->fetchTable('GatheringActivities')->get($activityId);
+        $this->Authorization->authorize($gatheringActivity, 'view');
+
+        $canEdit = (bool)$this->request->getAttribute('identity')?->can('edit', $gatheringActivity);
+
+        $baseQuery = $this->buildAwardsGridBaseQuery()
+            ->matching('GatheringActivities', function ($q) use ($activityId) {
+                return $q->where(['GatheringActivities.id' => $activityId]);
+            })
+            ->distinct([$this->Awards->aliasField('id')]);
+
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Awards.Awards.activity.' . $activityId,
+            'gridColumnsClass' => \Awards\KMP\GridColumns\AwardsGridColumns::class,
+            'baseQuery' => $baseQuery,
+            'tableName' => 'Awards',
+            'defaultSort' => ['Awards.name' => 'asc'],
+            'defaultPageSize' => 25,
+            'showAllTab' => false,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => false,
+        ]);
+
+        $this->set([
+            'awards' => $result['data'],
+            'data' => $result['data'],
+            'rowActions' => $canEdit ? \Awards\KMP\GridColumns\AwardsGridColumns::getActivityRowActions($activityId) : [],
+            'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
+            'visibleColumns' => $result['visibleColumns'],
+            'searchableColumns' => \Awards\KMP\GridColumns\AwardsGridColumns::getSearchableColumns(),
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $result['currentFilters'],
+            'currentSearch' => $result['currentSearch'],
+            'currentView' => $result['currentView'],
+            'availableViews' => $result['availableViews'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
+        ]);
+
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+        $frameId = 'activity-awards-grid-' . $activityId;
+        $dataUrl = \Cake\Routing\Router::url([
+            'plugin' => 'Awards',
+            'controller' => 'Awards',
+            'action' => 'activity-awards-grid-data',
+            $activityId,
+        ]);
+        $tableDataUrl = $dataUrl;
+        $queryParams = $this->request->getQueryParams();
+        if (!empty($queryParams)) {
+            $tableDataUrl .= '?' . http_build_query($queryParams);
+        }
+
+        $this->viewBuilder()->setPlugin(null);
+        $this->viewBuilder()->disableAutoLayout();
+        $this->viewBuilder()->setTemplatePath('element');
+
+        if ($turboFrame === $frameId . '-table') {
+            $this->set('tableFrameId', $frameId . '-table');
+            $this->viewBuilder()->setTemplate('dv_grid_table');
+            return;
+        }
+
+        $this->set('frameId', $frameId);
+        $this->set('dataUrl', $dataUrl);
+        $this->set('tableDataUrl', $tableDataUrl);
+        $this->viewBuilder()->setTemplate('dv_grid_content');
+    }
+
+    /**
+     * Build the base awards query used by dataverse grids.
+     *
+     * @return \Cake\ORM\Query\SelectQuery
+     */
+    protected function buildAwardsGridBaseQuery(): \Cake\ORM\Query\SelectQuery
+    {
+        return $this->Awards->find()
+            ->contain([
+                'Domains' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'Levels' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'Branches' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+            ]);
     }
 
     /**
@@ -205,8 +319,9 @@ class AwardsController extends AppController
     public function add()
     {
         $award = $this->Awards->newEmptyEntity();
+        $award->is_active = true;
         if ($this->request->is('post')) {
-            $award = $this->Awards->patchEntity($award, $this->request->getData());
+            $award = $this->Awards->patchEntity($award, $this->normalizeAwardFormData($this->request->getData()));
             if ($this->Awards->save($award)) {
                 $this->Flash->success(__('The award has been saved.'));
 
@@ -241,7 +356,7 @@ class AwardsController extends AppController
         $this->Authorization->authorize($award);
 
         if ($this->request->is(['patch', 'post', 'put'])) {
-            $award = $this->Awards->patchEntity($award, $this->request->getData());
+            $award = $this->Awards->patchEntity($award, $this->normalizeAwardFormData($this->request->getData()));
             $specialties = json_decode($this->request->getData('specialties'), true);
             $award->specialties = $specialties;
             if ($this->Awards->save($award)) {
@@ -303,8 +418,11 @@ class AwardsController extends AppController
     public function awardsByDomain($domainId = null)
     {
         $this->Authorization->skipAuthorization();
-        $awards = $this->Awards->find()
-            ->where(['domain_id' => $domainId])
+        $currentAwardId = $this->request->getQuery('current_award_id');
+        $awards = $this->Awards->find('selectable', [
+                'domain_id' => $domainId,
+                'current_award_id' => $currentAwardId,
+            ])
             ->contain([
                 'Domains' => function ($q) {
                     return $q->select(['id', 'name']);
@@ -322,6 +440,31 @@ class AwardsController extends AppController
             ->withType("application/json")
             ->withStringBody(json_encode($awards));
         return $this->response;
+    }
+
+    /**
+     * Toggle whether an award can be selected for new recommendations.
+     *
+     * @param string|null $id Award identifier.
+     * @return \Cake\Http\Response|null
+     */
+    public function toggleActive(?string $id = null)
+    {
+        $this->request->allowMethod(['post']);
+
+        $award = $this->Awards->get($id);
+        $this->Authorization->authorize($award, 'edit');
+
+        $award->is_active = !$award->is_active;
+
+        if ($this->Awards->save($award)) {
+            $status = $award->is_active ? 'activated' : 'deactivated';
+            $this->Flash->success(__('The award has been {0}.', $status));
+        } else {
+            $this->Flash->error(__('The award status could not be changed. Please, try again.'));
+        }
+
+        return $this->redirect(['action' => 'view', $award->id]);
     }
 
     /**
