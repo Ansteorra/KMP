@@ -32,20 +32,25 @@ class RecommendationQueryService
     {
         $baseQuery = $recommendationsTable->find()
             ->innerJoinWith('Awards.AwardBranch')
+            ->leftJoinWith('Awards.Domains')
+            ->innerJoinWith('Awards.Levels')
             ->contain([
                 'Requesters' => function ($q) {
                     return $q->select(['id', 'sca_name']);
                 },
                 'Members' => function ($q) {
-                    return $q->select(['id', 'sca_name', 'title', 'pronouns', 'pronunciation']);
+                    return $q->select(['id', 'sca_name', 'title', 'pronouns', 'pronunciation', 'additional_info']);
                 },
                 'Branches' => function ($q) {
                     return $q->select(['id', 'name', 'type']);
                 },
                 'Awards' => function ($q) {
-                    return $q->select(['id', 'abbreviation', 'branch_id']);
+                    return $q->select(['id', 'abbreviation', 'branch_id', 'level_id']);
                 },
                 'Awards.Domains' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'Awards.Levels' => function ($q) {
                     return $q->select(['id', 'name']);
                 },
                 'Awards.AwardBranch' => function ($q) {
@@ -105,12 +110,21 @@ class RecommendationQueryService
     {
         $baseQuery = $recommendationsTable->find()
             ->where(['Recommendations.requester_id' => $memberId])
+            ->innerJoinWith('Awards.AwardBranch')
+            ->leftJoinWith('Awards.Domains')
+            ->innerJoinWith('Awards.Levels')
             ->contain([
                 'Members' => function ($q) {
-                    return $q->select(['id', 'sca_name']);
+                    return $q->select(['id', 'sca_name', 'additional_info']);
                 },
                 'Awards' => function ($q) {
-                    return $q->select(['id', 'abbreviation']);
+                    return $q->select(['id', 'abbreviation', 'branch_id', 'level_id']);
+                },
+                'Awards.Levels' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'Awards.AwardBranch' => function ($q) {
+                    return $q->select(['id', 'name', 'type']);
                 },
                 'Gatherings' => function ($q) {
                     return $q->select(['id', 'name', 'start_date', 'end_date']);
@@ -149,12 +163,21 @@ class RecommendationQueryService
     {
         $baseQuery = $recommendationsTable->find()
             ->where(['Recommendations.member_id' => $memberId])
+            ->innerJoinWith('Awards.AwardBranch')
+            ->leftJoinWith('Awards.Domains')
+            ->innerJoinWith('Awards.Levels')
             ->contain([
                 'Requesters' => function ($q) {
                     return $q->select(['id', 'sca_name']);
                 },
                 'Awards' => function ($q) {
-                    return $q->select(['id', 'abbreviation']);
+                    return $q->select(['id', 'abbreviation', 'branch_id', 'level_id']);
+                },
+                'Awards.Levels' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'Awards.AwardBranch' => function ($q) {
+                    return $q->select(['id', 'name', 'type']);
                 },
                 'Gatherings' => function ($q) {
                     return $q->select(['id', 'name', 'start_date', 'end_date']);
@@ -196,21 +219,30 @@ class RecommendationQueryService
     {
         $baseQuery = $recommendationsTable->find()
             ->where(['Recommendations.gathering_id' => $gatheringId])
+            ->innerJoinWith('Awards.AwardBranch')
+            ->leftJoinWith('Awards.Domains')
+            ->innerJoinWith('Awards.Levels')
             ->contain([
                 'Requesters' => function ($q) {
                     return $q->select(['id', 'sca_name']);
                 },
                 'Members' => function ($q) {
-                    return $q->select(['id', 'sca_name', 'title', 'pronouns', 'pronunciation']);
+                    return $q->select(['id', 'sca_name', 'title', 'pronouns', 'pronunciation', 'additional_info']);
                 },
                 'Branches' => function ($q) {
                     return $q->select(['id', 'name', 'type']);
                 },
                 'Awards' => function ($q) {
-                    return $q->select(['id', 'abbreviation', 'branch_id']);
+                    return $q->select(['id', 'abbreviation', 'branch_id', 'level_id']);
                 },
                 'Awards.Domains' => function ($q) {
                     return $q->select(['id', 'name']);
+                },
+                'Awards.Levels' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'Awards.AwardBranch' => function ($q) {
+                    return $q->select(['id', 'name', 'type']);
                 },
                 'Gatherings' => function ($q) {
                     return $q->select(['id', 'name', 'start_date', 'end_date']);

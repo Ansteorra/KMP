@@ -18,7 +18,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?php $this->KMP->endBlock() ?>
 <?= $this->KMP->startBlock("recordActions") ?>
 <?php if ($user->checkCan("edit", $award)) : ?>
-    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
+<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
 <?php endif; ?>
 <?php if (empty($award->recommendations) && $user->checkCan("delete", $award)) {
     echo $this->Form->postLink(
@@ -41,18 +41,18 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <td> <?= h($award->abbreviation) ?></td>
 </tr>
 <?php if ($award->specialties) : ?>
-    <tr>
-        <th scope="row"><?= __('Specialties') ?></th>
-        <td>
-            <ul>
-                <?php
+<tr>
+    <th scope="row"><?= __('Specialties') ?></th>
+    <td>
+        <ul>
+            <?php
                 // parse the JSON to get the list of specialties
                 foreach ($award->specialties as $specialty) : ?>
-                    <li><?= h($specialty) ?></li>
-                <?php endforeach; ?>
-            </ul>
-        </td>
-    </tr>
+            <li><?= h($specialty) ?></li>
+            <?php endforeach; ?>
+        </ul>
+    </td>
+</tr>
 <?php endif; ?>
 <tr>
     <th scope="row"><?= __('Description') ?></th>
@@ -101,6 +101,16 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <td><?= $award->hasValue('branch') ? $this->Html->link($award->branch->name, ['plugin' => null, 'controller' => 'Branches', 'action' => 'view', $award->branch->public_id]) : '' ?>
     </td>
 </tr>
+<tr>
+    <th scope="row"><?= __('Disabled') ?></th>
+    <td>
+        <?php if ($award->disabled): ?>
+        <span class="badge bg-danger"><?= __('Yes') ?></span>
+        <?php else: ?>
+        <span class="badge bg-success"><?= __('No') ?></span>
+        <?php endif; ?>
+    </td>
+</tr>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabButtons") ?>
 <!-- Award Activities tab with ordering
@@ -119,34 +129,34 @@ echo $this->KMP->startBlock("pageTitle") ?>
 
     <div class="d-flex justify-content-between align-items-center mb-3">
         <?php if ($user->checkCan('edit', $award)) : ?>
-            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addActivityModal">
-                <i class="bi bi-plus-circle"></i> <?= __('Add Activity') ?>
-            </button>
+        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addActivityModal">
+            <i class="bi bi-plus-circle"></i> <?= __('Add Activity') ?>
+        </button>
         <?php endif; ?>
     </div>
 
     <?php if (!empty($award->gathering_activities)) : ?>
-        <div class="table-responsive">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th><?= __('Activity') ?></th>
-                        <th><?= __('Description') ?></th>
-                        <th class="actions"></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($award->gathering_activities as $activity) : ?>
-                        <tr>
-                            <td>
-                                <?= h($activity->name) ?>
-                            </td>
-                            <td>
-                                <?= h($activity->description) ?>
-                            </td>
-                            <td class="actions text-end text-nowrap">
-                                <?php if ($user->checkCan('edit', $award)) : ?>
-                                    <?= $this->Form->postLink(
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th><?= __('Activity') ?></th>
+                    <th><?= __('Description') ?></th>
+                    <th class="actions"></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($award->gathering_activities as $activity) : ?>
+                <tr>
+                    <td>
+                        <?= h($activity->name) ?>
+                    </td>
+                    <td>
+                        <?= h($activity->description) ?>
+                    </td>
+                    <td class="actions text-end text-nowrap">
+                        <?php if ($user->checkCan('edit', $award)) : ?>
+                        <?= $this->Form->postLink(
                                         '<i class="bi bi-x-circle-fill"></i>',
                                         ['action' => 'remove-activity', $award->id, $activity->id],
                                         [
@@ -156,21 +166,21 @@ echo $this->KMP->startBlock("pageTitle") ?>
                                             'class' => 'btn btn-sm btn-danger',
                                         ],
                                     ) ?>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
     <?php else : ?>
-        <div class="alert alert-secondary">
-            <i class="bi bi-info-circle"></i>
-            <?= __('No activities have been added to this award yet.') ?>
-            <?php if ($user->checkCan('edit', $award)) : ?>
-                <?= __('Click "Add Activity" above to get started.') ?>
-            <?php endif; ?>
-        </div>
+    <div class="alert alert-secondary">
+        <i class="bi bi-info-circle"></i>
+        <?= __('No activities have been added to this award yet.') ?>
+        <?php if ($user->checkCan('edit', $award)) : ?>
+        <?= __('Click "Add Activity" above to get started.') ?>
+        <?php endif; ?>
+    </div>
     <?php endif; ?>
 </div>
 <?php $this->KMP->endBlock() ?>
@@ -212,6 +222,11 @@ echo $this->Modal->create("Edit Award", [
     echo $this->Form->control('insignia');
     echo $this->Form->control('badge');
     echo $this->Form->control('charter');
+    echo $this->Form->control('is_disabled', [
+        'type' => 'checkbox',
+        'label' => __('Disabled'),
+        'checked' => $award->disabled,
+    ]);
     echo $this->Form->control('domain_id', ['options' => $awardsDomains]);
     echo $this->Form->control('level_id', ['options' => $awardsLevels]);
     echo $this->Form->control('branch_id', ['options' => $branches]);
@@ -245,19 +260,19 @@ if ($user->checkCan('edit', $award)) {
         'close' => true,
     ]);
 ?>
-    <div class="mb-3">
-        <label for="gathering_activity_id" class="form-label"><?= __('Select Activity') ?></label>
-        <?= $this->Form->control('gathering_activity_id', [
+<div class="mb-3">
+    <label for="gathering_activity_id" class="form-label"><?= __('Select Activity') ?></label>
+    <?= $this->Form->control('gathering_activity_id', [
             'options' => $availableActivities,
             'empty' => __('-- Select an activity --'),
             'class' => 'form-select',
             'label' => false,
             'required' => true,
         ]) ?>
-        <div class="form-text">
-            <?= __('Select a gathering activity that this award can be given out during.') ?>
-        </div>
+    <div class="form-text">
+        <?= __('Select a gathering activity that this award can be given out during.') ?>
     </div>
+</div>
 <?php
     echo $this->Modal->end([
         $this->Form->button(__('Add Activity'), [

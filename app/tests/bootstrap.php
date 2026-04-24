@@ -99,13 +99,14 @@ SeedManager::bootstrap('test');
 // Apply migrations after seeding so test schema includes recent columns.
 (new Migrations())->migrate(['connection' => 'test']);
 
-// On Postgres (no MySQL seed dump), we also need to run plugin migrations
-// to create all plugin tables from scratch, and seed essential AppSettings.
-if (SeedManager::isPostgres('test')) {
-    foreach (['Queue', 'Officers', 'Activities', 'Awards', 'Waivers'] as $plugin) {
-        (new Migrations())->migrate(['connection' => 'test', 'plugin' => $plugin]);
-    }
+// Apply plugin migrations on every test connection so pending plugin schema changes
+// are layered on top of the shared seed dump as soon as they are added.
+foreach (['Queue', 'Officers', 'Activities', 'Awards', 'Waivers'] as $plugin) {
+    (new Migrations())->migrate(['connection' => 'test', 'plugin' => $plugin]);
+}
 
+// On Postgres (no MySQL seed dump), we also need to seed essential AppSettings.
+if (SeedManager::isPostgres('test')) {
     // Seed essential AppSettings that tests expect
     $conn = ConnectionManager::get('test');
     $now = date('Y-m-d H:i:s');
