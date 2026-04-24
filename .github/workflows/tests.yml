@@ -151,4 +151,4 @@ jobs:
         with:
           files: test-results/junit.xml
           check_name: PHPUnit Test Results (${{ matrix.database.type }})
-          comment_mode: ${{ contains(github.actor, 'dependabot') && 'off' || 'always' }}
+          comment_mode: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.user.login, 'dependabot') && 'off' || 'always' }}
