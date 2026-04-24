@@ -23,7 +23,7 @@ class AddIsActiveToAwards extends BaseMigration
             ])
             ->update();
 
-        $this->execute('UPDATE awards_awards SET is_active = 1');
+        $this->execute('UPDATE awards_awards SET is_active = TRUE');
     }
 
     /**
