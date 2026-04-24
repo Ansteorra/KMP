@@ -20,7 +20,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/kmp-updater
+  IMAGE_NAME: ansteorra/kmp-updater
 
 jobs:
   build-and-push:
