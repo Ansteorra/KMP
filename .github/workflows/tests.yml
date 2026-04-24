@@ -151,3 +151,4 @@ jobs:
         with:
           files: test-results/junit.xml
           check_name: PHPUnit Test Results (${{ matrix.database.type }})
+          comment_mode: ${{ contains(github.actor, 'dependabot') && 'off' || 'always' }}
