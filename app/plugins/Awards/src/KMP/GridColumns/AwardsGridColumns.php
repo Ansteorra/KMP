@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Awards\KMP\GridColumns;
@@ -118,21 +117,20 @@ class AwardsGridColumns extends BaseGridColumns
                 'width' => '150px',
                 'alignment' => 'left',
             ],
-            'disabled' => [
-                'key' => 'disabled',
-                'label' => __('Disabled'),
+            'is_active' => [
+                'key' => 'is_active',
+                'label' => __('Enabled'),
                 'type' => 'boolean',
                 'sortable' => true,
                 'filterable' => true,
                 'filterType' => 'dropdown',
                 'queryField' => 'Awards.is_active',
-                'renderField' => 'disabled',
                 'defaultVisible' => true,
                 'width' => '100px',
                 'alignment' => 'center',
                 'filterOptions' => [
-                    ['value' => '0', 'label' => 'Yes'],
-                    ['value' => '1', 'label' => 'No'],
+                    ['value' => '1', 'label' => 'Yes'],
+                    ['value' => '0', 'label' => 'No'],
                 ],
             ],
             'description' => [

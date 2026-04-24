@@ -47,7 +47,7 @@ class AwardsControllerTest extends HttpIntegrationTestCase
         $this->assertFalse((bool)$updatedAward->is_active);
     }
 
-    public function testGridDataShowsDisabledColumnAndFiltersDisabledAwards(): void
+    public function testGridDataShowsEnabledColumnAndFiltersDisabledAwards(): void
     {
         $awards = $this->getTableLocator()->get('Awards.Awards');
         $suffix = uniqid();
@@ -73,12 +73,12 @@ class AwardsControllerTest extends HttpIntegrationTestCase
         $this->get('/awards/awards/grid-data?' . http_build_query([
             'search' => $suffix,
             'filter' => [
-                'disabled' => '0',
+                'is_active' => '0',
             ],
         ]));
 
         $this->assertResponseOk();
-        $this->assertResponseContains('Disabled');
+        $this->assertResponseContains('Enabled');
         $this->assertResponseContains($disabledAward->name);
         $this->assertResponseNotContains($activeAward->name);
     }
@@ -114,6 +114,6 @@ class AwardsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseOk();
         $this->assertResponseContains($award->name);
         $this->assertResponseContains('/awards/awards/remove-activity/' . $award->id . '/' . $gatheringActivity->id);
-        $this->assertResponseContains('Disabled');
+        $this->assertResponseContains('Enabled');
     }
 }
