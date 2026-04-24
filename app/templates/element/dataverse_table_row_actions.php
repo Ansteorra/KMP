@@ -43,6 +43,20 @@ $processTemplate = function ($template, $data) use ($getNestedValue) {
     }, $template);
 };
 
+/**
+ * Append additional URL path arguments from static values or row fields.
+ */
+$appendExtraArgs = function (array &$urlParams, array $extraArgs, $data) use ($getNestedValue) {
+    foreach ($extraArgs as $extraArg) {
+        if (is_array($extraArg) && isset($extraArg['field'])) {
+            $urlParams[] = $getNestedValue($extraArg['field'], $data);
+            continue;
+        }
+
+        $urlParams[] = $extraArg;
+    }
+};
+
 foreach ($actions as $action):
     // Check status filter (only show action for certain statuses)
     if (!empty($action['statusFilter'])) {
@@ -150,6 +164,9 @@ foreach ($actions as $action):
             if (!empty($url['idField'])) {
                 $urlParams[] = $getNestedValue($url['idField'], $row);
             }
+            if (!empty($url['extraArgs']) && is_array($url['extraArgs'])) {
+                $appendExtraArgs($urlParams, $url['extraArgs'], $row);
+            }
 
             // Build confirm message
             $confirmMessage = null;
@@ -157,18 +174,32 @@ foreach ($actions as $action):
                 $confirmMessage = $processTemplate($action['confirmMessage'], $row);
             }
 
-            // Wrap in data-turbo="false" to prevent Turbo from intercepting
-            // the form submission. CakePHP's postLink uses requestSubmit()
-            // which fires a submit event Turbo would otherwise capture,
-            // causing a TurboFrameMissingError when the redirect response
-            // doesn't contain the expected turbo-frame.
-            echo '<div data-turbo="false" style="display:contents;">';
-            echo $this->Form->postLink($label, $urlParams, [
+            $postLinkOptions = [
                 'escape' => false,
                 'class' => $buttonClass,
                 'confirm' => $confirmMessage,
-            ]);
-            echo '</div> ';
+            ];
+
+            if (!empty($action['turbo'])) {
+                $postLinkOptions['data-turbo'] = 'true';
+            }
+
+            if (empty($action['turbo'])) {
+                // Wrap in data-turbo="false" to prevent Turbo from intercepting
+                // the form submission. CakePHP's postLink uses requestSubmit()
+                // which fires a submit event Turbo would otherwise capture,
+                // causing a TurboFrameMissingError when the redirect response
+                // doesn't contain the expected turbo-frame.
+                echo '<div data-turbo="false" style="display:contents;">';
+            }
+
+            echo $this->Form->postLink($label, $urlParams, $postLinkOptions);
+
+            if (empty($action['turbo'])) {
+                echo '</div> ';
+            } else {
+                echo ' ';
+            }
             break;
 
         case 'link':
@@ -183,6 +214,9 @@ foreach ($actions as $action):
             // Add the ID from the row
             if (!empty($url['idField'])) {
                 $urlParams[] = $getNestedValue($url['idField'], $row);
+            }
+            if (!empty($url['extraArgs']) && is_array($url['extraArgs'])) {
+                $appendExtraArgs($urlParams, $url['extraArgs'], $row);
             }
 
             echo $this->Html->link($label, $urlParams, [

@@ -1151,7 +1151,10 @@ class RecommendationsController extends AppController
                 ->orderBy(['name' => 'ASC'])
                 ->toArray();
 
-            $awards = $this->Recommendations->Awards->find('list', limit: 200)->all();
+            $awards = $this->Recommendations->Awards
+                ->find('active')
+                ->find('list', limit: 200)
+                ->all();
             $gatherings = [];
 
             $this->set(compact('recommendation', 'branches', 'awards', 'gatherings', 'awardsDomains', 'awardsLevels'));
@@ -1291,7 +1294,10 @@ class RecommendationsController extends AppController
             ->orderBy(['name' => 'ASC'])
             ->toArray();
 
-        $awards = $this->Recommendations->Awards->find('list', limit: 200)->all();
+        $awards = $this->Recommendations->Awards
+            ->find('active')
+            ->find('list', limit: 200)
+            ->all();
         $gatherings = [];
 
         $this->set(compact(

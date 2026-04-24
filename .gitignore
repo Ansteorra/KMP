@@ -24,6 +24,7 @@ prod_dump.sql
 /test-results/
 /.playwright-cli/
 .beads/
+.container-home/
 installer/kmp
 installers/bin
 installer/bin/

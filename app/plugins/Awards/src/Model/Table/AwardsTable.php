@@ -154,6 +154,10 @@ class AwardsTable extends BaseTable
             ->notEmptyString('branch_id');
 
         $validator
+            ->boolean('is_active')
+            ->notEmptyString('is_active');
+
+        $validator
             ->integer('created_by')
             ->allowEmptyString('created_by');
 
@@ -182,6 +186,45 @@ class AwardsTable extends BaseTable
         $rules->add($rules->existsIn(['branch_id'], 'Branches'), ['errorField' => 'branch_id']);
 
         return $rules;
+    }
+
+    /**
+     * Restrict results to active awards.
+     *
+     * @param \Cake\ORM\Query\SelectQuery $query Query to filter
+     * @return \Cake\ORM\Query\SelectQuery
+     */
+    public function findActive(SelectQuery $query): SelectQuery
+    {
+        return $query->where([$this->aliasField('is_active') => true]);
+    }
+
+    /**
+     * Restrict recommendation award selection to active awards, while optionally preserving the currently selected award.
+     *
+     * @param \Cake\ORM\Query\SelectQuery $query Query to filter
+     * @param array<string, mixed> $options Finder options
+     * @return \Cake\ORM\Query\SelectQuery
+     */
+    public function findSelectable(SelectQuery $query, array $options): SelectQuery
+    {
+        $domainId = $options['domain_id'] ?? null;
+        $currentAwardId = $options['current_award_id'] ?? null;
+
+        if ($domainId !== null && $domainId !== '') {
+            $query->where([$this->aliasField('domain_id') => $domainId]);
+        }
+
+        if ($currentAwardId !== null && $currentAwardId !== '') {
+            return $query->where(function ($exp) use ($currentAwardId) {
+                return $exp->or([
+                    $this->aliasField('is_active') => true,
+                    $this->aliasField('id') => (int)$currentAwardId,
+                ]);
+            });
+        }
+
+        return $this->findActive($query);
     }
 
     /**
