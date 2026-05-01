@@ -166,7 +166,7 @@ class AwardsController extends AppController
             ->distinct([$this->Awards->aliasField('id')]);
 
         $result = $this->processDataverseGrid([
-            'gridKey' => 'Awards.Awards.activity.' . $activityId,
+            'gridKey' => 'Awards.Awards.activity',
             'gridColumnsClass' => \Awards\KMP\GridColumns\AwardsGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'Awards',
@@ -420,9 +420,9 @@ class AwardsController extends AppController
         $this->Authorization->skipAuthorization();
         $currentAwardId = $this->request->getQuery('current_award_id');
         $awards = $this->Awards->find('selectable', [
-                'domain_id' => $domainId,
-                'current_award_id' => $currentAwardId,
-            ])
+            'domain_id' => $domainId,
+            'current_award_id' => $currentAwardId,
+        ])
             ->contain([
                 'Domains' => function ($q) {
                     return $q->select(['id', 'name']);

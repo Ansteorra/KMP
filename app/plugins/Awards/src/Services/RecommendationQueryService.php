@@ -136,7 +136,7 @@ class RecommendationQueryService
         $systemViews = RecommendationsGridColumns::getSystemViews(['context' => 'memberSubmitted']);
 
         $gridOptions = [
-            'gridKey' => 'Awards.Recommendations.memberSubmitted.' . $memberId,
+            'gridKey' => 'Awards.Recommendations.memberSubmitted',
             'gridColumnsClass' => RecommendationsGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'Recommendations',
@@ -192,7 +192,7 @@ class RecommendationQueryService
         $systemViews = RecommendationsGridColumns::getSystemViews(['context' => 'recsForMember']);
 
         $gridOptions = [
-            'gridKey' => 'Awards.Recommendations.forMember.' . $memberId,
+            'gridKey' => 'Awards.Recommendations.forMember',
             'gridColumnsClass' => RecommendationsGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'Recommendations',

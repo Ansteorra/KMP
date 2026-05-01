@@ -332,7 +332,7 @@ class MembersController extends AppController
 
         // Use unified trait for grid processing (system views mode)
         $result = $this->processDataverseGrid([
-            'gridKey' => "Members.roles.{$memberId}",
+            'gridKey' => "Members.roles",
             'gridColumnsClass' => MemberRolesGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'MemberRoles',
@@ -402,7 +402,7 @@ class MembersController extends AppController
 
         // Use unified trait for grid processing (system views mode)
         $result = $this->processDataverseGrid([
-            'gridKey' => "Members.gatherings.{$memberId}",
+            'gridKey' => "Members.gatherings",
             'gridColumnsClass' => GatheringAttendancesGridColumns::class,
             'baseQuery' => $this->fetchTable('GatheringAttendances')
                 ->find()
