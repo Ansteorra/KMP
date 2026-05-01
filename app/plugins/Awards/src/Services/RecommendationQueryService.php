@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Awards\Services;
@@ -262,7 +263,7 @@ class RecommendationQueryService
         $systemViews = RecommendationsGridColumns::getSystemViews(['context' => 'gatheringAwards']);
 
         $gridOptions = [
-            'gridKey' => 'Awards.Recommendations.gathering.' . $gatheringId,
+            'gridKey' => 'Awards.Recommendations.gathering',
             'gridColumnsClass' => RecommendationsGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'Recommendations',

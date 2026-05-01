@@ -20,8 +20,8 @@ $frameId = 'gathering-awards-grid-' . $gatheringId;
 ?>
 
 <?php if (!$isEmpty): ?>
-    <?= $this->element('dv_grid', [
-        'gridKey' => 'Awards.Recommendations.gathering.' . $gatheringId,
+<?= $this->element('dv_grid', [
+        'gridKey' => 'Awards.Recommendations.gathering',
         'frameId' => $frameId,
         'dataUrl' => $this->Url->build([
             'plugin' => 'Awards',
@@ -31,10 +31,10 @@ $frameId = 'gathering-awards-grid-' . $gatheringId;
         ]),
         'compactMode' => true,
     ]) ?>
-    <?php if ($canBulkEdit): ?>
-        <?= $this->element('recommendationQuickEditModal', ['modalId' => 'editRecommendationModal']) ?>
-        <?= $this->element('recommendationsBulkEditModal', ['modalId' => 'bulkEditRecommendationModal']) ?>
-    <?php endif; ?>
+<?php if ($canBulkEdit): ?>
+<?= $this->element('recommendationQuickEditModal', ['modalId' => 'editRecommendationModal']) ?>
+<?= $this->element('recommendationsBulkEditModal', ['modalId' => 'bulkEditRecommendationModal']) ?>
+<?php endif; ?>
 <?php else: ?>
-    <p class="text-muted"><?= __('No Award Recommendations for this gathering') ?></p>
+<p class="text-muted"><?= __('No Award Recommendations for this gathering') ?></p>
 <?php endif; ?>
