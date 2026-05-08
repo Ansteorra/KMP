@@ -54,6 +54,15 @@ class WaiversWorkflowProvider
                 ],
             ],
             [
+                'event' => 'Waivers.CollectionReopened',
+                'label' => 'Waiver Collection Reopened',
+                'description' => 'When a gathering waiver collection is reopened',
+                'payloadSchema' => [
+                    'gatheringId' => ['type' => 'integer', 'label' => 'Gathering ID'],
+                    'reopenedBy' => ['type' => 'integer', 'label' => 'Reopened By Member ID'],
+                ],
+            ],
+            [
                 'event' => 'Waivers.WaiverDeclined',
                 'label' => 'Waiver Declined',
                 'description' => 'When an individual gathering waiver is declined',

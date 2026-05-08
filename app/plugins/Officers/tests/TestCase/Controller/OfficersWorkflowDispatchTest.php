@@ -20,9 +20,8 @@ use ReflectionProperty;
 /**
  * Tests workflow dispatch in OfficersController.
  *
- * Verifies that assign(), release(), and requestWarrant() route through
- * TriggerDispatcher when a matching workflow definition is active, and
- * surface clear errors when required workflows are unavailable.
+ * Verifies that assign() and release() route through TriggerDispatcher
+ * and that requestWarrant() delegates to the warrant manager workflow trigger path.
  *
  * @uses \Officers\Controller\OfficersController
  */
@@ -387,9 +386,9 @@ class OfficersWorkflowDispatchTest extends HttpIntegrationTestCase
     // ---------------------------------------------------------------
 
     /**
-     * Test requestWarrant() uses legacy WarrantManager when no workflow is active.
+     * Test requestWarrant() creates the roster through WarrantManager.
      */
-    public function testRequestWarrantUsesLegacyWhenNoWorkflow(): void
+    public function testRequestWarrantCreatesRosterThroughWarrantManager(): void
     {
         $this->deactivateWorkflows(['warrants-roster-approval']);
         $officer = $this->createTestOfficer();
@@ -417,43 +416,6 @@ class OfficersWorkflowDispatchTest extends HttpIntegrationTestCase
         $this->post("/officers/officers/requestWarrant/{$officer->id}");
 
         $this->assertRedirect();
-        $this->assertTrue($called, 'Legacy WarrantManager::request should have been called');
-    }
-
-    /**
-     * Test requestWarrant() dispatches workflow when warrants-roster-approval is active.
-     */
-    public function testRequestWarrantDispatchesWorkflowWhenActive(): void
-    {
-        $this->ensureActiveWorkflow('warrants-roster-approval');
-        $officer = $this->createTestOfficer();
-
-        $dispatched = false;
-        $this->mockServiceClean(TriggerDispatcher::class, function () use (&$dispatched) {
-            $mock = $this->createMock(TriggerDispatcher::class);
-            $mock->method('dispatch')
-                ->willReturnCallback(function (string $event, array $context) use (&$dispatched) {
-                    $dispatched = true;
-                    $this->assertSame('Warrants.RosterCreated', $event);
-                    $this->assertArrayHasKey('officer_id', $context);
-                    $this->assertArrayHasKey('member_id', $context);
-
-                    return ['instance_id' => 777];
-                });
-
-            return $mock;
-        });
-
-        $this->mockServiceClean(WarrantManagerInterface::class, function () {
-            $mock = $this->createMock(WarrantManagerInterface::class);
-            $mock->expects($this->never())->method('request');
-
-            return $mock;
-        });
-
-        $this->post("/officers/officers/requestWarrant/{$officer->id}");
-
-        $this->assertRedirect();
-        $this->assertTrue($dispatched, 'TriggerDispatcher::dispatch should have been called');
+        $this->assertTrue($called, 'WarrantManager::request should have been called');
     }
 }

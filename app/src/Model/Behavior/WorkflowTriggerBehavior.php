@@ -5,11 +5,13 @@ namespace App\Model\Behavior;
 
 use ArrayObject;
 use Cake\Datasource\EntityInterface;
+use Cake\Event\Event;
 use Cake\Event\EventInterface;
 use Cake\Event\EventManager;
 use Cake\Log\Log;
 use Cake\ORM\Behavior;
 use Cake\Routing\Router;
+use Throwable;
 
 /**
  * WorkflowTrigger Behavior
@@ -37,6 +39,8 @@ class WorkflowTriggerBehavior extends Behavior
     protected array $_defaultConfig = [
         'triggers' => [],
         'contextFields' => null,
+        'contextAliases' => [],
+        'eventDataKey' => 'trigger',
         'includeChangedFields' => true,
         'fieldConditions' => [],
     ];
@@ -122,7 +126,7 @@ class WorkflowTriggerBehavior extends Behavior
      *
      * Accepts a string trigger name, a single config array, or an array of configs.
      *
-     * @param string|array $config Raw trigger configuration
+     * @param array|string $config Raw trigger configuration
      * @return array<array{trigger: string, onlyIfChanged?: array}> Normalized configs
      */
     protected function normalizeTriggerConfig(string|array $config): array
@@ -195,6 +199,16 @@ class WorkflowTriggerBehavior extends Behavior
             'entity_id' => $entityId,
             'user_id' => $this->getCurrentUserId(),
         ];
+
+        foreach ((array)$this->getConfig('contextAliases') as $alias => $field) {
+            if (!is_string($alias) || !is_string($field)) {
+                continue;
+            }
+
+            if (array_key_exists($field, $entityData)) {
+                $context[$alias] = $entityData[$field];
+            }
+        }
 
         if ($this->getConfig('includeChangedFields') && $eventType !== 'delete') {
             $context['changes'] = $this->extractChanges($entity);
@@ -282,14 +296,19 @@ class WorkflowTriggerBehavior extends Behavior
     protected function dispatchTrigger(string $triggerName, array $context): void
     {
         try {
-            $event = new \Cake\Event\Event('Workflow.trigger', $this, [
+            $eventDataKey = $this->getConfig('eventDataKey');
+            $eventData = is_string($eventDataKey) && $eventDataKey !== ''
+                ? [$eventDataKey => $context]
+                : $context;
+
+            $event = new Event('Workflow.trigger', $this, [
                 'eventName' => $triggerName,
-                'eventData' => ['trigger' => $context],
+                'eventData' => $eventData,
                 'triggeredBy' => $context['user_id'] ?? null,
             ]);
 
             EventManager::instance()->dispatch($event);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error(sprintf(
                 'WorkflowTriggerBehavior: Failed to dispatch trigger "%s" for table "%s": %s',
                 $triggerName,

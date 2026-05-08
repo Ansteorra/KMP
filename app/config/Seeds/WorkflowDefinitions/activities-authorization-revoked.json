@@ -1,0 +1,70 @@
+{
+    "nodes": {
+        "trigger-revoked": {
+            "type": "trigger",
+            "label": "Authorization Revoked",
+            "config": {
+                "event": "Activities.AuthorizationRevoked",
+                "entityIdField": "authorizationId"
+            },
+            "position": {
+                "x": 50,
+                "y": 150
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "revoke-authorization"
+                }
+            ]
+        },
+        "revoke-authorization": {
+            "type": "action",
+            "label": "Revoke Authorization",
+            "config": {
+                "action": "Activities.RevokeAuthorization",
+                "params": {
+                    "authorizationId": "$.trigger.authorizationId",
+                    "revokerId": "$.trigger.revokerId",
+                    "revokedReason": "$.trigger.revokedReason"
+                }
+            },
+            "position": {
+                "x": 350,
+                "y": 150
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "end"
+                }
+            ]
+        },
+        "end": {
+            "type": "end",
+            "label": "Authorization Revoked",
+            "config": {},
+            "position": {
+                "x": 650,
+                "y": 150
+            },
+            "outputs": []
+        }
+    },
+    "connections": [
+        {
+            "source": "trigger-revoked",
+            "sourcePort": "next",
+            "target": "revoke-authorization"
+        },
+        {
+            "source": "revoke-authorization",
+            "sourcePort": "next",
+            "target": "end"
+        }
+    ],
+    "metadata": {
+        "version": "1.0",
+        "description": "Workflow-owned activity authorization revocation."
+    }
+}

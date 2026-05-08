@@ -203,14 +203,16 @@ class OfficersController extends AppController
      * Request a warrant for an officer assignment.
      *
      * @param \App\Services\WarrantManager\WarrantManagerInterface $wManager Warrant management service
-     * @param \App\Services\WorkflowEngine\TriggerDispatcher $dispatcher Workflow trigger dispatcher
      * @param int $id Officer ID for warrant request
      * @return \Cake\Http\Response|null|void Redirects on completion or error
      * @throws \Cake\Http\Exception\NotFoundException When officer not found
      */
-    public function requestWarrant(WarrantManagerInterface $wManager, TriggerDispatcher $dispatcher, $id)
+    public function requestWarrant(WarrantManagerInterface $wManager, $id)
     {
-        $officer = $this->Officers->find()->where(['Officers.id' => $id])->contain(['Offices', 'Branches', 'Members'])->first();
+        $officer = $this->Officers->find()
+            ->where(['Officers.id' => $id])
+            ->contain(['Offices', 'Branches', 'Members'])
+            ->first();
         $userid = $this->Authentication->getIdentity()->getIdentifier();
         if (!$officer) {
             throw new NotFoundException();
@@ -222,37 +224,26 @@ class OfficersController extends AppController
                 $officeName = $officeName . ' (' . $officer->deputy_description . ')';
             }
             $branchName = $officer->branch->name;
-            $warrantRequest = new WarrantRequest("Manual Request Warrant: $branchName - $officeName", 'Officers.Officers', $officer->id, $userid, $officer->member_id, $officer->start_on, $officer->expires_on, $officer->granted_member_role_id);
+            $warrantRequest = new WarrantRequest(
+                "Manual Request Warrant: $branchName - $officeName",
+                'Officers.Officers',
+                $officer->id,
+                $userid,
+                $officer->member_id,
+                $officer->start_on,
+                $officer->expires_on,
+                $officer->granted_member_role_id,
+            );
             $memberName = $officer->member->sca_name;
 
-            $context = [
-                'officer_id' => $officer->id,
-                'member_id' => $officer->member_id,
-                'office_id' => $officer->office->id,
-                'branch_id' => $officer->branch->id,
-                'office_name' => $officeName,
-                'branch_name' => $branchName,
-                'member_name' => $memberName,
-                'start_on' => $officer->start_on?->toDateTimeString(),
-                'expires_on' => $officer->expires_on?->toDateTimeString(),
-                'requested_by' => $userid,
-            ];
+            $wmResult = $wManager->request("$officeName : $memberName", '', [$warrantRequest], (int)$userid);
+            if (!$wmResult->success) {
+                $this->Flash->error('Could not request Warrant: ' . __($wmResult->reason));
 
-            $result = $this->dispatchOrLegacy($dispatcher, 'warrants-roster-approval', 'Warrants.RosterCreated', $context, function () use ($wManager, $warrantRequest, $officeName, $memberName, $userid) {
-                $wmResult = $wManager->request("$officeName : $memberName", '', [$warrantRequest], (int)$userid);
-                if (!$wmResult->success) {
-                    $this->Flash->error('Could not request Warrant: ' . __($wmResult->reason));
-
-                    return $wmResult;
-                }
-                $this->Flash->success(__('The warrant request has been sent.'));
-
-                return $wmResult;
-            });
-
-            if (is_array($result)) {
-                $this->Flash->success(__('The warrant request workflow has been initiated.'));
+                return;
             }
+
+            $this->Flash->success(__('The warrant request workflow has been initiated.'));
             $this->redirect($this->referer());
 
             return;
@@ -630,7 +621,10 @@ class OfficersController extends AppController
             ])
             ->leftJoin(
                 ['Warrants' => 'warrants'],
-                ['Members.id = Warrants.member_id AND Officers.id = Warrants.entity_id'],
+                [
+                    'Members.id = Warrants.member_id',
+                    'Officers.id = Warrants.entity_id',
+                ],
             )
             ->order(['sca_name' => 'ASC'])
             ->order(['office_name' => 'ASC']);
@@ -638,7 +632,11 @@ class OfficersController extends AppController
         $today = new DateTime();
         switch ($state) {
             case 'current':
-                $officersQuery = $officersQuery->where(['Warrants.expires_on >=' => $today, 'Warrants.start_on <=' => $today, 'Warrants.status' => Warrant::CURRENT_STATUS]);
+                $officersQuery = $officersQuery->where([
+                    'Warrants.expires_on >=' => $today,
+                    'Warrants.start_on <=' => $today,
+                    'Warrants.status' => Warrant::CURRENT_STATUS,
+                ]);
                 break;
             case 'unwarranted':
                 $officersQuery = $officersQuery->where('Warrants.id IS NULL');
@@ -648,7 +646,12 @@ class OfficersController extends AppController
                 $officersQuery = $officersQuery->where(['Warrants.status' => Warrant::PENDING_STATUS]);
                 break;
             case 'previous':
-                $officersQuery = $officersQuery->where(['OR' => ['Warrants.expires_on <' => $today, 'Warrants.status IN ' => [Warrant::DEACTIVATED_STATUS, Warrant::EXPIRED_STATUS]]]);
+                $officersQuery = $officersQuery->where([
+                    'OR' => [
+                        'Warrants.expires_on <' => $today,
+                        'Warrants.status IN ' => [Warrant::DEACTIVATED_STATUS, Warrant::EXPIRED_STATUS],
+                    ],
+                ]);
                 break;
         }
         //$officersQuery = $this->addConditions($officersQuery);

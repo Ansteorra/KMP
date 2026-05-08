@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Waivers\Model\Table;
@@ -38,6 +37,21 @@ class GatheringWaiverClosuresTable extends Table
         $this->setPrimaryKey('id');
 
         $this->addBehavior('Timestamp');
+        $this->addBehavior('WorkflowTrigger', [
+            'contextFields' => ['id', 'gathering_id', 'ready_to_close_by', 'closed_by', 'closed_at'],
+            'contextAliases' => [
+                'gatheringId' => 'gathering_id',
+                'markedBy' => 'ready_to_close_by',
+                'closedBy' => 'closed_by',
+            ],
+            'eventDataKey' => null,
+            'triggers' => [
+                'afterSave.existing' => [
+                    'trigger' => 'Waivers.CollectionClosed',
+                    'onlyIfChanged' => ['closed_at'],
+                ],
+            ],
+        ]);
 
         $this->belongsTo('Gatherings', [
             'foreignKey' => 'gathering_id',

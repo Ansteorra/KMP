@@ -33,6 +33,29 @@ class InitWorkflowDefinitionsSeed extends BaseSeed
                 'is_active' => true,
             ],
             [
+                'name' => 'Activity Authorization Revoked',
+                'slug' => 'activities-authorization-revoked',
+                'description' => 'Revokes an active activity authorization through the workflow action provider.',
+                'trigger_type' => 'event',
+                'trigger_config' => ['event' => 'Activities.AuthorizationRevoked'],
+                'entity_type' => 'Activities.Authorizations',
+                'json_file' => 'activities-authorization-revoked.json',
+                'execution_mode' => 'ephemeral',
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Activity Authorization Retracted',
+                'slug' => 'activities-authorization-retracted',
+                'description' => 'Retracts a pending activity authorization request through the ' .
+                    'workflow action provider.',
+                'trigger_type' => 'event',
+                'trigger_config' => ['event' => 'Activities.AuthorizationRetracted'],
+                'entity_type' => 'Activities.Authorizations',
+                'json_file' => 'activities-authorization-retracted.json',
+                'execution_mode' => 'ephemeral',
+                'is_active' => true,
+            ],
+            [
                 'name' => 'Award Recommendation Submitted',
                 'slug' => 'awards-recommendation-submitted',
                 'description' => 'Creates a recommendation from submitted form data and runs ' .
@@ -177,7 +200,7 @@ class InitWorkflowDefinitionsSeed extends BaseSeed
                 'slug' => 'waiver-closure',
                 'description' => 'Closes a waiver collection when ready and notifies the gathering organizer.',
                 'trigger_type' => 'event',
-                'trigger_config' => ['event' => 'Waivers.ReadyToClose'],
+                'trigger_config' => ['event' => 'Waivers.CollectionClosed'],
                 'entity_type' => 'Waivers',
                 'json_file' => 'waiver-closure.json',
                 'execution_mode' => 'ephemeral',

@@ -5,7 +5,6 @@ namespace App\Test\TestCase\Model\Behavior;
 
 use App\Model\Behavior\WorkflowTriggerBehavior;
 use ArrayObject;
-use Cake\Event\Event;
 use Cake\Event\EventInterface;
 use Cake\Event\EventManager;
 use Cake\ORM\Entity;
@@ -73,7 +72,6 @@ class WorkflowTriggerBehaviorTest extends TestCase
      */
     protected function fireAfterSave(Entity $entity, array $options = []): void
     {
-        $event = new Event('Model.afterSave', $this->table);
         $this->table->dispatchEvent('Model.afterSave', [
             'entity' => $entity,
             'options' => new ArrayObject($options),
@@ -85,7 +83,6 @@ class WorkflowTriggerBehaviorTest extends TestCase
      */
     protected function fireAfterDelete(Entity $entity, array $options = []): void
     {
-        $event = new Event('Model.afterDelete', $this->table);
         $this->table->dispatchEvent('Model.afterDelete', [
             'entity' => $entity,
             'options' => new ArrayObject($options),
@@ -460,6 +457,53 @@ class WorkflowTriggerBehaviorTest extends TestCase
         $context = $this->dispatched[0]['eventData']['trigger'];
         $this->assertSame('delete', $context['event']);
         $this->assertArrayNotHasKey('changes', $context, 'Delete events should not include changes');
+    }
+
+    public function testContextAliasesExposeTopLevelPayloadKeys(): void
+    {
+        $this->setupBehavior([
+            'triggers' => [
+                'afterSave.existing' => 'Members.StatusChanged',
+            ],
+            'contextFields' => ['id', 'branch_id'],
+            'contextAliases' => [
+                'memberId' => 'id',
+                'branchId' => 'branch_id',
+            ],
+            'includeChangedFields' => false,
+        ]);
+
+        $entity = new Entity(['id' => 42, 'branch_id' => 7, 'status' => 'active']);
+        $entity->setNew(false);
+        $entity->setDirty('status', true);
+
+        $this->fireAfterSave($entity);
+
+        $context = $this->dispatched[0]['eventData']['trigger'];
+        $this->assertSame(42, $context['memberId']);
+        $this->assertSame(7, $context['branchId']);
+    }
+
+    public function testEventDataKeyCanDispatchContextDirectly(): void
+    {
+        $this->setupBehavior([
+            'triggers' => [
+                'afterSave.existing' => 'Members.StatusChanged',
+            ],
+            'eventDataKey' => null,
+            'includeChangedFields' => false,
+        ]);
+
+        $entity = new Entity(['id' => 42, 'status' => 'active']);
+        $entity->setNew(false);
+        $entity->setDirty('status', true);
+
+        $this->fireAfterSave($entity);
+
+        $eventData = $this->dispatched[0]['eventData'];
+        $this->assertArrayNotHasKey('trigger', $eventData);
+        $this->assertSame(42, $eventData['entity_id']);
+        $this->assertSame('update', $eventData['event']);
     }
 
     public function testEmptyTriggersConfigFiresNothing(): void

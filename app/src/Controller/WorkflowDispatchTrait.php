@@ -12,10 +12,8 @@ use RuntimeException;
 use Throwable;
 
 /**
- * Dual-path workflow dispatch for controllers.
+ * Workflow dispatch helpers for controllers.
  *
- * Enables gradual migration: kingdoms with active workflows use the engine;
- * others keep existing legacy behavior via a callable fallback.
  * Resolves the current kingdom from the authenticated member's branch
  * hierarchy and uses kingdom-scoped lookup for workflow definitions.
  */
@@ -24,43 +22,10 @@ trait WorkflowDispatchTrait
     use WorkflowDefinitionFinderTrait;
 
     /**
-     * Dispatch to workflow engine if an active definition exists, otherwise run legacy callable.
+     * Dispatch to the workflow engine and fail when no active definition is available.
      *
      * Resolves the current kingdom from the authenticated user's branch hierarchy,
      * then uses kingdom-scoped lookup to find the appropriate workflow definition.
-     *
-     * @param \App\Services\WorkflowEngine\TriggerDispatcher $dispatcher Workflow trigger dispatcher
-     * @param string $slug Workflow definition slug
-     * @param string $triggerEvent Event name for the workflow engine
-     * @param array $context Event data / context for the workflow
-     * @param callable $legacy Fallback callable when no active workflow exists
-     * @return mixed Workflow dispatch results (array) or legacy return value
-     */
-    protected function dispatchOrLegacy(
-        TriggerDispatcher $dispatcher,
-        string $slug,
-        string $triggerEvent,
-        array $context,
-        callable $legacy,
-    ): mixed {
-        $kingdomId = $this->resolveKingdomId($context);
-        $def = $this->findActiveDefinition($slug, $kingdomId);
-
-        if ($def && $def->current_version) {
-            $triggeredBy = $this->request->getAttribute('identity')?->getIdentifier();
-            $context['kingdom_id'] = $kingdomId;
-
-            return $dispatcher->dispatch($triggerEvent, $context, $triggeredBy);
-        }
-
-        return $legacy();
-    }
-
-    /**
-     * Dispatch to the workflow engine and fail when no active definition is available.
-     *
-     * Resolves the same kingdom-scoped workflow definition lookup as dispatchOrLegacy(),
-     * but does not allow a controller-owned fallback mutation path.
      *
      * @param \App\Services\WorkflowEngine\TriggerDispatcher $dispatcher Workflow trigger dispatcher
      * @param string $slug Workflow definition slug
@@ -84,7 +49,12 @@ trait WorkflowDispatchTrait
         $triggeredBy = $this->request->getAttribute('identity')?->getIdentifier();
         $context['kingdom_id'] = $kingdomId;
 
-        return $dispatcher->dispatch($triggerEvent, $context, $triggeredBy);
+        $results = $dispatcher->dispatch($triggerEvent, $context, $triggeredBy);
+        if ($results === []) {
+            throw new RuntimeException("Workflow dispatch for {$triggerEvent} started no workflows.");
+        }
+
+        return $results;
     }
 
     /**

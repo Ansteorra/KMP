@@ -38,6 +38,12 @@
 		}
 	},
 	"remoteUser": "vscode",
+	"initializeCommand": "mkdir -p .container-home/vscode/.config .container-home/vscode/.copilot .container-home/vscode/.ssh",
+	"mounts": [
+		"source=${localWorkspaceFolder}/.container-home/vscode/.config,target=/home/vscode/.config,type=bind,consistency=cached",
+		"source=${localWorkspaceFolder}/.container-home/vscode/.copilot,target=/home/vscode/.copilot,type=bind,consistency=cached",
+		"source=${localWorkspaceFolder}/.container-home/vscode/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached"
+	],
 	"forwardPorts": [
 		8080, // Port for the application server
 		3306, // Port for MySQL server

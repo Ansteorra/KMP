@@ -2,10 +2,10 @@
     "nodes": {
         "trigger-ready-to-close": {
             "type": "trigger",
-            "label": "Waiver Collection Ready to Close",
+            "label": "Waiver Collection Close Requested",
             "config": {
-                "event": "Waivers.ReadyToClose",
-                "entityIdField": "collectionId"
+                "event": "Waivers.CollectionClosed",
+                "entityIdField": "gatheringId"
             },
             "position": {
                 "x": 50,

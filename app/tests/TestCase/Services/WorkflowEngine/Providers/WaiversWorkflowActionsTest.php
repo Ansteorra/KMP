@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Services\WorkflowEngine\Providers;
 
 use App\Services\ServiceResult;
+use App\Services\WorkflowRegistry\WorkflowTriggerRegistry;
 use App\Test\TestCase\BaseTestCase;
 use Waivers\Services\WaiversWorkflowActions;
 use Waivers\Services\WaiversWorkflowConditions;
+use Waivers\Services\WaiversWorkflowProvider;
 use Waivers\Services\WaiverStateService;
 use Cake\I18n\Date;
 use Cake\I18n\DateTime;
@@ -28,6 +30,20 @@ class WaiversWorkflowActionsTest extends BaseTestCase
         $this->mockWaiverService = $this->createMock(WaiverStateService::class);
         $this->actions = new WaiversWorkflowActions($this->mockWaiverService);
         $this->conditions = new WaiversWorkflowConditions();
+    }
+
+    public function testProviderRegistersAllWaiverTriggers(): void
+    {
+        WorkflowTriggerRegistry::clear();
+        WaiversWorkflowProvider::register();
+
+        $triggers = WorkflowTriggerRegistry::getTriggersBySource('Waivers');
+        $triggerEvents = array_column($triggers, 'event');
+
+        $this->assertContains('Waivers.ReadyToClose', $triggerEvents);
+        $this->assertContains('Waivers.CollectionClosed', $triggerEvents);
+        $this->assertContains('Waivers.CollectionReopened', $triggerEvents);
+        $this->assertContains('Waivers.WaiverDeclined', $triggerEvents);
     }
 
     // ==========================================================

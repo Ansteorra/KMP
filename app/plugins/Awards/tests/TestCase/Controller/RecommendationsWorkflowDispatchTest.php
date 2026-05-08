@@ -49,7 +49,7 @@ class RecommendationsWorkflowDispatchTest extends BaseTestCase
             ->willReturnCallback(function (string $event, array $data, ?int $triggeredBy) {
                 $this->dispatched[] = compact('event', 'data', 'triggeredBy');
 
-                return [];
+                return ['workflow-started'];
             });
 
         return $mock;

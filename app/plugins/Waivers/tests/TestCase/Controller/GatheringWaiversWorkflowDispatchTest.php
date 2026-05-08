@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Waivers\Test\TestCase\Controller;
@@ -7,12 +6,17 @@ namespace Waivers\Test\TestCase\Controller;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Cake\Core\ContainerInterface;
+use Cake\Event\EventInterface;
+use Cake\I18n\DateTime;
+use Closure;
+use Exception;
+use Psr\Container\ContainerInterface as PsrContainerInterface;
+use ReflectionProperty;
 
 /**
  * Tests workflow dispatch integration in GatheringWaiversController.
  *
- * Verifies that close() uses dispatchOrLegacy (dual-path) and that
- * reopen(), markReadyToClose(), and decline() fire workflow events
+ * Verifies that close(), reopen(), markReadyToClose(), and decline() fire workflow events
  * after successful operations.
  */
 class GatheringWaiversWorkflowDispatchTest extends HttpIntegrationTestCase
@@ -22,12 +26,20 @@ class GatheringWaiversWorkflowDispatchTest extends HttpIntegrationTestCase
      */
     private array $mockedServiceKeys = [];
 
+    /**
+     * Workflow dispatch calls captured from the mocked TriggerDispatcher.
+     *
+     * @var array<int, array{event: string, data: array, triggeredBy: int|null}>
+     */
+    private array $workflowDispatches = [];
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->enableCsrfToken();
         $this->enableSecurityToken();
         $this->authenticateAsSuperUser();
+        $this->workflowDispatches = [];
 
         $this->mockServiceClean(ContainerInterface::class, function () {
             return $this->createMock(ContainerInterface::class);
@@ -35,7 +47,12 @@ class GatheringWaiversWorkflowDispatchTest extends HttpIntegrationTestCase
 
         $this->mockServiceClean(TriggerDispatcher::class, function () {
             $mock = $this->createMock(TriggerDispatcher::class);
-            $mock->method('dispatch')->willReturn([]);
+            $mock->method('dispatch')
+                ->willReturnCallback(function (string $event, array $data, ?int $triggeredBy) {
+                    $this->workflowDispatches[] = compact('event', 'data', 'triggeredBy');
+
+                    return ['workflow-started'];
+                });
 
             return $mock;
         });
@@ -50,7 +67,7 @@ class GatheringWaiversWorkflowDispatchTest extends HttpIntegrationTestCase
     /**
      * Override modifyContainer to clear stale DI arguments after setConcrete.
      */
-    public function modifyContainer(\Cake\Event\EventInterface $event, \Psr\Container\ContainerInterface $container): void
+    public function modifyContainer(EventInterface $event, PsrContainerInterface $container): void
     {
         parent::modifyContainer($event, $container);
 
@@ -58,10 +75,10 @@ class GatheringWaiversWorkflowDispatchTest extends HttpIntegrationTestCase
             if ($container->has($key)) {
                 try {
                     $def = $container->extend($key);
-                    $ref = new \ReflectionProperty($def, 'arguments');
+                    $ref = new ReflectionProperty($def, 'arguments');
                     $ref->setAccessible(true);
                     $ref->setValue($def, []);
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     // Definition may not exist in aggregate — ignore
                 }
             }
@@ -71,7 +88,7 @@ class GatheringWaiversWorkflowDispatchTest extends HttpIntegrationTestCase
     /**
      * Mock a service AND mark it for DI argument clearing.
      */
-    protected function mockServiceClean(string $class, \Closure $factory): void
+    protected function mockServiceClean(string $class, Closure $factory): void
     {
         $this->mockService($class, $factory);
         $this->mockedServiceKeys[] = $class;
@@ -92,28 +109,8 @@ class GatheringWaiversWorkflowDispatchTest extends HttpIntegrationTestCase
     }
 
     // ---------------------------------------------------------------
-    // close() — dual-path dispatch
+    // close() — workflow dispatch
     // ---------------------------------------------------------------
-
-    /**
-     * Test close action falls back to legacy path when no workflow definition exists.
-     */
-    public function testCloseFallsBackToLegacyWithoutWorkflowDefinition(): void
-    {
-        $waiver = $this->getGatheringWithWaivers();
-        if (!$waiver) {
-            $this->markTestSkipped('No gathering waivers in seed data');
-        }
-        $gatheringId = $waiver->gathering_id;
-
-        // Ensure no waiver-closure workflow definition exists (default state)
-        $defTable = $this->getTableLocator()->get('WorkflowDefinitions');
-        $defTable->deleteAll(['slug' => 'waiver-closure']);
-
-        $this->post('/waivers/gathering-waivers/close/' . $gatheringId);
-        $this->assertResponseSuccess();
-        $this->assertRedirect();
-    }
 
     /**
      * Test close action uses workflow dispatch when an active definition exists.
@@ -169,6 +166,11 @@ class GatheringWaiversWorkflowDispatchTest extends HttpIntegrationTestCase
         $this->post('/waivers/gathering-waivers/close/' . $gatheringId);
         $this->assertResponseSuccess();
         $this->assertRedirect();
+        $this->assertSame('Waivers.CollectionClosed', $this->workflowDispatches[0]['event'] ?? null);
+        $this->assertSame((int)$gatheringId, $this->workflowDispatches[0]['data']['gatheringId'] ?? null);
+        $this->assertSame((int)$gatheringId, $this->workflowDispatches[0]['data']['gathering_id'] ?? null);
+        $this->assertSame(self::ADMIN_MEMBER_ID, $this->workflowDispatches[0]['data']['closedBy'] ?? null);
+        $this->assertSame(self::ADMIN_MEMBER_ID, $this->workflowDispatches[0]['data']['closed_by'] ?? null);
     }
 
     /**
@@ -205,7 +207,7 @@ class GatheringWaiversWorkflowDispatchTest extends HttpIntegrationTestCase
         $closuresTable->deleteAll(['gathering_id' => $gatheringId]);
         $closure = $closuresTable->newEntity([
             'gathering_id' => $gatheringId,
-            'closed_at' => new \Cake\I18n\DateTime(),
+            'closed_at' => new DateTime(),
             'closed_by' => self::ADMIN_MEMBER_ID,
         ]);
         $closuresTable->saveOrFail($closure);
@@ -213,6 +215,11 @@ class GatheringWaiversWorkflowDispatchTest extends HttpIntegrationTestCase
         $this->post('/waivers/gathering-waivers/reopen/' . $gatheringId);
         $this->assertResponseSuccess();
         $this->assertRedirect();
+        $this->assertSame('Waivers.CollectionReopened', $this->workflowDispatches[0]['event'] ?? null);
+        $this->assertSame((int)$gatheringId, $this->workflowDispatches[0]['data']['gatheringId'] ?? null);
+        $this->assertSame((int)$gatheringId, $this->workflowDispatches[0]['data']['gathering_id'] ?? null);
+        $this->assertSame(self::ADMIN_MEMBER_ID, $this->workflowDispatches[0]['data']['reopenedBy'] ?? null);
+        $this->assertSame(self::ADMIN_MEMBER_ID, $this->workflowDispatches[0]['data']['reopened_by'] ?? null);
 
         // Verify gathering is no longer closed
         $this->assertFalse(
@@ -263,6 +270,11 @@ class GatheringWaiversWorkflowDispatchTest extends HttpIntegrationTestCase
         $this->post('/waivers/gathering-waivers/mark-ready-to-close/' . $gatheringId);
         $this->assertResponseSuccess();
         $this->assertRedirect();
+        $this->assertSame('Waivers.ReadyToClose', $this->workflowDispatches[0]['event'] ?? null);
+        $this->assertSame((int)$gatheringId, $this->workflowDispatches[0]['data']['gatheringId'] ?? null);
+        $this->assertSame((int)$gatheringId, $this->workflowDispatches[0]['data']['gathering_id'] ?? null);
+        $this->assertSame(self::ADMIN_MEMBER_ID, $this->workflowDispatches[0]['data']['markedBy'] ?? null);
+        $this->assertSame(self::ADMIN_MEMBER_ID, $this->workflowDispatches[0]['data']['marked_by'] ?? null);
 
         // Verify gathering is now marked ready to close
         $this->assertTrue(
@@ -312,12 +324,29 @@ class GatheringWaiversWorkflowDispatchTest extends HttpIntegrationTestCase
         if (!$waiver) {
             $this->markTestSkipped('No active gathering waivers in seed data');
         }
+        $GatheringWaivers->updateAll(
+            ['created' => DateTime::now(), 'declined_at' => null],
+            ['id' => $waiver->id],
+        );
 
         $this->post('/waivers/gathering-waivers/decline/' . $waiver->id, [
             'decline_reason' => 'Illegible scan, cannot verify signature',
         ]);
         $this->assertResponseSuccess();
         $this->assertRedirect();
+        $this->assertSame('Waivers.WaiverDeclined', $this->workflowDispatches[0]['event'] ?? null);
+        $this->assertSame((int)$waiver->id, $this->workflowDispatches[0]['data']['waiverId'] ?? null);
+        $this->assertSame((int)$waiver->id, $this->workflowDispatches[0]['data']['waiver_id'] ?? null);
+        $this->assertSame(self::ADMIN_MEMBER_ID, $this->workflowDispatches[0]['data']['declinedBy'] ?? null);
+        $this->assertSame(self::ADMIN_MEMBER_ID, $this->workflowDispatches[0]['data']['declined_by'] ?? null);
+        $this->assertSame(
+            'Illegible scan, cannot verify signature',
+            $this->workflowDispatches[0]['data']['declineReason'] ?? null,
+        );
+        $this->assertSame(
+            'Illegible scan, cannot verify signature',
+            $this->workflowDispatches[0]['data']['decline_reason'] ?? null,
+        );
     }
 
     /**

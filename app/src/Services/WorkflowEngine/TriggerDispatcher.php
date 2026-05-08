@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services\WorkflowEngine;
@@ -8,6 +7,7 @@ use Cake\Event\EventInterface;
 use Cake\Event\EventListenerInterface;
 use Cake\Event\EventManager;
 use Cake\Log\Log;
+use Throwable;
 
 /**
  * Dispatches trigger events to find and start matching workflows.
@@ -24,11 +24,32 @@ use Cake\Log\Log;
  */
 class TriggerDispatcher implements EventListenerInterface
 {
+    /**
+     * Tracks automatic listener registration for event-driven model triggers.
+     *
+     * @var self|null
+     */
+    private static ?self $eventManagerListener = null;
+
     private WorkflowEngineInterface $engine;
 
+    /**
+     * Constructor.
+     *
+     * @param \App\Services\WorkflowEngine\WorkflowEngineInterface $engine Workflow engine
+     */
     public function __construct(WorkflowEngineInterface $engine)
     {
         $this->engine = $engine;
+
+        if (self::$eventManagerListener !== $this) {
+            if (self::$eventManagerListener !== null) {
+                EventManager::instance()->off(self::$eventManagerListener);
+            }
+
+            $this->attachToEventManager();
+            self::$eventManagerListener = $this;
+        }
     }
 
     /**
@@ -89,7 +110,7 @@ class TriggerDispatcher implements EventListenerInterface
     {
         try {
             return $this->engine->dispatchTrigger($eventName, $eventData, $triggeredBy);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error("TriggerDispatcher failed for {$eventName}: " . $e->getMessage());
 
             return [];

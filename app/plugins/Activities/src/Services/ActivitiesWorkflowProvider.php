@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Activities\Services;
@@ -51,6 +50,18 @@ class ActivitiesWorkflowProvider
                 ],
             ],
             [
+                'event' => 'Activities.AuthorizationRevoked',
+                'label' => 'Authorization Revoked',
+                'description' => 'When an active authorization is revoked',
+                'payloadSchema' => [
+                    'authorizationId' => ['type' => 'integer', 'label' => 'Authorization ID'],
+                    'memberId' => ['type' => 'integer', 'label' => 'Member ID'],
+                    'activityId' => ['type' => 'integer', 'label' => 'Activity ID'],
+                    'revokerId' => ['type' => 'integer', 'label' => 'Revoker ID'],
+                    'revokedReason' => ['type' => 'string', 'label' => 'Revoked Reason'],
+                ],
+            ],
+            [
                 'event' => 'Activities.AuthorizationRetracted',
                 'label' => 'Authorization Retracted',
                 'description' => 'When a requester cancels their pending request',
@@ -73,7 +84,7 @@ class ActivitiesWorkflowProvider
                 'resolver' => 'Activities.AuthorizationApproverResolver',
                 'label' => 'Authorization Approver Resolver',
                 'description' => 'Resolves eligible approvers based on activity permission rules',
-                'serviceClass' => \Activities\Services\AuthorizationApproverResolver::class,
+                'serviceClass' => AuthorizationApproverResolver::class,
                 'serviceMethod' => 'getEligibleApproverIds',
                 'configSchema' => [
                     'activity_id' => [

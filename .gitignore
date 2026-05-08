@@ -39,3 +39,5 @@ app/tests/nav-debug.png
 deploy/azure/nightly.env
 deploy/azure/*.secret
 deploy/azure/.azure-outputs.json
+.container-home/*
+.copilot/*

@@ -8,22 +8,20 @@ namespace Activities\Controller;
  * AuthorizationsController - Member Activity Authorization Management
  *
  * Manages complete lifecycle of member activity authorizations including requests,
- * approvals, revocations, and administrative management. Integrates with
- * AuthorizationManagerInterface service for business logic.
+ * approvals, revocations, and administrative management through workflows.
  *
  * @property \Activities\Model\Table\AuthorizationsTable $Authorizations
  * @package Activities\Controller
  */
 
-use Activities\Services\AuthorizationManagerInterface;
 use Activities\KMP\GridColumns\MemberAuthorizationsGridColumns;
+use Activities\Model\Entity\Authorization;
 use App\Controller\DataverseGridTrait;
 use App\Controller\WorkflowDispatchTrait;
+use App\KMP\StaticHelpers;
 use App\Services\CsvExportService;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use Cake\ORM\Query\SelectQuery;
-use Activities\Model\Entity\Authorization;
-use App\KMP\StaticHelpers;
 use Cake\ORM\TableRegistry;
 
 class AuthorizationsController extends AppController
@@ -48,10 +46,9 @@ class AuthorizationsController extends AppController
     /**
      * Revoke.
      *
-     * @param AuthorizationManagerInterface $maService
      * @param mixed $id
      */
-    public function revoke(AuthorizationManagerInterface $maService, TriggerDispatcher $triggerDispatcher, $id = null)
+    public function revoke(TriggerDispatcher $triggerDispatcher, $id = null)
     {
         $this->request->allowMethod(["post"]);
         if ($id == null) {
@@ -66,22 +63,12 @@ class AuthorizationsController extends AppController
 
         $revokedReason = $this->request->getData("revoked_reason");
         $revokerId = $this->Authentication->getIdentity()->getIdentifier();
-        $maResult = $maService->revoke($id, $revokerId, $revokedReason);
-        if (!$maResult->success) {
-            $this->Flash->error(
-                __($maResult->reason),
-            );
-
-            return $this->redirect($this->referer());
-        }
-
-        $this->dispatchWorkflowEvent($triggerDispatcher, 'Activities.AuthorizationRevoked', [
-            'authorization_id' => (int)$id,
-            'member_id' => $authorization->member_id,
-            'activity_id' => $authorization->activity_id,
-            'revoked_by' => $revokerId,
-            'revoked_reason' => $revokedReason,
-        ]);
+        $this->dispatchWorkflowOrFail(
+            $triggerDispatcher,
+            'activities-authorization-revoked',
+            'Activities.AuthorizationRevoked',
+            $this->buildRevocationTriggerData($authorization, $revokerId, $revokedReason),
+        );
 
         $this->Flash->success(
             __("The authorization revocation has been processed"),
@@ -93,11 +80,10 @@ class AuthorizationsController extends AppController
     /**
      * Retract a pending authorization request.
      *
-     * @param \Activities\Services\AuthorizationManagerInterface $maService Authorization management service
      * @param string|null $id Authorization ID to retract
      * @return \Cake\Http\Response|null
      */
-    public function retract(AuthorizationManagerInterface $maService, $id = null)
+    public function retract(TriggerDispatcher $triggerDispatcher, $id = null)
     {
         $this->request->allowMethod(["post"]);
         if ($id == null) {
@@ -113,14 +99,12 @@ class AuthorizationsController extends AppController
         $this->Authorization->authorize($authorization, 'retract');
 
         $requesterId = $this->Authentication->getIdentity()->getIdentifier();
-        $maResult = $maService->retract($id, $requesterId);
-        if (!$maResult->success) {
-            $this->Flash->error(
-                __($maResult->reason),
-            );
-
-            return $this->redirect($this->referer());
-        }
+        $this->dispatchWorkflowOrFail(
+            $triggerDispatcher,
+            'activities-authorization-retracted',
+            'Activities.AuthorizationRetracted',
+            $this->buildRetractionTriggerData($authorization, $requesterId),
+        );
 
         $this->Flash->success(
             __("Your authorization request has been retracted."),
@@ -666,6 +650,52 @@ class AuthorizationsController extends AppController
             'requiredApprovals' => $requiredApprovals,
             'activityName' => $activity->name ?? '',
             'approvalPermission' => $activity->permission->name ?? '',
+        ];
+    }
+
+    /**
+     * Build the trigger payload for an authorization revocation workflow event.
+     *
+     * @param \Activities\Model\Entity\Authorization $authorization Authorization being revoked
+     * @param int $revokerId Member ID performing the revocation
+     * @param string $revokedReason Audit reason for revocation
+     * @return array Trigger data matching Activities.AuthorizationRevoked schema
+     */
+    private function buildRevocationTriggerData(
+        Authorization $authorization,
+        int $revokerId,
+        string $revokedReason,
+    ): array {
+        return [
+            'authorizationId' => (int)$authorization->id,
+            'memberId' => (int)$authorization->member_id,
+            'activityId' => (int)$authorization->activity_id,
+            'revokerId' => $revokerId,
+            'revokedReason' => $revokedReason,
+            'authorization_id' => (int)$authorization->id,
+            'member_id' => (int)$authorization->member_id,
+            'activity_id' => (int)$authorization->activity_id,
+            'revoked_by' => $revokerId,
+            'revoked_reason' => $revokedReason,
+        ];
+    }
+
+    /**
+     * Build the trigger payload for an authorization retraction workflow event.
+     *
+     * @param \Activities\Model\Entity\Authorization $authorization Authorization being retracted
+     * @param int $requesterId Member ID requesting retraction
+     * @return array Trigger data matching Activities.AuthorizationRetracted schema
+     */
+    private function buildRetractionTriggerData(Authorization $authorization, int $requesterId): array
+    {
+        return [
+            'authorizationId' => (int)$authorization->id,
+            'memberId' => $requesterId,
+            'activityId' => (int)$authorization->activity_id,
+            'authorization_id' => (int)$authorization->id,
+            'member_id' => $requesterId,
+            'activity_id' => (int)$authorization->activity_id,
         ];
     }
 

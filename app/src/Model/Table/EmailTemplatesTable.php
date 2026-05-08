@@ -62,8 +62,12 @@ class EmailTemplatesTable extends Table
     public function getSchema(): TableSchemaInterface
     {
         $schema = parent::getSchema();
-        $schema->setColumnType('available_vars', 'json');
-        $schema->setColumnType('variables_schema', 'json');
+        if ($schema->hasColumn('available_vars')) {
+            $schema->setColumnType('available_vars', 'json');
+        }
+        if ($schema->hasColumn('variables_schema')) {
+            $schema->setColumnType('variables_schema', 'json');
+        }
 
         return $schema;
     }
@@ -248,5 +252,4 @@ class EmailTemplatesTable extends Table
     {
         return $query->where(['is_active' => true]);
     }
-
 }

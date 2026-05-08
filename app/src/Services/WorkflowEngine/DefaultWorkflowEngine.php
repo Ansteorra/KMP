@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\WorkflowEngine;
 
+use App\Model\Behavior\WorkflowTriggerBehavior;
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowExecutionLog;
 use App\Model\Entity\WorkflowInstance;
@@ -689,7 +690,7 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
             $nodeConfig = array_merge($nodeConfig, $resolvedParams);
         }
 
-        $result = $service->{$serviceMethod}($context, $nodeConfig);
+        $result = $this->executeActionService($service, $serviceMethod, $context, $nodeConfig);
 
         // Store result in context
         $context['nodes'][$nodeId] = ['result' => $result];
@@ -2334,7 +2335,7 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
                             $nodeConfig = array_merge($nodeConfig, $resolvedParams);
                         }
 
-                        $result = $service->{$serviceMethod}($instance->context ?? [], $nodeConfig);
+                        $result = $this->executeActionService($service, $serviceMethod, $instance->context ?? [], $nodeConfig);
 
                         $log->status = WorkflowExecutionLog::STATUS_COMPLETED;
                         $log->output_data = $result;
@@ -2363,6 +2364,35 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
     // -------------------------------------------------------------------------
     // Transaction management
     // -------------------------------------------------------------------------
+
+    /**
+     * Execute a workflow action service while suppressing model-trigger loops.
+     *
+     * Workflow actions often save the same entities that can emit workflow
+     * triggers. Suppression prevents recursive duplicate workflows while the
+     * workflow engine is already applying an intentional state transition.
+     *
+     * @param object $service Workflow action service instance.
+     * @param string $serviceMethod Method to invoke.
+     * @param array<string, mixed> $context Workflow context.
+     * @param array<string, mixed> $nodeConfig Resolved node config.
+     * @return mixed
+     */
+    private function executeActionService(
+        object $service,
+        string $serviceMethod,
+        array $context,
+        array $nodeConfig,
+    ): mixed {
+        $wasSuppressing = WorkflowTriggerBehavior::$suppressTriggers;
+        WorkflowTriggerBehavior::$suppressTriggers = true;
+
+        try {
+            return $service->{$serviceMethod}($context, $nodeConfig);
+        } finally {
+            WorkflowTriggerBehavior::$suppressTriggers = $wasSuppressing;
+        }
+    }
 
     /**
      * Execute a callable inside a single database transaction, avoiding nesting.
