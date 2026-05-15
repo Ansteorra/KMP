@@ -53,6 +53,16 @@ DB_HOST_PORT="$(env_or_file KMP_DB_HOST_PORT 3306)"
 HOST_ALIASES="$(env_or_file KMP_HOST_ALIASES "")"
 RESET_DB_ON_UP="$(env_or_file KMP_RESET_DB_ON_UP true)"
 RESET_DB_ON_UP_ARGS="$(env_or_file KMP_RESET_DB_ON_UP_ARGS "--seed")"
+KMP_VOLUMES=("kmp-db-data" "kmp-composer-cache" "kmp-node-modules")
+
+ensure_named_volumes() {
+    for volume in "${KMP_VOLUMES[@]}"; do
+        if ! docker volume inspect "$volume" >/dev/null 2>&1; then
+            echo "Creating Docker volume: $volume"
+            docker volume create "$volume" >/dev/null
+        fi
+    done
+}
 
 remove_container() {
     container_id="$1"
@@ -88,8 +98,9 @@ cleanup_existing_dev_containers() {
     echo "🧹 Removing existing containers that would conflict with this dev session..."
     removed_ids=""
     while IFS= read -r conflict; do
-        container_id="${conflict%% *}"
+        raw_container_id="${conflict%% *}"
         reason="${conflict#* }"
+        container_id="$(docker container inspect --format '{{.Id}}' "$raw_container_id" 2>/dev/null || true)"
         if [ -z "$container_id" ] || printf '%s\n' "$removed_ids" | grep -qx "$container_id"; then
             continue
         fi
@@ -102,6 +113,7 @@ ${container_id}"
 
 echo "🚀 Starting KMP Development Environment..."
 
+ensure_named_volumes
 cleanup_existing_dev_containers
 
 if [ "$1" == "--build" ]; then

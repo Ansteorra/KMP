@@ -1,15 +1,15 @@
 <?php
 declare(strict_types=1);
 
-use Cake\ORM\TableRegistry;
-use Migrations\AbstractMigration;
+use App\Migrations\CrossEngineMigrationTrait;
+use Migrations\BaseMigration;
 
-class FixMemberRegistrationEmailTemplates extends AbstractMigration
+class FixMemberRegistrationEmailTemplates extends BaseMigration
 {
+    use CrossEngineMigrationTrait;
+
     public function up(): void
     {
-        $templatesTable = TableRegistry::getTableLocator()->get('EmailTemplates');
-
         $updates = [
             'member-registration-welcome' => [
                 'name' => 'Member Registration Welcome',
@@ -51,21 +51,11 @@ class FixMemberRegistrationEmailTemplates extends AbstractMigration
             ],
         ];
 
-        foreach ($updates as $slug => $fields) {
-            $templates = $templatesTable->find()->where(['slug' => $slug])->all();
-            foreach ($templates as $template) {
-                foreach ($fields as $field => $value) {
-                    $template->set($field, $value);
-                }
-                $templatesTable->saveOrFail($template);
-            }
-        }
+        $this->applyUpdates($updates);
     }
 
     public function down(): void
     {
-        $templatesTable = TableRegistry::getTableLocator()->get('EmailTemplates');
-
         $updates = [
             'member-registration-secretary' => [
                 'subject_template' => 'New Member Registration',
@@ -83,14 +73,32 @@ class FixMemberRegistrationEmailTemplates extends AbstractMigration
             ],
         ];
 
+        $this->applyUpdates($updates);
+    }
+
+    /**
+     * Update templates by slug without using the ORM during migrations.
+     *
+     * @param array<string, array<string, string>> $updates Template field updates keyed by slug.
+     * @return void
+     */
+    private function applyUpdates(array $updates): void
+    {
+        $now = date('Y-m-d H:i:s');
+
         foreach ($updates as $slug => $fields) {
-            $templates = $templatesTable->find()->where(['slug' => $slug])->all();
-            foreach ($templates as $template) {
-                foreach ($fields as $field => $value) {
-                    $template->set($field, $value);
-                }
-                $templatesTable->saveOrFail($template);
+            $assignments = [];
+            foreach ($fields as $field => $value) {
+                $assignments[] = "{$field} = '" . $this->sqlEscape($value) . "'";
             }
+            $assignments[] = "modified = '{$now}'";
+            $assignments[] = 'modified_by = 1';
+
+            $this->execute(
+                'UPDATE email_templates SET '
+                . implode(', ', $assignments)
+                . " WHERE slug = '" . $this->sqlEscape($slug) . "'",
+            );
         }
     }
 }

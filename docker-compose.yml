@@ -104,7 +104,10 @@ services:
 volumes:
   kmp-db-data:
     name: kmp-db-data
+    external: true
   composer-cache:
     name: kmp-composer-cache
+    external: true
   node-modules:
     name: kmp-node-modules
+    external: true
