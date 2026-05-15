@@ -9,13 +9,19 @@ set -e
 
 cd "$(dirname "$0")"
 
+ENV_FILE="app/config/.env"
+COMPOSE=(docker compose)
+if [ -f "$ENV_FILE" ]; then
+    COMPOSE+=(--env-file "$ENV_FILE")
+fi
+
 if [ "$1" == "--volumes" ]; then
     echo "⚠️  Stopping containers AND removing volumes (database will be deleted)..."
-    docker compose down -v
+    "${COMPOSE[@]}" down -v
     echo "✅ All containers and volumes removed."
 else
     echo "🛑 Stopping KMP Development Environment..."
-    docker compose down
+    "${COMPOSE[@]}" down
     echo "✅ Containers stopped. Database data preserved in Docker volume."
     echo ""
     echo "To also remove database data: ./dev-down.sh --volumes"

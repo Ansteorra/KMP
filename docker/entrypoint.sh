@@ -69,18 +69,38 @@ if [ "$TABLES" -eq 0 ]; then
     fi
 fi
 
-# Setup cron for queue processing (runs every 2 minutes)
-echo "Configuring cron job..."
-CRON_JOB="*/2 * * * * cd /var/www/html && bin/cake queue run -q >> /var/log/cron.log 2>&1"
-(crontab -l 2>/dev/null | grep -v "queue run" ; echo "$CRON_JOB") | crontab -
+# Setup cron for queue processing and scheduled maintenance.
+if [ "${KMP_SKIP_CRON:-false}" != "true" ]; then
+    echo "Configuring cron jobs..."
+    touch /var/log/cron.log
+    chmod 664 /var/log/cron.log 2>/dev/null || true
 
-# Start cron in background
-service cron start
+    CRON_FILE=$(mktemp)
+    crontab -l 2>/dev/null \
+        | grep -v -E "bin/cake (queue run|workflow_scheduler|sync_active_window_statuses|sync_member_warrantable_statuses|age_up_members|backup_check)" \
+        > "$CRON_FILE" || true
+    cat >> "$CRON_FILE" <<'CRON'
+*/2 * * * * cd /var/www/html && bin/cake queue run -q >> /var/log/cron.log 2>&1
+* * * * * cd /var/www/html && bin/cake workflow_scheduler >> /var/log/cron.log 2>&1
+*/15 * * * * cd /var/www/html && bin/cake sync_active_window_statuses >> /var/log/cron.log 2>&1
+10 0 * * * cd /var/www/html && bin/cake sync_member_warrantable_statuses >> /var/log/cron.log 2>&1
+20 0 * * * cd /var/www/html && bin/cake age_up_members >> /var/log/cron.log 2>&1
+0 3 * * * cd /var/www/html && bin/cake backup_check >> /var/log/cron.log 2>&1
+CRON
+    crontab "$CRON_FILE"
+    rm -f "$CRON_FILE"
+
+    # Start cron in background
+    service cron start
+else
+    echo "KMP_SKIP_CRON=true - skipping cron setup."
+fi
 
 echo "=== KMP Application Ready ==="
-echo "  App:     http://localhost:8080"
-echo "  Mailpit: http://localhost:8025"
-echo "  MySQL:   localhost:3306"
+echo "  App:     http://localhost:${KMP_APP_PORT:-8080}"
+echo "  Mailpit: http://localhost:${KMP_MAILPIT_WEB_PORT:-8025}"
+echo "  MySQL:   localhost:${KMP_DB_HOST_PORT:-3306}"
+echo "  Cron log: /var/log/cron.log"
 echo ""
 
 # Execute the main command (apache2-foreground)

@@ -23,7 +23,7 @@ services:
       MYSQL_USER: ${MYSQL_USERNAME:-KMPSQLDEV}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-P@ssw0rd}
     ports:
-      - "3306:3306"
+      - "${KMP_DB_BIND_ADDR:-127.0.0.1}:${KMP_DB_HOST_PORT:-3306}:3306"
     volumes:
       - kmp-db-data:/var/lib/mysql
     healthcheck:
@@ -38,8 +38,8 @@ services:
     container_name: kmp-mailpit
     restart: unless-stopped
     ports:
-      - "8025:8025"  # Web UI
-      - "1025:1025"  # SMTP
+      - "${KMP_MAILPIT_BIND_ADDR:-127.0.0.1}:${KMP_MAILPIT_WEB_PORT:-8025}:8025"  # Web UI
+      - "${KMP_MAILPIT_BIND_ADDR:-127.0.0.1}:${KMP_MAILPIT_SMTP_PORT:-1025}:1025"  # SMTP
     environment:
       MP_SMTP_AUTH_ACCEPT_ANY: "true"
       MP_SMTP_AUTH_ALLOW_INSECURE: "true"
@@ -50,13 +50,18 @@ services:
       dockerfile: docker/Dockerfile.app
     container_name: kmp-app
     restart: unless-stopped
+    env_file:
+      - path: app/config/.env
+        required: false
     depends_on:
       db:
         condition: service_healthy
       mailpit:
         condition: service_started
     ports:
-      - "8080:80"
+      - "${KMP_APP_BIND_ADDR:-127.0.0.1}:${KMP_APP_PORT:-8080}:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       # Mount local code - changes reflect immediately
       - ./app:/var/www/html:cached
@@ -65,7 +70,7 @@ services:
       # Persist node_modules to avoid reinstalling
       - node-modules:/var/www/html/node_modules
     environment:
-      # App identification (prevents .env loading - we use container env vars)
+      # App identification for the container runtime.
       APP_NAME: KMP_DOCKER
       # Database
       MYSQL_HOST: db
@@ -77,9 +82,18 @@ services:
       EMAIL_SMTP_PORT: "1025"
       EMAIL_SMTP_USERNAME: ""
       EMAIL_SMTP_PASSWORD: ""
+      # Xdebug
+      XDEBUG_MODE: ${XDEBUG_MODE:-debug,develop}
+      XDEBUG_CONFIG: "client_host=${XDEBUG_CLIENT_HOST:-host.docker.internal} client_port=${XDEBUG_CLIENT_PORT:-9003}"
+      PHP_IDE_CONFIG: "serverName=${PHP_IDE_SERVER_NAME:-KMP-Docker}"
+      # Scheduled local tasks
+      KMP_SKIP_CRON: ${KMP_SKIP_CRON:-false}
+      # Local URL hints for container startup output
+      KMP_APP_PORT: ${KMP_APP_PORT:-8080}
+      KMP_DB_HOST_PORT: ${KMP_DB_HOST_PORT:-3306}
+      KMP_MAILPIT_WEB_PORT: ${KMP_MAILPIT_WEB_PORT:-8025}
       # PHP/App settings
       PHP_MEMORY_LIMIT: 256M
-      APACHE_DOCUMENT_ROOT: /var/www/html
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/"]
       interval: 30s

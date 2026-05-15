@@ -34,8 +34,6 @@ app/.editorconfig
 
 # Docker dev files
 docker/Dockerfile.app
-docker/entrypoint.sh
-docker/.env.example
 
 # Dev scripts
 dev-up.sh
@@ -73,7 +71,6 @@ test-waiver.png
 *.log
 .env
 .env.*
-!docker/.env.example
 app/config/.env
 app/config/.env.*
 
