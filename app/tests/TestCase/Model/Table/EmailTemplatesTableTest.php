@@ -187,11 +187,4 @@ class EmailTemplatesTableTest extends BaseTestCase
         $schema = $this->EmailTemplates->getSchema();
         $this->assertSame('json', $schema->getColumnType('available_vars'));
     }
-
-    public function testKingdomsAssociationExists(): void
-    {
-        $this->assertTrue($this->EmailTemplates->associations()->has('Kingdoms'));
-        $association = $this->EmailTemplates->getAssociation('Kingdoms');
-        $this->assertSame('kingdom_id', $association->getForeignKey());
-    }
 }

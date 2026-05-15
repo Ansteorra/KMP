@@ -47,12 +47,6 @@ class AppSettingsTable extends BaseTable
         $this->setPrimaryKey('id');
         $this->addBehavior('Timestamp');
         $this->addBehavior('Muffin/Footprint.Footprint');
-
-        $this->belongsTo('Kingdoms', [
-            'className' => 'Branches',
-            'foreignKey' => 'kingdom_id',
-            'joinType' => 'LEFT',
-        ]);
     }
 
     /**
@@ -69,7 +63,7 @@ class AppSettingsTable extends BaseTable
             ->requirePresence('name', 'create')
             ->notEmptyString('name')
             ->add('name', 'unique', [
-                'rule' => ['validateUnique', ['scope' => 'kingdom_id']],
+                'rule' => ['validateUnique'],
                 'provider' => 'table',
             ]);
 
@@ -89,8 +83,8 @@ class AppSettingsTable extends BaseTable
     public function buildRules(RulesChecker $rules): RulesChecker
     {
         $rules->add(
-            $rules->isUnique(['name', 'kingdom_id'], ['allowMultipleNulls' => false]),
-            ['errorField' => 'name']
+            $rules->isUnique(['name']),
+            ['errorField' => 'name'],
         );
 
         return $rules;
@@ -310,84 +304,6 @@ class AppSettingsTable extends BaseTable
         }
 
         return $return;
-    }
-
-    /**
-     * Get an app setting for a specific kingdom, falling back to global.
-     *
-     * Looks up kingdom-specific setting first, then falls back to
-     * global (kingdom_id IS NULL). Returns $default if neither found.
-     *
-     * @param string $key Setting name
-     * @param int $kingdomId Kingdom branch ID
-     * @param mixed $default Default value if not found
-     * @return mixed
-     */
-    public function getSettingForKingdom(string $key, int $kingdomId, mixed $default = null): mixed
-    {
-        // Try kingdom-specific first
-        $setting = $this->find()
-            ->where(['name' => $key, 'kingdom_id' => $kingdomId])
-            ->first();
-
-        if ($setting) {
-            return $this->resolveValueForRead($setting->type ?? 'string', $setting->value);
-        }
-
-        // Fall back to global
-        $setting = $this->find()
-            ->where(['name' => $key, 'kingdom_id IS' => null])
-            ->first();
-
-        if ($setting) {
-            return $this->resolveValueForRead($setting->type ?? 'string', $setting->value);
-        }
-
-        return $default;
-    }
-
-    /**
-     * Set an app setting for a specific kingdom.
-     *
-     * @param string $key Setting name
-     * @param mixed $value Setting value
-     * @param int $kingdomId Kingdom branch ID
-     * @param string|null $type Value type (string, json, yaml, password)
-     * @param bool $required Whether the setting is required
-     * @return bool
-     */
-    public function setSettingForKingdom(
-        string $key,
-        mixed $value,
-        int $kingdomId,
-        ?string $type = null,
-        bool $required = false,
-    ): bool {
-        $setting = $this->find()
-            ->where(['name' => $key, 'kingdom_id' => $kingdomId])
-            ->first();
-
-        $effectiveType = $type ?? ($setting?->type ?? 'string');
-        $encodedValue = $this->resolveValueForWrite($effectiveType, $value, $setting !== null);
-
-        if ($setting) {
-            $setting->saving = true;
-            if ($encodedValue !== null) {
-                $setting->value = $encodedValue;
-            }
-            $setting->type = $effectiveType;
-            $setting->required = $required;
-        } else {
-            $setting = $this->newEmptyEntity();
-            $setting->saving = true;
-            $setting->name = $key;
-            $setting->type = $effectiveType;
-            $setting->value = $encodedValue;
-            $setting->required = $required;
-            $setting->kingdom_id = $kingdomId;
-        }
-
-        return (bool)$this->save($setting);
     }
 
     /**

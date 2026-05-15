@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Migrations\BaseMigration;
 use App\Migrations\CrossEngineMigrationTrait;
+use Migrations\BaseMigration;
 
 /**
  * Publishes the workflow-backed recommendation delete definition for existing databases.
@@ -80,7 +80,7 @@ class PublishAwardRecommendationDeleteWorkflowDefinition extends BaseMigration
         $definitionRow = $this->fetchRow(
             "SELECT id
              FROM workflow_definitions
-             WHERE slug = '{$slug}' AND kingdom_id IS NULL
+             WHERE slug = '{$slug}'
              ORDER BY id DESC
              LIMIT 1",
         );
@@ -121,7 +121,7 @@ class PublishAwardRecommendationDeleteWorkflowDefinition extends BaseMigration
             $definitionRow = $this->fetchRow(
                 "SELECT id
                  FROM workflow_definitions
-                 WHERE slug = '{$slug}' AND kingdom_id IS NULL
+                  WHERE slug = '{$slug}'
                  ORDER BY id DESC
                  LIMIT 1",
             );

@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -18,7 +17,6 @@ namespace App\Model\Entity;
  * @property array|null $trigger_config
  * @property string|null $entity_type
  * @property bool $is_active
- * @property int|null $kingdom_id
  * @property int|null $current_version_id
  * @property int|null $created_by
  * @property int|null $modified_by
@@ -26,7 +24,6 @@ namespace App\Model\Entity;
  * @property \Cake\I18n\DateTime|null $modified
  * @property \Cake\I18n\DateTime|null $deleted
  *
- * @property \App\Model\Entity\Branch|null $kingdom
  * @property \App\Model\Entity\WorkflowVersion|null $current_version
  * @property \App\Model\Entity\WorkflowVersion[] $workflow_versions
  * @property \App\Model\Entity\WorkflowInstance[] $workflow_instances
@@ -50,7 +47,6 @@ class WorkflowDefinition extends BaseEntity
         'trigger_type' => true,
         'trigger_config' => true,
         'entity_type' => true,
-        'kingdom_id' => true,
         'is_active' => true,
         'execution_mode' => true,
         'current_version_id' => true,

@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Migrations\BaseMigration;
 use App\Migrations\CrossEngineMigrationTrait;
+use Migrations\BaseMigration;
 
 /**
  * Seed/backfill the workflow-native slug for the authorization retraction email.
@@ -40,7 +40,7 @@ class AddAuthorizationRetractionEmailTemplateSlug extends BaseMigration
         ];
 
         $existingSlug = $this->fetchRow(
-            "SELECT id FROM email_templates WHERE slug = '" . $this->sqlEscape(self::SLUG) . "' AND kingdom_id IS NULL LIMIT 1",
+            "SELECT id FROM email_templates WHERE slug = '" . $this->sqlEscape(self::SLUG) . "' LIMIT 1",
         );
         if ($existingSlug) {
             return;
@@ -50,8 +50,7 @@ class AddAuthorizationRetractionEmailTemplateSlug extends BaseMigration
             "SELECT id
                FROM email_templates
               WHERE mailer_class = '" . $this->sqlEscape(self::LEGACY_MAILER) . "'
-                AND action_method = '" . $this->sqlEscape(self::LEGACY_ACTION) . "'
-                AND kingdom_id IS NULL
+                 AND action_method = '" . $this->sqlEscape(self::LEGACY_ACTION) . "'
               ORDER BY id ASC
               LIMIT 1",
         );
@@ -74,9 +73,9 @@ class AddAuthorizationRetractionEmailTemplateSlug extends BaseMigration
 
         $this->execute(
             "INSERT INTO email_templates
-                (slug, name, description, subject_template, text_template, html_template,
-                 available_vars, variables_schema, is_active,
-                 created, modified, created_by, modified_by, kingdom_id)
+                 (slug, name, description, subject_template, text_template, html_template,
+                  available_vars, variables_schema, is_active,
+                  created, modified, created_by, modified_by)
              VALUES (
                  '" . $this->sqlEscape(self::SLUG) . "',
                  '" . $this->sqlEscape($name) . "',
@@ -86,8 +85,8 @@ class AddAuthorizationRetractionEmailTemplateSlug extends BaseMigration
                  NULL,
                  '" . $this->sqlEscape(json_encode($availableVars)) . "',
                  '" . $this->sqlEscape(json_encode($variablesSchema)) . "',
-                 TRUE,
-                 '{$now}', '{$now}', 1, 1, NULL
+                  TRUE,
+                  '{$now}', '{$now}', 1, 1
              )",
         );
     }
@@ -102,16 +101,14 @@ class AddAuthorizationRetractionEmailTemplateSlug extends BaseMigration
                 SET slug = NULL
               WHERE slug = '" . $this->sqlEscape(self::SLUG) . "'
                 AND mailer_class = '" . $this->sqlEscape(self::LEGACY_MAILER) . "'
-                AND action_method = '" . $this->sqlEscape(self::LEGACY_ACTION) . "'
-                AND kingdom_id IS NULL",
+                AND action_method = '" . $this->sqlEscape(self::LEGACY_ACTION) . "'",
         );
 
         $this->execute(
             "DELETE FROM email_templates
               WHERE slug = '" . $this->sqlEscape(self::SLUG) . "'
                 AND mailer_class IS NULL
-                AND action_method IS NULL
-                AND kingdom_id IS NULL",
+                AND action_method IS NULL",
         );
     }
 }

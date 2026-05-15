@@ -86,14 +86,13 @@ class WorkflowDispatchTraitTest extends BaseTestCase
         $this->subject = $this->createSubjectWithBranch(self::TEST_BRANCH_STARGATE_ID);
     }
 
-    private function createActiveWorkflow(string $slug, ?int $kingdomId = null): int
+    private function createActiveWorkflow(string $slug): int
     {
         $def = $this->defTable->newEntity([
             'name' => 'Test: ' . $slug,
             'slug' => $slug,
             'trigger_type' => 'manual',
             'is_active' => true,
-            'kingdom_id' => $kingdomId,
         ]);
         $this->defTable->saveOrFail($def);
 
@@ -120,21 +119,20 @@ class WorkflowDispatchTraitTest extends BaseTestCase
         return $def->id;
     }
 
-    private function createInactiveWorkflow(string $slug, ?int $kingdomId = null): int
+    private function createInactiveWorkflow(string $slug): int
     {
         $def = $this->defTable->newEntity([
             'name' => 'Inactive: ' . $slug,
             'slug' => $slug,
             'trigger_type' => 'manual',
             'is_active' => false,
-            'kingdom_id' => $kingdomId,
         ]);
         $this->defTable->saveOrFail($def);
 
         return $def->id;
     }
 
-    private function createWorkflowWithoutVersion(string $slug, ?int $kingdomId = null): int
+    private function createWorkflowWithoutVersion(string $slug): int
     {
         $def = $this->defTable->newEntity([
             'name' => 'No version: ' . $slug,
@@ -142,7 +140,6 @@ class WorkflowDispatchTraitTest extends BaseTestCase
             'trigger_type' => 'manual',
             'is_active' => true,
             'current_version_id' => null,
-            'kingdom_id' => $kingdomId,
         ]);
         $this->defTable->saveOrFail($def);
 

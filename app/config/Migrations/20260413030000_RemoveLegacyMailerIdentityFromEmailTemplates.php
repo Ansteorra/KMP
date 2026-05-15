@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Migrations\BaseMigration;
 use App\Migrations\CrossEngineMigrationTrait;
+use Migrations\BaseMigration;
 
 /**
  * Finalize email_templates around slug-only identity.
@@ -28,7 +28,7 @@ class RemoveLegacyMailerIdentityFromEmailTemplates extends BaseMigration
                 'null' => false,
                 'default' => null,
                 'limit' => 100,
-                'comment' => 'Stable workflow-native key (e.g. warrant-issued). Unique per kingdom_id.',
+                'comment' => 'Stable workflow-native key (e.g. warrant-issued).',
             ])
             ->removeColumn('mailer_class')
             ->removeColumn('action_method')
@@ -58,7 +58,7 @@ class RemoveLegacyMailerIdentityFromEmailTemplates extends BaseMigration
                 'null' => true,
                 'default' => null,
                 'limit' => 100,
-                'comment' => 'Stable workflow-native key (e.g. warrant-issued). Unique per kingdom_id.',
+                'comment' => 'Stable workflow-native key (e.g. warrant-issued).',
             ])
             ->update();
     }
@@ -69,7 +69,7 @@ class RemoveLegacyMailerIdentityFromEmailTemplates extends BaseMigration
     private function backfillMissingSlugs(): void
     {
         $rows = $this->fetchAll(
-            "SELECT id, kingdom_id, mailer_class, action_method
+            "SELECT id, mailer_class, action_method
                FROM email_templates
               WHERE slug IS NULL OR slug = ''
               ORDER BY id ASC",
@@ -78,13 +78,12 @@ class RemoveLegacyMailerIdentityFromEmailTemplates extends BaseMigration
         $now = date('Y-m-d H:i:s');
         foreach ($rows as $row) {
             $templateId = (int)$row['id'];
-            $kingdomId = $row['kingdom_id'] !== null ? (int)$row['kingdom_id'] : null;
             $baseSlug = $this->knownSlugFor(
                 $row['mailer_class'] ?? null,
                 $row['action_method'] ?? null,
                 $templateId,
             );
-            $slug = $this->ensureUniqueSlug($baseSlug, $templateId, $kingdomId);
+            $slug = $this->ensureUniqueSlug($baseSlug, $templateId);
 
             $this->execute(
                 "UPDATE email_templates
@@ -137,15 +136,14 @@ class RemoveLegacyMailerIdentityFromEmailTemplates extends BaseMigration
     /**
      * @param string $baseSlug
      * @param int $templateId
-     * @param int|null $kingdomId
      * @return string
      */
-    private function ensureUniqueSlug(string $baseSlug, int $templateId, ?int $kingdomId): string
+    private function ensureUniqueSlug(string $baseSlug, int $templateId): string
     {
         $slug = $baseSlug;
         $suffix = 1;
 
-        while ($this->slugExists($slug, $templateId, $kingdomId)) {
+        while ($this->slugExists($slug, $templateId)) {
             $suffix++;
             $slug = $baseSlug . '-' . $suffix;
         }
@@ -156,20 +154,14 @@ class RemoveLegacyMailerIdentityFromEmailTemplates extends BaseMigration
     /**
      * @param string $slug
      * @param int $templateId
-     * @param int|null $kingdomId
      * @return bool
      */
-    private function slugExists(string $slug, int $templateId, ?int $kingdomId): bool
+    private function slugExists(string $slug, int $templateId): bool
     {
-        $kingdomClause = $kingdomId === null
-            ? 'kingdom_id IS NULL'
-            : 'kingdom_id = ' . $kingdomId;
-
         $row = $this->fetchRow(
             "SELECT id
                FROM email_templates
               WHERE slug = '" . $this->sqlEscape($slug) . "'
-                AND {$kingdomClause}
                 AND id != {$templateId}
               LIMIT 1",
         );

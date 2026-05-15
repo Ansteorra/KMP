@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Migrations\BaseMigration;
 use App\Migrations\CrossEngineMigrationTrait;
+use Migrations\BaseMigration;
 
 /**
  * Seed workflow-native slugs for legacy utility and warrant email templates.
@@ -30,7 +30,7 @@ class AddLegacyUtilityEmailTemplateSlugs extends BaseMigration
 
         foreach ($this->buildTemplates() as $template) {
             $existing = $this->fetchRow(
-                "SELECT id FROM email_templates WHERE slug = '" . $this->sqlEscape($template['slug']) . "' AND kingdom_id IS NULL",
+                "SELECT id FROM email_templates WHERE slug = '" . $this->sqlEscape($template['slug']) . "'",
             );
             if ($existing) {
                 continue;
@@ -41,7 +41,7 @@ class AddLegacyUtilityEmailTemplateSlugs extends BaseMigration
                     (slug, name, description, mailer_class, action_method,
                      subject_template, text_template, html_template,
                      available_vars, variables_schema, is_active,
-                     created, modified, created_by, modified_by, kingdom_id)
+                      created, modified, created_by, modified_by)
                  VALUES (
                      '" . $this->sqlEscape($template['slug']) . "',
                      '" . $this->sqlEscape($template['name']) . "',
@@ -54,7 +54,7 @@ class AddLegacyUtilityEmailTemplateSlugs extends BaseMigration
                      '" . $this->sqlEscape(json_encode($template['available_vars'])) . "',
                      '" . $this->sqlEscape(json_encode($template['variables_schema'])) . "',
                      TRUE,
-                     '{$now}', '{$now}', 1, 1, NULL
+                      '{$now}', '{$now}', 1, 1
                  )",
             );
         }
@@ -67,7 +67,7 @@ class AddLegacyUtilityEmailTemplateSlugs extends BaseMigration
     {
         foreach (['password-reset', 'mobile-card-url', 'warrant-issued'] as $slug) {
             $this->execute(
-                "DELETE FROM email_templates WHERE slug = '" . $this->sqlEscape($slug) . "' AND kingdom_id IS NULL",
+                "DELETE FROM email_templates WHERE slug = '" . $this->sqlEscape($slug) . "'",
             );
         }
     }

@@ -3,7 +3,6 @@
 /**
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\EmailTemplate $emailTemplate
- * @var array $kingdoms
  */
 
 $this->assign('title', $emailTemplate->isNew() ? __('Add Email Template') : __('Edit Email Template'));
@@ -24,7 +23,7 @@ $this->KMP->endBlock(); ?>
 
         <!-- ── Workflow-native identity (primary authoring fields) ── -->
         <div class="row">
-            <div class="col-md-4">
+            <div class="col-md-6">
                 <?= $this->Form->control('name', [
                     'label' => __('Name'),
                     'placeholder' => __('Human-readable label, e.g. "Warrant Issued"'),
@@ -32,21 +31,12 @@ $this->KMP->endBlock(); ?>
                     'data-action' => 'input->email-template-form#nameChanged',
                 ]) ?>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-6">
                 <?= $this->Form->control('slug', [
                     'label' => __('Slug'),
                     'placeholder' => 'e.g. warrant-issued',
                     'help' => __('Stable workflow key (lowercase, hyphens only). Auto-generated from Name if left blank.'),
                     'data-email-template-form-target' => 'slugField',
-                ]) ?>
-            </div>
-            <div class="col-md-4">
-                <?= $this->Form->control('kingdom_id', [
-                    'label' => __('Kingdom Scope'),
-                    'type' => 'select',
-                    'options' => $kingdoms ?? [],
-                    'empty' => __('— Global (all kingdoms) —'),
-                    'help' => __('Leave blank for a global default; select a kingdom to override for that kingdom only.'),
                 ]) ?>
             </div>
         </div>

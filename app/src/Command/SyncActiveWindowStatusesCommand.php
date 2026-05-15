@@ -4,13 +4,14 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Model\Entity\ActiveWindowBaseEntity;
+use App\Services\WorkflowEngine\DefaultWorkflowEngine;
 use App\Services\WorkflowEngine\TriggerDispatcher;
-use App\Services\WorkflowEngine\WorkflowDefinitionFinderTrait;
 use Cake\Command\Command;
 use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 use Cake\Core\App;
+use Cake\Core\Container;
 use Cake\Core\Plugin;
 use Cake\I18n\FrozenTime;
 use Cake\Log\Log;
@@ -26,7 +27,8 @@ use Throwable;
  *
  * Supports dual-path dispatch: when an 'active-window-sync' workflow is active,
  * delegates to the workflow engine; otherwise runs legacy transition logic.
- * Kingdom-aware: dispatches per-kingdom when kingdom-specific workflows exist.
+ * Dispatches per kingdom when kingdoms are configured so workflow actions can
+ * still use kingdom context without persisted tenant-scoped definitions.
  *
  * Transition entities from Upcoming -> Current and Current -> Expired based on
  * their configured start_on/expires_on window. Intended for scheduled execution
@@ -34,7 +36,6 @@ use Throwable;
  */
 class SyncActiveWindowStatusesCommand extends Command
 {
-    use WorkflowDefinitionFinderTrait;
     /**
      * Injected dispatcher — null means createTriggerDispatcher() will be called.
      *
@@ -60,8 +61,8 @@ class SyncActiveWindowStatusesCommand extends Command
      */
     protected function createTriggerDispatcher(): TriggerDispatcher
     {
-        $container = \Cake\Core\Container::create();
-        $engine = new \App\Services\WorkflowEngine\DefaultWorkflowEngine($container);
+        $container = Container::create();
+        $engine = new DefaultWorkflowEngine($container);
 
         return new TriggerDispatcher($engine);
     }
@@ -108,8 +109,7 @@ class SyncActiveWindowStatusesCommand extends Command
     /**
      * Attempt to dispatch via the workflow engine.
      *
-     * Iterates over all kingdoms, using kingdom-scoped lookup to find
-     * the appropriate workflow definition for each.
+     * Iterates over all kingdoms when a global workflow definition is active.
      *
      * @param \Cake\Console\ConsoleIo $io Console IO instance.
      * @return bool True if workflow was dispatched, false to fall back to legacy.
@@ -127,23 +127,20 @@ class SyncActiveWindowStatusesCommand extends Command
             $dispatched = false;
             $dispatcher = null;
             $defTable = TableRegistry::getTableLocator()->get('WorkflowDefinitions');
+            $fullDef = $defTable->find()
+                ->where([
+                    'slug' => 'active-window-sync',
+                    'is_active' => true,
+                    'current_version_id IS NOT' => null,
+                ])
+                ->contain(['CurrentVersion'])
+                ->first();
+
+            if (!$fullDef || !$fullDef->current_version) {
+                return false;
+            }
 
             foreach ($kingdoms as $kingdom) {
-                $def = $this->findForKingdom($kingdom->id, 'active-window-sync');
-
-                if (!$def || !$def->is_active || !$def->current_version_id) {
-                    continue;
-                }
-
-                $fullDef = $defTable->find()
-                    ->where(['WorkflowDefinitions.id' => $def->id])
-                    ->contain(['CurrentVersion'])
-                    ->first();
-
-                if (!$fullDef || !$fullDef->current_version) {
-                    continue;
-                }
-
                 $dispatcher = $dispatcher ?? ($this->triggerDispatcher ?? $this->createTriggerDispatcher());
                 $io->info(sprintf('Active "active-window-sync" workflow found for kingdom: %s. Dispatching...', $kingdom->name));
 
@@ -166,40 +163,28 @@ class SyncActiveWindowStatusesCommand extends Command
 
             // If no kingdoms found, try global definition
             if (empty($kingdoms)) {
-                $def = $defTable->find()
-                    ->where([
-                        'slug' => 'active-window-sync',
-                        'is_active' => true,
-                        'current_version_id IS NOT' => null,
-                        'kingdom_id IS' => null,
-                    ])
-                    ->contain(['CurrentVersion'])
-                    ->first();
+                $dispatcher = $this->triggerDispatcher ?? $this->createTriggerDispatcher();
+                $io->info('Active "active-window-sync" workflow found. Dispatching...');
 
-                if ($def && $def->current_version) {
-                    $dispatcher = $this->triggerDispatcher ?? $this->createTriggerDispatcher();
-                    $io->info('Active "active-window-sync" workflow found (global). Dispatching...');
+                $results = $dispatcher->dispatch('ActiveWindow.SyncTriggered', [
+                    'triggered_at' => date('c'),
+                    'trigger' => 'cron',
+                    'kingdom_id' => null,
+                ]);
 
-                    $results = $dispatcher->dispatch('ActiveWindow.SyncTriggered', [
-                        'triggered_at' => date('c'),
-                        'trigger' => 'cron',
-                        'kingdom_id' => null,
-                    ]);
-
-                    $successCount = 0;
-                    foreach ($results as $result) {
-                        if ($result->isSuccess()) {
-                            $successCount++;
-                        }
+                $successCount = 0;
+                foreach ($results as $result) {
+                    if ($result->isSuccess()) {
+                        $successCount++;
                     }
-
-                    $io->success(sprintf('Workflow dispatched globally (started %d workflow(s)).', $successCount));
-                    $dispatched = true;
                 }
+
+                $io->success(sprintf('Workflow dispatched (started %d workflow(s)).', $successCount));
+                $dispatched = true;
             }
 
             return $dispatched;
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error('SyncActiveWindowStatusesCommand: Workflow dispatch failed: ' . $e->getMessage());
             $io->warning('Workflow dispatch failed, falling back to legacy logic.');
 

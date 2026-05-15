@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Migrations\BaseMigration;
 use App\Migrations\CrossEngineMigrationTrait;
+use Migrations\BaseMigration;
 
 /**
  * Backfill workflow-native slugs onto legacy mailer/action email template rows.
@@ -27,7 +27,7 @@ class BackfillLegacyEmailTemplateSlugs extends BaseMigration
 
         foreach ($this->buildMappings() as $mapping) {
             $legacyRows = $this->fetchAll(
-                "SELECT id, kingdom_id
+                "SELECT id
                  FROM email_templates
                  WHERE mailer_class = '" . $this->sqlEscape($mapping['mailer_class']) . "'
                    AND action_method = '" . $this->sqlEscape($mapping['action_method']) . "'
@@ -38,7 +38,6 @@ class BackfillLegacyEmailTemplateSlugs extends BaseMigration
                 $duplicateId = $this->findDuplicateSlugRowId(
                     $mapping['slug'],
                     (int)$legacyRow['id'],
-                    $legacyRow['kingdom_id'] !== null ? (int)$legacyRow['kingdom_id'] : null,
                 );
 
                 if ($duplicateId !== null) {
@@ -85,20 +84,14 @@ class BackfillLegacyEmailTemplateSlugs extends BaseMigration
     /**
      * @param string $slug
      * @param int $legacyId
-     * @param int|null $kingdomId
      * @return int|null
      */
-    private function findDuplicateSlugRowId(string $slug, int $legacyId, ?int $kingdomId): ?int
+    private function findDuplicateSlugRowId(string $slug, int $legacyId): ?int
     {
-        $kingdomClause = $kingdomId === null
-            ? 'kingdom_id IS NULL'
-            : 'kingdom_id = ' . $kingdomId;
-
         $row = $this->fetchRow(
             "SELECT id
              FROM email_templates
              WHERE slug = '" . $this->sqlEscape($slug) . "'
-               AND {$kingdomClause}
                AND id != {$legacyId}
              ORDER BY id ASC
              LIMIT 1",

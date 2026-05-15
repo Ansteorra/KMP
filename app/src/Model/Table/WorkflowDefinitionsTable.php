@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -12,10 +11,8 @@ use Cake\Validation\Validator;
  * WorkflowDefinitions Model
  *
  * @property \App\Model\Table\WorkflowVersionsTable&\Cake\ORM\Association\BelongsTo $CurrentVersion
- * @property \App\Model\Table\BranchesTable&\Cake\ORM\Association\BelongsTo $Kingdoms
  * @property \App\Model\Table\WorkflowVersionsTable&\Cake\ORM\Association\HasMany $WorkflowVersions
  * @property \App\Model\Table\WorkflowInstancesTable&\Cake\ORM\Association\HasMany $WorkflowInstances
- *
  * @method \App\Model\Entity\WorkflowDefinition newEmptyEntity()
  * @method \App\Model\Entity\WorkflowDefinition newEntity(array $data, array $options = [])
  * @method \App\Model\Entity\WorkflowDefinition patchEntity(\Cake\Datasource\EntityInterface $entity, array $data, array $options = [])
@@ -36,11 +33,6 @@ class WorkflowDefinitionsTable extends BaseTable
         $this->belongsTo('CurrentVersion', [
             'className' => 'WorkflowVersions',
             'foreignKey' => 'current_version_id',
-            'joinType' => 'LEFT',
-        ]);
-        $this->belongsTo('Kingdoms', [
-            'className' => 'Branches',
-            'foreignKey' => 'kingdom_id',
             'joinType' => 'LEFT',
         ]);
         $this->hasMany('WorkflowVersions', [
@@ -109,10 +101,6 @@ class WorkflowDefinitionsTable extends BaseTable
             ->allowEmptyString('current_version_id');
 
         $validator
-            ->integer('kingdom_id')
-            ->allowEmptyString('kingdom_id');
-
-        $validator
             ->scalar('execution_mode')
             ->inList('execution_mode', ['durable', 'ephemeral'], __('Execution mode must be durable or ephemeral'))
             ->notEmptyString('execution_mode');
@@ -126,8 +114,8 @@ class WorkflowDefinitionsTable extends BaseTable
     public function buildRules(RulesChecker $rules): RulesChecker
     {
         $rules->add(
-            $rules->isUnique(['slug', 'kingdom_id'], ['allowMultipleNulls' => false]),
-            ['errorField' => 'slug']
+            $rules->isUnique(['slug']),
+            ['errorField' => 'slug'],
         );
         $rules->add($rules->existsIn(['current_version_id'], 'CurrentVersion'), [
             'errorField' => 'current_version_id',

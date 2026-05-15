@@ -12,14 +12,10 @@ class EmailTemplateNotFoundException extends RuntimeException
 {
     /**
      * @param string $slug Template slug
-     * @param int|null $kingdomId Kingdom scope attempted (null = global)
      * @return self
      */
-    public static function forSlug(string $slug, ?int $kingdomId = null): self
+    public static function forSlug(string $slug): self
     {
-        $scope = $kingdomId !== null ? " for kingdom #{$kingdomId} or global fallback" : ' (global)';
-
-        return new self("No active email template found for slug '{$slug}'{$scope}.");
+        return new self("No active email template found for slug '{$slug}'.");
     }
-
 }

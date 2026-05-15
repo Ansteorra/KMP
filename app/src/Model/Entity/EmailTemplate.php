@@ -6,13 +6,12 @@ namespace App\Model\Entity;
 /**
  * EmailTemplate Entity
  *
- * Templates are identified by (slug, kingdom_id). Use name/description for admin display.
+ * Templates are identified by slug. Use name/description for admin display.
  *
  * @property int $id
  * @property string|null $slug
  * @property string|null $name
  * @property string|null $description
- * @property int|null $kingdom_id
  * @property string $subject_template
  * @property string|null $html_template
  * @property string|null $text_template
@@ -21,7 +20,6 @@ namespace App\Model\Entity;
  * @property bool $is_active
  * @property \Cake\I18n\DateTime|null $created
  * @property \Cake\I18n\DateTime|null $modified
- * @property \App\Model\Entity\Branch|null $kingdom
  */
 class EmailTemplate extends BaseEntity
 {
@@ -34,7 +32,6 @@ class EmailTemplate extends BaseEntity
         'slug' => true,
         'name' => true,
         'description' => true,
-        'kingdom_id' => true,
         'subject_template' => true,
         'html_template' => true,
         'text_template' => true,

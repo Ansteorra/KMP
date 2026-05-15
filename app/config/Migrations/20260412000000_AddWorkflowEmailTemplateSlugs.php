@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Migrations\BaseMigration;
 use App\Migrations\CrossEngineMigrationTrait;
+use Migrations\BaseMigration;
 
 /**
  * Seed stable-slug email templates required by migrated workflow definitions.
@@ -36,7 +36,7 @@ class AddWorkflowEmailTemplateSlugs extends BaseMigration
 
         foreach ($templates as $tpl) {
             $existing = $this->fetchRow(
-                "SELECT id FROM email_templates WHERE slug = '" . $this->sqlEscape($tpl['slug']) . "' AND kingdom_id IS NULL",
+                "SELECT id FROM email_templates WHERE slug = '" . $this->sqlEscape($tpl['slug']) . "'",
             );
             if ($existing) {
                 continue;
@@ -47,7 +47,7 @@ class AddWorkflowEmailTemplateSlugs extends BaseMigration
                     (slug, name, description, mailer_class, action_method,
                      subject_template, text_template, html_template,
                      available_vars, variables_schema, is_active,
-                     created, modified, created_by, modified_by, kingdom_id)
+                      created, modified, created_by, modified_by)
                  VALUES (
                      '" . $this->sqlEscape($tpl['slug']) . "',
                      '" . $this->sqlEscape($tpl['name']) . "',
@@ -60,7 +60,7 @@ class AddWorkflowEmailTemplateSlugs extends BaseMigration
                      '" . $this->sqlEscape(json_encode($tpl['available_vars'])) . "',
                      '" . $this->sqlEscape(json_encode($tpl['variables_schema'])) . "',
                      TRUE,
-                     '{$now}', '{$now}', 1, 1, NULL
+                      '{$now}', '{$now}', 1, 1
                  )",
             );
         }
@@ -82,7 +82,7 @@ class AddWorkflowEmailTemplateSlugs extends BaseMigration
 
         foreach ($slugs as $slug) {
             $this->execute(
-                "DELETE FROM email_templates WHERE slug = '" . $this->sqlEscape($slug) . "' AND kingdom_id IS NULL",
+                "DELETE FROM email_templates WHERE slug = '" . $this->sqlEscape($slug) . "'",
             );
         }
     }
@@ -128,8 +128,8 @@ class AddWorkflowEmailTemplateSlugs extends BaseMigration
                     "Welcome, {{memberScaName}}!\n\n" .
                     "To verify your email address please use the link below to set your password.\n\n" .
                     "{{passwordResetUrl}}\n\n" .
-                    "This link will be good for 1 day. If you do not set your password within that time frame " .
-                    "you will need to request a new password reset email from the \"forgot password\" link on " .
+                    'This link will be good for 1 day. If you do not set your password within that time frame ' .
+                    'you will need to request a new password reset email from the "forgot password" link on ' .
                     "the login page.\n\n\n" .
                     "Thank you\n{{siteAdminSignature}}.",
                 'available_vars' => ['memberScaName', 'passwordResetUrl', 'portalName', 'siteAdminSignature'],
@@ -149,7 +149,7 @@ class AddWorkflowEmailTemplateSlugs extends BaseMigration
                 'subject_template' => 'New Member Registration: {{memberScaName}}',
                 'text_template' =>
                     "Good day,\n\n" .
-                    "{{memberScaName}} has recently registered. They have been emailed to set their password " .
+                    '{{memberScaName}} has recently registered. They have been emailed to set their password ' .
                     "and their membership card was {{memberCardPresent}}.\n\n" .
                     "You can view their information at the link below:\n" .
                     "{{memberViewUrl}}\n\n\n" .
@@ -171,8 +171,8 @@ class AddWorkflowEmailTemplateSlugs extends BaseMigration
                 'subject_template' => 'New Minor Member Registration: {{memberScaName}}',
                 'text_template' =>
                     "Good day,\n\n" .
-                    "A new minor named {{memberScaName}} has recently registered. Their account is currently " .
-                    "inaccessible and they have been notified you will follow up. Their membership card " .
+                    'A new minor named {{memberScaName}} has recently registered. Their account is currently ' .
+                    'inaccessible and they have been notified you will follow up. Their membership card ' .
                     "was {{memberCardPresent}} at the time of registration.\n\n" .
                     "You can view their information at the link below:\n" .
                     "{{memberViewUrl}}\n\n\n" .
@@ -194,9 +194,9 @@ class AddWorkflowEmailTemplateSlugs extends BaseMigration
                 'subject_template' => 'Appointment Notification: {{officeName}}',
                 'text_template' =>
                     "Good day {{memberScaName}}\n\n" .
-                    "First we would like to thank you for your offer of service in the office of " .
+                    'First we would like to thank you for your offer of service in the office of ' .
                     "{{officeName}} for {{branchName}}.\n" .
-                    "We are pleased to inform you that your offer has been accepted and you have been " .
+                    'We are pleased to inform you that your offer has been accepted and you have been ' .
                     "appointed and can start in the role on {{hireDate}}.\n\n" .
                     "{{requiresWarrantNotice}}\n\n" .
                     "Office: {{officeName}}\n" .
@@ -227,10 +227,10 @@ class AddWorkflowEmailTemplateSlugs extends BaseMigration
                 'subject_template' => 'Release from Office Notification: {{officeName}}',
                 'text_template' =>
                     "Good day {{memberScaName}}\n\n" .
-                    "We regret to inform you that you have been released from the office of {{officeName}} " .
+                    'We regret to inform you that you have been released from the office of {{officeName}} ' .
                     "for {{branchName}} as of {{releaseDate}}.\n\n" .
                     "The reason for this release is: {{reason}}.\n\n" .
-                    "We thank you for your service and hope that you will continue to offer your service " .
+                    'We thank you for your service and hope that you will continue to offer your service ' .
                     "in other capacities.\n\n" .
                     "Thank you\n{{siteAdminSignature}}.",
                 'available_vars' => ['memberScaName', 'officeName', 'branchName', 'reason', 'releaseDate', 'siteAdminSignature'],

@@ -12,8 +12,6 @@ use Cake\Validation\Validator;
 /**
  * EmailTemplates Model
  *
- * Supports workflow-native templates identified by slug + kingdom_id.
- *
  * @method \App\Model\Entity\EmailTemplate newEmptyEntity()
  * @method \App\Model\Entity\EmailTemplate newEntity(array $data, array $options = [])
  * @method array<\App\Model\Entity\EmailTemplate> newEntities(array $data, array $options = [])
@@ -28,7 +26,6 @@ use Cake\Validation\Validator;
  * @method iterable<\App\Model\Entity\EmailTemplate>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\EmailTemplate>|false deleteMany(iterable $entities, array $options = [])
  * @method iterable<\App\Model\Entity\EmailTemplate>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\EmailTemplate> deleteManyOrFail(iterable $entities, array $options = [])
  * @mixin \Cake\ORM\Behavior\TimestampBehavior
- * @property \App\Model\Table\BranchesTable&\Cake\ORM\Association\BelongsTo $Kingdoms
  */
 class EmailTemplatesTable extends Table
 {
@@ -47,11 +44,6 @@ class EmailTemplatesTable extends Table
         $this->setPrimaryKey('id');
 
         $this->addBehavior('Timestamp');
-
-        $this->belongsTo('Kingdoms', [
-            'className' => 'Branches',
-            'foreignKey' => 'kingdom_id',
-        ]);
     }
 
     /**
@@ -100,10 +92,6 @@ class EmailTemplatesTable extends Table
         $validator
             ->scalar('description')
             ->allowEmptyString('description');
-
-        $validator
-            ->integer('kingdom_id')
-            ->allowEmptyString('kingdom_id');
 
         // --- Template content ---
         $validator
@@ -193,10 +181,7 @@ class EmailTemplatesTable extends Table
                     return true;
                 }
 
-                $query = $this->find()->where([
-                    'slug' => $entity->slug,
-                    'kingdom_id IS' => $entity->kingdom_id,
-                ]);
+                $query = $this->find()->where(['slug' => $entity->slug]);
 
                 if (!$entity->isNew()) {
                     $query->where(['id !=' => $entity->id]);
@@ -206,39 +191,23 @@ class EmailTemplatesTable extends Table
             },
             [
                 'errorField' => 'slug',
-                'message' => 'A template with this slug already exists for the selected kingdom',
+                    'message' => 'A template with this slug already exists',
             ],
         );
-
-        $rules->addCreate($rules->existsIn('kingdom_id', 'Kingdoms'), ['errorField' => 'kingdom_id']);
-        $rules->addUpdate($rules->existsIn('kingdom_id', 'Kingdoms'), ['errorField' => 'kingdom_id']);
 
         return $rules;
     }
 
     /**
-     * Find an active template by its workflow-native slug, with optional kingdom scoping.
-     *
-     * Falls back to the global (kingdom_id = NULL) template when no kingdom-specific
-     * override exists, mirroring the workflow_definitions resolution pattern.
+     * Find an active template by its workflow-native slug.
      *
      * @param string $slug Template slug
-     * @param int|null $kingdomId Kingdom branch ID for scoped lookup
      * @return \App\Model\Entity\EmailTemplate|null
      */
-    public function findForSlug(string $slug, ?int $kingdomId = null): ?object
+    public function findForSlug(string $slug): ?object
     {
-        if ($kingdomId !== null) {
-            $scoped = $this->find()
-                ->where(['slug' => $slug, 'kingdom_id' => $kingdomId, 'is_active' => true])
-                ->first();
-            if ($scoped !== null) {
-                return $scoped;
-            }
-        }
-
         return $this->find()
-            ->where(['slug' => $slug, 'kingdom_id IS' => null, 'is_active' => true])
+            ->where(['slug' => $slug, 'is_active' => true])
             ->first();
     }
 

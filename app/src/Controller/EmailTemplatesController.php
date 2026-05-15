@@ -97,7 +97,7 @@ class EmailTemplatesController extends AppController
      */
     public function view($id = null)
     {
-        $emailTemplate = $this->EmailTemplates->get($id, contain: ['Kingdoms']);
+        $emailTemplate = $this->EmailTemplates->get($id);
         $this->Authorization->authorize($emailTemplate, 'view');
 
         $rendererService = new EmailTemplateRendererService();
@@ -129,12 +129,7 @@ class EmailTemplatesController extends AppController
             $this->Flash->error(__('The email template could not be saved. Please, try again.'));
         }
 
-        $kingdoms = $this->fetchTable('Branches')->find('list', keyField: 'id', valueField: 'name')
-            ->where(['type' => 'Kingdom'])
-            ->orderBy(['name' => 'ASC'])
-            ->toArray();
-
-        $this->set(compact('emailTemplate', 'kingdoms'));
+        $this->set(compact('emailTemplate'));
     }
 
     /**
@@ -144,7 +139,7 @@ class EmailTemplatesController extends AppController
      */
     public function edit($id = null)
     {
-        $emailTemplate = $this->EmailTemplates->get($id, contain: ['Kingdoms']);
+        $emailTemplate = $this->EmailTemplates->get($id);
         $this->Authorization->authorize($emailTemplate, 'update');
 
         if ($this->request->is(['patch', 'post', 'put'])) {
@@ -158,12 +153,7 @@ class EmailTemplatesController extends AppController
             $this->Flash->error(__('The email template could not be saved. Please, try again.'));
         }
 
-        $kingdoms = $this->fetchTable('Branches')->find('list', keyField: 'id', valueField: 'name')
-            ->where(['type' => 'Kingdom'])
-            ->orderBy(['name' => 'ASC'])
-            ->toArray();
-
-        $this->set(compact('emailTemplate', 'kingdoms'));
+        $this->set(compact('emailTemplate'));
     }
 
     /**

@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
 
-use Migrations\BaseMigration;
 use App\Migrations\CrossEngineMigrationTrait;
+use Migrations\BaseMigration;
 
 /**
  * Republishes the current award recommendation workflow definitions and activates them.
@@ -95,7 +95,7 @@ class PublishActiveAwardRecommendationWorkflowDefinitions extends BaseMigration
         $definitionRow = $this->fetchRow(
             "SELECT id
              FROM workflow_definitions
-             WHERE slug = '{$slug}' AND kingdom_id IS NULL
+             WHERE slug = '{$slug}'
              ORDER BY id DESC
              LIMIT 1",
         );
@@ -136,7 +136,7 @@ class PublishActiveAwardRecommendationWorkflowDefinitions extends BaseMigration
             $definitionRow = $this->fetchRow(
                 "SELECT id
                  FROM workflow_definitions
-                 WHERE slug = '{$slug}' AND kingdom_id IS NULL
+                  WHERE slug = '{$slug}'
                  ORDER BY id DESC
                  LIMIT 1",
             );

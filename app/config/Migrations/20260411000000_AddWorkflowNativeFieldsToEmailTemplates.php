@@ -7,13 +7,13 @@ use Migrations\BaseMigration;
 /**
  * Introduce workflow-native identity fields to email_templates.
  *
- * New first-class fields: slug (stable key), name, description, kingdom_id,
- * and variables_schema (explicit variable contract for workflow-native templates).
+ * New first-class fields: slug (stable key), name, description, and
+ * variables_schema (explicit variable contract for workflow-native templates).
  *
  * Legacy provenance fields mailer_class and action_method are demoted to
  * nullable so workflow-native templates do not require them.  The old unique
  * index on (mailer_class, action_method) is replaced with:
- *   - a composite unique index on (slug, kingdom_id) for workflow-native identity
+ *   - a unique index on slug for workflow-native identity
  *   - a partial-style unique index on (mailer_class, action_method) retained for
  *     legacy lookup, but these columns now allow NULL.
  */
@@ -48,7 +48,7 @@ class AddWorkflowNativeFieldsToEmailTemplates extends BaseMigration
                 'default' => null,
                 'limit' => 100,
                 'after' => 'id',
-                'comment' => 'Stable workflow-native key (e.g. warrant-issued). Unique per kingdom_id.',
+                'comment' => 'Stable workflow-native key (e.g. warrant-issued).',
             ])
             ->addColumn('name', 'string', [
                 'null' => true,
@@ -63,12 +63,6 @@ class AddWorkflowNativeFieldsToEmailTemplates extends BaseMigration
                 'after' => 'name',
                 'comment' => 'Admin-facing description of template purpose',
             ])
-            ->addColumn('kingdom_id', 'integer', [
-                'null' => true,
-                'default' => null,
-                'after' => 'description',
-                'comment' => 'FK to branches (kingdom). NULL = global/default template.',
-            ])
             ->addColumn('variables_schema', 'text', [
                 'null' => true,
                 'default' => null,
@@ -79,22 +73,11 @@ class AddWorkflowNativeFieldsToEmailTemplates extends BaseMigration
         // Remove old unique index keyed on legacy columns
         $table->removeIndexByName('idx_mailer_action_unique');
 
-        // Add workflow-native composite unique index on (slug, kingdom_id)
-        $table->addIndex(['slug', 'kingdom_id'], [
+        // Add workflow-native unique slug index
+        $table->addIndex(['slug'], [
             'unique' => true,
-            'name' => 'idx_et_slug_kingdom',
+            'name' => 'idx_et_slug',
         ]);
-
-        // Add kingdom FK and index
-        $table
-            ->addForeignKey('kingdom_id', 'branches', 'id', [
-                'delete' => 'SET_NULL',
-                'update' => 'NO_ACTION',
-                'constraint' => 'fk_email_templates_kingdom',
-            ])
-            ->addIndex(['kingdom_id'], [
-                'name' => 'idx_et_kingdom',
-            ]);
 
         $table->update();
     }

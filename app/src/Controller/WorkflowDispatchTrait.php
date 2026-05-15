@@ -15,7 +15,7 @@ use Throwable;
  * Workflow dispatch helpers for controllers.
  *
  * Resolves the current kingdom from the authenticated member's branch
- * hierarchy and uses kingdom-scoped lookup for workflow definitions.
+ * hierarchy and includes it as workflow event context.
  */
 trait WorkflowDispatchTrait
 {
@@ -24,8 +24,8 @@ trait WorkflowDispatchTrait
     /**
      * Dispatch to the workflow engine and fail when no active definition is available.
      *
-     * Resolves the current kingdom from the authenticated user's branch hierarchy,
-     * then uses kingdom-scoped lookup to find the appropriate workflow definition.
+     * Resolves the current kingdom from the authenticated user's branch hierarchy
+     * and includes it in the dispatch context.
      *
      * @param \App\Services\WorkflowEngine\TriggerDispatcher $dispatcher Workflow trigger dispatcher
      * @param string $slug Workflow definition slug
@@ -40,7 +40,7 @@ trait WorkflowDispatchTrait
         array $context,
     ): array {
         $kingdomId = $this->resolveKingdomId($context);
-        $def = $this->findActiveDefinition($slug, $kingdomId);
+        $def = $this->findActiveDefinition($slug);
 
         if (!$def || !$def->current_version) {
             throw new RuntimeException("No active workflow definition found for {$slug}.");
@@ -269,26 +269,15 @@ trait WorkflowDispatchTrait
     }
 
     /**
-     * Find an active workflow definition with kingdom scoping.
-     *
-     * Uses kingdom-scoped lookup when a kingdom is available, falling back
-     * to global-only lookup otherwise.
+     * Find an active workflow definition by slug.
      *
      * @param string $slug Workflow definition slug
-     * @param int|null $kingdomId Kingdom branch ID, or null for global-only
      * @return \App\Model\Entity\WorkflowDefinition|null
      */
-    private function findActiveDefinition(string $slug, ?int $kingdomId): ?WorkflowDefinition
+    private function findActiveDefinition(string $slug): ?WorkflowDefinition
     {
         $table = TableRegistry::getTableLocator()->get('WorkflowDefinitions');
-
-        if ($kingdomId !== null) {
-            $def = $this->findForKingdom($kingdomId, $slug);
-        } else {
-            $def = $table->find()
-                ->where(['slug' => $slug, 'kingdom_id IS' => null])
-                ->first();
-        }
+        $def = $this->findWorkflowDefinitionBySlug($slug);
 
         if (!$def || !$def->is_active || !$def->current_version_id) {
             return null;

@@ -50,37 +50,10 @@ class EmailTemplateResolverServiceTest extends BaseTestCase
 
     public function testResolveBySlugReturnsGlobalTemplate(): void
     {
-        $this->saveTemplate(['slug' => 'test-global-template', 'kingdom_id' => null]);
+        $this->saveTemplate(['slug' => 'test-global-template']);
 
         $template = $this->resolver->resolveBySlug('test-global-template');
         $this->assertSame('test-global-template', $template->slug);
-        $this->assertNull($template->kingdom_id);
-    }
-
-    public function testResolveBySlugWithKingdomFallsBackToGlobal(): void
-    {
-        $this->saveTemplate(['slug' => 'test-fallback-template', 'kingdom_id' => null]);
-
-        $template = $this->resolver->resolveBySlug('test-fallback-template', 999);
-        $this->assertSame('test-fallback-template', $template->slug);
-        $this->assertNull($template->kingdom_id);
-    }
-
-    public function testResolveBySlugPrefersKingdomOverGlobal(): void
-    {
-        $this->saveTemplate(['slug' => 'test-override-template', 'kingdom_id' => null]);
-
-        $branches = $this->getTableLocator()->get('Branches');
-        $kingdom = $branches->find()->where(['type' => 'Kingdom'])->first();
-        if ($kingdom === null) {
-            $this->markTestSkipped('No kingdom branch available in test database');
-        }
-
-        $this->saveTemplate(['slug' => 'test-override-template', 'kingdom_id' => $kingdom->id]);
-
-        $template = $this->resolver->resolveBySlug('test-override-template', $kingdom->id);
-        $this->assertSame('test-override-template', $template->slug);
-        $this->assertSame($kingdom->id, $template->kingdom_id);
     }
 
     public function testResolveBySlugThrowsWhenNotFound(): void
@@ -93,17 +66,17 @@ class EmailTemplateResolverServiceTest extends BaseTestCase
 
     public function testResolveBySlugThrowsWhenInactive(): void
     {
-        $this->saveTemplate(['slug' => 'test-inactive-template', 'kingdom_id' => null, 'is_active' => false]);
+        $this->saveTemplate(['slug' => 'test-inactive-template', 'is_active' => false]);
 
         $this->expectException(EmailTemplateNotFoundException::class);
         $this->resolver->resolveBySlug('test-inactive-template');
     }
 
-    public function testResolveBySlugExceptionMentionsKingdomScope(): void
+    public function testResolveBySlugExceptionMentionsSlug(): void
     {
         $this->expectException(EmailTemplateNotFoundException::class);
-        $this->expectExceptionMessageMatches('/kingdom #42/');
+        $this->expectExceptionMessageMatches('/missing-slug/');
 
-        $this->resolver->resolveBySlug('missing-slug', 42);
+        $this->resolver->resolveBySlug('missing-slug');
     }
 }

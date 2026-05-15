@@ -2,13 +2,16 @@
 
 declare(strict_types=1);
 
-use Migrations\BaseMigration;
 use App\Migrations\CrossEngineMigrationTrait;
+use Migrations\BaseMigration;
 
 class AddOfficerAssignmentAdjustedEmailTemplate extends BaseMigration
 {
     use CrossEngineMigrationTrait;
 
+    /**
+     * @return void
+     */
     public function up(): void
     {
         $now = date('Y-m-d H:i:s');
@@ -45,13 +48,13 @@ class AddOfficerAssignmentAdjustedEmailTemplate extends BaseMigration
             . "Start Date: {{newStartDate}}\n"
             . "End Date: {{newEndDate}}\n\n"
             . "Reason: {{reason}}\n\n"
-            . "This is a scheduling adjustment caused by an overlapping replacement assignment. "
+            . 'This is a scheduling adjustment caused by an overlapping replacement assignment. '
             . "It is not a disciplinary release.\n\n"
-            . "Thank you\n{{siteAdminSignature}}."
+            . "Thank you\n{{siteAdminSignature}}.",
         );
 
         $existing = $this->fetchRow(
-            "SELECT id FROM email_templates WHERE slug = 'officer-assignment-adjusted-notification' AND kingdom_id IS NULL LIMIT 1",
+            "SELECT id FROM email_templates WHERE slug = 'officer-assignment-adjusted-notification' LIMIT 1",
         );
 
         if ($existing) {
@@ -73,8 +76,20 @@ class AddOfficerAssignmentAdjustedEmailTemplate extends BaseMigration
         }
 
         $this->execute(
-            "INSERT INTO email_templates
-                (slug, name, description, subject_template, text_template, available_vars, variables_schema, is_active, kingdom_id, created, modified, created_by, modified_by)
+            "INSERT INTO email_templates (
+                    slug,
+                    name,
+                    description,
+                    subject_template,
+                    text_template,
+                    available_vars,
+                    variables_schema,
+                    is_active,
+                    created,
+                    modified,
+                    created_by,
+                    modified_by
+                )
              VALUES
                 (
                     'officer-assignment-adjusted-notification',
@@ -85,7 +100,6 @@ class AddOfficerAssignmentAdjustedEmailTemplate extends BaseMigration
                     '{$availableVars}',
                     '{$variablesSchema}',
                     TRUE,
-                    NULL,
                     '{$now}',
                     '{$now}',
                     1,
@@ -94,10 +108,13 @@ class AddOfficerAssignmentAdjustedEmailTemplate extends BaseMigration
         );
     }
 
+    /**
+     * @return void
+     */
     public function down(): void
     {
         $this->execute(
-            "DELETE FROM email_templates WHERE slug = 'officer-assignment-adjusted-notification' AND kingdom_id IS NULL",
+            "DELETE FROM email_templates WHERE slug = 'officer-assignment-adjusted-notification'",
         );
     }
 }

@@ -11,9 +11,8 @@ use Cake\ORM\Locator\LocatorAwareTrait;
 /**
  * Resolves active email templates by stable slug identity.
  *
- * Falls back to the global (kingdom_id = NULL) template when no kingdom-specific
- * override exists. Throws EmailTemplateNotFoundException (never returns null) so
- * callers can rely on a valid, active template or fail explicitly.
+ * Throws EmailTemplateNotFoundException (never returns null) so callers can rely
+ * on a valid, active template or fail explicitly.
  *
  * @property \App\Model\Table\EmailTemplatesTable $EmailTemplates
  */
@@ -32,24 +31,19 @@ class EmailTemplateResolverService
     }
 
     /**
-     * Resolve an active template by slug with optional kingdom scope.
-     *
-     * If a kingdom-specific template exists it takes precedence; otherwise the
-     * global (kingdom_id = NULL) template is returned.
+     * Resolve an active template by slug.
      *
      * @param string $slug Stable template slug
-     * @param int|null $kingdomId Kingdom branch ID, or null for global-only lookup
      * @return \App\Model\Entity\EmailTemplate
      * @throws \App\Exception\EmailTemplateNotFoundException
      */
-    public function resolveBySlug(string $slug, ?int $kingdomId = null): EmailTemplate
+    public function resolveBySlug(string $slug): EmailTemplate
     {
-        $template = $this->emailTemplates->findForSlug($slug, $kingdomId);
+        $template = $this->emailTemplates->findForSlug($slug);
         if ($template === null) {
-            throw EmailTemplateNotFoundException::forSlug($slug, $kingdomId);
+            throw EmailTemplateNotFoundException::forSlug($slug);
         }
 
         return $template;
     }
-
 }
