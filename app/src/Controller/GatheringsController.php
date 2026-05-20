@@ -402,7 +402,7 @@ class GatheringsController extends AppController
             'baseQuery' => $baseQuery,
             'tableName' => 'Gatherings',
             'defaultSort' => ['Gatherings.start_date' => 'ASC'],
-            'defaultPageSize' => 200,
+            'disablePagination' => true,
             'showAllTab' => false,
             'showViewTabs' => false,
             'canAddViews' => false,

@@ -52,6 +52,11 @@ trait DataverseGridTrait
      *   - enableBulkSelection (bool): Whether row selection checkboxes are shown (default: false)
      *   - bulkActions (array): Array of bulk action button configurations when enableBulkSelection is true.
      *       Each action is an array with keys: label, icon, modalTarget, permission.
+     *   - disablePagination (bool): When true, bypasses the paginator and returns all matching
+     *       records. Use for views (e.g. calendar) that are already filtered to a bounded date
+     *       range and must show every result without an arbitrary row cap.
+     *       **Caller responsibility**: the `baseQuery` MUST include WHERE clauses that bound
+     *       the result set (e.g. a date range) to avoid fetching unbounded data. (default: false)
      *
      * NOTE: Authorization scope must be applied to baseQuery BEFORE calling this method.
      * Use `$baseQuery = $this->Authorization->applyScope($baseQuery, 'index');` in your
@@ -72,6 +77,7 @@ trait DataverseGridTrait
         $tableName = $config['tableName'];
         $defaultSort = $config['defaultSort'];
         $defaultPageSize = $config['defaultPageSize'] ?? 25;
+        $disablePagination = $config['disablePagination'] ?? false;
         $systemViews = $config['systemViews'] ?? null;
         $defaultSystemView = $config['defaultSystemView'] ?? null;
         $queryCallback = $config['queryCallback'] ?? null;
@@ -700,8 +706,12 @@ trait DataverseGridTrait
         }
 
         // Set up pagination
-        $this->paginate = ['limit' => $pageSize];
-        $data = $this->paginate($baseQuery);
+        if ($disablePagination) {
+            $data = $baseQuery->all();
+        } else {
+            $this->paginate = ['limit' => $pageSize];
+            $data = $this->paginate($baseQuery);
+        }
 
         // Check if there are any searchable columns (for search functionality)
         $hasSearchableColumns = !empty(array_filter(
