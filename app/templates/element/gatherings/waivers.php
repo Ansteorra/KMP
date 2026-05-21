@@ -115,7 +115,7 @@ if ($waiverCollectionClosed === null && class_exists('Waivers\Model\Table\Gather
             <div class="alert alert-success mt-3">
                 <i class="bi bi-check-circle"></i>
                 <?php if ($gathering->waivers_collected): ?>
-                    <?= __('Waivers have been collected and uploaded for this gathering. Activities are now locked.') ?>
+                    <?= __('Waivers have been collected and uploaded for this gathering.') ?>
                 <?php else: ?>
                     <?= __('Waivers are being uploaded. Mark as collected when complete.') ?>
                 <?php endif; ?>

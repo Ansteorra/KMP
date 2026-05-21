@@ -333,12 +333,12 @@ $isCancelled = $gathering->cancelled_at !== null;
             </tbody>
         </table>
     </div>
-    <?php if ($user && $user->checkCan('edit', $gathering) && !$hasWaivers): ?>
+    <?php if ($user && $user->checkCan('edit', $gathering) && !$waiverCollectionClosed): ?>
     <!-- Important Notice -->
-    <div class="alert alert-secondary">
-        <i class="bi bi-exclamation-triangle"></i>
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i>
         <strong><?= __('Important:') ?></strong>
-        <?= __('Once waivers are uploaded, gathering waiver requirements should not be changed to prevent data inconsistencies.') ?>
+        <?= __('Adding activities can introduce new waiver requirements for this gathering.') ?>
     </div>
     <?php endif; ?>
 
