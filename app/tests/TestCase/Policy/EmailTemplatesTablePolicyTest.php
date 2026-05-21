@@ -74,6 +74,16 @@ class EmailTemplatesTablePolicyTest extends BaseTestCase
         $this->assertFalse($this->policy->canEdit($agatha, $entity));
     }
 
+    public function testNonPrivilegedUserCannotEditTable(): void
+    {
+        $agatha = $this->loadMember(self::TEST_MEMBER_AGATHA_ID);
+        $table = $this->getTable();
+
+        $beforeResult = $this->policy->before($agatha, $table, 'edit');
+        $this->assertNull($beforeResult);
+        $this->assertFalse($this->policy->canEdit($agatha, $table));
+    }
+
     public function testNonPrivilegedUserCannotDelete(): void
     {
         $agatha = $this->loadMember(self::TEST_MEMBER_AGATHA_ID);

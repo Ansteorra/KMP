@@ -22,11 +22,10 @@ class ActivityAwardsCell extends Cell
     /**
      * Prepare and expose awards data related to a gathering activity for the view.
      *
-     * Loads the gathering activity, enforces view/edit permissions, fetches awards
-     * associated with the activity (including domain, level, and branch relationships),
-     * and computes a list of awards not yet associated for addition when the user can edit.
+     * Loads the gathering activity, enforces view/edit permissions, and computes
+     * a list of awards not yet associated for addition when the user can edit.
      *
-     * Exposes template variables: `gatheringActivity`, `awards`, `canEdit`, and `availableAwards`.
+     * Exposes template variables: `gatheringActivity`, `canEdit`, and `availableAwards`.
      *
      * @param int $activityId The ID of the gathering activity.
      */
@@ -46,20 +45,16 @@ class ActivityAwardsCell extends Cell
         // Check if user can edit (for add/remove functionality)
         $canEdit = $user->can('edit', $gatheringActivity);
 
-        // Load awards that are associated with this gathering activity
-        // We query from the Awards side since that's where the relationship exists
         $awardsTable = TableRegistry::getTableLocator()->get('Awards.Awards');
-        $awards = $awardsTable->find()
-            ->matching('GatheringActivities', function ($q) use ($activityId) {
-                return $q->where(['GatheringActivities.id' => $activityId]);
-            })
-            ->contain(['Domains', 'Levels', 'Branches'])
-            ->all();
-
-        // Get existing award IDs for filtering available awards
-        $existingAwardIds = array_map(function ($award) {
-            return $award->id;
-        }, $awards->toArray());
+        $existingAwardIds = TableRegistry::getTableLocator()
+            ->get('Awards.AwardGatheringActivities')
+            ->find()
+            ->select(['award_id'])
+            ->where(['gathering_activity_id' => $activityId])
+            ->disableHydration()
+            ->all()
+            ->extract('award_id')
+            ->toList();
 
         // Get available awards (not already associated)
         $availableAwards = [];
@@ -75,6 +70,6 @@ class ActivityAwardsCell extends Cell
                 ->toArray();
         }
 
-        $this->set(compact('gatheringActivity', 'awards', 'canEdit', 'availableAwards'));
+        $this->set(compact('gatheringActivity', 'canEdit', 'availableAwards'));
     }
 }

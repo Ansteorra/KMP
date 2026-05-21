@@ -447,6 +447,27 @@ describe('AutoCompleteController', () => {
         expect(controller.sibling).toHaveBeenCalledWith(true);
     });
 
+    test('onArrowDownKeydown selects first rendered combobox option from object-backed list', () => {
+        setupController();
+        controller.resultsTarget.innerHTML = `
+            <li id="opt-1" role="option" data-ac-value="1" aria-selected="false">General</li>
+            <li id="opt-2" role="option" data-ac-value="2" aria-selected="false">Service</li>
+        `;
+        controller.resultsTarget.querySelectorAll('li').forEach((item) => {
+            item.scrollIntoView = jest.fn();
+        });
+        controller._selectOptions = [
+            { value: '1', text: 'General' },
+            { value: '2', text: 'Service' },
+        ];
+        controller.resultsShown = true;
+
+        controller.onArrowDownKeydown({ key: 'ArrowDown', preventDefault: jest.fn() });
+
+        expect(controller.resultsTarget.querySelector('#opt-1').getAttribute('aria-selected')).toBe('true');
+        expect(controller.inputTarget.getAttribute('aria-activedescendant')).toBe('opt-1');
+    });
+
     test('onArrowUpKeydown calls preventDefault and selects via sibling', () => {
         setupController();
         const mockElement = document.createElement('li');
@@ -866,6 +887,22 @@ describe('AutoCompleteController', () => {
         expect(opt2.getAttribute('aria-selected')).toBe('true');
     });
 
+    test('select resolves object-backed option to rendered result item', () => {
+        setupController();
+        controller.resultsTarget.innerHTML = `
+            <li id="opt-1" role="option" data-ac-value="1" aria-selected="false">General</li>
+            <li id="opt-2" role="option" data-ac-value="2" aria-selected="false">Service</li>
+        `;
+        const opt2 = controller.resultsTarget.querySelector('#opt-2');
+        opt2.scrollIntoView = jest.fn();
+
+        controller.select({ value: '2', text: 'Service' });
+
+        expect(opt2.getAttribute('aria-selected')).toBe('true');
+        expect(opt2.classList.contains('active')).toBe(true);
+        expect(controller.inputTarget.getAttribute('aria-activedescendant')).toBe('opt-2');
+    });
+
     // ==================== selectedOption / sibling ====================
 
     test('selectedOption returns aria-selected element', () => {
@@ -925,10 +962,15 @@ describe('AutoCompleteController', () => {
         setupController({ allowOther: false });
         controller._selectOptions = [{ value: '1', text: 'Known Item' }];
         controller.inputTarget.value = 'Known Item';
+        const handler = jest.fn();
+        controller.element.addEventListener('autocomplete.change', handler);
 
         controller.onTabKeydown({});
 
         expect(controller.hiddenTarget.value).toBe('1');
+        expect(handler).toHaveBeenCalledWith(expect.objectContaining({
+            detail: expect.objectContaining({ value: '1', textValue: 'Known Item' })
+        }));
     });
 
     test('onTabKeydown with empty input calls clear', () => {
@@ -939,6 +981,41 @@ describe('AutoCompleteController', () => {
         controller.onTabKeydown({});
 
         expect(controller.clear).toHaveBeenCalled();
+    });
+
+    test('onTabKeydown cancels pending debounced input clearing for exact matches', () => {
+        jest.useFakeTimers();
+        try {
+            setupController({ allowOther: false, delay: 300 });
+            controller._selectOptions = [{ value: '1', text: 'Known Item' }];
+            controller.connect();
+            controller.inputTarget.value = 'Known Item';
+
+            controller.onInputChange();
+            controller.onTabKeydown({});
+            jest.advanceTimersByTime(300);
+
+            expect(controller.hiddenTarget.value).toBe('1');
+            expect(controller.hiddenTextTarget.value).toBe('Known Item');
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    test('onInputBlur without allowOther commits exact text match and fires change event', () => {
+        setupController({ allowOther: false });
+        controller._selectOptions = [{ value: '1', text: 'Known Item' }];
+        controller.inputTarget.value = 'Known Item';
+        controller.state = 'open';
+        const handler = jest.fn();
+        controller.element.addEventListener('autocomplete.change', handler);
+
+        controller.onInputBlur();
+
+        expect(controller.hiddenTarget.value).toBe('1');
+        expect(handler).toHaveBeenCalledWith(expect.objectContaining({
+            detail: expect.objectContaining({ value: '1', textValue: 'Known Item' })
+        }));
     });
 
     // ==================== Disconnect ====================

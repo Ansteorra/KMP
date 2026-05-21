@@ -8,25 +8,28 @@ use Cake\ORM\Locator\LocatorAwareTrait;
 /**
  * Manages gathering-activity associations: linking, unlinking, and description updates.
  *
- * Handles the join table between gatherings and gathering_activities, including
- * waiver-lock checks that prevent modifications when waivers have been uploaded.
+ * Handles the join table between gatherings and gathering_activities.
  */
 class GatheringActivityService
 {
     use LocatorAwareTrait;
 
     /**
-     * Check whether the gathering has uploaded waivers that lock activity changes.
+     * Check whether the gathering already has uploaded waivers.
      *
      * @param int $gatheringId Gathering id
-     * @return bool True if waivers exist and activities are locked
+     * @return bool True if waivers exist for the gathering
      */
-    public function hasWaiverLock(int $gatheringId): bool
+    public function hasUploadedWaivers(int $gatheringId): bool
     {
-        // TODO: Implement when Waivers plugin is available
-        // return $this->fetchTable('Waivers.GatheringWaivers')
-        //     ->find()->where(['gathering_id' => $gatheringId])->count() > 0;
-        return false;
+        if (!class_exists('Waivers\Model\Table\GatheringWaiversTable')) {
+            return false;
+        }
+
+        return $this->fetchTable('Waivers.GatheringWaivers')
+            ->find()
+            ->where(['gathering_id' => $gatheringId])
+            ->count() > 0;
     }
 
     /**

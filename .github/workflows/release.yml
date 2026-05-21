@@ -10,8 +10,8 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/kmp
-  BASE_IMAGE: ghcr.io/${{ github.repository_owner }}/kmp-base:php83
+  IMAGE_NAME: ansteorra/kmp
+  BASE_IMAGE: ghcr.io/ansteorra/kmp-base:php83
 
 jobs:
   # Ensure the pre-compiled PHP base image exists (build it if not).

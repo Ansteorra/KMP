@@ -18,13 +18,13 @@
             "Recommendation For",
             true,
             true,
-            3,
-            [
-                'data-awards-rec-edit-target' => 'scaMember',
-                'data-action' => 'change->awards-rec-edit#loadScaMemberInfo',
-                'data-ac-init-selection-value' => json_encode(['value' => $recommendation->member->public_id ?? null, 'text' => $recommendation->member_sca_name]),
-            ]
-        );
+        3,
+        [
+            'data-awards-rec-edit-target' => 'scaMember',
+            'data-action' => 'autocomplete.change->awards-rec-edit#loadScaMemberInfo',
+            'data-ac-init-selection-value' => json_encode(['value' => $recommendation->member->public_id ?? null, 'text' => $recommendation->member_sca_name]),
+        ]
+    );
         echo $this->Form->control('not_found', [
             'type' => 'checkbox',
             'label' => "Name not registered in " . $this->KMP->getAppSetting("KMP.ShortSiteTitle") . " database",

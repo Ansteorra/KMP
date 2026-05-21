@@ -19,6 +19,7 @@ class AwardsRecommendationQuickEditForm extends Controller {
     static targets = [
         "domain",
         "award",
+        "currentAwardId",
         "reason",
         "gatherings",
         "specialty",
@@ -136,6 +137,9 @@ class AwardsRecommendationQuickEditForm extends Controller {
     /** Fetch awards for domain and populate award selection with autocomplete. */
     populateAwardDescriptions(event) {
         let url = this.awardListUrlValue + "/" + event.target.value;
+        if (this.hasCurrentAwardIdTarget && this.currentAwardIdTarget.value) {
+            url += `?current_award_id=${encodeURIComponent(this.currentAwardIdTarget.value)}`;
+        }
         fetch(url, this.optionsForFetch())
             .then(response => response.json())
             .then(data => {

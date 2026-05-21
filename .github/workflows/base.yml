@@ -20,7 +20,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  BASE_IMAGE: ghcr.io/${{ github.repository_owner }}/kmp-base
+  BASE_IMAGE: ghcr.io/ansteorra/kmp-base
 
 jobs:
   build-base:

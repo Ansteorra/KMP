@@ -97,3 +97,22 @@ Feature: Award Recommendations
         Then the recommendation group head should list 2 grouped recommendations
         When I ungroup all recommendations from the detail view
         Then the recommendation detail page should not show the "Grouped" tab
+
+    Scenario: Submit recommendation marks unmatched recipients as not registered
+        When I navigate to "/awards/recommendations/submit-recommendation"
+        And I enter "Definitely Not In KMP" as an unmatched recommendation recipient
+        Then the submit recommendation form should mark the recipient as not registered
+        And the submit recommendation form should enable the local group field
+
+    Scenario: Public submit recommendation succeeds for an unmatched recipient
+        When I navigate to "/awards/recommendations/submit-recommendation"
+        And I submit a public recommendation for the unmatched recipient "Definitely Not In KMP"
+        Then I should see the flash message "The recommendation has been submitted."
+
+    Scenario: Recommendations grid does not link unmatched recipients to member profiles
+        When I navigate to "/awards/recommendations/submit-recommendation"
+        And I submit a public recommendation for the unmatched recipient "BDD External Recipient Link Guard"
+        And I am logged in as "admin@amp.ansteorra.org"
+        And I navigate to "/awards/recommendations"
+        And I search the grid for "BDD External Recipient Link Guard"
+        Then the recommendation row for "BDD External Recipient Link Guard" should not link to a member profile

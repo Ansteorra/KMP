@@ -23,6 +23,8 @@ uat_dump.sql
 prod_dump.sql
 /test-results/
 /.playwright-cli/
+.beads/
+.container-home/
 installer/kmp
 installers/bin
 installer/bin/
@@ -34,6 +36,7 @@ app/backups
 app/tests/mutation-reports/
 app/cookies.txt
 app/tests/nav-debug.png
+app/config/secrets.local.json
 
 # Azure deploy local settings (never commit — contains secrets)
 deploy/azure/nightly.env

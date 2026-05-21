@@ -340,7 +340,7 @@ $publicLandingUrl = $this->Url->build([
     data-detail-tabs-target="tabContent" data-tab-order="5" style="order: 5;">
 
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <?php if ($user->checkCan('edit', $gathering) && !$hasWaivers) : ?>
+        <?php if ($user->checkCan('edit', $gathering)) : ?>
         <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addActivityModal">
             <i class="bi bi-plus-circle"></i> <?= __('Add Activity') ?>
         </button>
@@ -388,7 +388,7 @@ $publicLandingUrl = $this->Url->build([
                                         ['escape' => false, 'title' => __('View'), 'class' => 'btn btn-sm btn-secondary'],
                                     ) ?>
                         <?php endif; ?>
-                        <?php if ($user->checkCan('edit', $gathering) && !$hasWaivers) : ?>
+                        <?php if ($user->checkCan('edit', $gathering)) : ?>
                         <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal"
                             data-bs-target="#editActivityDescriptionModal" data-activity-id="<?= $activity->id ?>"
                             data-activity-name="<?= h($activity->name) ?>"
@@ -397,6 +397,8 @@ $publicLandingUrl = $this->Url->build([
                             title="<?= __('Edit Description') ?>">
                             <i class="bi bi-pencil-fill"></i>
                         </button>
+                        <?php endif; ?>
+                        <?php if ($user->checkCan('edit', $gathering) && !$hasWaivers) : ?>
                         <?php if ($isNotRemovable): ?>
                         <button type="button" class="btn btn-sm btn-secondary" disabled
                             title="<?= __('This activity is required by the gathering type and cannot be removed') ?>">
@@ -425,7 +427,7 @@ $publicLandingUrl = $this->Url->build([
     <div class="alert alert-secondary">
         <i class="bi bi-info-circle"></i>
         <?= __('No activities have been added to this gathering yet.') ?>
-        <?php if ($user->checkCan('edit', $gathering) && !$hasWaivers) : ?>
+        <?php if ($user->checkCan('edit', $gathering)) : ?>
         <?= __('Click "Add Activity" above to get started.') ?>
         <?php endif; ?>
     </div>
@@ -458,7 +460,7 @@ echo $this->KMP->startBlock('modals');
 // Schedule modals are now rendered inside scheduleTab.php for Stimulus scope
 
 // Add Activity Modal
-if ($user->checkCan('edit', $gathering) && !$hasWaivers) {
+if ($user->checkCan('edit', $gathering)) {
     echo $this->element('gatherings/addActivityModal', [
         'gathering' => $gathering,
         'availableActivities' => $availableActivities,

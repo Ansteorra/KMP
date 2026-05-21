@@ -50,7 +50,7 @@ class AwardsRecommendationAddForm extends Controller {
         }
 
         // Get member_id if available
-        let memberId = this.hasScaMemberTarget ? this.scaMemberTarget.value : '';
+        let memberId = this.hasScaMemberTarget ? this.getAutocompleteValue(this.scaMemberTarget) : '';
 
         // Build URL with query params
         let url = this.gatheringsUrlValue + '/' + awardId;
@@ -137,6 +137,20 @@ class AwardsRecommendationAddForm extends Controller {
         }
     }
 
+    /** Read the selected hidden value from an autocomplete wrapper target. */
+    getAutocompleteValue(target) {
+        const hiddenTarget = target?.querySelector?.('[data-ac-target="hidden"]');
+        if (hiddenTarget) {
+            return typeof hiddenTarget.value === "string" ? hiddenTarget.value.trim() : "";
+        }
+
+        if (typeof target?.value === "string") {
+            return target.value.trim();
+        }
+
+        return "";
+    }
+
     /** Fetch awards for domain and create tabbed selection interface. */
     populateAwardDescriptions(event) {
         let url = this.awardListUrlValue + "/" + event.target.value;
@@ -166,10 +180,10 @@ class AwardsRecommendationAddForm extends Controller {
                         //create list item
                         awardList.push({ value: award.id, text: award.name, data: award });
                         //create tab info
-                        var tabButton = document.createElement("li");
+                        const tabButton = document.createElement("li");
                         tabButton.classList.add("nav-item");
                         tabButton.setAttribute("role", "presentation");
-                        var button = document.createElement("button");
+                        const button = document.createElement("button");
                         button.classList.add("nav-link");
                         if (active == "active") {
                             button.classList.add("active");
@@ -185,7 +199,7 @@ class AwardsRecommendationAddForm extends Controller {
                         button.setAttribute("aria-selected", selected);
                         button.innerHTML = award.name;
                         tabButton.appendChild(button);
-                        var tabContent = document.createElement("div");
+                        const tabContent = document.createElement("div");
                         tabContent.classList.add("tab-pane");
                         tabContent.classList.add("fade");
                         if (show == "show") {
@@ -244,7 +258,11 @@ class AwardsRecommendationAddForm extends Controller {
     loadScaMemberInfo(event) {
         //reset member metadata area
         this.externalLinksTarget.innerHTML = "";
-        let memberPublicId = event.target.value;
+        // Priority: hidden autocomplete selection, selected event detail, then raw text input fallback.
+        const memberPublicId = this.getAutocompleteValue(this.scaMemberTarget)
+            || (event?.detail?.selected ? String(event.detail.value ?? "").trim() : "")
+            || (event?.detail ? "" : (typeof event?.target?.value === "string" ? event.target.value.trim() : ""));
+
         if (memberPublicId && memberPublicId.length > 0) {
             this.notFoundTarget.checked = false;
             this.branchTarget.hidden = true;
@@ -268,7 +286,7 @@ class AwardsRecommendationAddForm extends Controller {
                 this.externalLinksTarget.innerHTML = "";
                 let keys = Object.keys(data.external_links);
                 if (keys.length > 0) {
-                    var LinksTitle = document.createElement("div");
+                    const LinksTitle = document.createElement("div");
                     LinksTitle.innerHTML = "<h5>Public Links</h5>";
                     LinksTitle.classList.add("col-12");
                     this.externalLinksTarget.appendChild(LinksTitle);
@@ -283,7 +301,7 @@ class AwardsRecommendationAddForm extends Controller {
                         this.externalLinksTarget.appendChild(div);
                     }
                 } else {
-                    var noLink = document.createElement("div");
+                    const noLink = document.createElement("div");
                     noLink.innerHTML = "<h5>No links available</h5>";
                     noLink.classList.add("col-12");
                     this.externalLinksTarget.appendChild(noLink);
@@ -305,7 +323,17 @@ class AwardsRecommendationAddForm extends Controller {
                 this.awardTarget.value = "Select Award Type First";
                 break;
             case "scaMember":
-                this.scaMemberTarget.value = "";
+                const hiddenTarget = this.scaMemberTarget?.querySelector?.('[data-ac-target="hidden"]');
+                const hiddenTextTarget = this.scaMemberTarget?.querySelector?.('[data-ac-target="hiddenText"]');
+                if (hiddenTarget) {
+                    hiddenTarget.value = "";
+                }
+                if (hiddenTextTarget) {
+                    hiddenTextTarget.value = "";
+                }
+                if (typeof this.scaMemberTarget.value === "string") {
+                    this.scaMemberTarget.value = "";
+                }
                 break;
             case "specialty":
                 this.specialtyTarget.value = "Select Award First";

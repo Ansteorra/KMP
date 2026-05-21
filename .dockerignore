@@ -18,6 +18,7 @@ app/.phpunit.cache
 
 # Dev containers
 .devcontainer
+.container-home
 
 # Documentation
 docs

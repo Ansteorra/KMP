@@ -49,7 +49,7 @@ class EmailTemplatesTablePolicy extends BasePolicy
      * @param mixed ...$optionalArgs Optional arguments
      * @return bool
      */
-    public function canEdit(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    public function canEdit(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
     {
         return $this->_hasPolicy($user, __FUNCTION__, $entity, ...$optionalArgs);
     }
