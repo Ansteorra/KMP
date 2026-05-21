@@ -12,6 +12,7 @@ jobs:
     permissions:
       contents: read
       checks: write
+      issues: write
 
     strategy:
       fail-fast: false
