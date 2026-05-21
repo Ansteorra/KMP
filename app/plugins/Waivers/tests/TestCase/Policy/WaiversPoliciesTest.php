@@ -161,6 +161,24 @@ class WaiversPoliciesTest extends BaseTestCase
         $this->assertTrue($policy->before($admin, $table, 'index'));
     }
 
+    public function testGatheringActivityWaiversTableAvailableWaiverTypesDenied(): void
+    {
+        $user = $this->loadMember(self::TEST_MEMBER_AGATHA_ID);
+        $policy = new GatheringActivityWaiversTablePolicy();
+        $table = $this->getTableLocator()->get('Waivers.GatheringActivityWaivers');
+
+        $this->assertFalse($policy->canAvailableWaiverTypes($user, $table));
+    }
+
+    public function testGatheringActivityWaiversTableAvailableWaiverTypesSuperUserBypass(): void
+    {
+        $admin = $this->loadMember(self::ADMIN_MEMBER_ID);
+        $policy = new GatheringActivityWaiversTablePolicy();
+        $table = $this->getTableLocator()->get('Waivers.GatheringActivityWaivers');
+
+        $this->assertTrue($policy->before($admin, $table, 'availableWaiverTypes'));
+    }
+
     // =========================================================================
     // GatheringWaiverPolicy (complex — 9 public methods + steward helper)
     // =========================================================================

@@ -1259,14 +1259,6 @@ class GatheringsController extends AppController
         $gathering = $this->Gatherings->get($id, contain: ['GatheringActivities']);
         $this->Authorization->authorize($gathering, 'edit');
 
-        if ($activityService->hasWaiverLock((int)$id)) {
-            $this->Flash->error(__(
-                'Cannot add activities because waivers have been uploaded for this gathering.',
-            ));
-
-            return $this->redirect(['action' => 'view', $gathering->public_id]);
-        }
-
         $activityId = $this->request->getData('activity_id');
 
         if (empty($activityId)) {
@@ -1306,7 +1298,7 @@ class GatheringsController extends AppController
         $gathering = $this->Gatherings->get($gatheringId);
         $this->Authorization->authorize($gathering, 'edit');
 
-        if ($activityService->hasWaiverLock((int)$gatheringId)) {
+        if ($activityService->hasUploadedWaivers((int)$gatheringId)) {
             $this->Flash->error(__(
                 'Cannot remove activities because waivers have been uploaded for this gathering.',
             ));
@@ -1334,14 +1326,6 @@ class GatheringsController extends AppController
         $this->request->allowMethod(['post']);
         $gathering = $this->Gatherings->get($gatheringId);
         $this->Authorization->authorize($gathering);
-
-        if ($activityService->hasWaiverLock((int)$gatheringId)) {
-            $this->Flash->error(__(
-                'Cannot edit activity descriptions because waivers have been uploaded for this gathering.',
-            ));
-
-            return $this->redirect(['action' => 'view', $gathering->public_id]);
-        }
 
         $activityId = $this->request->getData('activity_id');
         if (empty($activityId)) {

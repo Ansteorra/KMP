@@ -454,34 +454,141 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
     }
 
     /**
-     * Test activity locking when waivers are uploaded (T118)
+     * Test calendar grid returns all events in the requested range.
      *
-     * When waivers have been uploaded for a gathering, the "Add Activity" button
-     * should not appear in the view (activities are locked).
+     * The calendar view is bounded by date range and intentionally disables
+     * Dataverse pagination so dense months are not capped at the old 200 rows.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::calendarGridData()
+     */
+    public function testCalendarGridDataReturnsMoreThanDefaultPageLimit(): void
+    {
+        $Gatherings = $this->getTableLocator()->get('Gatherings');
+        $eventCount = 205;
+        $records = [];
+
+        for ($i = 1; $i <= $eventCount; $i++) {
+            $day = (($i - 1) % 31) + 1;
+            $hour = 8 + (($i - 1) % 10);
+            $records[] = [
+                'public_id' => sprintf('pg%06d', $i),
+                'branch_id' => 2,
+                'gathering_type_id' => 1,
+                'name' => sprintf('Pagination Off Calendar Event %03d', $i),
+                'description' => 'Calendar pagination regression test event.',
+                'start_date' => sprintf('2099-12-%02d %02d:00:00', $day, $hour),
+                'end_date' => sprintf('2099-12-%02d %02d:30:00', $day, $hour),
+                'location' => 'Calendar Pagination Test Site',
+                'timezone' => 'America/Chicago',
+                'public_page_enabled' => true,
+                'created_by' => self::ADMIN_MEMBER_ID,
+            ];
+        }
+
+        $entities = $Gatherings->newEntities($records);
+        $this->assertCount($eventCount, $Gatherings->saveManyOrFail($entities));
+
+        $this->configRequest([
+            'headers' => ['Turbo-Frame' => 'gatherings-calendar-grid-table'],
+        ]);
+        $this->get('/gatherings/calendar-grid-data?view=month&year=2099&month=12');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Pagination Off Calendar Event 001');
+        $this->assertResponseContains('Pagination Off Calendar Event 200');
+        $this->assertResponseContains('Pagination Off Calendar Event 205');
+    }
+
+    /**
+     * Test activity management remains available when waivers are uploaded.
+     *
+     * When waivers have been uploaded for a gathering, editors can still add
+     * activities because late activity additions may introduce new waiver needs,
+     * but removals remain locked to preserve waiver context.
      *
      * @return void
      * @uses \App\Controller\GatheringsController::view()
      */
-    public function testActivityLockingWhenWaiversUploaded(): void
+    public function testActivityManagementAvailableWhenWaiversUploaded(): void
     {
-        // Find a gathering that has waivers uploaded
-        $GatheringWaivers = $this->getTableLocator()->get('Waivers.GatheringWaivers');
-        $Gatherings = $this->getTableLocator()->get('Gatherings');
-
-        $waiver = $GatheringWaivers->find()
-            ->contain(['Gatherings'])
-            ->first();
-        if (!$waiver || !$waiver->gathering) {
-            $this->markTestSkipped('No gathering with waivers found in seed data');
-        }
-
-        $gathering = $Gatherings->get($waiver->gathering_id);
+        $gathering = $this->getGatheringWithUploadedWaivers();
         $this->get('/gatherings/view/' . $gathering->public_id);
         $this->assertResponseOk();
 
-        // With waivers uploaded, the "Add Activity" button should NOT be shown
-        // The template checks: if ($user->checkCan('edit', $gathering) && !$hasWaivers)
-        $this->assertResponseNotContains('Add Activity');
+        $this->assertResponseContains('Add Activity');
+        $this->assertResponseContains('addActivityModal');
+        $this->assertResponseNotContains('remove-activity');
+    }
+
+    /**
+     * Test adding an activity remains allowed when waivers are uploaded.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::addActivity()
+     */
+    public function testAddActivityAllowedWhenWaiversUploaded(): void
+    {
+        $gathering = $this->getGatheringWithUploadedWaivers();
+        $activity = $this->getActivityNotLinkedToGathering((int)$gathering->id);
+        $links = $this->getTableLocator()->get('GatheringsGatheringActivities');
+
+        $beforeCount = $links->find()
+            ->where([
+                'gathering_id' => $gathering->id,
+                'gathering_activity_id' => $activity->id,
+            ])
+            ->count();
+        $this->assertSame(0, $beforeCount);
+
+        $this->post('/gatherings/add-activity/' . $gathering->id, [
+            'activity_id' => (string)$activity->id,
+            'custom_description' => 'Late-added activity that now needs waiver coverage.',
+        ]);
+
+        $this->assertRedirect(['action' => 'view', $gathering->public_id]);
+
+        $link = $links->find()
+            ->where([
+                'gathering_id' => $gathering->id,
+                'gathering_activity_id' => $activity->id,
+            ])
+            ->first();
+        $this->assertNotNull($link);
+        $this->assertSame('Late-added activity that now needs waiver coverage.', $link->custom_description);
+    }
+
+    /**
+     * Test removing an activity remains blocked when waivers are uploaded.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::removeActivity()
+     */
+    public function testRemoveActivityBlockedWhenWaiversUploaded(): void
+    {
+        $gathering = $this->getGatheringWithUploadedWaivers();
+        $activity = $this->getLinkedActivityForGathering((int)$gathering->id);
+        $links = $this->getTableLocator()->get('GatheringsGatheringActivities');
+
+        $beforeCount = $links->find()
+            ->where([
+                'gathering_id' => $gathering->id,
+                'gathering_activity_id' => $activity->id,
+            ])
+            ->count();
+        $this->assertSame(1, $beforeCount);
+
+        $this->post('/gatherings/remove-activity/' . $gathering->id . '/' . $activity->id);
+
+        $this->assertRedirect(['action' => 'view', $gathering->public_id]);
+
+        $afterCount = $links->find()
+            ->where([
+                'gathering_id' => $gathering->id,
+                'gathering_activity_id' => $activity->id,
+            ])
+            ->count();
+        $this->assertSame(1, $afterCount);
     }
 
     /**
@@ -495,5 +602,64 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->session(['Auth' => null]);
         $this->get('/gatherings');
         $this->assertRedirect();
+    }
+
+    private function getGatheringWithUploadedWaivers()
+    {
+        $GatheringWaivers = $this->getTableLocator()->get('Waivers.GatheringWaivers');
+        $Gatherings = $this->getTableLocator()->get('Gatherings');
+
+        $waiver = $GatheringWaivers->find()
+            ->contain(['Gatherings'])
+            ->first();
+        if (!$waiver || !$waiver->gathering) {
+            $this->markTestSkipped('No gathering with waivers found in seed data');
+        }
+
+        return $Gatherings->get($waiver->gathering_id, contain: ['GatheringActivities']);
+    }
+
+    private function getActivityNotLinkedToGathering(int $gatheringId)
+    {
+        $links = $this->getTableLocator()->get('GatheringsGatheringActivities');
+        $linkedActivityIds = $links->find()
+            ->select(['gathering_activity_id'])
+            ->where(['gathering_id' => $gatheringId])
+            ->all()
+            ->extract('gathering_activity_id')
+            ->toList();
+
+        $activities = $this->getTableLocator()->get('GatheringActivities');
+        $query = $activities->find()->orderBy(['id' => 'ASC']);
+        if (!empty($linkedActivityIds)) {
+            $query->where(['id NOT IN' => $linkedActivityIds]);
+        }
+
+        $activity = $query->first();
+        if (!$activity) {
+            $this->markTestSkipped('No unlinked gathering activity available in seed data');
+        }
+
+        return $activity;
+    }
+
+    private function getLinkedActivityForGathering(int $gatheringId)
+    {
+        $links = $this->getTableLocator()->get('GatheringsGatheringActivities');
+        $link = $links->find()
+            ->where(['gathering_id' => $gatheringId])
+            ->first();
+
+        if (!$link) {
+            $activity = $this->getActivityNotLinkedToGathering($gatheringId);
+            $link = $links->newEntity([
+                'gathering_id' => $gatheringId,
+                'gathering_activity_id' => $activity->id,
+                'sort_order' => 999,
+            ]);
+            $this->assertNotFalse($links->save($link));
+        }
+
+        return $this->getTableLocator()->get('GatheringActivities')->get($link->gathering_activity_id);
     }
 }
