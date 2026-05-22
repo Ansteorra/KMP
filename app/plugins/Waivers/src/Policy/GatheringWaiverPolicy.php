@@ -338,13 +338,15 @@ class GatheringWaiverPolicy extends BasePolicy
 
         $remainingWaiverTypeIds = $GatheringActivityWaivers->find()
             ->select(['waiver_type_id'])
-            ->innerJoinWith('GatheringActivities.Gatherings', function ($q) use ($gatheringId, $activityId) {
+            ->innerJoinWith('GatheringActivities.Gatherings', function ($q) use ($gatheringId) {
                 return $q->where([
                     'Gatherings.id' => $gatheringId,
-                    'GatheringActivities.id !=' => $activityId,
                 ]);
             })
-            ->where(['GatheringActivityWaivers.deleted IS' => null])
+            ->where([
+                'GatheringActivityWaivers.deleted IS' => null,
+                'GatheringActivities.id !=' => $activityId,
+            ])
             ->distinct(['waiver_type_id'])
             ->all()
             ->extract('waiver_type_id')

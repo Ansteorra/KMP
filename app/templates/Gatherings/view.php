@@ -399,18 +399,12 @@ $publicLandingUrl = $this->Url->build([
                         </button>
                         <?php endif; ?>
                         <?php
-                                $canRemoveActivity = false;
-                                if ($user->checkCan('edit', $gathering)) {
-                                    if (!$hasWaivers) {
-                                        $canRemoveActivity = true;
-                                    } elseif ($waiverRemovalAuthorization !== null) {
-                                        $canRemoveActivity = $user->checkCan(
-                                            'removeGatheringActivity',
-                                            $waiverRemovalAuthorization,
-                                            $activity->id,
-                                        );
-                                    }
-                                }
+                                $canRemoveActivity = $user->checkCan('edit', $gathering) && (
+                                    !$hasWaivers || (
+                                        $waiverRemovalAuthorization !== null &&
+                                        $user->checkCan('removeGatheringActivity', $waiverRemovalAuthorization, $activity->id)
+                                    )
+                                );
                                 ?>
                         <?php if ($canRemoveActivity) : ?>
                         <?php if ($isNotRemovable): ?>

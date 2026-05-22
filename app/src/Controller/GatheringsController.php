@@ -1317,7 +1317,7 @@ class GatheringsController extends AppController
 
             if (!$this->Authentication->getIdentity()->checkCan('removeGatheringActivity', $waiverAuthorization, (int)$activityId)) {
                 $this->Flash->error(__(
-                    'This activity cannot be removed because submitted waivers would no longer match gathering requirements.',
+                    'Cannot remove this activity because it is the last one supporting submitted waivers.',
                 ));
 
                 return $this->redirect(['action' => 'view', $gathering->public_id]);
