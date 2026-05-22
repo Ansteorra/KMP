@@ -119,7 +119,7 @@ $url = $fullBaseUrl . '/keepalive';
                 aria-label="Toggle sidebar">
                 <i class="bi bi-chevron-bar-left" data-sidebar-toggle-target="icon"></i>
             </button>
-            <?= $this->Html->image($this->KMP->getAppSetting('KMP.BannerLogo'), [
+            <?= $this->Html->image($this->KMP->assetUrl($this->KMP->getAppSetting('KMP.BannerLogo')), [
                 'alt' => 'Logo',
                 'height' => '24',
                 'class' => 'd-inline-block mb-1',
@@ -140,14 +140,14 @@ $url = $fullBaseUrl . '/keepalive';
                 if (count($parts) > 1) {
                     $css = $parts[1];
                 }
-            ?>
+                ?>
             <li class="nav-item text-nowrap mx-1">
                 <a class="btn btn-outline-secondary <?= $css ?>" href="<?= $url ?>"><?= $key ?></a>
             </li>
             <?php endforeach; ?>
             <li class="nav-item text-nowrap mx-1">
                 <?= $this->Html->link(
-                    '<i class="bi bi-phone"></i> ' . __("Mobile"),
+                    '<i class="bi bi-phone"></i> ' . __('Mobile'),
                     ['controller' => 'App', 'action' => 'switchView', 'plugin' => null, '?' => ['mode' => 'mobile']],
                     ['class' => 'btn btn-outline-secondary', 'escape' => false, 'title' => __('Switch to mobile view')],
                 ) ?>

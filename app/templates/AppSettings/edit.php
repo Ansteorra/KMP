@@ -2,10 +2,10 @@
 
 /**
  * App Settings Edit Template
- * 
+ *
  * Edit form for app settings, loaded in a turbo-frame within a modal.
  * Handles string, password, JSON, and YAML value types with appropriate editors.
- * 
+ *
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\AppSetting $appSetting
  */
@@ -13,6 +13,7 @@
 <turbo-frame id="editAppSettingFrame">
     <?= $this->Form->create($appSetting, [
         'url' => ['action' => 'edit', $appSetting->id],
+        'type' => 'file',
         'id' => 'edit_app_setting_form',
         'data-controller' => 'turbo-modal app-setting-edit',
         'data-action' => 'turbo:submit-start->turbo-modal#closeModalBeforeSubmit',
@@ -40,13 +41,13 @@
             <!-- Setting Type (read-only) -->
             <div class="mb-3">
                 <label class="form-label"><?= __('Type') ?></label>
-                <span class="badge bg-<?= $displayType === 'yaml' ? 'warning' : ($displayType === 'json' ? 'info' : ($displayType === 'password' ? 'dark' : 'secondary')) ?>">
+                <span class="badge bg-<?= $displayType === 'yaml' ? 'warning' : ($displayType === 'json' ? 'info' : ($displayType === 'password' ? 'dark' : (in_array($displayType, ['file', 'image'], true) ? 'success' : 'secondary'))) ?>">
                     <?= h(strtoupper($displayType)) ?>
                 </span>
             </div>
 
             <!-- Value Editor -->
-            <?php if ($displayType === 'password'): ?>
+            <?php if ($displayType === 'password') : ?>
                 <div class="mb-3">
                     <label for="raw_value" class="form-label"><?= __('Value') ?></label>
                     <input
@@ -61,7 +62,44 @@
                         <i class="bi bi-shield-lock me-1"></i><?= __('Hidden for security. Leave blank to keep the current value.') ?>
                     </div>
                 </div>
-            <?php elseif ($displayType === 'yaml' || $displayType === 'json'): ?>
+            <?php elseif ($displayType === 'image' || $displayType === 'file') : ?>
+                <?php $assetUrl = $this->KMP->getAppSetting($appSetting->name); ?>
+                <div class="mb-3">
+                    <label for="asset_file" class="form-label"><?= __('Upload') ?></label>
+                    <input
+                        type="file"
+                        name="asset_file"
+                        id="asset_file"
+                        class="form-control"
+                        accept="<?= $displayType === 'image' ? 'image/png,image/jpeg,image/gif,image/webp' : 'image/png,image/jpeg,image/gif,image/webp,application/pdf,text/plain' ?>">
+                    <div class="form-text">
+                        <i class="bi bi-speedometer2 me-1"></i>
+                        <?= __('Uploads are stored as cached public assets. Maximum size: 2 MB.') ?>
+                    </div>
+                </div>
+                <?php if (is_string($assetUrl) && $assetUrl !== '') : ?>
+                    <div class="mb-3">
+                        <label class="form-label"><?= __('Current Asset') ?></label>
+                        <?php if ($displayType === 'image') : ?>
+                            <div>
+                                <?= $this->Html->image($assetUrl, [
+                                    'alt' => $appSetting->name,
+                                    'class' => 'img-fluid border rounded p-2 bg-light',
+                                    'style' => 'max-height: 180px;',
+                                ]) ?>
+                            </div>
+                        <?php else : ?>
+                            <div>
+                                <?= $this->Html->link(
+                                    __('View current file'),
+                                    $assetUrl,
+                                    ['target' => '_blank', 'rel' => 'noopener', 'class' => 'btn btn-outline-secondary btn-sm'],
+                                ) ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
+            <?php elseif ($displayType === 'yaml' || $displayType === 'json') : ?>
                 <!-- Complex type - use code editor with syntax validation -->
                 <div class="mb-3"
                     data-controller="code-editor"
@@ -83,14 +121,14 @@
                         data-action="input->code-editor#validateContent"><?= h($appSetting->raw_value) ?></textarea>
                     <div data-code-editor-target="errorDisplay" class="d-none"></div>
                     <div class="form-text">
-                        <?php if ($displayType === 'yaml'): ?>
+                        <?php if ($displayType === 'yaml') : ?>
                             <i class="bi bi-info-circle me-1"></i><?= __('Enter valid YAML. Use 2-space indentation. Press Tab to indent.') ?>
-                        <?php else: ?>
+                        <?php else : ?>
                             <i class="bi bi-info-circle me-1"></i><?= __('Enter valid JSON. Press Tab to indent.') ?>
                         <?php endif; ?>
                     </div>
                 </div>
-            <?php else: ?>
+            <?php else : ?>
                 <!-- Simple string type -->
                 <?php
                 $rawValue = $appSetting->raw_value;
@@ -99,7 +137,7 @@
                 $isBoolean = !$isNumeric && in_array(strtolower($rawValue ?? ''), ['true', 'false', 'yes', 'no'], true);
                 ?>
 
-                <?php if ($isNumeric): ?>
+                <?php if ($isNumeric) : ?>
                     <!-- Numeric value - use number input to preserve type -->
                     <div class="mb-3">
                         <label for="raw_value" class="form-label"><?= __('Value') ?></label>
@@ -112,7 +150,7 @@
                             step="<?= strpos($rawValue, '.') !== false ? 'any' : '1' ?>"
                             data-app-setting-edit-target="valueInput">
                     </div>
-                <?php elseif ($isBoolean): ?>
+                <?php elseif ($isBoolean) : ?>
                     <!-- Boolean-like value - use dropdown with yes/no values -->
                     <div class="mb-3">
                         <label for="raw_value" class="form-label"><?= __('Value') ?></label>
@@ -125,7 +163,7 @@
                             'data-app-setting-edit-target' => 'valueInput',
                         ]) ?>
                     </div>
-                <?php elseif ($isMultiline): ?>
+                <?php elseif ($isMultiline) : ?>
                     <!-- Multi-line string - use textarea -->
                     <div class="mb-3">
                         <label for="raw_value" class="form-label"><?= __('Value') ?></label>
@@ -136,7 +174,7 @@
                             rows="5"
                             data-app-setting-edit-target="valueInput"><?= h($rawValue) ?></textarea>
                     </div>
-                <?php else: ?>
+                <?php else : ?>
                     <!-- Simple string - use input -->
                     <div class="mb-3">
                         <label for="raw_value" class="form-label"><?= __('Value') ?></label>
@@ -152,7 +190,7 @@
             <?php endif; ?>
 
             <!-- Required indicator -->
-            <?php if ($appSetting->required): ?>
+            <?php if ($appSetting->required) : ?>
                 <div class="alert alert-info">
                     <i class="bi bi-info-circle me-2"></i>
                     <?= __('This is a required setting and cannot be deleted.') ?>

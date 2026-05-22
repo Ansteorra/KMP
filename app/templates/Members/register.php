@@ -3,18 +3,18 @@
 /**
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\Member $Member
- * @var \App\Model\Entity\MemberActivity[]|\Cake\Collection\CollectionInterface $MemberActivities
- * @var \App\Model\Entity\PendingAuthorization[]|\Cake\Collection\CollectionInterface $pendingAuthorizations
- * @var \App\Model\Entity\Role[]|\Cake\Collection\CollectionInterface $roles
+ * @var \Cake\Collection\CollectionInterface|array<\App\Model\Entity\MemberActivity> $MemberActivities
+ * @var \Cake\Collection\CollectionInterface|array<\App\Model\Entity\PendingAuthorization> $pendingAuthorizations
+ * @var \Cake\Collection\CollectionInterface|array<\App\Model\Entity\Role> $roles
  */
 ?>
-<?php $this->extend("/layout/TwitterBootstrap/register");
+<?php $this->extend('/layout/TwitterBootstrap/register');
 
 // Get PHP upload limits for client-side validation
 $uploadLimits = $this->KMP->getUploadLimits();
 
-echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': New Member Register';
+echo $this->KMP->startBlock('title');
+echo $this->KMP->getAppSetting('KMP.ShortSiteTitle') . ': New Member Register';
 $this->KMP->endBlock(); ?>
 <div class="container-sm">
     <?= $this->Form->create($member, [
@@ -27,42 +27,42 @@ $this->KMP->endBlock(); ?>
         <div class="card-body">
 
             <fieldset>
-                <div class="text-center mt-3"><?= $this->Html->image($headerImage, [
-                                                    "alt" => "site logo",
-                                                    'class' => "img-fluid w-25"
+                <div class="text-center mt-3"><?= $this->Html->image($this->KMP->assetUrl($headerImage), [
+                                                    'alt' => 'site logo',
+                                                    'class' => 'img-fluid w-25',
                                                 ]) ?></div>
                 <legend class="text-center">
-                    <h5 class="card-title"><?= __("Register") ?></h5>
+                    <h5 class="card-title"><?= __('Register') ?></h5>
                 </legend>
                 <?php
-                echo $this->Form->control("title");
-                echo $this->Form->control("sca_name");
-                echo $this->Form->control("pronunciation");
-                echo $this->Form->control("pronouns");
+                echo $this->Form->control('title');
+                echo $this->Form->control('sca_name');
+                echo $this->Form->control('pronunciation');
+                echo $this->Form->control('pronouns');
                 echo $this->KMP->comboBoxControl(
                     $this->Form,
                     'branch_name',
                     'branch_id',
                     $treeList,
-                    "Branch",
+                    'Branch',
                     true,
                     false,
-                    []
+                    [],
                 );
-                echo $this->Form->control("first_name", ["required" => true]);
-                echo $this->Form->control("middle_name");
-                echo $this->Form->control("last_name", ["required" => true]);
-                echo $this->Form->control("street_address");
-                echo $this->Form->control("city");
-                echo $this->Form->control("state");
-                echo $this->Form->control("zip");
-                echo $this->Form->control("phone_number");
-                echo $this->Form->control("email_address", [
+                echo $this->Form->control('first_name', ['required' => true]);
+                echo $this->Form->control('middle_name');
+                echo $this->Form->control('last_name', ['required' => true]);
+                echo $this->Form->control('street_address');
+                echo $this->Form->control('city');
+                echo $this->Form->control('state');
+                echo $this->Form->control('zip');
+                echo $this->Form->control('phone_number');
+                echo $this->Form->control('email_address', [
                     'type' => 'email',
-                    "required" => true,
-                    "type" => "email",
-                    "nestedInput" => true,
-                    "labelOptions" => ["class" => "input-group-text"],
+                    'required' => true,
+                    'type' => 'email',
+                    'nestedInput' => true,
+                    'labelOptions' => ['class' => 'input-group-text'],
                     'data-controller' => 'member-unique-email',
                     'data-member-unique-email-url-value' => $this->URL->build([
                         'controller' => 'Members',
@@ -119,7 +119,7 @@ $this->KMP->endBlock(); ?>
                         </div>
                     </div>
             </fieldset>
-            <?= $this->Form->button(__("Submit"), [
+            <?= $this->Form->button(__('Submit'), [
                 'class' => 'btn-primary',
                 'data-file-size-validator-target' => 'submitButton',
             ]) ?>

@@ -6,7 +6,10 @@ namespace App\Controller;
 use App\KMP\GridColumns\AppSettingsGridColumns;
 use App\KMP\StaticHelpers;
 use App\Services\CsvExportService;
+use Cake\Event\EventInterface;
 use Cake\Http\Exception\NotFoundException;
+use InvalidArgumentException;
+use Psr\Http\Message\UploadedFileInterface;
 
 /**
  * AppSettings Controller
@@ -40,6 +43,18 @@ class AppSettingsController extends AppController
     {
         parent::initialize();
         $this->Authorization->authorizeModel('index', 'gridData', 'toYaml');
+    }
+
+    /**
+     * Allow public reads of stored app setting assets.
+     *
+     * @param \Cake\Event\EventInterface $event
+     * @return void
+     */
+    public function beforeFilter(EventInterface $event): void
+    {
+        parent::beforeFilter($event);
+        $this->Authentication->allowUnauthenticated(['asset']);
     }
 
     /**
@@ -119,9 +134,30 @@ class AppSettingsController extends AppController
     {
         $appSetting = $this->AppSettings->newEmptyEntity();
         if ($this->request->is('post')) {
+            $data = $this->request->getData();
+            $settingType = (string)($data['type'] ?? 'string');
+            if (in_array($settingType, ['file', 'image'], true)) {
+                $uploadedFile = $this->request->getData('asset_file');
+                if (
+                    !$uploadedFile instanceof UploadedFileInterface
+                    || $uploadedFile->getError() === UPLOAD_ERR_NO_FILE
+                ) {
+                    $this->Flash->error(__('Please upload a file for image and file app settings.'));
+
+                    return $this->redirect(['action' => 'index']);
+                }
+
+                try {
+                    $data['value'] = $this->AppSettings->assetValueFromUpload($settingType, $uploadedFile);
+                } catch (InvalidArgumentException $exception) {
+                    $this->Flash->error(__($exception->getMessage()));
+
+                    return $this->redirect(['action' => 'index']);
+                }
+            }
             $appSetting = $this->AppSettings->patchEntity(
                 $appSetting,
-                $this->request->getData(),
+                $data,
             );
             $this->Authorization->authorize($appSetting);
             if ($this->AppSettings->save($appSetting)) {
@@ -153,8 +189,38 @@ class AppSettingsController extends AppController
         $this->Authorization->authorize($appSetting);
 
         if ($this->request->is(['patch', 'post', 'put'])) {
-            $value = (string)$this->request->getData('raw_value', '');
             $settingType = $appSetting->name === 'Backup.encryptionKey' ? 'password' : ($appSetting->type ?? 'string');
+            if (in_array($settingType, ['file', 'image'], true)) {
+                $uploadedFile = $this->request->getData('asset_file');
+                if (
+                    !$uploadedFile instanceof UploadedFileInterface
+                    || $uploadedFile->getError() === UPLOAD_ERR_NO_FILE
+                ) {
+                    $this->Flash->success(__('No changes were made.'));
+                    $flashMessages = $this->request->getSession()->read('Flash');
+                    $this->request->getSession()->delete('Flash');
+
+                    $this->response = $this->response->withType('text/vnd.turbo-stream.html');
+                    $this->viewBuilder()->disableAutoLayout();
+                    $this->viewBuilder()->setTemplate('turbo_close_modal');
+                    $this->set('refreshFrame', 'app-settings-grid-table');
+                    $this->set('flashMessages', $flashMessages);
+
+                    return;
+                }
+
+                try {
+                    $value = $this->AppSettings->assetValueFromUpload($settingType, $uploadedFile);
+                } catch (InvalidArgumentException $exception) {
+                    $this->Flash->error(__($exception->getMessage()));
+                    $this->set(compact('appSetting'));
+                    $this->viewBuilder()->setLayout('turbo_frame');
+
+                    return;
+                }
+            } else {
+                $value = (string)$this->request->getData('raw_value', '');
+            }
 
             if ($settingType === 'password' && trim($value) === '') {
                 $this->Flash->success(__('No changes were made.'));
@@ -195,6 +261,47 @@ class AppSettingsController extends AppController
         // Render modal form (GET request or validation error)
         $this->set(compact('appSetting'));
         $this->viewBuilder()->setLayout('turbo_frame');
+    }
+
+    /**
+     * Publicly serve a database-backed app setting asset.
+     *
+     * @param string|null $name App setting name
+     * @return \Cake\Http\Response|null
+     * @throws \Cake\Http\Exception\NotFoundException
+     */
+    public function asset(?string $name = null)
+    {
+        $this->Authorization->skipAuthorization();
+        if ($name === null || $name === '') {
+            throw new NotFoundException();
+        }
+
+        $payload = $this->AppSettings->getAssetPayload($name);
+        if ($payload === null) {
+            throw new NotFoundException();
+        }
+
+        $body = base64_decode((string)$payload['data'], true);
+        if ($body === false) {
+            throw new NotFoundException();
+        }
+
+        $etag = '"' . (string)$payload['sha256'] . '"';
+        if ($this->request->getHeaderLine('If-None-Match') === $etag) {
+            return $this->response
+                ->withStatus(304)
+                ->withHeader('ETag', $etag)
+                ->withHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+
+        return $this->response
+            ->withHeader('Content-Type', (string)$payload['mime'])
+            ->withHeader('Content-Length', (string)strlen($body))
+            ->withHeader('Content-Disposition', 'inline; filename="' . addslashes((string)$payload['filename']) . '"')
+            ->withHeader('ETag', $etag)
+            ->withHeader('Cache-Control', 'public, max-age=31536000, immutable')
+            ->withStringBody($body);
     }
 
     /**

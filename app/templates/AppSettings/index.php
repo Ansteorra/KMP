@@ -2,18 +2,18 @@
 
 /**
  * App Settings Dataverse Grid Index Template
- * 
+ *
  * Modern grid interface with saved views, column picker, filtering, and sorting.
  * Uses lazy-loading turbo-frame architecture for consistent data flow.
- * 
+ *
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\AppSetting $emptyAppSetting
  */
 
-$this->extend("/layout/TwitterBootstrap/dashboard");
+$this->extend('/layout/TwitterBootstrap/dashboard');
 
-echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': App Settings';
+echo $this->KMP->startBlock('title');
+echo $this->KMP->getAppSetting('KMP.ShortSiteTitle') . ': App Settings';
 $this->KMP->endBlock();
 
 $this->assign('title', __('App Settings'));
@@ -30,16 +30,16 @@ $this->assign('title', __('App Settings'));
                 <i class="bi bi-plus-circle me-1"></i><?= __('Add') ?>
             </button>
             <?php
-            $infoHelpUrl = $this->KMP->getAppSetting("KMP.AppSettings.HelpUrl");
+            $infoHelpUrl = $this->KMP->getAppSetting('KMP.AppSettings.HelpUrl');
             if ($infoHelpUrl) :
-            ?>
+                ?>
                 <?= $this->Html->link(
                     __('App Settings Help'),
                     $infoHelpUrl,
                     [
-                        "class" => "btn btn-outline-secondary ms-2",
-                        "target" => "_blank",
-                    ]
+                        'class' => 'btn btn-outline-secondary ms-2',
+                        'target' => '_blank',
+                    ],
                 ) ?>
             <?php endif; ?>
         </div>
@@ -55,30 +55,48 @@ $this->assign('title', __('App Settings'));
 
 <?php
 // Add modal for creating new app settings
-echo $this->KMP->startBlock("modals");
+echo $this->KMP->startBlock('modals');
 echo $this->Form->create($emptyAppSetting, [
-    "url" => ["action" => "add"],
-    "id" => "add_entity",
+    'url' => ['action' => 'add'],
+    'type' => 'file',
+    'id' => 'add_entity',
 ]);
-echo $this->Modal->create("Add App Setting", [
-    "id" => "addModal",
-    "close" => true,
+echo $this->Modal->create('Add App Setting', [
+    'id' => 'addModal',
+    'close' => true,
 ]);
 ?>
 <fieldset>
     <?php
-    echo $this->Form->control("name");
-    echo $this->Form->control("value");
+    echo $this->Form->control('name');
+    echo $this->Form->control('type', [
+        'type' => 'select',
+        'options' => [
+            'string' => 'String',
+            'json' => 'JSON',
+            'yaml' => 'YAML',
+            'password' => 'Password',
+            'image' => 'Image',
+            'file' => 'File',
+        ],
+        'default' => 'string',
+    ]);
+    echo $this->Form->control('value');
+    echo $this->Form->control('asset_file', [
+        'type' => 'file',
+        'label' => 'Upload for image/file settings',
+        'accept' => 'image/png,image/jpeg,image/gif,image/webp,application/pdf,text/plain',
+    ]);
     ?>
 </fieldset>
 <?php echo $this->Modal->end([
-    $this->Form->button("Submit", [
-        "class" => "btn btn-primary",
-        "id" => "add_entity__submit",
+    $this->Form->button('Submit', [
+        'class' => 'btn btn-primary',
+        'id' => 'add_entity__submit',
     ]),
-    $this->Form->button("Close", [
-        "data-bs-dismiss" => "modal",
-        "type" => "button",
+    $this->Form->button('Close', [
+        'data-bs-dismiss' => 'modal',
+        'type' => 'button',
     ]),
 ]);
 echo $this->Form->end();

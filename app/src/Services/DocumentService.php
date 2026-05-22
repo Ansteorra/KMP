@@ -5,6 +5,8 @@ namespace App\Services;
 
 use App\Model\Entity\Document;
 use App\Model\Table\DocumentsTable;
+use App\Services\Storage\AzureManagedIdentityTokenCredential;
+use App\Services\Storage\TenantDocumentStorageConfigResolver;
 use Aws\S3\S3Client;
 use AzureOss\FlysystemAzureBlobStorage\AzureBlobStorageAdapter;
 use AzureOss\Storage\Blob\BlobServiceClient;
@@ -13,6 +15,7 @@ use Cake\Http\Response;
 use Cake\Log\Log;
 use Cake\ORM\Locator\LocatorAwareTrait;
 use Exception;
+use GuzzleHttp\Psr7\Uri;
 use Laminas\Diactoros\Stream;
 use Laminas\Diactoros\UploadedFile;
 use League\Flysystem\AwsS3V3\AwsS3V3Adapter;
@@ -86,18 +89,12 @@ class DocumentService
         $this->adapter = $config['adapter'] ?? 'local';
 
         if ($this->adapter === 'azure') {
-            // Azure Blob Storage configuration
-            $azureConfig = $config['azure'] ?? [];
-            $connectionString = $azureConfig['connectionString'] ?? null;
-            $container = $azureConfig['container'] ?? 'documents';
-            $prefix = $azureConfig['prefix'] ?? '';
+            $azureConfig = (new TenantDocumentStorageConfigResolver())->resolveAzureConfig();
 
-            if (empty($connectionString)) {
+            if (!$this->azureConfigHasCredential($azureConfig)) {
                 Log::error(
-                    'Azure storage connection string not configured. ' .
-                        'Set AZURE_STORAGE_CONNECTION_STRING environment variable or configure ' .
-                        'Documents.storage.azure.connectionString in app.php/app_local.php. ' .
-                        'See docs/azure-blob-storage-configuration.md for setup instructions. ' .
+                    'Azure storage credentials are not configured. Set managedIdentity with ' .
+                        'AZURE_STORAGE_ACCOUNT_NAME, or configure AZURE_STORAGE_CONNECTION_STRING. ' .
                         'Falling back to local storage.',
                 );
                 $this->adapter = 'local';
@@ -107,14 +104,11 @@ class DocumentService
             }
 
             try {
-                $blobServiceClient = BlobServiceClient::fromConnectionString($connectionString);
-                $containerClient = $blobServiceClient->getContainerClient($container);
-                $containerClient->createIfNotExists();
-                $adapter = new AzureBlobStorageAdapter($containerClient, $prefix);
-                $this->filesystem = new FlysystemFilesystem($adapter);
+                $this->filesystem = $this->createAzureFilesystem($azureConfig);
                 Log::info('Initialized Azure Blob Storage adapter', [
-                    'container' => $container,
-                    'prefix' => $prefix,
+                    'container' => $azureConfig['container'] ?? 'documents',
+                    'prefix' => $azureConfig['prefix'] ?? '',
+                    'auth_mode' => $azureConfig['authMode'] ?? 'connectionString',
                 ]);
             } catch (Exception $e) {
                 Log::error('Failed to initialize Azure Blob Storage: ' . $e->getMessage());
@@ -261,25 +255,16 @@ class DocumentService
     private function getFilesystemForAdapter(string $adapterType): ?FlysystemFilesystem
     {
         if ($adapterType === 'azure') {
-            $config = Configure::read('Documents.storage', []);
-            $azureConfig = $config['azure'] ?? [];
-            $connectionString = $azureConfig['connectionString'] ?? null;
-            $container = $azureConfig['container'] ?? 'documents';
-            $prefix = $azureConfig['prefix'] ?? '';
+            $azureConfig = (new TenantDocumentStorageConfigResolver())->resolveAzureConfig();
 
-            if (empty($connectionString)) {
-                Log::error('Azure storage connection string not configured for document retrieval');
+            if (!$this->azureConfigHasCredential($azureConfig)) {
+                Log::error('Azure storage credentials not configured for document retrieval');
 
                 return null;
             }
 
             try {
-                $blobServiceClient = BlobServiceClient::fromConnectionString($connectionString);
-                $containerClient = $blobServiceClient->getContainerClient($container);
-                $containerClient->createIfNotExists();
-                $adapter = new AzureBlobStorageAdapter($containerClient, $prefix);
-
-                return new FlysystemFilesystem($adapter);
+                return $this->createAzureFilesystem($azureConfig);
             } catch (Exception $e) {
                 Log::error('Failed to initialize Azure filesystem for retrieval: ' . $e->getMessage());
 
@@ -362,6 +347,48 @@ class DocumentService
         Log::error('Unknown storage adapter type: ' . $adapterType);
 
         return null;
+    }
+
+    /**
+     * @param array<string, mixed> $azureConfig Azure storage config
+     * @return bool
+     */
+    private function azureConfigHasCredential(array $azureConfig): bool
+    {
+        if (!empty($azureConfig['connectionString'])) {
+            return true;
+        }
+
+        return ($azureConfig['authMode'] ?? null) === 'managedIdentity' && !empty($azureConfig['accountName']);
+    }
+
+    /**
+     * @param array<string, mixed> $azureConfig Azure storage config
+     * @return \League\Flysystem\Filesystem
+     */
+    private function createAzureFilesystem(array $azureConfig): FlysystemFilesystem
+    {
+        $container = (string)($azureConfig['container'] ?? 'documents');
+        $prefix = (string)($azureConfig['prefix'] ?? '');
+        $connectionString = $azureConfig['connectionString'] ?? null;
+
+        if (is_string($connectionString) && $connectionString !== '') {
+            $blobServiceClient = BlobServiceClient::fromConnectionString($connectionString);
+        } else {
+            $accountName = (string)($azureConfig['accountName'] ?? '');
+            $clientId = $azureConfig['managedIdentityClientId'] ?? null;
+            $credential = new AzureManagedIdentityTokenCredential(is_string($clientId) ? $clientId : null);
+            $blobServiceClient = new BlobServiceClient(
+                new Uri(sprintf('https://%s.blob.core.windows.net/', $accountName)),
+                $credential,
+            );
+        }
+
+        $containerClient = $blobServiceClient->getContainerClient($container);
+        $containerClient->createIfNotExists();
+        $adapter = new AzureBlobStorageAdapter($containerClient, $prefix);
+
+        return new FlysystemFilesystem($adapter);
     }
 
     /**

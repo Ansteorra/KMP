@@ -948,6 +948,7 @@ class MembersController extends AppController
             'marshal_auth_graphic' => StaticHelpers::getAppSetting(
                 'Member.ViewCard.Graphic',
             ),
+            'marshal_auth_graphic_data_uri' => $this->appSettingImageDataUri('Member.ViewCard.Graphic'),
             'marshal_auth_header_color' => StaticHelpers::getAppSetting(
                 'Member.ViewCard.HeaderColor',
             ),
@@ -1006,13 +1007,7 @@ class MembersController extends AppController
             ),
         ];
 
-        // Prepare watermark image for layout - build full URL for image
-        $graphicPath = WWW_ROOT . 'img' . DS . $message_variables['marshal_auth_graphic'];
-        if (file_exists($graphicPath)) {
-            $watermarkimg = 'data:image/gif;base64,' . base64_encode(file_get_contents($graphicPath));
-        } else {
-            $watermarkimg = null;
-        }
+        $watermarkimg = $this->appSettingImageDataUri('Member.ViewCard.Graphic');
 
         // Build card URL for member-mobile-card-profile controller
         $cardUrl = Router::url(['controller' => 'Members', 'action' => 'viewMobileCardJson'], true);
@@ -2849,4 +2844,39 @@ class MembersController extends AppController
     }
 
     #endregion
+
+    /**
+     * Build a data URI for an image app setting, supporting legacy filenames.
+     *
+     * @param string $settingName App setting name
+     * @return string|null
+     */
+    private function appSettingImageDataUri(string $settingName): ?string
+    {
+        $appSettings = $this->fetchTable('AppSettings');
+        $payload = $appSettings->getAssetPayload($settingName);
+        if ($payload !== null) {
+            return sprintf('data:%s;base64,%s', (string)$payload['mime'], (string)$payload['data']);
+        }
+
+        $value = StaticHelpers::getAppSetting($settingName);
+        if (!is_string($value) || $value === '' || str_starts_with($value, '/')) {
+            return null;
+        }
+
+        $path = WWW_ROOT . 'img' . DS . $value;
+        if (!is_file($path)) {
+            return null;
+        }
+
+        $contents = file_get_contents($path);
+        if ($contents === false) {
+            return null;
+        }
+
+        $mime = getimagesize($path);
+        $mimeType = is_array($mime) && isset($mime['mime']) ? (string)$mime['mime'] : 'image/png';
+
+        return sprintf('data:%s;base64,%s', $mimeType, base64_encode($contents));
+    }
 }

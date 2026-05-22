@@ -23,6 +23,13 @@ use Cake\View\Helper\HtmlHelper;
 class KmpHelper extends Helper
 {
     /**
+     * Helpers used by KMP helper methods.
+     *
+     * @var array<string>
+     */
+    protected array $helpers = ['Url'];
+
+    /**
      * Main view reference for block management across view cells.
      *
      * @var \App\View\AppView|null
@@ -232,6 +239,31 @@ class KmpHelper extends Helper
     public function getAppSetting(string $key, ?string $fallback = null): mixed
     {
         return StaticHelpers::getAppSetting($key, $fallback);
+    }
+
+    /**
+     * Resolve an app-setting asset value to a browser URL.
+     *
+     * Supports new public asset URLs and legacy webroot/img filenames.
+     *
+     * @param string|null $asset App setting asset value
+     * @return string
+     */
+    public function assetUrl(?string $asset): string
+    {
+        if ($asset === null || $asset === '') {
+            return '';
+        }
+        if (
+            str_starts_with($asset, '/')
+            || str_starts_with($asset, 'http://')
+            || str_starts_with($asset, 'https://')
+            || str_starts_with($asset, 'data:')
+        ) {
+            return $asset;
+        }
+
+        return $this->Url->image($asset);
     }
 
     /**

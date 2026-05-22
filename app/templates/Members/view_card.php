@@ -1,33 +1,9 @@
 <?php
-
-use Cake\I18n\Date;
-
-
-
-echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Activities Authorization Card';
+echo $this->KMP->startBlock('title');
+echo $this->KMP->getAppSetting('KMP.ShortSiteTitle') . ': Activities Authorization Card';
 $this->KMP->endBlock();
 
-function checkCardCount($cardCount)
-{
-    if ($cardCount == 2) {
-        echo "</div><div style='clear:both'></div><div class='auth_cards'>";
-        return 0;
-    } else {
-        return $cardCount;
-    }
-}
-//home_marshal6.gif
-$watermarkimg =
-    "data:image/gif;base64," .
-    base64_encode(
-        file_get_contents(
-            $this->Url->image($message_variables["marshal_auth_graphic"], [
-                "fullBase" => true,
-            ]),
-        ),
-    );
-$now = Date::now();
+$watermarkimg = $message_variables['marshal_auth_graphic_data_uri'] ?? null;
 ?>
 <html>
 
@@ -61,8 +37,8 @@ $now = Date::now();
 
         .header-center {
             background-color: <?= h(
-                                    $message_variables["marshal_auth_header_color"],
-                                ) ?>;
+                $message_variables['marshal_auth_header_color'],
+            ) ?>;
             float: left;
             font-size: 18pt;
             text-align: center;
@@ -211,7 +187,7 @@ $now = Date::now();
             <img src='<?php echo $watermarkimg; ?>'>
         </div>
         <div class="header-center">
-            Kingdom of <?= h($message_variables["kingdom"]) ?><br />
+            Kingdom of <?= h($message_variables['kingdom']) ?><br />
             Activities Authorization
         </div>
         <div class="header-right">
@@ -220,12 +196,12 @@ $now = Date::now();
         <div style="clear:both"></div>
     </div>
     <div class="letter">
-        <p>Greetings <?= h($message_variables["kingdom"]) ?> Participant, </p>
+        <p>Greetings <?= h($message_variables['kingdom']) ?> Participant, </p>
 
         <p>You will be pleased to find your new activities authorization card below. Please note that while
             there is an expiration date, it can be revoked per the customs and laws of the Kingdom of <?= h(
-                                                                                                            $message_variables["kingdom"],
-                                                                                                        ) ?> and the
+                $message_variables['kingdom'],
+            ) ?> and the
             Society for Creative Anachronism. Your authorization comes from the Crown, Earl Marshal and respective
             deputies, so remember that you are representing the Crown and their trust in you everytime you take the
             field. </p>
@@ -245,18 +221,18 @@ $now = Date::now();
         <p>If something is missing or is incorrect, don't hesitate to contact me. </p>
 
         <p>In Service,<br />
-            <?= h($message_variables["secratary"]) ?><br />
+            <?= h($message_variables['secratary']) ?><br />
             Kingdom of <?= h(
-                            $message_variables["kingdom"],
-                        ) ?> - Society for Creative Anachronism<br />
-            <?= h($message_variables["secretary_email"]) ?><br />
+                $message_variables['kingdom'],
+            ) ?> - Society for Creative Anachronism<br />
+            <?= h($message_variables['secretary_email']) ?><br />
         </p>
     </div>
     <div class="auth_cards" id="auth_cards" data-member-Card-profile-target="cardSet">
         <div class="auth_card" id="card_1">
             <div class="cardbox" data-member-Card-profile-target="firstCard" id="cardDetails_1">
                 <div class="cardboxheader">
-                    Kingdom of <?= h($message_variables["kingdom"]) ?><br />
+                    Kingdom of <?= h($message_variables['kingdom']) ?><br />
                     Martial Authorization
                 </div>
                 <h2 data-member-Card-profile-target="loading">Loading...</h2>

@@ -103,6 +103,7 @@ class KmpHelperTest extends BaseTestCase
         $methods = [
             'getAppSetting',
             'getAppSettingsStartWith',
+            'assetUrl',
             'startBlock',
             'endBlock',
         ];
@@ -135,5 +136,17 @@ class KmpHelperTest extends BaseTestCase
 
         $this->assertStringContainsString('bg-light text-dark', $badge);
         $this->assertStringContainsString('Unknown State', $badge);
+    }
+
+    public function testAssetUrlPreservesPublicUrls(): void
+    {
+        $this->assertSame('/app-settings/asset/KMP.BannerLogo?v=abc', $this->Kmp->assetUrl('/app-settings/asset/KMP.BannerLogo?v=abc'));
+        $this->assertSame('https://example.test/logo.png', $this->Kmp->assetUrl('https://example.test/logo.png'));
+        $this->assertSame('data:image/png;base64,abc', $this->Kmp->assetUrl('data:image/png;base64,abc'));
+    }
+
+    public function testAssetUrlConvertsLegacyImageFilenames(): void
+    {
+        $this->assertSame('/img/badge.png', $this->Kmp->assetUrl('badge.png'));
     }
 }

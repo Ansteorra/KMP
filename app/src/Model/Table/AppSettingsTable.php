@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use App\Services\Cache\TenantAwareCache;
 use Cake\Cache\Cache;
 use Cake\Datasource\EntityInterface;
 use Cake\Log\Log;
@@ -10,6 +11,10 @@ use Cake\ORM\RulesChecker;
 use Cake\Utility\Security;
 use Cake\Validation\Validator;
 use Exception;
+use finfo;
+use InvalidArgumentException;
+use JsonException;
+use Psr\Http\Message\UploadedFileInterface;
 
 /**
  * AppSettings Model
@@ -31,6 +36,21 @@ use Exception;
 class AppSettingsTable extends BaseTable
 {
     private const PASSWORD_VALUE_PREFIX = 'enc:v1:';
+    private const MAX_ASSET_BYTES = 2097152;
+    private const IMAGE_MIME_TYPES = [
+        'image/gif' => 'gif',
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/webp' => 'webp',
+    ];
+    private const FILE_MIME_TYPES = [
+        'application/pdf' => 'pdf',
+        'image/gif' => 'gif',
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/webp' => 'webp',
+        'text/plain' => 'txt',
+    ];
 
     /**
      * Initialize method
@@ -131,7 +151,7 @@ class AppSettingsTable extends BaseTable
     public function getSetting(string $name): mixed
     {
         $isSensitive = $this->isSensitiveSetting($name);
-        $cacheKey = 'app_setting_' . $name;
+        $cacheKey = $this->cacheKey($name);
         $setting = $isSensitive ? null : Cache::read($cacheKey, 'default');
 
         if ($setting === null) {
@@ -140,7 +160,11 @@ class AppSettingsTable extends BaseTable
                 ->first();
 
             if ($settingEntity) {
-                $resolvedValue = $this->resolveValueForRead($settingEntity->type ?? 'string', $settingEntity->value);
+                $resolvedValue = $this->resolveValueForRead(
+                    $settingEntity->type ?? 'string',
+                    $settingEntity->value,
+                    $name,
+                );
                 if (!$isSensitive) {
                     Cache::write($cacheKey, $resolvedValue, 'default');
                 }
@@ -197,8 +221,9 @@ class AppSettingsTable extends BaseTable
         }
         if ($this->save($setting)) {
             if (!$this->isSensitiveSetting($name)) {
-                $cacheKey = 'app_setting_' . $name;
-                Cache::write($cacheKey, $this->resolveValueForRead($effectiveType, $setting->value), 'default');
+                $cacheKey = $this->cacheKey($name);
+                Cache::delete($this->assetCacheKey($name), 'default');
+                Cache::write($cacheKey, $this->resolveValueForRead($effectiveType, $setting->value, $name), 'default');
             }
 
             return true;
@@ -225,8 +250,9 @@ class AppSettingsTable extends BaseTable
             }
             if ($this->delete($setting)) {
                 if (!$this->isSensitiveSetting($name)) {
-                    $cacheKey = 'app_setting_' . $name;
+                    $cacheKey = $this->cacheKey($name);
                     Cache::delete($cacheKey, 'default');
+                    Cache::delete($this->assetCacheKey($name), 'default');
                 }
 
                 return true;
@@ -274,6 +300,89 @@ class AppSettingsTable extends BaseTable
     }
 
     /**
+     * Build a safe database asset payload from an uploaded app setting file.
+     *
+     * @param string $type App setting type: image or file
+     * @param \Psr\Http\Message\UploadedFileInterface $file Uploaded file
+     * @return string JSON payload for app_settings.value
+     */
+    public function assetValueFromUpload(string $type, UploadedFileInterface $file): string
+    {
+        if (!$this->isAssetType($type)) {
+            throw new InvalidArgumentException('Only image and file app setting types can store uploaded assets.');
+        }
+        if ($file->getError() !== UPLOAD_ERR_OK) {
+            throw new InvalidArgumentException($this->uploadErrorMessage($file->getError()));
+        }
+
+        $size = $file->getSize();
+        if ($size === null || $size <= 0) {
+            throw new InvalidArgumentException('The uploaded file was empty.');
+        }
+        if ($size > self::MAX_ASSET_BYTES) {
+            throw new InvalidArgumentException('The uploaded file must be 2 MB or smaller.');
+        }
+
+        $contents = $file->getStream()->getContents();
+        if ($contents === '') {
+            throw new InvalidArgumentException('The uploaded file was empty.');
+        }
+
+        $mimeType = $this->detectMimeType($contents);
+        $extension = $this->allowedAssetTypes($type)[$mimeType] ?? null;
+        if ($extension === null) {
+            throw new InvalidArgumentException($this->unsupportedAssetMessage($type));
+        }
+        if ($type === 'image' && getimagesizefromstring($contents) === false) {
+            throw new InvalidArgumentException('File content does not match an allowed image type.');
+        }
+
+        $filename = $this->assetFilename((string)$file->getClientFilename(), $extension);
+        $payload = [
+            'storage' => 'database',
+            'filename' => $filename,
+            'mime' => $mimeType,
+            'size' => strlen($contents),
+            'sha256' => hash('sha256', $contents),
+            'data' => base64_encode($contents),
+        ];
+
+        return json_encode($payload, JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * Read a decoded app setting asset payload for public delivery.
+     *
+     * @param string $name App setting name
+     * @return array<string, mixed>|null
+     */
+    public function getAssetPayload(string $name): ?array
+    {
+        $cacheKey = $this->assetCacheKey($name);
+        $cached = Cache::read($cacheKey, 'default');
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        $setting = $this->find()
+            ->select(['name', 'type', 'value'])
+            ->where(['name' => $name])
+            ->first();
+        if (!$setting || !$this->isAssetType((string)$setting->type)) {
+            return null;
+        }
+
+        $payload = $this->decodeAssetPayload($setting->value);
+        if ($payload === null) {
+            return null;
+        }
+
+        Cache::write($cacheKey, $payload, 'default');
+
+        return $payload;
+    }
+
+    /**
      * Delete app setting.
      *
      * @param mixed $key
@@ -318,6 +427,22 @@ class AppSettingsTable extends BaseTable
     }
 
     /**
+     * Build a tenant-safe cache key for a setting name.
+     */
+    private function cacheKey(string $name): string
+    {
+        return TenantAwareCache::tenantScopedKey('app_setting_' . $name);
+    }
+
+    /**
+     * Build a tenant-safe cache key for decoded asset payloads.
+     */
+    private function assetCacheKey(string $name): string
+    {
+        return TenantAwareCache::tenantScopedKey('app_setting_asset_' . $name);
+    }
+
+    /**
      * Resolve value for write.
      *
      * @param string $type
@@ -327,6 +452,9 @@ class AppSettingsTable extends BaseTable
      */
     private function resolveValueForWrite(string $type, mixed $value, bool $settingExists): mixed
     {
+        if ($this->isAssetType($type)) {
+            return is_string($value) ? $value : '';
+        }
         if ($type !== 'password') {
             return $value;
         }
@@ -360,8 +488,16 @@ class AppSettingsTable extends BaseTable
      * @param mixed $value
      * @return mixed
      */
-    private function resolveValueForRead(string $type, mixed $value): mixed
+    private function resolveValueForRead(string $type, mixed $value, ?string $name = null): mixed
     {
+        if ($this->isAssetType($type)) {
+            $payload = $this->decodeAssetPayload($value);
+            if ($payload === null || $name === null) {
+                return $value;
+            }
+
+            return $this->assetUrl($name, $payload);
+        }
         if ($type !== 'password') {
             return $value;
         }
@@ -403,5 +539,115 @@ class AppSettingsTable extends BaseTable
         }
 
         return $key;
+    }
+
+    /**
+     * Check if a setting type is a stored public asset.
+     */
+    private function isAssetType(string $type): bool
+    {
+        return in_array($type, ['file', 'image'], true);
+    }
+
+    /**
+     * Decode and validate a stored database asset payload.
+     *
+     * @param mixed $value
+     * @return array<string, mixed>|null
+     */
+    private function decodeAssetPayload(mixed $value): ?array
+    {
+        if (!is_string($value) || $value === '') {
+            return null;
+        }
+
+        try {
+            $payload = json_decode($value, true, flags: JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return null;
+        }
+        if (!is_array($payload) || ($payload['storage'] ?? null) !== 'database') {
+            return null;
+        }
+        foreach (['filename', 'mime', 'sha256', 'data'] as $field) {
+            if (!isset($payload[$field]) || !is_string($payload[$field])) {
+                return null;
+            }
+        }
+
+        return $payload;
+    }
+
+    /**
+     * Build a public URL for a stored app setting asset.
+     *
+     * @param string $name App setting name
+     * @param array<string, mixed> $payload Decoded asset payload
+     * @return string
+     */
+    private function assetUrl(string $name, array $payload): string
+    {
+        return '/app-settings/asset/' . rawurlencode($name) . '?v=' . substr((string)$payload['sha256'], 0, 12);
+    }
+
+    /**
+     * Detect MIME type from file content.
+     */
+    private function detectMimeType(string $contents): string
+    {
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mimeType = $finfo->buffer($contents);
+
+        return is_string($mimeType) ? $mimeType : 'application/octet-stream';
+    }
+
+    /**
+     * Get allowed MIME types for a public asset setting type.
+     *
+     * @return array<string, string>
+     */
+    private function allowedAssetTypes(string $type): array
+    {
+        return $type === 'image' ? self::IMAGE_MIME_TYPES : self::FILE_MIME_TYPES;
+    }
+
+    /**
+     * Build a safe filename with the detected extension.
+     */
+    private function assetFilename(string $clientFilename, string $extension): string
+    {
+        $basename = pathinfo($clientFilename, PATHINFO_FILENAME);
+        $basename = preg_replace('/[^A-Za-z0-9_.-]+/', '-', $basename) ?? 'asset';
+        $basename = trim($basename, '.-');
+        if ($basename === '') {
+            $basename = 'asset';
+        }
+
+        return substr($basename, 0, 80) . '.' . $extension;
+    }
+
+    /**
+     * Build upload error message.
+     */
+    private function uploadErrorMessage(int $errorCode): string
+    {
+        return match ($errorCode) {
+            UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => 'The uploaded file exceeds the maximum upload size.',
+            UPLOAD_ERR_PARTIAL => 'The uploaded file was only partially uploaded.',
+            UPLOAD_ERR_NO_FILE => 'No file was uploaded.',
+            default => 'The uploaded file could not be processed.',
+        };
+    }
+
+    /**
+     * Build unsupported asset message.
+     */
+    private function unsupportedAssetMessage(string $type): string
+    {
+        if ($type === 'image') {
+            return 'Images must be PNG, JPEG, GIF, or WebP files.';
+        }
+
+        return 'Files must be PNG, JPEG, GIF, WebP, PDF, or plain text files.';
     }
 }

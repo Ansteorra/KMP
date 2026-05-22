@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Controller;
 
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
+use Laminas\Diactoros\UploadedFile;
 
 /**
  * App\Controller\AppSettingsController Test Case
@@ -57,6 +58,29 @@ class AppSettingsControllerTest extends HttpIntegrationTestCase
     }
 
     /**
+     * Test add image setting with upload.
+     *
+     * @return void
+     * @uses \App\Controller\AppSettingsController::add()
+     */
+    public function testAddImageSettingUpload(): void
+    {
+        $uniqueName = 'Test.Image.Setting.' . time();
+        $this->post('/app-settings/add', [
+            'name' => $uniqueName,
+            'type' => 'image',
+            'asset_file' => $this->uploadedPngFile('new-image.png'),
+        ]);
+        $this->assertRedirect(['controller' => 'AppSettings', 'action' => 'index']);
+
+        $appSettingsTable = $this->getTableLocator()->get('AppSettings');
+        $setting = $appSettingsTable->find()->where(['name' => $uniqueName])->firstOrFail();
+        $this->assertSame('image', $setting->type);
+        $this->assertStringContainsString('"storage":"database"', (string)$setting->value);
+        $this->assertStringContainsString('new-image.png', (string)$setting->value);
+    }
+
+    /**
      * Test edit method
      *
      * @return void
@@ -83,6 +107,82 @@ class AppSettingsControllerTest extends HttpIntegrationTestCase
     }
 
     /**
+     * Test editing an image setting with an uploaded file.
+     *
+     * @return void
+     * @uses \App\Controller\AppSettingsController::edit()
+     */
+    public function testEditImageSettingUpload(): void
+    {
+        $appSettingsTable = $this->getTableLocator()->get('AppSettings');
+        $appSetting = $appSettingsTable->newEntity([
+            'name' => 'test.controller.image.' . time(),
+            'value' => 'legacy.png',
+            'type' => 'image',
+            'required' => false,
+        ]);
+        $appSettingsTable->saveOrFail($appSetting);
+
+        $this->post('/app-settings/edit/' . $appSetting->id, [
+            'asset_file' => $this->uploadedPngFile('custom-login.png'),
+        ]);
+        $this->assertResponseOk();
+
+        $updated = $appSettingsTable->find()->where(['name' => $appSetting->name])->firstOrFail();
+        $this->assertSame('image', $updated->type);
+        $this->assertStringContainsString('"storage":"database"', (string)$updated->value);
+        $this->assertStringContainsString('custom-login.png', (string)$updated->value);
+    }
+
+    /**
+     * Empty image uploads leave the existing app setting asset unchanged.
+     *
+     * @return void
+     * @uses \App\Controller\AppSettingsController::edit()
+     */
+    public function testEditImageSettingWithoutUploadKeepsExistingValue(): void
+    {
+        $appSettingsTable = $this->getTableLocator()->get('AppSettings');
+        $appSetting = $appSettingsTable->newEntity([
+            'name' => 'test.controller.image.nochange.' . time(),
+            'value' => 'legacy.png',
+            'type' => 'image',
+            'required' => false,
+        ]);
+        $appSettingsTable->saveOrFail($appSetting);
+
+        $this->post('/app-settings/edit/' . $appSetting->id, [
+            'asset_file' => new UploadedFile('php://temp', 0, UPLOAD_ERR_NO_FILE, '', 'application/octet-stream'),
+        ]);
+        $this->assertResponseOk();
+
+        $updated = $appSettingsTable->find()->where(['name' => $appSetting->name])->firstOrFail();
+        $this->assertSame('legacy.png', $updated->value);
+    }
+
+    /**
+     * Public app setting assets can be read without authentication.
+     *
+     * @return void
+     * @uses \App\Controller\AppSettingsController::asset()
+     */
+    public function testAssetIsPubliclyReadable(): void
+    {
+        $appSettingsTable = $this->getTableLocator()->get('AppSettings');
+        $name = 'test.public.asset.' . time();
+        $assetValue = $appSettingsTable->assetValueFromUpload('image', $this->uploadedPngFile('public.png'));
+        $appSettingsTable->updateSetting($name, 'image', $assetValue, false);
+
+        $this->session([]);
+        $this->get('/app-settings/asset/' . $name);
+
+        $this->assertResponseOk();
+        $this->assertHeader('Content-Type', 'image/png');
+        $this->assertHeaderContains('Cache-Control', 'public');
+        $this->assertResponseEquals($this->tinyPngBytes());
+    }
+
+    /**
      * Test delete method
      *
      * @return void
@@ -106,5 +206,29 @@ class AppSettingsControllerTest extends HttpIntegrationTestCase
         $appSettingsTable = $this->getTableLocator()->get('AppSettings');
         $query = $appSettingsTable->find()->where(['name' => $testSetting->name]);
         $this->assertEquals(0, $query->count());
+    }
+
+    /**
+     * Create an uploaded PNG file test object.
+     */
+    private function uploadedPngFile(string $clientFilename): UploadedFile
+    {
+        $contents = $this->tinyPngBytes();
+        $path = tempnam(sys_get_temp_dir(), 'kmp-controller-upload-');
+        $this->assertIsString($path);
+        file_put_contents($path, $contents);
+
+        return new UploadedFile($path, strlen($contents), UPLOAD_ERR_OK, $clientFilename, 'image/png');
+    }
+
+    /**
+     * Tiny valid PNG bytes.
+     */
+    private function tinyPngBytes(): string
+    {
+        return base64_decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+            true,
+        ) ?: '';
     }
 }
