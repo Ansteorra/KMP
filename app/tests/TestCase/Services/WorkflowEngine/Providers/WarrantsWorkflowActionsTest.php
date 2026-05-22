@@ -28,7 +28,6 @@ class WarrantsWorkflowActionsTest extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
-
         $this->warrantManager = $this->createMock(WarrantManagerInterface::class);
         $this->actions = new WarrantWorkflowActions($this->warrantManager);
         $this->conditions = new WarrantWorkflowConditions();

@@ -14,9 +14,11 @@ declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use App\Services\Cache\TenantAwareCache;
 use App\Services\ImpersonationService;
 use Cake\Cache\Cache;
 use Cake\Datasource\EntityInterface;
+use Cake\I18n\FrozenTime;
 use Cake\Log\Log;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\Table;
@@ -49,7 +51,7 @@ class BaseTable extends Table
         if (!empty($this::CACHES_TO_CLEAR)) {
             foreach ($this::CACHES_TO_CLEAR as $cache) {
                 // Each cache entry: [cache_key, cache_config]
-                Cache::delete($cache[0], $cache[1]);
+                Cache::delete(TenantAwareCache::tenantScopedKey($cache[0]), $cache[1]);
             }
         }
 
@@ -58,7 +60,7 @@ class BaseTable extends Table
             foreach ($this::ID_CACHES_TO_CLEAR as $cache) {
                 // Each cache entry: [prefix, cache_config]
                 // Combines prefix with entity ID: prefix{entity_id}
-                Cache::delete($cache[0] . $entity->id, $cache[1]);
+                Cache::delete(TenantAwareCache::tenantScopedKey($cache[0] . $entity->id), $cache[1]);
             }
         }
 
@@ -85,14 +87,14 @@ class BaseTable extends Table
         // Phase 1: Clear static cache entries
         if (!empty($this::CACHES_TO_CLEAR)) {
             foreach ($this::CACHES_TO_CLEAR as $cache) {
-                Cache::delete($cache[0], $cache[1]);
+                Cache::delete(TenantAwareCache::tenantScopedKey($cache[0]), $cache[1]);
             }
         }
 
         // Phase 2: Clear entity-ID-based cache entries
         if (!empty($this::ID_CACHES_TO_CLEAR)) {
             foreach ($this::ID_CACHES_TO_CLEAR as $cache) {
-                Cache::delete($cache[0] . $entity->id, $cache[1]);
+                Cache::delete(TenantAwareCache::tenantScopedKey($cache[0] . $entity->id), $cache[1]);
             }
         }
 
@@ -210,6 +212,7 @@ class BaseTable extends Table
             'request_url' => $request->getRequestTarget(),
             'ip_address' => $request->clientIp(),
             'metadata' => $metadataJson,
+            'created' => FrozenTime::now(),
         ], ['accessibleFields' => ['*' => true]]);
 
         if ($logEntity->hasErrors()) {

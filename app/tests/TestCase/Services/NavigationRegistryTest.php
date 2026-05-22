@@ -3,7 +3,10 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Services;
 
+use App\KMP\TenantContext;
+use App\KMP\TenantMetadata;
 use App\Model\Entity\Member;
+use App\Services\Cache\TenantAwareCache;
 use App\Services\NavigationRegistry;
 use App\Test\TestCase\BaseTestCase;
 use DateTimeImmutable;
@@ -197,5 +200,65 @@ class NavigationRegistryTest extends BaseTestCase
 
         $this->assertNotEmpty($items);
         $this->assertSame('Recovered Link', $items[0]['label']);
+    }
+
+    /**
+     * Tenant navigation session cache entries are isolated by tenant context.
+     *
+     * @return void
+     */
+    public function testNavigationSessionCacheIsTenantScoped(): void
+    {
+        $user = new Member(['id' => 1, 'sca_name' => 'Test User']);
+        $tenantA = $this->tenant('tenant-a', 'tenant-a-id');
+        $tenantB = $this->tenant('tenant-b', 'tenant-b-id');
+
+        TenantContext::with($tenantA, function (): void {
+            $_SESSION[TenantAwareCache::tenantScopedKey('navigation_items')] = $this->navigationPayload('Tenant A');
+        });
+        TenantContext::with($tenantB, function (): void {
+            $_SESSION[TenantAwareCache::tenantScopedKey('navigation_items')] = $this->navigationPayload('Tenant B');
+        });
+
+        TenantContext::with($tenantA, function () use ($user): void {
+            $items = NavigationRegistry::getNavigationItems($user);
+            $this->assertSame('Tenant A', $items[0]['label']);
+        });
+        TenantContext::with($tenantB, function () use ($user): void {
+            $items = NavigationRegistry::getNavigationItems($user);
+            $this->assertSame('Tenant B', $items[0]['label']);
+        });
+    }
+
+    /**
+     * Build a cached navigation payload.
+     *
+     * @param string $label
+     * @return array<string, mixed>
+     */
+    private function navigationPayload(string $label): array
+    {
+        return [
+            'user_id' => 1,
+            'items' => [[
+                'type' => 'link',
+                'label' => $label,
+                'url' => ['controller' => 'Members', 'action' => 'index'],
+            ]],
+            'nav_version' => 2,
+            'generated_at' => (new DateTimeImmutable('now'))->format(DateTimeInterface::ATOM),
+        ];
+    }
+
+    /**
+     * Build tenant metadata for cache isolation assertions.
+     *
+     * @param string $slug
+     * @param string $id
+     * @return \App\KMP\TenantMetadata
+     */
+    private function tenant(string $slug, string $id): TenantMetadata
+    {
+        return new TenantMetadata($id, $slug, ucfirst($slug), 'active', 'db', $slug . '_db', $slug . '_role');
     }
 }

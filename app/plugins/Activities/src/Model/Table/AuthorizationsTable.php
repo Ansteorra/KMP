@@ -50,6 +50,7 @@ class AuthorizationsTable extends BaseTable
         $this->setTable("activities_authorizations");
         $this->setDisplayField("id");
         $this->setPrimaryKey("id");
+        $this->addBehavior("Timestamp");
 
         $this->belongsTo("Members", [
             "foreignKey" => "member_id",

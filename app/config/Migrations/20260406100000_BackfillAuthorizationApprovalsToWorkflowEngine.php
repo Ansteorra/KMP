@@ -121,8 +121,8 @@ class BackfillAuthorizationApprovalsToWorkflowEngine extends AbstractMigration
             // Count approved and rejected responses
             $countsRow = $this->fetchRow(
                 "SELECT " .
-                "COUNT(CASE WHEN approved = 1 AND responded_on IS NOT NULL THEN 1 END) AS approved_count, " .
-                "COUNT(CASE WHEN approved = 0 AND responded_on IS NOT NULL THEN 1 END) AS rejected_count " .
+                "COUNT(CASE WHEN approved = TRUE AND responded_on IS NOT NULL THEN 1 END) AS approved_count, " .
+                "COUNT(CASE WHEN approved = FALSE AND responded_on IS NOT NULL THEN 1 END) AS rejected_count " .
                 "FROM activities_authorization_approvals WHERE authorization_id = {$authId}"
             );
             $approvedCount = $countsRow ? (int)$countsRow['approved_count'] : 0;

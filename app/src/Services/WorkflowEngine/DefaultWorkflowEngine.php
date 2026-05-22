@@ -1177,7 +1177,10 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
 
         // Find which edges lead into this join node
         $expectedInputs = $this->getNodeInputSources($definition, $nodeId);
-        $completedInputs = array_unique(array_merge($completedInputs, [$this->findIncomingSource($definition, $nodeId, $instance)]));
+        $completedInputs = array_unique(array_merge(
+            $completedInputs,
+            [$this->findIncomingSource($definition, $nodeId, $instance, $completedInputs)],
+        ));
 
         $context['_internal']['joinState'][$nodeId] = ['completedInputs' => $completedInputs];
         $instance->context = $context;
@@ -2195,22 +2198,34 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
      * @param \App\Model\Entity\WorkflowInstance $instance The workflow instance
      * @return string The most recently completed source node ID
      */
-    protected function findIncomingSource(array $definition, string $joinNodeId, WorkflowInstance $instance): string
-    {
+    protected function findIncomingSource(
+        array $definition,
+        string $joinNodeId,
+        WorkflowInstance $instance,
+        array $alreadyCompletedInputs = [],
+    ): string {
         $logsTable = TableRegistry::getTableLocator()->get('WorkflowExecutionLogs');
         $inputSources = $this->getNodeInputSources($definition, $joinNodeId);
 
         // Find the most recently completed source node
-        $latestLog = $logsTable->find()
+        $completedLogs = $logsTable->find()
             ->where([
                 'workflow_instance_id' => $instance->id,
                 'node_id IN' => $inputSources,
                 'status' => WorkflowExecutionLog::STATUS_COMPLETED,
             ])
-            ->order(['completed_at' => 'DESC'])
-            ->first();
+            ->order(['completed_at' => 'DESC', 'id' => 'DESC'])
+            ->all();
 
-        return $latestLog ? $latestLog->node_id : ($inputSources[0] ?? 'unknown');
+        $latestSource = null;
+        foreach ($completedLogs as $completedLog) {
+            $latestSource ??= $completedLog->node_id;
+            if (!in_array($completedLog->node_id, $alreadyCompletedInputs, true)) {
+                return $completedLog->node_id;
+            }
+        }
+
+        return $latestSource ?? ($inputSources[0] ?? 'unknown');
     }
 
     /**

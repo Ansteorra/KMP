@@ -13,6 +13,7 @@ use App\Services\WorkflowRegistry\WorkflowConditionRegistry;
 use App\Services\WorkflowRegistry\WorkflowEntityRegistry;
 use App\Services\WorkflowRegistry\WorkflowTriggerRegistry;
 use App\Test\TestCase\BaseTestCase;
+use Cake\Database\Driver\Postgres;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 
@@ -31,6 +32,21 @@ class MembersWorkflowActionsTest extends BaseTestCase
         $this->actions = new MembersWorkflowActions();
         $this->conditions = new MembersWorkflowConditions();
         $this->membersTable = TableRegistry::getTableLocator()->get('Members');
+    }
+
+    /**
+     * Return the last inserted member id across supported database engines.
+     *
+     * @return int
+     */
+    private function lastInsertedMemberId(): int
+    {
+        $conn = $this->membersTable->getConnection();
+        if ($conn->getDriver() instanceof Postgres) {
+            return (int)$conn->execute("SELECT currval(pg_get_serial_sequence('members', 'id'))")->fetchColumn(0);
+        }
+
+        return (int)$conn->execute('SELECT LAST_INSERT_ID() AS id')->fetchColumn(0);
     }
 
     // ==========================================================
@@ -354,7 +370,7 @@ class MembersWorkflowActionsTest extends BaseTestCase
                 self::KINGDOM_BRANCH_ID,
             ],
         );
-        $memberId = (int)$conn->execute('SELECT LAST_INSERT_ID() AS id')->fetchColumn(0);
+        $memberId = $this->lastInsertedMemberId();
 
         $result = $this->actions->ageUpMember(
             ['triggeredBy' => self::ADMIN_MEMBER_ID],
@@ -395,7 +411,7 @@ class MembersWorkflowActionsTest extends BaseTestCase
                 self::KINGDOM_BRANCH_ID,
             ],
         );
-        $memberId = (int)$conn->execute('SELECT LAST_INSERT_ID() AS id')->fetchColumn(0);
+        $memberId = $this->lastInsertedMemberId();
 
         $result = $this->actions->assignStatusAndTokens([], ['memberId' => $memberId]);
 
@@ -428,7 +444,7 @@ class MembersWorkflowActionsTest extends BaseTestCase
                 self::KINGDOM_BRANCH_ID,
             ],
         );
-        $memberId = (int)$conn->execute('SELECT LAST_INSERT_ID() AS id')->fetchColumn(0);
+        $memberId = $this->lastInsertedMemberId();
 
         $result = $this->actions->ageUpMember(
             ['triggeredBy' => self::ADMIN_MEMBER_ID],
@@ -532,7 +548,7 @@ class MembersWorkflowActionsTest extends BaseTestCase
                 self::KINGDOM_BRANCH_ID,
             ],
         );
-        $memberId = (int)$conn->execute('SELECT LAST_INSERT_ID() AS id')->fetchColumn(0);
+        $memberId = $this->lastInsertedMemberId();
 
         $result = $this->conditions->isMinor([], ['memberId' => $memberId]);
         $this->assertTrue($result);

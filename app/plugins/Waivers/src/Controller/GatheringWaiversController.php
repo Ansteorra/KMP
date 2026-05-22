@@ -93,14 +93,27 @@ class GatheringWaiversController extends AppController
 
             // Get required waiver types for this gathering's activities
             $GatheringActivityWaivers = $this->fetchTable('Waivers.GatheringActivityWaivers');
-            $requiredWaiverTypes = $GatheringActivityWaivers->find()
+            $requiredWaiverTypeIds = $GatheringActivityWaivers->find()
+                ->select(['waiver_type_id'])
+                ->distinct(['GatheringActivityWaivers.waiver_type_id'])
                 ->innerJoinWith('GatheringActivities.Gatherings', function ($q) use ($gatheringId) {
                     return $q->where(['Gatherings.id' => $gatheringId]);
                 })
-                ->contain(['WaiverTypes'])
                 ->where(['GatheringActivityWaivers.deleted IS' => null])
-                ->groupBy(['GatheringActivityWaivers.waiver_type_id'])
-                ->all();
+                ->enableHydration(false)
+                ->all()
+                ->extract('waiver_type_id')
+                ->toList();
+            $WaiverTypes = $this->fetchTable('Waivers.WaiverTypes');
+            $requiredWaiverTypes = [];
+            if ($requiredWaiverTypeIds !== []) {
+                foreach ($WaiverTypes->find()->where(['id IN' => $requiredWaiverTypeIds])->all() as $waiverType) {
+                    $requiredWaiverTypes[] = (object)[
+                        'waiver_type_id' => $waiverType->id,
+                        'waiver_type' => $waiverType,
+                    ];
+                }
+            }
 
             // Calculate waiver counts per type (excluding declined waivers)
             $waiverCounts = $this->GatheringWaivers->find()

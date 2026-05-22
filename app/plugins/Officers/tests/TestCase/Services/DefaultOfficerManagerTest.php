@@ -111,7 +111,6 @@ class DefaultOfficerManagerTest extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
-
         // Get table instances
         $this->Offices = TableRegistry::getTableLocator()->get('Officers.Offices');
         $this->Officers = TableRegistry::getTableLocator()->get('Officers.Officers');

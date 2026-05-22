@@ -37,6 +37,7 @@ class NotesTable extends BaseTable
         $this->setTable('notes');
         $this->setDisplayField('id');
         $this->setPrimaryKey('id');
+        $this->addBehavior('Timestamp');
 
         $this->belongsTo('Authors', [
             'className' => 'Members',

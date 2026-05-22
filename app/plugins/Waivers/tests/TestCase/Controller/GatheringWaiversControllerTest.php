@@ -527,7 +527,7 @@ class GatheringWaiversControllerTest extends HttpIntegrationTestCase
         // is not in the validator's inList but is a valid DB/controller state)
         $connection = \Cake\Datasource\ConnectionManager::get('test');
         $connection->execute(
-            'INSERT INTO waivers_gathering_waivers (gathering_id, waiver_type_id, document_id, is_exemption, exemption_reason, status, retention_date, created, created_by) VALUES (?, ?, NULL, 1, ?, ?, ?, NOW(), ?)',
+            'INSERT INTO waivers_gathering_waivers (gathering_id, waiver_type_id, document_id, is_exemption, exemption_reason, status, retention_date, created, created_by) VALUES (?, ?, NULL, TRUE, ?, ?, ?, NOW(), ?)',
             [
                 $existingWaiver->gathering_id,
                 $existingWaiver->waiver_type_id,

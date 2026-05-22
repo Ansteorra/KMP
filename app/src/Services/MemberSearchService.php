@@ -72,15 +72,20 @@ class MemberSearchService
         int $limit = 10,
         array $fields = ['id', 'sca_name'],
     ): SelectQuery {
+        $patterns = array_values(array_unique(array_map(
+            static fn(?string $term): string => '%' . mb_strtolower((string)$term) . '%',
+            [$q, $nq, $uq],
+        )));
+        $conditions = array_map(
+            static fn(string $pattern): array => ['LOWER(sca_name) LIKE' => $pattern],
+            $patterns,
+        );
+
         return $this->Members
             ->find('all')
             ->where([
                 'status <>' => Member::STATUS_DEACTIVATED,
-                'OR' => [
-                    ['sca_name LIKE' => "%$q%"],
-                    ['sca_name LIKE' => "%$nq%"],
-                    ['sca_name LIKE' => "%$uq%"],
-                ],
+                'OR' => $conditions,
             ])
             ->select($fields)
             ->limit($limit);

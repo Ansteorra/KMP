@@ -6,6 +6,7 @@ namespace App\KMP;
 use App\Model\Entity\Member;
 use App\Model\Entity\Permission;
 use App\Model\Entity\Warrant;
+use App\Services\Cache\TenantAwareCache;
 use Cake\Cache\Cache;
 use Cake\Database\Expression\IdentifierExpression;
 use Cake\I18n\DateTime;
@@ -39,7 +40,7 @@ class PermissionsLoader
     public static function getPermissions(int $memberId): array
     {
         // 1. Cache Strategy - Check for cached permissions first
-        $cacheKey = 'member_permissions' . $memberId;
+        $cacheKey = TenantAwareCache::tenantScopedKey('member_permissions' . $memberId);
         $cache = Cache::read($cacheKey, 'member_permissions');
         if ($cache) {
             return $cache; // Return cached result if available
@@ -159,7 +160,7 @@ class PermissionsLoader
     public static function getPolicies($id, ?array $branchIds = null): array
     {
         // 1. Cache Strategy - Check for cached policy mappings
-        $cacheKey = 'permissions_policies' . $id;
+        $cacheKey = TenantAwareCache::tenantScopedKey('permissions_policies' . $id);
         $cache = Cache::read($cacheKey, 'member_permissions');
         if ($cache) {
             return $cache; // Return cached result if available
@@ -275,7 +276,7 @@ class PermissionsLoader
         // 3. Build Subquery with Validation Chain
         $subquery = $permissionsTable
             ->find()
-            ->cache('permissions_members' . $permissionId, 'permissions_structure');
+            ->cache(TenantAwareCache::tenantScopedKey('permissions_members' . $permissionId), 'permissions_structure');
 
         // Apply comprehensive validation chain (same as getPermissions)
         $subquery = self::validPermissionClauses($subquery)
@@ -535,7 +536,7 @@ class PermissionsLoader
     public static function getServicePrincipalPermissions(int $servicePrincipalId): array
     {
         // 1. Cache Strategy - Check for cached permissions first
-        $cacheKey = 'sp_permissions_' . $servicePrincipalId;
+        $cacheKey = TenantAwareCache::tenantScopedKey('sp_permissions_' . $servicePrincipalId);
         $cache = Cache::read($cacheKey, 'member_permissions');
         if ($cache) {
             return $cache;
@@ -652,7 +653,7 @@ class PermissionsLoader
     public static function getServicePrincipalPolicies(int $servicePrincipalId, ?array $branchIds = null): array
     {
         // 1. Cache Strategy
-        $cacheKey = 'sp_policies_' . $servicePrincipalId;
+        $cacheKey = TenantAwareCache::tenantScopedKey('sp_policies_' . $servicePrincipalId);
         $cache = Cache::read($cacheKey, 'member_permissions');
         if ($cache) {
             return $cache;

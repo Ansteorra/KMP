@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use App\Services\Cache\TenantAwareCache;
 use Cake\Cache\Cache;
 use Cake\ORM\RulesChecker;
 use Cake\Validation\Validator;
@@ -72,30 +73,38 @@ class MemberRolesTable extends BaseTable
         $this->addBehavior('ActiveWindow');
     }
 
-    /**
-     * Run after an entity is saved.
-     *
-     * @param mixed $event
-     * @param mixed $entity
-     * @param mixed $options
-     * @return void
-     */
     protected const CACHE_GROUPS_TO_CLEAR = ['security'];
 
+    /**
+     * Clear tenant-scoped member permission caches after a role is saved.
+     *
+     * @param mixed $event Event object
+     * @param mixed $entity Saved entity
+     * @param mixed $options Save options
+     * @return void
+     */
     public function afterSave($event, $entity, $options): void
     {
         parent::afterSave($event, $entity, $options);
         $memberId = $entity->member_id;
-        Cache::delete('permissions_policies' . $memberId, 'member_permissions');
-        Cache::delete('member_permissions' . $memberId, 'member_permissions');
+        Cache::delete(TenantAwareCache::tenantScopedKey('permissions_policies' . $memberId), 'member_permissions');
+        Cache::delete(TenantAwareCache::tenantScopedKey('member_permissions' . $memberId), 'member_permissions');
     }
 
+    /**
+     * Clear tenant-scoped member permission caches after a role is deleted.
+     *
+     * @param mixed $event Event object
+     * @param mixed $entity Deleted entity
+     * @param mixed $options Delete options
+     * @return void
+     */
     public function afterDelete($event, $entity, $options): void
     {
         parent::afterDelete($event, $entity, $options);
         $memberId = $entity->member_id;
-        Cache::delete('permissions_policies' . $memberId, 'member_permissions');
-        Cache::delete('member_permissions' . $memberId, 'member_permissions');
+        Cache::delete(TenantAwareCache::tenantScopedKey('permissions_policies' . $memberId), 'member_permissions');
+        Cache::delete(TenantAwareCache::tenantScopedKey('member_permissions' . $memberId), 'member_permissions');
     }
 
     /**

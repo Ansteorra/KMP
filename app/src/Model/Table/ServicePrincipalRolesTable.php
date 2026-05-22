@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use App\Services\Cache\TenantAwareCache;
 use Cake\Cache\Cache;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
@@ -92,8 +93,8 @@ class ServicePrincipalRolesTable extends BaseTable
         parent::afterSave($event, $entity, $options);
 
         $servicePrincipalId = $entity->service_principal_id;
-        Cache::delete('sp_permissions_' . $servicePrincipalId);
-        Cache::delete('sp_policies_' . $servicePrincipalId);
+        Cache::delete(TenantAwareCache::tenantScopedKey('sp_permissions_' . $servicePrincipalId), 'member_permissions');
+        Cache::delete(TenantAwareCache::tenantScopedKey('sp_policies_' . $servicePrincipalId), 'member_permissions');
     }
 
     /**

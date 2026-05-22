@@ -80,7 +80,6 @@ class WorkflowDispatchTraitTest extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
-
         $this->defTable = TableRegistry::getTableLocator()->get('WorkflowDefinitions');
         $this->versionsTable = TableRegistry::getTableLocator()->get('WorkflowVersions');
         $this->subject = $this->createSubjectWithBranch(self::TEST_BRANCH_STARGATE_ID);

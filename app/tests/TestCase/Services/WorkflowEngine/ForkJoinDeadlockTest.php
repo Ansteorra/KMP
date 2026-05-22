@@ -149,11 +149,10 @@ class ForkJoinDeadlockTest extends BaseTestCase
         $this->assertNotNull($finalEndLog);
     }
 
-    public function testForkWithIntermediateNodesToJoinStaysRunning(): void
+    public function testForkWithIntermediateNodesToJoinCompletes(): void
     {
-        // When intermediate condition nodes exist between fork and join, the join may
-        // not complete due to findIncomingSource timing (same-second timestamps).
-        // This documents the engine's sequential execution behavior.
+        // Intermediate condition nodes between fork and join should still
+        // contribute distinct completed inputs to the join.
         $slug = 'fjd-intermediate-' . uniqid();
         $this->createWorkflow($slug, [
             'nodes' => [
@@ -189,10 +188,7 @@ class ForkJoinDeadlockTest extends BaseTestCase
         $this->assertTrue($result->isSuccess());
 
         $instance = $this->instancesTable->get($result->data['instanceId']);
-        // Instance stays RUNNING: the join expects 2 distinct inputs but
-        // findIncomingSource may return the same source due to same-second timestamps.
-        // Both branches execute, but the join doesn't detect both completions.
-        $this->assertSame(WorkflowInstance::STATUS_RUNNING, $instance->status);
+        $this->assertSame(WorkflowInstance::STATUS_COMPLETED, $instance->status);
 
         // Verify both conditions were still executed
         $this->assertArrayHasKey('condA', $instance->context['nodes']);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Services;
 
 use App\Services\BackupService;
+use Cake\Datasource\ConnectionManager;
 use Cake\TestSuite\TestCase;
 use ReflectionMethod;
 use RuntimeException;
@@ -13,6 +14,38 @@ use RuntimeException;
  */
 class BackupServiceTest extends TestCase
 {
+    protected function tearDown(): void
+    {
+        ConnectionManager::drop('backup_scope_test');
+        parent::tearDown();
+    }
+
+    public function testExportCanTargetNonDefaultConnection(): void
+    {
+        ConnectionManager::setConfig('backup_scope_test', [
+            'className' => 'Cake\Database\Connection',
+            'driver' => 'Cake\Database\Driver\Sqlite',
+            'database' => ':memory:',
+        ]);
+        $connection = ConnectionManager::get('backup_scope_test');
+        $connection->execute('CREATE TABLE platform_values (id INTEGER PRIMARY KEY, name TEXT NOT NULL)');
+        $connection->insert('platform_values', ['id' => 1, 'name' => 'Example']);
+
+        $service = new BackupService('backup_scope_test');
+        $result = $service->export('test-key');
+
+        $method = new ReflectionMethod(BackupService::class, 'decrypt');
+        $method->setAccessible(true);
+        $compressed = $method->invoke($service, $result['data'], 'test-key');
+        $json = gzdecode($compressed);
+        $payload = json_decode((string)$json, true);
+
+        $this->assertSame(['platform_values'], $payload['meta']['tables']);
+        $this->assertSame('Example', $payload['tables']['platform_values'][0]['name']);
+        $this->assertSame(1, $result['meta']['table_count']);
+        $this->assertSame(1, $result['meta']['row_count']);
+    }
+
     public function testRestorePostgresForeignKeysUsesSavepointForValidateFailures(): void
     {
         $service = new BackupService();

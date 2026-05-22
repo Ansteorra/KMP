@@ -162,8 +162,7 @@ class AwardsController extends AppController
         $baseQuery = $this->buildAwardsGridBaseQuery()
             ->matching('GatheringActivities', function ($q) use ($activityId) {
                 return $q->where(['GatheringActivities.id' => $activityId]);
-            })
-            ->distinct([$this->Awards->aliasField('id')]);
+            });
 
         $result = $this->processDataverseGrid([
             'gridKey' => 'Awards.Awards.activity.' . $activityId,

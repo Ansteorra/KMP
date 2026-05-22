@@ -36,7 +36,6 @@ class OfficersWorkflowActionsTest extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
-
         $this->activeWindowManager = $this->createMock(ActiveWindowManagerInterface::class);
         $this->warrantManager = $this->createMock(WarrantManagerInterface::class);
         $this->officerManager = $this->createMock(OfficerManagerInterface::class);

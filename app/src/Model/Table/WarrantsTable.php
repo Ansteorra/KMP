@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use App\Services\Cache\TenantAwareCache;
 use Cake\Cache\Cache;
 use Cake\ORM\RulesChecker;
 use Cake\Validation\Validator;
@@ -196,10 +197,10 @@ class WarrantsTable extends BaseTable
 
         // Invalidate permission policies cache for affected member
         // This ensures policy resolutions are recalculated with current warrant data
-        Cache::delete('permissions_policies' . $memberId);
+        Cache::delete(TenantAwareCache::tenantScopedKey('permissions_policies' . $memberId), 'member_permissions');
 
         // Invalidate member permissions cache for affected member
         // This ensures permission calculations include current warrant status
-        Cache::delete('member_permissions' . $memberId);
+        Cache::delete(TenantAwareCache::tenantScopedKey('member_permissions' . $memberId), 'member_permissions');
     }
 }
