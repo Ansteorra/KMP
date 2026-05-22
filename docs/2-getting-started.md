@@ -69,10 +69,11 @@ Mailpit is available at **http://localhost:8025** and MariaDB is available at **
 To test multiple local hostnames, add entries to `/etc/hosts`:
 
 ```text
-127.0.0.1 kmp.localhost admin.kmp.localhost
+127.0.0.1 kmp.localhost kmp2.localhost platform.kmp.localhost
 ```
 
-Then open http://kmp.localhost:8080 or http://admin.kmp.localhost:8080.
+Then open http://kmp.localhost:8080, http://kmp2.localhost:8080, or
+http://platform.kmp.localhost:8080 when the platform-admin portal is enabled.
 
 ### Running Commands
 

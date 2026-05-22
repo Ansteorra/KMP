@@ -51,7 +51,10 @@ Complete reference for all KMP deployment configuration options.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DOCUMENT_STORAGE_ADAPTER` | `local` | Storage backend: `local`, `azure`, or `s3` |
-| `AZURE_STORAGE_CONNECTION_STRING` | — | Azure Blob Storage connection string |
+| `AZURE_STORAGE_AUTH_MODE` | `connectionString` | Azure auth mode: `managedIdentity` in Azure, `connectionString` for legacy/dev |
+| `AZURE_STORAGE_ACCOUNT_NAME` | — | Azure Storage account name when using managed identity |
+| `AZURE_STORAGE_CONTAINER_PREFIX` | `documents` | Prefix used to derive per-tenant containers when tenant metadata has no explicit container |
+| `AZURE_STORAGE_CONNECTION_STRING` | — | Legacy/dev Azure Blob Storage connection string; do not use for Azure Container Apps |
 | `AWS_ACCESS_KEY_ID` | — | AWS access key for S3 storage |
 | `AWS_SECRET_ACCESS_KEY` | — | AWS secret key for S3 storage |
 | `AWS_REGION` | `us-east-1` | AWS region for S3 |

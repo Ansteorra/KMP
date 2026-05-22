@@ -4,17 +4,24 @@
  * This file is automatically copied to config/app_local.php by the entrypoint script.
  * 
  * Key differences from .devcontainer version:
- *   - Database host uses MYSQL_HOST env var (defaults to 'db' service)
+ *   - Database host uses DB_HOST env var (defaults to 'db' service)
  *   - All config pulled from environment variables
  */
 $databaseUrl = env('DATABASE_URL', null);
 $databaseTestUrl = env('DATABASE_TEST_URL', null);
-$isPostgresUrl = str_starts_with(strtolower((string)$databaseUrl), 'postgres');
+$databaseDriverName = strtolower((string)env('KMP_DB_DRIVER', 'postgres'));
+$databaseDriver = match ($databaseDriverName) {
+    'postgres', 'pgsql' => \Cake\Database\Driver\Postgres::class,
+    'mysql', 'mariadb', '' => \Cake\Database\Driver\Mysql::class,
+    default => throw new RuntimeException(sprintf('Unsupported KMP_DB_DRIVER value "%s".', $databaseDriverName)),
+};
+$isPostgres = in_array($databaseDriverName, ['postgres', 'pgsql'], true)
+    || str_starts_with(strtolower((string)$databaseUrl), 'postgres');
 $mysqlSsl = filter_var(env('MYSQL_SSL', false), FILTER_VALIDATE_BOOLEAN);
 
 // Build PDO connection flags based on driver and SSL requirements
 $pdoFlags = [];
-if ($isPostgresUrl) {
+if ($isPostgres) {
     $pdoFlags[\PDO::ATTR_EMULATE_PREPARES] = true;
 } elseif ($mysqlSsl) {
     $pdoFlags[\PDO::MYSQL_ATTR_SSL_CA] = env('MYSQL_SSL_CA', '');
@@ -38,19 +45,26 @@ return [
 
     'Datasources' => [
         'default' => [
-            'host' => env('MYSQL_HOST', 'db'),  // 'db' is the Docker service name
-            'username' => env('MYSQL_USERNAME'),
-            'password' => env('MYSQL_PASSWORD'),
-            'database' => env('MYSQL_DB_NAME'),
+            'className' => \Cake\Database\Connection::class,
+            'driver' => $databaseDriver,
+            'host' => env('DB_HOST', env('MYSQL_HOST', 'db')),
+            'port' => env('DB_PORT', $isPostgres ? 5432 : env('MYSQL_PORT', 3306)),
+            'username' => env('DB_USERNAME', env('MYSQL_USERNAME')),
+            'password' => env('DB_PASSWORD', env('MYSQL_PASSWORD')),
+            'database' => env('DB_DATABASE', env('MYSQL_DB_NAME')),
             'url' => $databaseUrl,
             'flags' => $pdoFlags,
         ],
         'test' => [
-            'host' => env('MYSQL_HOST', 'db'),
-            'username' => env('MYSQL_USERNAME'),
-            'password' => env('MYSQL_PASSWORD'),
-            'database' => env('MYSQL_DB_NAME') . '_test',
-            'url' => $databaseTestUrl ?? ($isPostgresUrl ? $databaseUrl : null),
+            'className' => \Cake\Database\Connection::class,
+            'driver' => $databaseDriver,
+            'host' => env('DB_HOST', env('MYSQL_HOST', 'db')),
+            'port' => env('DB_PORT', $isPostgres ? 5432 : env('MYSQL_PORT', 3306)),
+            'username' => env('DB_USERNAME', env('MYSQL_USERNAME')),
+            'password' => env('DB_PASSWORD', env('MYSQL_PASSWORD')),
+            'database' => env('DB_DATABASE', env('MYSQL_DB_NAME')) . '_test',
+            'url' => $databaseTestUrl,
+            'flags' => $pdoFlags,
         ],
     ],
 
@@ -69,8 +83,12 @@ return [
         'storage' => [
             'adapter' => env('DOCUMENT_STORAGE_ADAPTER', 'local'),
             'azure' => [
+                'authMode' => env('AZURE_STORAGE_AUTH_MODE', 'connectionString'),
+                'accountName' => env('AZURE_STORAGE_ACCOUNT_NAME'),
+                'managedIdentityClientId' => env('AZURE_CLIENT_ID'),
                 'connectionString' => env('AZURE_STORAGE_CONNECTION_STRING'),
                 'container' => env('AZURE_STORAGE_CONTAINER', 'documents'),
+                'containerPrefix' => env('AZURE_STORAGE_CONTAINER_PREFIX', 'documents'),
                 'prefix' => '',
             ],
             's3' => [

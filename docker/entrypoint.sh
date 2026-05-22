@@ -3,11 +3,37 @@ set -e
 
 echo "=== KMP Application Container Starting ==="
 
+DB_DRIVER="$(printf '%s' "${KMP_DB_DRIVER:-mysql}" | tr '[:upper:]' '[:lower:]')"
+if [ "$DB_DRIVER" = "postgres" ] || [ "$DB_DRIVER" = "pgsql" ]; then
+    DB_ENGINE="postgres"
+    DB_HOST="${DB_HOST:-${MYSQL_HOST:-db}}"
+    DB_PORT="${DB_PORT:-5432}"
+    DB_USER="${DB_USERNAME:-${POSTGRES_USER:-${MYSQL_USERNAME:-}}}"
+    DB_PASS="${DB_PASSWORD:-${POSTGRES_PASSWORD:-${MYSQL_PASSWORD:-}}}"
+    DB_NAME="${DB_DATABASE:-${POSTGRES_DB:-${MYSQL_DB_NAME:-}}}"
+    PLATFORM_DB_NAME="${PLATFORM_DB_DATABASE:-${DB_NAME}_platform}"
+else
+    DB_ENGINE="mysql"
+    DB_HOST="${DB_HOST:-${MYSQL_HOST:-db}}"
+    DB_PORT="${DB_PORT:-${MYSQL_PORT:-3306}}"
+    DB_USER="${DB_USERNAME:-${MYSQL_USERNAME:-}}"
+    DB_PASS="${DB_PASSWORD:-${MYSQL_PASSWORD:-}}"
+    DB_NAME="${DB_DATABASE:-${MYSQL_DB_NAME:-}}"
+fi
+
 # Wait for database to be ready (belt and suspenders - compose healthcheck should handle this)
 echo "Checking database connection..."
 max_attempts=30
 attempt=0
-until mysql -h"$MYSQL_HOST" -u"$MYSQL_USERNAME" -p"$MYSQL_PASSWORD" -e "SELECT 1" &>/dev/null; do
+database_ready() {
+    if [ "$DB_ENGINE" = "postgres" ]; then
+        PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1" >/dev/null 2>&1
+    else
+        mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" -e "SELECT 1" >/dev/null 2>&1
+    fi
+}
+
+until database_ready; do
     attempt=$((attempt + 1))
     if [ $attempt -ge $max_attempts ]; then
         echo "ERROR: Could not connect to database after $max_attempts attempts"
@@ -20,11 +46,20 @@ echo "Database connection established!"
 
 # Create test database if it doesn't exist
 echo "Ensuring test database exists..."
-mysql -h"$MYSQL_HOST" -u"$MYSQL_USERNAME" -p"$MYSQL_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS ${MYSQL_DB_NAME}_test COLLATE utf8_unicode_ci;" 2>/dev/null || true
+if [ "$DB_ENGINE" = "postgres" ]; then
+    if [ "${KMP_AUTO_CREATE_DATABASES:-false}" = "true" ]; then
+        PGPASSWORD="$DB_PASS" createdb -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" "${DB_NAME}_test" 2>/dev/null || true
+        PGPASSWORD="$DB_PASS" createdb -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" "$PLATFORM_DB_NAME" 2>/dev/null || true
+        PGPASSWORD="$DB_PASS" createdb -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" "${PLATFORM_DB_NAME}_test" 2>/dev/null || true
+    fi
+else
+    mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" \
+        -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME}_test COLLATE utf8_unicode_ci;" 2>/dev/null || true
+fi
 
-# Skip .env file generation - APP_NAME is set which tells CakePHP to use container env vars directly
-# This avoids the "Key already defined" error from josegonzalez/dotenv
-echo "Using container environment variables (APP_NAME=$APP_NAME)"
+# Skip .env file generation; local Docker mounts app/config/.env and CakePHP
+# reloads it at request time so development-only setting changes are picked up.
+echo "Using container environment variables with local .env overrides (APP_NAME=$APP_NAME)"
 
 # Always copy Docker-specific app_local.php (uses correct service hostnames)
 echo "Copying Docker app_local.php..."
@@ -52,7 +87,11 @@ chown -R www-data:www-data /var/www/html/logs /var/www/html/tmp /var/www/html/im
 chmod -R 775 /var/www/html/logs /var/www/html/tmp /var/www/html/images 2>/dev/null || true
 
 # Run migrations if database is empty (first-time setup)
-TABLES=$(mysql -h"$MYSQL_HOST" -u"$MYSQL_USERNAME" -p"$MYSQL_PASSWORD" "$MYSQL_DB_NAME" -N -e "SHOW TABLES;" 2>/dev/null | wc -l)
+if [ "$DB_ENGINE" = "postgres" ]; then
+    TABLES=$(PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -Atc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE';" 2>/dev/null || echo 0)
+else
+    TABLES=$(mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" -N -e "SHOW TABLES;" 2>/dev/null | wc -l)
+fi
 if [ "$TABLES" -eq 0 ]; then
     echo "Empty database detected - running initial setup..."
     cd /var/www/html
@@ -75,17 +114,17 @@ if [ "${KMP_SKIP_CRON:-false}" != "true" ]; then
     touch /var/log/cron.log
     chmod 664 /var/log/cron.log 2>/dev/null || true
 
-    CRON_FILE=$(mktemp)
+    CRON_FILE="/var/www/html/tmp/kmp-cron.$$"
     crontab -l 2>/dev/null \
-        | grep -v -E "bin/cake (queue run|workflow_scheduler|sync_active_window_statuses|sync_member_warrantable_statuses|age_up_members|backup_check)" \
+        | grep -v -E "bin/cake (queue run|workflow_scheduler|sync_active_window_statuses|sync_member_warrantable_statuses|age_up_members|backup_check|platform schedule run)" \
         > "$CRON_FILE" || true
     cat >> "$CRON_FILE" <<'CRON'
 */2 * * * * cd /var/www/html && bin/cake queue run -q >> /var/log/cron.log 2>&1
-* * * * * cd /var/www/html && bin/cake workflow_scheduler >> /var/log/cron.log 2>&1
-*/15 * * * * cd /var/www/html && bin/cake sync_active_window_statuses >> /var/log/cron.log 2>&1
-10 0 * * * cd /var/www/html && bin/cake sync_member_warrantable_statuses >> /var/log/cron.log 2>&1
-20 0 * * * cd /var/www/html && bin/cake age_up_members >> /var/log/cron.log 2>&1
-0 3 * * * cd /var/www/html && bin/cake backup_check >> /var/log/cron.log 2>&1
+* * * * * cd /var/www/html && if [ "${KMP_TENANCY_ENABLED:-false}" = "true" ]; then bin/cake platform schedule run workflow-scheduler; else bin/cake workflow_scheduler; fi >> /var/log/cron.log 2>&1
+*/15 * * * * cd /var/www/html && if [ "${KMP_TENANCY_ENABLED:-false}" = "true" ]; then bin/cake platform schedule run active-window-sync; else bin/cake sync_active_window_statuses; fi >> /var/log/cron.log 2>&1
+10 0 * * * cd /var/www/html && if [ "${KMP_TENANCY_ENABLED:-false}" = "true" ]; then bin/cake platform schedule run member-warrantable-sync; else bin/cake sync_member_warrantable_statuses; fi >> /var/log/cron.log 2>&1
+20 0 * * * cd /var/www/html && if [ "${KMP_TENANCY_ENABLED:-false}" = "true" ]; then bin/cake platform schedule run age-up-members; else bin/cake age_up_members; fi >> /var/log/cron.log 2>&1
+0 3 * * * cd /var/www/html && if [ "${KMP_TENANCY_ENABLED:-false}" = "true" ]; then bin/cake platform schedule run backup-check; else bin/cake backup_check; fi >> /var/log/cron.log 2>&1
 CRON
     crontab "$CRON_FILE"
     rm -f "$CRON_FILE"
@@ -99,8 +138,14 @@ fi
 echo "=== KMP Application Ready ==="
 echo "  App:     http://localhost:${KMP_APP_PORT:-8080}"
 echo "  Mailpit: http://localhost:${KMP_MAILPIT_WEB_PORT:-8025}"
-echo "  MySQL:   localhost:${KMP_DB_HOST_PORT:-3306}"
-echo "  Cron log: /var/log/cron.log"
+if [ "$DB_ENGINE" = "postgres" ]; then
+    echo "  PostgreSQL: localhost:${KMP_DB_HOST_PORT:-5432}"
+else
+    echo "  MySQL:   localhost:${KMP_DB_HOST_PORT:-3306}"
+fi
+if [ "${KMP_SKIP_CRON:-false}" != "true" ]; then
+    echo "  Cron log: /var/log/cron.log"
+fi
 echo ""
 
 # Execute the main command (apache2-foreground)

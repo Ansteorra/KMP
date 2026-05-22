@@ -9,9 +9,9 @@
 #   1. (optional) trigger a fresh GHCR build via `gh workflow run nightly.yml`
 #   2. `az acr import` ghcr.io/jhandel/kmp:<tag> into the nightly ACR
 #   3. run the migrate Container Apps Job and wait for Succeeded
-#   4. (optional, --reset) run the reset job to reseed the database
+#   4. (optional, --reset) run the restore job to reseed the database
 #   5. update the web Container App image → forces a new revision
-#   6. update the queue / sync / reset job images
+#   6. update the fixed schedule-shape job images
 #   7. poll /health until it returns 200
 #
 # Usage:
@@ -32,9 +32,12 @@
 #   AZURE_ACR_NAME          kmpnightlyacrd346d2
 #   AZURE_WEB_APP_NAME      kmpnightly-web
 #   AZURE_MIGRATE_JOB_NAME  kmpnightly-migrate
-#   AZURE_QUEUE_JOB_NAME    kmpnightly-queue
-#   AZURE_SYNC_JOB_NAME     kmpnightly-sync
-#   AZURE_RESET_JOB_NAME    kmpnightly-reset
+#   AZURE_QUEUE_JOB_NAME          kmpnightly-queue
+#   AZURE_RESTORE_JOB_NAME        kmpnightly-restore
+#   AZURE_SCHED_HOURLY_JOB_NAME   kmpnightly-sched-hourly
+#   AZURE_SCHED_DAILY_JOB_NAME    kmpnightly-sched-daily
+#   AZURE_SCHED_WEEKLY_JOB_NAME   kmpnightly-sched-weekly
+#   AZURE_SCHED_NIGHTLY_JOB_NAME  kmpnightly-sched-nightly
 #   IMAGE_TAG               nightly
 #   NIGHTLY_BRANCH          <current git branch>   (used by `build`)
 #   GH_REPO                 jhandel/KMP            (used by `build` / `status`)
@@ -55,8 +58,11 @@ ACR="${AZURE_ACR_NAME:-kmpnightlyacrd346d2}"
 WEB="${AZURE_WEB_APP_NAME:-kmpnightly-web}"
 MIGRATE_JOB="${AZURE_MIGRATE_JOB_NAME:-kmpnightly-migrate}"
 QUEUE_JOB="${AZURE_QUEUE_JOB_NAME:-kmpnightly-queue}"
-SYNC_JOB="${AZURE_SYNC_JOB_NAME:-kmpnightly-sync}"
-RESET_JOB="${AZURE_RESET_JOB_NAME:-kmpnightly-reset}"
+RESTORE_JOB="${AZURE_RESTORE_JOB_NAME:-${AZURE_RESET_JOB_NAME:-kmpnightly-restore}}"
+SCHED_HOURLY_JOB="${AZURE_SCHED_HOURLY_JOB_NAME:-kmpnightly-sched-hourly}"
+SCHED_DAILY_JOB="${AZURE_SCHED_DAILY_JOB_NAME:-${AZURE_SYNC_JOB_NAME:-kmpnightly-sched-daily}}"
+SCHED_WEEKLY_JOB="${AZURE_SCHED_WEEKLY_JOB_NAME:-kmpnightly-sched-weekly}"
+SCHED_NIGHTLY_JOB="${AZURE_SCHED_NIGHTLY_JOB_NAME:-kmpnightly-sched-nightly}"
 IMAGE_TAG="${IMAGE_TAG:-nightly}"
 
 REPO="${GH_REPO:-jhandel/KMP}"
@@ -184,7 +190,7 @@ cmd_deploy() {
     # 2. Optional full reset
     if [[ "$do_reset" == 1 ]]; then
         warn "FULL RESET — dropping & reseeding DB (all passwords reset to TestPassword)"
-        run_job "$RESET_JOB" "$image_ref" "reset"
+        run_job "$RESTORE_JOB" "$image_ref" "restore"
     fi
 
     # 3. Web
@@ -192,8 +198,8 @@ cmd_deploy() {
     az containerapp update -g "$RG" -n "$WEB" --image "$image_ref" -o none
     ok "web image updated"
 
-    # 4. Other jobs (queue/sync/reset) so cron uses the new image next run
-    for job in "$QUEUE_JOB" "$SYNC_JOB" "$RESET_JOB"; do
+    # 4. Other jobs so cron/manual starts use the new image next run
+    for job in "$QUEUE_JOB" "$RESTORE_JOB" "$SCHED_HOURLY_JOB" "$SCHED_DAILY_JOB" "$SCHED_WEEKLY_JOB" "$SCHED_NIGHTLY_JOB"; do
         log "Updating $job → $image_ref"
         az containerapp job update -g "$RG" -n "$job" --image "$image_ref" -o none
     done
@@ -205,10 +211,10 @@ cmd_deploy() {
     log "Probing https://$fqdn/health (up to 10 min for new revision)"
     for i in $(seq 1 40); do
         local code
-        code=$(curl -sS -o /tmp/kmp-health.txt -w '%{http_code}' "https://$fqdn/health" || echo 000)
+        code=$(curl -sS -o "$HERE/.kmp-health.txt" -w '%{http_code}' "https://$fqdn/health" || echo 000)
         if [[ "$code" == "200" ]]; then
             ok "/health OK"
-            cat /tmp/kmp-health.txt; echo
+            cat "$HERE/.kmp-health.txt"; echo
             echo
             ok "Deploy complete: https://$fqdn"
             return 0

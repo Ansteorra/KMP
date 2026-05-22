@@ -1,0 +1,1504 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.36.1.42791",
+      "templateHash": "13426741391808856352"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure region for all resources."
+      }
+    },
+    "namePrefix": {
+      "type": "string",
+      "defaultValue": "kmpnightly",
+      "minLength": 3,
+      "maxLength": 11,
+      "metadata": {
+        "description": "Short lowercase-alphanumeric prefix used to name all resources."
+      }
+    },
+    "imageRepository": {
+      "type": "string",
+      "metadata": {
+        "description": "Container image reference (without tag) in the internal ACR. Typically \"<acr-login-server>/kmp\"."
+      }
+    },
+    "imageTag": {
+      "type": "string",
+      "defaultValue": "nightly",
+      "metadata": {
+        "description": "Image tag to deploy (e.g. \"nightly\" or \"nightly-2026-04-17\")."
+      }
+    },
+    "releaseChannel": {
+      "type": "string",
+      "defaultValue": "nightly",
+      "metadata": {
+        "description": "Release channel exposed to the application runtime."
+      }
+    },
+    "postgresAdminUser": {
+      "type": "string",
+      "defaultValue": "kmpadmin",
+      "metadata": {
+        "description": "Postgres admin login name."
+      }
+    },
+    "postgresAdminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Postgres admin password (also used as the application credential for nightly — no separate app role)."
+      }
+    },
+    "postgresDatabaseName": {
+      "type": "string",
+      "defaultValue": "kmp_nightly",
+      "metadata": {
+        "description": "Postgres application database name."
+      }
+    },
+    "platformPostgresDatabaseName": {
+      "type": "string",
+      "defaultValue": "kmp_platform",
+      "metadata": {
+        "description": "Postgres platform metadata database name. Platform schedules, tenants, jobs, and secret metadata live here."
+      }
+    },
+    "securitySalt": {
+      "type": "securestring",
+      "metadata": {
+        "description": "CakePHP Security.salt value (generate with `openssl rand -hex 32`)."
+      }
+    },
+    "backupEncryptionKey": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Backup encryption key. Must match the key used to bake the nightly .kmpbackup file. Keep this in sync with deploy/azure/seed/."
+      }
+    },
+    "platformSecretsMasterKey": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Master key used by the database-backed platform secret store. Generate with `openssl rand -hex 32`."
+      }
+    },
+    "emailSmtpHost": {
+      "type": "string",
+      "metadata": {
+        "description": "SMTP host for outbound mail (e.g. Mailpit reused from UAT)."
+      }
+    },
+    "emailSmtpPort": {
+      "type": "int",
+      "defaultValue": 1025,
+      "metadata": {
+        "description": "SMTP port for outbound mail."
+      }
+    },
+    "emailSmtpUsername": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "SMTP username (leave empty for unauthenticated Mailpit)."
+      }
+    },
+    "emailSmtpPassword": {
+      "type": "securestring",
+      "defaultValue": "",
+      "metadata": {
+        "description": "SMTP password (leave empty for unauthenticated Mailpit)."
+      }
+    },
+    "emailSmtpTls": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Whether SMTP uses TLS."
+      }
+    },
+    "emailFrom": {
+      "type": "string",
+      "metadata": {
+        "description": "From address for outgoing mail."
+      }
+    },
+    "deployerPrincipalId": {
+      "type": "string",
+      "metadata": {
+        "description": "Object ID of the principal that should have Key Vault Secrets Officer access for initial secret population (usually the deployer)."
+      }
+    },
+    "acrName": {
+      "type": "string",
+      "metadata": {
+        "description": "ACR name. Must be pre-computed by the bootstrap script so that the image can be imported before the rest of the deployment runs."
+      }
+    },
+    "deployFrontDoor": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Whether to provision Azure Front Door in front of the Container App."
+      }
+    },
+    "frontDoorSku": {
+      "type": "string",
+      "defaultValue": "Standard_AzureFrontDoor",
+      "allowedValues": [
+        "Standard_AzureFrontDoor",
+        "Premium_AzureFrontDoor"
+      ],
+      "metadata": {
+        "description": "Front Door SKU to use when deployFrontDoor is true."
+      }
+    },
+    "frontDoorCustomDomains": {
+      "type": "array",
+      "defaultValue": [],
+      "metadata": {
+        "description": "Optional custom domains for Front Door. Each item should be { name: string, hostName: string }. DNS/certificate validation remains an operational step."
+      }
+    },
+    "enableContainerJobs": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Global switch for provisioning Container Apps Jobs. Jobs are fixed schedule shapes; tenant fan-out happens in platform schedules and queue tables."
+      }
+    },
+    "enableMigrateJob": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Enable the manual migration/canary job."
+      }
+    },
+    "enableRestoreJob": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Enable the manual restore-from-seed job."
+      }
+    },
+    "enableProvisionJob": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Enable the manual tenant provision job shape. Operators override args when starting it for a specific tenant."
+      }
+    },
+    "enableQueueWorkerJob": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Enable the scheduled queue worker job."
+      }
+    },
+    "queueWorkerCron": {
+      "type": "string",
+      "defaultValue": "*/5 * * * *",
+      "metadata": {
+        "description": "Cron for the queue worker schedule shape."
+      }
+    },
+    "queueWorkerParallelism": {
+      "type": "int",
+      "defaultValue": 1,
+      "minValue": 1,
+      "maxValue": 10,
+      "metadata": {
+        "description": "Maximum concurrent queue worker replicas per scheduled execution."
+      }
+    },
+    "queueWorkerReplicaTimeoutSeconds": {
+      "type": "int",
+      "defaultValue": 600,
+      "minValue": 60,
+      "maxValue": 3600,
+      "metadata": {
+        "description": "Replica timeout, in seconds, for each queue worker execution."
+      }
+    },
+    "queueWorkerMaxJobs": {
+      "type": "int",
+      "defaultValue": 25,
+      "minValue": 1,
+      "maxValue": 500,
+      "metadata": {
+        "description": "Maximum queue jobs processed per queue worker execution."
+      }
+    },
+    "enableScheduleHourlyJob": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Enable the hourly platform schedule dispatcher job."
+      }
+    },
+    "scheduleHourlyName": {
+      "type": "string",
+      "defaultValue": "hourly",
+      "metadata": {
+        "description": "Platform schedule name dispatched by the hourly schedule-shape job."
+      }
+    },
+    "scheduleHourlyCron": {
+      "type": "string",
+      "defaultValue": "5 * * * *",
+      "metadata": {
+        "description": "Cron for the hourly platform schedule dispatcher."
+      }
+    },
+    "enableScheduleDailyJob": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Enable the daily platform schedule dispatcher job."
+      }
+    },
+    "scheduleDailyName": {
+      "type": "string",
+      "defaultValue": "daily",
+      "metadata": {
+        "description": "Platform schedule name dispatched by the daily schedule-shape job."
+      }
+    },
+    "scheduleDailyCron": {
+      "type": "string",
+      "defaultValue": "15 7 * * *",
+      "metadata": {
+        "description": "Cron for the daily platform schedule dispatcher."
+      }
+    },
+    "enableScheduleWeeklyJob": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Enable the weekly platform schedule dispatcher job."
+      }
+    },
+    "scheduleWeeklyName": {
+      "type": "string",
+      "defaultValue": "weekly",
+      "metadata": {
+        "description": "Platform schedule name dispatched by the weekly schedule-shape job."
+      }
+    },
+    "scheduleWeeklyCron": {
+      "type": "string",
+      "defaultValue": "30 7 * * 1",
+      "metadata": {
+        "description": "Cron for the weekly platform schedule dispatcher."
+      }
+    },
+    "enableScheduleNightlyJob": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Enable the nightly maintenance platform schedule dispatcher job."
+      }
+    },
+    "scheduleNightlyName": {
+      "type": "string",
+      "defaultValue": "nightly",
+      "metadata": {
+        "description": "Platform schedule name dispatched by the nightly maintenance schedule-shape job."
+      }
+    },
+    "scheduleNightlyCron": {
+      "type": "string",
+      "defaultValue": "0 3 * * *",
+      "metadata": {
+        "description": "Cron for the nightly maintenance platform schedule dispatcher."
+      }
+    },
+    "scheduleDispatcherParallelism": {
+      "type": "int",
+      "defaultValue": 1,
+      "minValue": 1,
+      "maxValue": 3,
+      "metadata": {
+        "description": "Maximum concurrent replicas for each platform schedule dispatcher execution. Keep at 1 unless schedule rows are idempotent."
+      }
+    }
+  },
+  "variables": {
+    "suffix": "[uniqueString(resourceGroup().id)]",
+    "lawName": "[format('{0}-law', parameters('namePrefix'))]",
+    "kvName": "[take(format('{0}-kv-{1}', parameters('namePrefix'), take(variables('suffix'), 6)), 24)]",
+    "pgName": "[format('{0}-pg-{1}', parameters('namePrefix'), take(variables('suffix'), 6))]",
+    "uamiName": "[format('{0}-id', parameters('namePrefix'))]",
+    "documentStorageName": "[format('{0}docs{1}', parameters('namePrefix'), take(variables('suffix'), 6))]",
+    "documentContainerPrefix": "documents",
+    "acaEnvName": "[format('{0}-acaenv', parameters('namePrefix'))]",
+    "webAppName": "[format('{0}-web', parameters('namePrefix'))]",
+    "migrateJobName": "[format('{0}-migrate', parameters('namePrefix'))]",
+    "restoreJobName": "[format('{0}-restore', parameters('namePrefix'))]",
+    "provisionJobName": "[format('{0}-provision', parameters('namePrefix'))]",
+    "queueWorkerJobName": "[format('{0}-queue', parameters('namePrefix'))]",
+    "scheduleHourlyJobName": "[format('{0}-sched-hourly', parameters('namePrefix'))]",
+    "scheduleDailyJobName": "[format('{0}-sched-daily', parameters('namePrefix'))]",
+    "scheduleWeeklyJobName": "[format('{0}-sched-weekly', parameters('namePrefix'))]",
+    "scheduleNightlyJobName": "[format('{0}-sched-nightly', parameters('namePrefix'))]",
+    "frontDoorProfileName": "[format('{0}-fd', parameters('namePrefix'))]",
+    "frontDoorEndpointName": "[take(format('{0}-fd-{1}', parameters('namePrefix'), take(variables('suffix'), 6)), 46)]",
+    "frontDoorOriginGroupName": "[format('{0}-web-og', parameters('namePrefix'))]",
+    "frontDoorOriginName": "[format('{0}-aca-origin', parameters('namePrefix'))]",
+    "frontDoorRouteName": "[format('{0}-web-route', parameters('namePrefix'))]",
+    "commonEnv": [
+      {
+        "name": "DATABASE_URL",
+        "secretRef": "database-url"
+      },
+      {
+        "name": "PLATFORM_DATABASE_URL",
+        "secretRef": "platform-database-url"
+      },
+      {
+        "name": "SECURITY_SALT",
+        "secretRef": "security-salt"
+      },
+      {
+        "name": "BACKUP_ENCRYPTION_KEY",
+        "secretRef": "backup-encryption-key"
+      },
+      {
+        "name": "KMP_DB_DRIVER",
+        "value": "postgres"
+      },
+      {
+        "name": "KMP_SECRETS_DRIVER",
+        "value": "database"
+      },
+      {
+        "name": "KMP_SECRETS_DB_MASTER_DRIVER",
+        "value": "env"
+      },
+      {
+        "name": "KMP_SECRETS_DB_MASTER_KEY_NAME",
+        "value": "platform.master_kek"
+      },
+      {
+        "name": "KMP_SECRET_PLATFORM_MASTER_KEK",
+        "secretRef": "platform-secrets-master-key"
+      },
+      {
+        "name": "DEBUG",
+        "value": "false"
+      },
+      {
+        "name": "REQUIRE_HTTPS",
+        "value": "true"
+      },
+      {
+        "name": "TRUST_PROXY",
+        "value": "true"
+      },
+      {
+        "name": "EMAIL_DRIVER",
+        "value": "smtp"
+      },
+      {
+        "name": "EMAIL_SMTP_HOST",
+        "value": "[parameters('emailSmtpHost')]"
+      },
+      {
+        "name": "EMAIL_SMTP_PORT",
+        "value": "[string(parameters('emailSmtpPort'))]"
+      },
+      {
+        "name": "EMAIL_SMTP_USERNAME",
+        "value": "[parameters('emailSmtpUsername')]"
+      },
+      {
+        "name": "EMAIL_SMTP_PASSWORD",
+        "secretRef": "email-smtp-password"
+      },
+      {
+        "name": "EMAIL_SMTP_TLS",
+        "value": "[string(parameters('emailSmtpTls'))]"
+      },
+      {
+        "name": "EMAIL_FROM",
+        "value": "[parameters('emailFrom')]"
+      },
+      {
+        "name": "RELEASE_CHANNEL",
+        "value": "[parameters('releaseChannel')]"
+      },
+      {
+        "name": "DOCUMENT_STORAGE_ADAPTER",
+        "value": "azure"
+      },
+      {
+        "name": "AZURE_STORAGE_AUTH_MODE",
+        "value": "managedIdentity"
+      },
+      {
+        "name": "AZURE_STORAGE_ACCOUNT_NAME",
+        "value": "[variables('documentStorageName')]"
+      },
+      {
+        "name": "AZURE_STORAGE_CONTAINER_PREFIX",
+        "value": "[variables('documentContainerPrefix')]"
+      }
+    ],
+    "fullImage": "[format('{0}:{1}', parameters('imageRepository'), parameters('imageTag'))]",
+    "jobEnvWorker": "[concat(variables('commonEnv'), createArray(createObject('name', 'KMP_SKIP_CRON', 'value', 'true'), createObject('name', 'KMP_SKIP_MIGRATIONS', 'value', 'true')))]",
+    "jobEnvMigrate": "[concat(variables('commonEnv'), createArray(createObject('name', 'KMP_SKIP_CRON', 'value', 'true')))]",
+    "jobEnvRestore": "[concat(variables('commonEnv'), createArray(createObject('name', 'KMP_SKIP_CRON', 'value', 'true'), createObject('name', 'KMP_SKIP_MIGRATIONS', 'value', 'true'), createObject('name', 'DOCUMENT_STORAGE_ADAPTER', 'value', 'local')))]",
+    "manualShapeJobDefinitions": [
+      {
+        "enabled": "[parameters('enableMigrateJob')]",
+        "name": "[variables('migrateJobName')]",
+        "containerName": "migrate",
+        "timeout": 1800,
+        "retryLimit": 1,
+        "cpu": "0.5",
+        "memory": "1Gi",
+        "env": "[variables('jobEnvMigrate')]",
+        "command": [
+          "/usr/local/bin/docker-entrypoint.sh"
+        ],
+        "args": [
+          "/bin/sh",
+          "-lc",
+          "bin/cake platform_migrate migrate"
+        ]
+      },
+      {
+        "enabled": "[parameters('enableRestoreJob')]",
+        "name": "[variables('restoreJobName')]",
+        "containerName": "restore",
+        "timeout": 3600,
+        "retryLimit": 0,
+        "cpu": "1.0",
+        "memory": "2Gi",
+        "env": "[variables('jobEnvRestore')]",
+        "command": [
+          "/usr/local/bin/docker-entrypoint.sh"
+        ],
+        "args": [
+          "/opt/kmp/reset-and-seed.sh"
+        ]
+      },
+      {
+        "enabled": "[parameters('enableProvisionJob')]",
+        "name": "[variables('provisionJobName')]",
+        "containerName": "provision",
+        "timeout": 1800,
+        "retryLimit": 0,
+        "cpu": "0.5",
+        "memory": "1Gi",
+        "env": "[variables('jobEnvWorker')]",
+        "command": [
+          "/usr/local/bin/docker-entrypoint.sh"
+        ],
+        "args": [
+          "bin/cake",
+          "tenant",
+          "provision",
+          "--help"
+        ]
+      }
+    ],
+    "scheduledShapeJobDefinitions": [
+      {
+        "enabled": "[parameters('enableQueueWorkerJob')]",
+        "name": "[variables('queueWorkerJobName')]",
+        "containerName": "queue",
+        "cron": "[parameters('queueWorkerCron')]",
+        "timeout": "[parameters('queueWorkerReplicaTimeoutSeconds')]",
+        "retryLimit": 1,
+        "parallelism": "[parameters('queueWorkerParallelism')]",
+        "completionCount": 1,
+        "cpu": "0.5",
+        "memory": "1Gi",
+        "env": "[variables('jobEnvWorker')]",
+        "command": [
+          "/usr/local/bin/docker-entrypoint.sh"
+        ],
+        "args": [
+          "bin/cake",
+          "queue",
+          "run",
+          "--max-jobs",
+          "[string(parameters('queueWorkerMaxJobs'))]",
+          "-q"
+        ]
+      },
+      {
+        "enabled": "[parameters('enableScheduleHourlyJob')]",
+        "name": "[variables('scheduleHourlyJobName')]",
+        "containerName": "sched-hourly",
+        "cron": "[parameters('scheduleHourlyCron')]",
+        "timeout": 900,
+        "retryLimit": 1,
+        "parallelism": "[parameters('scheduleDispatcherParallelism')]",
+        "completionCount": 1,
+        "cpu": "0.5",
+        "memory": "1Gi",
+        "env": "[variables('jobEnvWorker')]",
+        "command": [
+          "/usr/local/bin/docker-entrypoint.sh"
+        ],
+        "args": [
+          "bin/cake",
+          "platform",
+          "schedule",
+          "run",
+          "[parameters('scheduleHourlyName')]"
+        ]
+      },
+      {
+        "enabled": "[parameters('enableScheduleDailyJob')]",
+        "name": "[variables('scheduleDailyJobName')]",
+        "containerName": "sched-daily",
+        "cron": "[parameters('scheduleDailyCron')]",
+        "timeout": 1200,
+        "retryLimit": 1,
+        "parallelism": "[parameters('scheduleDispatcherParallelism')]",
+        "completionCount": 1,
+        "cpu": "0.5",
+        "memory": "1Gi",
+        "env": "[variables('jobEnvWorker')]",
+        "command": [
+          "/usr/local/bin/docker-entrypoint.sh"
+        ],
+        "args": [
+          "bin/cake",
+          "platform",
+          "schedule",
+          "run",
+          "[parameters('scheduleDailyName')]"
+        ]
+      },
+      {
+        "enabled": "[parameters('enableScheduleWeeklyJob')]",
+        "name": "[variables('scheduleWeeklyJobName')]",
+        "containerName": "sched-weekly",
+        "cron": "[parameters('scheduleWeeklyCron')]",
+        "timeout": 1800,
+        "retryLimit": 1,
+        "parallelism": "[parameters('scheduleDispatcherParallelism')]",
+        "completionCount": 1,
+        "cpu": "0.5",
+        "memory": "1Gi",
+        "env": "[variables('jobEnvWorker')]",
+        "command": [
+          "/usr/local/bin/docker-entrypoint.sh"
+        ],
+        "args": [
+          "bin/cake",
+          "platform",
+          "schedule",
+          "run",
+          "[parameters('scheduleWeeklyName')]"
+        ]
+      },
+      {
+        "enabled": "[parameters('enableScheduleNightlyJob')]",
+        "name": "[variables('scheduleNightlyJobName')]",
+        "containerName": "sched-nightly",
+        "cron": "[parameters('scheduleNightlyCron')]",
+        "timeout": 1800,
+        "retryLimit": 1,
+        "parallelism": "[parameters('scheduleDispatcherParallelism')]",
+        "completionCount": 1,
+        "cpu": "0.5",
+        "memory": "1Gi",
+        "env": "[variables('jobEnvWorker')]",
+        "command": [
+          "/usr/local/bin/docker-entrypoint.sh"
+        ],
+        "args": [
+          "bin/cake",
+          "platform",
+          "schedule",
+          "run",
+          "[parameters('scheduleNightlyName')]"
+        ]
+      }
+    ]
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('lawName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "sku": {
+          "name": "PerGB2018"
+        },
+        "retentionInDays": 30
+      }
+    },
+    {
+      "type": "Microsoft.ContainerRegistry/registries",
+      "apiVersion": "2023-11-01-preview",
+      "name": "[parameters('acrName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Basic"
+      },
+      "properties": {
+        "adminUserEnabled": false
+      }
+    },
+    {
+      "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+      "apiVersion": "2023-01-31",
+      "name": "[variables('uamiName')]",
+      "location": "[parameters('location')]"
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[format('Microsoft.ContainerRegistry/registries/{0}', parameters('acrName'))]",
+      "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), 'acrpull')]",
+      "properties": {
+        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), '2023-01-31').principalId]",
+        "principalType": "ServicePrincipal",
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName'))]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2023-05-01",
+      "name": "[variables('documentStorageName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "StorageV2",
+      "properties": {
+        "accessTier": "Hot",
+        "allowBlobPublicAccess": false,
+        "allowSharedKeyAccess": false,
+        "minimumTlsVersion": "TLS1_2",
+        "supportsHttpsTrafficOnly": true
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}', variables('documentStorageName'), 'default')]",
+      "properties": {
+        "deleteRetentionPolicy": {
+          "enabled": true,
+          "days": 14
+        },
+        "containerDeleteRetentionPolicy": {
+          "enabled": true,
+          "days": 14
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('documentStorageName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[format('Microsoft.Storage/storageAccounts/{0}', variables('documentStorageName'))]",
+      "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', variables('documentStorageName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), 'blob-data-contributor')]",
+      "properties": {
+        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), '2023-01-31').principalId]",
+        "principalType": "ServicePrincipal",
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('documentStorageName'))]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults",
+      "apiVersion": "2023-07-01",
+      "name": "[variables('kvName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "tenantId": "[subscription().tenantId]",
+        "sku": {
+          "family": "A",
+          "name": "standard"
+        },
+        "enableRbacAuthorization": true,
+        "enableSoftDelete": true,
+        "softDeleteRetentionInDays": 7,
+        "enablePurgeProtection": null,
+        "publicNetworkAccess": "Enabled"
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[format('Microsoft.KeyVault/vaults/{0}', variables('kvName'))]",
+      "name": "[guid(resourceId('Microsoft.KeyVault/vaults', variables('kvName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), 'secretsuser')]",
+      "properties": {
+        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), '2023-01-31').principalId]",
+        "principalType": "ServicePrincipal",
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.KeyVault/vaults', variables('kvName'))]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+      ]
+    },
+    {
+      "condition": "[not(empty(parameters('deployerPrincipalId')))]",
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[format('Microsoft.KeyVault/vaults/{0}', variables('kvName'))]",
+      "name": "[guid(resourceId('Microsoft.KeyVault/vaults', variables('kvName')), parameters('deployerPrincipalId'), 'secretsofficer')]",
+      "properties": {
+        "principalId": "[parameters('deployerPrincipalId')]",
+        "principalType": "User",
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b86a8fe4-44ce-4948-aee5-eccb2c155cd7')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.KeyVault/vaults', variables('kvName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.DBforPostgreSQL/flexibleServers",
+      "apiVersion": "2024-08-01",
+      "name": "[variables('pgName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard_B1ms",
+        "tier": "Burstable"
+      },
+      "properties": {
+        "version": "16",
+        "administratorLogin": "[parameters('postgresAdminUser')]",
+        "administratorLoginPassword": "[parameters('postgresAdminPassword')]",
+        "storage": {
+          "storageSizeGB": 32,
+          "autoGrow": "Enabled"
+        },
+        "backup": {
+          "backupRetentionDays": 7,
+          "geoRedundantBackup": "Disabled"
+        },
+        "highAvailability": {
+          "mode": "Disabled"
+        },
+        "network": {
+          "publicNetworkAccess": "Enabled"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DBforPostgreSQL/flexibleServers/firewallRules",
+      "apiVersion": "2024-08-01",
+      "name": "[format('{0}/{1}', variables('pgName'), 'AllowAzureServices')]",
+      "properties": {
+        "startIpAddress": "0.0.0.0",
+        "endIpAddress": "0.0.0.0"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('pgName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.DBforPostgreSQL/flexibleServers/databases",
+      "apiVersion": "2024-08-01",
+      "name": "[format('{0}/{1}', variables('pgName'), parameters('postgresDatabaseName'))]",
+      "properties": {
+        "charset": "UTF8",
+        "collation": "en_US.utf8"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('pgName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.DBforPostgreSQL/flexibleServers/databases",
+      "apiVersion": "2024-08-01",
+      "name": "[format('{0}/{1}', variables('pgName'), parameters('platformPostgresDatabaseName'))]",
+      "properties": {
+        "charset": "UTF8",
+        "collation": "en_US.utf8"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('pgName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults/secrets",
+      "apiVersion": "2023-07-01",
+      "name": "[format('{0}/{1}', variables('kvName'), 'security-salt')]",
+      "properties": {
+        "value": "[parameters('securitySalt')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.KeyVault/vaults', variables('kvName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults/secrets",
+      "apiVersion": "2023-07-01",
+      "name": "[format('{0}/{1}', variables('kvName'), 'database-url')]",
+      "properties": {
+        "value": "[format('postgres://{0}:{1}@{2}:5432/{3}?sslmode=require', parameters('postgresAdminUser'), parameters('postgresAdminPassword'), reference(resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('pgName')), '2024-08-01').fullyQualifiedDomainName, parameters('postgresDatabaseName'))]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.KeyVault/vaults', variables('kvName'))]",
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('pgName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults/secrets",
+      "apiVersion": "2023-07-01",
+      "name": "[format('{0}/{1}', variables('kvName'), 'platform-database-url')]",
+      "properties": {
+        "value": "[format('postgres://{0}:{1}@{2}:5432/{3}?sslmode=require', parameters('postgresAdminUser'), parameters('postgresAdminPassword'), reference(resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('pgName')), '2024-08-01').fullyQualifiedDomainName, parameters('platformPostgresDatabaseName'))]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.KeyVault/vaults', variables('kvName'))]",
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('pgName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults/secrets",
+      "apiVersion": "2023-07-01",
+      "name": "[format('{0}/{1}', variables('kvName'), 'platform-secrets-master-key')]",
+      "properties": {
+        "value": "[parameters('platformSecretsMasterKey')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.KeyVault/vaults', variables('kvName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults/secrets",
+      "apiVersion": "2023-07-01",
+      "name": "[format('{0}/{1}', variables('kvName'), 'postgres-admin-password')]",
+      "properties": {
+        "value": "[parameters('postgresAdminPassword')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.KeyVault/vaults', variables('kvName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults/secrets",
+      "apiVersion": "2023-07-01",
+      "name": "[format('{0}/{1}', variables('kvName'), 'backup-encryption-key')]",
+      "properties": {
+        "value": "[parameters('backupEncryptionKey')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.KeyVault/vaults', variables('kvName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults/secrets",
+      "apiVersion": "2023-07-01",
+      "name": "[format('{0}/{1}', variables('kvName'), 'email-smtp-password')]",
+      "properties": {
+        "value": "[if(empty(parameters('emailSmtpPassword')), 'unused', parameters('emailSmtpPassword'))]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.KeyVault/vaults', variables('kvName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/managedEnvironments",
+      "apiVersion": "2024-03-01",
+      "name": "[variables('acaEnvName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "appLogsConfiguration": {
+          "destination": "log-analytics",
+          "logAnalyticsConfiguration": {
+            "customerId": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', variables('lawName')), '2023-09-01').customerId]",
+            "sharedKey": "[listKeys(resourceId('Microsoft.OperationalInsights/workspaces', variables('lawName')), '2023-09-01').primarySharedKey]"
+          }
+        },
+        "zoneRedundant": false
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', variables('lawName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2024-03-01",
+      "name": "[variables('webAppName')]",
+      "location": "[parameters('location')]",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')))]": {}
+        }
+      },
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', variables('acaEnvName'))]",
+        "configuration": {
+          "activeRevisionsMode": "Single",
+          "ingress": {
+            "external": true,
+            "targetPort": 80,
+            "transport": "auto",
+            "allowInsecure": false,
+            "traffic": [
+              {
+                "latestRevision": true,
+                "weight": 100
+              }
+            ]
+          },
+          "registries": [
+            {
+              "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), '2023-11-01-preview').loginServer]",
+              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+            }
+          ],
+          "secrets": [
+            {
+              "name": "database-url",
+              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'database-url'), '2023-07-01').secretUri]",
+              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+            },
+            {
+              "name": "platform-database-url",
+              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'platform-database-url'), '2023-07-01').secretUri]",
+              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+            },
+            {
+              "name": "security-salt",
+              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'security-salt'), '2023-07-01').secretUri]",
+              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+            },
+            {
+              "name": "platform-secrets-master-key",
+              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'platform-secrets-master-key'), '2023-07-01').secretUri]",
+              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+            },
+            {
+              "name": "backup-encryption-key",
+              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'backup-encryption-key'), '2023-07-01').secretUri]",
+              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+            },
+            {
+              "name": "email-smtp-password",
+              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'email-smtp-password'), '2023-07-01').secretUri]",
+              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+            }
+          ]
+        },
+        "template": {
+          "containers": [
+            {
+              "name": "web",
+              "image": "[variables('fullImage')]",
+              "resources": {
+                "cpu": "[json('0.5')]",
+                "memory": "1Gi"
+              },
+              "env": "[variables('commonEnv')]",
+              "probes": [
+                {
+                  "type": "Liveness",
+                  "httpGet": {
+                    "path": "/health",
+                    "port": 80
+                  },
+                  "initialDelaySeconds": 30,
+                  "periodSeconds": 30,
+                  "failureThreshold": 3
+                },
+                {
+                  "type": "Readiness",
+                  "httpGet": {
+                    "path": "/health",
+                    "port": 80
+                  },
+                  "initialDelaySeconds": 10,
+                  "periodSeconds": 10,
+                  "failureThreshold": 3
+                }
+              ]
+            }
+          ],
+          "scale": {
+            "minReplicas": 1,
+            "maxReplicas": 3,
+            "rules": [
+              {
+                "name": "http",
+                "http": {
+                  "metadata": {
+                    "concurrentRequests": "50"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/managedEnvironments', variables('acaEnvName'))]",
+        "[resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName'))]",
+        "[extensionResourceId(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), 'acrpull'))]",
+        "[extensionResourceId(resourceId('Microsoft.Storage/storageAccounts', variables('documentStorageName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.Storage/storageAccounts', variables('documentStorageName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), 'blob-data-contributor'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('documentStorageName'))]",
+        "[extensionResourceId(resourceId('Microsoft.KeyVault/vaults', variables('kvName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.KeyVault/vaults', variables('kvName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), 'secretsuser'))]",
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers/databases', variables('pgName'), parameters('postgresDatabaseName'))]",
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers/databases', variables('pgName'), parameters('platformPostgresDatabaseName'))]",
+        "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'backup-encryption-key')]",
+        "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'database-url')]",
+        "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'platform-database-url')]",
+        "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'platform-secrets-master-key')]",
+        "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'security-salt')]",
+        "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'email-smtp-password')]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+      ]
+    },
+    {
+      "condition": "[parameters('deployFrontDoor')]",
+      "type": "Microsoft.Cdn/profiles",
+      "apiVersion": "2024-02-01",
+      "name": "[variables('frontDoorProfileName')]",
+      "location": "global",
+      "sku": {
+        "name": "[parameters('frontDoorSku')]"
+      }
+    },
+    {
+      "condition": "[parameters('deployFrontDoor')]",
+      "type": "Microsoft.Cdn/profiles/afdEndpoints",
+      "apiVersion": "2024-02-01",
+      "name": "[format('{0}/{1}', variables('frontDoorProfileName'), variables('frontDoorEndpointName'))]",
+      "location": "global",
+      "properties": {
+        "enabledState": "Enabled"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Cdn/profiles', variables('frontDoorProfileName'))]"
+      ]
+    },
+    {
+      "condition": "[parameters('deployFrontDoor')]",
+      "type": "Microsoft.Cdn/profiles/originGroups",
+      "apiVersion": "2024-02-01",
+      "name": "[format('{0}/{1}', variables('frontDoorProfileName'), variables('frontDoorOriginGroupName'))]",
+      "properties": {
+        "loadBalancingSettings": {
+          "sampleSize": 4,
+          "successfulSamplesRequired": 3
+        },
+        "healthProbeSettings": {
+          "probePath": "/health",
+          "probeRequestType": "GET",
+          "probeProtocol": "Https",
+          "probeIntervalInSeconds": 100
+        },
+        "sessionAffinityState": "Disabled"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Cdn/profiles', variables('frontDoorProfileName'))]"
+      ]
+    },
+    {
+      "condition": "[parameters('deployFrontDoor')]",
+      "type": "Microsoft.Cdn/profiles/originGroups/origins",
+      "apiVersion": "2024-02-01",
+      "name": "[format('{0}/{1}/{2}', variables('frontDoorProfileName'), variables('frontDoorOriginGroupName'), variables('frontDoorOriginName'))]",
+      "properties": {
+        "hostName": "[reference(resourceId('Microsoft.App/containerApps', variables('webAppName')), '2024-03-01').configuration.ingress.fqdn]",
+        "originHostHeader": "[reference(resourceId('Microsoft.App/containerApps', variables('webAppName')), '2024-03-01').configuration.ingress.fqdn]",
+        "httpPort": 80,
+        "httpsPort": 443,
+        "priority": 1,
+        "weight": 1000,
+        "enabledState": "Enabled",
+        "enforceCertificateNameCheck": true
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Cdn/profiles/originGroups', variables('frontDoorProfileName'), variables('frontDoorOriginGroupName'))]",
+        "[resourceId('Microsoft.App/containerApps', variables('webAppName'))]"
+      ]
+    },
+    {
+      "copy": {
+        "name": "frontDoorCustomDomain",
+        "count": "[length(parameters('frontDoorCustomDomains'))]"
+      },
+      "condition": "[parameters('deployFrontDoor')]",
+      "type": "Microsoft.Cdn/profiles/customDomains",
+      "apiVersion": "2024-02-01",
+      "name": "[format('{0}/{1}', variables('frontDoorProfileName'), parameters('frontDoorCustomDomains')[copyIndex()].name)]",
+      "properties": {
+        "hostName": "[parameters('frontDoorCustomDomains')[copyIndex()].hostName]",
+        "tlsSettings": {
+          "certificateType": "ManagedCertificate",
+          "minimumTlsVersion": "TLS12"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Cdn/profiles', variables('frontDoorProfileName'))]"
+      ]
+    },
+    {
+      "condition": "[parameters('deployFrontDoor')]",
+      "type": "Microsoft.Cdn/profiles/afdEndpoints/routes",
+      "apiVersion": "2024-02-01",
+      "name": "[format('{0}/{1}/{2}', variables('frontDoorProfileName'), variables('frontDoorEndpointName'), variables('frontDoorRouteName'))]",
+      "properties": {
+        "copy": [
+          {
+            "name": "customDomains",
+            "count": "[length(parameters('frontDoorCustomDomains'))]",
+            "input": {
+              "id": "[resourceId('Microsoft.Cdn/profiles/customDomains', variables('frontDoorProfileName'), parameters('frontDoorCustomDomains')[copyIndex('customDomains')].name)]"
+            }
+          }
+        ],
+        "originGroup": {
+          "id": "[resourceId('Microsoft.Cdn/profiles/originGroups', variables('frontDoorProfileName'), variables('frontDoorOriginGroupName'))]"
+        },
+        "supportedProtocols": [
+          "Https"
+        ],
+        "patternsToMatch": [
+          "/*"
+        ],
+        "forwardingProtocol": "HttpsOnly",
+        "linkToDefaultDomain": "Enabled",
+        "httpsRedirect": "Enabled",
+        "enabledState": "Enabled"
+      },
+      "dependsOn": [
+        "frontDoorCustomDomain",
+        "[resourceId('Microsoft.Cdn/profiles/afdEndpoints', variables('frontDoorProfileName'), variables('frontDoorEndpointName'))]",
+        "[resourceId('Microsoft.Cdn/profiles/originGroups/origins', variables('frontDoorProfileName'), variables('frontDoorOriginGroupName'), variables('frontDoorOriginName'))]",
+        "[resourceId('Microsoft.Cdn/profiles/originGroups', variables('frontDoorProfileName'), variables('frontDoorOriginGroupName'))]"
+      ]
+    },
+    {
+      "copy": {
+        "name": "manualShapeJobs",
+        "count": "[length(variables('manualShapeJobDefinitions'))]"
+      },
+      "condition": "[and(parameters('enableContainerJobs'), variables('manualShapeJobDefinitions')[copyIndex()].enabled)]",
+      "type": "Microsoft.App/jobs",
+      "apiVersion": "2024-03-01",
+      "name": "[variables('manualShapeJobDefinitions')[copyIndex()].name]",
+      "location": "[parameters('location')]",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')))]": {}
+        }
+      },
+      "properties": {
+        "environmentId": "[resourceId('Microsoft.App/managedEnvironments', variables('acaEnvName'))]",
+        "configuration": {
+          "triggerType": "Manual",
+          "replicaTimeout": "[variables('manualShapeJobDefinitions')[copyIndex()].timeout]",
+          "replicaRetryLimit": "[variables('manualShapeJobDefinitions')[copyIndex()].retryLimit]",
+          "manualTriggerConfig": {
+            "parallelism": 1,
+            "replicaCompletionCount": 1
+          },
+          "registries": [
+            {
+              "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), '2023-11-01-preview').loginServer]",
+              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+            }
+          ],
+          "secrets": [
+            {
+              "name": "database-url",
+              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'database-url'), '2023-07-01').secretUri]",
+              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+            },
+            {
+              "name": "platform-database-url",
+              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'platform-database-url'), '2023-07-01').secretUri]",
+              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+            },
+            {
+              "name": "security-salt",
+              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'security-salt'), '2023-07-01').secretUri]",
+              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+            },
+            {
+              "name": "platform-secrets-master-key",
+              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'platform-secrets-master-key'), '2023-07-01').secretUri]",
+              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+            },
+            {
+              "name": "backup-encryption-key",
+              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'backup-encryption-key'), '2023-07-01').secretUri]",
+              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+            },
+            {
+              "name": "email-smtp-password",
+              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'email-smtp-password'), '2023-07-01').secretUri]",
+              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+            }
+          ]
+        },
+        "template": {
+          "containers": [
+            {
+              "name": "[variables('manualShapeJobDefinitions')[copyIndex()].containerName]",
+              "image": "[variables('fullImage')]",
+              "resources": {
+                "cpu": "[json(variables('manualShapeJobDefinitions')[copyIndex()].cpu)]",
+                "memory": "[variables('manualShapeJobDefinitions')[copyIndex()].memory]"
+              },
+              "env": "[variables('manualShapeJobDefinitions')[copyIndex()].env]",
+              "command": "[variables('manualShapeJobDefinitions')[copyIndex()].command]",
+              "args": "[variables('manualShapeJobDefinitions')[copyIndex()].args]"
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/managedEnvironments', variables('acaEnvName'))]",
+        "[resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName'))]",
+        "[extensionResourceId(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), 'acrpull'))]",
+        "[extensionResourceId(resourceId('Microsoft.Storage/storageAccounts', variables('documentStorageName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.Storage/storageAccounts', variables('documentStorageName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), 'blob-data-contributor'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('documentStorageName'))]",
+        "[extensionResourceId(resourceId('Microsoft.KeyVault/vaults', variables('kvName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.KeyVault/vaults', variables('kvName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), 'secretsuser'))]",
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers/databases', variables('pgName'), parameters('postgresDatabaseName'))]",
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers/databases', variables('pgName'), parameters('platformPostgresDatabaseName'))]",
+        "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'backup-encryption-key')]",
+        "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'database-url')]",
+        "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'platform-database-url')]",
+        "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'platform-secrets-master-key')]",
+        "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'security-salt')]",
+        "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'email-smtp-password')]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+      ]
+    },
+    {
+      "copy": {
+        "name": "scheduledShapeJobs",
+        "count": "[length(variables('scheduledShapeJobDefinitions'))]"
+      },
+      "condition": "[and(parameters('enableContainerJobs'), variables('scheduledShapeJobDefinitions')[copyIndex()].enabled)]",
+      "type": "Microsoft.App/jobs",
+      "apiVersion": "2024-03-01",
+      "name": "[variables('scheduledShapeJobDefinitions')[copyIndex()].name]",
+      "location": "[parameters('location')]",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')))]": {}
+        }
+      },
+      "properties": {
+        "environmentId": "[resourceId('Microsoft.App/managedEnvironments', variables('acaEnvName'))]",
+        "configuration": {
+          "triggerType": "Schedule",
+          "replicaTimeout": "[variables('scheduledShapeJobDefinitions')[copyIndex()].timeout]",
+          "replicaRetryLimit": "[variables('scheduledShapeJobDefinitions')[copyIndex()].retryLimit]",
+          "scheduleTriggerConfig": {
+            "cronExpression": "[variables('scheduledShapeJobDefinitions')[copyIndex()].cron]",
+            "parallelism": "[variables('scheduledShapeJobDefinitions')[copyIndex()].parallelism]",
+            "replicaCompletionCount": "[variables('scheduledShapeJobDefinitions')[copyIndex()].completionCount]"
+          },
+          "registries": [
+            {
+              "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), '2023-11-01-preview').loginServer]",
+              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+            }
+          ],
+          "secrets": [
+            {
+              "name": "database-url",
+              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'database-url'), '2023-07-01').secretUri]",
+              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+            },
+            {
+              "name": "platform-database-url",
+              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'platform-database-url'), '2023-07-01').secretUri]",
+              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+            },
+            {
+              "name": "security-salt",
+              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'security-salt'), '2023-07-01').secretUri]",
+              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+            },
+            {
+              "name": "platform-secrets-master-key",
+              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'platform-secrets-master-key'), '2023-07-01').secretUri]",
+              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+            },
+            {
+              "name": "backup-encryption-key",
+              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'backup-encryption-key'), '2023-07-01').secretUri]",
+              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+            },
+            {
+              "name": "email-smtp-password",
+              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'email-smtp-password'), '2023-07-01').secretUri]",
+              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+            }
+          ]
+        },
+        "template": {
+          "containers": [
+            {
+              "name": "[variables('scheduledShapeJobDefinitions')[copyIndex()].containerName]",
+              "image": "[variables('fullImage')]",
+              "resources": {
+                "cpu": "[json(variables('scheduledShapeJobDefinitions')[copyIndex()].cpu)]",
+                "memory": "[variables('scheduledShapeJobDefinitions')[copyIndex()].memory]"
+              },
+              "env": "[variables('scheduledShapeJobDefinitions')[copyIndex()].env]",
+              "command": "[variables('scheduledShapeJobDefinitions')[copyIndex()].command]",
+              "args": "[variables('scheduledShapeJobDefinitions')[copyIndex()].args]"
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/managedEnvironments', variables('acaEnvName'))]",
+        "[resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName'))]",
+        "[extensionResourceId(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), 'acrpull'))]",
+        "[extensionResourceId(resourceId('Microsoft.Storage/storageAccounts', variables('documentStorageName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.Storage/storageAccounts', variables('documentStorageName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), 'blob-data-contributor'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('documentStorageName'))]",
+        "[extensionResourceId(resourceId('Microsoft.KeyVault/vaults', variables('kvName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.KeyVault/vaults', variables('kvName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), 'secretsuser'))]",
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers/databases', variables('pgName'), parameters('postgresDatabaseName'))]",
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers/databases', variables('pgName'), parameters('platformPostgresDatabaseName'))]",
+        "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'backup-encryption-key')]",
+        "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'database-url')]",
+        "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'platform-database-url')]",
+        "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'platform-secrets-master-key')]",
+        "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'security-salt')]",
+        "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'email-smtp-password')]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "acrLoginServer": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), '2023-11-01-preview').loginServer]"
+    },
+    "acrName": {
+      "type": "string",
+      "value": "[parameters('acrName')]"
+    },
+    "postgresFqdn": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('pgName')), '2024-08-01').fullyQualifiedDomainName]"
+    },
+    "postgresAdminUser": {
+      "type": "string",
+      "value": "[parameters('postgresAdminUser')]"
+    },
+    "postgresDatabaseName": {
+      "type": "string",
+      "value": "[parameters('postgresDatabaseName')]"
+    },
+    "platformPostgresDatabaseName": {
+      "type": "string",
+      "value": "[parameters('platformPostgresDatabaseName')]"
+    },
+    "keyVaultName": {
+      "type": "string",
+      "value": "[variables('kvName')]"
+    },
+    "documentStorageAccountName": {
+      "type": "string",
+      "value": "[variables('documentStorageName')]"
+    },
+    "documentStorageContainerPrefix": {
+      "type": "string",
+      "value": "[variables('documentContainerPrefix')]"
+    },
+    "uamiId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+    },
+    "uamiPrincipalId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), '2023-01-31').principalId]"
+    },
+    "webAppFqdn": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.App/containerApps', variables('webAppName')), '2024-03-01').configuration.ingress.fqdn]"
+    },
+    "webAppName": {
+      "type": "string",
+      "value": "[variables('webAppName')]"
+    },
+    "migrateJobName": {
+      "type": "string",
+      "value": "[variables('migrateJobName')]"
+    },
+    "restoreJobName": {
+      "type": "string",
+      "value": "[variables('restoreJobName')]"
+    },
+    "provisionJobName": {
+      "type": "string",
+      "value": "[variables('provisionJobName')]"
+    },
+    "queueJobName": {
+      "type": "string",
+      "value": "[variables('queueWorkerJobName')]"
+    },
+    "queueWorkerJobName": {
+      "type": "string",
+      "value": "[variables('queueWorkerJobName')]"
+    },
+    "scheduleHourlyJobName": {
+      "type": "string",
+      "value": "[variables('scheduleHourlyJobName')]"
+    },
+    "scheduleDailyJobName": {
+      "type": "string",
+      "value": "[variables('scheduleDailyJobName')]"
+    },
+    "scheduleWeeklyJobName": {
+      "type": "string",
+      "value": "[variables('scheduleWeeklyJobName')]"
+    },
+    "scheduleNightlyJobName": {
+      "type": "string",
+      "value": "[variables('scheduleNightlyJobName')]"
+    },
+    "syncJobName": {
+      "type": "string",
+      "value": "[variables('scheduleDailyJobName')]"
+    },
+    "resetJobName": {
+      "type": "string",
+      "value": "[variables('restoreJobName')]"
+    },
+    "acaEnvName": {
+      "type": "string",
+      "value": "[variables('acaEnvName')]"
+    },
+    "frontDoorProfileName": {
+      "type": "string",
+      "value": "[if(parameters('deployFrontDoor'), variables('frontDoorProfileName'), '')]"
+    },
+    "frontDoorEndpointHostName": {
+      "type": "string",
+      "value": "[if(parameters('deployFrontDoor'), reference(resourceId('Microsoft.Cdn/profiles/afdEndpoints', variables('frontDoorProfileName'), variables('frontDoorEndpointName')), '2024-02-01').hostName, '')]"
+    }
+  }
+}

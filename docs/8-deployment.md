@@ -9,6 +9,9 @@ This section covers the processes and considerations for deploying the Kingdom M
 
 ## 8.1 Production Setup
 
+For managed multi-tenant production operations, review the deployment runbooks under [`deployment/`](deployment/README.md), especially the [Managed Platform Legal and Security Governance Template](deployment/legal-governance.md) for residency, retention, breach-notification, and incident-escalation templates.
+
+
 ### Server Requirements
 
 For a production deployment, the following server configuration is recommended:

@@ -1,4 +1,4 @@
-# KMP Nightly — Azure Deployment
+# KMP Azure Deployment
 
 The nightly KMP environment runs on **Azure Container Apps + Jobs**, backed by
 **Azure Database for PostgreSQL Flexible Server**, with the Docker image
@@ -24,32 +24,55 @@ any developer sees after running `reset_dev_database.sh`.
   2. az acr import ghcr→ACR                        └─▶│  └─ kmp:nightly-DATE   │
   3. run migrate job (wait)                           │                        │
   4. containerapp update web image                    │  Key Vault             │
-  5. containerapp job update queue/sync images       │  ├─ security-salt      │
-  6. smoke /health                                    │  ├─ database-url      │
-                                                      │  ├─ postgres-admin-pwd│
-                                                      │  ├─ backup-enc-key    │
-                                                      │  └─ email-smtp-pwd    │
-                                                      │                        │
-                                                      │  Postgres Flex (B1ms) │
-                                                      │  └─ kmp_nightly db    │
-                                                      │                        │
-                                                      │  Container Apps env    │
-                                                      │  ├─ <prefix>-web       │
-                                                      │  ├─ <prefix>-migrate   │
-                                                      │  ├─ <prefix>-reset     │
-                                                      │  ├─ <prefix>-queue     │
-                                                      │  └─ <prefix>-sync      │
-                                                      └────────────────────────┘
+  5. update fixed schedule-shape jobs                 │  ├─ security-salt      │
+  6. smoke /health                                    │  ├─ database-url       │
+                                                       │  ├─ platform-db-url    │
+                                                       │  ├─ platform-secret-key│
+                                                       │  ├─ postgres-admin-pwd │
+                                                       │  ├─ backup-enc-key     │
+                                                       │  └─ email-smtp-pwd     │
+                                                       │                        │
+                                                       │  StorageV2 docs        │
+                                                       │  └─ per-tenant blobs   │
+                                                       │                        │
+                                                       │  Postgres Flex (B1ms)  │
+                                                       │  ├─ kmp_nightly db     │
+                                                       │  └─ kmp_platform db    │
+                                                       │                        │
+                                                       │  Container Apps env    │
+                                                       │  ├─ <prefix>-web       │
+                                                       │  └─ fixed jobs:        │
+                                                       │     migrate, restore,  │
+                                                       │     provision, queue,  │
+                                                       │     sched-* dispatch   │
+                                                       └────────────────────────┘
 ```
 
-All Container Apps Jobs reuse the exact same image that the web app runs.
-They differ only in env vars and arg overrides:
-- `<prefix>-migrate` — `entrypoint.prod.sh /bin/true`; entrypoint applies
-  migrations and exits
-- `<prefix>-reset` — runs `/opt/kmp/reset-and-seed.sh` which drops schema,
-  re-applies migrations, and restores the bundled encrypted seed
-- `<prefix>-queue` — `bin/cake queue run --max-jobs 25 -q` every 5 minutes
-- `<prefix>-sync` — `bin/cake sync_active_window_statuses` nightly at 07:15 UTC
+All Container Apps Jobs reuse the exact same image, managed identity, Key
+Vault-backed secrets, platform database URL, and storage RBAC as the web app.
+Jobs are **fixed schedule shapes**, not tenant-specific infrastructure. Adding
+a tenant updates platform metadata and queues tenant-aware work internally; it
+does not add Azure resources.
+
+Default job shapes:
+- `<prefix>-migrate` — manual migration/canary job; entrypoint applies app
+  migrations, then `bin/cake platform_migrate migrate` applies platform metadata
+  migrations.
+- `<prefix>-restore` — manual restore-from-seed operation using
+  `/opt/kmp/reset-and-seed.sh`.
+- `<prefix>-provision` — manual tenant provision operation shape. The safe
+  default prints command help; operators override args for a specific tenant.
+- `<prefix>-queue` — scheduled shared queue worker (`bin/cake queue run`) every
+  5 minutes by default.
+- `<prefix>-sched-hourly`, `<prefix>-sched-daily`, `<prefix>-sched-weekly`,
+  `<prefix>-sched-nightly` — scheduled dispatchers that call
+  `bin/cake platform schedule run <schedule-name>`. Platform schedule rows hold
+  tenant scope (`platform`, all active tenants, or one tenant) and dispatch work
+  into app/platform queues.
+
+The Bicep parameters under **Fixed schedule-shape job controls** enable/disable
+each shape and tune cron/parallelism without embedding secrets. Keep dispatcher
+parallelism at `1` unless the corresponding platform schedules are idempotent.
 
 ## One-time bootstrap
 
@@ -149,6 +172,68 @@ via `workflow_run`. That workflow:
 You can also trigger it manually from the **Actions** tab → "Nightly / Deploy
 to Azure" → **Run workflow**, optionally overriding the image tag.
 
+## Managed identity document storage
+
+`main.bicep` provisions a StorageV2 account for uploaded documents and grants
+the shared Container Apps user-assigned managed identity **Storage Blob Data
+Contributor** on that account. The app receives only non-secret settings:
+`DOCUMENT_STORAGE_ADAPTER=azure`, `AZURE_STORAGE_AUTH_MODE=managedIdentity`,
+`AZURE_STORAGE_ACCOUNT_NAME`, and `AZURE_STORAGE_CONTAINER_PREFIX`.
+
+Tenant provision stores the exact container under
+`tenant_config.documents.blob_container` (for example `documents-tenant-a`).
+If tenant metadata is missing that value, runtime resolution falls back to
+`<AZURE_STORAGE_CONTAINER_PREFIX>-<tenant-slug>`. Do not add per-tenant storage
+account keys or connection strings; create narrower container-scoped RBAC
+assignments later only when containers are pre-provisioned outside the app.
+
+## Phase 0 staging preparation
+
+`main.bicep` is also parameterized for a non-destructive Phase 0 staging
+environment. Staging uses the same baseline shape as nightly — Postgres Flex,
+Key Vault, Container Apps environment, web app, and fixed schedule-shape jobs — and enables an Azure
+Front Door Standard profile in front of the Container App to mirror the intended
+production edge topology.
+
+Use [`staging.bicepparam`](./staging.bicepparam) as the starting point. It keeps
+secrets out of git by reading secure values from environment variables:
+
+```bash
+export AZURE_REGION=centralus
+export AZURE_ACR_NAME=<precreated-or-planned-acr-name>
+export KMP_STAGING_IMAGE_REPOSITORY=<acr-login-server>/kmp
+export KMP_STAGING_IMAGE_TAG=staging
+export POSTGRES_ADMIN_PASSWORD=<from-password-manager>
+export SECURITY_SALT=<from-password-manager>
+export BACKUP_ENCRYPTION_KEY=<from-password-manager>
+export PLATFORM_SECRETS_MASTER_KEY=<from-password-manager>
+export EMAIL_SMTP_HOST=<smtp-host>
+export EMAIL_FROM=staging-noreply@example.org
+export AZURE_DEPLOYER_PRINCIPAL_ID=<your-entra-object-id>
+```
+
+Safe local/static validation:
+
+```bash
+az bicep build --file deploy/azure/main.bicep
+```
+
+Safe Azure validation (requires credentials but does not create/update
+resources):
+
+```bash
+az deployment group validate \
+  --resource-group <staging-rg> \
+  --template-file deploy/azure/main.bicep \
+  --parameters deploy/azure/staging.bicepparam
+```
+
+Do not run `az deployment group create` for staging until the subscription,
+resource group, DNS/custom-domain plan, and secret values are explicitly
+approved. If custom domains are needed for staging, add entries to
+`frontDoorCustomDomains` as objects with `name` and `hostName`; DNS validation
+and certificate issuance remain operational follow-up steps.
+
 ## Common operations
 
 | Task | Command |
@@ -156,8 +241,11 @@ to Azure" → **Run workflow**, optionally overriding the image tag.
 | Open site | `az containerapp show -g $RG -n kmpnightly-web --query properties.configuration.ingress.fqdn -o tsv` |
 | Tail web logs | `az containerapp logs show -g $RG -n kmpnightly-web --tail 200 --follow` |
 | Run migrations on-demand | `az containerapp job start -g $RG -n kmpnightly-migrate` |
-| See recent job executions | `az containerapp job execution list -g $RG -n kmpnightly-queue -o table` |
+| See recent queue executions | `az containerapp job execution list -g $RG -n kmpnightly-queue -o table` |
+| Run nightly dispatcher now | `az containerapp job start -g $RG -n kmpnightly-sched-nightly` |
+| Run restore-from-seed | `az containerapp job start -g $RG -n kmpnightly-restore` |
 | Rotate a secret | `az keyvault secret set --vault-name <kv> --name security-salt --value <new>` then `az containerapp revision restart` on the web app |
+| Inspect document storage | `az storage container list --account-name <documentStorageAccountName> --auth-mode login -o table` |
 | Nuke and redeploy | `az group delete -n kmp-nightly-rg --yes --no-wait` then rerun `bootstrap.sh` |
 
 ## Cost expectations (US central)
@@ -173,6 +261,9 @@ to Azure" → **Run workflow**, optionally overriding the image tag.
 | **Total** | | **~$30–40 / month** |
 
 ## Security notes
+
+Managed-platform residency boundaries, retention defaults, breach-notification operations, and security escalation templates are maintained in [`../../docs/deployment/legal-governance.md`](../../docs/deployment/legal-governance.md). Review that template with counsel before making customer commitments.
+
 
 - **Public ingress, HTTPS-only.** All traffic enters through the Container Apps
   auto-issued TLS cert.
@@ -192,12 +283,14 @@ to Azure" → **Run workflow**, optionally overriding the image tag.
 ## File map
 
 - `main.bicep` — full resource graph (ACR, UAMI, KV, Postgres Flex, ACA env,
-  web + 4 jobs, role assignments)
+  web + 8 fixed schedule-shape jobs, optional Front Door, role assignments)
+- `staging.bicepparam` — Phase 0 staging parameter file; reads secrets from
+  environment variables and enables Front Door
 - `bootstrap.sh` — one-time provisioning + GitHub secrets wiring
 - `seed/` — encrypted seed backup + bake helper; see `seed/README.md`
 - `nightly.env.example` — settings template (copy to `nightly.env`)
 - `../../docker/reset-and-seed.sh` — in-container reset script invoked by
-  the reset job (engine-agnostic, restores from `seed/nightly-seed.kmpbackup`)
+  the restore job (engine-agnostic, restores from `seed/nightly-seed.kmpbackup`)
 - `../../.github/workflows/nightly-deploy-azure.yml` — automated re-deploy
   on every green nightly image
 
@@ -211,7 +304,3 @@ to Azure" → **Run workflow**, optionally overriding the image tag.
 - Custom domain: the Container App has the default
   `*.azurecontainerapps.io` FQDN. To add `nightly.ansteorra.org`, attach a
   managed certificate + CNAME — one day of additional work.
-- Document storage is local filesystem inside the web container (no
-  persistence across restarts). If you upload files during testing, wire up
-  `DOCUMENT_STORAGE_ADAPTER=azure` + a storage account — commented stubs
-  exist in `nightly.env.example`.

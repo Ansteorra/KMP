@@ -2,7 +2,7 @@
 # Slimmed version of .devcontainer/Dockerfile for multi-container setup
 #
 # This container expects:
-#   - MySQL provided by separate 'db' service
+#   - PostgreSQL provided by separate 'db' service
 #   - Code mounted at /var/www/html
 #   - Environment variables for configuration
 
@@ -12,6 +12,16 @@ ARG NODE_VERSION=24.15.0
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    gnupg \
+    && install -d /usr/share/postgresql-common/pgdg \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+        | gpg --dearmor -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg \
+    && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] http://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" \
+        > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
     # PHP build dependencies
     libfreetype6-dev \
     libjpeg62-turbo-dev \
@@ -28,6 +38,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     xz-utils \
     default-mysql-client \
+    libpq-dev \
+    postgresql-client-16 \
     cron \
     # Cleanup
     && rm -rf /var/lib/apt/lists/*
@@ -53,7 +65,9 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
         intl \
         gd \
         mysqli \
+        pcntl \
         pdo_mysql \
+        pdo_pgsql \
         zip \
         opcache
 
@@ -97,7 +111,8 @@ COPY docker/app_local.php /opt/docker/app_local.php
 
 # Copy entrypoint script
 COPY docker/entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+COPY docker/scheduler-loop.sh /usr/local/bin/kmp-scheduler-loop
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh /usr/local/bin/kmp-scheduler-loop
 
 # Expose port 80
 EXPOSE 80

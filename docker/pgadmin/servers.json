@@ -1,0 +1,43 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "KMP Development",
+      "Group": "KMP Local",
+      "Host": "db",
+      "Port": 5432,
+      "MaintenanceDB": "KMP_DEV",
+      "Username": "KMPSQLDEV",
+      "PasswordExecCommand": "sh -c 'printf \"%s\" \"$POSTGRES_PASSWORD\"'",
+      "ConnectionParameters": {
+        "sslmode": "prefer",
+        "connect_timeout": 10
+      }
+    },
+    "2": {
+      "Name": "KMP Platform",
+      "Group": "KMP Local",
+      "Host": "db",
+      "Port": 5432,
+      "MaintenanceDB": "KMP_PLATFORM",
+      "Username": "KMPSQLDEV",
+      "PasswordExecCommand": "sh -c 'printf \"%s\" \"$POSTGRES_PASSWORD\"'",
+      "ConnectionParameters": {
+        "sslmode": "prefer",
+        "connect_timeout": 10
+      }
+    },
+    "3": {
+      "Name": "KMP Second Kingdom",
+      "Group": "KMP Local",
+      "Host": "db",
+      "Port": 5432,
+      "MaintenanceDB": "kmp2_dev",
+      "Username": "kmp_tenant_kmp2_role",
+      "PasswordExecCommand": "sh -c 'printf \"%s\" \"$POSTGRES_PASSWORD\"'",
+      "ConnectionParameters": {
+        "sslmode": "prefer",
+        "connect_timeout": 10
+      }
+    }
+  }
+}

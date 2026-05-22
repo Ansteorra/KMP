@@ -49,11 +49,12 @@ APP_PORT="$(env_or_file KMP_APP_PORT 8080)"
 APP_URL="$(env_or_file KMP_APP_URL "http://localhost:${APP_PORT}")"
 MAILPIT_WEB_PORT="$(env_or_file KMP_MAILPIT_WEB_PORT 8025)"
 MAILPIT_SMTP_PORT="$(env_or_file KMP_MAILPIT_SMTP_PORT 1025)"
-DB_HOST_PORT="$(env_or_file KMP_DB_HOST_PORT 3306)"
+DB_HOST_PORT="$(env_or_file KMP_DB_HOST_PORT 5432)"
+PGADMIN_PORT="$(env_or_file KMP_PGADMIN_PORT 5050)"
 HOST_ALIASES="$(env_or_file KMP_HOST_ALIASES "")"
 RESET_DB_ON_UP="$(env_or_file KMP_RESET_DB_ON_UP true)"
-RESET_DB_ON_UP_ARGS="$(env_or_file KMP_RESET_DB_ON_UP_ARGS "--seed")"
-KMP_VOLUMES=("kmp-db-data" "kmp-composer-cache" "kmp-node-modules")
+RESET_DB_ON_UP_ARGS="$(env_or_file KMP_RESET_DB_ON_UP_ARGS "")"
+KMP_VOLUMES=("kmp-pg-data" "kmp-composer-cache" "kmp-node-modules" "kmp-pgadmin-data")
 
 ensure_named_volumes() {
     for volume in "${KMP_VOLUMES[@]}"; do
@@ -77,16 +78,18 @@ remove_container() {
 }
 
 cleanup_existing_dev_containers() {
-    conflicts_file="$(mktemp)"
+    mkdir -p app/tmp
+    conflicts_file="app/tmp/kmp-dev-conflicts.$$"
+    : > "$conflicts_file"
 
-    for container_name in kmp-app kmp-db kmp-mailpit; do
+    for container_name in kmp-app kmp-worker kmp-scheduler kmp-db kmp-pgadmin kmp-mailpit; do
         container_id="$(docker container inspect --format '{{.Id}}' "$container_name" 2>/dev/null || true)"
         if [ -n "$container_id" ]; then
             echo "$container_id fixed KMP container name ${container_name}" >> "$conflicts_file"
         fi
     done
 
-    for port in "$APP_PORT" "$DB_HOST_PORT" "$MAILPIT_WEB_PORT" "$MAILPIT_SMTP_PORT"; do
+    for port in "$APP_PORT" "$DB_HOST_PORT" "$PGADMIN_PORT" "$MAILPIT_WEB_PORT" "$MAILPIT_SMTP_PORT"; do
         docker ps --filter "publish=${port}" --format "{{.ID}} published port ${port} ({{.Names}})" >> "$conflicts_file"
     done
 
@@ -167,11 +170,15 @@ if [ -n "$HOST_ALIASES" ]; then
     done
 fi
 echo "   📧 Mailpit:      http://localhost:${MAILPIT_WEB_PORT}"
-echo "   🗄️  MySQL:        127.0.0.1:${DB_HOST_PORT}"
-echo "   ⏱️  Cron log:     docker compose exec app tail -f /var/log/cron.log"
+echo "   🗄️  PostgreSQL:   127.0.0.1:${DB_HOST_PORT}"
+echo "   🐘 pgAdmin:      http://localhost:${PGADMIN_PORT}"
+echo "   ⚙️  Worker logs:  docker compose logs -f worker"
+echo "   ⏱️  Scheduler:    docker compose logs -f scheduler"
 echo ""
 echo "Useful commands:"
 echo "   docker compose logs -f app    # Follow app logs"
+echo "   docker compose logs -f worker # Follow queue worker logs"
+echo "   docker compose logs -f scheduler # Follow scheduled task logs"
 echo "   docker compose exec app bash  # Shell into app container"
 echo "   ./dev-reset-db.sh             # Reset database"
 echo "   ./dev-down.sh                 # Stop environment"

@@ -81,8 +81,12 @@ return [
         'storage' => [
             'adapter' => env('DOCUMENT_STORAGE_ADAPTER', 'local'),
             'azure' => [
+                'authMode' => env('AZURE_STORAGE_AUTH_MODE', 'connectionString'),
+                'accountName' => env('AZURE_STORAGE_ACCOUNT_NAME'),
+                'managedIdentityClientId' => env('AZURE_CLIENT_ID'),
                 'connectionString' => env('AZURE_STORAGE_CONNECTION_STRING'),
                 'container' => env('AZURE_STORAGE_CONTAINER', 'documents'),
+                'containerPrefix' => env('AZURE_STORAGE_CONTAINER_PREFIX', 'documents'),
                 'prefix' => '',
             ],
             's3' => [
@@ -302,8 +306,12 @@ fi
 if [ "${KMP_SKIP_CRON:-false}" != "true" ]; then
     echo "Configuring cron jobs..."
     QUEUE_CRON="*/2 * * * * cd /var/www/html && bin/cake queue run -q >> /var/log/cron.log 2>&1"
-    BACKUP_CRON="0 3 * * * cd /var/www/html && bin/cake backup_check >> /var/log/cron.log 2>&1"
-    (crontab -l 2>/dev/null | grep -v "queue run" | grep -v "backup_check"; echo "$QUEUE_CRON"; echo "$BACKUP_CRON") | crontab -
+    if [ "${KMP_TENANCY_ENABLED:-false}" = "true" ]; then
+        BACKUP_CRON="0 3 * * * cd /var/www/html && bin/cake platform schedule run backup-check >> /var/log/cron.log 2>&1"
+    else
+        BACKUP_CRON="0 3 * * * cd /var/www/html && bin/cake backup_check >> /var/log/cron.log 2>&1"
+    fi
+    (crontab -l 2>/dev/null | grep -v "queue run" | grep -v "backup_check" | grep -v "platform schedule run backup-check"; echo "$QUEUE_CRON"; echo "$BACKUP_CRON") | crontab -
 
     service cron start
 else

@@ -95,25 +95,25 @@ jobs:
         run: |
           set -euo pipefail
           RG="${{ vars.AZURE_RESOURCE_GROUP }}"
-          JOB="${{ vars.AZURE_RESET_JOB_NAME }}"
-          echo "⚠️  FULL RESET requested — dropping schema + reloading dev_seed_clean.sql"
+          JOB="${{ vars.AZURE_RESTORE_JOB_NAME || vars.AZURE_RESET_JOB_NAME }}"
+          echo "⚠️  FULL RESTORE requested — dropping schema + reloading the encrypted seed backup"
           az containerapp job update -g "$RG" -n "$JOB" --image "$IMAGE_REF" -o none
           EXEC_NAME="$(az containerapp job start -g "$RG" -n "$JOB" --query name -o tsv)"
-          echo "Started reset execution: $EXEC_NAME"
+          echo "Started restore execution: $EXEC_NAME"
           for i in $(seq 1 180); do
             STATUS="$(az containerapp job execution show -g "$RG" --job-name "$JOB" -n "$EXEC_NAME" --query properties.status -o tsv 2>/dev/null || echo Unknown)"
-            echo "[$i/180] reset status: $STATUS"
+            echo "[$i/180] restore status: $STATUS"
             case "$STATUS" in
-              Succeeded) echo "✅ reset succeeded (passwords = TestPassword)"; exit 0 ;;
+              Succeeded) echo "✅ restore succeeded (passwords = TestPassword)"; exit 0 ;;
               Failed|Cancelled|Degraded)
-                echo "❌ reset finished with $STATUS"
+                echo "❌ restore finished with $STATUS"
                 az containerapp job execution show -g "$RG" --job-name "$JOB" -n "$EXEC_NAME" -o yaml || true
                 exit 1
                 ;;
             esac
             sleep 10
           done
-          echo "⏱  reset timed out"; exit 1
+          echo "⏱  restore timed out"; exit 1
 
       - name: Update web Container App image
         run: |
@@ -124,11 +124,23 @@ jobs:
             --image "$IMAGE_REF" \
             -o none
 
-      - name: Update queue and sync jobs to new image
+      - name: Update fixed schedule-shape jobs to new image
         run: |
           set -euo pipefail
           RG="${{ vars.AZURE_RESOURCE_GROUP }}"
-          for job in "${{ vars.AZURE_QUEUE_JOB_NAME }}" "${{ vars.AZURE_SYNC_JOB_NAME }}" "${{ vars.AZURE_RESET_JOB_NAME }}"; do
+          jobs=(
+            "${{ vars.AZURE_QUEUE_JOB_NAME }}"
+            "${{ vars.AZURE_RESTORE_JOB_NAME || vars.AZURE_RESET_JOB_NAME }}"
+            "${{ vars.AZURE_PROVISION_JOB_NAME }}"
+            "${{ vars.AZURE_SCHED_HOURLY_JOB_NAME }}"
+            "${{ vars.AZURE_SCHED_DAILY_JOB_NAME || vars.AZURE_SYNC_JOB_NAME }}"
+            "${{ vars.AZURE_SCHED_WEEKLY_JOB_NAME }}"
+            "${{ vars.AZURE_SCHED_NIGHTLY_JOB_NAME }}"
+          )
+          for job in "${jobs[@]}"; do
+            if [[ -z "$job" ]]; then
+              continue
+            fi
             echo "Updating $job to $IMAGE_REF"
             az containerapp job update -g "$RG" -n "$job" --image "$IMAGE_REF" -o none
           done

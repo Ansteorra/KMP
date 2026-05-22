@@ -57,7 +57,7 @@ require() {
 }
 for v in AZURE_SUBSCRIPTION_ID AZURE_TENANT_ID AZURE_REGION AZURE_RESOURCE_GROUP \
          AZURE_NAME_PREFIX SECURITY_SALT POSTGRES_ADMIN_PASSWORD BACKUP_ENCRYPTION_KEY \
-         EMAIL_SMTP_HOST EMAIL_SMTP_PORT EMAIL_FROM; do
+         PLATFORM_SECRETS_MASTER_KEY EMAIL_SMTP_HOST EMAIL_SMTP_PORT EMAIL_FROM; do
     require "$v"
 done
 
@@ -101,7 +101,7 @@ IMAGE_REPO="${ACR_NAME}.azurecr.io/kmp"
 #
 # Cleanest: deploy ACR-only first, import image, then deploy full template.
 echo "    (pass 1/2) provisioning ACR so we can mirror the nightly image..."
-ACR_BICEP="$(mktemp --suffix=.bicep)"
+ACR_BICEP="$HERE/.acr-bootstrap.bicep"
 trap 'rm -f "$ACR_BICEP"' EXIT
 cat > "$ACR_BICEP" <<'BICEP'
 param location string = resourceGroup().location
@@ -142,6 +142,7 @@ az deployment group create \
         postgresAdminPassword="$POSTGRES_ADMIN_PASSWORD" \
         securitySalt="$SECURITY_SALT" \
         backupEncryptionKey="$BACKUP_ENCRYPTION_KEY" \
+        platformSecretsMasterKey="$PLATFORM_SECRETS_MASTER_KEY" \
         emailSmtpHost="$EMAIL_SMTP_HOST" \
         emailSmtpPort="$EMAIL_SMTP_PORT" \
         emailSmtpUsername="${EMAIL_SMTP_USERNAME:-}" \
@@ -165,6 +166,13 @@ ACR_LOGIN_SERVER="$(jqget acrLoginServer)"
 POSTGRES_FQDN="$(jqget postgresFqdn)"
 KV_NAME="$(jqget keyVaultName)"
 MIGRATE_JOB="$(jqget migrateJobName)"
+QUEUE_JOB="$(jqget queueJobName)"
+RESTORE_JOB="$(jqget restoreJobName)"
+PROVISION_JOB="$(jqget provisionJobName)"
+SCHED_HOURLY_JOB="$(jqget scheduleHourlyJobName)"
+SCHED_DAILY_JOB="$(jqget scheduleDailyJobName)"
+SCHED_WEEKLY_JOB="$(jqget scheduleWeeklyJobName)"
+SCHED_NIGHTLY_JOB="$(jqget scheduleNightlyJobName)"
 WEB_APP="$(jqget webAppName)"
 
 # --- 5. AAD app + federated credential for GitHub OIDC
@@ -228,28 +236,36 @@ if [[ $SKIP_GH -eq 0 ]]; then
         gh variable set AZURE_ACR_NAME --body "$ACR_NAME" --repo "$GITHUB_REPO"
         gh variable set AZURE_WEB_APP_NAME --body "$WEB_APP" --repo "$GITHUB_REPO"
         gh variable set AZURE_MIGRATE_JOB_NAME --body "$MIGRATE_JOB" --repo "$GITHUB_REPO"
-        gh variable set AZURE_QUEUE_JOB_NAME --body "${AZURE_NAME_PREFIX}-queue" --repo "$GITHUB_REPO"
-        gh variable set AZURE_SYNC_JOB_NAME --body "${AZURE_NAME_PREFIX}-sync" --repo "$GITHUB_REPO"
-        gh variable set AZURE_RESET_JOB_NAME --body "${AZURE_NAME_PREFIX}-reset" --repo "$GITHUB_REPO"
+        gh variable set AZURE_QUEUE_JOB_NAME --body "$QUEUE_JOB" --repo "$GITHUB_REPO"
+        gh variable set AZURE_RESTORE_JOB_NAME --body "$RESTORE_JOB" --repo "$GITHUB_REPO"
+        gh variable set AZURE_PROVISION_JOB_NAME --body "$PROVISION_JOB" --repo "$GITHUB_REPO"
+        gh variable set AZURE_SCHED_HOURLY_JOB_NAME --body "$SCHED_HOURLY_JOB" --repo "$GITHUB_REPO"
+        gh variable set AZURE_SCHED_DAILY_JOB_NAME --body "$SCHED_DAILY_JOB" --repo "$GITHUB_REPO"
+        gh variable set AZURE_SCHED_WEEKLY_JOB_NAME --body "$SCHED_WEEKLY_JOB" --repo "$GITHUB_REPO"
+        gh variable set AZURE_SCHED_NIGHTLY_JOB_NAME --body "$SCHED_NIGHTLY_JOB" --repo "$GITHUB_REPO"
+        # Backward-compatible names for older workflows.
+        gh variable set AZURE_SYNC_JOB_NAME --body "$SCHED_DAILY_JOB" --repo "$GITHUB_REPO"
+        gh variable set AZURE_RESET_JOB_NAME --body "$RESTORE_JOB" --repo "$GITHUB_REPO"
     else
         echo "    gh CLI not found; install it and re-run with secrets unchanged."
     fi
 fi
 
-# --- 8. Kick the reset job: full schema rebuild + dev seed + password reset
+# --- 8. Kick the restore job: full schema rebuild + dev seed + password reset
 # NOTE: requires /opt/kmp/reset-and-seed.sh to be present in the image. If you
 # bootstrap before the next nightly rebuild, the reset will fail — just run
 # the migrate job instead, and re-run reset after the image catches up.
-echo "--- Starting reset-and-seed job (non-fatal)..."
-RESET_JOB="${AZURE_NAME_PREFIX}-reset"
-if ! az containerapp job start -g "$AZURE_RESOURCE_GROUP" -n "$RESET_JOB" -o none 2>/tmp/reset-kick.err; then
-    echo "    warn: reset job start failed ($(cat /tmp/reset-kick.err))."
+echo "--- Starting restore-from-seed job (non-fatal)..."
+RESET_JOB="$RESTORE_JOB"
+RESET_KICK_ERR="$HERE/.reset-kick.err"
+if ! az containerapp job start -g "$AZURE_RESOURCE_GROUP" -n "$RESET_JOB" -o none 2>"$RESET_KICK_ERR"; then
+    echo "    warn: restore job start failed ($(cat "$RESET_KICK_ERR"))."
     echo "    You can retry after the next nightly image build includes reset-and-seed.sh:"
     echo "    az containerapp job start -g $AZURE_RESOURCE_GROUP -n $RESET_JOB"
 fi
 echo "    Watch progress with:"
 echo "    az containerapp job execution list -g $AZURE_RESOURCE_GROUP -n $RESET_JOB -o table"
-echo "    az containerapp logs show  -g $AZURE_RESOURCE_GROUP -n $RESET_JOB --container reset --tail 200 --follow"
+echo "    az containerapp logs show  -g $AZURE_RESOURCE_GROUP -n $RESET_JOB --container restore --tail 200 --follow"
 
 echo
 echo "=== Bootstrap complete ==="
