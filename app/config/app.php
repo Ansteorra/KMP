@@ -17,12 +17,14 @@ declare(strict_types=1);
  * Environment-specific overrides should be in app_local.php or .env
  */
 
+use App\Services\Security\SessionCookieConfig;
 use Cake\Cache\Engine\ApcuEngine;
 use Cake\Cache\Engine\ArrayEngine;
 use Cake\Cache\Engine\FileEngine;
 use Cake\Cache\Engine\RedisEngine;
 use Cake\Database\Connection;
 use Cake\Database\Driver\Mysql;
+use Cake\Database\Driver\Postgres;
 use Cake\Log\Engine\FileLog;
 use Cake\Mailer\Transport\MailTransport;
 use Templating\View\Icon\BootstrapIcon;
@@ -55,6 +57,38 @@ if ($cacheEngine === RedisEngine::class) {
         ];
     }
 }
+$databaseDriverName = strtolower((string)env('KMP_DB_DRIVER', 'mysql'));
+$databaseDriver = match ($databaseDriverName) {
+    'postgres', 'pgsql' => Postgres::class,
+    'mysql', 'mariadb', '' => Mysql::class,
+    default => throw new RuntimeException(
+        sprintf(
+            'Unsupported KMP_DB_DRIVER value "%s"; supported values are mysql, mariadb, postgres, pgsql.',
+            $databaseDriverName,
+        ),
+    ),
+};
+$isPostgres = $databaseDriver === Postgres::class;
+$defaultDatabaseName = env("DB_DATABASE", $isPostgres ? env("POSTGRES_DB", "kmp") : env("MYSQL_DB_NAME", "kmp"));
+$platformDatabaseName = env("PLATFORM_DB_DATABASE", $defaultDatabaseName . "_platform");
+$platformAdminAllowedStatuses = array_values(array_filter(array_map(
+    static fn(string $value): string => trim($value),
+    explode(',', (string)env('KMP_PLATFORM_ADMIN_ALLOWED_STATUSES', 'active')),
+)));
+$platformAdminHosts = array_values(array_filter(array_map(
+    static fn(string $value): string => strtolower(rtrim(trim($value), '.')),
+    explode(',', (string)env('KMP_PLATFORM_ADMIN_HOSTS', '')),
+)));
+$detailedPlatformAdminLoginErrorsDefault = in_array(
+    strtolower((string)env('KMP_ENV', env('APP_ENV', ''))),
+    ['dev', 'development', 'local', 'test', 'staging'],
+    true,
+);
+$localHttpEnvironment = in_array(
+    strtolower((string)env('KMP_ENV', env('APP_ENV', ''))),
+    ['dev', 'development', 'local', 'test'],
+    true,
+);
 $restoreStatusPath = env('RESTORE_STATUS_CACHE_PATH', sys_get_temp_dir() . DS . 'kmp_restore_status_shared' . DS);
 if (!is_dir($restoreStatusPath)) {
     @mkdir($restoreStatusPath, 0777, true);
@@ -64,6 +98,34 @@ if (!is_dir($restoreStatusPath)) {
 return [
     /** @var bool Enable debug mode - set via DEBUG environment variable */
     "debug" => filter_var(env("DEBUG", false), FILTER_VALIDATE_BOOLEAN),
+
+    /** @var array Platform metadata health/degraded-mode settings */
+    "Platform" => [
+        "health" => [
+            "retryAttempts" => (int)env("PLATFORM_HEALTH_RETRY_ATTEMPTS", 0),
+            "retryDelayMs" => (int)env("PLATFORM_HEALTH_RETRY_DELAY_MS", 0),
+        ],
+        "adminMfa" => [
+            "window" => (int)env("PLATFORM_ADMIN_TOTP_WINDOW", 1),
+            "period" => (int)env("PLATFORM_ADMIN_TOTP_PERIOD", 30),
+            "digits" => (int)env("PLATFORM_ADMIN_TOTP_DIGITS", 6),
+            "algorithm" => env("PLATFORM_ADMIN_TOTP_ALGORITHM", "sha1"),
+        ],
+        "adminPortal" => [
+            "enabled" => filter_var(env("KMP_PLATFORM_ADMIN_PORTAL_ENABLED", false), FILTER_VALIDATE_BOOLEAN),
+            "hosts" => $platformAdminHosts,
+            "allowedStatuses" => $platformAdminAllowedStatuses === []
+                ? ['active']
+                : $platformAdminAllowedStatuses,
+            "detailedLoginErrors" => filter_var(
+                env("KMP_PLATFORM_ADMIN_DETAILED_LOGIN_ERRORS", $detailedPlatformAdminLoginErrorsDefault),
+                FILTER_VALIDATE_BOOLEAN,
+            ),
+            "dataConsole" => [
+                "enabled" => filter_var(env("KMP_PLATFORM_DATA_CONSOLE_ENABLED", false), FILTER_VALIDATE_BOOLEAN),
+            ],
+        ],
+    ],
 
     /** @see docs/2-configuration.md#application-settings */
     "App" => [
@@ -324,23 +386,23 @@ return [
             /** @var string Connection class for database abstraction */
             "className" => Connection::class,
 
-            /** @var string Database driver (MySQL/MariaDB) */
-            "driver" => Mysql::class,
+            /** @var string Database driver selected by KMP_DB_DRIVER */
+            "driver" => $databaseDriver,
 
             /** @var string Database hostname */
             "host" => env("DB_HOST", env("MYSQL_HOST", "localhost")),
 
             /** @var int Database port */
-            "port" => env("DB_PORT", env("MYSQL_PORT", 3306)),
+            "port" => env("DB_PORT", $isPostgres ? env("POSTGRES_PORT", 5432) : env("MYSQL_PORT", 3306)),
 
             /** @var string Database username */
-            "username" => env("DB_USERNAME", env("MYSQL_USERNAME", "root")),
+            "username" => env("DB_USERNAME", $isPostgres ? env("POSTGRES_USER", "root") : env("MYSQL_USERNAME", "root")),
 
             /** @var string Database password */
-            "password" => env("DB_PASSWORD", env("MYSQL_PASSWORD", "")),
+            "password" => env("DB_PASSWORD", $isPostgres ? env("POSTGRES_PASSWORD", "") : env("MYSQL_PASSWORD", "")),
 
             /** @var string Database name */
-            "database" => env("DB_DATABASE", env("MYSQL_DB_NAME", "kmp")),
+            "database" => env("DB_DATABASE", $isPostgres ? env("POSTGRES_DB", "kmp") : env("MYSQL_DB_NAME", "kmp")),
 
             /** @var string|null Complete database DSN URL */
             "url" => env("DATABASE_URL", null),
@@ -381,23 +443,23 @@ return [
             /** @var string Connection class for database abstraction */
             "className" => Connection::class,
 
-            /** @var string Database driver (MySQL/MariaDB) */
-            "driver" => Mysql::class,
+            /** @var string Database driver selected by KMP_DB_DRIVER */
+            "driver" => $databaseDriver,
 
             /** @var string Test database hostname */
             "host" => env("DB_HOST", env("MYSQL_HOST", "localhost")),
 
             /** @var int Test database port */
-            "port" => env("DB_PORT", env("MYSQL_PORT", 3306)),
+            "port" => env("DB_PORT", $isPostgres ? env("POSTGRES_PORT", 5432) : env("MYSQL_PORT", 3306)),
 
             /** @var string Test database username */
-            "username" => env("DB_USERNAME", env("MYSQL_USERNAME", "root")),
+            "username" => env("DB_USERNAME", $isPostgres ? env("POSTGRES_USER", "root") : env("MYSQL_USERNAME", "root")),
 
             /** @var string Test database password */
-            "password" => env("DB_PASSWORD", env("MYSQL_PASSWORD", "")),
+            "password" => env("DB_PASSWORD", $isPostgres ? env("POSTGRES_PASSWORD", "") : env("MYSQL_PASSWORD", "")),
 
             /** @var string Test database name */
-            "database" => env("DB_DATABASE", env("MYSQL_DB_NAME", "kmp")) . "_test",
+            "database" => env("DB_DATABASE", $isPostgres ? env("POSTGRES_DB", "kmp") : env("MYSQL_DB_NAME", "kmp")) . "_test",
 
             /** @var string|null Complete test database DSN URL */
             "url" => env("DATABASE_TEST_URL", env("DATABASE_URL", null)),
@@ -425,6 +487,50 @@ return [
 
             /** @var array Database initialization commands */
             //'init' => ['SET GLOBAL innodb_stats_on_metadata = 0'],
+        ],
+
+        /**
+         * Platform metadata database connection.
+         *
+         * This connection is reserved for tenant registry, platform-admin
+         * identity, secrets metadata, audit, and operational job state. Tenant
+         * application data must remain on the default/tenant database track.
+         */
+        "platform" => [
+            "className" => Connection::class,
+            "driver" => $databaseDriver,
+            "host" => env("PLATFORM_DB_HOST", env("DB_HOST", env("MYSQL_HOST", "localhost"))),
+            "port" => env("PLATFORM_DB_PORT", env("DB_PORT", $isPostgres ? env("POSTGRES_PORT", 5432) : env("MYSQL_PORT", 3306))),
+            "username" => env("PLATFORM_DB_USERNAME", env("DB_USERNAME", $isPostgres ? env("POSTGRES_USER", "root") : env("MYSQL_USERNAME", "root"))),
+            "password" => env("PLATFORM_DB_PASSWORD", env("DB_PASSWORD", $isPostgres ? env("POSTGRES_PASSWORD", "") : env("MYSQL_PASSWORD", ""))),
+            "database" => $platformDatabaseName,
+            "url" => env("PLATFORM_DATABASE_URL", null),
+            "persistent" => false,
+            "timezone" => "UTC",
+            "flags" => [],
+            "cacheMetadata" => true,
+            "quoteIdentifiers" => false,
+            "log" => false,
+        ],
+
+        /**
+         * Test platform metadata database connection.
+         */
+        "test_platform" => [
+            "className" => Connection::class,
+            "driver" => $databaseDriver,
+            "host" => env("PLATFORM_DB_HOST", env("DB_HOST", env("MYSQL_HOST", "localhost"))),
+            "port" => env("PLATFORM_DB_PORT", env("DB_PORT", $isPostgres ? env("POSTGRES_PORT", 5432) : env("MYSQL_PORT", 3306))),
+            "username" => env("PLATFORM_DB_USERNAME", env("DB_USERNAME", $isPostgres ? env("POSTGRES_USER", "root") : env("MYSQL_USERNAME", "root"))),
+            "password" => env("PLATFORM_DB_PASSWORD", env("DB_PASSWORD", $isPostgres ? env("POSTGRES_PASSWORD", "") : env("MYSQL_PASSWORD", ""))),
+            "database" => env("PLATFORM_DB_TEST_DATABASE", $platformDatabaseName . "_test"),
+            "url" => env("PLATFORM_DATABASE_TEST_URL", null),
+            "persistent" => false,
+            "timezone" => "UTC",
+            "flags" => [],
+            "cacheMetadata" => true,
+            "quoteIdentifiers" => false,
+            "log" => false,
         ],
     ],
 
@@ -551,9 +657,12 @@ return [
         "cookie" => "PHPSESSID",
 
         /** @var array PHP session ini settings for security */
-        "ini" => [
+        "ini" => SessionCookieConfig::withDomainOverride([
             /** @var bool Require HTTPS for session cookies */
-            "session.cookie_secure" => true,
+            "session.cookie_secure" => filter_var(
+                env('KMP_SESSION_COOKIE_SECURE', $localHttpEnvironment ? 'false' : 'true'),
+                FILTER_VALIDATE_BOOLEAN,
+            ),
 
             /** @var bool Prevent JavaScript access to session cookies */
             "session.cookie_httponly" => true,
@@ -563,7 +672,7 @@ return [
 
             /** @var bool Validate session IDs for security */
             "session.use_strict_mode" => true,
-        ],
+        ]),
     ],
 
     'Icon' => [
@@ -622,11 +731,14 @@ return [
              */
             'azure' => [
                 /**
-                 * Azure Storage Connection String
+                 * Azure Storage Authentication
                  *
-                 * Format: DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net
-                 * Should be set via environment variable AZURE_STORAGE_CONNECTION_STRING
+                 * Prefer managedIdentity in Azure Container Apps. connectionString
+                 * remains available for legacy/dev setups that cannot use Entra ID.
                  */
+                'authMode' => env('AZURE_STORAGE_AUTH_MODE', 'connectionString'),
+                'accountName' => env('AZURE_STORAGE_ACCOUNT_NAME'),
+                'managedIdentityClientId' => env('AZURE_CLIENT_ID'),
                 'connectionString' => env('AZURE_STORAGE_CONNECTION_STRING'),
 
                 /**
@@ -636,6 +748,7 @@ return [
                  * Default: 'documents'
                  */
                 'container' => 'documents',
+                'containerPrefix' => env('AZURE_STORAGE_CONTAINER_PREFIX', 'documents'),
 
                 /**
                  * Path Prefix (optional)

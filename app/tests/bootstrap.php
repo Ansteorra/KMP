@@ -53,6 +53,12 @@ if (!defined('LOGS') && !is_writable($projectRoot . DIRECTORY_SEPARATOR . 'logs'
 
 require dirname(__DIR__) . '/config/bootstrap.php';
 
+putenv('KMP_TENANCY_ENABLED=false');
+$_ENV['KMP_TENANCY_ENABLED'] = 'false';
+$_SERVER['KMP_TENANCY_ENABLED'] = 'false';
+
+Configure::write('Queue.connection', 'test');
+
 if (empty($_SERVER['HTTP_HOST']) && !Configure::read('App.fullBaseUrl')) {
     Configure::write('App.fullBaseUrl', 'http://localhost');
 }
@@ -93,22 +99,34 @@ if (session_status() === PHP_SESSION_NONE) {
     session_id('cli');
 }
 
-// Ensure the test schema is seeded with the shared dev dataset
-SeedManager::bootstrap('test');
+// Ensure the test schema is seeded with the shared dev dataset.
+// MySQL uses a schema+data dump, so load it before migrations. PostgreSQL uses
+// a data-only converted seed, so load it after migrations create the schema.
+if (!SeedManager::isPostgres('test')) {
+    SeedManager::bootstrap('test');
+}
 
-// Run any pending migrations on the test connection to create tables
-// not yet included in dev_seed_clean.sql (e.g., workflow engine tables).
-(new Migrations())->migrate(['connection' => 'test']);
+// PostgreSQL tests use a current schema dump plus a data-only seed, so rerunning
+// all migrations would try to recreate existing tables.
+if (!SeedManager::isPostgres('test')) {
+    // Run any pending migrations on the test connection to create tables
+    // not yet included in dev_seed_clean.sql (e.g., workflow engine tables).
+    (new Migrations())->migrate(['connection' => 'test']);
+}
 
 // Fix stale seed data dates: extend expired test member roles to far-future dates
 // so time-sensitive tests remain stable across environments.
 $conn = ConnectionManager::get('test');
 $farFuture = '2100-01-01 00:00:00';
 
-// Apply plugin migrations on every test connection so pending plugin schema changes
-// are layered on top of the shared seed dump as soon as they are added.
-foreach (['Queue', 'Officers', 'Activities', 'Awards', 'Waivers'] as $plugin) {
-    (new Migrations())->migrate(['connection' => 'test', 'plugin' => $plugin]);
+// Apply plugin migrations on MySQL after the shared seed dump. PostgreSQL tests
+// use a current schema dump plus a data-only converted seed.
+if (!SeedManager::isPostgres('test')) {
+    foreach (['Queue', 'Officers', 'Activities', 'Awards', 'Waivers'] as $plugin) {
+        (new Migrations())->migrate(['connection' => 'test', 'plugin' => $plugin]);
+    }
+} else {
+    SeedManager::bootstrap('test');
 }
 
 // On Postgres (no MySQL seed dump), we also need to seed essential AppSettings.
@@ -136,11 +154,10 @@ if (SeedManager::isPostgres('test')) {
 
     // Seed DB-agnostic authorization edge-case records used by service tests.
     $members = [
-        [1, 'Admin von Admin', 'Admin', 'von', 'admin@test.com', 'verified', '2100-01-01', true, 1980],
-        [2871, 'Agatha Local MoAS Demoer', 'Agatha', 'Demoer', 'agatha@ampdemo.com', 'verified', '2100-01-01', true, 2000],
-        [2872, 'Bryce Local Seneschal Demoer', 'Bryce', 'Demoer', 'bryce@ampdemo.com', 'verified', '2100-01-01', true, 2001],
-        [2874, 'Devon Regional Armored Demoer', 'Devon', 'Demoer', 'devon@ampdemo.com', 'verified', '2100-01-01', true, 2002],
-        [2875, 'Eirik Kingdom Seneschal Demoer', 'Eirik', 'Demoer', 'eirik@ampdemo.com', 'verified', '2100-01-01', true, 2004],
+        [2871, 'Agatha Local MoAS Demoer', 'Agatha', 'Demoer', 'agatha@ampdemo.com', 'verified', '2100-01-01', 'true', 2000],
+        [2872, 'Bryce Local Seneschal Demoer', 'Bryce', 'Demoer', 'bryce@ampdemo.com', 'verified', '2100-01-01', 'true', 2001],
+        [2874, 'Devon Regional Armored Demoer', 'Devon', 'Demoer', 'devon@ampdemo.com', 'verified', '2100-01-01', 'false', 2002],
+        [2875, 'Eirik Kingdom Seneschal Demoer', 'Eirik', 'Demoer', 'eirik@ampdemo.com', 'verified', '2100-01-01', 'true', 2004],
     ];
     foreach ($members as [$id, $scaName, $firstName, $lastName, $email, $status, $membershipExpiresOn, $warrantable, $birthYear]) {
         $conn->execute(
@@ -219,8 +236,14 @@ if (SeedManager::isPostgres('test')) {
 
     $conn->execute(
         "INSERT INTO warrant_rosters (id, name, approvals_required, approval_count, status, created, modified, created_by, modified_by)
-         VALUES (9901, 'Edge Case Warrant Roster', 1, 1, 'Current', ?, ?, 1, 1)
-         ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, modified = EXCLUDED.modified, modified_by = EXCLUDED.modified_by",
+          VALUES (9901, 'Edge Case Warrant Roster', 1, 1, 'Current', ?, ?, 1, 1)
+          ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, modified = EXCLUDED.modified, modified_by = EXCLUDED.modified_by",
+        [$now, $now],
+    );
+    $conn->execute(
+        "INSERT INTO warrant_rosters (id, name, approvals_required, approval_count, status, created, modified, created_by, modified_by)
+          VALUES (9902, 'Pending Approval Warrant Roster', 1, 0, 'Pending', ?, ?, 1, 1)
+          ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, status = EXCLUDED.status, approval_count = EXCLUDED.approval_count, modified = EXCLUDED.modified, modified_by = EXCLUDED.modified_by",
         [$now, $now],
     );
     $conn->execute(
@@ -231,10 +254,31 @@ if (SeedManager::isPostgres('test')) {
     );
     $conn->execute(
         "INSERT INTO warrants (id, name, member_id, warrant_roster_id, entity_id, member_role_id, start_on, expires_on, status, created, modified, created_by, modified_by)
-         VALUES (99012, 'Bryce Expired Warrant', 2872, 9901, 0, 99021, NOW() - INTERVAL '365 days', NOW() - INTERVAL '30 days', 'Expired', ?, ?, 1, 1)
-         ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status, start_on = EXCLUDED.start_on, expires_on = EXCLUDED.expires_on, modified = EXCLUDED.modified, modified_by = EXCLUDED.modified_by",
+          VALUES (99012, 'Bryce Expired Warrant', 2872, 9901, 0, 99021, NOW() - INTERVAL '365 days', NOW() - INTERVAL '30 days', 'Expired', ?, ?, 1, 1)
+          ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status, start_on = EXCLUDED.start_on, expires_on = EXCLUDED.expires_on, modified = EXCLUDED.modified, modified_by = EXCLUDED.modified_by",
         [$now, $now],
     );
+
+    $tablesWithSeededIds = [
+        'members',
+        'roles',
+        'permissions',
+        'roles_permissions',
+        'permission_policies',
+        'member_roles',
+        'warrant_rosters',
+        'warrants',
+    ];
+    foreach ($tablesWithSeededIds as $table) {
+        $conn->execute(
+            sprintf(
+                "SELECT CASE WHEN pg_get_serial_sequence('%s', 'id') IS NOT NULL THEN setval(pg_get_serial_sequence('%s', 'id'), GREATEST((SELECT MAX(id) FROM %s), 1)) END",
+                $table,
+                $table,
+                $table,
+            ),
+        );
+    }
 }
 
 // Clear cached table metadata so CakePHP sees columns added by migrations.

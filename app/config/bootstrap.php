@@ -82,10 +82,16 @@ require CAKE . "functions.php";
  * security risks. See https://github.com/josegonzalez/php-dotenv#general-security-information
  * for more information for recommended practices.
  */
-if (!env("APP_NAME") && file_exists(CONFIG . ".env")) {
+$loadLocalDotenv = file_exists(CONFIG . ".env")
+    && (
+        !env("APP_NAME")
+        || env("KMP_ENV") === "local"
+        || filter_var(env("KMP_LOAD_DOTENV", false), FILTER_VALIDATE_BOOLEAN)
+    );
+if ($loadLocalDotenv) {
     $overwrite = true;
     $dotenv = new \josegonzalez\Dotenv\Loader([CONFIG . ".env"]);
-    $dotenv->parse()->putenv($overwrite)->toEnv()->toServer();
+    $dotenv->parse()->putenv($overwrite)->toEnv($overwrite)->toServer($overwrite);
 }
 
 Configure::write("CakePdf", [
@@ -123,6 +129,9 @@ if (file_exists(CONFIG . "app_local.php")) {
 
 if (file_exists(CONFIG . "app_queue.php")) {
     Configure::load("app_queue", "default");
+}
+if (file_exists(CONFIG . "secrets.php")) {
+    Configure::load("secrets", "default");
 }
 
 #if (Configure::read('debug')) {

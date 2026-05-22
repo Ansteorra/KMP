@@ -66,6 +66,7 @@ class UpdateDatabaseCommand extends Command
             $pluginMigration = new Migrate();
             $this->executeCommand($pluginMigration, ['migrate', '-p', $name]);
         }
+        $io->out('Platform migrations are managed separately with: bin/cake platform_migrate');
 
         return Command::CODE_SUCCESS;
     }

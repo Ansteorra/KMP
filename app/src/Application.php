@@ -48,15 +48,21 @@ namespace App;
 
 // Authentication usings
 
+use App\Controller\ApprovalsController;
+use App\Controller\WorkflowDefinitionsController;
+use App\Controller\WorkflowInstancesController;
 use App\KMP\KmpIdentityInterface;
 // Add this line
 use App\KMP\StaticHelpers;
+use App\Middleware\TenantResolutionMiddleware;
 // Authorization usings
 use App\Policy\ControllerResolver;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use App\Services\ActiveWindowManager\DefaultActiveWindowManager;
 use App\Services\ApprovalContext\ApprovalContextRendererRegistry;
 use App\Services\AuthorizationService as KmpAuthorizationService;
+use App\Services\Cache\TenantAwareCache;
+use App\Services\Cache\TenantAwareCacheInterface;
 use App\Services\CoreNavigationProvider;
 use App\Services\CoreViewCellProvider;
 use App\Services\CsvExportService;
@@ -70,7 +76,12 @@ use App\Services\MemberProfileService;
 use App\Services\MemberRegistrationService;
 use App\Services\MemberSearchService;
 use App\Services\NavigationRegistry;
+use App\Services\Platform\PlatformHealthService;
 use App\Services\QuickLoginDeviceService;
+use App\Services\Secrets\SecretStoreFactory;
+use App\Services\Secrets\SecretStoreInterface;
+use App\Services\Security\TenantCsrfTokenScope;
+use App\Services\TenantConnectionManager;
 use App\Services\ViewCellRegistry;
 use App\Services\WarrantManager\DefaultWarrantManager;
 use App\Services\WarrantManager\WarrantManagerInterface;
@@ -78,19 +89,17 @@ use App\Services\WorkflowEngine\Actions\CoreActions;
 use App\Services\WorkflowEngine\Conditions\CoreConditions;
 use App\Services\WorkflowEngine\DefaultWorkflowApprovalManager;
 use App\Services\WorkflowEngine\DefaultWorkflowEngine;
+use App\Services\WorkflowEngine\DefaultWorkflowVersionManager;
 use App\Services\WorkflowEngine\ExpressionEvaluator;
 use App\Services\WorkflowEngine\Providers\MembersWorkflowActions;
 use App\Services\WorkflowEngine\Providers\MembersWorkflowConditions;
+use App\Services\WorkflowEngine\Providers\WarrantWorkflowActions;
 use App\Services\WorkflowEngine\StateMachine\StateMachineHandler;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use App\Services\WorkflowEngine\WorkflowApprovalManagerInterface;
 use App\Services\WorkflowEngine\WorkflowEngineInterface;
-use App\Services\WorkflowEngine\DefaultWorkflowVersionManager;
-use App\Services\WorkflowEngine\Providers\WarrantWorkflowActions;
 use App\Services\WorkflowEngine\WorkflowVersionManagerInterface;
-use App\Controller\WorkflowDefinitionsController;
-use App\Controller\WorkflowInstancesController;
-use App\Controller\ApprovalsController;
+use App\Services\WorkflowRegistry\WorkflowPluginLoader;
 use Authentication\AuthenticationService;
 use Authentication\AuthenticationServiceInterface;
 use Authentication\AuthenticationServiceProviderInterface;
@@ -104,6 +113,7 @@ use Authorization\Middleware\AuthorizationMiddleware;
 use Authorization\Policy\OrmResolver;
 use Authorization\Policy\ResolverCollection;
 use Cake\Cache\Cache;
+use Cake\Controller\ComponentRegistry;
 use Cake\Core\Configure;
 use Cake\Core\ContainerInterface;
 use Cake\Datasource\FactoryLocator;
@@ -112,6 +122,7 @@ use Cake\Http\BaseApplication;
 use Cake\Http\Middleware\BodyParserMiddleware;
 use Cake\Http\Middleware\CsrfProtectionMiddleware;
 use Cake\Http\MiddlewareQueue;
+use Cake\Http\ServerRequest;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\ORM\Locator\TableLocator;
@@ -253,12 +264,12 @@ class Application extends BaseApplication implements
         );
 
         // Load workflow providers from plugins and core
-        \App\Services\WorkflowRegistry\WorkflowPluginLoader::loadFromPlugins($this->getPlugins());
+        WorkflowPluginLoader::loadFromPlugins($this->getPlugins());
 
         // Version-based application configuration management
         // This system allows automatic updates to application settings when KMP is upgraded
         // Each time the version changes, new default settings are applied
-        $currentConfigVersion = '25.11.06.a'; // Update this with each configuration change
+        $currentConfigVersion = '25.11.06.b'; // Update this with each configuration change
 
         $configVersion = StaticHelpers::getAppSetting('KMP.configVersion', '0.0.0', null, true);
         if ($configVersion != $currentConfigVersion) {
@@ -274,14 +285,14 @@ class Application extends BaseApplication implements
             StaticHelpers::getAppSetting('KMP.KingdomName', 'please_set', null, true); // Primary kingdom identifier
             StaticHelpers::getAppSetting('KMP.LongSiteTitle', 'Kingdom Management Portal', null, true); // Full application name
             StaticHelpers::getAppSetting('KMP.ShortSiteTitle', 'KMP', null, true); // Abbreviated name for headers
-            StaticHelpers::getAppSetting('KMP.BannerLogo', 'badge.png', null, true); // Main site logo
-            StaticHelpers::getAppSetting('KMP.Login.Graphic', 'populace_badge.png', null, true); // Login page graphic
+            StaticHelpers::getAppSetting('KMP.BannerLogo', 'badge.png', 'image', true); // Main site logo
+            StaticHelpers::getAppSetting('KMP.Login.Graphic', 'populace_badge.png', 'image', true); // Login page graphic
             StaticHelpers::getAppSetting('KMP.EnablePublicRegistration', 'yes', null, true); // Allow public sign-ups
             StaticHelpers::getAppSetting('KMP.DefaultTimezone', 'America/Chicago', null, true); // Default timezone for date/time display
             StaticHelpers::getAppSetting('App.version', '0.0.0', null, true); // Application version tracking
 
             // Member Card Display Settings - Visual presentation of member information
-            StaticHelpers::getAppSetting('Member.ViewCard.Graphic', 'auth_card_back.gif', null, true); // Card background image
+            StaticHelpers::getAppSetting('Member.ViewCard.Graphic', 'auth_card_back.gif', 'image', true); // Card background image
             StaticHelpers::getAppSetting('Member.ViewCard.HeaderColor', 'gold', null, true); // Card header color scheme
             StaticHelpers::getAppSetting('Member.ViewCard.Template', 'view_card', null, true); // Desktop card template
             StaticHelpers::getAppSetting('Member.ViewMobileCard.Template', 'view_mobile_card', null, true); // Mobile card template
@@ -504,6 +515,18 @@ class Application extends BaseApplication implements
             // See: https://github.com/CakeDC/cakephp-cached-routing
             ->add(new RoutingMiddleware($this))
 
+            // 5a. Tenant resolution is disabled by default until platform mode is enabled.
+            ->add(new TenantResolutionMiddleware(
+                filter_var((string)env('KMP_TENANCY_ENABLED', 'false'), FILTER_VALIDATE_BOOLEAN),
+                new TenantConnectionManager(SecretStoreFactory::fromConfig()),
+                (string)env('KMP_REQUIRED_SCHEMA_VERSION', ''),
+                new PlatformHealthService(
+                    'platform',
+                    (int)Configure::read('Platform.health.retryAttempts', 0),
+                    (int)Configure::read('Platform.health.retryDelayMs', 0),
+                ),
+            ))
+
             // 6. Body Parser Middleware - Request body parsing
             // Parses JSON, XML, and form data into $request->getData()
             // Documentation: https://book.cakephp.org/4/en/controllers/middleware.html#body-parser-middleware
@@ -656,8 +679,8 @@ class Application extends BaseApplication implements
         // Register WarrantManager for warrant lifecycle management
         // Depends on ActiveWindowManager, TriggerDispatcher, ApprovalManager, and WorkflowEngine
         $container->add(
-            WarrantManagerInterface::class,        // Interface for dependency injection
-            DefaultWarrantManager::class,          // Concrete implementation
+            WarrantManagerInterface::class, // Interface for dependency injection
+            DefaultWarrantManager::class, // Concrete implementation
         )->addArguments([
             ActiveWindowManagerInterface::class,
             TriggerDispatcher::class,
@@ -683,6 +706,16 @@ class Application extends BaseApplication implements
         $container->add(MemberProfileService::class);
         $container->add(MemberSearchService::class);
         $container->add(QuickLoginDeviceService::class);
+        $cacheFactory = fn() => new TenantAwareCache(filter_var(
+            (string)env('KMP_TENANT_CACHE_REQUIRE_CONTEXT', 'false'),
+            FILTER_VALIDATE_BOOLEAN,
+        ));
+        $container->addShared(TenantAwareCacheInterface::class, $cacheFactory);
+        $container->addShared(TenantAwareCache::class, $cacheFactory);
+        $container->add(TenantCsrfTokenScope::class);
+        $container->addShared(SecretStoreInterface::class, fn() => SecretStoreFactory::fromConfig());
+        $container->add(TenantConnectionManager::class)
+            ->addArgument(SecretStoreInterface::class);
 
         // Gathering services extracted from GatheringsController
         $container->add(GatheringActivityService::class);
@@ -743,27 +776,27 @@ class Application extends BaseApplication implements
         // Register WorkflowDefinitionsController for constructor injection
         $container->add(WorkflowDefinitionsController::class)
             ->addArguments([
-                \Cake\Http\ServerRequest::class,
+                ServerRequest::class,
                 WorkflowEngineInterface::class,
                 WorkflowVersionManagerInterface::class,
-                \Cake\Controller\ComponentRegistry::class,
+                ComponentRegistry::class,
             ]);
 
         // Register WorkflowInstancesController for constructor injection
         $container->add(WorkflowInstancesController::class)
             ->addArguments([
-                \Cake\Http\ServerRequest::class,
+                ServerRequest::class,
                 WorkflowEngineInterface::class,
-                \Cake\Controller\ComponentRegistry::class,
+                ComponentRegistry::class,
             ]);
 
         // Register ApprovalsController for constructor injection
         $container->add(ApprovalsController::class)
             ->addArguments([
-                \Cake\Http\ServerRequest::class,
+                ServerRequest::class,
                 WorkflowEngineInterface::class,
                 WorkflowApprovalManagerInterface::class,
-                \Cake\Controller\ComponentRegistry::class,
+                ComponentRegistry::class,
             ]);
     }
 

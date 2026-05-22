@@ -115,16 +115,17 @@ class InitWarrantsSeed extends BaseSeed
         // Ensure the System Admin Warrant Set exists
 
         $warrantRostersTable = \Cake\ORM\TableRegistry::getTableLocator()->get('WarrantRosters');
-        $systemAdminRoster = $warrantRostersTable->find()->where(['name' => 'System Admin Warrant Set'])->firstOrFail();
+        $systemAdminRoster = $warrantRostersTable->find()
+            ->where(['name' => 'System Admin Warrant Set'])
+            ->select(['id'])
+            ->firstOrFail();
         $systemAdminRosterId = $systemAdminRoster->id;
 
         // Ensure the Admin member role exists or create it before creating the warrant
-        $memberRolesTable = \Cake\ORM\TableRegistry::getTableLocator()->get('MemberRoles');
-        $adminMemberRole = $memberRolesTable->find()->where(['member_id' => $adminMemberId, 'role_id' => $adminRoleId])->first();
-        if (!$adminMemberRole) {
-            $adminMemberRole = $memberRolesTable->find()->where(['member_id' => $adminMemberId, 'role_id' => $adminRoleId])->firstOrFail();
+        $adminMemberRoleId = SeedHelpers::getMemberRoleId($adminMemberId, $adminRoleId);
+        if ($adminMemberRoleId === null) {
+            throw new RuntimeException('Admin member role was not seeded before warrant initialization.');
         }
-        $adminMemberRoleId = $adminMemberRole->id;
 
         $warrantData = [
             [

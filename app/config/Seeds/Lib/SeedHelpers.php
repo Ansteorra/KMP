@@ -96,7 +96,7 @@ class SeedHelpers
         }
 
         $rolesTable = TableRegistry::getTableLocator()->get('Roles');
-        $role = $rolesTable->find()->where(['name' => $name])->firstOrFail();
+        $role = $rolesTable->find()->where(['name' => $name])->select(['id'])->firstOrFail();
         return $role->id;
     }
 
@@ -117,7 +117,7 @@ class SeedHelpers
         }
 
         $permissionsTable = TableRegistry::getTableLocator()->get('Permissions');
-        $permission = $permissionsTable->find()->where(['name' => $name])->firstOrFail();
+        $permission = $permissionsTable->find()->where(['name' => $name])->select(['id'])->firstOrFail();
         return $permission->id;
     }
 
@@ -141,7 +141,7 @@ class SeedHelpers
         $membersTable = TableRegistry::getTableLocator()->get('Members');
         $member = $membersTable->find()->where([
             'OR' => ['email_address' => $emailOrScaName, 'sca_name' => $emailOrScaName]
-        ])->firstOrFail();
+        ])->select(['id'])->firstOrFail();
         return $member->id;
     }
 
@@ -171,10 +171,14 @@ class SeedHelpers
     public static function getMemberRoleId(int $memberId, int $roleId): ?int
     {
         $memberRolesTable = TableRegistry::getTableLocator()->get('MemberRoles');
-        $memberRole = $memberRolesTable->find()
-            ->where(['member_id' => $memberId, 'role_id' => $roleId])
-            ->first(); // Use first() instead of firstOrFail() as it might not exist yet if created in the same seed run
-        return $memberRole ? $memberRole->id : null;
+        $row = $memberRolesTable->getConnection()
+            ->execute(
+                'SELECT id FROM member_roles WHERE member_id = :member_id AND role_id = :role_id LIMIT 1',
+                ['member_id' => $memberId, 'role_id' => $roleId],
+            )
+            ->fetch('assoc');
+
+        return $row ? (int)$row['id'] : null;
     }
 
     public static function getDomainId(string $name): int
@@ -201,7 +205,7 @@ class SeedHelpers
     public static function getMemberRoleByMemberAndRoleName(int $memberId, string $roleName): ?int
     {
         $rolesTable = TableRegistry::getTableLocator()->get('Roles');
-        $role = $rolesTable->find()->where(['name' => $roleName])->firstOrFail();
+        $role = $rolesTable->find()->where(['name' => $roleName])->select(['id'])->firstOrFail();
         return self::getMemberRoleId($memberId, $role->id);
     }
 

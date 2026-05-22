@@ -94,6 +94,54 @@ return function (RouteBuilder $routes): void {
     $routes->setRouteClass(DashedRoute::class);
 
     /**
+     * Isolated platform-admin portal.
+     *
+     * Disabled by default and guarded again in PlatformAdminAppController. This
+     * prefix is intended for a reserved platform-admin host.
+     */
+    $routes->prefix('PlatformAdmin', ['path' => '/platform-admin'], function (RouteBuilder $builder): void {
+        $builder->connect('/', ['controller' => 'Dashboard', 'action' => 'index']);
+        $builder->connect('/login', ['controller' => 'Auth', 'action' => 'login']);
+        $builder->connect('/logout', ['controller' => 'Auth', 'action' => 'logout']);
+        $builder->connect('/tenants', ['controller' => 'Tenants', 'action' => 'index']);
+        $builder->connect('/tenants/add', ['controller' => 'Tenants', 'action' => 'add']);
+        $builder->connect('/tenants/{slug}/edit', ['controller' => 'Tenants', 'action' => 'edit'])
+            ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?'])
+            ->setPass(['slug']);
+        $builder->connect('/tenants/{slug}/backups', ['controller' => 'Tenants', 'action' => 'backups'])
+            ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?'])
+            ->setPass(['slug']);
+        $builder->connect('/tenants/{slug}/backups/create', ['controller' => 'Tenants', 'action' => 'createBackup'])
+            ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?'])
+            ->setPass(['slug']);
+        $builder->connect('/tenants/{slug}/backups/{backupId}/restore', ['controller' => 'Tenants', 'action' => 'restoreBackup'])
+            ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?', 'backupId' => '[^/]+'])
+            ->setPass(['slug', 'backupId']);
+        $builder->connect('/tenants/{slug}/backups/{backupId}/download', ['controller' => 'Tenants', 'action' => 'downloadBackup'])
+            ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?', 'backupId' => '[^/]+'])
+            ->setPass(['slug', 'backupId']);
+        $builder->connect('/tenants/{slug}/config', ['controller' => 'Tenants', 'action' => 'config'])
+            ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?'])
+            ->setPass(['slug']);
+        $builder->connect('/tenants/{slug}', ['controller' => 'Tenants', 'action' => 'view'])
+            ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?'])
+            ->setPass(['slug']);
+        $builder->connect('/health', ['controller' => 'Operations', 'action' => 'health']);
+        $builder->connect('/jobs', ['controller' => 'Operations', 'action' => 'jobs']);
+        $builder->connect('/schedules', ['controller' => 'Operations', 'action' => 'schedules']);
+        $builder->connect('/backups', ['controller' => 'Operations', 'action' => 'backups']);
+        $builder->connect('/backups/platform/create', ['controller' => 'Operations', 'action' => 'createPlatformBackup']);
+        $builder->connect('/backups/platform/{backupId}/restore', ['controller' => 'Operations', 'action' => 'restorePlatformBackup'])
+            ->setPatterns(['backupId' => '[^/]+'])
+            ->setPass(['backupId']);
+        $builder->connect('/backups/platform/{backupId}/download', ['controller' => 'Operations', 'action' => 'downloadPlatformBackup'])
+            ->setPatterns(['backupId' => '[^/]+'])
+            ->setPass(['backupId']);
+        $builder->connect('/release', ['controller' => 'Operations', 'action' => 'release']);
+        $builder->connect('/data-console', ['controller' => 'DataConsole', 'action' => 'index']);
+    });
+
+    /**
      * Main Application Scope
      *
      * Defines routes within the root scope ("/") for core KMP functionality.
@@ -127,6 +175,12 @@ return function (RouteBuilder $routes): void {
             "controller" => "Health",
             "action" => "index",
         ]);
+        $builder->connect("/app-settings/asset/{name}", [
+            "controller" => "AppSettings",
+            "action" => "asset",
+        ])
+            ->setPatterns(["name" => "[^/]+"])
+            ->setPass(["name"]);
 
         /**
          * Homepage Route
