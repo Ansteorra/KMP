@@ -136,11 +136,6 @@ param queueWorkerParallelism int = 1
 @description('Replica timeout, in seconds, for each queue worker execution.')
 param queueWorkerReplicaTimeoutSeconds int = 600
 
-@minValue(1)
-@maxValue(500)
-@description('Maximum queue jobs processed per queue worker execution.')
-param queueWorkerMaxJobs int = 25
-
 @description('Enable the hourly platform schedule dispatcher job.')
 param enableScheduleHourlyJob bool = true
 
@@ -778,7 +773,8 @@ var scheduledShapeJobDefinitions = [
     memory: '1Gi'
     env: jobEnvWorker
     command: [ '/usr/local/bin/docker-entrypoint.sh' ]
-    args: [ 'bin/cake', 'queue', 'run', '--max-jobs', string(queueWorkerMaxJobs), '-q' ]
+    // Queue runtime is bounded by app/config/app_queue.php Queue.workermaxruntime.
+    args: [ 'bin/cake', 'queue', 'run', '-q' ]
   }
   {
     enabled: enableScheduleHourlyJob

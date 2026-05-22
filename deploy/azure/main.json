@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.36.1.42791",
-      "templateHash": "13426741391808856352"
+      "templateHash": "13042094485468315229"
     }
   },
   "parameters": {
@@ -225,15 +225,6 @@
       "maxValue": 3600,
       "metadata": {
         "description": "Replica timeout, in seconds, for each queue worker execution."
-      }
-    },
-    "queueWorkerMaxJobs": {
-      "type": "int",
-      "defaultValue": 25,
-      "minValue": 1,
-      "maxValue": 500,
-      "metadata": {
-        "description": "Maximum queue jobs processed per queue worker execution."
       }
     },
     "enableScheduleHourlyJob": {
@@ -530,8 +521,6 @@
           "bin/cake",
           "queue",
           "run",
-          "--max-jobs",
-          "[string(parameters('queueWorkerMaxJobs'))]",
           "-q"
         ]
       },
