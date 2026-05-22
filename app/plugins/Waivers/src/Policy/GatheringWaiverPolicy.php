@@ -158,6 +158,32 @@ class GatheringWaiverPolicy extends BasePolicy
     }
 
     /**
+     * Check if user can remove a gathering activity after waivers have been submitted.
+     *
+     * This is reserved for waiver managers and still blocks removal when it would
+     * orphan already-submitted waivers by removing the last activity that requires
+     * a submitted waiver type.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user.
+     * @param \App\Model\Entity\BaseEntity $entity A GatheringWaiver entity with gathering_id.
+     * @param mixed ...$optionalArgs Optional args, first item must be activity id.
+     * @return bool
+     */
+    public function canRemoveGatheringActivity(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        $activityId = isset($optionalArgs[0]) ? (int)$optionalArgs[0] : 0;
+        if ($activityId <= 0 || empty($entity->gathering_id)) {
+            return false;
+        }
+
+        if (!$this->_canManageSubmittedWaivers($user, $entity)) {
+            return false;
+        }
+
+        return !$this->_wouldOrphanSubmittedWaivers((int)$entity->gathering_id, $activityId);
+    }
+
+    /**
      * Check if user is a steward for the gathering associated with this waiver
      *
      * Stewards are members assigned to a gathering's staff with is_steward=true.
@@ -234,5 +260,97 @@ class GatheringWaiverPolicy extends BasePolicy
             ->first();
 
         return $stewardRecord !== null;
+    }
+
+    /**
+     * Determine if user can manage submitted waivers as a waiver secretary role.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user.
+     * @param \App\Model\Entity\BaseEntity $entity The waiver entity context.
+     * @return bool
+     */
+    protected function _canManageSubmittedWaivers(KmpIdentityInterface $user, BaseEntity $entity): bool
+    {
+        $controllerPolicy = new GatheringWaiversControllerPolicy();
+
+        if ($controllerPolicy->canChangeActivities($user, [
+            'plugin' => 'Waivers',
+            'controller' => 'GatheringWaivers',
+            'action' => 'changeActivities',
+        ])) {
+            return true;
+        }
+
+        if ($controllerPolicy->canDashboard($user, [
+            'plugin' => 'Waivers',
+            'controller' => 'GatheringWaivers',
+            'action' => 'dashboard',
+        ])) {
+            return true;
+        }
+
+        return $this->_hasPolicy($user, 'canRemoveGatheringActivity', $entity);
+    }
+
+    /**
+     * Check if removing an activity would orphan submitted waivers for the gathering.
+     *
+     * @param int $gatheringId Gathering id.
+     * @param int $activityId Activity id being removed.
+     * @return bool True when submitted waivers would become unsupported.
+     */
+    protected function _wouldOrphanSubmittedWaivers(int $gatheringId, int $activityId): bool
+    {
+        $GatheringActivityWaivers = TableRegistry::getTableLocator()->get('Waivers.GatheringActivityWaivers');
+
+        $activityWaiverTypeIds = $GatheringActivityWaivers->find()
+            ->select(['waiver_type_id'])
+            ->where([
+                'GatheringActivityWaivers.gathering_activity_id' => $activityId,
+                'GatheringActivityWaivers.deleted IS' => null,
+            ])
+            ->distinct(['waiver_type_id'])
+            ->all()
+            ->extract('waiver_type_id')
+            ->map(fn ($waiverTypeId) => (int)$waiverTypeId)
+            ->toList();
+
+        if (empty($activityWaiverTypeIds)) {
+            return false;
+        }
+
+        $GatheringWaivers = TableRegistry::getTableLocator()->get('Waivers.GatheringWaivers');
+        $submittedWaiverTypeIds = $GatheringWaivers->find()
+            ->select(['waiver_type_id'])
+            ->where([
+                'GatheringWaivers.gathering_id' => $gatheringId,
+                'GatheringWaivers.waiver_type_id IN' => $activityWaiverTypeIds,
+            ])
+            ->distinct(['waiver_type_id'])
+            ->all()
+            ->extract('waiver_type_id')
+            ->map(fn ($waiverTypeId) => (int)$waiverTypeId)
+            ->toList();
+
+        if (empty($submittedWaiverTypeIds)) {
+            return false;
+        }
+
+        $remainingWaiverTypeIds = $GatheringActivityWaivers->find()
+            ->select(['waiver_type_id'])
+            ->innerJoinWith('GatheringActivities.Gatherings', function ($q) use ($gatheringId, $activityId) {
+                return $q->where([
+                    'Gatherings.id' => $gatheringId,
+                    'GatheringActivities.id !=' => $activityId,
+                ]);
+            })
+            ->where(['GatheringActivityWaivers.deleted IS' => null])
+            ->distinct(['waiver_type_id'])
+            ->all()
+            ->extract('waiver_type_id')
+            ->map(fn ($waiverTypeId) => (int)$waiverTypeId)
+            ->toList();
+
+        return !empty(array_diff($submittedWaiverTypeIds, $remainingWaiverTypeIds));
     }
 }

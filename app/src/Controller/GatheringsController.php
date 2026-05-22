@@ -836,9 +836,17 @@ class GatheringsController extends AppController
         // Check if waivers exist (for activity locking)
         // This is used to determine if activities can be added/removed
         $hasWaivers = false;
+        $waiverRemovalAuthorization = null;
         if (class_exists('Waivers\Model\Table\GatheringWaiversTable')) {
-            $hasWaivers = $this->fetchTable('Waivers.GatheringWaivers')
+            $gatheringWaiversTable = $this->fetchTable('Waivers.GatheringWaivers');
+            $hasWaivers = $gatheringWaiversTable
                 ->find()->where(['gathering_id' => $gathering->id])->count() > 0;
+
+            if ($hasWaivers) {
+                $waiverRemovalAuthorization = $gatheringWaiversTable->newEmptyEntity();
+                $waiverRemovalAuthorization->gathering_id = $gathering->id;
+                $waiverRemovalAuthorization->gathering = $gathering;
+            }
         }
 
         // Get available activities (not already in this gathering)
@@ -881,6 +889,7 @@ class GatheringsController extends AppController
         $this->set(compact(
             'gathering',
             'hasWaivers',
+            'waiverRemovalAuthorization',
             'availableActivities',
             'totalAttendanceCount',
             'userAttendance',
@@ -1298,12 +1307,21 @@ class GatheringsController extends AppController
         $gathering = $this->Gatherings->get($gatheringId);
         $this->Authorization->authorize($gathering, 'edit');
 
-        if ($activityService->hasUploadedWaivers((int)$gatheringId)) {
-            $this->Flash->error(__(
-                'Cannot remove activities because waivers have been uploaded for this gathering.',
-            ));
+        if (
+            $activityService->hasUploadedWaivers((int)$gatheringId) &&
+            class_exists('Waivers\Model\Table\GatheringWaiversTable')
+        ) {
+            $waiverAuthorization = $this->fetchTable('Waivers.GatheringWaivers')->newEmptyEntity();
+            $waiverAuthorization->gathering_id = $gathering->id;
+            $waiverAuthorization->gathering = $gathering;
 
-            return $this->redirect(['action' => 'view', $gathering->public_id]);
+            if (!$this->Authentication->getIdentity()->checkCan('removeGatheringActivity', $waiverAuthorization, (int)$activityId)) {
+                $this->Flash->error(__(
+                    'This activity cannot be removed because submitted waivers would no longer match gathering requirements.',
+                ));
+
+                return $this->redirect(['action' => 'view', $gathering->public_id]);
+            }
         }
 
         $result = $activityService->removeActivity((int)$gatheringId, (int)$activityId);
