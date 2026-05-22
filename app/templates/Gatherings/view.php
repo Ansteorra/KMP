@@ -398,7 +398,15 @@ $publicLandingUrl = $this->Url->build([
                             <i class="bi bi-pencil-fill"></i>
                         </button>
                         <?php endif; ?>
-                        <?php if ($user->checkCan('edit', $gathering) && !$hasWaivers) : ?>
+                        <?php
+                                $canRemoveActivity = $user->checkCan('edit', $gathering) && (
+                                    !$hasWaivers || (
+                                        $waiverRemovalAuthorization !== null &&
+                                        $user->checkCan('removeGatheringActivity', $waiverRemovalAuthorization, $activity->id)
+                                    )
+                                );
+                                ?>
+                        <?php if ($canRemoveActivity) : ?>
                         <?php if ($isNotRemovable): ?>
                         <button type="button" class="btn btn-sm btn-secondary" disabled
                             title="<?= __('This activity is required by the gathering type and cannot be removed') ?>">
