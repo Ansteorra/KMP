@@ -6,6 +6,7 @@ namespace App\Test\TestCase\Controller;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Model\Entity\Recommendation;
 use Cake\I18n\DateTime;
+use Waivers\Policy\GatheringWaiverPolicy;
 
 /**
  * App\Controller\GatheringsController Test Case
@@ -558,38 +559,30 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
     }
 
     /**
-     * Test removing an activity is blocked when it is the last one requiring submitted waivers.
+     * Test policy blocks removing an activity when it is the last one requiring submitted waivers.
      *
      * @return void
-     * @uses \App\Controller\GatheringsController::removeActivity()
+     * @uses \Waivers\Policy\GatheringWaiverPolicy::canRemoveGatheringActivity()
      */
     public function testRemoveActivityBlockedWhenLastRequiredWaiverActivity(): void
     {
         $gathering = $this->getGatheringWithUploadedWaivers();
         $waiverTypeId = $this->getSubmittedWaiverTypeIdForGathering((int)$gathering->id);
         $activity = $this->getLinkedActivityForGathering((int)$gathering->id);
-        $links = $this->getTableLocator()->get('GatheringsGatheringActivities');
         $this->ensureActivityIsOnlyWaiverRequirement((int)$gathering->id, (int)$activity->id, $waiverTypeId);
 
-        $beforeCount = $links->find()
-            ->where([
-                'gathering_id' => $gathering->id,
-                'gathering_activity_id' => $activity->id,
-            ])
-            ->count();
-        $this->assertSame(1, $beforeCount);
+        $waiverPolicy = new GatheringWaiverPolicy();
+        $authorizationEntity = $this->getTableLocator()->get('Waivers.GatheringWaivers')->newEmptyEntity();
+        $authorizationEntity->gathering_id = (int)$gathering->id;
+        $authorizationEntity->gathering = $gathering;
 
-        $this->post('/gatherings/remove-activity/' . $gathering->id . '/' . $activity->id);
-
-        $this->assertRedirect(['action' => 'view', $gathering->public_id]);
-
-        $afterCount = $links->find()
-            ->where([
-                'gathering_id' => $gathering->id,
-                'gathering_activity_id' => $activity->id,
-            ])
-            ->count();
-        $this->assertSame(1, $afterCount);
+        $this->assertFalse(
+            $waiverPolicy->canRemoveGatheringActivity(
+                $this->getTableLocator()->get('Members')->get(self::ADMIN_MEMBER_ID),
+                $authorizationEntity,
+                (int)$activity->id,
+            ),
+        );
     }
 
     /**
