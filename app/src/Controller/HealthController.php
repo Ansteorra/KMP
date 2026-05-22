@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Services\Cache\TenantAwareCache;
 use Cake\Cache\Cache;
 use Cake\Core\Configure;
 use Cake\Datasource\ConnectionManager;
@@ -48,7 +49,7 @@ class HealthController extends AppController
 
         $cacheOk = false;
         try {
-            $key = 'health_check_' . time();
+            $key = TenantAwareCache::tenantScopedKey('health_check_' . time());
             Cache::write($key, 'ok', 'default');
             $cacheOk = Cache::read($key, 'default') === 'ok';
             Cache::delete($key, 'default');

@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use Cake\Cache\Cache;
+use Cake\Database\Connection;
 use Cake\Database\Driver\Postgres;
 use Cake\Database\Schema\TableSchemaInterface;
 use Cake\Datasource\ConnectionManager;
@@ -51,6 +52,13 @@ class BackupService
     ];
 
     /**
+     * @param string $connectionName CakePHP connection name to back up or restore.
+     */
+    public function __construct(private readonly string $connectionName = 'default')
+    {
+    }
+
+    /**
      * Return true when the table should never appear in a backup payload.
      * Matches exact names in EXCLUDED_TABLES plus any phinxlog-style
      * migration tracking tables ("phinxlog" and "<plugin>_phinxlog").
@@ -77,7 +85,7 @@ class BackupService
      */
     public function getMigrationFingerprint(): array
     {
-        $connection = ConnectionManager::get('default');
+        $connection = $this->connection();
         $schemaCollection = $connection->getSchemaCollection();
         $fingerprint = [];
         foreach ($schemaCollection->listTables() as $tableName) {
@@ -120,7 +128,7 @@ class BackupService
      */
     public function export(string $encryptionKey): array
     {
-        $connection = ConnectionManager::get('default');
+        $connection = $this->connection();
         $schemaCollection = $connection->getSchemaCollection();
         $allTables = $schemaCollection->listTables();
 
@@ -148,9 +156,9 @@ class BackupService
 
         foreach ($tables as $tableName) {
             try {
-                $tableObj = $this->fetchTable(
-                    ucfirst(Inflector::camelize($tableName)),
-                );
+                $tableObj = $this->connectionName === 'default'
+                    ? $this->fetchTable(ucfirst(Inflector::camelize($tableName)))
+                    : null;
             } catch (Exception $e) {
                 // Fallback: query directly
                 $tableObj = null;
@@ -264,7 +272,7 @@ class BackupService
             'rows_processed' => 0,
         ]);
 
-        $connection = ConnectionManager::get('default');
+        $connection = $this->connection();
         $schemaCollection = $connection->getSchemaCollection();
         $driver = $connection->getDriver();
         $isPostgres = $driver instanceof Postgres;
@@ -535,6 +543,17 @@ class BackupService
             'row_count' => $totalRows,
             'constraints_not_valid' => $notValidatedConstraintCount,
         ];
+    }
+
+    /**
+     * Return the configured backup target connection.
+     */
+    private function connection(): Connection
+    {
+        /** @var \Cake\Database\Connection $connection */
+        $connection = ConnectionManager::get($this->connectionName);
+
+        return $connection;
     }
 
     /**
