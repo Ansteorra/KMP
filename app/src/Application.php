@@ -380,6 +380,7 @@ class Application extends BaseApplication implements
 
                 $thresholdMs = max(1, (int)env('PERF_SLOW_REQUEST_MS', 750));
                 $logAllRequests = filter_var((string)env('PERF_LOG_ALL_REQUESTS', false), FILTER_VALIDATE_BOOLEAN);
+                $kingdomTag = trim((string)env('PERF_KINGDOM_TAG', ''));
 
                 $startedAt = hrtime(true);
                 $response = $handler->handle($request);
@@ -393,12 +394,14 @@ class Application extends BaseApplication implements
                 Log::write(
                     $level,
                     sprintf(
-                        '[request_timing] method=%s path=%s status=%d duration_ms=%.2f memory_peak_mb=%.2f',
+                        '[request_timing] method=%s host=%s path=%s status=%d duration_ms=%.2f memory_peak_mb=%.2f kingdom=%s',
                         $request->getMethod(),
+                        $request->getUri()->getHost(),
                         $request->getUri()->getPath(),
                         $response->getStatusCode(),
                         $durationMs,
                         memory_get_peak_usage(true) / 1048576,
+                        $kingdomTag !== '' ? $kingdomTag : 'unknown',
                     ),
                     ['scope' => ['app.performance']],
                 );

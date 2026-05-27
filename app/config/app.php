@@ -360,8 +360,8 @@ return [
             /** @var bool Cache database metadata for performance */
             "cacheMetadata" => true,
 
-            /** @var bool Log database queries (disabled for performance) */
-            "log" => false,
+            /** @var bool Log database queries (disabled unless perf query logging enabled) */
+            "log" => filter_var((string)env("PERF_DB_QUERY_LOG_ENABLED", false), FILTER_VALIDATE_BOOLEAN),
 
             /** @var bool Quote identifiers for reserved words/special characters */
             "quoteIdentifiers" => false,
