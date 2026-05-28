@@ -17,6 +17,8 @@ declare(strict_types=1);
  * Environment-specific overrides should be in app_local.php or .env
  */
 
+use App\KMP\Telemetry\SqlRedactor;
+use App\Log\Engine\ApplicationInsightsLog;
 use Cake\Cache\Engine\ApcuEngine;
 use Cake\Cache\Engine\ArrayEngine;
 use Cake\Cache\Engine\FileEngine;
@@ -60,6 +62,22 @@ if (!is_dir($restoreStatusPath)) {
     @mkdir($restoreStatusPath, 0777, true);
 }
 @chmod($restoreStatusPath, 0777);
+
+$appInsightsConnectionString = trim((string)env('APPINSIGHTS_CONNECTION_STRING', ''));
+$appInsightsLogEnabled = $appInsightsConnectionString !== '' &&
+    filter_var((string)env('APPINSIGHTS_LOG_ENABLED', false), FILTER_VALIDATE_BOOLEAN);
+$appInsightsErrorLogEnabled = $appInsightsLogEnabled &&
+    filter_var((string)env('APPINSIGHTS_ERROR_LOG_ENABLED', true), FILTER_VALIDATE_BOOLEAN);
+$appInsightsQueryLogEnabled = $appInsightsLogEnabled &&
+    filter_var((string)env('APPINSIGHTS_QUERY_LOG_ENABLED', false), FILTER_VALIDATE_BOOLEAN);
+$appInsightsLogConfig = [
+    'className' => ApplicationInsightsLog::class,
+    'connectionString' => $appInsightsConnectionString,
+    'cloudRole' => env('APPINSIGHTS_CLOUD_ROLE', 'kmp'),
+    'cloudRoleInstance' => env('APPINSIGHTS_CLOUD_ROLE_INSTANCE', gethostname() ?: ''),
+    'timeout' => (float)env('APPINSIGHTS_LOG_TIMEOUT', 2.0),
+    'batchSize' => (int)env('APPINSIGHTS_LOG_BATCH_SIZE', 25),
+];
 
 return [
     /** @var bool Enable debug mode - set via DEBUG environment variable */
@@ -360,8 +378,8 @@ return [
             /** @var bool Cache database metadata for performance */
             "cacheMetadata" => true,
 
-            /** @var bool Log database queries (disabled for performance) */
-            "log" => false,
+            /** @var bool Log database queries (disabled unless perf query logging enabled) */
+            "log" => filter_var((string)env("PERF_DB_QUERY_LOG_ENABLED", false), FILTER_VALIDATE_BOOLEAN),
 
             /** @var bool Quote identifiers for reserved words/special characters */
             "quoteIdentifiers" => false,
@@ -506,6 +524,12 @@ return [
 
             /** @var array Log scopes for database queries */
             "scopes" => ["cake.database.queries"],
+
+            /** @var string Maximum query log file size before rotation */
+            "size" => env("LOG_QUERIES_FILE_SIZE", "10MB"),
+
+            /** @var int Number of rotated query log files to retain */
+            "rotate" => (int)env("LOG_QUERIES_FILE_ROTATE", 5),
         ],
 
         /**
@@ -532,7 +556,62 @@ return [
 
             /** @var array Log levels to capture */
             "levels" => ["info", "warning"],
+
+            /** @var string Maximum performance log file size before rotation */
+            "size" => env("LOG_PERFORMANCE_FILE_SIZE", "10MB"),
+
+            /** @var int Number of rotated performance log files to retain */
+            "rotate" => (int)env("LOG_PERFORMANCE_FILE_ROTATE", 5),
         ],
+
+        ...($appInsightsErrorLogEnabled ? [
+            "appInsightsErrors" => $appInsightsLogConfig + [
+                /** @var string Application Insights telemetry channel label */
+                "channel" => PHP_SAPI === 'cli' ? "cli-errors" : "errors",
+
+                /** @var array|null Match the default error channel's unscoped errors */
+                "scopes" => null,
+
+                /** @var array Log levels to capture */
+                "levels" => ["warning", "error", "critical", "alert", "emergency"],
+            ],
+        ] : []),
+
+        ...($appInsightsQueryLogEnabled ? [
+            "appInsightsQueries" => $appInsightsLogConfig + [
+                /** @var string Application Insights telemetry channel label */
+                "channel" => "queries",
+
+                /** @var array Log scopes for database queries */
+                "scopes" => ["cake.database.queries"],
+
+                /** @var float Application Insights sampling percentage */
+                "sampleRate" => (float)env('APPINSIGHTS_QUERY_SAMPLE_RATE', 10.0),
+
+                /**
+                 * Redact bound parameter values and PII patterns from SQL
+                 * before export. Local file logs (channel "queries") stay
+                 * raw because they live on the application host. Anything
+                 * leaving the host must be sanitized.
+                 *
+                 * @var callable
+                 */
+                "messageSanitizer" => [SqlRedactor::class, 'redact'],
+            ],
+        ] : []),
+
+        ...($appInsightsLogEnabled ? [
+            "appInsightsPerformance" => $appInsightsLogConfig + [
+                /** @var string Application Insights telemetry channel label */
+                "channel" => "performance",
+
+                /** @var array Log scopes for request performance instrumentation */
+                "scopes" => ["app.performance"],
+
+                /** @var array Log levels to capture */
+                "levels" => ["info", "warning"],
+            ],
+        ] : []),
     ],
 
     /*
