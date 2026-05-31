@@ -1,0 +1,26 @@
+---
+description: Map of agent tooling from Copilot and Claude harnesses to Cursor equivalents
+alwaysApply: true
+---
+
+# Agent Harness Map
+
+This project ships agent knowledge for multiple harnesses. Prefer Cursor paths first.
+
+| Source harness | Path | Cursor equivalent |
+|----------------|------|-------------------|
+| Copilot instructions | `.github/copilot-instructions.md` | `.cursor/rules/kmp-*.mdc` |
+| Copilot memories | `.github/copilot-memories.md` | `AGENTS.md` |
+| Copilot skills | `.github/skills/<name>/` | `.cursor/skills/<name>/` (symlink) |
+| Copilot prompts | `.github/prompts/*.prompt.md` | `.cursor/skills/<name>/SKILL.md` |
+| Claude Code skills | `.claude/skills/` | Prefer `.github/skills/` copies |
+| Constitution | `.specify/memory/constitution.md` | `kmp-core.mdc` summary |
+
+## Cursor-only workflow skills
+
+| Copilot prompt | Cursor skill |
+|----------------|--------------|
+| `sync-changelog.prompt.md` | `sync-changelog` |
+| `doublcheckdocs.prompt.md` | `double-check-docs` |
+
+When a skill references a prompt file, follow that file's workflow exactly.

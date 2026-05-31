@@ -1,0 +1,34 @@
+---
+description: KMP core principles, constitution summary, and agent tooling pointers
+alwaysApply: true
+---
+
+# KMP Core Rules
+
+Read `.specify/memory/constitution.md` for full governance. Non-negotiables:
+
+- **CakePHP conventions**: MVC+ (Services, Policies, Events, Behaviors); migrations for all schema changes
+- **Plugin architecture**: cohesive features as plugins with tests, assets, and `config/plugins.php` registration
+- **Hotwired frontend**: Turbo (frames/streams/drive) + Stimulus — no inline JavaScript in templates
+- **TDD**: PHPUnit for PHP; meaningful coverage on business logic and authorization
+- **Security**: Authentication + Authorization plugins; Policies for resource access; ORM only (no raw SQL with user input)
+- **Services**: complex logic in Service classes returning `ServiceResult`, not in controllers
+
+## Guidance hierarchy
+
+Constitution → `.github/copilot-instructions.md` → `.cursor/rules/` → `.cursor/skills/` → `docs/`
+
+## Verification
+
+Before finishing PHP/JS work: run appropriate checks from `app/bin/verify.sh` (see `AGENTS.md`).
+
+## Dangerous patterns
+
+- Never run `phpcbf` repo-wide
+- Never add native types to overridable `BasePolicy` method params
+- Use `composer test` (not `--testsuite all`)
+- PRs: merge commits only (no squash) for Ansteorra/KMP
+
+## Agent skills
+
+Use project skills in `.cursor/skills/` — especially `code-verification` and `security-audit`. Shared skills symlink to `.github/skills/`.
