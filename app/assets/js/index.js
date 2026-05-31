@@ -1,6 +1,6 @@
 
 // export for others scripts to use
-import { Application } from "@hotwired/stimulus";
+import { Application, Controller } from "@hotwired/stimulus";
 import * as Turbo from "@hotwired/turbo";
 import * as bootstrap from 'bootstrap';
 import KMP_utils from './KMP_utils.js';
@@ -23,10 +23,52 @@ window.bootstrap = bootstrap;
 const stimulusApp = Application.start();
 window.Stimulus = stimulusApp;
 
+class StimulusReconnectController extends Controller {}
+
 // load all the controllers that have registered in the window.Controllers object
 for (const controller in window.Controllers) {
     stimulusApp.register(controller, window.Controllers[controller]);
 }
+
+stimulusApp.register('__stimulus-reconnect__', StimulusReconnectController);
+
+/**
+ * Modal markup is rendered late in the layout (or via turbo frames); Stimulus can
+ * miss those scopes on the first pass. Touch the data-controller token so
+ * ScopeObserver rebinds them.
+ */
+function reconnectMissedControllers(application) {
+    document.querySelectorAll('[data-controller]').forEach((element) => {
+        const token = (element.getAttribute('data-controller') || '')
+            .trim()
+            .split(/\s+/)
+            .filter((identifier) => identifier && identifier !== '__stimulus-reconnect__');
+
+        if (token.length === 0) {
+            return;
+        }
+
+        const missing = token.some(
+            (identifier) => !application.getControllerForElementAndIdentifier(element, identifier),
+        );
+        if (!missing) {
+            return;
+        }
+
+        const restored = token.join(' ');
+        element.setAttribute('data-controller', `${restored} __stimulus-reconnect__`);
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                element.setAttribute('data-controller', restored);
+            });
+        });
+    });
+}
+
+reconnectMissedControllers(stimulusApp);
+document.addEventListener('turbo:render', () => reconnectMissedControllers(stimulusApp));
+// Turbo frames (e.g. gathering tab cells) inject modal markup after the initial scan.
+document.addEventListener('turbo:frame-load', () => reconnectMissedControllers(stimulusApp));
 
 //activate boostrap tooltips
 const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
