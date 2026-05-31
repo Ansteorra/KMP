@@ -80,6 +80,7 @@ use App\Services\Platform\PlatformHealthService;
 use App\Services\QuickLoginDeviceService;
 use App\Services\Secrets\SecretStoreFactory;
 use App\Services\Secrets\SecretStoreInterface;
+use App\Services\Security\RequestRateLimiter;
 use App\Services\Security\TenantCsrfTokenScope;
 use App\Services\TenantConnectionManager;
 use App\Services\ViewCellRegistry;
@@ -705,6 +706,7 @@ class Application extends BaseApplication implements
         $container->add(MemberRegistrationService::class);
         $container->add(MemberProfileService::class);
         $container->add(MemberSearchService::class);
+        $container->add(RequestRateLimiter::class);
         $container->add(QuickLoginDeviceService::class);
         $cacheFactory = fn() => new TenantAwareCache(filter_var(
             (string)env('KMP_TENANT_CACHE_REQUIRE_CONTEXT', 'false'),

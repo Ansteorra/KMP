@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Controller;
 
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
+use Cake\Cache\Cache;
 use Cake\I18n\FrozenTime;
 
 /**
@@ -434,6 +435,48 @@ class MembersControllerTest extends HttpIntegrationTestCase
 
         $response = json_decode((string)$this->_response->getBody(), true);
         $this->assertFalse($response);
+    }
+
+    /**
+     * Test emailTaken rate limiting after repeated requests
+     *
+     * @return void
+     */
+    public function testEmailTakenRateLimit(): void
+    {
+        Cache::clear();
+
+        for ($i = 0; $i < 10; $i++) {
+            $this->get('/members/emailTaken?email=ratelimit' . $i . '@example.com');
+            $this->assertResponseOk();
+        }
+
+        $this->get('/members/emailTaken?email=ratelimit-blocked@example.com');
+        $this->assertResponseCode(429);
+        $this->assertMatchesRegularExpression('/^\d+$/', $this->_response->getHeaderLine('Retry-After'));
+        $this->assertContentType('application/json');
+
+        $response = json_decode((string)$this->_response->getBody(), true);
+        $this->assertSame('Too many requests. Please try again later.', $response['error']);
+    }
+
+    /**
+     * Test searchMembers rate limiting after repeated requests
+     *
+     * @return void
+     */
+    public function testSearchMembersRateLimit(): void
+    {
+        Cache::clear();
+
+        for ($i = 0; $i < 15; $i++) {
+            $this->get('/members/searchMembers?q=admin' . $i);
+            $this->assertResponseOk();
+        }
+
+        $this->get('/members/searchMembers?q=admin-blocked');
+        $this->assertResponseCode(429);
+        $this->assertMatchesRegularExpression('/^\d+$/', $this->_response->getHeaderLine('Retry-After'));
     }
 
     public function testViewShowsProfilePhotoButton(): void

@@ -19,6 +19,7 @@ use App\Services\MemberProfileService;
 use App\Services\MemberRegistrationService;
 use App\Services\MemberSearchService;
 use App\Services\QuickLoginDeviceService;
+use App\Services\Security\RequestRateLimiter;
 use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use Authentication\PasswordHasher\DefaultPasswordHasher;
@@ -1615,9 +1616,15 @@ class MembersController extends AppController
     /**
      * Search members.
      */
-    public function searchMembers(MemberSearchService $searchService)
+    public function searchMembers(MemberSearchService $searchService, RequestRateLimiter $rateLimiter)
     {
         $this->Authorization->skipAuthorization();
+
+        $rateLimited = $this->enforcePublicLookupRateLimit($rateLimiter, RequestRateLimiter::BUCKET_SEARCH_MEMBERS);
+        if ($rateLimited !== null) {
+            return $rateLimited;
+        }
+
         $this->request->allowMethod(['get']);
         $this->viewBuilder()->setClassName('Ajax');
         $variants = $searchService->buildThornVariants($this->request->getQuery('q'));
@@ -1782,9 +1789,15 @@ class MembersController extends AppController
     /**
      * Email taken.
      */
-    public function emailTaken(MemberSearchService $searchService)
+    public function emailTaken(MemberSearchService $searchService, RequestRateLimiter $rateLimiter)
     {
         $this->Authorization->skipAuthorization();
+
+        $rateLimited = $this->enforcePublicLookupRateLimit($rateLimiter, RequestRateLimiter::BUCKET_EMAIL_TAKEN);
+        if ($rateLimited !== null) {
+            return $rateLimited;
+        }
+
         $this->request->allowMethod(['get']);
         $this->viewBuilder()->setClassName('Ajax');
         $result = $searchService->isEmailTaken($this->request->getQuery('email'));
@@ -1793,6 +1806,30 @@ class MembersController extends AppController
             ->withStringBody(json_encode($result));
 
         return $this->response;
+    }
+
+    /**
+     * Apply rate limits to anonymous member lookup helpers.
+     *
+     * @param \App\Services\Security\RequestRateLimiter $rateLimiter Rate limiter
+     * @param string $bucket Rate-limit bucket
+     * @return \Cake\Http\Response|null 429 response when limited, otherwise null
+     */
+    private function enforcePublicLookupRateLimit(RequestRateLimiter $rateLimiter, string $bucket): ?Response
+    {
+        $clientIp = $this->request->clientIp();
+        $result = $rateLimiter->attempt($bucket, $clientIp ?? 'unknown');
+        if ($result->allowed) {
+            return null;
+        }
+
+        return $this->response
+            ->withStatus(429)
+            ->withType('application/json')
+            ->withHeader('Retry-After', (string)$result->retryAfterSeconds)
+            ->withStringBody(json_encode([
+                'error' => 'Too many requests. Please try again later.',
+            ]));
     }
 
     #endregion

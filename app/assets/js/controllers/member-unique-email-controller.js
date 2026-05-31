@@ -87,8 +87,19 @@ class MemberUniqueEmail extends Controller {
         }
         var checkEmailUrl = this.urlValue + '?nostack=yes&email=' + encodeURIComponent(email);
         fetch(checkEmailUrl, this.optionsForFetch())
-            .then(response => response.json())
+            .then(response => {
+                if (response.status === 429) {
+                    this.element.classList.remove('is-invalid');
+                    this.element.classList.remove('is-valid');
+                    this.element.setCustomValidity('');
+                    return null;
+                }
+                return response.json();
+            })
             .then(data => {
+                if (data === null) {
+                    return;
+                }
                 if (data) {
                     this.element.classList.add('is-invalid');
                     this.element.classList.remove('is-valid');

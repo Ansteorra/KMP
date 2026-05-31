@@ -97,10 +97,26 @@ describe('MemberUniqueEmailController', () => {
             expect.any(Object)
         );
 
-        // Flush microtask queue (fetch -> response.json -> then)
         await new Promise(r => setTimeout(r, 0));
 
         expect(controller.element.classList.contains('is-invalid')).toBe(true);
+    });
+
+    test('checkEmail clears validation when rate limited', async () => {
+        global.fetch = jest.fn(() =>
+            Promise.resolve({ status: 429 })
+        );
+
+        controller.element.value = 'new@example.com';
+        controller.element.dataset.originalValue = 'existing@example.com';
+        controller.element.classList.add('is-invalid');
+        controller.checkEmail({ target: controller.element });
+
+        await new Promise(r => setTimeout(r, 0));
+
+        expect(controller.element.classList.contains('is-invalid')).toBe(false);
+        expect(controller.element.classList.contains('is-valid')).toBe(false);
+        expect(controller.element.validationMessage).toBe('');
     });
 
     test('checkEmail marks valid when email is available', async () => {
