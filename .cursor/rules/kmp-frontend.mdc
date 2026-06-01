@@ -16,9 +16,12 @@ alwaysApply: false
 
 ## Turbo
 
+- **Turbo Drive is off** (`Turbo.session.drive = false`) — use full page loads for record view/create unless documented otherwise
 - `<turbo-frame>` for lazy loads, tabs, grids, modals
-- Turbo Streams for server-pushed partial updates
-- `data-turbo-frame` for targeted navigation
+- **Turbo Streams** for modal save / grid refresh (see `docs/hotwire-navigation.md`)
+- Modal forms: `data-turbo="true"`, `turbo-modal`, submit **inside** the turbo-frame; hidden `page_context_url` synced by `page-context` controller
+- `data-turbo-frame="_top"` to escape frames for full-page navigation
+- Do not use stale `current_page` hidden fields — use `page_context_url`
 
 ## Tab ordering
 

@@ -255,6 +255,83 @@ class RecommendationsControllerWorkflowDispatchTest extends HttpIntegrationTestC
         $this->assertRedirectContains('/awards/recommendations/view/' . $savedRecommendation->id);
     }
 
+    public function testEditFromGridReturnsRenderedTurboStreamWhenActive(): void
+    {
+        $this->ensureActiveWorkflow('awards-recommendation-updated');
+        $savedRecommendation = $this->createExistingRecommendation();
+
+        $this->mockServiceClean(TriggerDispatcher::class, function () use ($savedRecommendation) {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->once())
+                ->method('dispatch')
+                ->willReturnCallback(function (string $event, array $context) use ($savedRecommendation): array {
+                    $this->assertSame('Awards.RecommendationUpdateRequested', $event);
+                    $this->assertSame((int)$savedRecommendation->id, $context['recommendationId']);
+
+                    return [$this->successfulWorkflowDispatchResult([
+                        'recommendationId' => (int)$savedRecommendation->id,
+                    ])];
+                });
+
+            return $mock;
+        });
+        $this->mockServiceClean(RecommendationUpdateService::class, function () {
+            $mock = $this->createMock(RecommendationUpdateService::class);
+            $mock->expects($this->never())->method('update');
+
+            return $mock;
+        });
+
+        $this->configRequest([
+            'headers' => [
+                'Accept' => 'text/vnd.turbo-stream.html',
+            ],
+        ]);
+        $this->post($this->recommendationsUrl('edit', [(string)$savedRecommendation->id]), [
+            'reason' => 'Updated through workflow',
+            'page_context_url' => '/awards/recommendations?search=needle',
+        ]);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('<turbo-stream action="replace" target="recommendations-grid-table"');
+        $this->assertResponseContains('search=needle');
+    }
+
+    public function testEditFromGridWithoutTurboAcceptRedirectsToPageContext(): void
+    {
+        $this->ensureActiveWorkflow('awards-recommendation-updated');
+        $savedRecommendation = $this->createExistingRecommendation();
+
+        $this->mockServiceClean(TriggerDispatcher::class, function () use ($savedRecommendation) {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->once())
+                ->method('dispatch')
+                ->willReturnCallback(function (string $event, array $context) use ($savedRecommendation): array {
+                    $this->assertSame('Awards.RecommendationUpdateRequested', $event);
+                    $this->assertSame((int)$savedRecommendation->id, $context['recommendationId']);
+
+                    return [$this->successfulWorkflowDispatchResult([
+                        'recommendationId' => (int)$savedRecommendation->id,
+                    ])];
+                });
+
+            return $mock;
+        });
+        $this->mockServiceClean(RecommendationUpdateService::class, function () {
+            $mock = $this->createMock(RecommendationUpdateService::class);
+            $mock->expects($this->never())->method('update');
+
+            return $mock;
+        });
+
+        $this->post($this->recommendationsUrl('edit', [(string)$savedRecommendation->id]), [
+            'reason' => 'Updated through workflow',
+            'page_context_url' => '/awards/recommendations?search=needle',
+        ]);
+
+        $this->assertRedirectContains('/awards/recommendations?search=needle');
+    }
+
     public function testUpdateStatesFailWhenWorkflowInactive(): void
     {
         $this->deactivateWorkflows(['awards-recommendation-bulk-transition']);
@@ -293,11 +370,20 @@ class RecommendationsControllerWorkflowDispatchTest extends HttpIntegrationTestC
         $this->ensureActiveWorkflow('awards-recommendation-bulk-transition');
 
         $dispatched = false;
-        $this->mockServiceClean(TriggerDispatcher::class, function () use (&$dispatched) {
+        $events = [];
+        $this->mockServiceClean(TriggerDispatcher::class, function () use (&$dispatched, &$events) {
             $mock = $this->createMock(TriggerDispatcher::class);
-            $mock->expects($this->once())
+            $mock->expects($this->exactly(2))
                 ->method('dispatch')
-                ->willReturnCallback(function (string $event, array $context) use (&$dispatched): array {
+                ->willReturnCallback(function (string $event, array $context) use (&$dispatched, &$events): array {
+                    $events[] = $event;
+                    if ($event === 'Awards.RecommendationStateChanged') {
+                        $this->assertSame(123, $context['recommendationId']);
+                        $this->assertSame('In Consideration', $context['newState']);
+
+                        return [];
+                    }
+
                     $dispatched = true;
                     $this->assertSame('Awards.RecommendationBulkTransitionRequested', $event);
                     $this->assertSame(['123'], $context['recommendationIds']);
@@ -327,6 +413,10 @@ class RecommendationsControllerWorkflowDispatchTest extends HttpIntegrationTestC
         ]);
 
         $this->assertTrue($dispatched);
+        $this->assertSame(
+            ['Awards.RecommendationBulkTransitionRequested', 'Awards.RecommendationStateChanged'],
+            $events,
+        );
         $this->assertRedirect();
     }
 

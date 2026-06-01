@@ -12,7 +12,7 @@
  * - Vite asset integration with automatic versioning
  * - Bootstrap UI framework support with responsive design
  * - CSRF protection and security headers
- * - Turbo framework integration for enhanced navigation
+ * - Hotwired Turbo (Frames and Streams; Drive disabled in app/assets/js/index.js)
  * - Configurable meta tags and application settings
  * - Flash message system integration
  * - Modular script and stylesheet loading

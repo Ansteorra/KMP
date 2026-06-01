@@ -28,6 +28,7 @@ use Cake\Http\Response;
 
 class AppController extends Controller
 {
+    use TurboResponseTrait;
     /** @var string Event for plugin view cell registration */
     public const VIEW_PLUGIN_EVENT = 'KMP.plugins.callForViewCells';
 

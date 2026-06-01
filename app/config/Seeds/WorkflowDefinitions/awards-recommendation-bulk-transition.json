@@ -55,59 +55,13 @@
             "outputs": [
                 {
                     "port": "true",
-                    "target": "need-to-schedule-check",
+                    "target": "end-success",
                     "label": "Transitioned"
                 },
                 {
                     "port": "false",
                     "target": "end-failed",
                     "label": "Failed"
-                }
-            ]
-        },
-        "need-to-schedule-check": {
-            "type": "condition",
-            "label": "Target State Need to Schedule?",
-            "config": {
-                "condition": "Core.FieldEquals",
-                "field": "$.nodes.bulk-transition.result.data.targetState",
-                "value": "Need to Schedule"
-            },
-            "position": {
-                "x": 800,
-                "y": 250
-            },
-            "outputs": [
-                {
-                    "port": "true",
-                    "target": "create-bestowals",
-                    "label": "Need to Schedule"
-                },
-                {
-                    "port": "false",
-                    "target": "end-success",
-                    "label": "Other State"
-                }
-            ]
-        },
-        "create-bestowals": {
-            "type": "action",
-            "label": "Create Bestowals For Recommendations",
-            "config": {
-                "action": "Awards.CreateBestowalsForRecommendations",
-                "params": {
-                    "recommendationIds": "$.trigger.recommendationIds",
-                    "actorId": "$.trigger.actorId"
-                }
-            },
-            "position": {
-                "x": 1050,
-                "y": 175
-            },
-            "outputs": [
-                {
-                    "port": "next",
-                    "target": "end-success"
                 }
             ]
         },

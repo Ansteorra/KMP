@@ -30,7 +30,7 @@ Kingdom Management Portal — agent context for Cursor and other AI coding tools
 | Build | `npm run dev` | Vite/Webpack asset build |
 | PHPCS | `composer cs-check` | Changed files only in verify.sh |
 | PHPStan | `composer stan` | Level 5; baseline handles pre-existing issues |
-| E2E | `PLAYWRIGHT_BASE_URL=http://127.0.0.1:8080 npm run test:ui` | Reset DB first: `./dev-reset-db.sh --seed` |
+| E2E | `PLAYWRIGHT_SKIP_WEBSERVER=1 npm run test:ui` (default `http://kmp.localhost:8080`; fixture PHP via Docker on host) | Reset DB first: `./dev-reset-db.sh --seed` |
 
 **Minimum by change type** (see `.cursor/skills/code-verification/SKILL.md`):
 

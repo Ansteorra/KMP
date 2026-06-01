@@ -2,11 +2,19 @@ const { createBdd } = require('playwright-bdd');
 const { expect } = require('@playwright/test');
 const { execFileSync } = require('node:child_process');
 const path = require('node:path');
+const {
+    waitForTurboStreamResponse,
+    assertUrlContainsQuery,
+    assertGridShellPreserved,
+    waitForGridStateJson,
+    waitForPageBody,
+} = require('../../support/ui-helpers.cjs');
 
 const { Given, When, Then, After } = createBdd();
 
 const APP_ROOT = path.resolve(__dirname, '../../../..');
 const REPO_ROOT = path.resolve(APP_ROOT, '..');
+const { shouldUseDockerPhp } = require('../../support/test-environment.cjs');
 const FIXTURE_MEMBER_NAME = 'Iris Basic User Demoer';
 const FIXTURE_REQUESTER_EMAIL = 'admin@amp.ansteorra.org';
 
@@ -122,7 +130,7 @@ const normalizeText = (value) => value.replace(/\s+/g, ' ').trim();
 
 const runPhpJson = (script, payload) => {
     const fixtureJson = JSON.stringify(payload);
-    const useDockerPhp = process.env.PLAYWRIGHT_USE_DOCKER_PHP === '1';
+    const useDockerPhp = shouldUseDockerPhp();
     const output = useDockerPhp
         ? execFileSync(
             'docker',
@@ -236,6 +244,11 @@ const selectFixtureRows = async (page) => {
 
 const getStateRow = (page) => page.locator('tr').filter({ has: page.locator('th', { hasText: 'State' }) }).locator('td');
 const getStatusRow = (page) => page.locator('tr').filter({ has: page.locator('th', { hasText: 'Status' }) }).locator('td');
+
+When('I navigate to {string}', async ({ page }, path) => {
+    await page.goto(path, { waitUntil: 'domcontentloaded' });
+    await waitForPageBody(page);
+});
 
 Given('I create recommendation fixtures for {string}', async ({ page }, setName) => {
     const fixtureDefinitions = FIXTURE_SETS[setName];
@@ -734,16 +747,16 @@ const getOpenBestowalEditModal = async (page) => {
 };
 
 const waitForBestowalEditForm = async (modal) => {
-    const frame = modal.locator('turbo-frame#editBestowal');
+    const frame = modal.locator('turbo-frame#editBestowalQuick');
     await frame.locator('input[name="domain_id"]').waitFor({ state: 'attached', timeout: 30000 });
     await expect(frame.locator('input[name="domain_id"]')).not.toHaveValue('', { timeout: 30000 });
     await expect(frame.locator('input[name="award_id"]')).not.toHaveValue('', { timeout: 30000 });
 };
 
-const getBestowalEditSubmitButton = (page) => page.locator('form#bestowal_form:has(#editBestowalModal.show) #bestowal_submit');
+const getBestowalEditSubmitButton = (page) => page.locator('#editBestowalModal.show #bestowal_submit');
 
 const getBestowalCombo = (modal, dispField, hiddenField) => {
-    const frame = modal.locator('turbo-frame#editBestowal');
+    const frame = modal.locator('turbo-frame#editBestowalQuick');
     const input = frame.locator(`input[name="${dispField}-Disp"]`);
     const combo = input.locator('xpath=ancestor::div[@data-controller="ac"][1]');
     const hidden = frame.locator(`input[name="${hiddenField}"]`);
@@ -1223,6 +1236,38 @@ When('I submit the bestowal state transitions form on the current state', async 
     await expect(form).toBeVisible();
     await form.getByRole('button', { name: 'Save Transitions', exact: true }).click();
     await expect(page.getByRole('alert').first()).toContainText('Transitions updated.', { timeout: 15000 });
+});
+
+When('I submit the open recommendation quick edit with a turbo stream response', async ({ page }) => {
+    const modal = page.locator('#editRecommendationModal');
+    await expect(modal).toBeVisible();
+    const form = modal.locator('turbo-frame#editRecommendationQuick form').first();
+    await expect(form).toBeVisible({ timeout: 15000 });
+
+    await waitForTurboStreamResponse(page, async () => {
+        await form.locator('button[type="submit"]').click();
+    });
+
+    await expect(modal).toBeHidden({ timeout: 15000 });
+    await page.locator('turbo-frame#recommendations-grid-table table.table tbody tr').first().waitFor({
+        state: 'visible',
+        timeout: 30000,
+    });
+});
+
+Then('the recommendations URL should include the current fixture token', async ({ page }) => {
+    const token = page.__awardRecommendationFixtures?.token;
+    expect(token).toBeTruthy();
+    await assertUrlContainsQuery(page, encodeURIComponent(token));
+});
+
+Then('the recommendations grid shell should remain connected', async ({ page }) => {
+    await assertGridShellPreserved(page, '[data-controller*="grid-view"]');
+});
+
+Then('the recommendations grid state script should be present', async ({ page }) => {
+    const state = await waitForGridStateJson(page, 'recommendations-grid-table');
+    expect(state).toHaveProperty('config');
 });
 
 After(async ({ page }) => {

@@ -160,9 +160,8 @@ class AwardsRecommendationBulkEditForm extends Controller {
         outlet.removeListener(this.setId.bind(this));
     }
 
-    /** Close modal after form submission. */
-    submit(event) {
-        document.getElementById("recommendation_bulk_edit_close").click();
+    /** Allow turbo-modal to close; validation handled by form. */
+    submit() {
     }
 
     /** Apply field rules when state target connects. */

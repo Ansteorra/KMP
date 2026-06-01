@@ -49,6 +49,7 @@ async function globalSetup() {
   const apiContext = await request.newContext({
     baseURL: environment.baseUrl,
     ignoreHTTPSErrors: true,
+    extraHTTPHeaders: environment.hostHeader ? { Host: environment.hostHeader } : undefined,
   });
 
   // empty the test mail server inbox

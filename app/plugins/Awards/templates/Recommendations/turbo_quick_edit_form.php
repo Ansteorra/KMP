@@ -1,4 +1,34 @@
-<turbo-frame id="editRecommendation">
+<?php
+
+/**
+ * Quick-edit recommendation form loaded inside turbo-frame (grid modal).
+ *
+ * @var \App\View\AppView $this
+ * @var \Awards\Model\Entity\Recommendation $recommendation
+ */
+
+$formUrl = $this->Url->build([
+    'plugin' => 'Awards',
+    'controller' => 'Recommendations',
+    'action' => 'edit',
+    $recommendation->id,
+]);
+$submitAction = implode(' ', [
+    'submit->turbo-modal#submitAsTurboStream',
+    'turbo:submit-start->turbo-modal#closeModalBeforeSubmit',
+]);
+?>
+<turbo-frame id="editRecommendationQuick">
+    <?= $this->Form->create(null, [
+        'url' => $formUrl,
+        'id' => 'recommendation_form',
+        'data-turbo' => 'true',
+        'data-controller' => 'turbo-modal',
+        'data-action' => $submitAction,
+    ]) ?>
+    <?= $this->Form->hidden('page_context_url', [
+        'value' => '',
+    ]) ?>
     <script type="application/json" data-awards-rec-quick-edit-target="stateRulesBlock" class="d-none">
         <?= json_encode($rules) ?>
     </script>
@@ -6,11 +36,17 @@
     <fieldset<?= $recommendation->isLockedByBestowal() ? ' disabled' : '' ?>>
 
         <?php
-        echo $this->Form->hidden('id', ['value' => $recommendation->id, 'data-awards-rec-quick-edit-target' => 'recId']);
-        echo $this->Form->hidden('member_id', ['value' => $recommendation->member_id, 'data-awards-rec-quick-edit-target' => 'memberId']);
+        echo $this->Form->hidden('id', [
+            'value' => $recommendation->id,
+            'data-awards-rec-quick-edit-target' => 'recId',
+        ]);
+        echo $this->Form->hidden('member_id', [
+            'value' => $recommendation->member_id,
+            'data-awards-rec-quick-edit-target' => 'memberId',
+        ]);
         ?>
         <div style="margin:0 !important;" class="form-group text pb-3"><label class="form-label"
-                for="member-sca-name">Recommendation For</label>
+                for="member-sca-name"><?= __('Recommendation For') ?></label>
             <div class="input-group ps-3"><strong><?= h($recommendation->member_sca_name) ?></strong></div>
         </div>
         <?php
@@ -19,15 +55,17 @@
             'domain_name',
             'domain_id',
             $awardsDomains->toArray(),
-            "Award Type",
+            'Award Type',
             true,
             false,
             [
                 'data-action' => 'change->awards-rec-quick-edit#populateAwardDescriptions',
-                'data-ac-init-selection-value' => json_encode(['value' => $recommendation->award->domain_id, 'text' =>
-                $recommendation->award->domain->name]),
+                'data-ac-init-selection-value' => json_encode([
+                    'value' => $recommendation->award->domain_id,
+                    'text' => $recommendation->award->domain->name,
+                ]),
                 'data-awards-rec-quick-edit-target' => 'domain',
-            ]
+            ],
         );
         echo $this->Form->control('current_award_id', [
             'type' => 'hidden',
@@ -36,28 +74,29 @@
         ]);
         $awardsList = [];
         foreach ($awards as $award) {
-            $awardsList[$award->id] = ["text" => $award->name, "specialties" => $award->specialties];
+            $awardsList[$award->id] = ['text' => $award->name, 'specialties' => $award->specialties];
         }
         echo $this->KMP->comboBoxControl(
             $this->Form,
             'award_name',
             'award_id',
             $awardsList,
-            "Award",
+            'Award',
             true,
             false,
             [
                 'data-awards-rec-quick-edit-target' => 'award',
                 'data-action' => 'change->awards-rec-quick-edit#populateSpecialties',
-                'data-ac-init-selection-value' => json_encode(['value' => $recommendation->award->id, 'text' => $recommendation->award->name]),
-
-            ]
+                'data-ac-init-selection-value' => json_encode([
+                    'value' => $recommendation->award->id,
+                    'text' => $recommendation->award->name,
+                ]),
+            ],
         );
         $specialties = [];
         if (is_array($recommendation->award->specialties)) {
-
             foreach ($recommendation->award->specialties as $specialty) {
-                $specialties[$specialty] = ["value" => $specialty, "text" => $specialty];
+                $specialties[$specialty] = ['value' => $specialty, 'text' => $specialty];
             }
         }
         echo $this->KMP->comboBoxControl(
@@ -65,14 +104,16 @@
             'specialty',
             'specialty_hidden',
             $specialties,
-            "Specialty",
+            'Specialty',
             true,
             true,
             [
                 'data-awards-rec-quick-edit-target' => 'specialty',
-                'data-ac-init-selection-value' => json_encode(['value' => $recommendation->specialty, 'text' => $recommendation->specialty]),
-
-            ]
+                'data-ac-init-selection-value' => json_encode([
+                    'value' => $recommendation->specialty,
+                    'text' => $recommendation->specialty,
+                ]),
+            ],
         );
         echo $this->Form->control('reason', [
             'type' => 'textarea',
@@ -82,13 +123,11 @@
             'disabled' => 'disabled',
         ]);
 
-        // Display gatherings with attendance indicators
         if (!empty($recommendation->gatherings)) {
             echo '<div class="mb-3">';
-            echo '<label class="form-label">Gatherings/Events They May Attend:</label>';
+            echo '<label class="form-label">' . __('Gatherings/Events They May Attend:') . '</label>';
             echo '<ul>';
             foreach ($recommendation->gatherings as $gathering) {
-                // Build display name with branch and dates
                 $displayName = h($gathering->name);
                 if (isset($gathering->branch)) {
                     $displayName .= ' in ' . h($gathering->branch->name);
@@ -99,20 +138,13 @@
                         $displayName .= ' - ' . $this->Timezone->format($gathering->end_date, $gathering, 'Y-m-d');
                     }
                 }
-
-                // Check if this gathering has attendance indicator from the member
-                // Look for matching gathering in the gatheringList which has attendance info
                 $hasAttendanceMarker = false;
                 if (isset($gatheringList[$gathering->id])) {
-                    // If the gathering in the list ends with ' *', member is attending with share_with_crown
                     $hasAttendanceMarker = str_ends_with($gatheringList[$gathering->id], ' *');
                 }
-
-                // Add attendance indicator
                 if ($hasAttendanceMarker) {
                     $displayName .= ' <strong>*</strong>';
                 }
-
                 echo '<li>' . $displayName . '</li>';
             }
             echo '</ul>';
@@ -126,7 +158,7 @@
                 'value' => $recommendation->state,
                 'data-awards-rec-quick-edit-target' => 'state',
                 'data-action' => 'change->awards-rec-quick-edit#setFieldRules',
-            ]
+            ],
         );
         echo $this->Form->control(
             'close_reason',
@@ -134,20 +166,24 @@
                 'label' => 'Reason for No Action',
                 'value' => $recommendation->close_reason,
                 'data-awards-rec-quick-edit-target' => 'closeReason',
-                'container' => ['data-awards-rec-quick-edit-target' => 'closeReasonBlock'],
-            ]
+                'container' => [
+                    'data-awards-rec-quick-edit-target' => 'closeReasonBlock',
+                ],
+            ],
         );
-        
-        // Show warning if assigned gathering is cancelled
+
         $assignedGatheringCancelled = $assignedGatheringCancelled ?? false;
-        $cancelledGatheringIds = $cancelledGatheringIds ?? [];
-        if ($assignedGatheringCancelled): ?>
+        $cancelledGatheringWarning = __(
+            'This recommendation is scheduled for a cancelled gathering. Please reschedule to a different gathering.',
+        );
+        if ($assignedGatheringCancelled) : ?>
         <div class="alert alert-danger mb-2" role="alert">
             <i class="bi bi-exclamation-triangle-fill"></i>
-            <strong><?= __('Warning:') ?></strong> <?= __('This recommendation is scheduled for a cancelled gathering. Please reschedule to a different gathering.') ?>
+            <strong><?= __('Warning:') ?></strong>
+            <?= h($cancelledGatheringWarning) ?>
         </div>
         <?php endif;
-        
+
         $selectedGatheringText = '';
         if (!empty($recommendation->gathering_id) && isset($gatheringList[$recommendation->gathering_id])) {
             $selectedGatheringText = $gatheringList[$recommendation->gathering_id];
@@ -183,13 +219,10 @@
                         'value' => $recommendation->gathering_id,
                         'text' => $selectedGatheringText,
                     ]),
-                ]
+                ],
             ) ?>
         </div>
         <?php
-
-        // Format given date for HTML5 date input (requires Y-m-d format)
-        // Since this is a date-only field, format without timezone conversion
         $givenValue = null;
         if ($recommendation->given) {
             $givenValue = $recommendation->given->format('Y-m-d');
@@ -202,8 +235,10 @@
                 'label' => 'Given On',
                 'value' => $givenValue,
                 'data-awards-rec-quick-edit-target' => 'givenDate',
-                'container' => ['data-awards-rec-quick-edit-target' => 'givenBlock'],
-            ]
+                'container' => [
+                    'data-awards-rec-quick-edit-target' => 'givenBlock',
+                ],
+            ],
         );
         echo $this->Form->control('note', [
             'type' => 'textarea',
@@ -212,4 +247,5 @@
         ]);
         ?>
     </fieldset>
+    <?= $this->Form->end() ?>
 </turbo-frame>

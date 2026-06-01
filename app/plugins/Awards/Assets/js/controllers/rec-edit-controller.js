@@ -66,13 +66,21 @@ class AwardsRecommendationEditForm extends Controller {
         outlet.removeListener(this.setId.bind(this));
     }
 
-    /** Disable submit when the turbo frame loaded a bestowal-locked recommendation. */
+    /** After turbo frame swap: apply state rules once all targets exist; sync submit lock. */
     onTurboFrameLoad() {
         const locked = this.turboFrameTarget.querySelector('[data-recommendation-locked]');
         const submitBtn = document.getElementById('recommendation_submit');
         if (submitBtn) {
             submitBtn.disabled = Boolean(locked);
         }
+        this.scheduleFieldRules();
+    }
+
+    /** Defer field rules until turbo-injected targets have finished connecting. */
+    scheduleFieldRules() {
+        window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => this.setFieldRules());
+        });
     }
 
     /** Enable disabled fields before form submission. */
@@ -375,86 +383,110 @@ class AwardsRecommendationEditForm extends Controller {
         }
     }
 
-    /** Apply field rules when state target connects. */
+    /** Apply field rules when state target connects (may run before sibling targets exist). */
     stateTargetConnected() {
-        console.log("status connected");
-        this.setFieldRules();
+        this.scheduleFieldRules();
     }
 
     /** Parse JSON state rules and apply Visible/Required/Disabled field states. */
     setFieldRules() {
-        console.log("setting field rules");
-        var rulesstring = this.stateRulesBlockTarget.textContent;
-        var rules = JSON.parse(rulesstring);
-        if (this.specialtyTarget.options.length == 0) {
-            this.specialtyTarget.hidden = true;
-            this.specialtyTarget.disabled = true;
+        if (!this.hasStateRulesBlockTarget || !this.hasStateTarget) {
+            return;
         }
 
-        this.planToGiveBlockTarget.style.display = "none";
-        this.givenBlockTarget.style.display = "none";
-
-        // Store the current givenDate value before potentially clearing it
-        if (this.givenDateTarget.value && !this.givenDateTarget.dataset.initialValue) {
-            this.givenDateTarget.dataset.initialValue = this.givenDateTarget.value;
+        let rules = {};
+        try {
+            rules = JSON.parse(this.stateRulesBlockTarget.textContent.trim());
+        } catch (error) {
+            console.warn("Recommendation edit: could not parse state rules JSON.", error);
+            return;
         }
 
-        // Only clear givenDate if it doesn't have an initial value stored
-        if (!this.givenDateTarget.dataset.initialValue) {
-            this.givenDateTarget.value = "";
-        } else {
-            // Restore the initial value if it was cleared
-            if (!this.givenDateTarget.value) {
+        if (this.hasSpecialtyTarget) {
+            if (!this.specialtyTarget.options || this.specialtyTarget.options.length === 0) {
+                this.specialtyTarget.hidden = true;
+                this.specialtyTarget.disabled = true;
+            }
+        }
+
+        if (this.hasPlanToGiveBlockTarget) {
+            this.planToGiveBlockTarget.style.display = "none";
+        }
+        if (this.hasGivenBlockTarget) {
+            this.givenBlockTarget.style.display = "none";
+        }
+
+        if (this.hasGivenDateTarget) {
+            if (this.givenDateTarget.value && !this.givenDateTarget.dataset.initialValue) {
+                this.givenDateTarget.dataset.initialValue = this.givenDateTarget.value;
+            }
+
+            if (!this.givenDateTarget.dataset.initialValue) {
+                this.givenDateTarget.value = "";
+            } else if (!this.givenDateTarget.value) {
                 this.givenDateTarget.value = this.givenDateTarget.dataset.initialValue;
             }
         }
 
-        this.domainTarget.disabled = false;
-        this.awardTarget.disabled = false;
-        this.specialtyTarget.disabled = this.specialtyTarget.hidden;
-        this.scaMemberTarget.disabled = false;
+        if (this.hasDomainTarget) {
+            this.domainTarget.disabled = false;
+        }
+        if (this.hasAwardTarget) {
+            this.awardTarget.disabled = false;
+        }
+        if (this.hasSpecialtyTarget) {
+            this.specialtyTarget.disabled = this.specialtyTarget.hidden;
+        }
+        if (this.hasScaMemberTarget) {
+            this.scaMemberTarget.disabled = false;
+        }
         this.setPlanToGiveRequired(false);
-        this.givenDateTarget.required = false;
-        this.closeReasonBlockTarget.style.display = "none";
-        this.closeReasonTarget.required = false;
-        if (this.notFoundTarget.checked) {
-            this.branchTarget.disabled = false;
-            this.branchTarget.hidden = false;
-        } else {
-            this.branchTarget.disabled = true;
-            this.branchTarget.hidden = true;
+        if (this.hasGivenDateTarget) {
+            this.givenDateTarget.required = false;
+        }
+        if (this.hasCloseReasonBlockTarget) {
+            this.closeReasonBlockTarget.style.display = "none";
+        }
+        if (this.hasCloseReasonTarget) {
+            this.closeReasonTarget.required = false;
+        }
+        if (this.hasNotFoundTarget && this.hasBranchTarget) {
+            if (this.notFoundTarget.checked) {
+                this.branchTarget.disabled = false;
+                this.branchTarget.hidden = false;
+            } else {
+                this.branchTarget.disabled = true;
+                this.branchTarget.hidden = true;
+            }
         }
 
-        var state = this.stateTarget.value;
-
-        //check status rules for the status
-        if (rules[state]) {
-            var statusRules = rules[state];
-            var controller = this;
-            const visibleFields = (statusRules["Visible"] || []).concat(
-                statusRules["Optional"] || [],
-            );
-            visibleFields.forEach(function (field) {
-                if (controller[field]) {
-                    controller[field].style.display = "block";
+        const state = this.stateTarget.value;
+        const statusRules = rules[state];
+        if (statusRules) {
+            const visibleFields = (statusRules.Visible || []).concat(statusRules.Optional || []);
+            visibleFields.forEach((field) => {
+                if (this[field]) {
+                    this[field].style.display = "block";
                 }
             });
-            if (statusRules["Disabled"]) {
-                statusRules["Disabled"].forEach(function (field) {
-                    if (controller[field]) {
-                        controller[field].disabled = true;
+            if (statusRules.Disabled) {
+                statusRules.Disabled.forEach((field) => {
+                    if (this[field]) {
+                        this[field].disabled = true;
                     }
                 });
             }
-            if (statusRules["Required"]) {
-                statusRules["Required"].forEach(function (field) {
-                    if (controller[field]) {
-                        controller[field].required = true;
+            if (statusRules.Required) {
+                statusRules.Required.forEach((field) => {
+                    if (this[field]) {
+                        this[field].required = true;
                     }
                 });
             }
         }
-        this.setPlanToGiveRequired(!!this.planToGiveGatheringTarget.required);
+        if (this.hasPlanToGiveGatheringTarget) {
+            this.setPlanToGiveRequired(!!this.planToGiveGatheringTarget.required);
+        }
 
         // Update gatherings when state changes (e.g., to/from "Given")
         if (this.hasAwardTarget && this.awardTarget.value) {

@@ -21,6 +21,16 @@ use Cake\ORM\TableRegistry;
  */
 class RecommendationFormService
 {
+    private RecommendationBestowalStatePolicyService $statePolicyService;
+
+    /**
+     * @param \Awards\Services\RecommendationBestowalStatePolicyService|null $statePolicyService Optional state policy.
+     */
+    public function __construct(?RecommendationBestowalStatePolicyService $statePolicyService = null)
+    {
+        $this->statePolicyService = $statePolicyService ?? new RecommendationBestowalStatePolicyService();
+    }
+
     /**
      * Build the status list formatted for dropdown display.
      *
@@ -29,7 +39,7 @@ class RecommendationFormService
      *
      * @return array<string, array<string, string>> Grouped status list.
      */
-    public function buildStatusList(): array
+    public function buildStatusList(?string $currentState = null): array
     {
         $statusList = Recommendation::getStatuses();
         foreach ($statusList as $key => $value) {
@@ -40,7 +50,7 @@ class RecommendationFormService
             }
         }
 
-        return $statusList;
+        return $this->statePolicyService->filterUserTargetStatusList($statusList, $currentState);
     }
 
     /**
@@ -117,7 +127,7 @@ class RecommendationFormService
             $assignedGatheringCancelled = true;
         }
 
-        $statusList = $this->buildStatusList();
+        $statusList = $this->buildStatusList((string)$recommendation->state);
         $rules = Recommendation::getStateRules();
 
         return compact(

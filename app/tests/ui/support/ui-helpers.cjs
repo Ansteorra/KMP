@@ -48,7 +48,10 @@ const waitForAppReady = async (requestContext, timeout = 60000) => {
 
     while (Date.now() - startedAt < timeout) {
         try {
-            const response = await requestContext.get(baseUrl, requestOptions);
+            const response = await requestContext.get(baseUrl, {
+                ...requestOptions,
+                maxRedirects: 0,
+            });
 
             if (response.ok() || [301, 302, 303, 307, 308, 401, 403].includes(response.status())) {
                 return;
@@ -101,7 +104,49 @@ const isLocatorVisible = async (locator) => {
     }
 };
 
+const waitForTurboFrame = async (page, frameId, timeout = 30000) => {
+    const frame = page.locator(`turbo-frame#${frameId}`);
+    await expect(frame).toBeVisible({ timeout });
+    return frame;
+};
+
+const waitForTurboStreamResponse = (page, action) => Promise.all([
+    page.waitForResponse(
+        (response) => response.headers()['content-type']?.includes('turbo-stream') && response.ok(),
+        { timeout: 30000 },
+    ),
+    action(),
+]);
+
+const assertUrlContainsQuery = async (page, fragment) => {
+    await expect(page).toHaveURL(new RegExp(fragment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+};
+
+const waitForGridStateJson = async (page, frameId, timeout = 30000) => {
+    const frame = page.locator(`turbo-frame#${frameId}`);
+    await expect(frame).toBeVisible({ timeout });
+    const stateScript = frame.locator('script[type="application/json"]');
+    await expect(stateScript).toBeAttached({ timeout });
+    const raw = await stateScript.textContent();
+    return JSON.parse(raw || '{}');
+};
+
+/**
+ * Assert the grid Stimulus shell stayed on the page (no full document navigation).
+ */
+const assertGridShellPreserved = async (page, selector = '[data-controller*="grid-view"]') => {
+    const gridShell = page.locator(selector).first();
+    await expect(gridShell).toBeVisible({ timeout: 15000 });
+    const navType = await page.evaluate(() => {
+        const entry = performance.getEntriesByType('navigation')[0];
+        return entry ? entry.type : 'navigate';
+    });
+    expect(navType).not.toBe('reload');
+};
+
 module.exports = {
+    assertGridShellPreserved,
+    assertUrlContainsQuery,
     clearMailpitMessages,
     clickTabAndWait,
     getSignOutButton,
@@ -112,4 +157,7 @@ module.exports = {
     waitForGridRows,
     waitForPageBody,
     waitForSuccessfulLogin,
+    waitForTurboFrame,
+    waitForTurboStreamResponse,
+    waitForGridStateJson,
 };

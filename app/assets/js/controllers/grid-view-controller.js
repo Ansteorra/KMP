@@ -49,6 +49,9 @@ class GridViewController extends Controller {
         // Listen for Turbo Frame updates
         document.addEventListener('turbo:frame-load', this.boundHandleFrameLoad)
 
+        this.boundPopState = this.handlePopState.bind(this)
+        window.addEventListener('popstate', this.boundPopState)
+
         // Check if state is already present (inline rendered content)
         this.loadInlineState()
         this.setSearchBusy(false)
@@ -96,6 +99,19 @@ class GridViewController extends Controller {
             this.searchDebounceTimer = null
         }
         document.removeEventListener('turbo:frame-load', this.boundHandleFrameLoad)
+        if (this.boundPopState) {
+            window.removeEventListener('popstate', this.boundPopState)
+            this.boundPopState = null
+        }
+    }
+
+    /**
+     * Browser back/forward: sync table frame to URL without pushing history again.
+     */
+    handlePopState() {
+        const url = window.location.pathname + window.location.search
+        this.navigate(url, false, { updateHistory: false })
+        window.dispatchEvent(new CustomEvent('page-context:sync'))
     }
 
     /**
@@ -1327,7 +1343,7 @@ class GridViewController extends Controller {
 
             if (response.ok && data.success) {
                 alert("View updated successfully")
-                window.location.reload()
+                this.navigate(this.buildUrl({ view_id: this.state.view.currentId }), false)
             } else {
                 throw new Error(data.error || "Failed to update view")
             }
@@ -1402,7 +1418,7 @@ class GridViewController extends Controller {
 
             if (response.ok && data.success) {
                 alert("Default view set successfully")
-                window.location.reload()
+                this.navigate(window.location.pathname + window.location.search, false)
             } else {
                 throw new Error(data.error || "Failed to set default")
             }
@@ -1433,7 +1449,7 @@ class GridViewController extends Controller {
 
             if (response.ok && data.success) {
                 alert("Default view cleared successfully")
-                window.location.reload()
+                this.navigate(window.location.pathname + window.location.search, false)
             } else {
                 throw new Error(data.error || "Failed to clear default")
             }
@@ -2073,16 +2089,12 @@ class GridViewController extends Controller {
     /**
      * Navigate to URL via Turbo (frame or full page)
      */
-    navigate(url, fullPage = false) {
+    navigate(url, fullPage = false, options = {}) {
+        const updateHistory = options.updateHistory !== false
         console.log('Navigating to:', url, 'fullPage:', fullPage)
 
         if (fullPage) {
-            // Full page navigation
-            if (window.Turbo) {
-                window.Turbo.visit(url)
-            } else {
-                window.location.assign(url)
-            }
+            window.location.assign(url)
         } else {
             // Frame navigation - find the table frame and update its src
             const tableFrame = this.element.querySelector('turbo-frame[id$="-table"]')
@@ -2127,11 +2139,11 @@ class GridViewController extends Controller {
 
                 const gridDataUrl = finalUrl.pathname + finalUrl.search
 
-                // Update browser history with the original URL (for page reload)
-                window.history.pushState({}, '', url)
-
-                // Notify other controllers that the URL has changed
-                window.dispatchEvent(new CustomEvent('grid-view:navigated'))
+                if (updateHistory) {
+                    window.history.pushState({}, '', url)
+                    window.dispatchEvent(new CustomEvent('grid-view:navigated'))
+                    window.dispatchEvent(new CustomEvent('page-context:sync'))
+                }
 
                 // Persist sticky parameters based on the navigation URL
                 this.captureStickyParamsFromUrl(finalUrl.toString())
@@ -2140,11 +2152,7 @@ class GridViewController extends Controller {
                 tableFrame.src = gridDataUrl
             } else {
                 console.warn('Table frame not found, falling back to full page navigation')
-                if (window.Turbo) {
-                    window.Turbo.visit(url)
-                } else {
-                    window.location.assign(url)
-                }
+                window.location.assign(url)
             }
         }
     }

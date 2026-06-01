@@ -1,7 +1,20 @@
-<turbo-frame id="editBestowal"
+<?php
+$formUrl = $this->Url->build(['plugin' => 'Awards', 'controller' => 'Bestowals', 'action' => 'edit', $bestowal->id]);
+?>
+<turbo-frame id="editBestowalQuick"
     data-awards-bestowal-edit-target="turboFrame"
     data-action="turbo:frame-load->awards-bestowal-edit#onTurboFrameLoad"
     data-awards-bestowal-edit-linked-recommendation-count-value="<?= count($bestowal->recommendations ?? []) ?>">
+    <?= $this->Form->create(null, [
+        'url' => $formUrl,
+        'id' => 'bestowal_form',
+        'data-turbo' => 'true',
+        'data-controller' => 'turbo-modal',
+        'data-action' => 'turbo:submit-start->turbo-modal#closeModalBeforeSubmit input->awards-bestowal-edit#updateSubmitState change->awards-bestowal-edit#updateSubmitState autocomplete.change->awards-bestowal-edit#updateSubmitState',
+    ]) ?>
+    <?= $this->Form->hidden('page_context_url', [
+        'value' => $this->request->getRequestTarget(),
+    ]) ?>
     <script type="application/json" data-awards-bestowal-edit-target="stateRulesBlock" class="d-none">
         <?= json_encode($rules) ?>
     </script>
@@ -359,4 +372,5 @@
             'label' => __('Note'),
         ]) ?>
     </fieldset>
+    <?= $this->Form->end() ?>
 </turbo-frame>

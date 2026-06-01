@@ -7,7 +7,7 @@ describe('AwardsRecommendationQuickEditForm', () => {
 
     beforeEach(() => {
         document.body.innerHTML = `
-            <form data-controller="awards-rec-quick-edit"
+            <form id="recommendation_form" data-controller="awards-rec-quick-edit"
                   data-awards-rec-quick-edit-form-url-value="/awards/recommendations/edit"
                   data-awards-rec-quick-edit-turbo-frame-url-value="/awards/recommendations/frame"
                   data-awards-rec-quick-edit-award-list-url-value="/awards/list"
@@ -63,6 +63,14 @@ describe('AwardsRecommendationQuickEditForm', () => {
         controller.gatheringsLookupUrlValue = '/awards/gatherings-lookup';
 
         // Wire up has* checks
+        controller.hasStateRulesBlockTarget = true;
+        controller.hasPlanToGiveBlockTarget = true;
+        controller.hasGivenBlockTarget = true;
+        controller.hasGivenDateTarget = true;
+        controller.hasCloseReasonBlockTarget = true;
+        controller.hasCloseReasonTarget = true;
+        controller.hasDomainTarget = true;
+        controller.hasSpecialtyTarget = true;
         controller.hasPlanToGiveGatheringTarget = true;
         controller.hasGatheringsLookupUrlValue = true;
         controller.hasMemberIdTarget = true;
@@ -127,11 +135,13 @@ describe('AwardsRecommendationQuickEditForm', () => {
 
     // --- submit ---
 
-    test('submit clicks the close button', () => {
-        const closeBtn = document.getElementById('recommendation_edit_close');
-        const spy = jest.spyOn(closeBtn, 'click');
-        controller.submit({});
-        expect(spy).toHaveBeenCalled();
+    test('submit prevents default when recommendation is bestowal-locked', () => {
+        const locked = document.createElement('div');
+        locked.setAttribute('data-recommendation-locked', '1');
+        controller.turboFrameTarget.appendChild(locked);
+        const event = { preventDefault: jest.fn() };
+        controller.submit(event);
+        expect(event.preventDefault).toHaveBeenCalled();
     });
 
     // --- setAward ---

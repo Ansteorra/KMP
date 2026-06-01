@@ -155,4 +155,24 @@ describe('GridViewController', () => {
         controller.loadInlineState();
         expect(controller.state).toBeNull();
     });
+
+    test('handlePopState refreshes table frame without pushing history', () => {
+        const tableFrame = controller.element.querySelector('turbo-frame');
+        tableFrame.setAttribute('src', '/members/grid-data');
+
+        const pushStateSpy = jest.spyOn(window.history, 'pushState');
+        const navigateSpy = jest.spyOn(controller, 'navigate');
+
+        controller.handlePopState();
+
+        expect(navigateSpy).toHaveBeenCalledWith(
+            window.location.pathname + window.location.search,
+            false,
+            { updateHistory: false },
+        );
+        expect(pushStateSpy).not.toHaveBeenCalled();
+
+        pushStateSpy.mockRestore();
+        navigateSpy.mockRestore();
+    });
 });

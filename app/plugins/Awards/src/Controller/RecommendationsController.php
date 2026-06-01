@@ -1070,6 +1070,7 @@ class RecommendationsController extends AppController
 
         $ids = explode(',', $this->request->getData('ids'));
         $newState = $this->request->getData('newState');
+        $result = ['success' => false];
 
         if (empty($ids) || empty($newState)) {
             $this->Flash->error(__('No recommendations selected or new state not specified.'));
@@ -1113,9 +1114,29 @@ class RecommendationsController extends AppController
                 );
             }
         }
+        $pageContext = $this->getPageContextUrl();
+        if (
+            !empty($ids)
+            && !empty($newState)
+            && ($result['success'] ?? false)
+            && $this->wantsTurboStreamRequest()
+            && $this->isGridOriginRequest($pageContext)
+        ) {
+            $this->Flash->success(__('The recommendations have been updated.'));
+
+            return $this->renderTurboCloseModal(
+                'recommendations-grid-table',
+                ['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'gridData'],
+                $pageContext,
+            );
+        }
+
         $currentPage = $this->request->getData('current_page');
         if ($currentPage) {
             return $this->redirect($currentPage);
+        }
+        if ($pageContext !== null) {
+            return $this->redirect($pageContext);
         }
 
         return $this->redirect(['action' => 'table', $view, $status]);
@@ -1390,6 +1411,8 @@ class RecommendationsController extends AppController
 
             $this->Authorization->authorize($recommendation, 'edit');
 
+            $pageContext = $this->getPageContextUrl();
+
             if ($this->request->is(['patch', 'post', 'put'])) {
                 $identity = $this->request->getAttribute('identity');
                 $result = $this->dispatchRecommendationMutation(
@@ -1404,6 +1427,10 @@ class RecommendationsController extends AppController
                 );
 
                 if ($result['success']) {
+                    $stream = $this->tryRecommendationsGridTurboResponse($pageContext, true);
+                    if ($stream !== null) {
+                        return $stream;
+                    }
                     if (!$this->request->getHeader('Turbo-Frame')) {
                         $this->Flash->success(__('The recommendation has been saved.'));
                     }
@@ -1412,20 +1439,26 @@ class RecommendationsController extends AppController
                         $recommendation = $result['recommendation'];
                     }
 
-                    if (!$this->request->getHeader('Turbo-Frame')) {
-                        $this->Flash->error($result['error'] ?? __('The recommendation could not be saved. Please, try again.'));
-                    }
+                    $this->Flash->error($result['error'] ?? __('The recommendation could not be saved. Please, try again.'));
 
                     if ($result['errorCode'] === 'member_public_id_not_found') {
                         $this->response = $this->response->withStatus(400);
 
                         return $this->response;
                     }
+
+                    $stream = $this->tryRecommendationsGridTurboResponse($pageContext, false, (int)$id);
+                    if ($stream !== null) {
+                        return $stream;
+                    }
                 }
             }
 
             if ($this->request->getData('current_page')) {
                 return $this->redirect($this->request->getData('current_page'));
+            }
+            if ($pageContext !== null) {
+                return $this->redirect($pageContext);
             }
 
             return $this->redirect(['action' => 'view', $id]);
@@ -2673,5 +2706,39 @@ class RecommendationsController extends AppController
                 ],
             );
         }
+    }
+
+    /**
+     * Turbo-stream response for grid-origin recommendation saves.
+     */
+    private function tryRecommendationsGridTurboResponse(
+        ?string $pageContext,
+        bool $success,
+        ?int $reloadQuickEditId = null,
+    ): ?\Cake\Http\Response {
+        if (!$this->wantsTurboStreamRequest() || !$this->isGridOriginRequest($pageContext)) {
+            return null;
+        }
+
+        $gridRoute = ['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'gridData'];
+
+        if ($success) {
+            $this->Flash->success(__('The recommendation has been saved.'));
+
+            return $this->renderTurboCloseModal('recommendations-grid-table', $gridRoute, $pageContext);
+        }
+
+        if ($reloadQuickEditId !== null) {
+            $frameSrc = Router::url([
+                'plugin' => 'Awards',
+                'controller' => 'Recommendations',
+                'action' => 'turboQuickEditForm',
+                $reloadQuickEditId,
+            ]);
+
+            return $this->renderTurboReloadFrame('editRecommendationQuick', $frameSrc)->withStatus(422);
+        }
+
+        return null;
     }
 }

@@ -131,7 +131,7 @@ class RecommendationUpdateServiceTest extends BaseTestCase
         $groupingService = new RecommendationGroupingService($this->Recommendations);
         $groupingService->groupRecommendations([(int)$head->id, (int)$child->id], self::ADMIN_MEMBER_ID);
 
-        $closedState = $this->stateForStatus('Closed', ['Linked - Closed']);
+        $closedState = $this->stateForStatus('Closed', ['Linked - Closed', 'Given']);
         $head = $this->Recommendations->get((int)$head->id, contain: ['Gatherings']);
         $result = $this->service->update(
             $this->Recommendations,
@@ -155,6 +155,123 @@ class RecommendationUpdateServiceTest extends BaseTestCase
         $this->assertNotNull($childLog);
         $this->assertSame('Linked', $childLog->from_state);
         $this->assertSame('Linked - Closed', $childLog->to_state);
+    }
+
+    public function testUpdateToNeedToScheduleCreatesHandoffBestowal(): void
+    {
+        $existing = $this->createRecommendation(
+            self::TEST_MEMBER_AGATHA_ID,
+            [],
+            ['state' => 'King Approved'],
+        );
+
+        $result = $this->service->update(
+            $this->Recommendations,
+            $existing,
+            ['state' => 'Need to Schedule'],
+            self::ADMIN_MEMBER_ID,
+        );
+
+        $this->assertTrue($result['success'], $result['message'] ?? json_encode($result));
+        $this->assertNotEmpty($result['output']['bestowalId']);
+
+        $saved = $this->Recommendations->get((int)$existing->id);
+        $this->assertSame('Need to Schedule', $saved->state);
+        $this->assertSame('Scheduling', $saved->status);
+        $this->assertSame((int)$result['output']['bestowalId'], (int)$saved->bestowal_id);
+    }
+
+    public function testUpdateRejectsDirectBestowalManagedState(): void
+    {
+        $existing = $this->createRecommendation(
+            self::TEST_MEMBER_AGATHA_ID,
+            [],
+            ['state' => 'King Approved'],
+        );
+
+        $result = $this->service->update(
+            $this->Recommendations,
+            $existing,
+            ['state' => 'Given'],
+            self::ADMIN_MEMBER_ID,
+        );
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('invalid_state_transition', $result['errorCode']);
+        $this->assertStringContainsString('managed by the bestowal workflow', $result['message']);
+
+        $saved = $this->Recommendations->get((int)$existing->id);
+        $this->assertSame('King Approved', $saved->state);
+        $this->assertNull($saved->bestowal_id);
+    }
+
+    public function testUpdateRejectsExistingUnlinkedBestowalManagedState(): void
+    {
+        $existing = $this->createRecommendation(
+            self::TEST_MEMBER_AGATHA_ID,
+            [],
+            [
+                'status' => 'Closed',
+                'state' => 'Given',
+                'reason' => 'Managed state should not be user editable',
+            ],
+        );
+
+        $result = $this->service->update(
+            $this->Recommendations,
+            $existing,
+            [
+                'reason' => 'Attempted manual edit',
+                'note' => 'This should not save',
+            ],
+            self::ADMIN_MEMBER_ID,
+        );
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('invalid_state_transition', $result['errorCode']);
+        $this->assertStringContainsString('managed by the bestowal workflow', $result['message']);
+
+        $saved = $this->Recommendations->get((int)$existing->id);
+        $this->assertSame('Given', $saved->state);
+        $this->assertSame('Managed state should not be user editable', $saved->reason);
+
+        $moveOutResult = $this->service->update(
+            $this->Recommendations,
+            $saved,
+            ['state' => 'King Approved'],
+            self::ADMIN_MEMBER_ID,
+        );
+
+        $this->assertFalse($moveOutResult['success']);
+        $this->assertSame('invalid_state_transition', $moveOutResult['errorCode']);
+        $this->assertSame('Given', $this->Recommendations->get((int)$existing->id)->state);
+    }
+
+    public function testUpdateAllowsNoActionWithoutBestowal(): void
+    {
+        $existing = $this->createRecommendation(
+            self::TEST_MEMBER_AGATHA_ID,
+            [],
+            ['state' => 'King Approved'],
+        );
+
+        $result = $this->service->update(
+            $this->Recommendations,
+            $existing,
+            [
+                'state' => 'No Action',
+                'close_reason' => 'Not selected by Crown',
+            ],
+            self::ADMIN_MEMBER_ID,
+        );
+
+        $this->assertTrue($result['success'], $result['message'] ?? json_encode($result));
+
+        $saved = $this->Recommendations->get((int)$existing->id);
+        $this->assertSame('No Action', $saved->state);
+        $this->assertSame('Closed', $saved->status);
+        $this->assertSame('Not selected by Crown', $saved->close_reason);
+        $this->assertNull($saved->bestowal_id);
     }
 
     /**

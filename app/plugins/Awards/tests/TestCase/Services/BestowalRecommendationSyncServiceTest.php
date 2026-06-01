@@ -53,6 +53,7 @@ class BestowalRecommendationSyncServiceTest extends BaseTestCase
         $gatheringId = $this->getFirstGatheringId();
 
         $bestowal = $this->bestowalsTable->get($bestowalId);
+        $bestowal->state = 'Court Pending';
         $bestowal->gathering_id = $gatheringId;
         $bestowal->modified_by = self::ADMIN_MEMBER_ID;
         $this->bestowalsTable->saveOrFail($bestowal);

@@ -26,15 +26,27 @@ class RecommendationTransitionService
 
     private RecommendationGroupingService $groupingService;
     private RecommendationStateLogService $stateLogService;
+    private RecommendationBestowalStatePolicyService $statePolicyService;
+    private BestowalCreationService $bestowalCreationService;
 
+    /**
+     * @param \Awards\Services\RecommendationGroupingService|null $groupingService Optional grouping service.
+     * @param \Awards\Services\RecommendationStateLogService|null $stateLogService Optional state-log service.
+     * @param \Awards\Services\RecommendationBestowalStatePolicyService|null $statePolicyService Optional state policy.
+     * @param \Awards\Services\BestowalCreationService|null $bestowalCreationService Optional bestowal creator.
+     */
     public function __construct(
         ?RecommendationGroupingService $groupingService = null,
         ?RecommendationStateLogService $stateLogService = null,
+        ?RecommendationBestowalStatePolicyService $statePolicyService = null,
+        ?BestowalCreationService $bestowalCreationService = null,
     ) {
         $this->stateLogService = $stateLogService ?? new RecommendationStateLogService();
         $this->groupingService = $groupingService ?? new RecommendationGroupingService(
             stateLogService: $this->stateLogService,
         );
+        $this->statePolicyService = $statePolicyService ?? new RecommendationBestowalStatePolicyService();
+        $this->bestowalCreationService = $bestowalCreationService ?? new BestowalCreationService();
     }
 
     /**
@@ -58,6 +70,7 @@ class RecommendationTransitionService
             $data,
             $actorId,
             self::SINGLE_NOTE_SUBJECT,
+            false,
         );
 
         if ($result['success'] ?? false) {
@@ -89,6 +102,7 @@ class RecommendationTransitionService
             $data,
             $actorId,
             self::BULK_NOTE_SUBJECT,
+            true,
         );
     }
 
@@ -100,6 +114,7 @@ class RecommendationTransitionService
      * @param array<string, mixed> $data Transition input.
      * @param int $actorId Current user ID.
      * @param string $defaultNoteSubject Default subject for created notes.
+     * @param bool $normalizeHandoffGroupChildren Whether grouped child IDs should be replaced by their head ID.
      * @return array<string, mixed>
      */
     private function runTransitions(
@@ -108,6 +123,7 @@ class RecommendationTransitionService
         array $data,
         int $actorId,
         string $defaultNoteSubject,
+        bool $normalizeHandoffGroupChildren,
     ): array {
         $targetState = $this->extractTargetState($data);
         if ($targetState === '') {
@@ -133,6 +149,24 @@ class RecommendationTransitionService
         }
 
         try {
+            $this->statePolicyService->assertUserCanTargetRecommendationState($targetState);
+            if ($this->statePolicyService->isHandoffState($targetState)) {
+                $this->statePolicyService->assertBestowalSyncMappingsConfigured();
+            }
+        } catch (RuntimeException $e) {
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'data' => [
+                    'processedCount' => 0,
+                    'targetState' => $targetState,
+                    'recommendationIds' => array_map('intval', $ids),
+                    'results' => [],
+                ],
+            ];
+        }
+
+        try {
             return $recommendationsTable->getConnection()->transactional(
                 function () use (
                     $recommendationsTable,
@@ -141,7 +175,17 @@ class RecommendationTransitionService
                     $actorId,
                     $targetState,
                     $defaultNoteSubject,
+                    $normalizeHandoffGroupChildren,
                 ): array {
+                    $requestedIds = $ids;
+                    if ($this->statePolicyService->isHandoffState($targetState)) {
+                        $ids = $this->resolveHandoffRecommendationIds(
+                            $recommendationsTable,
+                            $ids,
+                            $normalizeHandoffGroupChildren,
+                        );
+                    }
+
                     $recommendations = $recommendationsTable->find()
                         ->where(['id IN' => $ids])
                         ->all()
@@ -158,15 +202,20 @@ class RecommendationTransitionService
                     }
 
                     $results = [];
+                    $bestowalIds = [];
                     foreach ($ids as $id) {
                         $recommendation = $recommendations[(int)$id];
                         if ($recommendation->isLockedByBestowal()) {
                             throw new RuntimeException(
-                                'Recommendation #' . $id . ' is linked to a bestowal and cannot be bulk edited.',
+                                'Recommendation #' . $id . ' is linked to a bestowal and cannot be edited here.',
                             );
                         }
+                        $currentState = (string)($recommendation->state ?? '');
+                        if ($this->statePolicyService->isBestowalManagedState($currentState)) {
+                            $this->statePolicyService->assertUserCanTargetRecommendationState($currentState);
+                        }
 
-                        $results[] = $this->applyTransition(
+                        $result = $this->applyTransition(
                             $recommendationsTable,
                             $recommendation,
                             $targetState,
@@ -174,7 +223,20 @@ class RecommendationTransitionService
                             $actorId,
                             $defaultNoteSubject,
                         );
+
+                        if ($this->statePolicyService->isHandoffState($targetState)) {
+                            $handoffResult = $this->createHandoffBestowal((int)$result['recommendationId'], $actorId);
+                            $bestowalId = (int)$handoffResult['data']['bestowalId'];
+                            $bestowalIds[] = $bestowalId;
+                            $result['bestowalId'] = $bestowalId;
+                            $result['bestowalRecommendationIds'] = $handoffResult['data']['recommendationIds'] ?? [];
+                        }
+
+                        $results[] = $result;
                     }
+
+                    $bestowalIds = array_values(array_unique($bestowalIds));
+                    sort($bestowalIds);
 
                     return [
                         'success' => true,
@@ -182,6 +244,8 @@ class RecommendationTransitionService
                             'processedCount' => count($results),
                             'targetState' => $targetState,
                             'recommendationIds' => array_map('intval', $ids),
+                            'requestedRecommendationIds' => array_map('intval', $requestedIds),
+                            'bestowalIds' => $bestowalIds,
                             'results' => $results,
                         ],
                     ];
@@ -201,6 +265,83 @@ class RecommendationTransitionService
                 ],
             ];
         }
+    }
+
+    /**
+     * Resolve selected handoff IDs to group heads so grouped children are not transitioned independently.
+     *
+     * @param \Cake\ORM\Table $recommendationsTable Recommendations table instance.
+     * @param array<int, string> $ids Requested recommendation IDs.
+     * @param bool $normalizeGroupChildren Whether child IDs may be normalized to their group head.
+     * @return array<int, string>
+     */
+    private function resolveHandoffRecommendationIds(
+        Table $recommendationsTable,
+        array $ids,
+        bool $normalizeGroupChildren,
+    ): array {
+        $recommendations = $recommendationsTable->find()
+            ->select(['id', 'recommendation_group_id'])
+            ->where(['id IN' => $ids])
+            ->all()
+            ->indexBy('id')
+            ->toArray();
+
+        $missingIds = array_values(
+            array_diff($ids, array_map('strval', array_keys($recommendations))),
+        );
+        if ($missingIds !== []) {
+            throw new RuntimeException(
+                'Recommendations not found: ' . implode(', ', $missingIds),
+            );
+        }
+
+        $resolvedIds = [];
+        foreach ($ids as $id) {
+            $recommendation = $recommendations[(int)$id];
+            if ($recommendation->recommendation_group_id !== null) {
+                if (!$normalizeGroupChildren) {
+                    throw new RuntimeException(
+                        'Grouped child recommendations must be handed off through their group head.',
+                    );
+                }
+
+                $resolvedIds[] = (string)$recommendation->recommendation_group_id;
+                continue;
+            }
+
+            $resolvedIds[] = (string)$recommendation->id;
+        }
+
+        return array_values(array_unique($resolvedIds));
+    }
+
+    /**
+     * Create the bestowal for a handoff and turn skipped/failed results into transition failures.
+     *
+     * @return array<string, mixed>
+     */
+    private function createHandoffBestowal(int $recommendationId, int $actorId): array
+    {
+        $result = $this->bestowalCreationService->createFromRecommendationInCallerTransaction(
+            $recommendationId,
+            $actorId,
+        );
+
+        if (!($result['success'] ?? false)) {
+            throw new RuntimeException((string)($result['error'] ?? 'Bestowal creation failed.'));
+        }
+
+        if ($result['skipped'] ?? false) {
+            $reason = $result['data']['reason'] ?? 'Bestowal creation was skipped.';
+            throw new RuntimeException((string)$reason);
+        }
+
+        if (empty($result['data']['bestowalId'])) {
+            throw new RuntimeException('Bestowal creation did not return a bestowal ID.');
+        }
+
+        return $result;
     }
 
     /**
@@ -263,6 +404,9 @@ class RecommendationTransitionService
         }
 
         $saved = $recommendationsTable->saveOrFail($recommendation);
+        if (!$saved instanceof Recommendation) {
+            throw new RuntimeException('Recommendation transition did not return a recommendation entity.');
+        }
         $this->stateLogService->logStateTransition(
             (int)$saved->id,
             (string)$before['state'],
@@ -281,16 +425,16 @@ class RecommendationTransitionService
 
         $note = $this->normalizeOptionalString($this->getOptionalValue($data, ['note']));
         if ($note !== null) {
-            $notesTable = $recommendationsTable->Notes;
+            $notesTable = $recommendationsTable->getAssociation('Notes')->getTarget();
             $newNote = $notesTable->newEmptyEntity();
-            $newNote->entity_id = $saved->id;
-            $newNote->subject = $this->resolveNoteSubject($data, $defaultNoteSubject);
-            $newNote->entity_type = 'Awards.Recommendations';
-            $newNote->body = $note;
-            $newNote->author_id = $actorId;
+            $newNote->set('entity_id', $saved->id);
+            $newNote->set('subject', $this->resolveNoteSubject($data, $defaultNoteSubject));
+            $newNote->set('entity_type', 'Awards.Recommendations');
+            $newNote->set('body', $note);
+            $newNote->set('author_id', $actorId);
             $notesTable->saveOrFail($newNote);
             $noteCreated = true;
-            $noteId = (int)$newNote->id;
+            $noteId = (int)$newNote->get('id');
         }
 
         return [

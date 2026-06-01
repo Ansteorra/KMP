@@ -265,6 +265,7 @@ class BestowalsController extends AppController
 
         $bestowalId = $this->request->getData('bestowalId') ?? $this->request->getData('id');
         $newState = $this->request->getData('newState') ?? $this->request->getData('targetState');
+        $pageContext = $this->getPageContextUrl();
 
         if (empty($bestowalId) || empty($newState)) {
             $this->Flash->error(__('Bestowal ID and new state are required.'));
@@ -300,6 +301,10 @@ class BestowalsController extends AppController
                     'Awards.BestowalStateChanged',
                     $this->buildBestowalStateChangedPayload($result, (int)$user->id),
                 );
+                $stream = $this->tryBestowalsGridTurboResponse($pageContext, true);
+                if ($stream !== null) {
+                    return $stream;
+                }
                 $this->Flash->success(__('The bestowal has been updated.'));
             } else {
                 $this->Flash->error($result['error'] ?? __('The bestowal could not be updated.'));
@@ -309,6 +314,9 @@ class BestowalsController extends AppController
         $redirect = $this->request->getData('current_page');
         if ($redirect) {
             return $this->redirect($redirect);
+        }
+        if ($pageContext !== null) {
+            return $this->redirect($pageContext);
         }
 
         return $this->redirect(['action' => 'view', $bestowalId ?? null]);
@@ -341,17 +349,27 @@ class BestowalsController extends AppController
                 ],
             );
 
+            $pageContext = $this->getPageContextUrl();
+
             if ($result['success']) {
                 $this->dispatchWorkflowEvent(
                     $triggerDispatcher,
                     'Awards.BestowalStateChanged',
                     $this->buildBestowalStateChangedPayload($result, (int)$user->id),
                 );
+                $stream = $this->tryBestowalsGridTurboResponse($pageContext, true);
+                if ($stream !== null) {
+                    return $stream;
+                }
                 if (!$this->request->getHeader('Turbo-Frame')) {
                     $this->Flash->success(__('The bestowal has been saved.'));
                 }
-            } elseif (!$this->request->getHeader('Turbo-Frame')) {
+            } else {
                 $this->Flash->error($result['error'] ?? __('The bestowal could not be saved. Please, try again.'));
+                $stream = $this->tryBestowalsGridTurboResponse($pageContext, false, (int)$id);
+                if ($stream !== null) {
+                    return $stream;
+                }
             }
         } catch (\Cake\Datasource\Exception\RecordNotFoundException) {
             throw new \Cake\Http\Exception\NotFoundException(__('Bestowal not found'));
@@ -360,6 +378,9 @@ class BestowalsController extends AppController
         $redirect = $this->request->getData('current_page');
         if ($redirect) {
             return $this->redirect($redirect);
+        }
+        if ($pageContext !== null) {
+            return $this->redirect($pageContext);
         }
 
         return $this->redirect(['action' => 'view', $id]);
@@ -383,6 +404,7 @@ class BestowalsController extends AppController
         $ids = array_values(array_filter(array_map('intval', $ids)));
         $newState = $this->request->getData('newState');
 
+        $result = ['success' => false];
         if ($ids === [] || empty($newState)) {
             $this->Flash->error(__('No bestowals selected or new state not specified.'));
         } else {
@@ -431,9 +453,29 @@ class BestowalsController extends AppController
             }
         }
 
+        $pageContext = $this->getPageContextUrl();
+        if (
+            $ids !== []
+            && !empty($newState)
+            && ($result['success'] ?? false)
+            && $this->wantsTurboStreamRequest()
+            && $this->isGridOriginRequest($pageContext)
+        ) {
+            $this->Flash->success(__('The bestowals have been updated.'));
+
+            return $this->renderTurboCloseModal(
+                'bestowals-grid-table',
+                ['plugin' => 'Awards', 'controller' => 'Bestowals', 'action' => 'gridData'],
+                $pageContext,
+            );
+        }
+
         $redirect = $this->request->getData('current_page');
         if ($redirect) {
             return $this->redirect($redirect);
+        }
+        if ($pageContext !== null) {
+            return $this->redirect($pageContext);
         }
 
         return $this->redirect(['action' => 'index']);
@@ -747,7 +789,7 @@ class BestowalsController extends AppController
         $result = $this->dispatchBestowalMutation(
             $triggerDispatcher,
             'awards-bestowal-ad-hoc',
-            'Awards.BestowalAdHocRequested',
+            'Awards.AdHocBestowalRequested',
             [
                 'data' => $data,
                 'actorId' => (int)$user->id,
@@ -1053,5 +1095,39 @@ class BestowalsController extends AppController
         }
 
         return true;
+    }
+
+    /**
+     * Turbo-stream response for grid-origin bestowal saves.
+     */
+    private function tryBestowalsGridTurboResponse(
+        ?string $pageContext,
+        bool $success,
+        ?int $reloadEditId = null,
+    ): ?Response {
+        if (!$this->wantsTurboStreamRequest() || !$this->isGridOriginRequest($pageContext)) {
+            return null;
+        }
+
+        $gridRoute = ['plugin' => 'Awards', 'controller' => 'Bestowals', 'action' => 'gridData'];
+
+        if ($success) {
+            $this->Flash->success(__('The bestowal has been saved.'));
+
+            return $this->renderTurboCloseModal('bestowals-grid-table', $gridRoute, $pageContext);
+        }
+
+        if ($reloadEditId !== null) {
+            $frameSrc = Router::url([
+                'plugin' => 'Awards',
+                'controller' => 'Bestowals',
+                'action' => 'turboEditForm',
+                $reloadEditId,
+            ]);
+
+            return $this->renderTurboReloadFrame('editBestowalQuick', $frameSrc)->withStatus(422);
+        }
+
+        return null;
     }
 }

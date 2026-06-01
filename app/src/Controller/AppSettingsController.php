@@ -197,16 +197,12 @@ class AppSettingsController extends AppController
                     || $uploadedFile->getError() === UPLOAD_ERR_NO_FILE
                 ) {
                     $this->Flash->success(__('No changes were made.'));
-                    $flashMessages = $this->request->getSession()->read('Flash');
-                    $this->request->getSession()->delete('Flash');
 
-                    $this->response = $this->response->withType('text/vnd.turbo-stream.html');
-                    $this->viewBuilder()->disableAutoLayout();
-                    $this->viewBuilder()->setTemplate('turbo_close_modal');
-                    $this->set('refreshFrame', 'app-settings-grid-table');
-                    $this->set('flashMessages', $flashMessages);
-
-                    return;
+                    return $this->renderTurboCloseModal(
+                        'app-settings-grid-table',
+                        ['controller' => 'AppSettings', 'action' => 'gridData'],
+                        $this->getPageContextUrl(),
+                    );
                 }
 
                 try {
@@ -224,34 +220,23 @@ class AppSettingsController extends AppController
 
             if ($settingType === 'password' && trim($value) === '') {
                 $this->Flash->success(__('No changes were made.'));
-                $flashMessages = $this->request->getSession()->read('Flash');
-                $this->request->getSession()->delete('Flash');
 
-                $this->response = $this->response->withType('text/vnd.turbo-stream.html');
-                $this->viewBuilder()->disableAutoLayout();
-                $this->viewBuilder()->setTemplate('turbo_close_modal');
-                $this->set('refreshFrame', 'app-settings-grid-table');
-                $this->set('flashMessages', $flashMessages);
-
-                return;
+                return $this->renderTurboCloseModal(
+                    'app-settings-grid-table',
+                    ['controller' => 'AppSettings', 'action' => 'gridData'],
+                    $this->getPageContextUrl(),
+                );
             }
 
             $result = StaticHelpers::setAppSetting($appSetting->name, $value, $settingType, $appSetting->required);
             if ($result) {
                 $this->Flash->success(__('The app setting has been saved.'));
 
-                // Read and clear flash messages before rendering turbo-stream
-                $flashMessages = $this->request->getSession()->read('Flash');
-                $this->request->getSession()->delete('Flash');
-
-                // Return turbo-stream response to close modal and refresh grid
-                $this->response = $this->response->withType('text/vnd.turbo-stream.html');
-                $this->viewBuilder()->disableAutoLayout();
-                $this->viewBuilder()->setTemplate('turbo_close_modal');
-                $this->set('refreshFrame', 'app-settings-grid-table');
-                $this->set('flashMessages', $flashMessages);
-
-                return;
+                return $this->renderTurboCloseModal(
+                    'app-settings-grid-table',
+                    ['controller' => 'AppSettings', 'action' => 'gridData'],
+                    $this->getPageContextUrl(),
+                );
             }
             $this->Flash->error(
                 __('The app setting could not be saved. Please, try again.'),
@@ -331,15 +316,10 @@ class AppSettingsController extends AppController
             );
         }
 
-        // Read and clear flash messages before rendering turbo-stream
-        $flashMessages = $this->request->getSession()->read('Flash');
-        $this->request->getSession()->delete('Flash');
-
-        // Return turbo-stream response to refresh grid in-place
-        $this->response = $this->response->withType('text/vnd.turbo-stream.html');
-        $this->viewBuilder()->disableAutoLayout();
-        $this->viewBuilder()->setTemplate('turbo_close_modal');
-        $this->set('refreshFrame', 'app-settings-grid-table');
-        $this->set('flashMessages', $flashMessages);
+        return $this->renderTurboCloseModal(
+            'app-settings-grid-table',
+            ['controller' => 'AppSettings', 'action' => 'gridData'],
+            $this->getPageContextUrl(),
+        );
     }
 }

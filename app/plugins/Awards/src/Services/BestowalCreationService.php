@@ -60,19 +60,69 @@ class BestowalCreationService
         }
 
         try {
-            $recommendation = $this->recommendationsTable->get(
-                $recommendationId,
-                contain: [
-                    'GroupChildren',
-                    'Awards' => ['Levels'],
-                ],
-            );
+            return $this->withTransaction(function () use ($recommendationId, $actorId): array {
+                $recommendation = $this->loadRecommendationForCreation($recommendationId);
+
+                return $this->createFromLoadedRecommendation($recommendation, $actorId);
+            });
         } catch (Throwable $e) {
-            Log::error('Bestowal creation failed loading recommendation: ' . $e->getMessage());
+            Log::error('Bestowal creation failed: ' . $e->getMessage());
 
             return $this->failureResult($e->getMessage());
         }
+    }
 
+    /**
+     * Create a bestowal while the caller owns the surrounding transaction.
+     *
+     * @param int $recommendationId Recommendation ID that triggered creation.
+     * @param int $actorId Current user ID.
+     * @return array<string, mixed>
+     */
+    public function createFromRecommendationInCallerTransaction(int $recommendationId, int $actorId): array
+    {
+        if ($recommendationId <= 0) {
+            return $this->failureResult('Recommendation ID must be greater than zero.');
+        }
+
+        try {
+            $recommendation = $this->loadRecommendationForCreation($recommendationId);
+
+            return $this->createFromLoadedRecommendation($recommendation, $actorId);
+        } catch (Throwable $e) {
+            Log::error('Bestowal creation failed: ' . $e->getMessage());
+
+            return $this->failureResult($e->getMessage());
+        }
+    }
+
+    /**
+     * @param int $recommendationId Recommendation ID.
+     * @return \Awards\Model\Entity\Recommendation
+     */
+    private function loadRecommendationForCreation(int $recommendationId): Recommendation
+    {
+        $recommendation = $this->recommendationsTable->get(
+            $recommendationId,
+            contain: [
+                'GroupChildren',
+                'Awards' => ['Levels'],
+            ],
+        );
+        if (!$recommendation instanceof Recommendation) {
+            throw new RuntimeException('Recommendation could not be loaded for bestowal creation.');
+        }
+
+        return $recommendation;
+    }
+
+    /**
+     * @param \Awards\Model\Entity\Recommendation $recommendation Head or standalone recommendation.
+     * @param int $actorId Current user ID.
+     * @return array<string, mixed>
+     */
+    private function createFromLoadedRecommendation(Recommendation $recommendation, int $actorId): array
+    {
         if ($recommendation->recommendation_group_id !== null) {
             return $this->skippedResult('Group child recommendations do not create bestowals.');
         }
@@ -93,71 +143,83 @@ class BestowalCreationService
             return $this->failureResult('Recommendations must have a member before creating a bestowal.');
         }
 
-        try {
-            return $this->bestowalsTable->getConnection()->transactional(
-                function () use ($head, $groupRecommendations, $actorId, $memberId): array {
-                    $bestowal = $this->bestowalsTable->newEmptyEntity();
-                    $bestowal->member_id = (int)$memberId;
-                    $bestowal->primary_recommendation_id = (int)$head->id;
-                    $bestowal->award_id = (int)$head->award_id;
-                    $bestowal->source = Bestowal::SOURCE_RECOMMENDATION;
-                    $this->applyInitialBestowalState($bestowal, 'Created');
-                    $bestowal->gathering_id = $head->gathering_id;
-                    $bestowal->call_into_court = $head->call_into_court;
-                    $bestowal->court_availability = $head->court_availability;
-                    $bestowal->person_to_notify = $head->person_to_notify;
-                    $bestowal->noble_notes = $this->buildNobleNotes($groupRecommendations);
-                    $bestowal->herald_notes = $this->buildHeraldNotes(
-                        $groupRecommendations,
-                        (string)$head->member_sca_name,
-                    );
-                    $bestowal->created_by = $actorId;
-                    $bestowal->modified_by = $actorId;
-
-                    $savedBestowal = $this->bestowalsTable->saveOrFail($bestowal);
-                    $this->stateLogService->logStateTransition(
-                        (int)$savedBestowal->id,
-                        'New',
-                        (string)$savedBestowal->state,
-                        'New',
-                        $savedBestowal->status !== null ? (string)$savedBestowal->status : null,
-                        $actorId,
-                    );
-
-                    $recommendationIds = [];
-                    foreach ($groupRecommendations as $groupRecommendation) {
-                        $recommendationIds[] = (int)$groupRecommendation->id;
-
-                        $join = $this->bestowalRecommendationsTable->newEmptyEntity();
-                        $join->bestowal_id = (int)$savedBestowal->id;
-                        $join->recommendation_id = (int)$groupRecommendation->id;
-                        $this->bestowalRecommendationsTable->saveOrFail($join);
-
-                        $groupRecommendation->bestowal_id = (int)$savedBestowal->id;
-                        $groupRecommendation->modified_by = $actorId;
-                        $this->recommendationsTable->saveOrFail($groupRecommendation);
-                    }
-
-                    sort($recommendationIds);
-                    $eventPayload = $this->buildEventPayload($savedBestowal, $recommendationIds, $head);
-
-                    return [
-                        'success' => true,
-                        'skipped' => false,
-                        'data' => [
-                            'bestowalId' => (int)$savedBestowal->id,
-                            'recommendationIds' => $recommendationIds,
-                            'eventName' => self::EVENT_NAME,
-                            'eventPayload' => $eventPayload,
-                        ],
-                    ];
-                },
-            );
-        } catch (Throwable $e) {
-            Log::error('Bestowal creation failed: ' . $e->getMessage());
-
-            return $this->failureResult($e->getMessage());
+        $bestowal = $this->bestowalsTable->newEmptyEntity();
+        if (!$bestowal instanceof Bestowal) {
+            throw new RuntimeException('Bestowal entity could not be initialized.');
         }
+        $bestowal->member_id = (int)$memberId;
+        $bestowal->primary_recommendation_id = (int)$head->id;
+        $bestowal->award_id = (int)$head->award_id;
+        $bestowal->source = Bestowal::SOURCE_RECOMMENDATION;
+        $this->applyInitialBestowalState($bestowal, 'Created');
+        $bestowal->gathering_id = $head->gathering_id;
+        $bestowal->call_into_court = $head->call_into_court;
+        $bestowal->court_availability = $head->court_availability;
+        $bestowal->person_to_notify = $head->person_to_notify;
+        $bestowal->noble_notes = $this->buildNobleNotes($groupRecommendations);
+        $bestowal->herald_notes = $this->buildHeraldNotes(
+            $groupRecommendations,
+            (string)$head->member_sca_name,
+        );
+        $bestowal->created_by = $actorId;
+        $bestowal->modified_by = $actorId;
+
+        $savedBestowal = $this->bestowalsTable->saveOrFail($bestowal);
+        if (!$savedBestowal instanceof Bestowal) {
+            throw new RuntimeException('Saved bestowal did not return a bestowal entity.');
+        }
+        $this->stateLogService->logStateTransition(
+            (int)$savedBestowal->id,
+            'New',
+            (string)$savedBestowal->state,
+            'New',
+            $savedBestowal->status !== null ? (string)$savedBestowal->status : null,
+            $actorId,
+        );
+
+        $recommendationIds = [];
+        foreach ($groupRecommendations as $groupRecommendation) {
+            $recommendationIds[] = (int)$groupRecommendation->id;
+
+            $join = $this->bestowalRecommendationsTable->newEmptyEntity();
+            $join->set('bestowal_id', (int)$savedBestowal->id);
+            $join->set('recommendation_id', (int)$groupRecommendation->id);
+            $this->bestowalRecommendationsTable->saveOrFail($join);
+
+            $groupRecommendation->bestowal_id = (int)$savedBestowal->id;
+            $groupRecommendation->modified_by = $actorId;
+            $this->recommendationsTable->saveOrFail($groupRecommendation, ['systemSync' => true]);
+        }
+
+        sort($recommendationIds);
+        $eventPayload = $this->buildEventPayload($savedBestowal, $recommendationIds, $head);
+
+        return [
+            'success' => true,
+            'skipped' => false,
+            'data' => [
+                'bestowalId' => (int)$savedBestowal->id,
+                'recommendationIds' => $recommendationIds,
+                'eventName' => self::EVENT_NAME,
+                'eventPayload' => $eventPayload,
+            ],
+        ];
+    }
+
+    /**
+     * Run a callback inside a transaction unless one is already active.
+     *
+     * @param callable():mixed $callback Work to execute.
+     * @return mixed
+     */
+    private function withTransaction(callable $callback): mixed
+    {
+        $connection = $this->bestowalsTable->getConnection();
+        if ($connection->inTransaction()) {
+            return $callback();
+        }
+
+        return $connection->transactional($callback);
     }
 
     /**
@@ -192,6 +254,10 @@ class BestowalCreationService
             try {
                 $bestowal = $this->bestowalsTable->get((int)$recommendation->bestowal_id);
             } catch (Throwable) {
+                continue;
+            }
+
+            if (!$bestowal instanceof Bestowal) {
                 continue;
             }
 

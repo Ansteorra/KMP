@@ -5,6 +5,7 @@ namespace Awards\Test\TestCase\Services;
 
 use App\Test\TestCase\BaseTestCase;
 use Awards\Model\Entity\Recommendation;
+use Awards\Services\BestowalCancellationService;
 use Awards\Services\RecommendationGroupingService;
 use Awards\Services\RecommendationTransitionService;
 use Cake\I18n\DateTime;
@@ -32,7 +33,7 @@ class RecommendationTransitionServiceTest extends BaseTestCase
         parent::tearDown();
     }
 
-    public function testTransitionAppliesSingleRecommendationSemantics(): void
+    public function testTransitionToNeedToScheduleCreatesHandoffBestowal(): void
     {
         $recommendationId = $this->createRecommendation('Submitted');
         $gatheringId = $this->getFirstGatheringId();
@@ -42,38 +43,36 @@ class RecommendationTransitionServiceTest extends BaseTestCase
             $this->recommendationsTable,
             $recommendationId,
             [
-                'targetState' => 'Given',
+                'targetState' => 'Need to Schedule',
                 'gathering_id' => (string)$gatheringId,
-                'given' => '2026-04-01',
-                'close_reason' => 'Ignore this override',
-                'note' => 'Presented in court',
+                'note' => 'Ready for scheduling',
             ],
             self::ADMIN_MEMBER_ID,
         );
 
-        $this->assertTrue($result['success']);
+        $this->assertTrue($result['success'], $result['error'] ?? json_encode($result));
         $this->assertSame($recommendationId, $result['data']['recommendationId']);
         $this->assertSame('Submitted', $result['data']['result']['previousState']);
-        $this->assertSame('Given', $result['data']['result']['newState']);
-        $this->assertSame('Closed', $result['data']['result']['newStatus']);
-        $this->assertSame('Given', $result['data']['result']['appliedSetRules']['close_reason']);
+        $this->assertSame('Need to Schedule', $result['data']['result']['newState']);
+        $this->assertSame('Scheduling', $result['data']['result']['newStatus']);
+        $this->assertNotEmpty($result['data']['result']['bestowalId']);
+        $this->assertSame([$result['data']['result']['bestowalId']], $result['data']['bestowalIds']);
 
         $updated = $this->recommendationsTable->get($recommendationId);
-        $this->assertSame('Given', $updated->state);
-        $this->assertSame('Closed', $updated->status);
+        $this->assertSame('Need to Schedule', $updated->state);
+        $this->assertSame('Scheduling', $updated->status);
         $this->assertSame($gatheringId, $updated->gathering_id);
+        $this->assertSame((int)$result['data']['result']['bestowalId'], (int)$updated->bestowal_id);
         $this->assertNotNull($updated->state_date);
         $this->assertNotSame(
             $before->state_date?->format(DATE_ATOM),
             $updated->state_date?->format(DATE_ATOM),
         );
-        $this->assertSame('Given', $updated->close_reason);
-        $this->assertNotNull($updated->given);
-        $this->assertSame('UTC', $updated->given?->getTimezone()->getName());
-        $this->assertSame(
-            '2026-04-01 00:00:00',
-            $updated->given?->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
-        );
+
+        $bestowal = $this->getTableLocator()->get('Awards.Bestowals')
+            ->get((int)$result['data']['result']['bestowalId']);
+        $this->assertSame('Created', $bestowal->state);
+        $this->assertSame($recommendationId, (int)$bestowal->primary_recommendation_id);
 
         $note = $this->recommendationsTable->Notes->find()
             ->where([
@@ -84,26 +83,46 @@ class RecommendationTransitionServiceTest extends BaseTestCase
             ->orderBy(['id' => 'DESC'])
             ->first();
         $this->assertNotNull($note);
-        $this->assertSame('Presented in court', $note->body);
+        $this->assertSame('Ready for scheduling', $note->body);
         $this->assertSame(self::ADMIN_MEMBER_ID, $note->author_id);
 
         $latestLog = $this->getLatestStateLog($recommendationId);
         $this->assertNotNull($latestLog);
         $this->assertSame('Submitted', $latestLog->from_state);
-        $this->assertSame('Given', $latestLog->to_state);
+        $this->assertSame('Need to Schedule', $latestLog->to_state);
         $this->assertSame('In Progress', $latestLog->from_status);
-        $this->assertSame('Closed', $latestLog->to_status);
+        $this->assertSame('Scheduling', $latestLog->to_status);
         $this->assertSame(self::ADMIN_MEMBER_ID, $latestLog->created_by);
 
-        $this->assertSame('Given', $result['data']['result']['changes']['close_reason']['after']);
         $this->assertSame((string)$gatheringId, (string)$result['data']['result']['changes']['gathering_id']['after']);
+    }
+
+    public function testDirectTransitionsToBestowalManagedStatesAreRejected(): void
+    {
+        foreach (['Scheduled', 'Given', 'Announced Not Given'] as $targetState) {
+            $recommendationId = $this->createRecommendation('Submitted');
+
+            $result = $this->service->transition(
+                $this->recommendationsTable,
+                $recommendationId,
+                ['targetState' => $targetState],
+                self::ADMIN_MEMBER_ID,
+            );
+
+            $this->assertFalse($result['success'], 'Expected ' . $targetState . ' to be rejected.');
+            $this->assertStringContainsString('managed by the bestowal workflow', $result['error']);
+
+            $updated = $this->recommendationsTable->get($recommendationId);
+            $this->assertSame('Submitted', $updated->state);
+            $this->assertNull($updated->bestowal_id);
+        }
     }
 
     public function testTransitionManyClearsGatheringAndCreatesBulkNotes(): void
     {
         $gatheringId = $this->getFirstGatheringId();
-        $firstId = $this->createRecommendation('Scheduled', ['gathering_id' => $gatheringId]);
-        $secondId = $this->createRecommendation('Scheduled', ['gathering_id' => $gatheringId]);
+        $firstId = $this->createRecommendation('Need to Schedule', ['gathering_id' => $gatheringId]);
+        $secondId = $this->createRecommendation('Need to Schedule', ['gathering_id' => $gatheringId]);
 
         $result = $this->service->transitionMany(
             $this->recommendationsTable,
@@ -142,9 +161,9 @@ class RecommendationTransitionServiceTest extends BaseTestCase
 
             $latestLog = $this->getLatestStateLog($recommendationId);
             $this->assertNotNull($latestLog);
-            $this->assertSame('Scheduled', $latestLog->from_state);
+            $this->assertSame('Need to Schedule', $latestLog->from_state);
             $this->assertSame('No Action', $latestLog->to_state);
-            $this->assertSame('To Give', $latestLog->from_status);
+            $this->assertSame('Scheduling', $latestLog->from_status);
             $this->assertSame('Closed', $latestLog->to_status);
             $this->assertSame(self::ADMIN_MEMBER_ID, $latestLog->created_by);
         }
@@ -160,16 +179,17 @@ class RecommendationTransitionServiceTest extends BaseTestCase
     {
         $gatheringId = $this->getFirstGatheringId();
         $existingGiven = new DateTime('2025-02-02 00:00:00', new DateTimeZone('UTC'));
-        $recommendationId = $this->createRecommendation('Scheduled', [
+        $recommendationId = $this->createRecommendation('Need to Schedule', [
             'gathering_id' => $gatheringId,
             'given' => $existingGiven,
+            'close_reason' => 'Original close reason',
         ]);
 
         $result = $this->service->transitionMany(
             $this->recommendationsTable,
             [
                 'ids' => [(string)$recommendationId],
-                'newState' => 'Given',
+                'newState' => 'No Action',
                 'gathering_id' => null,
                 'given' => null,
                 'close_reason' => null,
@@ -181,15 +201,15 @@ class RecommendationTransitionServiceTest extends BaseTestCase
         $this->assertSame(1, $result['data']['processedCount']);
 
         $updated = $this->recommendationsTable->get($recommendationId);
-        $this->assertSame('Given', $updated->state);
+        $this->assertSame('No Action', $updated->state);
         $this->assertSame('Closed', $updated->status);
-        $this->assertSame($gatheringId, $updated->gathering_id);
+        $this->assertNull($updated->gathering_id);
         $this->assertNotNull($updated->given);
         $this->assertSame(
             '2025-02-02 00:00:00',
             $updated->given?->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
         );
-        $this->assertSame('Given', $updated->close_reason);
+        $this->assertSame('Original close reason', $updated->close_reason);
 
         $this->assertRecordCount('Notes', 0, [
             'entity_id' => $recommendationId,
@@ -198,9 +218,117 @@ class RecommendationTransitionServiceTest extends BaseTestCase
 
         $transitionResult = $result['data']['results'][0];
         $this->assertFalse($transitionResult['noteCreated']);
-        $this->assertSame('Given', $transitionResult['closeReason']);
-        $this->assertArrayNotHasKey('gathering_id', $transitionResult['changes']);
+        $this->assertSame('Original close reason', $transitionResult['closeReason']);
+        $this->assertArrayHasKey('gathering_id', $transitionResult['changes']);
         $this->assertArrayNotHasKey('given', $transitionResult['changes']);
+    }
+
+    public function testTransitionRejectsExistingUnlinkedBestowalManagedState(): void
+    {
+        $recommendationId = $this->createRecommendation('Scheduled');
+
+        $result = $this->service->transition(
+            $this->recommendationsTable,
+            $recommendationId,
+            ['targetState' => 'No Action'],
+            self::ADMIN_MEMBER_ID,
+        );
+
+        $this->assertFalse($result['success']);
+        $this->assertStringContainsString('managed by the bestowal workflow', $result['error']);
+
+        $updated = $this->recommendationsTable->get($recommendationId);
+        $this->assertSame('Scheduled', $updated->state);
+        $this->assertSame('To Give', $updated->status);
+    }
+
+    public function testBulkHandoffNormalizesGroupedChildrenToHead(): void
+    {
+        $headId = $this->createRecommendation('King Approved');
+        $childId = $this->createRecommendation('Queen Approved');
+
+        $groupingService = new RecommendationGroupingService($this->recommendationsTable);
+        $groupingService->groupRecommendations([$headId, $childId], self::ADMIN_MEMBER_ID);
+
+        $result = $this->service->transitionMany(
+            $this->recommendationsTable,
+            [
+                'ids' => [(string)$childId],
+                'newState' => 'Need to Schedule',
+            ],
+            self::ADMIN_MEMBER_ID,
+        );
+
+        $this->assertTrue($result['success'], $result['error'] ?? json_encode($result));
+        $this->assertSame([$childId], $result['data']['requestedRecommendationIds']);
+        $this->assertSame([$headId], $result['data']['recommendationIds']);
+        $this->assertCount(1, $result['data']['bestowalIds']);
+
+        $head = $this->recommendationsTable->get($headId);
+        $child = $this->recommendationsTable->get($childId);
+        $this->assertSame('Need to Schedule', $head->state);
+        $this->assertNotNull($head->bestowal_id);
+        $this->assertSame((int)$head->bestowal_id, (int)$child->bestowal_id);
+        $this->assertSame('Linked', $child->state);
+    }
+
+    public function testSingleHandoffRejectsGroupedChild(): void
+    {
+        $headId = $this->createRecommendation('King Approved');
+        $childId = $this->createRecommendation('Queen Approved');
+
+        $groupingService = new RecommendationGroupingService($this->recommendationsTable);
+        $groupingService->groupRecommendations([$headId, $childId], self::ADMIN_MEMBER_ID);
+
+        $result = $this->service->transition(
+            $this->recommendationsTable,
+            $childId,
+            ['targetState' => 'Need to Schedule'],
+            self::ADMIN_MEMBER_ID,
+        );
+
+        $this->assertFalse($result['success']);
+        $this->assertStringContainsString('group head', $result['error']);
+
+        $child = $this->recommendationsTable->get($childId);
+        $this->assertSame('Linked', $child->state);
+        $this->assertNull($child->bestowal_id);
+    }
+
+    public function testCancelledBestowalCanBeHandedOffAgain(): void
+    {
+        $recommendationId = $this->createRecommendation('King Approved');
+
+        $firstHandoff = $this->service->transition(
+            $this->recommendationsTable,
+            $recommendationId,
+            ['targetState' => 'Need to Schedule'],
+            self::ADMIN_MEMBER_ID,
+        );
+        $this->assertTrue($firstHandoff['success'], $firstHandoff['error'] ?? json_encode($firstHandoff));
+        $firstBestowalId = (int)$firstHandoff['data']['result']['bestowalId'];
+
+        $cancelResult = (new BestowalCancellationService())->cancel(
+            $firstBestowalId,
+            self::ADMIN_MEMBER_ID,
+            'Court plans changed',
+        );
+        $this->assertTrue($cancelResult['success'], $cancelResult['error'] ?? json_encode($cancelResult));
+
+        $unwound = $this->recommendationsTable->get($recommendationId);
+        $this->assertSame('King Approved', $unwound->state);
+        $this->assertNull($unwound->bestowal_id);
+
+        $secondHandoff = $this->service->transition(
+            $this->recommendationsTable,
+            $recommendationId,
+            ['targetState' => 'Need to Schedule'],
+            self::ADMIN_MEMBER_ID,
+        );
+
+        $this->assertTrue($secondHandoff['success'], $secondHandoff['error'] ?? json_encode($secondHandoff));
+        $secondBestowalId = (int)$secondHandoff['data']['result']['bestowalId'];
+        $this->assertNotSame($firstBestowalId, $secondBestowalId);
     }
 
     public function testTransitionSyncsLinkedChildrenWhenGroupHeadCloses(): void
@@ -213,7 +341,7 @@ class RecommendationTransitionServiceTest extends BaseTestCase
         $groupingService = new RecommendationGroupingService($this->recommendationsTable);
         $groupingService->groupRecommendations([$headId, $childId], self::ADMIN_MEMBER_ID);
 
-        $closedState = $this->stateForStatus('Closed', ['Linked - Closed']);
+        $closedState = $this->stateForStatus('Closed', ['Linked - Closed', 'Given']);
         $result = $this->service->transition(
             $this->recommendationsTable,
             $headId,

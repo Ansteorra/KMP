@@ -10,6 +10,10 @@ const testDir = defineBddConfig({
   featuresRoot: './tests/ui/bdd',
   outputDir: 'tests/ui/gen',
   steps: ['tests/ui/bdd/**/*.js'],
+  /** Allow And/Given/When interchange (matches Cucumber keyword flexibility). */
+  matchKeywords: true,
+  /** Generate tests even when path-scoped steps look missing; runtime will surface gaps. */
+  missingSteps: 'fail-on-run',
 });
 
 /**

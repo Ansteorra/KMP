@@ -1,9 +1,9 @@
 <?php
-$formUrl = $this->URL->build(['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'edit']);
 $turboFrameUrl = $this->URL->build(['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'TurboQuickEditForm']);
+$formUrl = $this->URL->build(['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'edit']);
 ?>
 <div id="recommendation_quick_edit_root"
-    data-controller="awards-rec-quick-edit"
+    data-controller="awards-rec-quick-edit page-context"
     data-awards-rec-quick-edit-public-profile-url-value="<?= h($this->URL->build([
         'controller' => 'Members',
         'action' => 'PublicProfile',
@@ -16,41 +16,29 @@ $turboFrameUrl = $this->URL->build(['plugin' => 'Awards', 'controller' => 'Recom
     data-awards-rec-quick-edit-gatherings-url-value="<?= h($this->URL->build(['controller' => 'Recommendations', 'action' => 'gatheringsForAward', 'plugin' => 'Awards'])) ?>"
     data-awards-rec-quick-edit-gatherings-lookup-url-value="<?= h($this->URL->build(['controller' => 'Recommendations', 'action' => 'gatheringsAutoComplete', 'plugin' => 'Awards'])) ?>">
 <?php
-echo $this->Form->create(null, [
-    'id' => 'recommendation_form',
-    'url' => [
-        'controller' => 'Recommendations',
-        'action' => 'edit',
-    ],
-    'data-action' => 'submit->awards-rec-quick-edit#submit',
-]);
-echo $this->Form->control('current_page', [
-    'type' => 'hidden',
-    'id' => 'recommendation__current_page',
-    'value' => $this->request->getRequestTarget(),
-]);
 echo $this->Modal->create('Edit Recommendation', [
     'id' => $modalId,
     'close' => true,
 ]);
 ?>
-<turbo-frame id="editRecommendation"
+<turbo-frame id="editRecommendationQuick"
     data-awards-rec-quick-edit-target="turboFrame"
     data-action="turbo:frame-load->awards-rec-quick-edit#onTurboFrameLoad">
-    loading
+    <div class="text-center p-4 text-muted"><?= __('Loading...') ?></div>
 </turbo-frame>
 <?php
 echo $this->Modal->end([
-    $this->Form->button('Submit', [
+    $this->Form->button(__('Submit'), [
         'class' => 'btn btn-primary',
         'id' => 'recommendation_submit',
+        'type' => 'submit',
+        'form' => 'recommendation_form',
     ]),
-    $this->Form->button('Close', [
+    $this->Form->button(__('Close'), [
         'data-bs-dismiss' => 'modal',
         'type' => 'button',
         'id' => 'recommendation_edit_close',
     ]),
 ]);
-echo $this->Form->end();
 ?>
 </div>

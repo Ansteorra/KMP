@@ -99,9 +99,44 @@ const getMysqlConfig = () => parseMysqlUrl(getEnvValue('DATABASE_URL')) ?? {
     database: getEnvValue('DB_DATABASE', 'MYSQL_DB_NAME') || 'kmp',
 };
 
-const getUiTestEnvironment = () => ({
-    baseUrl: trimTrailingSlash(getEnvValue('PLAYWRIGHT_BASE_URL')) || 'http://127.0.0.1:8080',
-    hostHeader: getEnvValue('PLAYWRIGHT_HOST_HEADER') || null,
+const DEFAULT_PLAYWRIGHT_HOST_HEADER = 'kmp.localhost';
+
+/**
+ * Host: use kmp.localhost:8080 (requires /etc/hosts or KMP_HOST_ALIASES).
+ * In-container: loopback :80 with Host header (Apache vhost).
+ */
+const defaultPlaywrightBaseUrl = () => {
+    if (fs.existsSync('/.dockerenv')) {
+        return 'http://127.0.0.1';
+    }
+
+    return 'http://kmp.localhost:8080';
+};
+
+const resolveHostHeader = (baseUrl) => {
+    const explicit = getEnvValue('PLAYWRIGHT_HOST_HEADER');
+    if (explicit !== undefined) {
+        return explicit || null;
+    }
+
+    try {
+        const hostname = new URL(baseUrl).hostname;
+        if (hostname === '127.0.0.1' || hostname === 'localhost') {
+            return DEFAULT_PLAYWRIGHT_HOST_HEADER;
+        }
+
+        return null;
+    } catch {
+        return DEFAULT_PLAYWRIGHT_HOST_HEADER;
+    }
+};
+
+const getUiTestEnvironment = () => {
+    const baseUrl = trimTrailingSlash(getEnvValue('PLAYWRIGHT_BASE_URL')) || defaultPlaywrightBaseUrl();
+
+    return {
+    baseUrl,
+    hostHeader: resolveHostHeader(baseUrl),
     mailpitUrl: trimTrailingSlash(
         getEnvValue('PLAYWRIGHT_MAILPIT_URL', 'MAILPIT_BASE_URL', 'MAILPIT_URL'),
     ) || 'http://127.0.0.1:8025',
@@ -109,12 +144,28 @@ const getUiTestEnvironment = () => ({
     cleanupMemberEmail: getEnvValue('PLAYWRIGHT_ACTIVITY_CLEANUP_EMAIL') || 'iris@ampdemo.com',
     cleanupActivityName: getEnvValue('PLAYWRIGHT_ACTIVITY_CLEANUP_NAME') || 'Armored',
     mysql: getMysqlConfig(),
-});
+    };
+};
 
 const getMailpitApiUrl = (pathname = '') => new URL(
     pathname.replace(/^\//, ''),
     `${getUiTestEnvironment().mailpitUrl}/`,
 ).toString();
+
+/**
+ * Run fixture PHP via `docker compose exec app` when tests run on the host against Docker DB.
+ */
+const shouldUseDockerPhp = () => {
+    const flag = getEnvValue('PLAYWRIGHT_USE_DOCKER_PHP');
+    if (flag === '1') {
+        return true;
+    }
+    if (flag === '0') {
+        return false;
+    }
+
+    return !fs.existsSync('/.dockerenv');
+};
 
 module.exports = {
     APP_ROOT,
@@ -122,4 +173,5 @@ module.exports = {
     CONFIG_ENV_PATH,
     getMailpitApiUrl,
     getUiTestEnvironment,
+    shouldUseDockerPhp,
 };

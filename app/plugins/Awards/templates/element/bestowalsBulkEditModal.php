@@ -3,7 +3,7 @@ $formUrl = $this->URL->build(['plugin' => 'Awards', 'controller' => 'Bestowals',
 $turboFrameUrl = $this->URL->build(['plugin' => 'Awards', 'controller' => 'Bestowals', 'action' => 'TurboBulkEditForm']);
 ?>
 <div id="bestowal_bulk_edit_root"
-    data-controller="awards-bestowal-bulk-edit"
+    data-controller="awards-bestowal-bulk-edit page-context"
     data-awards-bestowal-bulk-edit-outlet-btn-outlet=".bulk-edit-btn"
     data-awards-bestowal-bulk-edit-form-url-value="<?= h($formUrl) ?>"
     data-awards-bestowal-bulk-edit-turbo-frame-url-value="<?= h($turboFrameUrl) ?>"
@@ -20,11 +20,11 @@ echo $this->Form->create(null, [
         'controller' => 'Bestowals',
         'action' => 'updateStates',
     ],
-    'data-action' => 'submit->awards-bestowal-bulk-edit#submit input->awards-bestowal-bulk-edit#updateSubmitState change->awards-bestowal-bulk-edit#updateSubmitState autocomplete.change->awards-bestowal-bulk-edit#updateSubmitState',
+    'data-turbo' => 'true',
+    'data-controller' => 'turbo-modal',
+    'data-action' => 'submit->awards-bestowal-bulk-edit#submit turbo:submit-start->turbo-modal#closeModalBeforeSubmit input->awards-bestowal-bulk-edit#updateSubmitState change->awards-bestowal-bulk-edit#updateSubmitState autocomplete.change->awards-bestowal-bulk-edit#updateSubmitState',
 ]);
-echo $this->Form->control('current_page', [
-    'type' => 'hidden',
-    'id' => 'bestowal_bulk__current_page',
+echo $this->Form->hidden('page_context_url', [
     'value' => $this->request->getRequestTarget(),
 ]);
 echo $this->Modal->create(__('Bulk Edit Bestowals'), [

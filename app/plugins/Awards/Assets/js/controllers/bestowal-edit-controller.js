@@ -59,10 +59,11 @@ class AwardsBestowalEditForm extends Controller {
 
     /** Initialize submit button state and modal listeners when the form connects. */
     connect() {
-        this.boundSetId = this.setId.bind(this);
         this.boundHandleEditTriggerClick = this.handleEditTriggerClick.bind(this);
+        this.boundHandleOutletClick = this.handleOutletClick.bind(this);
         this.boundHandleAutocompleteChange = this.handleAutocompleteChange.bind(this);
         document.addEventListener("click", this.boundHandleEditTriggerClick, true);
+        document.addEventListener("outlet-btn:outlet-button-clicked", this.boundHandleOutletClick);
         this.element.addEventListener("autocomplete.change", this.boundHandleAutocompleteChange);
         this.bindModalEvents();
         this.observeTurboFrame();
@@ -72,6 +73,7 @@ class AwardsBestowalEditForm extends Controller {
     /** Clean up modal listeners when the form disconnects. */
     disconnect() {
         document.removeEventListener("click", this.boundHandleEditTriggerClick, true);
+        document.removeEventListener("outlet-btn:outlet-button-clicked", this.boundHandleOutletClick);
         this.element.removeEventListener("autocomplete.change", this.boundHandleAutocompleteChange);
         this.unbindModalEvents();
         if (this.turboObserver) {
@@ -101,7 +103,7 @@ class AwardsBestowalEditForm extends Controller {
     }
 
     observeTurboFrame() {
-        const frame = this.element.querySelector("#editBestowal");
+        const frame = this.element.querySelector("#editBestowalQuick");
         if (!frame || frame.dataset.bestowalEditObserveBound === "true") {
             return;
         }
@@ -144,6 +146,34 @@ class AwardsBestowalEditForm extends Controller {
         delete modal.dataset.bestowalEditModalBound;
     }
 
+    /** @return {HTMLElement|null} */
+    getTurboFrame() {
+        if (this.hasTurboFrameTarget) {
+            return this.turboFrameTarget;
+        }
+
+        return this.element.querySelector("#editBestowalQuick");
+    }
+
+    /** Load form when grid outlet-btn dispatches row data (same pattern as app settings). */
+    handleOutletClick(event) {
+        const trigger = event.target;
+        if (!trigger?.closest?.(".edit-bestowal")) {
+            return;
+        }
+
+        const modalId = this.modalIdValue || "editBestowalModal";
+        const modalTarget = trigger.getAttribute("data-bs-target");
+        if (modalTarget && modalTarget !== `#${modalId}`) {
+            return;
+        }
+
+        const bestowalId = event.detail?.id ?? this.extractBestowalIdFromTrigger(trigger);
+        if (bestowalId) {
+            this.loadBestowalForm(bestowalId);
+        }
+    }
+
     /** Load the edit form when an edit trigger is clicked (grid or detail page). */
     handleEditTriggerClick(event) {
         const trigger = event.target.closest(".edit-bestowal");
@@ -173,6 +203,10 @@ class AwardsBestowalEditForm extends Controller {
 
     /** Refresh field state after the Bootstrap modal becomes visible. */
     handleModalShown() {
+        const frame = this.getTurboFrame();
+        if (frame?.src) {
+            frame.reload();
+        }
         this.refreshAfterTurboLoad();
     }
 
@@ -215,19 +249,29 @@ class AwardsBestowalEditForm extends Controller {
 
     /** @param {string|number} bestowalId */
     loadBestowalForm(bestowalId) {
-        if (!bestowalId) {
+        if (!bestowalId || !this.turboFrameUrlValue) {
             return;
         }
 
-        const form = this.element.querySelector("#bestowal_form") || this.element;
-        const frame = this.element.querySelector("#editBestowal");
-        if (frame) {
-            frame.setAttribute(
-                "src",
-                `${this.turboFrameUrlValue}/${bestowalId}`,
-            );
+        const frame = this.getTurboFrame();
+        if (!frame) {
+            return;
         }
-        form.setAttribute("action", `${this.formUrlValue}/${bestowalId}`);
+
+        const url = `${this.turboFrameUrlValue}/${bestowalId}`;
+        if (!frame.querySelector("#bestowal_form")) {
+            frame.replaceChildren();
+            const loading = document.createElement("div");
+            loading.className = "text-center p-4 text-muted";
+            loading.textContent = "Loading...";
+            frame.appendChild(loading);
+        }
+        frame.src = url;
+
+        const form = document.getElementById("bestowal_form");
+        if (form) {
+            form.action = `${this.formUrlValue}/${bestowalId}`;
+        }
         if (this.hasSubmitButtonTarget) {
             this.submitButtonTarget.disabled = true;
         }
@@ -344,10 +388,7 @@ class AwardsBestowalEditForm extends Controller {
             event.preventDefault();
             event.stopPropagation();
             form.reportValidity?.();
-            return;
         }
-
-        document.getElementById("bestowal_edit_close").click();
     }
 
     /** Apply field rules when state target connects. */

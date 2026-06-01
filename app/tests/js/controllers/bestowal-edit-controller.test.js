@@ -23,10 +23,10 @@ describe('AwardsBestowalEditForm', () => {
         modal.className = 'modal';
         modal.id = 'editBestowalModal';
         const frame = document.createElement('turbo-frame');
-        frame.id = 'editBestowal';
+        frame.id = 'editBestowalQuick';
         frame.setAttribute('data-awards-bestowal-edit-target', 'turboFrame');
         modal.appendChild(frame);
-        form.appendChild(modal);
+        root.appendChild(modal);
 
         const domain = document.createElement('div');
         domain.setAttribute('data-awards-bestowal-edit-target', 'domain');
@@ -94,11 +94,18 @@ describe('AwardsBestowalEditForm', () => {
         expect(controller.submitButtonTarget.disabled).toBe(false);
     });
 
-    test('loadBestowalForm sets turbo frame src and form action', () => {
+    test('loadBestowalForm sets turbo frame src', () => {
         controller.loadBestowalForm(42);
-        expect(controller.turboFrameTarget.getAttribute('src')).toBe('/awards/bestowals/turbo-edit-form/42');
-        expect(controller.element.querySelector('#bestowal_form').getAttribute('action')).toBe('/awards/bestowals/edit/42');
+        expect(controller.turboFrameTarget.src).toContain('/awards/bestowals/turbo-edit-form/42');
         expect(controller.submitButtonTarget.disabled).toBe(true);
+    });
+
+    test('handleModalShown reloads turbo frame when src is set', () => {
+        const reload = jest.fn();
+        controller.turboFrameTarget.src = '/awards/bestowals/turbo-edit-form/42';
+        controller.turboFrameTarget.reload = reload;
+        controller.handleModalShown();
+        expect(reload).toHaveBeenCalled();
     });
 
     test('onDomainChange clears paired award when domain is cleared', () => {

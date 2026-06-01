@@ -9,6 +9,7 @@ use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\ORM\Exception\PersistenceFailedException;
 use DateTimeZone;
+use RuntimeException;
 use Throwable;
 
 class RecommendationUpdateService
@@ -17,15 +18,27 @@ class RecommendationUpdateService
 
     private RecommendationGroupingService $groupingService;
     private RecommendationStateLogService $stateLogService;
+    private RecommendationBestowalStatePolicyService $statePolicyService;
+    private BestowalCreationService $bestowalCreationService;
 
+    /**
+     * @param \Awards\Services\RecommendationGroupingService|null $groupingService Optional grouping service.
+     * @param \Awards\Services\RecommendationStateLogService|null $stateLogService Optional state-log service.
+     * @param \Awards\Services\RecommendationBestowalStatePolicyService|null $statePolicyService Optional state policy.
+     * @param \Awards\Services\BestowalCreationService|null $bestowalCreationService Optional bestowal creator.
+     */
     public function __construct(
         ?RecommendationGroupingService $groupingService = null,
         ?RecommendationStateLogService $stateLogService = null,
+        ?RecommendationBestowalStatePolicyService $statePolicyService = null,
+        ?BestowalCreationService $bestowalCreationService = null,
     ) {
         $this->stateLogService = $stateLogService ?? new RecommendationStateLogService();
         $this->groupingService = $groupingService ?? new RecommendationGroupingService(
             stateLogService: $this->stateLogService,
         );
+        $this->statePolicyService = $statePolicyService ?? new RecommendationBestowalStatePolicyService();
+        $this->bestowalCreationService = $bestowalCreationService ?? new BestowalCreationService();
     }
 
     /**
@@ -68,6 +81,45 @@ class RecommendationUpdateService
         $workingData = $resolved['data'];
         $given = $workingData['given'] ?? null;
         $note = $workingData['note'] ?? null;
+        $requestedState = $this->normalizeRequestedState($workingData);
+        $currentState = (string)($recommendation->state ?? '');
+        $stateIsChanging = $requestedState !== null
+            && $requestedState !== $currentState;
+        $handoffRequested = $stateIsChanging && $this->statePolicyService->isHandoffState($requestedState);
+
+        if (
+            $stateIsChanging
+            || $this->statePolicyService->isBestowalManagedState($currentState)
+        ) {
+            try {
+                if ($this->statePolicyService->isBestowalManagedState($currentState)) {
+                    $this->statePolicyService->assertUserCanTargetRecommendationState($currentState);
+                }
+                if ($stateIsChanging) {
+                    $this->statePolicyService->assertUserCanTargetRecommendationState($requestedState);
+                }
+                if ($handoffRequested) {
+                    if ($recommendation->recommendation_group_id !== null) {
+                        throw new RuntimeException(
+                            'Grouped child recommendations must be handed off through their group head.',
+                        );
+                    }
+                    $this->statePolicyService->assertBestowalSyncMappingsConfigured();
+                }
+            } catch (RuntimeException $exception) {
+                return [
+                    'success' => false,
+                    'recommendation' => $recommendation,
+                    'output' => null,
+                    'eventName' => null,
+                    'eventPayload' => null,
+                    'errorCode' => 'invalid_state_transition',
+                    'message' => $exception->getMessage(),
+                    'errors' => [],
+                ];
+            }
+        }
+
         $explicitNotFound = array_key_exists('not_found', $data)
             ? $this->normalizeCheckboxValue($data['not_found'])
             : null;
@@ -75,6 +127,7 @@ class RecommendationUpdateService
         $beforeState = (string)($recommendation->state ?? 'New');
         $beforeStatus = (string)($recommendation->status ?? $this->stateLogService->inferStatusForState($beforeState));
         $createdNote = null;
+        $handoffResult = null;
 
         unset($workingData['given'], $workingData['note'], $workingData['not_found']);
 
@@ -92,6 +145,8 @@ class RecommendationUpdateService
                     $given,
                     $note,
                     $authorId,
+                    $handoffRequested,
+                    &$handoffResult,
                 ): int {
                     $recommendation = $recommendationsTable->patchEntity(
                         $recommendation,
@@ -160,6 +215,10 @@ class RecommendationUpdateService
                         $recommendationsTable->Notes->saveOrFail($createdNote);
                     }
 
+                    if ($handoffRequested) {
+                        $handoffResult = $this->createHandoffBestowal((int)$saved->id, $authorId);
+                    }
+
                     return (int)$saved->id;
                 },
             );
@@ -179,6 +238,19 @@ class RecommendationUpdateService
                 'eventPayload' => null,
                 'errorCode' => 'save_failed',
                 'message' => 'The recommendation could not be saved.',
+                'errors' => $recommendation->getErrors(),
+            ];
+        } catch (RuntimeException $exception) {
+            Log::error('Error updating recommendation: ' . $exception->getMessage());
+
+            return [
+                'success' => false,
+                'recommendation' => $recommendation,
+                'output' => null,
+                'eventName' => null,
+                'eventPayload' => null,
+                'errorCode' => 'handoff_failed',
+                'message' => $exception->getMessage(),
                 'errors' => $recommendation->getErrors(),
             ];
         } catch (Throwable $exception) {
@@ -201,18 +273,19 @@ class RecommendationUpdateService
             $savedRecommendation->not_found = $explicitNotFound;
         }
         $savedMemberId = $savedRecommendation->member_id !== null ? (int)$savedRecommendation->member_id : null;
-        $output = $this->buildOutputData(
-            $recommendationsTable,
-            $savedRecommendation,
-            [
-                'previousMemberId' => $beforeMemberId,
-                'memberChanged' => $beforeMemberId !== $savedMemberId,
-                'noteId' => $createdNote?->id,
-                'noteSubject' => $createdNote?->subject,
-                'noteBody' => $createdNote?->body,
-                'notFound' => $explicitNotFound ?? false,
-            ],
-        );
+        $extraOutput = [
+            'previousMemberId' => $beforeMemberId,
+            'memberChanged' => $beforeMemberId !== $savedMemberId,
+            'noteId' => $createdNote?->id,
+            'noteSubject' => $createdNote?->subject,
+            'noteBody' => $createdNote?->body,
+            'notFound' => $explicitNotFound ?? false,
+        ];
+        if ($handoffResult !== null) {
+            $extraOutput['bestowalId'] = $handoffResult['data']['bestowalId'] ?? null;
+            $extraOutput['bestowalRecommendationIds'] = $handoffResult['data']['recommendationIds'] ?? [];
+        }
+        $output = $this->buildOutputData($recommendationsTable, $savedRecommendation, $extraOutput);
 
         return [
             'success' => true,
@@ -224,5 +297,47 @@ class RecommendationUpdateService
             'message' => null,
             'errors' => [],
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function normalizeRequestedState(array $data): ?string
+    {
+        if (!array_key_exists('state', $data)) {
+            return null;
+        }
+
+        $state = trim((string)$data['state']);
+
+        return $state === '' ? null : $state;
+    }
+
+    /**
+     * Create the bestowal for an edit-form handoff.
+     *
+     * @return array<string, mixed>
+     */
+    private function createHandoffBestowal(int $recommendationId, int $authorId): array
+    {
+        $result = $this->bestowalCreationService->createFromRecommendationInCallerTransaction(
+            $recommendationId,
+            $authorId,
+        );
+
+        if (!($result['success'] ?? false)) {
+            throw new RuntimeException((string)($result['error'] ?? 'Bestowal creation failed.'));
+        }
+
+        if ($result['skipped'] ?? false) {
+            $reason = $result['data']['reason'] ?? 'Bestowal creation was skipped.';
+            throw new RuntimeException((string)$reason);
+        }
+
+        if (empty($result['data']['bestowalId'])) {
+            throw new RuntimeException('Bestowal creation did not return a bestowal ID.');
+        }
+
+        return $result;
     }
 }

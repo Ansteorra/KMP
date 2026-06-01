@@ -1,18 +1,32 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Awards\Test\TestCase\Controller;
 
+use App\Services\ServiceResult;
+use App\Services\WorkflowEngine\TriggerDispatcher;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Model\Entity\Bestowal;
 use Awards\Services\BestowalCourtSlotService;
+use Awards\Services\BestowalCreationService;
+use Cake\Core\ContainerInterface as CakeContainerInterface;
+use Cake\Event\EventInterface;
+use Cake\ORM\TableRegistry;
+use Closure;
+use Exception;
+use Psr\Container\ContainerInterface as PsrContainerInterface;
+use ReflectionProperty;
 
 /**
  * BestowalsController integration tests.
  */
 class BestowalsControllerTest extends HttpIntegrationTestCase
 {
+    /**
+     * @var array<int, string>
+     */
+    private array $mockedServiceKeys = [];
+
     /**
      * @return void
      */
@@ -22,6 +36,44 @@ class BestowalsControllerTest extends HttpIntegrationTestCase
         $this->enableCsrfToken();
         $this->enableSecurityToken();
         $this->authenticateAsSuperUser();
+
+        $this->mockServiceClean(CakeContainerInterface::class, function () {
+            return $this->createMock(CakeContainerInterface::class);
+        });
+    }
+
+    /**
+     * @return void
+     */
+    protected function tearDown(): void
+    {
+        $this->mockedServiceKeys = [];
+        parent::tearDown();
+    }
+
+    /**
+     * @param \Cake\Event\EventInterface $event Event
+     * @param \Psr\Container\ContainerInterface $container Container
+     * @return void
+     */
+    public function modifyContainer(EventInterface $event, PsrContainerInterface $container): void
+    {
+        parent::modifyContainer($event, $container);
+
+        foreach ($this->mockedServiceKeys as $key) {
+            if (!$container->has($key)) {
+                continue;
+            }
+
+            try {
+                $definition = $container->extend($key);
+                $arguments = new ReflectionProperty($definition, 'arguments');
+                $arguments->setAccessible(true);
+                $arguments->setValue($definition, []);
+            } catch (Exception) {
+                continue;
+            }
+        }
     }
 
     /**
@@ -44,6 +96,43 @@ class BestowalsControllerTest extends HttpIntegrationTestCase
             '/awards/bestowals/grid-data?ignore_default=1&sort=member_sca_name&direction=asc',
         );
         $this->assertResponseOk();
+    }
+
+    /**
+     * @return void
+     */
+    public function testTurboEditFormReturnsFormForTurboFrame(): void
+    {
+        $gathering = $this->getTableLocator()->get('Gatherings')
+            ->find()
+            ->select(['id'])
+            ->firstOrFail();
+        $award = $this->getTableLocator()->get('Awards.Awards')
+            ->find()
+            ->select(['id'])
+            ->firstOrFail();
+
+        $bestowals = $this->getTableLocator()->get('Awards.Bestowals');
+        $bestowal = $bestowals->newEntity([
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'award_id' => $award->id,
+            'gathering_id' => $gathering->id,
+            'state' => 'Created',
+            'status' => 'Pending',
+            'source' => Bestowal::SOURCE_AD_HOC,
+            'stack_rank' => 0,
+        ]);
+        $bestowals->saveOrFail($bestowal);
+
+        $this->configRequest([
+            'headers' => [
+                'Turbo-Frame' => 'editBestowalQuick',
+            ],
+        ]);
+        $this->get('/awards/bestowals/turbo-edit-form/' . $bestowal->id);
+        $this->assertResponseOk();
+        $this->assertResponseContains('id="bestowal_form"');
+        $this->assertResponseContains('turbo-frame id="editBestowalQuick"');
     }
 
     /**
@@ -78,5 +167,89 @@ class BestowalsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains(
             h((new BestowalCourtSlotService())->formatCourtSlotDisplay($bestowal)),
         );
+    }
+
+    /**
+     * @return void
+     */
+    public function testAdHocDispatchesRegisteredWorkflowTrigger(): void
+    {
+        $this->ensureActiveWorkflow('awards-bestowal-ad-hoc');
+
+        $events = [];
+        $this->mockServiceClean(TriggerDispatcher::class, function () use (&$events) {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->exactly(2))
+                ->method('dispatch')
+                ->willReturnCallback(function (string $event, array $context) use (&$events): array {
+                    $events[] = $event;
+
+                    if ($event === 'Awards.AdHocBestowalRequested') {
+                        $this->assertArrayHasKey('data', $context);
+                        $this->assertSame(self::ADMIN_MEMBER_ID, $context['actorId']);
+
+                        return [$this->successfulWorkflowDispatchResult([
+                            'bestowalId' => 123,
+                            'eventPayload' => [
+                                'bestowalId' => 123,
+                                'actorId' => self::ADMIN_MEMBER_ID,
+                            ],
+                        ])];
+                    }
+
+                    $this->assertSame(BestowalCreationService::EVENT_NAME, $event);
+
+                    return [];
+                });
+
+            return $mock;
+        });
+
+        $this->post('/awards/bestowals/ad-hoc', [
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'award_ids' => [1],
+            'bestowed_at' => '2026-04-01 12:00:00',
+            'gathering_id' => 1,
+        ]);
+
+        $this->assertSame(['Awards.AdHocBestowalRequested', BestowalCreationService::EVENT_NAME], $events);
+        $this->assertRedirectContains('/awards/bestowals/view/123');
+    }
+
+    /**
+     * Mock a service and clear its stale DI constructor arguments.
+     *
+     * @param string $class Class name
+     * @param \Closure $factory Factory
+     * @return void
+     */
+    private function mockServiceClean(string $class, Closure $factory): void
+    {
+        $this->mockService($class, $factory);
+        $this->mockedServiceKeys[] = $class;
+    }
+
+    /**
+     * @param string $slug Workflow slug
+     * @return void
+     */
+    private function ensureActiveWorkflow(string $slug): void
+    {
+        TableRegistry::getTableLocator()->get('WorkflowDefinitions')
+            ->updateAll(['is_active' => true], ['slug' => $slug]);
+    }
+
+    /**
+     * @param array<string, mixed> $data Workflow result data
+     * @return \App\Services\ServiceResult
+     */
+    private function successfulWorkflowDispatchResult(array $data): ServiceResult
+    {
+        return new ServiceResult(true, null, [
+            'workflowResult' => [
+                'success' => true,
+                'data' => $data,
+            ],
+        ]);
     }
 }

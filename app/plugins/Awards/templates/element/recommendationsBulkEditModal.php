@@ -8,7 +8,7 @@ $bulkGatheringLookupUrl = $this->URL->build([
 ]);
 ?>
 <div id="recommendation_bulk_edit_root"
-    data-controller="awards-rec-bulk-edit awards-rec-table"
+    data-controller="awards-rec-bulk-edit awards-rec-table page-context"
     data-awards-rec-bulk-edit-public-profile-url-value="<?= h($this->URL->build([
         'controller' => 'Members',
         'action' => 'PublicProfile',
@@ -27,11 +27,11 @@ echo $this->Form->create(null, [
         'controller' => 'Recommendations',
         'action' => 'updateStates',
     ],
-    'data-action' => 'submit->awards-rec-bulk-edit#submit',
+    'data-turbo' => 'true',
+    'data-controller' => 'turbo-modal',
+    'data-action' => 'submit->awards-rec-bulk-edit#submit turbo:submit-start->turbo-modal#closeModalBeforeSubmit',
 ]);
-echo $this->Form->control('current_page', [
-    'type' => 'hidden',
-    'id' => 'recommendation__current_page',
+echo $this->Form->hidden('page_context_url', [
     'value' => $this->request->getRequestTarget(),
 ]);
 echo $this->Form->control('bulkIds', [

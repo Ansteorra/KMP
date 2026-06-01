@@ -84,3 +84,15 @@ document.addEventListener('turbo:render', () => {
         }
     });
 });
+
+/** Dismiss open Bootstrap modals before Turbo caches the page snapshot. */
+document.addEventListener('turbo:before-cache', () => {
+    document.querySelectorAll('.modal.show').forEach((modalEl) => {
+        const instance = bootstrap.Modal.getInstance(modalEl);
+        if (instance) {
+            instance.hide();
+        }
+    });
+    document.body.classList.remove('modal-open');
+    document.querySelectorAll('.modal-backdrop').forEach((backdrop) => backdrop.remove());
+});

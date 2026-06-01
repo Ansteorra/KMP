@@ -19,6 +19,9 @@
         'data-action' => 'turbo:submit-start->turbo-modal#closeModalBeforeSubmit',
         'data-turbo' => 'true',
     ]) ?>
+    <?= $this->Form->hidden('page_context_url', [
+        'value' => $this->request->getRequestTarget(),
+    ]) ?>
 
     <div class="modal-header">
         <h5 class="modal-title">
