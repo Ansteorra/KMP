@@ -299,6 +299,45 @@ class RecommendationsControllerWorkflowDispatchTest extends HttpIntegrationTestC
         $this->assertResponseNotContains('target="recommendations-grid-table"');
     }
 
+    public function testEditFromMemberSubmittedGridReturnsRowReplaceStream(): void
+    {
+        $this->ensureActiveWorkflow('awards-recommendation-updated');
+        $savedRecommendation = $this->createExistingRecommendation();
+
+        $this->mockServiceClean(TriggerDispatcher::class, function () use ($savedRecommendation) {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->once())
+                ->method('dispatch')
+                ->willReturn([$this->successfulWorkflowDispatchResult([
+                    'recommendationId' => (int)$savedRecommendation->id,
+                ])]);
+
+            return $mock;
+        });
+        $this->mockServiceClean(RecommendationUpdateService::class, function () {
+            $mock = $this->createMock(RecommendationUpdateService::class);
+            $mock->expects($this->never())->method('update');
+
+            return $mock;
+        });
+
+        $memberId = (int)$savedRecommendation->requester_id;
+        $this->configRequest([
+            'headers' => [
+                'Accept' => 'text/vnd.turbo-stream.html',
+            ],
+        ]);
+        $this->post($this->recommendationsUrl('edit', [(string)$savedRecommendation->id]), [
+            'reason' => 'Updated on member submitted grid',
+            'page_context_url' => '/members/view/' . $memberId . '?tab=member-submitted-recs',
+        ]);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains(
+            '<turbo-stream action="replace" target="member-submitted-recs-grid-' . $memberId . '-row-' . $savedRecommendation->id . '"',
+        );
+    }
+
     public function testEditFromGridFallsBackToTableRefreshOutsideMainIndex(): void
     {
         $this->ensureActiveWorkflow('awards-recommendation-updated');

@@ -112,6 +112,61 @@ trait TurboResponseTrait
     }
 
     /**
+     * Whether page context path matches a grid index route pattern.
+     */
+    protected function matchesGridIndexPath(?string $pageContextUrl, string $pathRegex): bool
+    {
+        if ($pageContextUrl === null) {
+            return false;
+        }
+
+        $path = parse_url($pageContextUrl, PHP_URL_PATH) ?? $pageContextUrl;
+
+        return (bool)preg_match($pathRegex, $path);
+    }
+
+    /**
+     * Run a callback with query params from the posted page context URL.
+     *
+     * @template T
+     * @param callable(): T $callback
+     * @return T
+     */
+    protected function withPageContextQuery(?string $pageContextUrl, callable $callback): mixed
+    {
+        $originalQuery = $this->request->getQueryParams();
+        try {
+            if ($pageContextUrl !== null) {
+                $parsed = parse_url($pageContextUrl);
+                $contextQuery = [];
+                if (!empty($parsed['query'])) {
+                    parse_str($parsed['query'], $contextQuery);
+                }
+                $this->setRequest($this->request->withQueryParams($contextQuery));
+            }
+
+            return $callback();
+        } finally {
+            $this->setRequest($this->request->withQueryParams($originalQuery));
+        }
+    }
+
+    /**
+     * Render a single Dataverse grid row element (Turbo Stream replace target HTML).
+     *
+     * @param array<string, mixed> $vars Element variables
+     */
+    protected function renderDataverseTableRowElement(array $vars): string
+    {
+        $builder = clone $this->viewBuilder();
+        $builder->disableAutoLayout();
+        $builder->setPlugin(null);
+        $builder->setTemplatePath('element');
+
+        return $builder->build($this->request, $this->response)->element('dataverse_table_row', $vars);
+    }
+
+    /**
      * Render turbo-stream: flash + replace table frame with lazy reload src.
      *
      * @param array<string, mixed> $gridDataRoute

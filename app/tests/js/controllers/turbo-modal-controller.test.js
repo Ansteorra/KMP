@@ -45,7 +45,8 @@ describe('TurboModalController', () => {
     test('closeModalBeforeSubmit hides modal when modal instance exists', () => {
         const hideMock = jest.fn();
         window.bootstrap.Modal = {
-            getInstance: jest.fn(() => ({ hide: hideMock }))
+            getInstance: jest.fn(() => ({ hide: hideMock })),
+            getOrCreateInstance: jest.fn(() => ({ hide: hideMock })),
         };
 
         controller.closeModalBeforeSubmit({ target: controller.element });
@@ -66,6 +67,28 @@ describe('TurboModalController', () => {
         }).not.toThrow();
     });
 
+    test('closeModal finds modal nested inside the form', () => {
+        const hideMock = jest.fn();
+        window.bootstrap.Modal = {
+            getInstance: jest.fn(() => null),
+            getOrCreateInstance: jest.fn(() => ({ hide: hideMock })),
+        };
+        const form = document.createElement('form');
+        form.setAttribute('data-controller', 'turbo-modal');
+        const modal = document.createElement('div');
+        modal.className = 'modal fade';
+        modal.id = 'editOfficerModal';
+        form.appendChild(modal);
+        document.body.appendChild(form);
+        controller.element = form;
+
+        controller.closeModal();
+
+        expect(window.bootstrap.Modal.getOrCreateInstance).toHaveBeenCalledWith(modal);
+        expect(hideMock).toHaveBeenCalled();
+        document.body.removeChild(form);
+    });
+
     test('closeModalBeforeSubmit handles no modal parent', () => {
         document.body.innerHTML = `
             <form data-controller="turbo-modal">
@@ -83,7 +106,8 @@ describe('TurboModalController', () => {
         window.history.pushState({}, '', '/awards/recommendations?status=submitted');
         const hideMock = jest.fn();
         window.bootstrap.Modal = {
-            getInstance: jest.fn(() => ({ hide: hideMock }))
+            getInstance: jest.fn(() => ({ hide: hideMock })),
+            getOrCreateInstance: jest.fn(() => ({ hide: hideMock })),
         };
         controller.renderTurboStream = jest.fn();
         global.fetch = jest.fn().mockResolvedValue({
@@ -115,6 +139,7 @@ describe('TurboModalController', () => {
         expect(controller.renderTurboStream).toHaveBeenCalledWith(
             '<turbo-stream action="remove" target="modal"></turbo-stream>'
         );
+        expect(hideMock).toHaveBeenCalledTimes(2);
     });
 
     test('submitAsTurboStream replaces containing frame for non-stream form responses', async () => {

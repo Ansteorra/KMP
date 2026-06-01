@@ -6,9 +6,15 @@ echo $this->Form->create(null, [
         "controller" => "Officers",
         "action" => "edit",
     ],
-    "data-controller" => "officers-edit-officer",
+    "data-turbo" => "true",
+    "data-controller" => "turbo-modal officers-edit-officer page-context",
+    "data-action" => implode(" ", [
+        "submit->turbo-modal#submitAsTurboStream",
+        "turbo:submit-start->turbo-modal#closeModalBeforeSubmit",
+    ]),
     "data-officers-edit-officer-outlet-btn-outlet" => ".edit-btn",
 ]);
+echo $this->Form->hidden('page_context_url', ['value' => '']);
 echo $this->Modal->create("Edit Officer", [
     "id" => "editOfficerModal",
     "close" => true,

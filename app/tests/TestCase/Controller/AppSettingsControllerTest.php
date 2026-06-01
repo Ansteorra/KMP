@@ -208,6 +208,54 @@ class AppSettingsControllerTest extends HttpIntegrationTestCase
      * @return void
      * @uses \App\Controller\AppSettingsController::delete()
      */
+    public function testEditFromGridReturnsRowReplaceStreamOnMainIndex(): void
+    {
+        $appSettingsTable = $this->getTableLocator()->get('AppSettings');
+        $appSetting = $appSettingsTable->find()->where(['name' => 'KMP.ShortSiteTitle'])->firstOrFail();
+
+        $this->configRequest([
+            'headers' => [
+                'Accept' => 'text/vnd.turbo-stream.html',
+            ],
+        ]);
+        $this->post('/app-settings/edit/' . $appSetting->id, [
+            'raw_value' => 'RowSync' . time(),
+            'page_context_url' => '/app-settings',
+        ]);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains(
+            '<turbo-stream action="replace" target="app-settings-grid-row-' . $appSetting->id . '"',
+        );
+        $this->assertResponseNotContains('target="app-settings-grid-table"');
+    }
+
+    public function testDeleteFromGridReturnsRowRemoveStreamOnMainIndex(): void
+    {
+        $appSettingsTable = $this->getTableLocator()->get('AppSettings');
+        $testSetting = $appSettingsTable->newEntity([
+            'name' => 'test.delete.grid.turbo.' . time(),
+            'value' => 'delete-me',
+            'required' => false,
+        ]);
+        $appSettingsTable->saveOrFail($testSetting);
+
+        $this->configRequest([
+            'headers' => [
+                'Accept' => 'text/vnd.turbo-stream.html',
+            ],
+        ]);
+        $this->post('/app-settings/delete/' . $testSetting->id, [
+            'page_context_url' => '/app-settings',
+        ]);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains(
+            '<turbo-stream action="remove" target="app-settings-grid-row-' . $testSetting->id . '"',
+        );
+        $this->assertResponseNotContains('target="app-settings-grid-table"');
+    }
+
     public function testDelete(): void
     {
         // Create a test setting to delete

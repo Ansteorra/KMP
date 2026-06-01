@@ -47,13 +47,19 @@ For single-record modal saves on Dataverse grids, prefer updating **one row** in
 
 Template: `element/turbo_sync_grid_row.php` (flash + row replace/remove).
 
-### Controller checklist
+### Controller checklist (add a new grid)
 
-1. Re-run grid query using `page_context_url` query params + `WHERE id = ?` to see if the row still belongs on the current page.
-2. Reuse the same cell renderers as `gridData` (shared enrichment + `dataverse_table_row` element).
-3. Fall back to `renderTurboCloseModal()` when context is not the pilot grid (e.g. detail-page origin) or row HTML cannot be built.
+1. **Row DOM contract** — Table turbo-frame `{resource}-grid-table`; rows use `GridRowDomId::fromTableFrameId()` → `{prefix}-row-{id}` via `dataverse_table_row.php`.
+2. **Modal form** — `data-turbo="true"`, `turbo-modal`, `submit->turbo-modal#submitAsTurboStream`, hidden `page_context_url` (synced by `page-context` Stimulus on `dv_grid`).
+3. **Path matching** — `matchesGridIndexPath($pageContext, '#/your/index/?$#')` or a registry for embedded grids (path + optional `?tab=`).
+4. **Row resolver** — `withPageContextQuery()` + same query/enrichment as `gridData` + `WHERE id = ?`; empty → `renderTurboRemoveGridRow`, else `renderDataverseTableRowElement` + `renderTurboReplaceGridRow`.
+5. **Success path** — In `try*GridTurboResponse` (or equivalent): if `wantsTurboStreamRequest()` && `isGridOriginRequest()`, try row sync before `renderTurboCloseModal`.
+6. **Tests** — Stream `Accept` + `page_context_url`; assert `target="*-row-{id}"` on index, table fallback outside supported context.
+7. **Out of scope** — Bulk actions, link-only grids, non-stream modals (add stream POST first).
 
-**Pilot:** Awards Recommendations index (`RecommendationsController::resolveRecommendationGridRowSync()`).
+Shared helpers live on `TurboResponseTrait`: `matchesGridIndexPath`, `withPageContextQuery`, `renderDataverseTableRowElement`.
+
+**Shipped grids:** Recommendations (main + embedded member/gathering tabs), Bestowals main index, App Settings index.
 
 ## Forms and Drive
 

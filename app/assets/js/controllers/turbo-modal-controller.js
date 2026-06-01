@@ -72,6 +72,7 @@ class TurboModal extends Controller {
 
         if (contentType.includes('text/vnd.turbo-stream.html') || body.includes('<turbo-stream')) {
             this.renderTurboStream(body);
+            this.closeModal();
             return;
         }
 
@@ -101,17 +102,44 @@ class TurboModal extends Controller {
         Turbo.renderStreamMessage(streamHtml);
     }
 
+    /**
+     * Resolve the Bootstrap modal for this form.
+     *
+     * Officers (and similar) wrap the modal markup inside the form; others nest the
+     * form inside the modal. Support both DOM shapes.
+     */
+    findModalElement() {
+        if (!(this.element instanceof HTMLFormElement)) {
+            return null;
+        }
+
+        return this.element.querySelector('.modal') ?? this.element.closest('.modal');
+    }
+
     /** Hide the containing Bootstrap modal if one exists. */
     closeModal() {
-        // Find the modal element (closest modal parent)
-        const modal = this.element.closest('.modal');
-        if (modal && window.bootstrap?.Modal) {
-            const modalInstance = window.bootstrap.Modal.getInstance(modal);
-            if (modalInstance) {
-                console.log('Closing modal...');
-                modalInstance.hide();
-            }
+        const modal = this.findModalElement();
+        if (!modal || !window.bootstrap?.Modal) {
+            return;
         }
+
+        const Modal = window.bootstrap.Modal;
+        let modalInstance = Modal.getInstance(modal);
+        if (!modalInstance) {
+            if (typeof Modal.getOrCreateInstance !== 'function') {
+                return;
+            }
+            modalInstance = Modal.getOrCreateInstance(modal);
+        }
+        modalInstance.hide();
+        this.dismissModalBackdrop();
+    }
+
+    /** Remove stray backdrops when Bootstrap did not fully tear down the modal. */
+    dismissModalBackdrop() {
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('padding-right');
+        document.querySelectorAll('.modal-backdrop').forEach((backdrop) => backdrop.remove());
     }
 }
 

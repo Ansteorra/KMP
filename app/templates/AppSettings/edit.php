@@ -16,7 +16,10 @@
         'type' => 'file',
         'id' => 'edit_app_setting_form',
         'data-controller' => 'turbo-modal app-setting-edit',
-        'data-action' => 'turbo:submit-start->turbo-modal#closeModalBeforeSubmit',
+        'data-action' => implode(' ', [
+            'submit->turbo-modal#submitAsTurboStream',
+            'turbo:submit-start->turbo-modal#closeModalBeforeSubmit',
+        ]),
         'data-turbo' => 'true',
     ]) ?>
     <?= $this->Form->hidden('page_context_url', [

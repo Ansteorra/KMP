@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\KMP\GridColumns\ApprovalsGridColumns;
+use App\KMP\GridRowDomId;
 use App\KMP\TimezoneHelper;
+use Cake\Http\Response;
 use App\Model\Entity\WorkflowInstance;
 use App\Services\ApprovalContext\ApprovalContextRendererRegistry;
 use App\Services\WorkflowEngine\WorkflowApprovalManagerInterface;
@@ -478,7 +481,7 @@ class ApprovalsController extends AppController
             }
         }
 
-        if ($this->request->is('ajax')) {
+        if ($this->request->is('ajax') && !$this->wantsTurboStreamRequest()) {
             $this->set('result', $result);
             $this->viewBuilder()->setOption('serialize', 'result');
             $this->response = $this->response->withType('application/json');
@@ -486,6 +489,13 @@ class ApprovalsController extends AppController
         } else {
             if ($result->isSuccess()) {
                 $this->Flash->success(__('Approval response recorded.'));
+                $stream = $this->tryApprovalsGridTurboResponse(
+                    $this->getPageContextUrl(),
+                    $approvalId,
+                );
+                if ($stream !== null) {
+                    return $stream;
+                }
             } else {
                 $this->Flash->error($result->getError());
             }
@@ -735,5 +745,200 @@ class ApprovalsController extends AppController
     private function getApprovalManager(): WorkflowApprovalManagerInterface
     {
         return $this->approvalManager;
+    }
+
+    /**
+     * @return array{tableFrameId: string, gridKey: string}|null
+     */
+    private function resolveApprovalsGridSyncContext(?string $pageContextUrl): ?array
+    {
+        if ($pageContextUrl === null) {
+            return null;
+        }
+
+        if ($this->matchesGridIndexPath($pageContextUrl, '#/approvals/?$#')) {
+            return [
+                'tableFrameId' => 'approvals-grid-table',
+                'gridKey' => 'Workflows.approvals.main',
+            ];
+        }
+
+        if ($this->matchesGridIndexPath($pageContextUrl, '#/approvals/all/?$#')) {
+            return [
+                'tableFrameId' => 'all-approvals-grid-table',
+                'gridKey' => 'Workflows.approvals.admin',
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * @param iterable<\App\Model\Entity\WorkflowApproval> $approvals
+     */
+    private function enrichApprovalsForGrid(iterable $approvals): void
+    {
+        foreach ($approvals as $approval) {
+            $approval->workflow_name = $approval->workflow_instance?->workflow_definition?->name ?? __('Unknown');
+
+            if ($approval->status === \App\Model\Entity\WorkflowApproval::STATUS_PENDING) {
+                $approval->status_label = __('Pending ({0}/{1})', $approval->approved_count, $approval->required_count);
+            } else {
+                $approval->status_label = ucfirst($approval->status);
+            }
+
+            $approval->current_approver = $approval->current_approver?->sca_name ?? '—';
+
+            $instance = $approval->workflow_instance;
+            if ($instance) {
+                $ctx = ApprovalContextRendererRegistry::render($instance);
+                $approval->request = $ctx->getTitle();
+                $approval->requester = $ctx->getRequester() ?? '—';
+            } else {
+                $approval->request = '—';
+                $approval->requester = '—';
+            }
+        }
+    }
+
+    /**
+     * @return array{action: string, rowDomId: string, rowHtml?: string}|null
+     */
+    private function resolveApprovalGridRowSync(int $approvalId, ?string $pageContextUrl): ?array
+    {
+        $syncContext = $this->resolveApprovalsGridSyncContext($pageContextUrl);
+        if ($syncContext === null) {
+            return null;
+        }
+
+        $tableFrameId = $syncContext['tableFrameId'];
+        $rowDomId = GridRowDomId::fromTableFrameId($tableFrameId, $approvalId);
+
+        return $this->withPageContextQuery($pageContextUrl, function () use (
+            $approvalId,
+            $rowDomId,
+            $tableFrameId,
+            $syncContext,
+        ): ?array {
+            $currentUser = $this->request->getAttribute('identity');
+            $approvalManager = $this->getApprovalManager();
+            $approvalsTable = $this->fetchTable('WorkflowApprovals');
+
+            $baseQuery = $approvalsTable->find()
+                ->where(['WorkflowApprovals.id' => $approvalId])
+                ->contain([
+                    'WorkflowInstances' => ['WorkflowDefinitions'],
+                    'CurrentApprover' => fn($q) => $q->select(['id', 'sca_name']),
+                ])
+                ->leftJoinWith('CurrentApprover');
+
+            $systemViews = ApprovalsGridColumns::getSystemViews();
+            $queryCallback = function ($query, $systemView) use ($currentUser, $approvalManager) {
+                if ($systemView === null) {
+                    return $query->where(['WorkflowApprovals.id' => -1]);
+                }
+
+                if ($systemView['id'] === 'sys-approvals-pending') {
+                    $eligible = $approvalManager->getPendingApprovalsForMember($currentUser->id);
+                    $eligibleIds = array_map(fn($a) => $a->id, $eligible);
+                    if ($eligibleIds === []) {
+                        return $query->where(['WorkflowApprovals.id' => -1]);
+                    }
+
+                    return $query->where(['WorkflowApprovals.id IN' => $eligibleIds]);
+                }
+
+                if ($systemView['id'] === 'sys-approvals-decisions') {
+                    return $query->innerJoinWith('WorkflowApprovalResponses', function ($q) use ($currentUser) {
+                        return $q->where(['WorkflowApprovalResponses.member_id' => $currentUser->id]);
+                    });
+                }
+
+                return $query;
+            };
+
+            $result = $this->processDataverseGrid([
+                'gridKey' => $syncContext['gridKey'],
+                'gridColumnsClass' => ApprovalsGridColumns::class,
+                'baseQuery' => $baseQuery,
+                'tableName' => 'WorkflowApprovals',
+                'defaultSort' => ['WorkflowApprovals.modified' => 'desc'],
+                'defaultPageSize' => 25,
+                'systemViews' => $systemViews,
+                'defaultSystemView' => 'sys-approvals-pending',
+                'queryCallback' => $queryCallback,
+                'showAllTab' => false,
+                'canAddViews' => false,
+                'canFilter' => true,
+                'canExportCsv' => false,
+                'lockedFilters' => ['status_label'],
+                'showFilterPills' => true,
+                'showSearchBox' => true,
+            ]);
+
+            $gridData = $result['data'];
+            if (is_array($gridData)) {
+                $approvals = $gridData;
+            } elseif ($gridData instanceof \Traversable) {
+                $approvals = iterator_to_array($gridData, false);
+            } else {
+                $approvals = [];
+            }
+            if ($approvals === []) {
+                return [
+                    'action' => 'remove',
+                    'rowDomId' => $rowDomId,
+                ];
+            }
+
+            $this->enrichApprovalsForGrid($approvals);
+            $rowActions = ApprovalsGridColumns::getRowActions();
+            $gridState = $result['gridState'];
+            $visibleColumns = $gridState['columns']['visible'];
+            if (!is_array($visibleColumns)) {
+                $visibleColumns = array_values($visibleColumns);
+            }
+
+            $rowHtml = $this->renderDataverseTableRowElement([
+                'row' => $approvals[0],
+                'columns' => $gridState['columns']['all'],
+                'visibleColumns' => $visibleColumns,
+                'controllerName' => 'grid-view',
+                'primaryKey' => $gridState['config']['primaryKey'],
+                'gridKey' => $gridState['config']['gridKey'],
+                'rowActions' => $rowActions,
+                'user' => $currentUser,
+                'enableBulkSelection' => false,
+                'rowDomIdPrefix' => preg_replace('/-table$/', '', $tableFrameId),
+                'showActionsColumn' => $rowActions !== [],
+            ]);
+
+            return [
+                'action' => 'replace',
+                'rowDomId' => $rowDomId,
+                'rowHtml' => $rowHtml,
+            ];
+        });
+    }
+
+    private function tryApprovalsGridTurboResponse(?string $pageContext, int $approvalId): ?Response
+    {
+        if (!$this->wantsTurboStreamRequest() || $pageContext === null) {
+            return null;
+        }
+
+        $sync = $this->resolveApprovalGridRowSync($approvalId, $pageContext);
+        if ($sync === null) {
+            return null;
+        }
+
+        if ($sync['action'] === 'remove') {
+            return $this->renderTurboRemoveGridRow($sync['rowDomId']);
+        }
+
+        return $this->renderTurboReplaceGridRow(
+            $sync['rowDomId'],
+            $sync['rowHtml'] ?? '',
+        );
     }
 }

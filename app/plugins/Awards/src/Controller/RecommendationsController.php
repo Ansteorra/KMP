@@ -2713,42 +2713,152 @@ class RecommendationsController extends AppController
     }
 
     /**
-     * Whether page context is the main recommendations index grid (phase 1 pilot).
+     * Tab query param from page context URL (detail pages).
      */
-    private function isMainRecommendationsGridIndex(?string $pageContextUrl): bool
+    private function pageContextQueryTab(?string $pageContextUrl): ?string
     {
         if ($pageContextUrl === null) {
-            return false;
+            return null;
         }
 
-        $path = parse_url($pageContextUrl, PHP_URL_PATH) ?? $pageContextUrl;
+        $parsed = parse_url($pageContextUrl);
+        if (empty($parsed['query'])) {
+            return null;
+        }
 
-        return (bool)preg_match('#/awards/recommendations/?$#', $path);
+        $params = [];
+        parse_str($parsed['query'], $params);
+
+        $tab = $params['tab'] ?? null;
+
+        return is_string($tab) && $tab !== '' ? $tab : null;
     }
 
     /**
-     * Run a callback with query params from the posted page context URL.
+     * Match page context to a recommendation grid row-sync context.
      *
-     * @template T
-     * @param callable(): T $callback
-     * @return T
+     * @return array{contextKey: string, tableFrameId: string, memberId?: int, gatheringId?: int}|null
      */
-    private function withPageContextQuery(?string $pageContextUrl, callable $callback): mixed
+    private function resolveRecommendationGridSyncContext(?string $pageContextUrl): ?array
     {
-        $originalQuery = $this->request->getQueryParams();
-        try {
-            if ($pageContextUrl !== null) {
-                $parsed = parse_url($pageContextUrl);
-                $contextQuery = [];
-                if (!empty($parsed['query'])) {
-                    parse_str($parsed['query'], $contextQuery);
-                }
-                $this->setRequest($this->request->withQueryParams($contextQuery));
+        if ($pageContextUrl === null) {
+            return null;
+        }
+
+        $path = parse_url($pageContextUrl, PHP_URL_PATH) ?? $pageContextUrl;
+        $tab = $this->pageContextQueryTab($pageContextUrl);
+
+        if ($this->matchesGridIndexPath($pageContextUrl, '#/awards/recommendations/?$#')) {
+            return [
+                'contextKey' => 'main',
+                'tableFrameId' => 'recommendations-grid-table',
+            ];
+        }
+
+        if (preg_match('#/members/profile/?$#', $path)) {
+            $memberId = (int)$this->request->getAttribute('identity')->id;
+            if ($tab === null || $tab === 'member-submitted-recs') {
+                return [
+                    'contextKey' => 'memberSubmitted',
+                    'tableFrameId' => 'member-submitted-recs-grid-' . $memberId . '-table',
+                    'memberId' => $memberId,
+                ];
             }
 
-            return $callback();
-        } finally {
-            $this->setRequest($this->request->withQueryParams($originalQuery));
+            return null;
+        }
+
+        if (preg_match('#/members/view/(\d+)/?$#', $path, $matches)) {
+            $memberId = (int)$matches[1];
+            if ($tab === 'member-submitted-recs') {
+                return [
+                    'contextKey' => 'memberSubmitted',
+                    'tableFrameId' => 'member-submitted-recs-grid-' . $memberId . '-table',
+                    'memberId' => $memberId,
+                ];
+            }
+            if ($tab === 'recs-for-member') {
+                return [
+                    'contextKey' => 'recsForMember',
+                    'tableFrameId' => 'recs-for-member-grid-' . $memberId . '-table',
+                    'memberId' => $memberId,
+                ];
+            }
+
+            return null;
+        }
+
+        if (preg_match('#/gatherings/view/([^/]+)/?$#', $path, $matches)) {
+            if ($tab !== null && $tab !== 'gathering-awards') {
+                return null;
+            }
+
+            $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
+            try {
+                $gathering = $gatheringsTable->find()
+                    ->where(['public_id' => $matches[1]])
+                    ->firstOrFail();
+            } catch (\Cake\Datasource\Exception\RecordNotFoundException) {
+                return null;
+            }
+
+            $gatheringId = (int)$gathering->id;
+
+            return [
+                'contextKey' => 'gatheringAwards',
+                'tableFrameId' => 'gathering-awards-grid-' . $gatheringId . '-table',
+                'gatheringId' => $gatheringId,
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<int, \Awards\Model\Entity\Recommendation> $recommendations
+     */
+    private function enrichRecommendationsForGridContext(array $recommendations, string $contextKey): void
+    {
+        if ($contextKey === 'main') {
+            $this->enrichRecommendationsForGrid($recommendations);
+
+            return;
+        }
+
+        if ($contextKey === 'gatheringAwards') {
+            $recIds = array_map(fn($r) => $r->id, $recommendations);
+            $groupCounts = [];
+            if ($recIds !== []) {
+                $countQuery = $this->Recommendations->find()
+                    ->select([
+                        'recommendation_group_id',
+                        'child_count' => $this->Recommendations->find()->func()->count('*'),
+                    ])
+                    ->where(['recommendation_group_id IN' => $recIds])
+                    ->groupBy(['recommendation_group_id'])
+                    ->disableHydration()
+                    ->all();
+                foreach ($countQuery as $row) {
+                    $groupCounts[(int)$row['recommendation_group_id']] = (int)$row['child_count'];
+                }
+            }
+
+            foreach ($recommendations as $recommendation) {
+                $recommendation->group_children_count = isset($groupCounts[$recommendation->id])
+                    ? $groupCounts[$recommendation->id] + 1
+                    : 0;
+                $recommendation->op_links = $this->buildOpLinksHtml($recommendation);
+                $recommendation->gatherings = $this->buildGatheringsHtml($recommendation);
+                $recommendation->notes = $this->buildNotesHtml($recommendation);
+                $recommendation->reason = $this->buildReasonHtml($recommendation);
+            }
+
+            return;
+        }
+
+        foreach ($recommendations as $recommendation) {
+            $recommendation->gatherings = $this->buildGatheringsHtml($recommendation);
+            $recommendation->reason = $this->buildReasonHtml($recommendation);
         }
     }
 
@@ -2762,11 +2872,12 @@ class RecommendationsController extends AppController
         ?string $pageContextUrl,
         RecommendationQueryService $queryService,
     ): ?array {
-        if (!$this->isMainRecommendationsGridIndex($pageContextUrl)) {
+        $syncContext = $this->resolveRecommendationGridSyncContext($pageContextUrl);
+        if ($syncContext === null) {
             return null;
         }
 
-        $tableFrameId = 'recommendations-grid-table';
+        $tableFrameId = $syncContext['tableFrameId'];
         $rowDomId = GridRowDomId::fromTableFrameId($tableFrameId, $recommendationId);
 
         return $this->withPageContextQuery($pageContextUrl, function () use (
@@ -2774,23 +2885,68 @@ class RecommendationsController extends AppController
             $rowDomId,
             $queryService,
             $tableFrameId,
+            $syncContext,
         ): ?array {
             $emptyRecommendation = $this->Recommendations->newEmptyEntity();
             $user = $this->request->getAttribute('identity');
-            $canViewHidden = $user->checkCan('ViewHidden', $emptyRecommendation);
-            $canEdit = $user->checkCan('edit', $emptyRecommendation);
+            $contextKey = $syncContext['contextKey'];
 
-            $built = $queryService->buildMainGridQuery(
-                $this->Recommendations,
-                $canEdit,
-            );
-            $baseQuery = $built['query'];
-            $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
-            $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
+            if ($contextKey === 'main') {
+                $canViewHidden = $user->checkCan('ViewHidden', $emptyRecommendation);
+                $canEdit = $user->checkCan('edit', $emptyRecommendation);
+                $built = $queryService->buildMainGridQuery($this->Recommendations, $canEdit);
+                $baseQuery = $built['query'];
+                $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
+                $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
+            } elseif ($contextKey === 'memberSubmitted') {
+                $memberId = $syncContext['memberId'];
+                $emptyRecommendation->requester_id = $memberId;
+                $this->Authorization->authorize($emptyRecommendation, 'ViewSubmittedByMember');
+                $isOwnSubmissions = ($user->id === $memberId);
+                $canViewHidden = $isOwnSubmissions || $user->checkCan('ViewHidden', $emptyRecommendation);
+                $built = $queryService->buildMemberSubmittedQuery($this->Recommendations, $memberId);
+                $baseQuery = $built['query'];
+                $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
+            } elseif ($contextKey === 'recsForMember') {
+                $memberId = $syncContext['memberId'];
+                $this->Authorization->authorize($emptyRecommendation, 'ViewSubmittedForMember');
+                $canViewHidden = true;
+                $built = $queryService->buildRecsForMemberQuery($this->Recommendations, $memberId);
+                $baseQuery = $built['query'];
+                $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
+                $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
+            } else {
+                $gatheringId = $syncContext['gatheringId'];
+                $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
+                $gathering = $gatheringsTable->get($gatheringId);
+                $recommendation = $this->Recommendations->newEmptyEntity();
+                $recommendation->gathering_id = $gatheringId;
+                $recommendation->gathering = $gathering;
+                $this->Authorization->authorize($recommendation, 'ViewGatheringRecommendations');
+                $canViewHidden = $user->checkCan('ViewHidden', $recommendation);
+                $built = $queryService->buildGatheringAwardsQuery(
+                    $this->Recommendations,
+                    $gatheringId,
+                    $user->checkCan('edit', $recommendation),
+                );
+                $baseQuery = $built['query'];
+                $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
+                $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
+            }
+
             $baseQuery = $baseQuery->where(['Recommendations.id' => $recommendationId]);
             $built['gridOptions']['baseQuery'] = $baseQuery;
 
             $result = $this->processDataverseGrid($built['gridOptions']);
+            if ($contextKey === 'main' || $contextKey === 'gatheringAwards') {
+                $canViewHidden = $canViewHidden ?? $user->checkCan('ViewHidden', $emptyRecommendation);
+                $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
+            } elseif ($contextKey === 'memberSubmitted') {
+                $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
+            } else {
+                $result = $this->applyStateFilterOptionsToGridResult($result, true);
+            }
+
             $gridData = $result['data'];
             if (is_array($gridData)) {
                 $recommendations = $gridData;
@@ -2806,9 +2962,11 @@ class RecommendationsController extends AppController
                 ];
             }
 
-            $this->enrichRecommendationsForGrid($recommendations);
+            $this->enrichRecommendationsForGridContext($recommendations, $contextKey);
             $recommendation = $recommendations[0];
-            $rowActions = RecommendationsGridColumns::getRowActions();
+            $rowActions = $contextKey === 'main' || $contextKey === 'gatheringAwards'
+                ? RecommendationsGridColumns::getRowActions()
+                : [];
             $gridState = $result['gridState'];
             $enableColumnPicker = $gridState['config']['enableColumnPicker'] ?? true;
             $visibleColumns = $gridState['columns']['visible'];
@@ -2841,19 +2999,6 @@ class RecommendationsController extends AppController
     }
 
     /**
-     * @param array<string, mixed> $vars
-     */
-    private function renderDataverseTableRowElement(array $vars): string
-    {
-        $builder = clone $this->viewBuilder();
-        $builder->disableAutoLayout();
-        $builder->setPlugin(null);
-        $builder->setTemplatePath('element');
-
-        return $builder->build($this->request, $this->response)->element('dataverse_table_row', $vars);
-    }
-
-    /**
      * Turbo-stream response for grid-origin recommendation saves.
      */
     private function tryRecommendationsGridTurboResponse(
@@ -2863,7 +3008,12 @@ class RecommendationsController extends AppController
         ?int $updatedRecommendationId = null,
         ?RecommendationQueryService $queryService = null,
     ): ?\Cake\Http\Response {
-        if (!$this->wantsTurboStreamRequest() || !$this->isGridOriginRequest($pageContext)) {
+        if (!$this->wantsTurboStreamRequest() || $pageContext === null) {
+            return null;
+        }
+
+        $syncContext = $this->resolveRecommendationGridSyncContext($pageContext);
+        if (!$this->isGridOriginRequest($pageContext) && $syncContext === null) {
             return null;
         }
 

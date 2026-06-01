@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\KMP\GridColumns\GatheringAttendancesGridColumns;
+use App\KMP\GridRowDomId;
 use App\KMP\TimezoneHelper;
 use Cake\Http\Response;
 use Cake\I18n\Date;
@@ -20,6 +22,8 @@ use Exception;
  */
 class GatheringAttendancesController extends AppController
 {
+    use DataverseGridTrait;
+
     /**
      * Initialize controller
      */
@@ -178,6 +182,14 @@ class GatheringAttendancesController extends AppController
 
             if ($this->GatheringAttendances->save($gatheringAttendance)) {
                 $this->Flash->success(__('Your attendance has been updated.'));
+                $stream = $this->tryGatheringAttendanceGridTurboResponse(
+                    $this->getPageContextUrl(),
+                    (int)$gatheringAttendance->id,
+                    (int)$gatheringAttendance->member_id,
+                );
+                if ($stream !== null) {
+                    return $stream;
+                }
             } else {
                 $errors = $gatheringAttendance->getErrors();
                 if (!empty($errors)) {
@@ -229,6 +241,15 @@ class GatheringAttendancesController extends AppController
                 ]);
             }
             $this->Flash->success(__('Your attendance has been removed.'));
+            $stream = $this->tryGatheringAttendanceGridTurboResponse(
+                $this->getPageContextUrl(),
+                (int)$gatheringAttendance->id,
+                (int)$gatheringAttendance->member_id,
+                true,
+            );
+            if ($stream !== null) {
+                return $stream;
+            }
         } else {
             $errors = $gatheringAttendance->getErrors();
             $errorMessage = 'Unable to remove your attendance. Please try again.';
@@ -523,5 +544,164 @@ class GatheringAttendancesController extends AppController
             'plugin' => null,
         ]));
         $this->viewBuilder()->setLayout('mobile_app');
+    }
+
+    /**
+     * @return array{tableFrameId: string, memberId: int}|null
+     */
+    private function resolveMemberGatheringsGridSyncContext(?string $pageContextUrl, int $memberId): ?array
+    {
+        if ($pageContextUrl === null) {
+            return null;
+        }
+
+        $path = parse_url($pageContextUrl, PHP_URL_PATH) ?? $pageContextUrl;
+        if (!preg_match('#/members/view/' . $memberId . '/?$#', $path)) {
+            return null;
+        }
+
+        $parsed = parse_url($pageContextUrl);
+        $tab = null;
+        if (!empty($parsed['query'])) {
+            $params = [];
+            parse_str($parsed['query'], $params);
+            $tab = $params['tab'] ?? null;
+        }
+        if ($tab !== null && $tab !== 'gatherings') {
+            return null;
+        }
+
+        return [
+            'tableFrameId' => 'member-gatherings-grid-' . $memberId . '-table',
+            'memberId' => $memberId,
+        ];
+    }
+
+    /**
+     * @return array{action: string, rowDomId: string, rowHtml?: string}|null
+     */
+    private function resolveGatheringAttendanceGridRowSync(
+        int $attendanceId,
+        int $memberId,
+        ?string $pageContextUrl,
+    ): ?array {
+        $syncContext = $this->resolveMemberGatheringsGridSyncContext($pageContextUrl, $memberId);
+        if ($syncContext === null) {
+            return null;
+        }
+
+        $tableFrameId = $syncContext['tableFrameId'];
+        $rowDomId = GridRowDomId::fromTableFrameId($tableFrameId, $attendanceId);
+
+        return $this->withPageContextQuery($pageContextUrl, function () use (
+            $attendanceId,
+            $memberId,
+            $rowDomId,
+            $tableFrameId,
+        ): ?array {
+            $systemViews = GatheringAttendancesGridColumns::getSystemViews([]);
+            $result = $this->processDataverseGrid([
+                'gridKey' => "Members.gatherings.{$memberId}",
+                'gridColumnsClass' => GatheringAttendancesGridColumns::class,
+                'baseQuery' => $this->GatheringAttendances->find()
+                    ->where([
+                        'GatheringAttendances.member_id' => $memberId,
+                        'GatheringAttendances.id' => $attendanceId,
+                    ])
+                    ->contain([
+                        'Gatherings' => ['Branches', 'GatheringTypes'],
+                    ]),
+                'tableName' => 'GatheringAttendances',
+                'defaultSort' => ['Gatherings.start_date' => 'DESC'],
+                'defaultPageSize' => 25,
+                'systemViews' => $systemViews,
+                'defaultSystemView' => 'sys-gatherings-upcoming',
+                'showAllTab' => false,
+                'canAddViews' => false,
+                'canFilter' => false,
+                'canExportCsv' => false,
+                'lockedFilters' => ['start_date', 'end_date'],
+                'enableColumnPicker' => false,
+                'showFilterPills' => false,
+            ]);
+
+            $gridData = $result['data'];
+            if (is_array($gridData)) {
+                $rows = $gridData;
+            } elseif ($gridData instanceof \Traversable) {
+                $rows = iterator_to_array($gridData, false);
+            } else {
+                $rows = [];
+            }
+            if ($rows === []) {
+                return [
+                    'action' => 'remove',
+                    'rowDomId' => $rowDomId,
+                ];
+            }
+
+            $rowActions = GatheringAttendancesGridColumns::getRowActions();
+            $gridState = $result['gridState'];
+            $visibleColumns = $gridState['columns']['visible'];
+            if (!is_array($visibleColumns)) {
+                $visibleColumns = array_values($visibleColumns);
+            }
+
+            $rowHtml = $this->renderDataverseTableRowElement([
+                'row' => $rows[0],
+                'columns' => $gridState['columns']['all'],
+                'visibleColumns' => $visibleColumns,
+                'controllerName' => 'grid-view',
+                'primaryKey' => $gridState['config']['primaryKey'],
+                'gridKey' => $gridState['config']['gridKey'],
+                'rowActions' => $rowActions,
+                'user' => $this->request->getAttribute('identity'),
+                'enableBulkSelection' => false,
+                'rowDomIdPrefix' => preg_replace('/-table$/', '', $tableFrameId),
+                'showActionsColumn' => $rowActions !== [],
+            ]);
+
+            return [
+                'action' => 'replace',
+                'rowDomId' => $rowDomId,
+                'rowHtml' => $rowHtml,
+            ];
+        });
+    }
+
+    private function tryGatheringAttendanceGridTurboResponse(
+        ?string $pageContext,
+        int $attendanceId,
+        int $memberId,
+        bool $forceRemove = false,
+    ): ?Response {
+        if (!$this->wantsTurboStreamRequest() || $pageContext === null) {
+            return null;
+        }
+
+        if ($forceRemove) {
+            $syncContext = $this->resolveMemberGatheringsGridSyncContext($pageContext, $memberId);
+            if ($syncContext !== null) {
+                $rowDomId = GridRowDomId::fromTableFrameId($syncContext['tableFrameId'], $attendanceId);
+
+                return $this->renderTurboRemoveGridRow($rowDomId);
+            }
+
+            return null;
+        }
+
+        $sync = $this->resolveGatheringAttendanceGridRowSync($attendanceId, $memberId, $pageContext);
+        if ($sync === null) {
+            return null;
+        }
+
+        if ($sync['action'] === 'remove') {
+            return $this->renderTurboRemoveGridRow($sync['rowDomId']);
+        }
+
+        return $this->renderTurboReplaceGridRow(
+            $sync['rowDomId'],
+            $sync['rowHtml'] ?? '',
+        );
     }
 }

@@ -4,7 +4,9 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\KMP\GridColumns\AppSettingsGridColumns;
+use App\KMP\GridRowDomId;
 use App\KMP\StaticHelpers;
+use Cake\Http\Response;
 use App\Services\CsvExportService;
 use Cake\Event\EventInterface;
 use Cake\Http\Exception\NotFoundException;
@@ -198,10 +200,9 @@ class AppSettingsController extends AppController
                 ) {
                     $this->Flash->success(__('No changes were made.'));
 
-                    return $this->renderTurboCloseModal(
-                        'app-settings-grid-table',
-                        ['controller' => 'AppSettings', 'action' => 'gridData'],
+                    return $this->renderAppSettingsGridTurboResponse(
                         $this->getPageContextUrl(),
+                        (int)$appSetting->id,
                     );
                 }
 
@@ -221,10 +222,9 @@ class AppSettingsController extends AppController
             if ($settingType === 'password' && trim($value) === '') {
                 $this->Flash->success(__('No changes were made.'));
 
-                return $this->renderTurboCloseModal(
-                    'app-settings-grid-table',
-                    ['controller' => 'AppSettings', 'action' => 'gridData'],
+                return $this->renderAppSettingsGridTurboResponse(
                     $this->getPageContextUrl(),
+                    (int)$appSetting->id,
                 );
             }
 
@@ -232,10 +232,9 @@ class AppSettingsController extends AppController
             if ($result) {
                 $this->Flash->success(__('The app setting has been saved.'));
 
-                return $this->renderTurboCloseModal(
-                    'app-settings-grid-table',
-                    ['controller' => 'AppSettings', 'action' => 'gridData'],
+                return $this->renderAppSettingsGridTurboResponse(
                     $this->getPageContextUrl(),
+                    (int)$appSetting->id,
                 );
             }
             $this->Flash->error(
@@ -310,16 +309,136 @@ class AppSettingsController extends AppController
             );
         } elseif ($this->AppSettings->deleteAppSetting($appSetting->name)) {
             $this->Flash->success(__('The app setting has been deleted.'));
+
+            return $this->renderAppSettingsGridTurboResponse(
+                $this->getPageContextUrl(),
+                (int)$appSetting->id,
+                true,
+            );
         } else {
             $this->Flash->error(
                 __('The app setting could not be deleted. Please, try again.'),
             );
         }
 
-        return $this->renderTurboCloseModal(
-            'app-settings-grid-table',
-            ['controller' => 'AppSettings', 'action' => 'gridData'],
+        return $this->renderAppSettingsGridTurboResponse(
             $this->getPageContextUrl(),
+            (int)$appSetting->id,
         );
+    }
+
+    /**
+     * Resolve targeted row sync after a single app setting save.
+     *
+     * @return array{action: string, rowDomId: string, rowHtml?: string}|null Null → full table refresh
+     */
+    private function resolveAppSettingGridRowSync(int $appSettingId, ?string $pageContextUrl): ?array
+    {
+        if (!$this->matchesGridIndexPath($pageContextUrl, '#/app-settings/?$#')) {
+            return null;
+        }
+
+        $tableFrameId = 'app-settings-grid-table';
+        $rowDomId = GridRowDomId::fromTableFrameId($tableFrameId, $appSettingId);
+
+        return $this->withPageContextQuery($pageContextUrl, function () use (
+            $appSettingId,
+            $rowDomId,
+            $tableFrameId,
+        ): ?array {
+            $baseQuery = $this->AppSettings->find()->where(['AppSettings.id' => $appSettingId]);
+            $result = $this->processDataverseGrid([
+                'gridKey' => 'AppSettings.index.main',
+                'gridColumnsClass' => AppSettingsGridColumns::class,
+                'baseQuery' => $baseQuery,
+                'tableName' => 'AppSettings',
+                'defaultSort' => ['AppSettings.name' => 'ASC'],
+                'defaultPageSize' => 50,
+                'showAllTab' => false,
+                'canAddViews' => false,
+                'canFilter' => true,
+                'canExportCsv' => false,
+            ]);
+
+            $gridData = $result['data'];
+            if (is_array($gridData)) {
+                $appSettings = $gridData;
+            } elseif ($gridData instanceof \Traversable) {
+                $appSettings = iterator_to_array($gridData, false);
+            } else {
+                $appSettings = [];
+            }
+            if ($appSettings === []) {
+                return [
+                    'action' => 'remove',
+                    'rowDomId' => $rowDomId,
+                ];
+            }
+
+            $appSetting = $appSettings[0];
+            $rowActions = AppSettingsGridColumns::getRowActions();
+            $gridState = $result['gridState'];
+            $visibleColumns = $gridState['columns']['visible'];
+            if (!is_array($visibleColumns)) {
+                $visibleColumns = array_values($visibleColumns);
+            }
+
+            $rowHtml = $this->renderDataverseTableRowElement([
+                'row' => $appSetting,
+                'columns' => $gridState['columns']['all'],
+                'visibleColumns' => $visibleColumns,
+                'controllerName' => 'grid-view',
+                'primaryKey' => $gridState['config']['primaryKey'],
+                'gridKey' => $gridState['config']['gridKey'],
+                'rowActions' => $rowActions,
+                'user' => $this->request->getAttribute('identity'),
+                'enableBulkSelection' => false,
+                'rowDomIdPrefix' => preg_replace('/-table$/', '', $tableFrameId),
+                'showActionsColumn' => $rowActions !== [],
+            ]);
+
+            return [
+                'action' => 'replace',
+                'rowDomId' => $rowDomId,
+                'rowHtml' => $rowHtml,
+            ];
+        });
+    }
+
+    /**
+     * Turbo-stream response for grid-origin app setting saves.
+     */
+    private function renderAppSettingsGridTurboResponse(
+        ?string $pageContext,
+        int $appSettingId,
+        bool $forceRemove = false,
+    ): Response {
+        $gridRoute = ['controller' => 'AppSettings', 'action' => 'gridData'];
+
+        if (
+            $this->wantsTurboStreamRequest()
+            && $pageContext !== null
+            && ($this->isGridOriginRequest($pageContext) || $this->matchesGridIndexPath($pageContext, '#/app-settings/?$#'))
+        ) {
+            if ($forceRemove && $this->matchesGridIndexPath($pageContext, '#/app-settings/?$#')) {
+                $rowDomId = GridRowDomId::fromTableFrameId('app-settings-grid-table', $appSettingId);
+
+                return $this->renderTurboRemoveGridRow($rowDomId);
+            }
+
+            $sync = $this->resolveAppSettingGridRowSync($appSettingId, $pageContext);
+            if ($sync !== null) {
+                if ($sync['action'] === 'remove') {
+                    return $this->renderTurboRemoveGridRow($sync['rowDomId']);
+                }
+
+                return $this->renderTurboReplaceGridRow(
+                    $sync['rowDomId'],
+                    $sync['rowHtml'] ?? '',
+                );
+            }
+        }
+
+        return $this->renderTurboCloseModal('app-settings-grid-table', $gridRoute, $pageContext);
     }
 }

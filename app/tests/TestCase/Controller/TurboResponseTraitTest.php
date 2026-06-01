@@ -49,6 +49,18 @@ class TurboResponseTraitTest extends HttpIntegrationTestCase
                 return $this->isGridOriginRequest($url);
             }
 
+            public function exposeMatchesIndex(?string $url, string $regex): bool
+            {
+                return $this->matchesGridIndexPath($url, $regex);
+            }
+
+            public function exposeWithPageContext(?string $url): ?string
+            {
+                return $this->withPageContextQuery($url, function (): ?string {
+                    return $this->request->getQuery('search');
+                });
+            }
+
             public function exposeCloseStream(): Response
             {
                 return $this->renderTurboCloseModal(
@@ -165,5 +177,20 @@ class TurboResponseTraitTest extends HttpIntegrationTestCase
 
         $this->assertStringContainsString('<turbo-stream action="remove"', $body);
         $this->assertStringContainsString('target="recommendations-grid-row-99"', $body);
+    }
+
+    public function testMatchesGridIndexPathUsesPathOnly(): void
+    {
+        $controller = $this->traitController();
+
+        $this->assertTrue($controller->exposeMatchesIndex('/app-settings?search=x', '#/app-settings/?$#'));
+        $this->assertFalse($controller->exposeMatchesIndex('/app-settings/extra', '#/app-settings/?$#'));
+    }
+
+    public function testWithPageContextQueryAppliesQueryParams(): void
+    {
+        $search = $this->traitController()->exposeWithPageContext('/app-settings?search=needle');
+
+        $this->assertSame('needle', $search);
     }
 }

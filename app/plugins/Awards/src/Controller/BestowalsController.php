@@ -5,6 +5,7 @@ namespace Awards\Controller;
 
 use App\Controller\DataverseGridTrait;
 use App\Controller\WorkflowDispatchTrait;
+use App\KMP\GridRowDomId;
 use App\Services\CsvExportService;
 use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\TriggerDispatcher;
@@ -301,7 +302,12 @@ class BestowalsController extends AppController
                     'Awards.BestowalStateChanged',
                     $this->buildBestowalStateChangedPayload($result, (int)$user->id),
                 );
-                $stream = $this->tryBestowalsGridTurboResponse($pageContext, true);
+                $stream = $this->tryBestowalsGridTurboResponse(
+                    $pageContext,
+                    true,
+                    null,
+                    (int)$bestowalId,
+                );
                 if ($stream !== null) {
                     return $stream;
                 }
@@ -357,7 +363,12 @@ class BestowalsController extends AppController
                     'Awards.BestowalStateChanged',
                     $this->buildBestowalStateChangedPayload($result, (int)$user->id),
                 );
-                $stream = $this->tryBestowalsGridTurboResponse($pageContext, true);
+                $stream = $this->tryBestowalsGridTurboResponse(
+                    $pageContext,
+                    true,
+                    null,
+                    (int)$bestowal->id,
+                );
                 if ($stream !== null) {
                     return $stream;
                 }
@@ -1098,14 +1109,189 @@ class BestowalsController extends AppController
     }
 
     /**
+     * Tab query param from page context URL (detail pages).
+     */
+    private function pageContextQueryTab(?string $pageContextUrl): ?string
+    {
+        if ($pageContextUrl === null) {
+            return null;
+        }
+
+        $parsed = parse_url($pageContextUrl);
+        if (empty($parsed['query'])) {
+            return null;
+        }
+
+        $params = [];
+        parse_str($parsed['query'], $params);
+
+        $tab = $params['tab'] ?? null;
+
+        return is_string($tab) && $tab !== '' ? $tab : null;
+    }
+
+    /**
+     * @return array{contextKey: string, tableFrameId: string, gatheringId?: int}|null
+     */
+    private function resolveBestowalGridSyncContext(?string $pageContextUrl): ?array
+    {
+        if ($pageContextUrl === null) {
+            return null;
+        }
+
+        $path = parse_url($pageContextUrl, PHP_URL_PATH) ?? $pageContextUrl;
+        $tab = $this->pageContextQueryTab($pageContextUrl);
+
+        if ($this->matchesGridIndexPath($pageContextUrl, '#/awards/bestowals/?$#')) {
+            return [
+                'contextKey' => 'main',
+                'tableFrameId' => 'bestowals-grid-table',
+            ];
+        }
+
+        if (preg_match('#/gatherings/view/([^/]+)/?$#', $path, $matches)) {
+            if ($tab !== null && $tab !== 'gathering-bestowals') {
+                return null;
+            }
+
+            $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
+            try {
+                $gathering = $gatheringsTable->find()
+                    ->where(['public_id' => $matches[1]])
+                    ->firstOrFail();
+            } catch (\Cake\Datasource\Exception\RecordNotFoundException) {
+                return null;
+            }
+
+            $gatheringId = (int)$gathering->id;
+
+            return [
+                'contextKey' => 'gathering',
+                'tableFrameId' => 'gathering-bestowals-grid-' . $gatheringId . '-table',
+                'gatheringId' => $gatheringId,
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolve targeted row sync after a single bestowal save.
+     *
+     * @return array{action: string, rowDomId: string, rowHtml?: string}|null Null → full table refresh
+     */
+    private function resolveBestowalGridRowSync(
+        int $bestowalId,
+        ?string $pageContextUrl,
+        BestowalQueryService $queryService,
+    ): ?array {
+        $syncContext = $this->resolveBestowalGridSyncContext($pageContextUrl);
+        if ($syncContext === null) {
+            return null;
+        }
+
+        $tableFrameId = $syncContext['tableFrameId'];
+        $rowDomId = GridRowDomId::fromTableFrameId($tableFrameId, $bestowalId);
+
+        return $this->withPageContextQuery($pageContextUrl, function () use (
+            $bestowalId,
+            $rowDomId,
+            $queryService,
+            $tableFrameId,
+            $syncContext,
+        ): ?array {
+            $emptyBestowal = $this->Bestowals->newEmptyEntity();
+            $user = $this->request->getAttribute('identity');
+            $canViewHidden = $user->checkCan('ViewHidden', $emptyBestowal);
+            $canEdit = $user->checkCan('edit', $emptyBestowal);
+
+            if ($syncContext['contextKey'] === 'gathering') {
+                $built = $queryService->buildGatheringBestowalsQuery(
+                    $this->Bestowals,
+                    $syncContext['gatheringId'],
+                    $canEdit,
+                );
+                $baseQuery = $built['query'];
+                $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
+                $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
+            } else {
+                $built = $queryService->buildIndexQuery($this->Bestowals, $canEdit);
+                $baseQuery = $built['query'];
+                $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
+                $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
+            }
+
+            $baseQuery = $baseQuery->where(['Bestowals.id' => $bestowalId]);
+            $built['gridOptions']['baseQuery'] = $baseQuery;
+
+            $result = $this->processDataverseGrid($built['gridOptions']);
+            $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
+
+            $gridData = $result['data'];
+            if (is_array($gridData)) {
+                $bestowals = $gridData;
+            } elseif ($gridData instanceof \Traversable) {
+                $bestowals = iterator_to_array($gridData, false);
+            } else {
+                $bestowals = [];
+            }
+            if ($bestowals === []) {
+                return [
+                    'action' => 'remove',
+                    'rowDomId' => $rowDomId,
+                ];
+            }
+
+            $this->prepareBestowalsForDisplay($bestowals);
+            $bestowal = $bestowals[0];
+            $rowActions = BestowalsGridColumns::getRowActions();
+            $gridState = $result['gridState'];
+            $enableColumnPicker = $gridState['config']['enableColumnPicker'] ?? true;
+            $visibleColumns = $gridState['columns']['visible'];
+            if (!is_array($visibleColumns)) {
+                $visibleColumns = array_values($visibleColumns);
+            }
+
+            $rowHtml = $this->renderDataverseTableRowElement([
+                'row' => $bestowal,
+                'columns' => $gridState['columns']['all'],
+                'visibleColumns' => $visibleColumns,
+                'controllerName' => 'grid-view',
+                'primaryKey' => $gridState['config']['primaryKey'],
+                'gridKey' => $gridState['config']['gridKey'],
+                'rowActions' => $rowActions,
+                'user' => $user,
+                'enableBulkSelection' => $gridState['config']['enableBulkSelection'] ?? false,
+                'bulkSelectionDataFields' => $gridState['config']['bulkSelectionDataFields'] ?? [],
+                'bulkSelectionDisabledField' => $gridState['config']['bulkSelectionDisabledField'] ?? null,
+                'rowDomIdPrefix' => preg_replace('/-table$/', '', $tableFrameId),
+                'showActionsColumn' => $enableColumnPicker || $rowActions !== [],
+            ]);
+
+            return [
+                'action' => 'replace',
+                'rowDomId' => $rowDomId,
+                'rowHtml' => $rowHtml,
+            ];
+        });
+    }
+
+    /**
      * Turbo-stream response for grid-origin bestowal saves.
      */
     private function tryBestowalsGridTurboResponse(
         ?string $pageContext,
         bool $success,
         ?int $reloadEditId = null,
+        ?int $updatedBestowalId = null,
+        ?BestowalQueryService $queryService = null,
     ): ?Response {
-        if (!$this->wantsTurboStreamRequest() || !$this->isGridOriginRequest($pageContext)) {
+        if (!$this->wantsTurboStreamRequest() || $pageContext === null) {
+            return null;
+        }
+
+        $syncContext = $this->resolveBestowalGridSyncContext($pageContext);
+        if (!$this->isGridOriginRequest($pageContext) && $syncContext === null) {
             return null;
         }
 
@@ -1113,6 +1299,25 @@ class BestowalsController extends AppController
 
         if ($success) {
             $this->Flash->success(__('The bestowal has been saved.'));
+
+            if ($updatedBestowalId !== null) {
+                $queryService ??= new BestowalQueryService();
+                $sync = $this->resolveBestowalGridRowSync(
+                    $updatedBestowalId,
+                    $pageContext,
+                    $queryService,
+                );
+                if ($sync !== null) {
+                    if ($sync['action'] === 'remove') {
+                        return $this->renderTurboRemoveGridRow($sync['rowDomId']);
+                    }
+
+                    return $this->renderTurboReplaceGridRow(
+                        $sync['rowDomId'],
+                        $sync['rowHtml'] ?? '',
+                    );
+                }
+            }
 
             return $this->renderTurboCloseModal('bestowals-grid-table', $gridRoute, $pageContext);
         }

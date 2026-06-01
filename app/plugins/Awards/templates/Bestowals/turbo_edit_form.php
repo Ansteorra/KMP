@@ -1,5 +1,12 @@
 <?php
 $formUrl = $this->Url->build(['plugin' => 'Awards', 'controller' => 'Bestowals', 'action' => 'edit', $bestowal->id]);
+$submitAction = implode(' ', [
+    'submit->turbo-modal#submitAsTurboStream',
+    'turbo:submit-start->turbo-modal#closeModalBeforeSubmit',
+    'input->awards-bestowal-edit#updateSubmitState',
+    'change->awards-bestowal-edit#updateSubmitState',
+    'autocomplete.change->awards-bestowal-edit#updateSubmitState',
+]);
 ?>
 <turbo-frame id="editBestowalQuick"
     data-awards-bestowal-edit-target="turboFrame"
@@ -10,7 +17,7 @@ $formUrl = $this->Url->build(['plugin' => 'Awards', 'controller' => 'Bestowals',
         'id' => 'bestowal_form',
         'data-turbo' => 'true',
         'data-controller' => 'turbo-modal',
-        'data-action' => 'turbo:submit-start->turbo-modal#closeModalBeforeSubmit input->awards-bestowal-edit#updateSubmitState change->awards-bestowal-edit#updateSubmitState autocomplete.change->awards-bestowal-edit#updateSubmitState',
+        'data-action' => $submitAction,
     ]) ?>
     <?= $this->Form->hidden('page_context_url', [
         'value' => $this->request->getRequestTarget(),

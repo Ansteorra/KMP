@@ -40,7 +40,12 @@ $this->KMP->endBlock(); ?>
             <?= $this->Form->create(null, [
                 'url' => ['controller' => 'Approvals', 'action' => 'recordApproval'],
                 'id' => 'approvalResponseForm',
-                'data-controller' => 'approval-response',
+                'data-turbo' => 'true',
+                'data-controller' => 'approval-response turbo-modal',
+                'data-action' => implode(' ', [
+                    'submit->turbo-modal#submitAsTurboStream',
+                    'turbo:submit-start->turbo-modal#closeModalBeforeSubmit',
+                ]),
                 'data-approval-response-serial-pick-next-value' => 'false',
                 'data-approval-response-required-count-value' => '1',
                 'data-approval-response-approved-count-value' => '0',
@@ -49,6 +54,7 @@ $this->KMP->endBlock(); ?>
             ]) ?>
             <div class="modal-body">
                 <input type="hidden" name="approvalId" id="approvalResponseApprovalId" value="">
+                <?= $this->Form->hidden('page_context_url', ['value' => '']) ?>
 
                 <!-- Decision -->
                 <div class="mb-3">

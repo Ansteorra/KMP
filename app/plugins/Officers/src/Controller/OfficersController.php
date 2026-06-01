@@ -5,6 +5,10 @@ namespace Officers\Controller;
 
 use App\Controller\DataverseGridTrait;
 use App\Controller\WorkflowDispatchTrait;
+use App\KMP\GridRowDomId;
+use Cake\Http\Response;
+use Cake\ORM\TableRegistry;
+use Cake\Routing\Router;
 use App\Model\Entity\Member;
 use App\Model\Entity\Warrant;
 use App\Services\CsvExportService;
@@ -193,10 +197,18 @@ class OfficersController extends AppController
         $officer->email_address = $this->request->getData('email_address');
         if ($this->Officers->save($officer)) {
             $this->Flash->success(__('The officer has been saved.'));
+            $stream = $this->tryOfficersGridTurboResponse(
+                $this->getPageContextUrl(),
+                (int)$officer->id,
+            );
+            if ($stream !== null) {
+                return $stream;
+            }
         } else {
             $this->Flash->error(__('The officer could not be saved. Please, try again.'));
         }
-        $this->redirect($this->referer());
+
+        return $this->redirect($this->referer());
     }
 
     /**
@@ -436,13 +448,16 @@ class OfficersController extends AppController
 
         // Determine frame ID based on context
         $frameId = 'officers-grid';
+        $gridKey = 'Officers.Officers.index.main';
         if ($memberId) {
             $frameId = 'member-officers-grid';
+            $gridKey = 'Officers.Officers.member.main';
         } elseif ($branchId) {
             $frameId = 'branch-officers-grid';
+            $gridKey = 'Officers.Officers.branch.main';
         }
         $gridConfig = [
-            'gridKey' => 'Officers.Officers.index.main',
+            'gridKey' => $gridKey,
             'gridColumnsClass' => OfficersGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'Officers',
@@ -718,5 +733,253 @@ class OfficersController extends AppController
             }
         }
         //return ($officers);
+    }
+
+    /**
+     * Tab query param from page context URL (detail pages).
+     */
+    private function pageContextQueryTab(?string $pageContextUrl): ?string
+    {
+        if ($pageContextUrl === null) {
+            return null;
+        }
+
+        $parsed = parse_url($pageContextUrl);
+        if (empty($parsed['query'])) {
+            return null;
+        }
+
+        $params = [];
+        parse_str($parsed['query'], $params);
+
+        $tab = $params['tab'] ?? null;
+
+        return is_string($tab) && $tab !== '' ? $tab : null;
+    }
+
+    /**
+     * @return array{contextKey: string, tableFrameId: string, gridKey: string, memberId?: int, branchId?: int}|null
+     */
+    private function resolveOfficersGridSyncContext(?string $pageContextUrl): ?array
+    {
+        if ($pageContextUrl === null) {
+            return null;
+        }
+
+        $path = parse_url($pageContextUrl, PHP_URL_PATH) ?? $pageContextUrl;
+        $tab = $this->pageContextQueryTab($pageContextUrl);
+
+        if ($this->matchesGridIndexPath($pageContextUrl, '#/officers/officers/?$#')) {
+            return [
+                'contextKey' => 'index',
+                'tableFrameId' => 'officers-grid-table',
+                'gridKey' => 'Officers.Officers.index.main',
+            ];
+        }
+
+        if (preg_match('#/members/profile/?$#', $path)) {
+            $memberId = (int)$this->request->getAttribute('identity')->id;
+            if ($tab !== null && $tab !== 'member-officers') {
+                return null;
+            }
+
+            return [
+                'contextKey' => 'member',
+                'tableFrameId' => 'member-officers-grid-table',
+                'gridKey' => 'Officers.Officers.member.main',
+                'memberId' => $memberId,
+            ];
+        }
+
+        if (preg_match('#/members/view/(\d+)/?$#', $path, $matches)) {
+            if ($tab !== null && $tab !== 'member-officers') {
+                return null;
+            }
+
+            $memberId = (int)$matches[1];
+
+            return [
+                'contextKey' => 'member',
+                'tableFrameId' => 'member-officers-grid-table',
+                'gridKey' => 'Officers.Officers.member.main',
+                'memberId' => $memberId,
+            ];
+        }
+
+        if (preg_match('#/branches/view/([^/]+)/?$#', $path, $matches)) {
+            if ($tab !== null && $tab !== 'branch-officers') {
+                return null;
+            }
+
+            $branchesTable = TableRegistry::getTableLocator()->get('Branches');
+            try {
+                $branch = $branchesTable->find('byPublicId', [$matches[1]])->firstOrFail();
+            } catch (\Cake\Datasource\Exception\RecordNotFoundException) {
+                return null;
+            }
+
+            return [
+                'contextKey' => 'branch',
+                'tableFrameId' => 'branch-officers-grid-table',
+                'gridKey' => 'Officers.Officers.branch.main',
+                'branchId' => (int)$branch->id,
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{action: string, rowDomId: string, rowHtml?: string}|null
+     */
+    private function resolveOfficerGridRowSync(int $officerId, ?string $pageContextUrl): ?array
+    {
+        $syncContext = $this->resolveOfficersGridSyncContext($pageContextUrl);
+        if ($syncContext === null) {
+            return null;
+        }
+
+        $tableFrameId = $syncContext['tableFrameId'];
+        $rowDomId = GridRowDomId::fromTableFrameId($tableFrameId, $officerId);
+
+        return $this->withPageContextQuery($pageContextUrl, function () use (
+            $officerId,
+            $rowDomId,
+            $tableFrameId,
+            $syncContext,
+        ): ?array {
+            $newOfficer = $this->Officers->newEmptyEntity();
+            $context = $syncContext['contextKey'];
+            if ($context === 'member') {
+                $newOfficer->member_id = $syncContext['memberId'];
+                $this->Authorization->authorize($newOfficer, 'MemberOfficers');
+            } elseif ($context === 'branch') {
+                $newOfficer->branch_id = $syncContext['branchId'];
+                $this->Authorization->authorize($newOfficer, 'BranchOfficers');
+            } else {
+                $this->Authorization->authorizeModel('index');
+            }
+
+            $systemViewContext = match ($context) {
+                'member' => 'member',
+                'branch' => 'branch',
+                default => null,
+            };
+            $systemViews = OfficersGridColumns::getSystemViews(
+                $systemViewContext !== null ? ['context' => $systemViewContext] : [],
+            );
+            $baseQuery = $this->Officers->find()
+                ->where(['Officers.id' => $officerId])
+                ->contain([
+                    'Members' => fn($q) => $q->select(['id', 'sca_name']),
+                    'Offices' => fn($q) => $q->select(['id', 'name', 'requires_warrant', 'deputy_to_id']),
+                    'Offices.Departments' => fn($q) => $q->select(['id', 'name']),
+                    'Branches' => fn($q) => $q->select(['id', 'name']),
+                    'CurrentWarrants' => fn($q) => $q->select(['id', 'start_on', 'expires_on', 'entity_id']),
+                    'PendingWarrants' => fn($q) => $q->select(['id', 'start_on', 'expires_on', 'entity_id']),
+                    'RevokedBy' => fn($q) => $q->select(['id', 'sca_name']),
+                ]);
+
+            if ($context === 'member') {
+                $baseQuery->where(['Officers.member_id' => $syncContext['memberId']]);
+            } elseif ($context === 'branch') {
+                $baseQuery->where(['Officers.branch_id' => $syncContext['branchId']]);
+            }
+
+            $gridConfig = [
+                'gridKey' => $syncContext['gridKey'],
+                'gridColumnsClass' => OfficersGridColumns::class,
+                'baseQuery' => $baseQuery,
+                'tableName' => 'Officers',
+                'defaultSort' => ['Officers.start_on' => 'DESC'],
+                'defaultPageSize' => 25,
+                'systemViews' => $systemViews,
+                'defaultSystemView' => 'sys-officers-current',
+                'queryCallback' => $this->buildOfficerQueryCallback(),
+                'showAllTab' => false,
+                'canAddViews' => false,
+                'canFilter' => true,
+                'canExportCsv' => false,
+                'showFilterPills' => false,
+            ];
+            if ($context === 'member') {
+                $gridConfig['lockedFilters'] = ['status'];
+                $gridConfig['enableColumnPicker'] = false;
+            }
+
+            $directOfficer = (clone $baseQuery)->first();
+            $result = $this->processDataverseGrid($gridConfig);
+
+            $gridData = $result['data'];
+            if (is_array($gridData)) {
+                $officers = $gridData;
+            } elseif ($gridData instanceof \Traversable) {
+                $officers = iterator_to_array($gridData, false);
+            } else {
+                $officers = [];
+            }
+            if ($officers === [] && $directOfficer !== null) {
+                $officers = [$directOfficer];
+            }
+            if ($officers === []) {
+                return [
+                    'action' => 'remove',
+                    'rowDomId' => $rowDomId,
+                ];
+            }
+
+            $rowActions = OfficersGridColumns::getRowActions();
+            $gridState = $result['gridState'];
+            $visibleColumns = $gridState['columns']['visible'];
+            if (!is_array($visibleColumns)) {
+                $visibleColumns = array_values($visibleColumns);
+            }
+
+            $rowHtml = $this->renderDataverseTableRowElement([
+                'row' => $officers[0],
+                'columns' => $gridState['columns']['all'],
+                'visibleColumns' => $visibleColumns,
+                'controllerName' => 'grid-view',
+                'primaryKey' => $gridState['config']['primaryKey'],
+                'gridKey' => $gridState['config']['gridKey'],
+                'rowActions' => $rowActions,
+                'user' => $this->request->getAttribute('identity'),
+                'enableBulkSelection' => false,
+                'rowDomIdPrefix' => preg_replace('/-table$/', '', $tableFrameId),
+                'showActionsColumn' => $rowActions !== [],
+            ]);
+
+            return [
+                'action' => 'replace',
+                'rowDomId' => $rowDomId,
+                'rowHtml' => $rowHtml,
+            ];
+        });
+    }
+
+    private function tryOfficersGridTurboResponse(?string $pageContext, int $officerId): ?Response
+    {
+        if (!$this->wantsTurboStreamRequest() || $pageContext === null) {
+            return null;
+        }
+
+        $syncContext = $this->resolveOfficersGridSyncContext($pageContext);
+        if ($syncContext === null) {
+            return null;
+        }
+
+        $sync = $this->resolveOfficerGridRowSync($officerId, $pageContext);
+        if ($sync === null) {
+            return null;
+        }
+
+        if ($sync['action'] === 'remove') {
+            return $this->renderTurboRemoveGridRow($sync['rowDomId']);
+        }
+
+        return $this->renderTurboReplaceGridRow(
+            $sync['rowDomId'],
+            $sync['rowHtml'] ?? '',
+        );
     }
 }
