@@ -63,8 +63,21 @@ class AwardsRecommendationQuickEditForm extends Controller {
         outlet.removeListener(this.setId.bind(this));
     }
 
+    /** Disable submit when the turbo frame loaded a bestowal-locked recommendation. */
+    onTurboFrameLoad() {
+        const locked = this.turboFrameTarget.querySelector('[data-recommendation-locked]');
+        const submitBtn = document.getElementById('recommendation_submit');
+        if (submitBtn) {
+            submitBtn.disabled = Boolean(locked);
+        }
+    }
+
     /** Close modal after form submission. */
     submit(event) {
+        if (this.turboFrameTarget.querySelector('[data-recommendation-locked]')) {
+            event.preventDefault();
+            return;
+        }
         document.getElementById("recommendation_edit_close").click();
     }
 
@@ -261,13 +274,14 @@ class AwardsRecommendationQuickEditForm extends Controller {
         if (rules[state]) {
             var statusRules = rules[state];
             var controller = this;
-            if (statusRules["Visible"]) {
-                statusRules["Visible"].forEach(function (field) {
-                    if (controller[field]) {
-                        controller[field].style.display = "block";
-                    }
-                });
-            }
+            const visibleFields = (statusRules["Visible"] || []).concat(
+                statusRules["Optional"] || [],
+            );
+            visibleFields.forEach(function (field) {
+                if (controller[field]) {
+                    controller[field].style.display = "block";
+                }
+            });
             if (statusRules["Disabled"]) {
                 statusRules["Disabled"].forEach(function (field) {
                     if (controller[field]) {

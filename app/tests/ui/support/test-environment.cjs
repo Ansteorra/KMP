@@ -101,6 +101,7 @@ const getMysqlConfig = () => parseMysqlUrl(getEnvValue('DATABASE_URL')) ?? {
 
 const getUiTestEnvironment = () => ({
     baseUrl: trimTrailingSlash(getEnvValue('PLAYWRIGHT_BASE_URL')) || 'http://127.0.0.1:8080',
+    hostHeader: getEnvValue('PLAYWRIGHT_HOST_HEADER') || null,
     mailpitUrl: trimTrailingSlash(
         getEnvValue('PLAYWRIGHT_MAILPIT_URL', 'MAILPIT_BASE_URL', 'MAILPIT_URL'),
     ) || 'http://127.0.0.1:8025',

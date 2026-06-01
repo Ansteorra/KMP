@@ -34,7 +34,9 @@ echo $this->Modal->create('Edit Recommendation', [
     'close' => true,
 ]);
 ?>
-<turbo-frame id="editRecommendation" data-awards-rec-edit-target="turboFrame">
+<turbo-frame id="editRecommendation"
+    data-awards-rec-edit-target="turboFrame"
+    data-action="turbo:frame-load->awards-rec-edit#onTurboFrameLoad">
     loading
 </turbo-frame>
 <?php

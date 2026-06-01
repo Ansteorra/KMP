@@ -24,3 +24,13 @@ This project ships agent knowledge for multiple harnesses. Prefer Cursor paths f
 | `doublcheckdocs.prompt.md` | `double-check-docs` |
 
 When a skill references a prompt file, follow that file's workflow exactly.
+
+## Docker dev workflow (Cursor agents)
+
+Local development uses **Docker Compose with bind-mounted source**. Agents should:
+
+1. Edit code in the workspace (host paths under `./app`)
+2. Run migrations, tests, and verification **via repo-root scripts or `docker compose exec app`**
+3. Reset databases with **`./dev-reset-db.sh`** or **`./dev-reset-db.sh --seed`** — not bare-host PHP against `db`
+
+See `AGENTS.md` § Dev environment and `docs/docker-development.md`.

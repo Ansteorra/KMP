@@ -1,0 +1,63 @@
+{
+    "nodes": {
+        "trigger": {
+            "type": "trigger",
+            "label": "Bestowal Created",
+            "config": {
+                "event": "Awards.BestowalCreated",
+                "entityIdField": "bestowalId"
+            },
+            "position": {
+                "x": 50,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "notify-bestowal-created"
+                }
+            ]
+        },
+        "notify-bestowal-created": {
+            "type": "action",
+            "label": "Notify Bestowal Created",
+            "config": {
+                "action": "Core.SendEmail",
+                "params": {
+                    "to": "awards-coordinator@ansteorra.org",
+                    "template": "award-bestowal-created",
+                    "vars": {
+                        "bestowalId": "$.trigger.bestowalId",
+                        "memberScaName": "$.trigger.memberScaName",
+                        "state": "$.trigger.state",
+                        "status": "$.trigger.status",
+                        "source": "$.trigger.source",
+                        "gatheringId": "$.trigger.gatheringId",
+                        "recommendationIds": "$.trigger.recommendationIds"
+                    }
+                }
+            },
+            "position": {
+                "x": 350,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "end-complete"
+                }
+            ]
+        },
+        "end-complete": {
+            "type": "end",
+            "label": "Bestowal Created Notification Sent",
+            "config": {},
+            "position": {
+                "x": 650,
+                "y": 250
+            },
+            "outputs": []
+        }
+    },
+    "startNode": "trigger"
+}

@@ -40,6 +40,13 @@ echo $this->KMP->startBlock("pageTitle") ?>
     </td>
 </tr>
 <?php endif; ?>
+<?php if ($recommendation->isLockedByBestowal()) : ?>
+<tr>
+    <td colspan="2">
+        <?= $this->element('recommendation_bestowal_lock_notice', ['recommendation' => $recommendation]) ?>
+    </td>
+</tr>
+<?php endif; ?>
 <tr>
     <th scope="row"><?= __('Award') ?></th>
     <td><?= $recommendation->hasValue('award') ? $this->Html->link($recommendation->award->name, ['controller' => 'Awards', 'action' => 'view', $recommendation->award->id]) : '' ?>

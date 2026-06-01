@@ -313,6 +313,9 @@ describe('AutoCompleteController', () => {
         controller.clearBtnTarget.disabled = false;
         controller.inputTarget.disabled = true;
 
+        const changeHandler = jest.fn();
+        controller.element.addEventListener('autocomplete.change', changeHandler);
+
         controller.clear();
 
         expect(controller.inputTarget.value).toBe('');
@@ -320,6 +323,7 @@ describe('AutoCompleteController', () => {
         expect(controller.hiddenTextTarget.value).toBe('');
         expect(controller.clearBtnTarget.disabled).toBe(true);
         expect(controller.inputTarget.disabled).toBe(false);
+        expect(changeHandler).toHaveBeenCalled();
     });
 
     // ==================== open / close ====================

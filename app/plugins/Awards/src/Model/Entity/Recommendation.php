@@ -26,6 +26,7 @@ use Cake\ORM\TableRegistry;
  * @property int $award_id
  * @property int|null $event_id
  * @property int|null $gathering_id
+ * @property int|null $bestowal_id
  * @property string $status
  * @property string $state
  * @property \Cake\I18n\DateTime|null $state_date
@@ -54,6 +55,7 @@ use Cake\ORM\TableRegistry;
  * @property \App\Model\Entity\Branch $branch
  * @property \Awards\Model\Entity\Recommendation|null $group_head
  * @property \Awards\Model\Entity\Recommendation[] $group_children
+ * @property \Awards\Model\Entity\Bestowal|null $bestowal
  */
 class Recommendation extends BaseEntity
 {
@@ -83,6 +85,7 @@ class Recommendation extends BaseEntity
         'award_id' => true,
         'event_id' => true,  // Deprecated - kept for migration compatibility, use gathering_id instead
         'gathering_id' => true,
+        'bestowal_id' => true,
         'given' => true,
         'status' => true,
         'state' => true,
@@ -231,7 +234,7 @@ class Recommendation extends BaseEntity
      * Get field rules grouped by state name from database.
      *
      * Returns an array keyed by state name where each value contains
-     * rule type groups: Visible, Required, Disabled, Set.
+     * rule type groups: Visible, Optional, Required, Disabled, Set.
      *
      * @return array<string, array<string, mixed>> State name => rules
      */
@@ -373,6 +376,19 @@ class Recommendation extends BaseEntity
             return $award->branch_id;
         }
         return null;
+    }
+
+    /**
+     * Whether this recommendation is locked because it is linked to a bestowal.
+     *
+     * Linked recommendations are read-only in the recommendation UI; changes flow
+     * through the bestowal workflow until the link is cleared (e.g. cancellation).
+     *
+     * @return bool
+     */
+    public function isLockedByBestowal(): bool
+    {
+        return $this->bestowal_id !== null && (int)$this->bestowal_id > 0;
     }
 
     /**

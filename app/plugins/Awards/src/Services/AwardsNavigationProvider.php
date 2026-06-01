@@ -6,31 +6,25 @@ namespace Awards\Services;
 
 use App\Model\Entity\Member;
 use App\KMP\StaticHelpers;
-use Awards\Model\Entity\Recommendation;
 
 /**
  * Provides navigation integration for the Awards plugin.
- * 
- * Generates navigation items for award recommendation workflows, administrative tools,
- * configuration management, and reporting. Creates dynamic status-based navigation
- * items for each recommendation workflow state.
- * 
+ *
+ * Generates navigation items for award recommendations, bestowals, administrative tools,
+ * configuration management, and reporting. Status filtering for list pages uses in-page
+ * grid tabs (same pattern as Recommendations and Bestowals index).
+ *
  * @see \App\KMP\StaticHelpers Plugin availability checking
- * @see \Awards\Model\Entity\Recommendation Recommendation status definitions
  * @see /docs/5.2.17-awards-services.md Full documentation
  */
 class AwardsNavigationProvider
 {
     /**
-     * Builds the Awards plugin navigation tree with static sections and per-status recommendation links.
-     *
-     * The returned structure contains a parent header and core navigation items (Recommendations, Award Domains,
-     * Award Levels, Awards, Submit Award Rec.) plus additional links generated for each recommendation status that
-     * filter the Recommendations list. Items include mergePath, icon, order, URL, and active path metadata for UI integration.
+     * Builds the Awards plugin navigation tree.
      *
      * @param \App\Model\Entity\Member $user The current authenticated user used for authorization/context.
      * @param array $params Optional request parameters that may influence active path or contextual navigation.
-     * @return array An array of navigation item arrays organized hierarchically, including static items and status-filtered recommendation links.
+     * @return array Navigation item arrays with mergePath, icon, order, URL, and active path metadata.
      */
     public static function getNavigationItems(Member $user, array $params = []): array
     {
@@ -38,11 +32,7 @@ class AwardsNavigationProvider
             return [];
         }
 
-        $statuses = Recommendation::getStatuses();
-        $listLinks = [];
-        $order = 0;
-
-        $appNav = [
+        return [
             [
                 "type" => "parent",
                 "label" => "Award Recs.",
@@ -64,6 +54,24 @@ class AwardsNavigationProvider
                 "icon" => "bi-megaphone",
                 "activePaths" => [
                     "awards/Recommendations/view/*",
+                    "awards/Recommendations/index*",
+                ]
+            ],
+            [
+                "type" => "link",
+                "mergePath" => ["Award Recs."],
+                "label" => "Bestowals",
+                "order" => 31,
+                "url" => [
+                    "controller" => "Bestowals",
+                    "plugin" => "Awards",
+                    "action" => "index",
+                    "model" => "Awards.Bestowals",
+                ],
+                "icon" => "bi-award",
+                "activePaths" => [
+                    "awards/Bestowals/view/*",
+                    "awards/Bestowals/index*",
                 ]
             ],
             [
@@ -148,6 +156,38 @@ class AwardsNavigationProvider
             ],
             [
                 "type" => "link",
+                "mergePath" => ["Config"],
+                "label" => "Bestowal Statuses",
+                "order" => 35,
+                "url" => [
+                    "controller" => "BestowalStatuses",
+                    "plugin" => "Awards",
+                    "action" => "index",
+                    "model" => "Awards.BestowalStatuses",
+                ],
+                "icon" => "bi-diagram-3-fill",
+                "activePaths" => [
+                    "awards/bestowal-statuses/view/*",
+                ]
+            ],
+            [
+                "type" => "link",
+                "mergePath" => ["Config"],
+                "label" => "Bestowal States",
+                "order" => 36,
+                "url" => [
+                    "controller" => "BestowalStates",
+                    "plugin" => "Awards",
+                    "action" => "index",
+                    "model" => "Awards.BestowalStates",
+                ],
+                "icon" => "bi-signpost-2-fill",
+                "activePaths" => [
+                    "awards/bestowal-states/view/*",
+                ]
+            ],
+            [
+                "type" => "link",
                 "mergePath" => ["Members"],
                 "label" => "Submit Award Rec.",
                 "order" => 30,
@@ -162,7 +202,5 @@ class AwardsNavigationProvider
                 "otherClasses" => StaticHelpers::getAppSetting("Awards.RecButtonClass"),
             ]
         ];
-
-        return array_merge($appNav, $listLinks);
     }
 }

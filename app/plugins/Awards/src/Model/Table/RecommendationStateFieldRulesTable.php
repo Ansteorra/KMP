@@ -71,7 +71,7 @@ class RecommendationStateFieldRulesTable extends BaseTable
             ->maxLength('rule_type', 50)
             ->requirePresence('rule_type', 'create')
             ->notEmptyString('rule_type')
-            ->inList('rule_type', ['Visible', 'Required', 'Disabled', 'Set']);
+            ->inList('rule_type', ['Visible', 'Optional', 'Required', 'Disabled', 'Set']);
 
         $validator
             ->scalar('rule_value')

@@ -37,16 +37,18 @@ const clearMailpitMessages = async (requestContext) => {
 };
 
 const waitForAppReady = async (requestContext, timeout = 60000) => {
-    const { baseUrl } = getUiTestEnvironment();
+    const { baseUrl, hostHeader } = getUiTestEnvironment();
     const startedAt = Date.now();
     let lastErrorMessage = 'no response received';
+    const requestOptions = {
+        failOnStatusCode: false,
+        timeout: 5000,
+        headers: hostHeader ? { Host: hostHeader } : undefined,
+    };
 
     while (Date.now() - startedAt < timeout) {
         try {
-            const response = await requestContext.get(baseUrl, {
-                failOnStatusCode: false,
-                timeout: 5000,
-            });
+            const response = await requestContext.get(baseUrl, requestOptions);
 
             if (response.ok() || [301, 302, 303, 307, 308, 401, 403].includes(response.status())) {
                 return;

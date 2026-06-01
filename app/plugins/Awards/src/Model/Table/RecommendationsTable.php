@@ -29,6 +29,7 @@ use App\Model\Table\BaseTable;
  * @property \Awards\Model\Table\EventsTable&\Cake\ORM\Association\BelongsToMany $Events
  * @property \Awards\Model\Table\EventsTable&\Cake\ORM\Association\BelongsTo $AssignedEvent
  * @property \App\Model\Table\NotesTable&\Cake\ORM\Association\HasMany $Notes
+ * @property \Awards\Model\Table\BestowalsTable&\Cake\ORM\Association\BelongsTo $Bestowals
  * @property \Awards\Model\Table\RecommendationsStatesLogsTable&\Cake\ORM\Association\HasMany $RecommendationStateLogs
  * @property \Cake\ORM\Behavior\TimestampBehavior&\Cake\ORM\Behavior $Timestamp
  * @property \Muffin\Footprint\Model\Behavior\FootprintBehavior&\Cake\ORM\Behavior $Footprint
@@ -97,6 +98,11 @@ class RecommendationsTable extends BaseTable
             'joinType' => 'INNER',
             'className' => 'Awards.Awards',
         ]);
+        $this->belongsTo('Bestowals', [
+            'foreignKey' => 'bestowal_id',
+            'joinType' => 'LEFT',
+            'className' => 'Awards.Bestowals',
+        ]);
         $this->belongsToMany("Events", [
             "joinTable" => "awards_recommendations_events",
             "foreignKey" => "recommendation_id",
@@ -158,6 +164,10 @@ class RecommendationsTable extends BaseTable
         $validator
             ->integer('branch_id')
             ->allowEmptyString('branch_id');
+
+        $validator
+            ->integer('bestowal_id')
+            ->allowEmptyString('bestowal_id');
 
         $validator
             ->integer('award_id')
@@ -224,6 +234,7 @@ class RecommendationsTable extends BaseTable
         $rules->add($rules->existsIn(['member_id'], 'Members'), ['errorField' => 'member_id']);
         $rules->add($rules->existsIn(['branch_id'], 'Branches'), ['errorField' => 'branch_id']);
         $rules->add($rules->existsIn(['award_id'], 'Awards'), ['errorField' => 'award_id']);
+        $rules->add($rules->existsIn(['bestowal_id'], 'Bestowals'), ['errorField' => 'bestowal_id']);
         $rules->add(
             fn(EntityInterface $entity) => $this->isAwardSelectableForRecommendation($entity),
             'awardSelection',
@@ -279,10 +290,46 @@ class RecommendationsTable extends BaseTable
             return;
         }
 
+        if ($this->shouldRejectLockedUserChange($entity, $options)) {
+            $event->stopPropagation();
+            $event->setResult(false);
+            $entity->setError('_locked', [
+                'bestowalLocked' => 'This recommendation is linked to a bestowal and cannot be edited here.',
+            ]);
+            return;
+        }
+
         $state = (string)($entity->state ?? '');
         if ($state !== '' && !Recommendation::supportsGatheringAssignmentForState($state)) {
             $entity->gathering_id = null;
         }
+    }
+
+    /**
+     * Whether a user-initiated save should be rejected due to bestowal lock.
+     *
+     * @param \Awards\Model\Entity\Recommendation $entity Recommendation being saved
+     * @param \ArrayObject $options Save operation options
+     * @return bool
+     */
+    protected function shouldRejectLockedUserChange(Recommendation $entity, \ArrayObject $options): bool
+    {
+        if (!empty($options['systemSync'])) {
+            return false;
+        }
+
+        if (!$entity->isLockedByBestowal() || !$entity->isDirty()) {
+            return false;
+        }
+
+        $allowedDirtyFields = ['modified', 'modified_by'];
+        foreach (array_keys($entity->getDirty()) as $field) {
+            if (!in_array($field, $allowedDirtyFields, true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

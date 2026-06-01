@@ -14,7 +14,7 @@ describe('OutletButtonController', () => {
 
         controller = new OutletButton();
         controller.element = document.querySelector('[data-controller="outlet-btn"]');
-        controller.btnDataValue = {};
+        controller.btnDataValue = '';
         controller.requireDataValue = true;
     });
 
@@ -28,43 +28,48 @@ describe('OutletButtonController', () => {
     });
 
     test('has correct static values', () => {
-        expect(OutletButton.values).toHaveProperty('btnData', Object);
+        expect(OutletButton.values).toHaveProperty('btnData', String);
         expect(OutletButton.values).toHaveProperty('requireData', Boolean);
     });
 
+    test('parseBtnData tolerates truncated JSON from broken HTML attributes', () => {
+        expect(controller.parseBtnData('{')).toEqual({});
+    });
+
     test('btnDataValueChanged disables button when data required and empty', () => {
-        controller.btnDataValue = {};
+        controller.btnDataValue = '';
         controller.btnDataValueChanged();
         expect(controller.element.disabled).toBe(true);
     });
 
     test('btnDataValueChanged enables button when data is present', () => {
-        controller.btnDataValue = { memberId: 123 };
+        controller.btnDataValue = JSON.stringify({ memberId: 123 });
         controller.btnDataValueChanged();
         expect(controller.element.disabled).toBe(false);
     });
 
     test('btnDataValueChanged enables button when data not required', () => {
         controller.requireDataValue = false;
-        controller.btnDataValue = {};
+        controller.btnDataValue = '';
         controller.btnDataValueChanged();
         expect(controller.element.disabled).toBe(false);
     });
 
-    test('btnDataValueChanged handles null by resetting to empty object', () => {
+    test('btnDataValueChanged handles null by resetting to empty string', () => {
         controller.btnDataValue = null;
         controller.btnDataValueChanged();
-        expect(controller.btnDataValue).toEqual({});
+        expect(controller.btnDataValue).toBe('');
     });
 
-    test('addBtnData sets btnDataValue', () => {
+    test('addBtnData sets btnDataValue JSON string', () => {
         controller.addBtnData({ action: 'assign', id: 42 });
-        expect(controller.btnDataValue).toEqual({ action: 'assign', id: 42 });
+        expect(controller.btnDataValue).toBe('{"action":"assign","id":42}');
+        expect(controller.getBtnData()).toEqual({ action: 'assign', id: 42 });
     });
 
     test('fireNotice dispatches event with button data', () => {
         controller.dispatch = jest.fn();
-        controller.btnDataValue = { memberId: 99 };
+        controller.btnDataValue = JSON.stringify({ memberId: 99 });
         controller.fireNotice({ target: controller.element });
         expect(controller.dispatch).toHaveBeenCalledWith(
             'outlet-button-clicked',

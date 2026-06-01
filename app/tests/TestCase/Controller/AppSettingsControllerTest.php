@@ -183,6 +183,26 @@ class AppSettingsControllerTest extends HttpIntegrationTestCase
     }
 
     /**
+     * App setting asset requests must not pollute navigation history.
+     *
+     * @return void
+     * @uses \App\Controller\AppSettingsController::asset()
+     */
+    public function testAssetDoesNotUpdatePageStack(): void
+    {
+        $appSettingsTable = $this->getTableLocator()->get('AppSettings');
+        $name = 'test.public.asset.stack.' . time();
+        $assetValue = $appSettingsTable->assetValueFromUpload('image', $this->uploadedPngFile('stack.png'));
+        $appSettingsTable->updateSetting($name, 'image', $assetValue, false);
+
+        $this->session(['pageStack' => ['/members/view/1']]);
+        $this->get('/app-settings/asset/' . $name);
+
+        $this->assertResponseOk();
+        $this->assertSession(['/members/view/1'], 'pageStack');
+    }
+
+    /**
      * Test delete method
      *
      * @return void

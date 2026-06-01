@@ -30,6 +30,7 @@ $user = $user ?? $this->request->getAttribute('identity');
 $enableColumnPicker = $enableColumnPicker ?? true;
 $enableBulkSelection = $enableBulkSelection ?? false;
 $bulkSelectionDataFields = $bulkSelectionDataFields ?? [];
+$bulkSelectionDisabledField = $bulkSelectionDisabledField ?? null;
 
 // Show actions column if column picker is enabled OR there are row actions
 $showActionsColumn = $enableColumnPicker || !empty($rowActions);
@@ -109,14 +110,27 @@ $totalColumns = count($visibleColumns) + ($showActionsColumn ? 1 : 0) + ($enable
                 <?php foreach ($data as $row): ?>
                     <tr data-id="<?= h($row[$primaryKey]) ?>">
                         <?php if ($enableBulkSelection): ?>
+                            <?php
+                            $bulkRowDisabled = false;
+                            if ($bulkSelectionDisabledField !== null && $bulkSelectionDisabledField !== '') {
+                                $disabledValue = is_array($row)
+                                    ? ($row[$bulkSelectionDisabledField] ?? null)
+                                    : ($row->{$bulkSelectionDisabledField} ?? null);
+                                $bulkRowDisabled = !empty($disabledValue);
+                            }
+                            ?>
                             <td style="text-align: center;">
                                 <input type="checkbox" 
                                        class="form-check-input" 
                                        value="<?= h($row[$primaryKey]) ?>"
                                        data-<?= h($controllerName) ?>-target="rowCheckbox"
                                        data-action="change-><?= h($controllerName) ?>#toggleRowSelection"
+                                       <?php if ($bulkRowDisabled) : ?>
+                                       disabled
+                                       title="<?= h(__('Linked to a bestowal — cannot bulk edit')) ?>"
+                                       <?php endif; ?>
                                        <?php foreach ($bulkSelectionDataFields as $attr => $field): ?>
-                                       data-<?= h($attr) ?>="<?= h($row[$field] ?? '') ?>"
+                                       data-<?= h($attr) ?>="<?= h(is_array($row) ? ($row[$field] ?? '') : ($row->{$field} ?? '')) ?>"
                                        <?php endforeach; ?>>
                             </td>
                         <?php endif; ?>

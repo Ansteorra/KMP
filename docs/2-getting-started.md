@@ -57,6 +57,7 @@ This script will:
 - Run migrations and `updateDatabase`
 - Load `dev_seed_clean.sql` when you pass `--seed`
 - Reset all member passwords to `TestPassword`
+- Print member emails that exist after reset (without `--seed`, usually `admin@test.com`; with `--seed`, includes `admin@amp.ansteorra.org`)
 
 ### Accessing the Application
 

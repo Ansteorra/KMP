@@ -58,6 +58,22 @@ class AwardsProvidersTest extends BaseTestCase
         $this->assertNotEmpty($parents);
         $parentLabels = array_column($parents, 'label');
         $this->assertContains('Award Recs.', $parentLabels);
+        $this->assertNotContains('Award Bestowals', $parentLabels);
+    }
+
+    public function testBestowalsNavMergesUnderAwardRecs(): void
+    {
+        $items = AwardsNavigationProvider::getNavigationItems($this->user);
+        $bestowals = null;
+        foreach ($items as $item) {
+            if (($item['label'] ?? '') === 'Bestowals' && ($item['type'] ?? '') === 'link') {
+                $bestowals = $item;
+                break;
+            }
+        }
+        $this->assertNotNull($bestowals);
+        $this->assertSame(['Award Recs.'], $bestowals['mergePath']);
+        $this->assertSame('Bestowals', $bestowals['url']['controller']);
     }
 
     public function testNavigationContainsExpectedLabels(): void
@@ -65,6 +81,7 @@ class AwardsProvidersTest extends BaseTestCase
         $items = AwardsNavigationProvider::getNavigationItems($this->user);
         $labels = array_column($items, 'label');
         $this->assertContains('Recommendations', $labels);
+        $this->assertContains('Bestowals', $labels);
         $this->assertContains('Award Domains', $labels);
         $this->assertContains('Award Levels', $labels);
         $this->assertContains('Awards', $labels);

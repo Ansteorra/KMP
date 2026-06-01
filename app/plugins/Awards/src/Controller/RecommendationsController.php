@@ -1102,6 +1102,16 @@ class RecommendationsController extends AppController
                     $this->Flash->error($result['error'] ?? __('The recommendations could not be updated. Please, try again.'));
                 }
             }
+
+            if ($result['success']) {
+                $this->dispatchRecommendationStateChangedEvents(
+                    $triggerDispatcher,
+                    $result,
+                    $ids,
+                    $newState,
+                    (int)$user->id,
+                );
+            }
         }
         $currentPage = $this->request->getData('current_page');
         if ($currentPage) {
@@ -1126,6 +1136,7 @@ class RecommendationsController extends AppController
         try {
             $recommendation = $this->Recommendations->get($id, contain: [
                 'Requesters', 'Members', 'Branches', 'Awards', 'Gatherings', 'AssignedGathering',
+                'Bestowals',
                 'GroupHead' => ['Awards'],
                 'GroupChildren' => ['Awards', 'Requesters'],
             ]);
@@ -2615,5 +2626,52 @@ class RecommendationsController extends AppController
         }
 
         return null;
+    }
+
+    /**
+     * Fire recommendation state-changed reaction events after a successful bulk transition.
+     *
+     * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher Workflow trigger dispatcher.
+     * @param array{data?: array<string, mixed>} $result Normalized bulk transition result.
+     * @param array<int, string> $ids Recommendation IDs from the request.
+     * @param string $newState Target state from the request.
+     * @param int $actorId Current user ID.
+     * @return void
+     */
+    private function dispatchRecommendationStateChangedEvents(
+        TriggerDispatcher $triggerDispatcher,
+        array $result,
+        array $ids,
+        string $newState,
+        int $actorId,
+    ): void {
+        $transitionResults = $result['data']['results'] ?? [];
+        $resultsById = [];
+
+        foreach ($transitionResults as $transitionResult) {
+            if (!is_array($transitionResult) || !isset($transitionResult['recommendationId'])) {
+                continue;
+            }
+
+            $resultsById[(int)$transitionResult['recommendationId']] = $transitionResult;
+        }
+
+        foreach ($ids as $id) {
+            $recommendationId = (int)$id;
+            $transitionResult = $resultsById[$recommendationId] ?? null;
+
+            $this->dispatchWorkflowEvent(
+                $triggerDispatcher,
+                'Awards.RecommendationStateChanged',
+                [
+                    'recommendationId' => $recommendationId,
+                    'previousState' => $transitionResult['previousState'] ?? null,
+                    'newState' => $transitionResult['newState'] ?? $newState,
+                    'previousStatus' => $transitionResult['previousStatus'] ?? null,
+                    'newStatus' => $transitionResult['newStatus'] ?? null,
+                    'actorId' => $actorId,
+                ],
+            );
+        }
     }
 }

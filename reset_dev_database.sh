@@ -24,13 +24,20 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="$ROOT_DIR/app"
 SEED_SQL="$ROOT_DIR/dev_seed_clean.sql"
+ENV_FILE="$APP_DIR/config/.env"
+
+# When the Docker dev stack is running, use the compose-aware reset script so
+# PostgreSQL loads pg_seed_baseline.sql instead of DevLoadSeed-only fixtures.
+if [ -f "$ENV_FILE" ] && docker compose --env-file "$ENV_FILE" ps --status running --services 2>/dev/null | grep -qx 'app'; then
+	echo "[reset_dev_database] Docker app container is running; delegating to ./dev-reset-db.sh --seed"
+	exec "$ROOT_DIR/dev-reset-db.sh" --seed
+fi
 
 # Strategy to avoid duplicate dotenv loading:
 # The bootstrap only loads .env if APP_NAME is not set. We set a dummy APP_NAME early
 # then (if needed) source the file ourselves ONLY when vars are missing.
 export APP_NAME="KMP_DEV_APP"
 
-ENV_FILE="$APP_DIR/config/.env"
 if [ -f "$ENV_FILE" ] && [ -z "${DATABASE_URL-}" ] && [ -z "${MYSQL_USERNAME-}" ]; then
 	echo "[reset_dev_database] Loading env vars from $ENV_FILE"
 	# shellcheck disable=SC1090

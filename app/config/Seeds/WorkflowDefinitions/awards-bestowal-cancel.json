@@ -1,0 +1,94 @@
+{
+    "nodes": {
+        "trigger": {
+            "type": "trigger",
+            "label": "Bestowal Cancel Requested",
+            "config": {
+                "event": "Awards.BestowalCancelRequested",
+                "entityIdField": "bestowalId"
+            },
+            "position": {
+                "x": 50,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "cancel-bestowal"
+                }
+            ]
+        },
+        "cancel-bestowal": {
+            "type": "action",
+            "label": "Cancel Bestowal",
+            "config": {
+                "action": "Awards.CancelBestowal",
+                "params": {
+                    "bestowalId": "$.trigger.bestowalId",
+                    "closeReason": "$.trigger.closeReason",
+                    "actorId": "$.trigger.actorId"
+                }
+            },
+            "position": {
+                "x": 350,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "cancel-succeeded"
+                }
+            ]
+        },
+        "cancel-succeeded": {
+            "type": "condition",
+            "label": "Cancellation Succeeded?",
+            "config": {
+                "condition": "Core.FieldEquals",
+                "field": "$.nodes.cancel-bestowal.result.success",
+                "value": true
+            },
+            "position": {
+                "x": 650,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "true",
+                    "target": "end-success",
+                    "label": "Cancelled"
+                },
+                {
+                    "port": "false",
+                    "target": "end-failed",
+                    "label": "Failed"
+                }
+            ]
+        },
+        "end-success": {
+            "type": "end",
+            "label": "Bestowal Cancelled",
+            "config": {
+                "result": "$.nodes.cancel-bestowal.result"
+            },
+            "position": {
+                "x": 950,
+                "y": 225
+            },
+            "outputs": []
+        },
+        "end-failed": {
+            "type": "end",
+            "label": "Bestowal Cancel Failed",
+            "config": {
+                "result": "$.nodes.cancel-bestowal.result"
+            },
+            "position": {
+                "x": 950,
+                "y": 375
+            },
+            "outputs": []
+        }
+    },
+    "startNode": "trigger"
+}

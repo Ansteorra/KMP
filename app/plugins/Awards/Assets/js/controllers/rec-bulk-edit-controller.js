@@ -28,6 +28,7 @@ class AwardsRecommendationBulkEditForm extends Controller {
         "closeReason",
         "closeReasonBlock",
         "stateRulesBlock",
+        "lockedSelectionNotice",
     ];
     static values = {
         formUrl: String,
@@ -40,15 +41,28 @@ class AwardsRecommendationBulkEditForm extends Controller {
 
     /** Receive bulk IDs from table selection and update form action URL. */
     setId(event) {
-
-        console.log("setId called", event.detail);
-        //debugger;
-
-        let selected = event.detail.ids;
-        if (!selected) {
-            return;
+        let selected = event.detail?.ids ?? [];
+        if (event.detail?.checkboxes?.length) {
+            const editable = [];
+            let skippedLocked = 0;
+            event.detail.checkboxes.forEach((row) => {
+                if (row.bestowalId) {
+                    skippedLocked += 1;
+                    return;
+                }
+                editable.push(row.id);
+            });
+            selected = editable;
+            this.updateLockedSelectionNotice(skippedLocked, selected.length);
+        } else {
+            this.updateLockedSelectionNotice(0, selected.length);
         }
-        if (!selected.length) {
+
+        if (!selected || !selected.length) {
+            this.bulkIdsValue = [];
+            if (this.hasBulkIdsTarget) {
+                this.bulkIdsTarget.value = [];
+            }
             return;
         }
         this.bulkIdsValue = selected;
@@ -62,7 +76,26 @@ class AwardsRecommendationBulkEditForm extends Controller {
         // Update gatherings list based on selected recommendations
         this.updateGatherings();
 
-        return
+    }
+
+    /** Show a warning when bestowal-linked recommendations were excluded from bulk edit. */
+    updateLockedSelectionNotice(skippedLocked, editableCount) {
+        if (!this.hasLockedSelectionNoticeTarget) {
+            return;
+        }
+
+        if (skippedLocked > 0) {
+            const suffix = editableCount > 0
+                ? ' Only recommendations not linked to a bestowal can be bulk edited.'
+                : ' Select recommendations that are not linked to a bestowal.';
+            this.lockedSelectionNoticeTarget.textContent =
+                `${skippedLocked} selected recommendation(s) linked to a bestowal were excluded.${suffix}`;
+            this.lockedSelectionNoticeTarget.classList.remove('d-none');
+            return;
+        }
+
+        this.lockedSelectionNoticeTarget.textContent = '';
+        this.lockedSelectionNoticeTarget.classList.add('d-none');
     }
 
     /** Update backend lookup URL for gathering autocomplete in bulk edit. */
@@ -153,13 +186,14 @@ class AwardsRecommendationBulkEditForm extends Controller {
         if (rules[state]) {
             var statusRules = rules[state];
             var controller = this;
-            if (statusRules["Visible"]) {
-                statusRules["Visible"].forEach(function (field) {
-                    if (controller[field]) {
-                        controller[field].style.display = "block";
-                    }
-                });
-            }
+            const visibleFields = (statusRules["Visible"] || []).concat(
+                statusRules["Optional"] || [],
+            );
+            visibleFields.forEach(function (field) {
+                if (controller[field]) {
+                    controller[field].style.display = "block";
+                }
+            });
             if (statusRules["Disabled"]) {
                 statusRules["Disabled"].forEach(function (field) {
                     if (controller[field]) {

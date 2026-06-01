@@ -38,6 +38,19 @@ class RecommendationUpdateService
         array $data,
         int $authorId,
     ): array {
+        if ($recommendation->isLockedByBestowal()) {
+            return [
+                'success' => false,
+                'recommendation' => $recommendation,
+                'output' => null,
+                'eventName' => null,
+                'eventPayload' => null,
+                'errorCode' => 'bestowal_locked',
+                'message' => 'This recommendation is linked to a bestowal and cannot be edited here.',
+                'errors' => [],
+            ];
+        }
+
         $resolved = $this->resolveMemberPublicId($recommendationsTable, $data);
         if ($resolved['success'] === false) {
             return [

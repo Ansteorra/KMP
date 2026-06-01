@@ -155,6 +155,7 @@ final class SeedManager
             $conn->getDriver()->exec($sql);
             self::seedPostgresWorkflowDefinitions($conn);
             self::seedPostgresAwardStates($conn);
+            self::seedPostgresBestowalReference($conn);
 
             return;
         }
@@ -163,6 +164,7 @@ final class SeedManager
         $conn->getDriver()->exec($sql);
         self::seedPostgresWorkflowDefinitions($conn);
         self::seedPostgresAwardStates($conn);
+        self::seedPostgresBestowalReference($conn);
     }
 
     /**
@@ -270,5 +272,25 @@ final class SeedManager
 
         $conn->getDriver()->exec($sql);
         $conn->getDriver()->exec('SET search_path TO public');
+    }
+
+    /**
+     * Seed Awards bestowal state-machine configuration for PostgreSQL tests.
+     *
+     * @param \Cake\Database\Connection $conn Test database connection.
+     * @return void
+     */
+    private static function seedPostgresBestowalReference(Connection $conn): void
+    {
+        $count = (int)$conn->execute('SELECT count(*) FROM awards_bestowal_statuses')->fetchColumn(0);
+        if ($count > 0) {
+            return;
+        }
+
+        (new \Migrations\Migrations())->seed([
+            'connection' => $conn->configName(),
+            'plugin' => 'Awards',
+            'seed' => 'InitBestowalReferenceSeed',
+        ]);
     }
 }

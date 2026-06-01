@@ -8,7 +8,7 @@ Local Docker Compose is the default KMP development workflow. The source tree st
 ./dev-up.sh --build
 ```
 
-If `app/config/.env` does not exist yet, `./dev-up.sh` creates it from `app/config/.env.example`. Before startup it also removes stale `kmp-*` containers and containers publishing the configured local dev ports, so the current worktree owns the active stack. After the app is healthy, it runs `./dev-reset-db.sh` by default so the database matches the current code. Set `KMP_RESET_DB_ON_UP_ARGS=--seed` when you want seeded dev users. After the first build, use `./dev-up.sh` for normal startup. Stop the stack with `./dev-down.sh`; add `--volumes` only when you intentionally want to delete the local database and pgAdmin volumes.
+If `app/config/.env` does not exist yet, `./dev-up.sh` creates it from `app/config/.env.example`. Before startup it also removes stale `kmp-*` containers and containers publishing the configured local dev ports, so the current worktree owns the active stack. The compose project is always named `kmp`, which keeps Docker Desktop and `docker compose ps` grouped under one local development stack even when startup is run from a worktree. After the app is healthy, it runs `./dev-reset-db.sh --seed` by default so the database matches the current code and includes the full demo dataset. Set `KMP_RESET_DB_ON_UP_ARGS=` (empty) when you want a minimal schema-only reset, or `KMP_RESET_DB_ON_UP=false` to skip the reset entirely. After the first build, use `./dev-up.sh` for normal startup. Stop the stack with `./dev-down.sh`; add `--volumes` only when you intentionally want to delete the local database and pgAdmin volumes.
 
 ## Architecture
 
@@ -245,7 +245,7 @@ The local helper scripts use `app/config/.env` for Docker Compose and the applic
 | `KMP_SKIP_CRON` | `true` | Disable legacy cron setup; Compose worker/scheduler services own background work |
 | `KMP_*_INTERVAL` | See Queue and Scheduled Jobs | Scheduler loop intervals for local background commands |
 | `KMP_RESET_DB_ON_UP` | `true` | Run `dev-reset-db.sh` after the app becomes healthy |
-| `KMP_RESET_DB_ON_UP_ARGS` | empty | Arguments passed to `dev-reset-db.sh` during startup |
+| `KMP_RESET_DB_ON_UP_ARGS` | `--seed` | Arguments passed to `dev-reset-db.sh` during startup |
 
 ## Troubleshooting
 

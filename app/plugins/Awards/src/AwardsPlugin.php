@@ -24,6 +24,18 @@ use Awards\Services\RecommendationStateLogService;
 use Awards\Services\RecommendationSubmissionService;
 use Awards\Services\RecommendationTransitionService;
 use Awards\Services\RecommendationUpdateService;
+use Awards\Services\AdHocBestowalService;
+use Awards\Services\BestowalCancellationService;
+use Awards\Services\BestowalCreationService;
+use Awards\Services\BestowalNotificationVarsService;
+use Awards\Services\BestowalFormService;
+use Awards\Services\BestowalGatheringLookupService;
+use Awards\Services\BestowalQueryService;
+use Awards\Services\BestowalRecommendationLinkService;
+use Awards\Services\BestowalRecommendationSyncService;
+use Awards\Services\BestowalStateLogService;
+use Awards\Services\BestowalTransitionService;
+use Awards\Services\BestowalUpdateService;
 use App\KMP\StaticHelpers;
 
 /**
@@ -152,6 +164,18 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
         $container->add(RecommendationTransitionService::class);
         $container->add(RecommendationGroupingService::class);
         $container->add(RecommendationStateLogService::class);
+        $container->add(BestowalCreationService::class);
+        $container->add(BestowalTransitionService::class);
+        $container->add(BestowalRecommendationSyncService::class);
+        $container->add(BestowalCancellationService::class);
+        $container->add(AdHocBestowalService::class);
+        $container->add(BestowalStateLogService::class);
+        $container->add(BestowalQueryService::class);
+        $container->add(BestowalNotificationVarsService::class);
+        $container->add(BestowalFormService::class);
+        $container->add(BestowalGatheringLookupService::class);
+        $container->add(BestowalRecommendationLinkService::class);
+        $container->add(BestowalUpdateService::class);
 
         // Register workflow actions and conditions for Awards plugin
         $container->add(\Awards\Services\AwardsWorkflowActions::class);

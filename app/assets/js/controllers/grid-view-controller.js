@@ -2340,6 +2340,10 @@ class GridViewController extends Controller {
      */
     toggleRowSelection(event) {
         const checkbox = event.target
+        if (checkbox.disabled) {
+            checkbox.checked = false
+            return
+        }
         const id = checkbox.value
 
         if (checkbox.checked) {
@@ -2361,6 +2365,10 @@ class GridViewController extends Controller {
 
         if (this.hasRowCheckboxTarget) {
             this.rowCheckboxTargets.forEach(checkbox => {
+                if (checkbox.disabled) {
+                    checkbox.checked = false
+                    return
+                }
                 checkbox.checked = selectAll
                 const id = checkbox.value
                 if (selectAll) {
@@ -2374,6 +2382,17 @@ class GridViewController extends Controller {
         }
 
         this.updateBulkSelectionUI()
+    }
+
+    /**
+     * Row checkboxes that participate in bulk selection (not bestowal-locked).
+     */
+    selectableRowCheckboxTargets() {
+        if (!this.hasRowCheckboxTarget) {
+            return []
+        }
+
+        return this.rowCheckboxTargets.filter((checkbox) => !checkbox.disabled)
     }
 
     /**
@@ -2425,13 +2444,16 @@ class GridViewController extends Controller {
 
         // Update select all checkbox indeterminate state
         if (this.hasSelectAllCheckboxTarget && this.hasRowCheckboxTarget) {
-            const totalRows = this.rowCheckboxTargets.length
-            const selectedCount = this.selectedIds.length
+            const selectableCheckboxes = this.selectableRowCheckboxTargets()
+            const totalRows = selectableCheckboxes.length
+            const selectedOnPage = selectableCheckboxes.filter(
+                (checkbox) => this.selectedIds.includes(checkbox.value),
+            ).length
 
-            if (selectedCount === 0) {
+            if (selectedOnPage === 0 || totalRows === 0) {
                 this.selectAllCheckboxTarget.checked = false
                 this.selectAllCheckboxTarget.indeterminate = false
-            } else if (selectedCount === totalRows) {
+            } else if (selectedOnPage === totalRows) {
                 this.selectAllCheckboxTarget.checked = true
                 this.selectAllCheckboxTarget.indeterminate = false
             } else {

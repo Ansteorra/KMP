@@ -114,6 +114,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
                                 <?php
                                 $badgeClass = match ($rule->rule_type) {
                                     'Required' => 'bg-danger',
+                                    'Optional' => 'bg-info text-dark',
                                     'Visible' => 'bg-success',
                                     'Disabled' => 'bg-warning text-dark',
                                     'Set' => 'bg-primary',

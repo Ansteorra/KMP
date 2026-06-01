@@ -95,7 +95,7 @@ class AutoComplete extends Controller {
         allowOther: Boolean,
         required: Boolean,
         showOnFocus: { type: Boolean, default: false },
-        initSelection: Object,
+        initSelection: String,
         delay: { type: Number, default: 300 },
         queryParam: { type: String, default: "q" },
     }
@@ -254,12 +254,39 @@ class AutoComplete extends Controller {
         }
     }
 
+  /**
+   * @param {string|null|undefined} raw data-ac-init-selection-value JSON
+   * @return {Record<string, unknown>|null}
+   */
+    parseInitSelection(raw) {
+        if (raw === null || raw === undefined) {
+            return null;
+        }
+
+        const trimmed = String(raw).trim();
+        if (trimmed === "") {
+            return null;
+        }
+
+        try {
+            const parsed = JSON.parse(trimmed);
+            if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+                return parsed;
+            }
+        } catch (error) {
+            console.warn("ac: invalid init-selection-value JSON", trimmed, error);
+        }
+
+        return null;
+    }
+
     initSelectionValueChanged() {
+        const initSelection = this.parseInitSelection(this.initSelectionValue);
         if (this._datalistLoaded) {
-            if (this.initSelectionValue == null || !this.initSelectionValue.hasOwnProperty("value")) {
+            if (initSelection === null || !initSelection.hasOwnProperty("value")) {
                 return;
             }
-            let newOption = this.initSelectionValue;
+            let newOption = initSelection;
             if (!newOption.value && (!newOption.text || newOption.text == "")) {
                 return;
             }
@@ -271,20 +298,29 @@ class AutoComplete extends Controller {
             let option = this._selectOptions.find(option => option.value == newOption.value);
             if (option) {
                 this.value = option.value;
+                this.fireChangeEvent(String(option.value), option.text, option);
             } else {
                 this.addOption(newOption);
                 this.value = newOption.value;
+                this.fireChangeEvent(String(newOption.value), newOption.text, newOption);
             }
-        } else {
-            //check if there is a value key in the initSelectionValue object
-            if (this.initSelectionValue.hasOwnProperty("value")) {
-                this.hiddenTarget.value = this.initSelectionValue.value;
-                this.hiddenTextTarget.value = this.initSelectionValue.text;
-                this.inputTarget.value = this.initSelectionValue.text;
-                if (this.initSelectionValue.value) {
+        } else if (initSelection !== null) {
+            if (initSelection.hasOwnProperty("value")) {
+                this.hiddenTarget.value = initSelection.value;
+                this.hiddenTextTarget.value = initSelection.text;
+                this.inputTarget.value = initSelection.text;
+                if (initSelection.value) {
                     this.inputTarget.disabled = true;
                     this.clearBtnTarget.disabled = false;
+                    if (this.hasHiddenTarget) {
+                        this.hiddenTarget.disabled = false;
+                    }
                 }
+                this.fireChangeEvent(
+                    String(initSelection.value ?? ""),
+                    String(initSelection.text ?? ""),
+                    null,
+                );
             }
         }
     }
@@ -571,7 +607,7 @@ class AutoComplete extends Controller {
             this.clearBtnTarget.disabled = false;
             this.inputTarget.disabled = true;
         }
-        this.element.dispatchEvent(new CustomEvent("change"), { bubbles: true });
+        this.element.dispatchEvent(new CustomEvent("change", { bubbles: true }));
         this.state = "finished";
     }
 
@@ -583,6 +619,7 @@ class AutoComplete extends Controller {
         this.clearBtnTarget.disabled = true;
         this.inputTarget.disabled = false;
         this.close();
+        this.fireChangeEvent("", "", null);
     }
 
     onResultsClick = (event) => {

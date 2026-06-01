@@ -26,6 +26,65 @@ use Cake\ORM\Table;
 class RecommendationPolicy extends BasePolicy
 {
     /**
+     * Check if user can edit a recommendation.
+     *
+     * Denies edit when the recommendation is locked to an active bestowal workflow.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The authenticated user
+     * @param \App\Model\Entity\BaseEntity $entity The recommendation entity
+     * @param mixed ...$optionalArgs Additional authorization context
+     * @return bool True if authorized
+     */
+    public function canEdit(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        if ($this->isLockedByBestowal($entity)) {
+            return false;
+        }
+
+        return parent::canEdit($user, $entity, ...$optionalArgs);
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function canDelete(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        if ($this->isLockedByBestowal($entity)) {
+            return false;
+        }
+
+        return parent::canDelete($user, $entity, ...$optionalArgs);
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function canUpdateStates(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        if ($this->isLockedByBestowal($entity)) {
+            return false;
+        }
+
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
+    }
+
+    /**
+     * Determine whether a recommendation is locked by a linked bestowal.
+     *
+     * @param \App\Model\Entity\BaseEntity $entity Recommendation entity
+     * @return bool
+     */
+    protected function isLockedByBestowal(BaseEntity $entity): bool
+    {
+        if (!$entity instanceof \Awards\Model\Entity\Recommendation) {
+            return false;
+        }
+
+        return $entity->isLockedByBestowal();
+    }
+
+    /**
      * Check if user can view recommendations they submitted.
      *
      * Grants direct access if user is the requester, otherwise delegates to permission check.
@@ -162,20 +221,10 @@ class RecommendationPolicy extends BasePolicy
      */
     public function canAddNote(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
-        $method = __FUNCTION__;
-        return $this->_hasPolicy($user, $method, $entity);
-    }
+        if ($this->isLockedByBestowal($entity)) {
+            return false;
+        }
 
-    /**
-     * Check if user can update recommendation states in bulk.
-     *
-     * @param \App\KMP\KmpIdentityInterface $user The authenticated user
-     * @param \App\Model\Entity\BaseEntity $entity The recommendation entity
-     * @param mixed ...$optionalArgs Additional authorization context
-     * @return bool True if authorized
-     */
-    public function canUpdateStates(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
-    {
         $method = __FUNCTION__;
         return $this->_hasPolicy($user, $method, $entity);
     }
@@ -207,8 +256,11 @@ class RecommendationPolicy extends BasePolicy
      */
     public function canGroup(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
-        $method = __FUNCTION__;
-        return $this->_hasPolicy($user, $method, $entity);
+        if ($this->isLockedByBestowal($entity)) {
+            return false;
+        }
+
+        return $this->canEdit($user, $entity, ...$optionalArgs);
     }
 
     /**

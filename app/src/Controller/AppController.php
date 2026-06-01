@@ -140,6 +140,9 @@ class AppController extends Controller
         if ($params['controller'] == 'NavBar') {
             $isNoStack = true;
         }
+        if ($params['controller'] == 'AppSettings' && $params['action'] == 'asset') {
+            $isNoStack = true;
+        }
 
         $pageStack = $session->read('pageStack', []);
         if ($params['action'] == 'index') {

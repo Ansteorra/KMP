@@ -49,6 +49,7 @@ class RecommendationStateFieldRule extends BaseEntity
      */
     public const RULE_TYPE_OPTIONS = [
         'Visible' => 'Visible',
+        'Optional' => 'Optional (visible, not required)',
         'Required' => 'Required',
         'Disabled' => 'Disabled',
         'Set' => 'Set',

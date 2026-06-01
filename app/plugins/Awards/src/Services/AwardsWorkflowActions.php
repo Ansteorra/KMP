@@ -19,6 +19,7 @@ use Throwable;
  *
  * @property \Awards\Model\Table\RecommendationsTable $Recommendations
  * @property \Awards\Model\Table\RecommendationsStatesLogsTable $RecommendationsStatesLogs
+ * @property \Awards\Model\Table\BestowalsTable $Bestowals
  */
 class AwardsWorkflowActions
 {
@@ -26,6 +27,7 @@ class AwardsWorkflowActions
     use WorkflowContextAwareTrait;
 
     private Table $recommendationsTable;
+    private Table $bestowalsTable;
     private StateMachineHandler $stateMachineHandler;
     private RecommendationSubmissionService $submissionService;
     private RecommendationUpdateService $updateService;
@@ -33,6 +35,12 @@ class AwardsWorkflowActions
     private RecommendationGroupingService $groupingService;
     private RecommendationDeletionService $deletionService;
     private RecommendationStateLogService $stateLogService;
+    private BestowalCreationService $bestowalCreationService;
+    private BestowalTransitionService $bestowalTransitionService;
+    private BestowalRecommendationSyncService $bestowalRecommendationSyncService;
+    private BestowalCancellationService $bestowalCancellationService;
+    private BestowalUpdateService $bestowalUpdateService;
+    private AdHocBestowalService $adHocBestowalService;
 
     /**
      * @param \App\Services\WorkflowEngine\StateMachine\StateMachineHandler|null $stateMachineHandler State machine helper.
@@ -42,6 +50,12 @@ class AwardsWorkflowActions
      * @param \Awards\Services\RecommendationGroupingService|null $groupingService Grouping workflow service.
      * @param \Awards\Services\RecommendationDeletionService|null $deletionService Deletion workflow service.
      * @param \Awards\Services\RecommendationStateLogService|null $stateLogService State-log workflow service.
+     * @param \Awards\Services\BestowalCreationService|null $bestowalCreationService Bestowal creation service.
+     * @param \Awards\Services\BestowalTransitionService|null $bestowalTransitionService Bestowal transition service.
+     * @param \Awards\Services\BestowalRecommendationSyncService|null $bestowalRecommendationSyncService Bestowal sync service.
+     * @param \Awards\Services\BestowalCancellationService|null $bestowalCancellationService Bestowal cancellation service.
+     * @param \Awards\Services\BestowalUpdateService|null $bestowalUpdateService Bestowal update service.
+     * @param \Awards\Services\AdHocBestowalService|null $adHocBestowalService Ad-hoc bestowal service.
      */
     public function __construct(
         ?StateMachineHandler $stateMachineHandler = null,
@@ -51,8 +65,15 @@ class AwardsWorkflowActions
         ?RecommendationGroupingService $groupingService = null,
         ?RecommendationDeletionService $deletionService = null,
         ?RecommendationStateLogService $stateLogService = null,
+        ?BestowalCreationService $bestowalCreationService = null,
+        ?BestowalTransitionService $bestowalTransitionService = null,
+        ?BestowalRecommendationSyncService $bestowalRecommendationSyncService = null,
+        ?BestowalCancellationService $bestowalCancellationService = null,
+        ?BestowalUpdateService $bestowalUpdateService = null,
+        ?AdHocBestowalService $adHocBestowalService = null,
     ) {
         $this->recommendationsTable = $this->fetchTable('Awards.Recommendations');
+        $this->bestowalsTable = $this->fetchTable('Awards.Bestowals');
         $this->stateMachineHandler = $stateMachineHandler ?? new StateMachineHandler();
         $this->stateLogService = $stateLogService ?? new RecommendationStateLogService();
         $this->groupingService = $groupingService ?? new RecommendationGroupingService(
@@ -69,6 +90,19 @@ class AwardsWorkflowActions
             $this->stateLogService,
         );
         $this->deletionService = $deletionService ?? new RecommendationDeletionService($this->groupingService);
+        $this->bestowalTransitionService = $bestowalTransitionService ?? new BestowalTransitionService();
+        $this->bestowalRecommendationSyncService = $bestowalRecommendationSyncService
+            ?? new BestowalRecommendationSyncService();
+        $this->bestowalCreationService = $bestowalCreationService ?? new BestowalCreationService();
+        $this->bestowalCancellationService = $bestowalCancellationService ?? new BestowalCancellationService(
+            transitionService: $this->bestowalTransitionService,
+            syncService: $this->bestowalRecommendationSyncService,
+        );
+        $this->bestowalUpdateService = $bestowalUpdateService ?? new BestowalUpdateService(
+            transitionService: $this->bestowalTransitionService,
+            syncService: $this->bestowalRecommendationSyncService,
+        );
+        $this->adHocBestowalService = $adHocBestowalService ?? new AdHocBestowalService();
     }
 
     /**
@@ -471,6 +505,241 @@ class AwardsWorkflowActions
     }
 
     /**
+     * Create a bestowal from a single recommendation.
+     *
+     * @param array $context Current workflow context
+     * @param array $config Config with recommendationId, actorId
+     * @return array Workflow action result
+     */
+    public function createBestowal(array $context, array $config): array
+    {
+        try {
+            $recommendationId = (int)$this->resolveValue($config['recommendationId'], $context);
+            $actorId = (int)$this->resolveValue($config['actorId'] ?? 0, $context);
+
+            return $this->bestowalCreationService->createFromRecommendation($recommendationId, $actorId);
+        } catch (Throwable $e) {
+            Log::error('Workflow CreateBestowal failed: ' . $e->getMessage());
+
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Create bestowals for each recommendation ID in the payload.
+     *
+     * @param array $context Current workflow context
+     * @param array $config Config with recommendationIds, actorId
+     * @return array Workflow action result
+     */
+    public function createBestowalsForRecommendations(array $context, array $config): array
+    {
+        try {
+            $recommendationIds = $this->extractRecommendationIds($context, $config);
+            $actorId = (int)$this->resolveValue($config['actorId'] ?? 0, $context);
+
+            if ($recommendationIds === []) {
+                return [
+                    'success' => false,
+                    'error' => 'At least one recommendation ID is required',
+                    'data' => ['processedCount' => 0, 'results' => []],
+                ];
+            }
+
+            $results = [];
+            $bestowalIds = [];
+            $errors = [];
+
+            foreach ($recommendationIds as $recommendationId) {
+                $result = $this->bestowalCreationService->createFromRecommendation($recommendationId, $actorId);
+                $results[] = $result;
+
+                if (!($result['success'] ?? false)) {
+                    $errors[] = (string)($result['error'] ?? 'Bestowal creation failed');
+                    continue;
+                }
+
+                if (($result['skipped'] ?? false) || !isset($result['data']['bestowalId'])) {
+                    continue;
+                }
+
+                $bestowalIds[] = (int)$result['data']['bestowalId'];
+            }
+
+            if ($errors !== []) {
+                return [
+                    'success' => false,
+                    'error' => implode('; ', $errors),
+                    'data' => [
+                        'processedCount' => count($recommendationIds),
+                        'bestowalIds' => $bestowalIds,
+                        'results' => $results,
+                    ],
+                ];
+            }
+
+            return [
+                'success' => true,
+                'data' => [
+                    'processedCount' => count($recommendationIds),
+                    'bestowalIds' => $bestowalIds,
+                    'results' => $results,
+                ],
+            ];
+        } catch (Throwable $e) {
+            Log::error('Workflow CreateBestowalsForRecommendations failed: ' . $e->getMessage());
+
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Transition a bestowal to a new state.
+     *
+     * @param array $context Current workflow context
+     * @param array $config Config with bestowalId, targetState, data, actorId
+     * @return array Workflow action result
+     */
+    public function transitionBestowal(array $context, array $config): array
+    {
+        try {
+            $bestowalId = (int)$this->resolveValue($config['bestowalId'], $context);
+            $transitionData = $this->extractBestowalTransitionData($context, $config);
+            $actorId = (int)$this->resolveValue($config['actorId'] ?? 0, $context);
+
+            return $this->bestowalTransitionService->transition(
+                $this->bestowalsTable,
+                $bestowalId,
+                $transitionData,
+                $actorId,
+            );
+        } catch (Throwable $e) {
+            Log::error('Workflow TransitionBestowal failed: ' . $e->getMessage());
+
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Update a bestowal from edit form data including link changes.
+     *
+     * @param array $context Current workflow context
+     * @param array $config Config with bestowalId, data, actorId
+     * @return array Workflow action result
+     */
+    public function updateBestowal(array $context, array $config): array
+    {
+        try {
+            $bestowalId = (int)$this->resolveValue($config['bestowalId'], $context);
+            $data = $this->resolveConfigArray($config['data'] ?? null, $context);
+            $actorId = (int)$this->resolveValue($config['actorId'] ?? 0, $context);
+
+            return $this->bestowalUpdateService->update(
+                $this->bestowalsTable,
+                $bestowalId,
+                $data,
+                $actorId,
+            );
+        } catch (Throwable $e) {
+            Log::error('Workflow UpdateBestowal failed: ' . $e->getMessage());
+
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Bulk transition bestowals and sync linked recommendations.
+     *
+     * @param array $context Current workflow context
+     * @param array $config Config with bestowalIds, targetState, data, actorId
+     * @return array Workflow action result
+     */
+    public function bulkTransitionBestowals(array $context, array $config): array
+    {
+        try {
+            $transitionData = $this->extractBestowalTransitionData($context, $config);
+            $actorId = (int)$this->resolveValue($config['actorId'] ?? 0, $context);
+
+            return $this->bestowalUpdateService->bulkTransition(
+                $this->bestowalsTable,
+                $transitionData,
+                $actorId,
+            );
+        } catch (Throwable $e) {
+            Log::error('Workflow BulkTransitionBestowals failed: ' . $e->getMessage());
+
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Sync linked recommendations from a bestowal's current state mapping.
+     *
+     * @param array $context Current workflow context
+     * @param array $config Config with bestowalId, actorId
+     * @return array Workflow action result
+     */
+    public function syncRecommendationsFromBestowal(array $context, array $config): array
+    {
+        try {
+            $bestowalId = (int)$this->resolveValue($config['bestowalId'], $context);
+            $actorId = (int)$this->resolveValue($config['actorId'] ?? 0, $context);
+
+            return $this->bestowalRecommendationSyncService->syncFromBestowal($bestowalId, $actorId);
+        } catch (Throwable $e) {
+            Log::error('Workflow SyncRecommendationsFromBestowal failed: ' . $e->getMessage());
+
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Cancel a bestowal and unwind linked recommendations.
+     *
+     * @param array $context Current workflow context
+     * @param array $config Config with bestowalId, closeReason, actorId
+     * @return array Workflow action result
+     */
+    public function cancelBestowal(array $context, array $config): array
+    {
+        try {
+            $bestowalId = (int)$this->resolveValue($config['bestowalId'], $context);
+            $actorId = (int)$this->resolveValue($config['actorId'] ?? 0, $context);
+            $closeReason = (string)$this->resolveValue(
+                $config['closeReason'] ?? $config['close_reason'] ?? '',
+                $context,
+            );
+
+            return $this->bestowalCancellationService->cancel($bestowalId, $actorId, $closeReason);
+        } catch (Throwable $e) {
+            Log::error('Workflow CancelBestowal failed: ' . $e->getMessage());
+
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Record an ad-hoc bestowal with linked recommendations.
+     *
+     * @param array $context Current workflow context
+     * @param array $config Config with data payload and actorId
+     * @return array Workflow action result
+     */
+    public function recordAdHocBestowal(array $context, array $config): array
+    {
+        try {
+            $data = $this->extractAdHocBestowalData($context, $config);
+            $actorId = (int)$this->resolveValue($config['actorId'] ?? 0, $context);
+
+            return $this->adHocBestowalService->record($data, $actorId);
+        } catch (Throwable $e) {
+            Log::error('Workflow RecordAdHocBestowal failed: ' . $e->getMessage());
+
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
      * Build the state machine config from the database-backed recommendation configuration.
      *
      * @return array State machine config with transitions, statuses, stateRules, stateField, statusField
@@ -587,6 +856,83 @@ class AwardsWorkflowActions
         }
 
         return $data;
+    }
+
+    /**
+     * Build bestowal transition input data from nested or flat workflow params.
+     *
+     * @param array $context Current workflow context
+     * @param array $config Workflow node/action config
+     * @return array<string, mixed>
+     */
+    private function extractBestowalTransitionData(array $context, array $config): array
+    {
+        $data = $this->resolveConfigArray($config['data'] ?? null, $context);
+        $flatData = $this->mapConfigFields($context, $config, [
+            'newState' => 'newState',
+            'targetState' => 'targetState',
+            'toState' => 'toState',
+            'state' => 'state',
+            'gatheringId' => 'gathering_id',
+            'gathering_id' => 'gathering_id',
+            'gatheringScheduledActivityId' => 'gathering_scheduled_activity_id',
+            'gathering_scheduled_activity_id' => 'gathering_scheduled_activity_id',
+            'bestowedAt' => 'bestowed_at',
+            'bestowed_at' => 'bestowed_at',
+            'closeReason' => 'close_reason',
+            'close_reason' => 'close_reason',
+            'stackRank' => 'stack_rank',
+            'stack_rank' => 'stack_rank',
+            'nobleNotes' => 'noble_notes',
+            'noble_notes' => 'noble_notes',
+            'heraldNotes' => 'herald_notes',
+            'herald_notes' => 'herald_notes',
+            'note' => 'note',
+            'noteSubject' => 'note_subject',
+            'note_subject' => 'note_subject',
+        ]);
+        $data = array_replace($data, $flatData);
+
+        $ids = $this->resolveValue($config['bestowalIds'] ?? $config['ids'] ?? null, $context);
+        if (is_array($ids)) {
+            $data['ids'] = array_values($ids);
+        }
+
+        return $data;
+    }
+
+    /**
+     * Build ad-hoc bestowal input data from nested or flat workflow params.
+     *
+     * @param array $context Current workflow context
+     * @param array $config Workflow node/action config
+     * @return array<string, mixed>
+     */
+    private function extractAdHocBestowalData(array $context, array $config): array
+    {
+        $data = $this->resolveConfigArray($config['data'] ?? null, $context);
+
+        return array_replace($data, $this->mapConfigFields($context, $config, [
+            'memberId' => 'memberId',
+            'member_id' => 'member_id',
+            'awardIds' => 'awardIds',
+            'award_ids' => 'award_ids',
+            'gatheringId' => 'gatheringId',
+            'gathering_id' => 'gathering_id',
+            'bestowedAt' => 'bestowedAt',
+            'bestowed_at' => 'bestowed_at',
+            'reason' => 'reason',
+            'nobleNotes' => 'nobleNotes',
+            'noble_notes' => 'noble_notes',
+            'heraldNotes' => 'heraldNotes',
+            'herald_notes' => 'herald_notes',
+            'callIntoCourt' => 'callIntoCourt',
+            'call_into_court' => 'call_into_court',
+            'courtAvailability' => 'courtAvailability',
+            'court_availability' => 'court_availability',
+            'personToNotify' => 'personToNotify',
+            'person_to_notify' => 'person_to_notify',
+        ]));
     }
 
     /**

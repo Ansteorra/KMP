@@ -2,7 +2,8 @@
     <script type="application/json" data-awards-rec-edit-target="stateRulesBlock" class="d-none">
         <?= json_encode($rules) ?>
     </script>
-    <fieldset>
+    <?= $this->element('recommendation_bestowal_lock_notice', ['recommendation' => $recommendation]) ?>
+    <fieldset<?= $recommendation->isLockedByBestowal() ? ' disabled' : '' ?>>
         <?php
         echo $this->Form->hidden('id', ['value' => $recommendation->id, 'data-awards-rec-edit-target' => 'recId']);
         $url = $this->Url->build([

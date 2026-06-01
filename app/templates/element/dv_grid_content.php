@@ -74,6 +74,7 @@ $customElementOptions = $customElementOptions ?? [];
                     'enableColumnPicker' => $gridState['config']['enableColumnPicker'] ?? true,
                     'enableBulkSelection' => $gridState['config']['enableBulkSelection'] ?? false,
                     'bulkSelectionDataFields' => $gridState['config']['bulkSelectionDataFields'] ?? [],
+                    'bulkSelectionDisabledField' => $gridState['config']['bulkSelectionDisabledField'] ?? null,
                 ]) ?>
 
                 <!-- Pagination -->

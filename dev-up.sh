@@ -53,7 +53,7 @@ DB_HOST_PORT="$(env_or_file KMP_DB_HOST_PORT 5432)"
 PGADMIN_PORT="$(env_or_file KMP_PGADMIN_PORT 5050)"
 HOST_ALIASES="$(env_or_file KMP_HOST_ALIASES "")"
 RESET_DB_ON_UP="$(env_or_file KMP_RESET_DB_ON_UP true)"
-RESET_DB_ON_UP_ARGS="$(env_or_file KMP_RESET_DB_ON_UP_ARGS "")"
+RESET_DB_ON_UP_ARGS="$(env_or_file KMP_RESET_DB_ON_UP_ARGS "--seed")"
 KMP_VOLUMES=("kmp-pg-data" "kmp-composer-cache" "kmp-node-modules" "kmp-pgadmin-data")
 
 ensure_named_volumes() {

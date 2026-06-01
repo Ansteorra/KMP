@@ -4,7 +4,7 @@ const { defineConfig, devices } = require('@playwright/test');
 const { defineBddConfig } = require('playwright-bdd');
 const { getUiTestEnvironment } = require('./tests/ui/support/test-environment.cjs');
 
-const { baseUrl: baseURL, webServerCommand } = getUiTestEnvironment();
+const { baseUrl: baseURL, webServerCommand, hostHeader } = getUiTestEnvironment();
 
 const testDir = defineBddConfig({
   featuresRoot: './tests/ui/bdd',
@@ -44,6 +44,8 @@ module.exports = defineConfig({
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL,
+
+    extraHTTPHeaders: hostHeader ? { Host: hostHeader } : undefined,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -105,7 +107,7 @@ module.exports = defineConfig({
   ],
 
   /* Run your local dev server before starting the tests */
-  webServer: {
+  webServer: process.env.PLAYWRIGHT_SKIP_WEBSERVER === '1' ? undefined : {
     command: webServerCommand,
     url: baseURL,
     reuseExistingServer: true,

@@ -7,6 +7,7 @@ use App\Services\WorkflowRegistry\WorkflowActionRegistry;
 use App\Services\WorkflowRegistry\WorkflowConditionRegistry;
 use App\Services\WorkflowRegistry\WorkflowEntityRegistry;
 use App\Services\WorkflowRegistry\WorkflowTriggerRegistry;
+use Awards\Model\Table\BestowalsTable;
 use Awards\Model\Table\RecommendationsTable;
 
 /**
@@ -153,6 +154,100 @@ class AwardsWorkflowProvider
                 'description' => 'When a workflow should delete an existing recommendation',
                 'payloadSchema' => [
                     'recommendationId' => ['type' => 'integer', 'label' => 'Recommendation ID'],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ],
+            ],
+            [
+                'event' => 'Awards.BestowalTransitionRequested',
+                'label' => 'Bestowal Transition Requested',
+                'description' => 'When a workflow should transition a single bestowal',
+                'payloadSchema' => [
+                    'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID'],
+                    'targetState' => ['type' => 'string', 'label' => 'Target State'],
+                    'data' => ['type' => 'object', 'label' => 'Transition Data'],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ],
+            ],
+            [
+                'event' => 'Awards.BestowalUpdateRequested',
+                'label' => 'Bestowal Update Requested',
+                'description' => 'When a bestowal edit form is submitted',
+                'payloadSchema' => [
+                    'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID'],
+                    'data' => ['type' => 'object', 'label' => 'Update Data'],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ],
+            ],
+            [
+                'event' => 'Awards.BestowalBulkTransitionRequested',
+                'label' => 'Bestowal Bulk Transition Requested',
+                'description' => 'When multiple bestowals should be bulk updated',
+                'payloadSchema' => [
+                    'bestowalIds' => ['type' => 'array', 'label' => 'Bestowal IDs'],
+                    'targetState' => ['type' => 'string', 'label' => 'Target State'],
+                    'data' => ['type' => 'object', 'label' => 'Transition Data'],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ],
+            ],
+            [
+                'event' => 'Awards.BestowalStateChanged',
+                'label' => 'Bestowal State Changed',
+                'description' => 'When a bestowal transitions to a new state',
+                'payloadSchema' => [
+                    'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID'],
+                    'previousState' => ['type' => 'string', 'label' => 'Previous State'],
+                    'newState' => ['type' => 'string', 'label' => 'New State'],
+                    'previousStatus' => ['type' => 'string', 'label' => 'Previous Status'],
+                    'newStatus' => ['type' => 'string', 'label' => 'New Status'],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ],
+            ],
+            [
+                'event' => 'Awards.BestowalCreated',
+                'label' => 'Bestowal Created',
+                'description' => 'When a new bestowal is created from recommendations or ad-hoc entry',
+                'payloadSchema' => [
+                    'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID'],
+                    'recommendationIds' => ['type' => 'array', 'label' => 'Recommendation IDs'],
+                    'primaryRecommendationId' => ['type' => 'integer', 'label' => 'Primary Recommendation ID'],
+                    'memberId' => ['type' => 'integer', 'label' => 'Member ID'],
+                    'memberScaName' => ['type' => 'string', 'label' => 'Member SCA Name'],
+                    'gatheringId' => ['type' => 'integer', 'label' => 'Gathering ID'],
+                    'status' => ['type' => 'string', 'label' => 'Status'],
+                    'state' => ['type' => 'string', 'label' => 'State'],
+                    'source' => ['type' => 'string', 'label' => 'Source'],
+                ],
+            ],
+            [
+                'event' => 'Awards.BestowalCancelRequested',
+                'label' => 'Bestowal Cancel Requested',
+                'description' => 'When a workflow should cancel an in-flight bestowal',
+                'payloadSchema' => [
+                    'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID'],
+                    'closeReason' => ['type' => 'string', 'label' => 'Close Reason'],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ],
+            ],
+            [
+                'event' => 'Awards.BestowalCancelled',
+                'label' => 'Bestowal Cancelled',
+                'description' => 'When a bestowal has been cancelled and recommendations unwound',
+                'payloadSchema' => [
+                    'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID'],
+                    'recommendationIds' => ['type' => 'array', 'label' => 'Recommendation IDs'],
+                    'closeReason' => ['type' => 'string', 'label' => 'Close Reason'],
+                    'unwindState' => ['type' => 'string', 'label' => 'Unwind Recommendation State'],
+                    'memberId' => ['type' => 'integer', 'label' => 'Member ID'],
+                    'previousState' => ['type' => 'string', 'label' => 'Previous State'],
+                    'newState' => ['type' => 'string', 'label' => 'New State'],
+                ],
+            ],
+            [
+                'event' => 'Awards.AdHocBestowalRequested',
+                'label' => 'Ad Hoc Bestowal Requested',
+                'description' => 'When a workflow should record an ad-hoc bestowal backfill entry',
+                'payloadSchema' => [
+                    'data' => ['type' => 'object', 'label' => 'Ad Hoc Bestowal Data'],
                     'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
                 ],
             ],
@@ -418,6 +513,156 @@ class AwardsWorkflowProvider
                 'serviceMethod' => 'pullCourtPreferences',
                 'isAsync' => false,
             ],
+            [
+                'action' => 'Awards.CreateBestowal',
+                'label' => 'Create Bestowal',
+                'description' => 'Create a bestowal from a single recommendation',
+                'inputSchema' => [
+                    'recommendationId' => ['type' => 'integer', 'label' => 'Recommendation ID', 'required' => true],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID', 'required' => true],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Creation Successful'],
+                    'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID'],
+                    'eventPayload' => ['type' => 'object', 'label' => 'Creation Event Payload'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'createBestowal',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Awards.CreateBestowalsForRecommendations',
+                'label' => 'Create Bestowals For Recommendations',
+                'description' => 'Create bestowals for each recommendation ID in the payload',
+                'inputSchema' => [
+                    'recommendationIds' => ['type' => 'array', 'label' => 'Recommendation IDs', 'required' => true],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID', 'required' => true],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Creation Successful'],
+                    'processedCount' => ['type' => 'integer', 'label' => 'Processed Count'],
+                    'bestowalIds' => ['type' => 'array', 'label' => 'Created Bestowal IDs'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'createBestowalsForRecommendations',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Awards.TransitionBestowal',
+                'label' => 'Transition Bestowal',
+                'description' => 'Move a bestowal to a new state using the state machine',
+                'inputSchema' => [
+                    'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID', 'required' => true],
+                    'targetState' => ['type' => 'string', 'label' => 'Target State', 'required' => true],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                    'data' => ['type' => 'object', 'label' => 'Transition Data'],
+                    'gatheringId' => ['type' => 'integer', 'label' => 'Gathering ID'],
+                    'gatheringScheduledActivityId' => ['type' => 'integer', 'label' => 'Scheduled Activity ID'],
+                    'bestowedAt' => ['type' => 'string', 'label' => 'Bestowed At'],
+                    'closeReason' => ['type' => 'string', 'label' => 'Close Reason'],
+                    'note' => ['type' => 'string', 'label' => 'Note'],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Transition Successful'],
+                    'previousState' => ['type' => 'string', 'label' => 'Previous State'],
+                    'newState' => ['type' => 'string', 'label' => 'New State'],
+                    'newStatus' => ['type' => 'string', 'label' => 'New Status'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'transitionBestowal',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Awards.UpdateBestowal',
+                'label' => 'Update Bestowal',
+                'description' => 'Update a bestowal from the edit form including link changes',
+                'inputSchema' => [
+                    'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID', 'required' => true],
+                    'data' => ['type' => 'object', 'label' => 'Update Data'],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID', 'required' => true],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Update Successful'],
+                    'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'updateBestowal',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Awards.BulkTransitionBestowals',
+                'label' => 'Bulk Transition Bestowals',
+                'description' => 'Transition multiple bestowals and sync linked recommendations',
+                'inputSchema' => [
+                    'bestowalIds' => ['type' => 'array', 'label' => 'Bestowal IDs', 'required' => true],
+                    'targetState' => ['type' => 'string', 'label' => 'Target State', 'required' => true],
+                    'data' => ['type' => 'object', 'label' => 'Transition Data'],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID', 'required' => true],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Transition Successful'],
+                    'processedCount' => ['type' => 'integer', 'label' => 'Processed Count'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'bulkTransitionBestowals',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Awards.SyncRecommendationsFromBestowal',
+                'label' => 'Sync Recommendations From Bestowal',
+                'description' => 'Synchronize linked recommendation states from the bestowal state mapping',
+                'inputSchema' => [
+                    'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID', 'required' => true],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID', 'required' => true],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Sync Successful'],
+                    'syncedCount' => ['type' => 'integer', 'label' => 'Synced Count'],
+                    'targetState' => ['type' => 'string', 'label' => 'Target Recommendation State'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'syncRecommendationsFromBestowal',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Awards.CancelBestowal',
+                'label' => 'Cancel Bestowal',
+                'description' => 'Cancel an in-flight bestowal and unwind linked recommendations',
+                'inputSchema' => [
+                    'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID', 'required' => true],
+                    'closeReason' => ['type' => 'string', 'label' => 'Close Reason', 'required' => true],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID', 'required' => true],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Cancellation Successful'],
+                    'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID'],
+                    'eventPayload' => ['type' => 'object', 'label' => 'Cancellation Event Payload'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'cancelBestowal',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Awards.RecordAdHocBestowal',
+                'label' => 'Record Ad Hoc Bestowal',
+                'description' => 'Create ad-hoc recommendations and a linked bestowal in one transaction',
+                'inputSchema' => [
+                    'data' => ['type' => 'object', 'label' => 'Ad Hoc Bestowal Data', 'required' => true],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID', 'required' => true],
+                    'memberId' => ['type' => 'integer', 'label' => 'Member ID'],
+                    'awardIds' => ['type' => 'array', 'label' => 'Award IDs'],
+                    'gatheringId' => ['type' => 'integer', 'label' => 'Gathering ID'],
+                    'bestowedAt' => ['type' => 'string', 'label' => 'Bestowed At'],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Record Successful'],
+                    'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID'],
+                    'eventPayload' => ['type' => 'object', 'label' => 'Creation Event Payload'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'recordAdHocBestowal',
+                'isAsync' => false,
+            ],
         ]);
     }
 
@@ -471,6 +716,38 @@ class AwardsWorkflowProvider
                 'evaluatorClass' => $conditionsClass,
                 'evaluatorMethod' => 'requiresGivenDate',
             ],
+            [
+                'condition' => 'Awards.BestowalIsValidTransition',
+                'label' => 'Bestowal Is Valid Transition',
+                'description' => 'Check if a bestowal state transition is allowed per state machine configuration',
+                'inputSchema' => [
+                    'currentState' => ['type' => 'string', 'label' => 'Current State', 'required' => true],
+                    'targetState' => ['type' => 'string', 'label' => 'Target State', 'required' => true],
+                ],
+                'evaluatorClass' => $conditionsClass,
+                'evaluatorMethod' => 'bestowalIsValidTransition',
+            ],
+            [
+                'condition' => 'Awards.BestowalHasRequiredFields',
+                'label' => 'Bestowal Has Required Fields',
+                'description' => 'Validate that all required fields for the target bestowal state are present',
+                'inputSchema' => [
+                    'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID', 'required' => true],
+                    'targetState' => ['type' => 'string', 'label' => 'Target State', 'required' => true],
+                ],
+                'evaluatorClass' => $conditionsClass,
+                'evaluatorMethod' => 'bestowalHasRequiredFields',
+            ],
+            [
+                'condition' => 'Awards.RecommendationHasActiveBestowal',
+                'label' => 'Recommendation Has Active Bestowal',
+                'description' => 'Check whether a recommendation is linked to an active bestowal',
+                'inputSchema' => [
+                    'recommendationId' => ['type' => 'integer', 'label' => 'Recommendation ID', 'required' => true],
+                ],
+                'evaluatorClass' => $conditionsClass,
+                'evaluatorMethod' => 'recommendationHasActiveBestowal',
+            ],
         ]);
     }
 
@@ -496,6 +773,26 @@ class AwardsWorkflowProvider
                     'state_date' => ['type' => 'datetime', 'label' => 'State Date'],
                     'gathering_id' => ['type' => 'integer', 'label' => 'Gathering ID'],
                     'given' => ['type' => 'date', 'label' => 'Given Date'],
+                    'close_reason' => ['type' => 'string', 'label' => 'Close Reason'],
+                ],
+            ],
+            [
+                'entityType' => 'Awards.Bestowals',
+                'label' => 'Bestowal',
+                'description' => 'Award bestowal with state machine workflow',
+                'tableClass' => BestowalsTable::class,
+                'fields' => [
+                    'id' => ['type' => 'integer', 'label' => 'ID'],
+                    'member_id' => ['type' => 'integer', 'label' => 'Member ID'],
+                    'gathering_id' => ['type' => 'integer', 'label' => 'Gathering ID'],
+                    'gathering_scheduled_activity_id' => ['type' => 'integer', 'label' => 'Scheduled Activity ID'],
+                    'primary_recommendation_id' => ['type' => 'integer', 'label' => 'Primary Recommendation ID'],
+                    'status' => ['type' => 'string', 'label' => 'Status'],
+                    'state' => ['type' => 'string', 'label' => 'State'],
+                    'state_date' => ['type' => 'datetime', 'label' => 'State Date'],
+                    'stack_rank' => ['type' => 'integer', 'label' => 'Stack Rank'],
+                    'bestowed_at' => ['type' => 'datetime', 'label' => 'Bestowed At'],
+                    'source' => ['type' => 'string', 'label' => 'Source'],
                     'close_reason' => ['type' => 'string', 'label' => 'Close Reason'],
                 ],
             ],

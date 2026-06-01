@@ -620,3 +620,17 @@ echo "✅ Database reset complete!"
 echo ""
 echo "Default test credentials:"
 echo "   Password: TestPassword"
+echo ""
+echo "Member logins (use http://kmp.localhost:${KMP_APP_PORT:-8080}/members/login):"
+"${COMPOSE[@]}" exec -T db psql -U "${DB_USER}" -d "${DB_NAME}" -At -c \
+    "SELECT email_address FROM members WHERE deleted IS NULL ORDER BY id LIMIT 15;" 2>/dev/null \
+    | while IFS= read -r email; do
+        if [ -n "$email" ]; then
+            echo "   Email: $email"
+        fi
+    done
+if [ "$LOAD_SEED" = true ]; then
+    echo "   (Seeded reset — admin@amp.ansteorra.org and other demo users should appear above.)"
+else
+    echo "   (Fresh reset without --seed — typically only admin@test.com until you run with --seed.)"
+fi

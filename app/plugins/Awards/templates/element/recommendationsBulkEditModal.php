@@ -48,6 +48,7 @@ echo $this->Modal->create('Bulk Edit Recommendations', [
 <script type="application/json" data-awards-rec-bulk-edit-target="stateRulesBlock" class="d-none">
     <?= json_encode($rules) ?>
 </script>
+<div class="alert alert-warning d-none mb-3" role="alert" data-awards-rec-bulk-edit-target="lockedSelectionNotice"></div>
 <fieldset>
     <?php
     echo $this->Form->hidden('ids', ['value' => [], 'data-awards-rec-bulk-edit-target' => 'bulkIds']);

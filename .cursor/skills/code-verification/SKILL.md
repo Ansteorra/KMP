@@ -5,7 +5,15 @@ description: Runs KMP quality checks (PHPUnit, Jest, Vite, PHPCS, PHPStan) and g
 
 # Code Verification for KMP
 
-Run commands from `app/` unless noted. Repo root paths use relative notation.
+Run commands **inside the Docker app container** (`kmp-app`). From repo root:
+
+```bash
+docker compose exec app bash -lc 'bash bin/verify.sh'
+```
+
+Or use repo-root DB reset before migration-heavy work: `./dev-reset-db.sh --seed`. See `AGENTS.md` § Dev environment.
+
+Inside the container, cwd is `/var/www/html` (= host `./app`).
 
 ## Quick verification
 

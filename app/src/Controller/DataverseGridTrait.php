@@ -93,6 +93,7 @@ trait DataverseGridTrait
         $enableBulkSelection = $config['enableBulkSelection'] ?? false;
         $bulkActions = $config['bulkActions'] ?? [];
         $bulkSelectionDataFields = $config['bulkSelectionDataFields'] ?? [];
+        $bulkSelectionDisabledField = $config['bulkSelectionDisabledField'] ?? null;
 
         // Load column metadata
         $columnsMetadata = $gridColumnsClass::getColumns();
@@ -813,6 +814,7 @@ trait DataverseGridTrait
             enableBulkSelection: $enableBulkSelection,
             bulkActions: $bulkActions,
             bulkSelectionDataFields: $bulkSelectionDataFields,
+            bulkSelectionDisabledField: $bulkSelectionDisabledField,
         );
 
         // Return all results
@@ -894,6 +896,7 @@ trait DataverseGridTrait
         bool $enableBulkSelection = false,
         array $bulkActions = [],
         array $bulkSelectionDataFields = [],
+        ?string $bulkSelectionDisabledField = null,
     ): array {
         // Format views based on whether we're using system or saved views
         $formattedViews = [];
@@ -1053,6 +1056,7 @@ trait DataverseGridTrait
                 'enableBulkSelection' => $enableBulkSelection,
                 'bulkActions' => $bulkActions,
                 'bulkSelectionDataFields' => $bulkSelectionDataFields,
+                'bulkSelectionDisabledField' => $bulkSelectionDisabledField,
             ],
             'dateRangeFilterColumns' => $dateRangeFilterColumns,
         ];

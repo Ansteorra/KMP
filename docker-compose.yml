@@ -15,6 +15,8 @@
 #   - pgadmin: PostgreSQL administration UI (development only)
 #   - mailpit: Email testing (UI at http://localhost:8025)
 
+name: kmp
+
 x-app-base: &app-base
   image: kmp-app:dev
   build:

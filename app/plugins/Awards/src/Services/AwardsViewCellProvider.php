@@ -144,15 +144,15 @@ class AwardsViewCellProvider
                         ->where(['public_id' => $publicId])
                         ->firstOrFail();
 
-                    // Only show if user has ViewGatheringRecommendations permission
-                    if ($user->can('ViewGatheringRecommendations', 'Awards.Recommendations', $gathering)) {
+                    // Only show if user has ViewGatheringBestowals permission
+                    if ($user->can('ViewGatheringBestowals', 'Awards.Bestowals', $gathering)) {
                         $cells[] = [
                             'type' => ViewCellRegistry::PLUGIN_TYPE_TAB,
-                            'label' => 'Award Recommendations',
-                            'id' => 'gathering-awards',
+                            'label' => 'Award Bestowals',
+                            'id' => 'gathering-bestowals',
                             'order' => 8,
                             'tabBtnBadge' => null,
-                            'cell' => 'Awards.GatheringAwards',
+                            'cell' => 'Awards.GatheringBestowals',
                             'validRoutes' => [
                                 ['controller' => 'Gatherings', 'action' => 'view', 'plugin' => null],
                             ]

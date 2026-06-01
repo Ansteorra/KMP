@@ -159,9 +159,16 @@ class RecommendationTransitionService
 
                     $results = [];
                     foreach ($ids as $id) {
+                        $recommendation = $recommendations[(int)$id];
+                        if ($recommendation->isLockedByBestowal()) {
+                            throw new RuntimeException(
+                                'Recommendation #' . $id . ' is linked to a bestowal and cannot be bulk edited.',
+                            );
+                        }
+
                         $results[] = $this->applyTransition(
                             $recommendationsTable,
-                            $recommendations[(int)$id],
+                            $recommendation,
                             $targetState,
                             $data,
                             $actorId,

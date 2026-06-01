@@ -89,7 +89,9 @@ class RecommendationQueryService
             'enableBulkSelection' => $canEdit,
             'bulkSelectionDataFields' => [
                 'member-id' => 'member_id',
+                'bestowal-id' => 'bestowal_id',
             ],
+            'bulkSelectionDisabledField' => 'bestowal_id',
             'bulkActions' => [
                 [
                     'key' => 'bulk-edit',
@@ -285,6 +287,11 @@ class RecommendationQueryService
             'canFilter' => true,
             'canExportCsv' => true,
             'enableBulkSelection' => $canEdit,
+            'bulkSelectionDataFields' => [
+                'member-id' => 'member_id',
+                'bestowal-id' => 'bestowal_id',
+            ],
+            'bulkSelectionDisabledField' => 'bestowal_id',
             'bulkActions' => [
                 [
                     'key' => 'bulk-edit',

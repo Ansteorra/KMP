@@ -6,6 +6,7 @@ namespace Awards\Services;
 
 use App\Services\WorkflowEngine\StateMachine\StateMachineHandler;
 use App\Services\WorkflowEngine\WorkflowContextAwareTrait;
+use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\Recommendation;
 use Cake\Log\Log;
 use Cake\ORM\Locator\LocatorAwareTrait;
@@ -22,11 +23,13 @@ class AwardsWorkflowConditions
     use WorkflowContextAwareTrait;
 
     private Table $recommendationsTable;
+    private Table $bestowalsTable;
     private StateMachineHandler $stateMachineHandler;
 
     public function __construct(?StateMachineHandler $stateMachineHandler = null)
     {
         $this->recommendationsTable = $this->fetchTable('Awards.Recommendations');
+        $this->bestowalsTable = $this->fetchTable('Awards.Bestowals');
         $this->stateMachineHandler = $stateMachineHandler ?? new StateMachineHandler();
     }
 
@@ -153,6 +156,113 @@ class AwardsWorkflowConditions
             return in_array('given', $requiredFields, true);
         } catch (\Throwable $e) {
             Log::error('Condition RequiresGivenDate failed: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Check if a bestowal state transition is allowed per the state machine configuration.
+     *
+     * @param array $context Current workflow context
+     * @param array $config Config with currentState, targetState
+     * @return bool
+     */
+    public function bestowalIsValidTransition(array $context, array $config): bool
+    {
+        try {
+            $currentState = $this->resolveValue($config['currentState'] ?? null, $context);
+            $targetState = $this->resolveValue($config['targetState'] ?? null, $context);
+
+            if (empty($currentState) || empty($targetState)) {
+                return false;
+            }
+
+            $allStates = Bestowal::getStates();
+            if (
+                !in_array((string)$currentState, $allStates, true)
+                || !in_array((string)$targetState, $allStates, true)
+            ) {
+                return false;
+            }
+
+            $validTargets = Bestowal::getValidTransitionsFrom((string)$currentState);
+            $smConfig = ['transitions' => [(string)$currentState => $validTargets]];
+
+            return $this->stateMachineHandler->validateTransition(
+                (string)$currentState,
+                (string)$targetState,
+                $smConfig,
+            );
+        } catch (\Throwable $e) {
+            Log::error('Condition BestowalIsValidTransition failed: ' . $e->getMessage());
+
+            return false;
+        }
+    }
+
+    /**
+     * Validate that all required fields for a target bestowal state are present.
+     *
+     * @param array $context Current workflow context
+     * @param array $config Config with bestowalId, targetState
+     * @return bool
+     */
+    public function bestowalHasRequiredFields(array $context, array $config): bool
+    {
+        try {
+            $bestowalId = $this->resolveValue($config['bestowalId'] ?? null, $context);
+            $targetState = $this->resolveValue($config['targetState'] ?? null, $context);
+
+            if (empty($bestowalId) || empty($targetState)) {
+                return false;
+            }
+
+            $bestowal = $this->bestowalsTable->get((int)$bestowalId);
+            $entityData = $bestowal->toArray();
+
+            $stateRules = Bestowal::getStateRules();
+            $rules = $stateRules[(string)$targetState] ?? [];
+            $requiredFields = $rules['Required'] ?? [];
+            if (empty($requiredFields)) {
+                return true;
+            }
+
+            $missing = $this->stateMachineHandler->validateRequiredFields($entityData, $requiredFields);
+
+            return empty($missing);
+        } catch (\Throwable $e) {
+            Log::error('Condition BestowalHasRequiredFields failed: ' . $e->getMessage());
+
+            return false;
+        }
+    }
+
+    /**
+     * Check whether a recommendation is linked to an active bestowal.
+     *
+     * @param array $context Current workflow context
+     * @param array $config Config with recommendationId
+     * @return bool
+     */
+    public function recommendationHasActiveBestowal(array $context, array $config): bool
+    {
+        try {
+            $recommendationId = $this->resolveValue($config['recommendationId'] ?? null, $context);
+            if (empty($recommendationId)) {
+                return false;
+            }
+
+            $recommendation = $this->recommendationsTable->get((int)$recommendationId);
+            if ($recommendation->bestowal_id === null) {
+                return false;
+            }
+
+            $bestowal = $this->bestowalsTable->get((int)$recommendation->bestowal_id);
+
+            return $bestowal->isActiveBestowal();
+        } catch (\Throwable $e) {
+            Log::error('Condition RecommendationHasActiveBestowal failed: ' . $e->getMessage());
+
             return false;
         }
     }

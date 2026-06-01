@@ -20,7 +20,14 @@ Constitution → `.github/copilot-instructions.md` → `.cursor/rules/` → `.cu
 
 ## Verification
 
-Before finishing PHP/JS work: run appropriate checks from `app/bin/verify.sh` (see `AGENTS.md`).
+Before finishing PHP/JS work: run appropriate checks from `app/bin/verify.sh` **inside the Docker app container** (see `AGENTS.md`). Prefer repo-root wrappers: `./dev-reset-db.sh --seed` for DB resets, `docker compose exec app bash -lc 'bash bin/verify.sh'` for verification.
+
+## Docker dev (default)
+
+- Code on host; **`./app` bind-mounted** to `/var/www/html` in `kmp-app`
+- Use **repo-root scripts** (`dev-up.sh`, `dev-reset-db.sh`, `dev-down.sh`) — they call `docker compose` for you
+- Run Composer/Cake/PHPUnit/npm **in the container**, not on the host
+- Full details: `AGENTS.md` § Dev environment, `docs/docker-development.md`
 
 ## Dangerous patterns
 
