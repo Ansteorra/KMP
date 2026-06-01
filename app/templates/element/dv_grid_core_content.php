@@ -56,6 +56,7 @@ $customElementOptions = $customElementOptions ?? [];
                     'gridKey' => $gridState['config']['gridKey'],
                     'rowActions' => $rowActions,
                     'enableColumnPicker' => $gridState['config']['enableColumnPicker'] ?? true,
+                    'tableFrameId' => $tableFrameId,
                 ]) ?>
 
                 <div class="paginator">

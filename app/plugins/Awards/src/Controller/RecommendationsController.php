@@ -19,6 +19,7 @@ use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\TableRegistry;
 use Exception;
 use PhpParser\Node\Stmt\TryCatch;
+use App\KMP\GridRowDomId;
 use App\Services\CsvExportService;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use Awards\Services\RecommendationFormService;
@@ -146,53 +147,7 @@ class RecommendationsController extends AppController
 
         // Post-process data to add computed fields for display
         $recommendations = $result['data'];
-
-        // Add group children count for each recommendation
-        $recIds = [];
-        foreach ($recommendations as $r) {
-            $recIds[] = $r->id;
-        }
-        $groupCounts = [];
-        if (!empty($recIds)) {
-            $countQuery = $this->Recommendations->find()
-                ->select([
-                    'recommendation_group_id',
-                    'child_count' => $this->Recommendations->find()->func()->count('*'),
-                ])
-                ->where(['recommendation_group_id IN' => $recIds])
-                ->groupBy(['recommendation_group_id'])
-                ->disableHydration()
-                ->all();
-            foreach ($countQuery as $row) {
-                $groupCounts[(int)$row['recommendation_group_id']] = (int)$row['child_count'];
-            }
-        }
-        foreach ($recommendations as $recommendation) {
-            $recommendation->group_children_count = isset($groupCounts[$recommendation->id])
-                ? $groupCounts[$recommendation->id] + 1  // +1 to include the parent/head recommendation
-                : 0;
-        }
-
-        // Fetch member attendance gatherings for all members in the result set
-        // These are gatherings where the member has marked attendance with share_with_crown or share_with_kingdom
-        $memberAttendanceGatherings = $this->getMemberAttendanceGatherings($recommendations);
-
-        foreach ($recommendations as $recommendation) {
-            // Build OP links HTML
-            $recommendation->op_links = $this->buildOpLinksHtml($recommendation);
-
-            // Merge recommendation-linked gatherings with member attendance gatherings
-            $attendanceGatherings = $memberAttendanceGatherings[$recommendation->member_id] ?? [];
-
-            // Build gatherings HTML (combines recommendation events and member attendance)
-            $recommendation->gatherings = $this->buildGatheringsHtml($recommendation, $attendanceGatherings);
-
-            // Build notes HTML
-            $recommendation->notes = $this->buildNotesHtml($recommendation);
-
-            // Build reason HTML with truncation
-            $recommendation->reason = $this->buildReasonHtml($recommendation);
-        }
+        $this->enrichRecommendationsForGrid($recommendations);
 
         // Get row actions from grid columns
         $rowActions = RecommendationsGridColumns::getRowActions();
@@ -1400,6 +1355,7 @@ class RecommendationsController extends AppController
     public function edit(
         RecommendationUpdateService $updateService,
         TriggerDispatcher $triggerDispatcher,
+        RecommendationQueryService $queryService,
         ?string $id = null,
     ): ?\Cake\Http\Response
     {
@@ -1427,7 +1383,13 @@ class RecommendationsController extends AppController
                 );
 
                 if ($result['success']) {
-                    $stream = $this->tryRecommendationsGridTurboResponse($pageContext, true);
+                    $stream = $this->tryRecommendationsGridTurboResponse(
+                        $pageContext,
+                        true,
+                        null,
+                        (int)$recommendation->id,
+                        $queryService,
+                    );
                     if ($stream !== null) {
                         return $stream;
                     }
@@ -2709,12 +2671,197 @@ class RecommendationsController extends AppController
     }
 
     /**
+     * Add computed display fields used by the recommendations Dataverse grid.
+     *
+     * @param iterable<\Awards\Model\Entity\Recommendation> $recommendations
+     */
+    private function enrichRecommendationsForGrid(iterable $recommendations): void
+    {
+        $recIds = [];
+        foreach ($recommendations as $recommendation) {
+            $recIds[] = $recommendation->id;
+        }
+
+        $groupCounts = [];
+        if ($recIds !== []) {
+            $countQuery = $this->Recommendations->find()
+                ->select([
+                    'recommendation_group_id',
+                    'child_count' => $this->Recommendations->find()->func()->count('*'),
+                ])
+                ->where(['recommendation_group_id IN' => $recIds])
+                ->groupBy(['recommendation_group_id'])
+                ->disableHydration()
+                ->all();
+            foreach ($countQuery as $row) {
+                $groupCounts[(int)$row['recommendation_group_id']] = (int)$row['child_count'];
+            }
+        }
+
+        $memberAttendanceGatherings = $this->getMemberAttendanceGatherings($recommendations);
+
+        foreach ($recommendations as $recommendation) {
+            $recommendation->group_children_count = isset($groupCounts[$recommendation->id])
+                ? $groupCounts[$recommendation->id] + 1
+                : 0;
+            $recommendation->op_links = $this->buildOpLinksHtml($recommendation);
+            $attendanceGatherings = $memberAttendanceGatherings[$recommendation->member_id] ?? [];
+            $recommendation->gatherings = $this->buildGatheringsHtml($recommendation, $attendanceGatherings);
+            $recommendation->notes = $this->buildNotesHtml($recommendation);
+            $recommendation->reason = $this->buildReasonHtml($recommendation);
+        }
+    }
+
+    /**
+     * Whether page context is the main recommendations index grid (phase 1 pilot).
+     */
+    private function isMainRecommendationsGridIndex(?string $pageContextUrl): bool
+    {
+        if ($pageContextUrl === null) {
+            return false;
+        }
+
+        $path = parse_url($pageContextUrl, PHP_URL_PATH) ?? $pageContextUrl;
+
+        return (bool)preg_match('#/awards/recommendations/?$#', $path);
+    }
+
+    /**
+     * Run a callback with query params from the posted page context URL.
+     *
+     * @template T
+     * @param callable(): T $callback
+     * @return T
+     */
+    private function withPageContextQuery(?string $pageContextUrl, callable $callback): mixed
+    {
+        $originalQuery = $this->request->getQueryParams();
+        try {
+            if ($pageContextUrl !== null) {
+                $parsed = parse_url($pageContextUrl);
+                $contextQuery = [];
+                if (!empty($parsed['query'])) {
+                    parse_str($parsed['query'], $contextQuery);
+                }
+                $this->setRequest($this->request->withQueryParams($contextQuery));
+            }
+
+            return $callback();
+        } finally {
+            $this->setRequest($this->request->withQueryParams($originalQuery));
+        }
+    }
+
+    /**
+     * Resolve targeted row sync after a single recommendation save.
+     *
+     * @return array{action: string, rowDomId: string, rowHtml?: string}|null Null → full table refresh
+     */
+    private function resolveRecommendationGridRowSync(
+        int $recommendationId,
+        ?string $pageContextUrl,
+        RecommendationQueryService $queryService,
+    ): ?array {
+        if (!$this->isMainRecommendationsGridIndex($pageContextUrl)) {
+            return null;
+        }
+
+        $tableFrameId = 'recommendations-grid-table';
+        $rowDomId = GridRowDomId::fromTableFrameId($tableFrameId, $recommendationId);
+
+        return $this->withPageContextQuery($pageContextUrl, function () use (
+            $recommendationId,
+            $rowDomId,
+            $queryService,
+            $tableFrameId,
+        ): ?array {
+            $emptyRecommendation = $this->Recommendations->newEmptyEntity();
+            $user = $this->request->getAttribute('identity');
+            $canViewHidden = $user->checkCan('ViewHidden', $emptyRecommendation);
+            $canEdit = $user->checkCan('edit', $emptyRecommendation);
+
+            $built = $queryService->buildMainGridQuery(
+                $this->Recommendations,
+                $canEdit,
+            );
+            $baseQuery = $built['query'];
+            $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
+            $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
+            $baseQuery = $baseQuery->where(['Recommendations.id' => $recommendationId]);
+            $built['gridOptions']['baseQuery'] = $baseQuery;
+
+            $result = $this->processDataverseGrid($built['gridOptions']);
+            $gridData = $result['data'];
+            if (is_array($gridData)) {
+                $recommendations = $gridData;
+            } elseif ($gridData instanceof \Traversable) {
+                $recommendations = iterator_to_array($gridData, false);
+            } else {
+                $recommendations = [];
+            }
+            if ($recommendations === []) {
+                return [
+                    'action' => 'remove',
+                    'rowDomId' => $rowDomId,
+                ];
+            }
+
+            $this->enrichRecommendationsForGrid($recommendations);
+            $recommendation = $recommendations[0];
+            $rowActions = RecommendationsGridColumns::getRowActions();
+            $gridState = $result['gridState'];
+            $enableColumnPicker = $gridState['config']['enableColumnPicker'] ?? true;
+            $visibleColumns = $gridState['columns']['visible'];
+            if (!is_array($visibleColumns)) {
+                $visibleColumns = array_values($visibleColumns);
+            }
+
+            $rowHtml = $this->renderDataverseTableRowElement([
+                'row' => $recommendation,
+                'columns' => $gridState['columns']['all'],
+                'visibleColumns' => $visibleColumns,
+                'controllerName' => 'grid-view',
+                'primaryKey' => $gridState['config']['primaryKey'],
+                'gridKey' => $gridState['config']['gridKey'],
+                'rowActions' => $rowActions,
+                'user' => $user,
+                'enableBulkSelection' => $gridState['config']['enableBulkSelection'] ?? false,
+                'bulkSelectionDataFields' => $gridState['config']['bulkSelectionDataFields'] ?? [],
+                'bulkSelectionDisabledField' => $gridState['config']['bulkSelectionDisabledField'] ?? null,
+                'rowDomIdPrefix' => preg_replace('/-table$/', '', $tableFrameId),
+                'showActionsColumn' => $enableColumnPicker || $rowActions !== [],
+            ]);
+
+            return [
+                'action' => 'replace',
+                'rowDomId' => $rowDomId,
+                'rowHtml' => $rowHtml,
+            ];
+        });
+    }
+
+    /**
+     * @param array<string, mixed> $vars
+     */
+    private function renderDataverseTableRowElement(array $vars): string
+    {
+        $builder = clone $this->viewBuilder();
+        $builder->disableAutoLayout();
+        $builder->setPlugin(null);
+        $builder->setTemplatePath('element');
+
+        return $builder->build($this->request, $this->response)->element('dataverse_table_row', $vars);
+    }
+
+    /**
      * Turbo-stream response for grid-origin recommendation saves.
      */
     private function tryRecommendationsGridTurboResponse(
         ?string $pageContext,
         bool $success,
         ?int $reloadQuickEditId = null,
+        ?int $updatedRecommendationId = null,
+        ?RecommendationQueryService $queryService = null,
     ): ?\Cake\Http\Response {
         if (!$this->wantsTurboStreamRequest() || !$this->isGridOriginRequest($pageContext)) {
             return null;
@@ -2724,6 +2871,25 @@ class RecommendationsController extends AppController
 
         if ($success) {
             $this->Flash->success(__('The recommendation has been saved.'));
+
+            if ($updatedRecommendationId !== null) {
+                $queryService ??= new RecommendationQueryService();
+                $sync = $this->resolveRecommendationGridRowSync(
+                    $updatedRecommendationId,
+                    $pageContext,
+                    $queryService,
+                );
+                if ($sync !== null) {
+                    if ($sync['action'] === 'remove') {
+                        return $this->renderTurboRemoveGridRow($sync['rowDomId']);
+                    }
+
+                    return $this->renderTurboReplaceGridRow(
+                        $sync['rowDomId'],
+                        $sync['rowHtml'] ?? '',
+                    );
+                }
+            }
 
             return $this->renderTurboCloseModal('recommendations-grid-table', $gridRoute, $pageContext);
         }

@@ -156,4 +156,55 @@ trait TurboResponseTrait
 
         return $this->render();
     }
+
+    /**
+     * Render turbo-stream: flash + replace a single grid row by DOM id.
+     */
+    protected function renderTurboReplaceGridRow(
+        string $rowDomId,
+        string $rowHtml,
+        ?array $flashMessages = null,
+    ): Response {
+        if ($flashMessages === null) {
+            $flashMessages = $this->consumeFlashForStream();
+        }
+
+        $this->response = $this->response->withType('text/vnd.turbo-stream.html');
+        $this->viewBuilder()->setPlugin(null);
+        $this->viewBuilder()->disableAutoLayout();
+        $this->set([
+            'rowDomId' => $rowDomId,
+            'rowHtml' => $rowHtml,
+            'flashMessages' => $flashMessages,
+            'streamAction' => 'replace',
+        ]);
+        $this->viewBuilder()->setTemplatePath('element');
+        $this->viewBuilder()->setTemplate('turbo_sync_grid_row');
+
+        return $this->render();
+    }
+
+    /**
+     * Render turbo-stream: flash + remove a grid row (no longer matches current filters).
+     */
+    protected function renderTurboRemoveGridRow(string $rowDomId, ?array $flashMessages = null): Response
+    {
+        if ($flashMessages === null) {
+            $flashMessages = $this->consumeFlashForStream();
+        }
+
+        $this->response = $this->response->withType('text/vnd.turbo-stream.html');
+        $this->viewBuilder()->setPlugin(null);
+        $this->viewBuilder()->disableAutoLayout();
+        $this->set([
+            'rowDomId' => $rowDomId,
+            'rowHtml' => '',
+            'flashMessages' => $flashMessages,
+            'streamAction' => 'remove',
+        ]);
+        $this->viewBuilder()->setTemplatePath('element');
+        $this->viewBuilder()->setTemplate('turbo_sync_grid_row');
+
+        return $this->render();
+    }
 }

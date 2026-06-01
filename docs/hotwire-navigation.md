@@ -27,6 +27,34 @@ KMP uses **Turbo Frames** and **Turbo Streams** with **Turbo Drive disabled** (`
 4. POST success: controller uses `TurboResponseTrait::renderTurboCloseModal()` with `refreshFrame` and `gridData` route.
 5. POST failure (grid origin): 422 + stream flash and/or reload edit frame `src`.
 
+## Smart row refresh (targeted sync)
+
+For single-record modal saves on Dataverse grids, prefer updating **one row** instead of reloading the entire `{frameId}-table` frame.
+
+### Row DOM id contract
+
+- Table turbo-frame: `{resource}-grid-table` (e.g. `recommendations-grid-table`)
+- Row turbo-stream target: `{resource}-grid-row-{primaryKey}` (e.g. `recommendations-grid-row-42`)
+- Rows are rendered via `element/dataverse_table_row.php` with stable `id` attributes; helper: `App\KMP\GridRowDomId::fromTableFrameId()`
+
+### Server response helpers (`TurboResponseTrait`)
+
+| Scenario | Method | Stream action |
+|----------|--------|---------------|
+| Row still matches current grid filters | `renderTurboReplaceGridRow($rowDomId, $rowHtml)` | `replace` row |
+| Row no longer matches filters (e.g. status tab) | `renderTurboRemoveGridRow($rowDomId)` | `remove` row |
+| Bulk edit, embedded grid, or sync unavailable | `renderTurboCloseModal(...)` | `replace` table frame (full refresh) |
+
+Template: `element/turbo_sync_grid_row.php` (flash + row replace/remove).
+
+### Controller checklist
+
+1. Re-run grid query using `page_context_url` query params + `WHERE id = ?` to see if the row still belongs on the current page.
+2. Reuse the same cell renderers as `gridData` (shared enrichment + `dataverse_table_row` element).
+3. Fall back to `renderTurboCloseModal()` when context is not the pilot grid (e.g. detail-page origin) or row HTML cannot be built.
+
+**Pilot:** Awards Recommendations index (`RecommendationsController::resolveRecommendationGridRowSync()`).
+
 ## Forms and Drive
 
 With Drive off, forms that should return streams **must** set `'data-turbo' => true`.

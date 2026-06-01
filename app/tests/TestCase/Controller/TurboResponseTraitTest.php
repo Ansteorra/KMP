@@ -67,6 +67,20 @@ class TurboResponseTraitTest extends HttpIntegrationTestCase
                     [],
                 );
             }
+
+            public function exposeReplaceRowStream(): Response
+            {
+                return $this->renderTurboReplaceGridRow(
+                    'recommendations-grid-row-42',
+                    '<tr id="recommendations-grid-row-42" data-id="42"><td>ok</td></tr>',
+                    [],
+                );
+            }
+
+            public function exposeRemoveRowStream(): Response
+            {
+                return $this->renderTurboRemoveGridRow('recommendations-grid-row-99', []);
+            }
         };
 
         return $controller;
@@ -132,5 +146,24 @@ class TurboResponseTraitTest extends HttpIntegrationTestCase
         $this->assertStringContainsString('<turbo-stream action="replace"', $body);
         $this->assertStringContainsString('target="editRecommendationQuick"', $body);
         $this->assertStringContainsString('/awards/recommendations/turbo-quick-edit-form/42', $body);
+    }
+
+    public function testRenderTurboReplaceGridRowReturnsRenderedStreamBody(): void
+    {
+        $response = $this->traitController()->exposeReplaceRowStream();
+        $body = (string)$response->getBody();
+
+        $this->assertStringContainsString('<turbo-stream action="replace"', $body);
+        $this->assertStringContainsString('target="recommendations-grid-row-42"', $body);
+        $this->assertStringContainsString('recommendations-grid-row-42', $body);
+    }
+
+    public function testRenderTurboRemoveGridRowReturnsRenderedStreamBody(): void
+    {
+        $response = $this->traitController()->exposeRemoveRowStream();
+        $body = (string)$response->getBody();
+
+        $this->assertStringContainsString('<turbo-stream action="remove"', $body);
+        $this->assertStringContainsString('target="recommendations-grid-row-99"', $body);
     }
 }
