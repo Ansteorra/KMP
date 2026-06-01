@@ -36,8 +36,12 @@ class SessionExtender extends Controller {
             clearTimeout(this.timer)
         }
         var me = this;
-        this.timer = setTimeout(function () {
-            alert('Session Expiring! Click ok to extend session.');
+        this.timer = setTimeout(async function () {
+            await window.KMP_accessibility.confirm('Session expiring. Extend your session?', {
+                title: 'Session expiring',
+                confirmLabel: 'Extend session',
+                cancelLabel: 'Dismiss',
+            });
             fetch(me.urlValue)
                 .then(res => {
                     return res.json()

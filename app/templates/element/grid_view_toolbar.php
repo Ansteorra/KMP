@@ -126,7 +126,7 @@ $searchDescription = !empty($searchableLabels)
                         <button class="btn btn-outline-secondary dropdown-toggle d-flex align-items-center gap-2" type="button"
                             id="filterDropdown" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
                             data-filter-button>
-                            <i class="bi bi-funnel"></i>
+                            <i class="bi bi-funnel" aria-hidden="true"></i>
                             <span>Filter</span>
                             <!-- JS will add badge here if needed -->
                         </button>
@@ -138,14 +138,20 @@ $searchDescription = !empty($searchableLabels)
                                 <!-- Search Section -->
                                 <div class="border-bottom">
                                     <div class="px-3 py-2 bg-light">
-                                        <strong class="text-uppercase small" style="font-size: 0.75rem; letter-spacing: 0.5px;">
+                                        <strong id="<?= h($gridKey) ?>-search-heading" class="text-uppercase small" style="font-size: 0.75rem; letter-spacing: 0.5px;">
                                             Search
                                         </strong>
                                     </div>
                                     <div class="px-3 py-2">
                                         <div class="input-group input-group-sm">
-                                            <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                                            <label class="input-group-text bg-white" for="<?= h($gridKey) ?>-grid-search">
+                                                <i class="bi bi-search" aria-hidden="true"></i>
+                                                <span class="visually-hidden"><?= h(__('Search table records')) ?></span>
+                                            </label>
                                             <input type="text" class="form-control" placeholder="Search..."
+                                                id="<?= h($gridKey) ?>-grid-search"
+                                                aria-labelledby="<?= h($gridKey) ?>-search-heading"
+                                                aria-describedby="<?= h($gridKey) ?>-search-description"
                                                 data-<?= h($controllerName) ?>-target="searchInput"
                                                 data-action="keyup-><?= h($controllerName) ?>#handleSearchKeyup keydown.enter-><?= h($controllerName) ?>#performSearch">
                                             <span class="input-group-text bg-white d-none"
@@ -156,7 +162,7 @@ $searchDescription = !empty($searchableLabels)
                                                 <span class="visually-hidden">Searching</span>
                                             </span>
                                         </div>
-                                        <small class="text-muted d-block mt-1">
+                                        <small id="<?= h($gridKey) ?>-search-description" class="text-muted d-block mt-1">
                                             <?= h($searchDescription) ?>
                                         </small>
                                     </div>
@@ -217,7 +223,7 @@ $searchDescription = !empty($searchableLabels)
                 <div class="modal-body">
                     <p class="text-muted">
                         <i class="bi bi-info-circle"></i>
-                        Check columns to show/hide. Drag to reorder.
+                        Check columns to show/hide. Drag or use the Move up and Move down buttons to reorder.
                     </p>
 
                     <!-- Sortable column list (populated by JS) -->
@@ -225,6 +231,8 @@ $searchDescription = !empty($searchableLabels)
                         data-action="sortable-list:reordered-><?= h($controllerName) ?>#handleColumnReorder"
                         class="list-group" data-column-list-container>
                         <!-- JS will populate column list here -->
+                        <div class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"
+                            data-sortable-list-target="status"></div>
                     </div>
                 </div>
                 <div class="modal-footer">

@@ -5,6 +5,37 @@
 @import 'easymde/dist/easymde.min.css';
 @import '@fortawesome/fontawesome-free/css/all.min.css';
 
+:focus-visible {
+    outline: 3px solid var(--bs-primary);
+    outline-offset: 2px;
+}
+
+.btn:focus-visible,
+.form-control:focus-visible,
+.form-select:focus-visible,
+.form-check-input:focus-visible,
+.dropdown-item:focus-visible,
+.nav-link:focus-visible {
+    box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.35);
+}
+
+.btn-sm,
+.btn-group-sm>.btn {
+    min-width: 24px;
+    min-height: 24px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
 /* Drag and Drop Sortable Styles */
 .list-group-item[draggable="true"] {
     cursor: move;
@@ -76,6 +107,7 @@
     --bs-accordion-body-padding-y: 1rem;
     --bs-accordion-active-color: white;
     --bs-accordion-active-bg: var(--bs-primary-bg-subtle);
+    border: 0;
     display: flex;
 }
 
@@ -234,8 +266,10 @@ input:checked+.slider {
     background-color: #2196F3;
 }
 
-input:focus+.slider {
-    box-shadow: 0 0 1px #2196F3;
+input:focus-visible+.slider {
+    outline: 3px solid var(--bs-primary);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.35);
 }
 
 input:checked+.slider:before {
@@ -749,7 +783,14 @@ tr.row-expanded .toggle-icon.bi-chevron-down {
     text-decoration: none;
 }
 
+.member-profile-photo-remove-btn:focus {
+    background-color: rgba(255, 255, 255, 0.96);
+}
+
 .member-profile-photo-remove-btn:focus-visible {
-    box-shadow: 0 0 0 0.1rem rgba(220, 53, 69, 0.2);
-    outline: none;
+    outline: 3px solid #fff;
+    outline-offset: 2px;
+    box-shadow:
+        0 0 0 0.32rem rgba(13, 110, 253, 0.95),
+        0 0.25rem 0.65rem rgba(0, 0, 0, 0.75);
 }

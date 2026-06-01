@@ -5,7 +5,7 @@ $this->KMP->endBlock();
 
 $watermarkimg = $message_variables['marshal_auth_graphic_data_uri'] ?? null;
 ?>
-<html>
+<html lang="<?= h(\Cake\Core\Configure::read('App.language') ?: 'en') ?>">
 
 <head>
     <style>
@@ -184,14 +184,14 @@ $watermarkimg = $message_variables['marshal_auth_graphic_data_uri'] ?? null;
     data-member-card-profile-url-value="<?= $this->Url->build(['controller' => 'Members', 'action' => 'viewCardJson', $member->id]) ?>">
     <div class="header">
         <div class="header-left">
-            <img src='<?php echo $watermarkimg; ?>'>
+            <img src='<?php echo $watermarkimg; ?>' alt="<?= h(__('{0} authorization emblem', $message_variables['kingdom'])) ?>">
         </div>
         <div class="header-center">
             Kingdom of <?= h($message_variables['kingdom']) ?><br />
             Activities Authorization
         </div>
         <div class="header-right">
-            <img src='<?php echo $watermarkimg; ?>'>
+            <img src='<?php echo $watermarkimg; ?>' alt="<?= h(__('{0} authorization emblem', $message_variables['kingdom'])) ?>">
         </div>
         <div style="clear:both"></div>
     </div>

@@ -48,11 +48,11 @@ $historyCount = count($pageStack);
 if ($historyCount < 2) {
     // No pageStack or insufficient history - use browser back
     $url = '#';
-    $onclick = 'window.history.back(); return false;';
+    $historyBack = true;
 } else {
     // Use pageStack for accurate navigation
     $url = $pageStack[$historyCount - 2];
-    $onclick = null;
+    $historyBack = false;
 }
 
 // Build the link
@@ -66,8 +66,9 @@ $linkOptions = [
     'title' => $title,
 ];
 
-if ($onclick) {
-    $linkOptions['onclick'] = $onclick;
+if ($historyBack) {
+    $linkOptions['data-controller'] = 'history-back';
+    $linkOptions['data-action'] = 'history-back#go';
 }
 
 echo $this->Html->link($linkContent, $url, $linkOptions);

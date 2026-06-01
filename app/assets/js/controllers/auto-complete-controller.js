@@ -85,7 +85,7 @@ const optionSelector = "[role='option']:not([aria-disabled='true'])"
 const activeSelector = "[aria-selected='true']"
 
 class AutoComplete extends Controller {
-    static targets = ["input", "hidden", "hiddenText", "results", "dataList", "clearBtn"]
+    static targets = ["input", "hidden", "hiddenText", "results", "dataList", "clearBtn", "status"]
     static classes = ["selected"]
     static values = {
         ready: Boolean,
@@ -216,6 +216,7 @@ class AutoComplete extends Controller {
 
         if (!this.inputTarget.hasAttribute("autocomplete")) this.inputTarget.setAttribute("autocomplete", "off")
         this.inputTarget.setAttribute("spellcheck", "false")
+        this.ensureAccessibilityAttributes()
 
         this.mouseDown = false
 
@@ -237,6 +238,18 @@ class AutoComplete extends Controller {
 
         this.readyValue = true
         this.element.dispatchEvent(new CustomEvent("ready", { detail: this.element.dataset }));
+    }
+
+    ensureAccessibilityAttributes() {
+        if (!this.resultsTarget.id) {
+            this.resultsTarget.id = `ac-results-${AutoComplete.uniqOptionId++}`
+        }
+
+        this.inputTarget.setAttribute("role", "combobox")
+        this.inputTarget.setAttribute("aria-autocomplete", "list")
+        this.inputTarget.setAttribute("aria-controls", this.resultsTarget.id)
+        this.inputTarget.setAttribute("aria-expanded", this.resultsShown ? "true" : "false")
+        this.resultsTarget.setAttribute("role", "listbox")
     }
 
     disconnect() {
@@ -653,11 +666,17 @@ class AutoComplete extends Controller {
         const prefix = this.resultsTarget.id || "stimulus-autocomplete"
         const optionsWithoutId = this.resultsTarget.querySelectorAll(`${optionSelector}:not([id])`)
         optionsWithoutId.forEach(el => el.id = `${prefix}-option-${AutoComplete.uniqOptionId++}`)
+        this.resultsTarget.querySelectorAll("[role='option']").forEach(option => {
+            if (!option.hasAttribute("aria-selected")) {
+                option.setAttribute("aria-selected", "false")
+            }
+        })
     }
 
     hideAndRemoveOptions() {
         this.close()
         this.resultsTarget.innerHTML = null
+        this.updateStatus("")
     }
 
     fetchResults = async (query) => {
@@ -694,6 +713,7 @@ class AutoComplete extends Controller {
                 if (this.state != "finished") {
                     this.identifyOptions();
                     this.open();
+                    this.updateStatusForResults()
                     this.state = "open";
                 }
 
@@ -712,6 +732,7 @@ class AutoComplete extends Controller {
             const html = await this.doFetch(url);
             if (this.state != "finished") {
                 this.replaceResults(html)
+                this.updateStatusForResults()
                 this.state = "open";
             }
             this.element.dispatchEvent(new CustomEvent("load"))
@@ -761,6 +782,7 @@ class AutoComplete extends Controller {
 
         this.resultsShown = true
         this.element.setAttribute("aria-expanded", "true")
+        this.inputTarget.setAttribute("aria-expanded", "true")
         this.hiddenTextTarget.value = this.inputTarget.value;
         this.element.dispatchEvent(
             new CustomEvent("toggle", {
@@ -778,6 +800,7 @@ class AutoComplete extends Controller {
         this.resultsShown = false
         this.inputTarget.removeAttribute("aria-activedescendant")
         this.element.setAttribute("aria-expanded", "false")
+        this.inputTarget.setAttribute("aria-expanded", "false")
         this.hiddenTextTarget.value = this.inputTarget.value;
         this.element.dispatchEvent(
             new CustomEvent("toggle", {
@@ -804,6 +827,23 @@ class AutoComplete extends Controller {
                 "X-Requested-With": "XMLHttpRequest",
                 "Accept": "application/json"
             }
+        }
+    }
+
+    updateStatusForResults() {
+        const count = this.renderedOptions.length
+        if (count === 0) {
+            this.updateStatus("No results available.")
+        } else if (count === 1) {
+            this.updateStatus("1 result available. Use arrow keys to review options.")
+        } else {
+            this.updateStatus(`${count} results available. Use arrow keys to review options.`)
+        }
+    }
+
+    updateStatus(message) {
+        if (this.hasStatusTarget) {
+            this.statusTarget.textContent = message
         }
     }
 }

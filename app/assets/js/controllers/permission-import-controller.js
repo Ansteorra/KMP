@@ -108,7 +108,7 @@ class PermissionImport extends Controller {
 
         // Validate file type
         if (!file.name.endsWith('.json')) {
-            alert('Please select a JSON file.')
+            window.KMP_accessibility.announce('Please select a JSON file.', { assertive: true })
             event.target.value = ''
             return
         }
@@ -157,7 +157,7 @@ class PermissionImport extends Controller {
 
             if (!response.ok || data.error) {
                 this.hideLoadingOverlay()
-                alert(data.error || 'Failed to preview import file.')
+                window.KMP_accessibility.announce(data.error || 'Failed to preview import file.', { assertive: true })
                 this.resetFileInput()
                 return
             }
@@ -173,7 +173,7 @@ class PermissionImport extends Controller {
         } catch (error) {
             console.error('Preview error:', error)
             this.hideLoadingOverlay()
-            alert('An error occurred while analyzing the import file.')
+            window.KMP_accessibility.announce('An error occurred while analyzing the import file.', { assertive: true })
             this.resetFileInput()
         }
     }
@@ -345,7 +345,7 @@ class PermissionImport extends Controller {
         event.preventDefault()
 
         if (!this.importData) {
-            alert('No import data available.')
+            window.KMP_accessibility.announce('No import data available.', { assertive: true })
             return
         }
 
@@ -370,7 +370,10 @@ class PermissionImport extends Controller {
             const data = await response.json()
 
             if (!response.ok || data.error) {
-                alert(data.error || 'Import failed.')
+                await window.KMP_accessibility.alert(data.error || 'Import failed.', {
+                    title: 'Import failed',
+                    assertive: true,
+                })
                 return
             }
 
@@ -380,7 +383,9 @@ class PermissionImport extends Controller {
             if (results.errors && results.errors.length > 0) {
                 message += `\n\nWarnings:\n${results.errors.join('\n')}`
             }
-            alert(message)
+            await window.KMP_accessibility.alert(message, {
+                title: 'Import complete',
+            })
 
             // Close modal and refresh page
             this.hideModal()
@@ -388,7 +393,10 @@ class PermissionImport extends Controller {
 
         } catch (error) {
             console.error('Import error:', error)
-            alert('An error occurred during import.')
+            await window.KMP_accessibility.alert('An error occurred during import.', {
+                title: 'Import failed',
+                assertive: true,
+            })
         } finally {
             if (this.hasConfirmBtnTarget) {
                 this.confirmBtnTarget.disabled = false

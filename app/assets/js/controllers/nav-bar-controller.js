@@ -35,6 +35,10 @@ import { Controller } from "@hotwired/stimulus";
 class NavBarController extends Controller {
     static targets = ["navHeader"]
 
+    initialize() {
+        this.navHeaderClicked = this.navHeaderClicked.bind(this);
+    }
+
     /**
      * Handle navigation header clicks
      * Records expansion state to server based on aria-expanded attribute
@@ -42,13 +46,14 @@ class NavBarController extends Controller {
      * @param {Event} event - Click event from navigation header
      */
     navHeaderClicked(event) {
-        var state = event.target.getAttribute('aria-expanded');
+        const target = event.currentTarget || event.target;
+        var state = target.getAttribute('aria-expanded');
 
         if (state === 'true') {
-            var recordExpandUrl = event.target.getAttribute('data-expand-url');
+            var recordExpandUrl = target.getAttribute('data-expand-url');
             fetch(recordExpandUrl, this.optionsForFetch());
         } else {
-            var recordCollapseUrl = event.target.getAttribute('data-collapse-url');
+            var recordCollapseUrl = target.getAttribute('data-collapse-url');
             fetch(recordCollapseUrl, this.optionsForFetch());
         }
     }
@@ -60,7 +65,7 @@ class NavBarController extends Controller {
      * @param {HTMLElement} event - Connected navigation header element
      */
     navHeaderTargetConnected(event) {
-        event.addEventListener('click', this.navHeaderClicked.bind(this));
+        event.addEventListener('click', this.navHeaderClicked);
     }
 
     /**
@@ -70,7 +75,7 @@ class NavBarController extends Controller {
      * @param {HTMLElement} event - Disconnected navigation header element
      */
     navHeaderTargetDisconnected(event) {
-        event.removeEventListener('click', this.navHeaderClicked.bind(this));
+        event.removeEventListener('click', this.navHeaderClicked);
     }
 
     /**

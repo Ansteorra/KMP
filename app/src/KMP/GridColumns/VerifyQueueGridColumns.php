@@ -66,6 +66,7 @@ class VerifyQueueGridColumns extends BaseGridColumns
                 'alignment' => 'left',
                 'renderField' => 'branch.name',
                 'queryField' => 'Branches.name',
+                'filterQueryField' => 'Members.branch_id',
             ],
 
             'first_name' => [

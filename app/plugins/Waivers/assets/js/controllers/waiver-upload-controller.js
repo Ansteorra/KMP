@@ -77,7 +77,7 @@ class WaiverUploadController extends Controller {
         if (invalidFiles.length > 0) {
             // Show error messages
             const errors = invalidFiles.map(result => result.error).join('\n')
-            alert(`File validation errors:\n\n${errors}`)
+            this.announce(`File validation errors: ${errors}`, true)
         }
         
         // Filter to only valid files and append to existing selection
@@ -162,13 +162,13 @@ class WaiverUploadController extends Controller {
             item.className = 'list-group-item d-flex justify-content-between align-items-center'
             item.innerHTML = `
                 <div>
-                    <i class="bi bi-file-image text-primary"></i>
+                    <i class="bi bi-file-image text-primary" aria-hidden="true"></i>
                     <strong>${this.escapeHtml(file.name)}</strong>
                     <br>
                     <small class="text-muted">${this.formatFileSize(file.size)}</small>
                 </div>
-                <button type="button" class="btn btn-sm btn-outline-danger" data-index="${index}">
-                    <i class="bi bi-x"></i>
+                <button type="button" class="btn btn-sm btn-outline-danger" data-index="${index}" aria-label="Remove ${this.escapeHtml(file.name)}">
+                    <i class="bi bi-x" aria-hidden="true"></i>
                 </button>
             `
             
@@ -223,14 +223,14 @@ class WaiverUploadController extends Controller {
         // Validate waiver type is selected
         if (!this.waiverTypeTarget.value) {
             event.preventDefault()
-            alert('Please select a waiver type')
+            this.announce('Please select a waiver type', true)
             return
         }
 
         // Validate files are selected
         if (this.selectedFiles.length === 0) {
             event.preventDefault()
-            alert('Please select at least one image file to upload')
+            this.announce('Please select at least one image file to upload', true)
             return
         }
 
@@ -277,6 +277,18 @@ class WaiverUploadController extends Controller {
         this.progressBarTarget.style.width = `${percent}%`
         this.progressBarTarget.setAttribute('aria-valuenow', percent)
         this.progressTextTarget.textContent = `${Math.round(percent)}%`
+    }
+
+    announce(message, assertive = false) {
+        if (window.KMP_accessibility) {
+            window.KMP_accessibility.announce(message, { assertive })
+            return
+        }
+        const region = document.createElement('div')
+        region.className = 'visually-hidden'
+        region.setAttribute('role', assertive ? 'alert' : 'status')
+        region.textContent = message
+        this.element.appendChild(region)
     }
 
     /**

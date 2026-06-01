@@ -70,6 +70,32 @@ class MembersControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains('Members');
     }
 
+    public function testGridDataBranchFilterUsesBranchIdForMatching(): void
+    {
+        $members = $this->getTableLocator()->get('Members');
+        $admin = $members->get(self::ADMIN_MEMBER_ID);
+        $bryce = $members->get(self::TEST_MEMBER_BRYCE_ID);
+
+        $this->configRequest(['headers' => ['Turbo-Frame' => 'members-grid-table']]);
+        $this->get('/members/grid-data?search=Admin&filter[branch_id]=' . $bryce->branch_id);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('showing 0 record(s) out of 0 total');
+        $this->assertResponseNotContains($admin->sca_name);
+    }
+
+    public function testGridDataBranchFilterStillReturnsMatchingMembers(): void
+    {
+        $bryce = $this->getTableLocator()->get('Members')->get(self::TEST_MEMBER_BRYCE_ID);
+
+        $this->configRequest(['headers' => ['Turbo-Frame' => 'members-grid-table']]);
+        $this->get('/members/grid-data?search=Bryce&filter[branch_id]=' . $bryce->branch_id);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains($bryce->sca_name);
+        $this->assertResponseContains('showing 1 record(s) out of 1 total');
+    }
+
     /**
      * Test view method displays member details
      *

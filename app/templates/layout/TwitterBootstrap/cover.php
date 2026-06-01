@@ -6,6 +6,8 @@
 
 use Cake\Core\Configure;
 
+$this->assign('main_content_wrapped', '1');
+
 echo $this->KMP->startBlock("html");
 printf('<html lang="%s" class="h-100">', Configure::read("App.language"));
 $this->KMP->endBlock();
@@ -39,7 +41,7 @@ echo $this->KMP->startBlock("tb_body_start");
                 </nav>
             </div>
         </header>
-        <main role="main" class="px-3">
+        <main id="main-content" tabindex="-1" class="px-3">
             <?= $this->fetch("content") ?>
         </main>
         <?php $this->KMP->endBlock(); ?>

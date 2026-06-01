@@ -50,6 +50,7 @@ $tableColumns = $columns ?? $gridState['columns']['all'] ?? [];
             'bulkSelectionDataFields' => $gridState['config']['bulkSelectionDataFields'] ?? [],
             'bulkSelectionDisabledField' => $gridState['config']['bulkSelectionDisabledField'] ?? null,
             'tableFrameId' => $tableFrameId,
+            'bulkSelection' => $gridState['config']['bulkSelection'] ?? [],
         ]) ?>
 
         <!-- Pagination -->

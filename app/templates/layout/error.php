@@ -16,7 +16,7 @@
  */
 ?>
 <!DOCTYPE html>
-<html>
+<html lang="<?= h(\Cake\Core\Configure::read('App.language') ?: 'en') ?>">
 
 <head>
     <?= $this->Html->charset() ?>
@@ -35,8 +35,10 @@
 <body>
     <div class="error-container">
         <?= $this->Flash->render() ?>
-        <?= $this->fetch("content") ?>
-        <?= $this->Html->link(__("Back"), "javascript:history.back()") ?>
+        <main id="main-content" tabindex="-1">
+            <?= $this->fetch("content") ?>
+        </main>
+        <button type="button" data-controller="history-back" data-action="history-back#go"><?= __("Back") ?></button>
     </div>
 </body>
 

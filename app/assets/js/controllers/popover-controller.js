@@ -30,9 +30,11 @@ class PopoverController extends Controller {
     connect() {
         this.initializePopover();
         this.setupCloseButtonHandler();
+        this.setupEscapeHandler();
     }
 
     disconnect() {
+        this.removeEscapeHandler();
         this.removeCloseButtonHandler();
         this.destroyPopover();
     }
@@ -75,6 +77,17 @@ class PopoverController extends Controller {
         document.removeEventListener('click', this.handleCloseClick);
     }
 
+    setupEscapeHandler() {
+        this.handleEscapeKey = this.handleEscapeKey.bind(this);
+        document.addEventListener('keydown', this.handleEscapeKey);
+    }
+
+    removeEscapeHandler() {
+        if (this.handleEscapeKey) {
+            document.removeEventListener('keydown', this.handleEscapeKey);
+        }
+    }
+
     handleCloseClick(event) {
         const closeBtn = event.target.closest('.popover .btn-close, .popover .popover-close-btn');
         if (!closeBtn) return;
@@ -93,6 +106,17 @@ class PopoverController extends Controller {
 
         event.preventDefault();
         event.stopPropagation();
+    }
+
+    handleEscapeKey(event) {
+        if (event.key !== 'Escape') return;
+        if (!this.element.getAttribute('aria-describedby')) return;
+
+        if (this.popover) {
+            this.popover.hide();
+        }
+        this.element.focus();
+        event.preventDefault();
     }
 
     // Action to programmatically show the popover

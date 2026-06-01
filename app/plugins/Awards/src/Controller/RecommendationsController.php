@@ -383,13 +383,15 @@ class RecommendationsController extends AppController
         $uniqueId = 'gatherings-' . $recommendation->id;
         $html = '<span class="gatherings-list">';
         $html .= implode(', ', $visibleNames);
-        $html .= '<span id="' . $uniqueId . '-hidden" style="display:none;">, ' . implode(', ', $hiddenNames) . '</span>';
-        $html .= ' <a href="#" class="text-primary small" onclick="';
-        $html .= "var el=document.getElementById('" . $uniqueId . "-hidden');";
-        $html .= "var link=this;";
-        $html .= "if(el.style.display==='none'){el.style.display='inline';link.textContent='less';}";
-        $html .= "else{el.style.display='none';link.textContent='+" . $hiddenCount . " more';}";
-        $html .= 'return false;">+' . $hiddenCount . ' more</a>';
+        $hiddenId = $uniqueId . '-hidden';
+        $moreLabel = '+' . $hiddenCount . ' more';
+        $html .= '<span id="' . $hiddenId . '" hidden style="display:none;">, ' . implode(', ', $hiddenNames) . '</span>';
+        $html .= ' <a href="#" class="text-primary small" data-controller="show-more"';
+        $html .= ' data-action="show-more#toggle"';
+        $html .= ' data-show-more-target-selector-value="#' . $hiddenId . '"';
+        $html .= ' data-show-more-more-label-value="' . h($moreLabel) . '"';
+        $html .= ' data-show-more-less-label-value="' . __('less') . '">';
+        $html .= h($moreLabel) . '</a>';
         $html .= '</span>';
 
         return $html;

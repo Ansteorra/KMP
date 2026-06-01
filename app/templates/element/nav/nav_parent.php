@@ -39,7 +39,8 @@ $collapseUrl = $this->Url->build([
 ]);
 ?>
 
-<div data-bs-target="#<?= $randomId ?>"
+<button type="button"
+    data-bs-target="#<?= $randomId ?>"
     data-bs-toggle="collapse"
     aria-expanded="<?= $expanded ?>"
     id="<?= $parent['id'] ?>"
@@ -49,7 +50,7 @@ $collapseUrl = $this->Url->build([
     class="navheader <?= $collapsed ?> text-start badge fs-5 mb-2 mx-1 text-bg-secondary bi <?= $parent['icon'] ?>"
     data-nav-bar-target="navHeader">
     <?= $parent['label'] ?>
-</div>
+</button>
 
 <nav id='<?= $randomId ?>' class='appnav collapse <?= $show ?> nav-item ms-2 nav-underline'>
     <?= $childHtml ?>

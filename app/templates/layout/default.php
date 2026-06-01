@@ -189,6 +189,7 @@ $this->KMP->endBlock();
 
 <?php
 echo $this->fetch("tb_body_start");
+echo '<a class="visually-hidden-focusable position-absolute top-0 start-0 z-3 m-2 p-2 bg-body border rounded" href="#main-content">' . __('Skip to main content') . '</a>';
 echo $this->fetch("tb_flash");
 if (!empty($impersonationState)) {
     $startedAgo = null;
@@ -225,7 +226,13 @@ if (!empty($impersonationState)) {
     </div>
 <?php
 }
-echo $this->fetch("content");
+if ($this->fetch("main_content_wrapped")) {
+    echo $this->fetch("content");
+} else {
+    echo '<main id="main-content" tabindex="-1">';
+    echo $this->fetch("content");
+    echo '</main>';
+}
 echo $this->fetch("tb_footer");
 echo $this->fetch("modals");
 echo $this->fetch("tb_body_end");

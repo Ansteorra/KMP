@@ -533,12 +533,10 @@ describe('FacePhotoValidatorController internal methods', () => {
       expect(controller.warningTarget.classList.contains('d-none')).toBe(false);
     });
 
-    test('falls back to alert() when hasWarningTarget is false', () => {
+    test('announces when hasWarningTarget is false', () => {
       controller.hasWarningTarget = false;
-      const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
       controller.showError('Alert message');
-      expect(alertSpy).toHaveBeenCalledWith('Alert message');
-      alertSpy.mockRestore();
+      expect(window.KMP_accessibility.announce).toHaveBeenCalledWith('Alert message', { assertive: true });
     });
   });
 

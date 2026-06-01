@@ -17,6 +17,7 @@
  * @var array $rowActions Row action configurations (optional)
  * @var \Authorization\Identity|null $user Current user for permission checks (optional)
  * @var bool $enableBulkSelection Whether to show row selection checkboxes (optional)
+ * @var array $bulkSelection Bulk selection label configuration (optional)
  */
 
 use App\KMP\StaticHelpers;
@@ -31,10 +32,71 @@ $enableColumnPicker = $enableColumnPicker ?? true;
 $enableBulkSelection = $enableBulkSelection ?? false;
 $bulkSelectionDataFields = $bulkSelectionDataFields ?? [];
 $bulkSelectionDisabledField = $bulkSelectionDisabledField ?? null;
+$bulkSelection = $bulkSelection ?? [];
+$selectAllBulkSelectionLabel = $bulkSelection['selectAllLabel'] ?? __('Select all rows on this page');
+$rowBulkSelectionLabelTemplate = $bulkSelection['rowLabelTemplate'] ?? null;
 $rowDomIdPrefix = $rowDomIdPrefix ?? null;
 if ($rowDomIdPrefix === null && !empty($tableFrameId)) {
     $rowDomIdPrefix = preg_replace('/-table$/', '', (string)$tableFrameId);
 }
+
+$getRowValue = function ($row, string $path) use (&$getRowValue, $columns) {
+    if (isset($columns[$path]['renderField'])) {
+        return $getRowValue($row, $columns[$path]['renderField']);
+    }
+
+    if (str_contains($path, '.')) {
+        $value = $row;
+        foreach (explode('.', $path) as $part) {
+            $value = $getRowValue($value, $part);
+            if ($value === null) {
+                return null;
+            }
+        }
+
+        return $value;
+    }
+
+    if (is_array($row) && array_key_exists($path, $row)) {
+        return $row[$path];
+    }
+
+    if ($row instanceof ArrayAccess && isset($row[$path])) {
+        return $row[$path];
+    }
+
+    if (is_object($row)) {
+        if (method_exists($row, 'has') && method_exists($row, 'get') && $row->has($path)) {
+            return $row->get($path);
+        }
+
+        if (isset($row->{$path})) {
+            return $row->{$path};
+        }
+    }
+
+    return null;
+};
+
+$formatBulkSelectionLabel = function (string $template, $row) use ($getRowValue): string {
+    return preg_replace_callback('/\{([A-Za-z0-9_.-]+)\}/', function (array $matches) use ($row, $getRowValue): string {
+        $value = $getRowValue($row, $matches[1]);
+
+        if (is_bool($value)) {
+            return $value ? __('Yes') : __('No');
+        }
+
+        if (is_scalar($value)) {
+            return (string)$value;
+        }
+
+        if ($value instanceof Stringable) {
+            return (string)$value;
+        }
+
+        return '';
+    }, $template);
+};
 
 // Show actions column if column picker is enabled OR there are row actions
 $showActionsColumn = $enableColumnPicker || !empty($rowActions);
@@ -53,7 +115,7 @@ $totalColumns = count($visibleColumns) + ($showActionsColumn ? 1 : 0) + ($enable
                                class="form-check-input" 
                                data-<?= h($controllerName) ?>-target="selectAllCheckbox"
                                data-action="change-><?= h($controllerName) ?>#toggleAllSelection"
-                               title="Select all rows on this page">
+                               aria-label="<?= h($selectAllBulkSelectionLabel) ?>">
                     </th>
                 <?php endif; ?>
                 <?php foreach ($visibleColumns as $columnKey): ?>
@@ -112,6 +174,12 @@ $totalColumns = count($visibleColumns) + ($showActionsColumn ? 1 : 0) + ($enable
                 </tr>
             <?php else: ?>
                 <?php foreach ($data as $row): ?>
+                    <?php
+                    $rowId = is_array($row) ? ($row[$primaryKey] ?? null) : ($row->{$primaryKey} ?? null);
+                    $bulkSelectionLabel = $rowBulkSelectionLabelTemplate
+                        ? $formatBulkSelectionLabel($rowBulkSelectionLabelTemplate, $row)
+                        : __('Select row {0}', $rowId);
+                    ?>
                     <?= $this->element('dataverse_table_row', [
                         'row' => $row,
                         'columns' => $columns,
@@ -124,6 +192,7 @@ $totalColumns = count($visibleColumns) + ($showActionsColumn ? 1 : 0) + ($enable
                         'enableBulkSelection' => $enableBulkSelection,
                         'bulkSelectionDataFields' => $bulkSelectionDataFields,
                         'bulkSelectionDisabledField' => $bulkSelectionDisabledField,
+                        'bulkSelectionLabel' => $bulkSelectionLabel,
                         'rowDomIdPrefix' => $rowDomIdPrefix,
                         'showActionsColumn' => $showActionsColumn,
                     ]) ?>

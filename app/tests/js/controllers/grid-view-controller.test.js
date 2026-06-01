@@ -124,6 +124,43 @@ describe('GridViewController', () => {
         expect(controller.formatColumnName('name')).toBe('Name');
     });
 
+    test('createFilterPill generates removable filter button with accessible target size and name', () => {
+        controller.state = {
+            filters: {
+                active: { branch_id: ['1'] },
+                available: {
+                    branch_id: {
+                        label: 'Branch',
+                        options: [{ value: '1', label: 'Aethelmearc' }]
+                    }
+                }
+            }
+        };
+
+        const pill = controller.createFilterPill('branch_id', '1', false);
+        const removeButton = pill.querySelector('button[data-action="click->grid-view#removeFilter"]');
+        const icon = removeButton.querySelector('i');
+
+        expect(removeButton).not.toBeNull();
+        expect(removeButton.style.width).toBe('24px');
+        expect(removeButton.style.height).toBe('24px');
+        expect(removeButton.style.minWidth).toBe('24px');
+        expect(removeButton.style.minHeight).toBe('24px');
+        expect(removeButton.getAttribute('aria-label')).toBe('Remove filter Branch: Aethelmearc');
+        expect(icon.getAttribute('aria-hidden')).toBe('true');
+    });
+
+    test('createSearchBadge generates remove button with accessible target size and decorative icon', () => {
+        const badge = controller.createSearchBadge('smith');
+        const removeButton = badge.querySelector('button[data-action="click->grid-view#clearSearch"]');
+        const icon = removeButton.querySelector('i');
+
+        expect(removeButton.style.width).toBe('24px');
+        expect(removeButton.style.height).toBe('24px');
+        expect(removeButton.getAttribute('aria-label')).toBe('Remove search');
+        expect(icon.getAttribute('aria-hidden')).toBe('true');
+    });
+
     test('handleFrameLoad ignores events from outside controller', () => {
         controller.connect();
         const externalFrame = document.createElement('turbo-frame');

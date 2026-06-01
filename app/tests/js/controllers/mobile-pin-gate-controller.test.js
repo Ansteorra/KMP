@@ -268,6 +268,40 @@ describe('MobilePinGateController', () => {
       expect(document.body.style.overflow).toBe('hidden');
     });
 
+    test('adds dialog semantics and wires title and message descriptions', () => {
+      const controller = new MobilePinGateController();
+      controller.initialize();
+      controller.showGate('fresh-entry');
+
+      expect(controller.overlay.getAttribute('role')).toBe('dialog');
+      expect(controller.overlay.getAttribute('aria-modal')).toBe('true');
+      expect(controller.overlay.getAttribute('aria-labelledby')).toBe('mobile-pin-gate-title');
+      expect(controller.overlay.getAttribute('aria-describedby')).toBe('mobile-pin-gate-message');
+      expect(document.getElementById('mobile-pin-gate-title').textContent).toBe('PIN Required');
+      expect(controller.messageNode.id).toBe('mobile-pin-gate-message');
+    });
+
+    test('adds assertive alert semantics to error text', () => {
+      const controller = new MobilePinGateController();
+      controller.initialize();
+      controller.showGate('fresh-entry');
+
+      expect(controller.errorNode.getAttribute('role')).toBe('alert');
+      expect(controller.errorNode.getAttribute('aria-live')).toBe('assertive');
+    });
+
+    test('renders sign out link without hiding the PIN gate', () => {
+      const controller = new MobilePinGateController();
+      controller.initialize();
+      controller.logoutUrlValue = '/Members/logout';
+      controller.showGate('fresh-entry');
+
+      const signOutLink = controller.overlay.querySelector('[data-mobile-pin-gate-sign-out]');
+      expect(signOutLink).not.toBeNull();
+      expect(signOutLink.getAttribute('href')).toBe('/Members/logout');
+      expect(controller.overlay.isConnected).toBe(true);
+    });
+
     test('sets internal references for form, pinInput, errorNode, messageNode', () => {
       const controller = new MobilePinGateController();
       controller.initialize();
@@ -277,6 +311,8 @@ describe('MobilePinGateController', () => {
       expect(controller.pinInput).not.toBeNull();
       expect(controller.errorNode).not.toBeNull();
       expect(controller.messageNode).not.toBeNull();
+      expect(controller.submitButton).not.toBeNull();
+      expect(controller.signOutLink).not.toBeNull();
     });
 
     test('does not create duplicate overlay when called twice with same reason', () => {
@@ -326,9 +362,26 @@ describe('MobilePinGateController', () => {
       expect(controller.pinInput).toBeNull();
       expect(controller.errorNode).toBeNull();
       expect(controller.messageNode).toBeNull();
+      expect(controller.submitButton).toBeNull();
+      expect(controller.signOutLink).toBeNull();
       expect(controller.currentGateReason).toBeNull();
       expect(document.querySelector('.mobile-pin-gate-overlay')).toBeNull();
       expect(document.body.style.overflow).toBe('');
+    });
+
+    test('restores previous focus when the previously focused element still exists', () => {
+      document.body.innerHTML = '<button id="before-gate">Before</button>';
+      const beforeGate = document.getElementById('before-gate');
+      beforeGate.focus();
+      const controller = new MobilePinGateController();
+      controller.initialize();
+      controller.showGate('fresh-entry');
+
+      expect(document.activeElement).toBe(controller.pinInput);
+
+      controller.hideGate();
+
+      expect(document.activeElement).toBe(beforeGate);
     });
 
     test('does nothing when no overlay exists', () => {
@@ -423,6 +476,29 @@ describe('MobilePinGateController', () => {
       expect(controller.pinInput.focus).toHaveBeenCalled();
     });
 
+    test('sets form busy state and disables submit while verifying PIN', async () => {
+      const controller = new MobilePinGateController();
+      controller.initialize();
+      controller.showGate('fresh-entry');
+      controller.pinInput.value = '1234';
+      let resolveVerification;
+      jest.spyOn(QuickLoginService, 'verifyPin').mockImplementation(() => new Promise((resolve) => {
+        resolveVerification = resolve;
+      }));
+
+      const submitPromise = controller.handleUnlockSubmit({ preventDefault: jest.fn() });
+
+      expect(controller.form.getAttribute('aria-busy')).toBe('true');
+      expect(controller.submitButton.disabled).toBe(true);
+
+      resolveVerification(false);
+      await submitPromise;
+
+      expect(controller.form.getAttribute('aria-busy')).toBe('false');
+      expect(controller.submitButton.disabled).toBe(false);
+      expect(controller.errorNode.textContent).toBe('Incorrect PIN.');
+    });
+
     test('calls preventDefault on the event', async () => {
       const controller = new MobilePinGateController();
       controller.pinInput = null;
@@ -432,6 +508,53 @@ describe('MobilePinGateController', () => {
       await controller.handleUnlockSubmit(event);
 
       expect(event.preventDefault).toHaveBeenCalled();
+    });
+  });
+
+  describe('focus containment and escape behavior', () => {
+    afterEach(() => {
+      document.querySelectorAll('.mobile-pin-gate-overlay').forEach((el) => el.remove());
+      document.body.style.overflow = '';
+    });
+
+    test('traps Tab focus from the last focusable control back to the PIN input', () => {
+      const controller = new MobilePinGateController();
+      controller.initialize();
+      controller.showGate('fresh-entry');
+      controller.signOutLink.focus();
+      const event = { key: 'Tab', shiftKey: false, preventDefault: jest.fn() };
+
+      controller.handleGateKeydown(event);
+
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(document.activeElement).toBe(controller.pinInput);
+    });
+
+    test('traps Shift+Tab focus from the PIN input to the sign out link', () => {
+      const controller = new MobilePinGateController();
+      controller.initialize();
+      controller.showGate('fresh-entry');
+      controller.pinInput.focus();
+      const event = { key: 'Tab', shiftKey: true, preventDefault: jest.fn() };
+
+      controller.handleGateKeydown(event);
+
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(document.activeElement).toBe(controller.signOutLink);
+    });
+
+    test('Escape focuses sign out link and does not bypass the gate', () => {
+      const controller = new MobilePinGateController();
+      controller.initialize();
+      controller.showGate('fresh-entry');
+      const event = { key: 'Escape', preventDefault: jest.fn() };
+
+      controller.handleGateKeydown(event);
+
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(document.activeElement).toBe(controller.signOutLink);
+      expect(controller.overlay).not.toBeNull();
+      expect(sessionStorage.getItem(unlockKey)).toBeNull();
     });
   });
 

@@ -70,25 +70,27 @@ echo $this->Modal->create("Edit Branch", [
         <label class="form-label" for="links">Links</label>
         <div data-branch-links-target='displayList' class="mb-3"></div>
         <div class="input-group">
-            <button class="btn btn-outline-secondary dropdown-toggle bi bi-link" type="button" data-value="link"
-                data-branch-links-target="linkType" data-bs-toggle="dropdown" aria-expanded="false"></button>
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button"
+                data-bs-toggle="dropdown" aria-expanded="false" aria-label="<?= h(__('Select branch link type')) ?>">
+                <i class="bi bi-link" data-value="link" data-branch-links-target="linkType" aria-hidden="true"></i>
+            </button>
             <ul class="dropdown-menu">
-                <li><a class="dropdown-item bi bi-link" href="#" data-value="link"
-                        data-action="branch-links#setLinkType"></a></li>
-                <li><a class="dropdown-item bi bi-discord" href="#" data-value="discord"
-                        data-action="branch-links#setLinkType"></a></li>
-                <li><a class="dropdown-item bi bi-facebook" href="#" data-value="facebook"
-                        data-action="branch-links#setLinkType"></a></li>
-                <li><a class="dropdown-item bi bi-instagram" href="#" data-value="instagram"
-                        data-action="branch-links#setLinkType"></a></li>
-                <li><a class="dropdown-item bi bi-tiktok" href="#" data-value="tiktok"
-                        data-action="branch-links#setLinkType"></a></li>
-                <li><a class="dropdown-item bi bi-threads" href="#" data-value="threads"
-                        data-action="branch-links#setLinkType"></a></li>
-                <li><a class="dropdown-item bi bi-twitter-x" href="#" data-value="twitter-x"
-                        data-action="branch-links#setLinkType"></a></li>
-                <li><a class="dropdown-item bi bi-youtube" href="#" data-value="youtube"
-                        data-action="branch-links#setLinkType"></a></li>
+                <li><button type="button" class="dropdown-item" data-value="link"
+                        data-action="branch-links#setLinkType"><i class="bi bi-link" data-value="link" aria-hidden="true"></i> Website</button></li>
+                <li><button type="button" class="dropdown-item" data-value="discord"
+                        data-action="branch-links#setLinkType"><i class="bi bi-discord" data-value="discord" aria-hidden="true"></i> Discord</button></li>
+                <li><button type="button" class="dropdown-item" data-value="facebook"
+                        data-action="branch-links#setLinkType"><i class="bi bi-facebook" data-value="facebook" aria-hidden="true"></i> Facebook</button></li>
+                <li><button type="button" class="dropdown-item" data-value="instagram"
+                        data-action="branch-links#setLinkType"><i class="bi bi-instagram" data-value="instagram" aria-hidden="true"></i> Instagram</button></li>
+                <li><button type="button" class="dropdown-item" data-value="tiktok"
+                        data-action="branch-links#setLinkType"><i class="bi bi-tiktok" data-value="tiktok" aria-hidden="true"></i> TikTok</button></li>
+                <li><button type="button" class="dropdown-item" data-value="threads"
+                        data-action="branch-links#setLinkType"><i class="bi bi-threads" data-value="threads" aria-hidden="true"></i> Threads</button></li>
+                <li><button type="button" class="dropdown-item" data-value="twitter-x"
+                        data-action="branch-links#setLinkType"><i class="bi bi-twitter-x" data-value="twitter-x" aria-hidden="true"></i> X/Twitter</button></li>
+                <li><button type="button" class="dropdown-item" data-value="youtube"
+                        data-action="branch-links#setLinkType"><i class="bi bi-youtube" data-value="youtube" aria-hidden="true"></i> YouTube</button></li>
             </ul>
             <input type="url" data-branch-links-target="new" class="form-control col-8"
                 placeholder="https://example.com">

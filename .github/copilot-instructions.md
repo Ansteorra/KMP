@@ -1,644 +1,260 @@
-# KMP Project - CakePHP & Stimulus.JS Best Practices
+# KMP coding instructions
 
-This guide outlines the best practices and conventions to follow when working with the KMP project, which uses CakePHP 5.x and Stimulus.JS.
+KMP is a CakePHP 5 application with a Laravel Mix/Webpack frontend, Stimulus controllers, Bootstrap UI, Turbo Frames, and first-party CakePHP plugins. Use these instructions as the source of truth for coding sessions in this repository.
 
-## CakePHP Structure and Conventions
+## First principles
 
-### Directory Structure
+- Work primarily in `app/` for application code. The repository root contains deployment, installer, docs, and agent configuration.
+- Preserve existing behavior unless the user explicitly asks for a behavior change.
+- Keep all user-facing UI WCAG 2.2 Level AA compliant; treat accessibility regressions as bugs.
+- Prefer the project's base classes, helpers, services, and registries over new one-off abstractions.
+- Search for an existing pattern before adding a new one. Core patterns usually already exist in `app/src`, `app/templates/element`, `app/assets/js/controllers`, and the first-party plugins.
+- Keep edits surgical. Do not reformat unrelated files or apply broad automated fixes.
+- Never commit secrets. Do not copy values from `app/config/.env` into code, docs, logs, or chat output.
 
-Follow CakePHP's conventional directory structure:
+## Project layout
 
-- `src/` - Application source code
-  - `Controller/` - Controllers
-  - `Model/` - Models, Tables, and Entities
-  - `View/` - View templates and cells
-  - `KMP/` - Application-specific classes
-  - `Services/` - Service classes
-  - `Policy/` - Authorization policies
-- `config/` - Configuration files
-  - `.env` - Environment variables including database credentials (!! AVOID committing sensitive info, but use this when you need to call the database !!)
-- `plugins/` - Plugin directories
-- `templates/` - Template files
-- `webroot/` - Public web files
-
-### Naming Conventions
-
-- **Controllers**: Plural, PascalCase, suffixed with `Controller` (e.g., `BranchesController`)
-- **Models**: Singular, PascalCase (e.g., `Member`)
-- **Tables**: Plural, PascalCase, suffixed with `Table` (e.g., `MembersTable`)
-- **Templates**: Use lowercase, snake_case for directories and files
-- **Plugins**: PascalCase (e.g., `Awards`, `Activities`)
-
-### Routing
-
-Use the standard CakePHP routing conventions in `config/routes.php`:
-
-```php
-$routes->scope('/', function (RouteBuilder $builder) {
-    $builder->connect('/', ['controller' => 'Pages', 'action' => 'display', 'home']);
-});
+```text
+app/
+  src/
+    Controller/          CakePHP controllers and controller traits
+    Model/               Tables, entities, behaviors, validation
+    Policy/              Authorization policies
+    Services/            Business services and registries
+    KMP/                 Domain helpers, grid columns, identity interfaces
+    View/                Helpers, cells, and view-layer classes
+    Mailer/              Mailers and mail transports
+    Queue/Task/          Async queue tasks
+  templates/             CakePHP templates and reusable elements
+  assets/js/             Frontend entrypoint, utilities, Stimulus controllers
+  assets/css/            CSS entry files bundled by Laravel Mix
+  plugins/               First-party plugins
+  tests/                 PHPUnit, Jest, and Playwright tests
 ```
 
-### Database
-
-- Use migrations for database schema changes
-- Name tables in plural, lowercase, with underscores
-- Use proper foreign key constraints and indexes
-- Follow CakePHP's naming conventions for relations
-- IMPORTANT: when you want to connect to the database via commandline for testing or debugging, use the `.env` file in the `config/` directory to set your database credentials. Do NOT commit sensitive information to version control.
-
-## Stimulus.JS Controllers
-
-### Controller Organization
-
-- Place controller files in `assets/js/controllers/` with `-controller.js` suffix
-- For plugin controllers, use `plugins/PluginName/assets/js/controllers/`
-- Use descriptive names that reflect functionality
-
-### Controller Structure
-
-Follow this pattern for all Stimulus controllers:
-
-```javascript
-import { Controller } from "@hotwired/stimulus"
-
-class MyFeatureController extends Controller {
-    // Define targets - elements your controller interacts with
-    static targets = ["input", "output"]
-    
-    // Define values - properties that can be set from HTML
-    static values = {
-        url: String,
-        delay: { type: Number, default: 300 }
-    }
-    
-    // Define outlets - connections to other controllers
-    static outlets = ["other-controller"]
-    
-    // Initialize function (optional)
-    initialize() {
-        // Setup code here
-    }
-    
-    // Connect function - runs when controller connects to DOM
-    connect() {
-        // Connection code here
-    }
-    
-    // Event handler methods
-    handleEvent(event) {
-        // Handle events
-    }
-    
-    // Disconnect function - cleanup when controller disconnects
-    disconnect() {
-        // Cleanup code here
-    }
-}
-
-// Add to global controllers registry
-if (!window.Controllers) {
-    window.Controllers = {};
-}
-window.Controllers["my-feature"] = MyFeatureController;
-```
-
-### HTML Data Attributes
-
-Use consistent data attributes in HTML:
-
-```html
-<div data-controller="my-feature" 
-     data-my-feature-url-value="/api/endpoint"
-     data-my-feature-delay-value="500">
-  <input data-my-feature-target="input">
-  <div data-my-feature-target="output"></div>
-  <button data-action="click->my-feature#handleEvent">Submit</button>
-</div>
-```
-
-### Communication Between Controllers
-
-Use the outlet pattern for controller communication:
-
-```javascript
-// Controller with outlet
-static outlets = ["other-controller"]
-
-otherControllerOutletConnected(outlet, element) {
-    // Handle outlet connection
-}
-
-otherControllerOutletDisconnected(outlet) {
-    // Handle outlet disconnection
-}
-```
-
-## Plugin Development
-
-### Plugin Structure
-
-Follow this structure for plugins:
-
-```
-plugins/PluginName/
-  |-- assets/
-  |     |-- js/
-  |     |-- css/
-  |-- config/
-  |-- src/
-  |     |-- Controller/
-  |     |-- Model/
-  |     |-- Plugin.php
-  |-- templates/
-  |-- tests/
-  |-- webroot/
-```
-
-### Plugin Registration
-
-Register plugins in `config/plugins.php`:
-
-```php
-return [
-    'PluginName' => [
-        'migrationOrder' => 1,
-    ],
-];
-```
-
-### Plugin Bootstrapping
-
-Initialize plugins properly in `src/Application.php`:
-
-```php
-public function bootstrap(): void
-{
-    parent::bootstrap();
-    
-    $this->addPlugin('PluginName', ['bootstrap' => true, 'routes' => true]);
-}
-```
-
-## JavaScript Organization
-
-### Entry Point
+Active first-party plugins are `Activities`, `Officers`, `Awards`, and `Waivers`. `Template` exists as a skeleton but is not enabled in `app/config/plugins.php`.
+
+## Verification commands
+
+Run commands from `app/` unless noted.
+
+| Need | Command |
+| --- | --- |
+| Full local verification | `bash bin/verify.sh` |
+| PHP regression suite | `composer test` |
+| Targeted PHPUnit suite | `vendor/bin/phpunit --testsuite core-unit`, `core-feature`, or `plugins` |
+| Targeted PHPUnit file/filter | `vendor/bin/phpunit path/to/Test.php` or `vendor/bin/phpunit --filter TestName` |
+| JavaScript unit tests | `npm run test:js` |
+| Webpack/Laravel Mix build | `npm run dev` |
+| Playwright BDD tests | `npm run test:ui` |
+| PHP code style on changed files | `vendor/bin/phpcs path/to/file.php` |
+| PHPStan | `vendor/bin/phpstan analyse --no-progress` |
+
+`bin/verify.sh` runs PHPUnit, Jest, Webpack, PHPCS for changed PHP files under `app/src`, `app/plugins`, and `app/tests`, and PHPStan. `app/phpstan.neon` currently has no analysis level configured, so PHPStan may report "No rules detected"; do not invent a new level unless the task is specifically about static analysis configuration.
+
+Do not run `phpcbf` across the whole codebase. The PHPCS config intentionally excludes some native type-hint sniffs because automatic fixes can add signatures that violate CakePHP/plugin inheritance compatibility.
+
+## PHP standards
+
+- Start PHP files with:
+
+  ```php
+  <?php
+  declare(strict_types=1);
+  ```
+
+- Follow CakePHP/PSR-12 style and the existing formatting in nearby files.
+- Use native parameter and return types where safe, but do not force types onto inherited CakePHP/plugin methods when that would break LSP compatibility.
+- Keep inline docblocks maintenance-focused: purpose, parameters, return type, non-obvious side effects, and `@throws` when useful. Put usage examples and workflow narratives in `app/docs`, not inline docblocks.
+- Prefer clear domain names over abbreviations. Use constants for repeated magic strings or status values.
+
+## Controllers
+
+- Web controllers extend `App\Controller\AppController`; API controllers extend `App\Controller\Api\ApiController`.
+- Call `parent::initialize()` before controller-specific setup.
+- Configure model-level authorization with `$this->Authorization->authorizeModel(...)` for index/add/grid actions.
+- Authorize entity actions with `$this->Authorization->authorize($entity)`.
+- Apply query scopes before returning lists or grids:
 
-Use `assets/js/index.js` as the main entry point:
-
-```javascript
-import 'bootstrap';
-import * as Turbo from "@hotwired/turbo"
-import { Application } from "@hotwired/stimulus"
-import KMP_utils from './KMP_utils.js';
-
-window.KMP_utils = KMP_utils;
-window.Stimulus = Application.start();
-
-// Register all controllers
-for (var controller in window.Controllers) {
-    Stimulus.register(controller, window.Controllers[controller]);
-}
-```
-
-### Utility Functions
-
-Create utility modules for common functionality:
-
-```javascript
-// KMP_utils.js
-export default {
-    sanitizeString(str) {
-        // Implementation
-    },
-    
-    urlParam(name) {
-        // Implementation
-    }
-};
-```
-
-### Asset Compilation
-
-Use Laravel Mix for asset compilation as configured in `webpack.mix.js`:
-
-```javascript
-mix.js('assets/js/index.js', 'webroot/js')
-   .extract(['bootstrap', 'popper.js', '@hotwired/turbo', '@hotwired/stimulus'])
-   .css('assets/css/app.css', 'webroot/css')
-   .version();
-```
-
-## Testing
-
-### PHPUnit Tests
-
-- Place tests in `tests/TestCase/` matching the src directory structure
-- Tests should extend `Cake\TestSuite\TestCase` or `Cake\TestSuite\IntegrationTestCase`
-- Use fixtures for database testing
-- Use appropriate assertions for CakePHP responses
-
-```php
-public function testView(): void
-{
-    $this->get('/members/view/1');
-    $this->assertResponseOk();
-    $this->assertResponseContains('Member Details');
-}
-```
-
-### JavaScript Testing
-
-For Stimulus controllers, test DOM interactions:
-
-```javascript
-// Test implementation with Jest or similar
-describe('MyFeatureController', () => {
-    it('should handle event correctly', () => {
-        // Test implementation
-    });
-});
-```
-
-## Asset Management
-
-### CSS Organization
-
-- Use Bootstrap CSS framework
-- Place custom CSS in `assets/css/`
-- For plugin-specific styles, use `plugins/PluginName/assets/css/`
-
-### JavaScript Organization
-
-- Place application JavaScript in `assets/js/`
-- For plugin-specific JavaScript, use `plugins/PluginName/assets/js/`
-- Use Laravel Mix for compilation
-
-### Image Assets
-
-- Place images in `webroot/img/` or `plugins/PluginName/webroot/img/`
-- Use the AssetMix helper for versioned assets
-
-## Authentication and Authorization
-
-### Authentication
-
-Use CakePHP's Authentication plugin:
-
-```php
-// In Application.php
-public function getAuthenticationService(ServerRequestInterface $request): AuthenticationServiceInterface
-{
-    $service = new AuthenticationService();
-    
-    // Configuration...
-    
-    return $service;
-}
-```
-
-### Authorization
-
-Use CakePHP's Authorization plugin with policies:
-
-```php
-// In Application.php
-public function getAuthorizationService(ServerRequestInterface $request): AuthorizationServiceInterface
-{
-    $resolver = new ControllerResolver();
-    return new AuthorizationService($resolver);
-}
-
-// In Controller
-public function initialize(): void
-{
-    parent::initialize();
-    $this->Authorization->authorizeModel("index", "add");
-}
-```
-
-## Coding Standards
-
-### PHP
-
-- Follow PSR-12 coding standard
-- Use strict types: `declare(strict_types=1);`
-- Use type declarations for parameters and return types
-- Use docblocks for classes and methods
-
-```php
-<?php
-declare(strict_types=1);
-
-namespace App\Controller;
-
-/**
- * Members Controller
- */
-class MembersController extends AppController
-{
-    /**
-     * Index method
-     *
-     * @return \Cake\Http\Response|null|void
-     */
-    public function index(): void
-    {
-        $members = $this->paginate($this->Members);
-        $this->set(compact('members'));
-    }
-}
-```
-
-### Inline Documentation Standards
-
-Inline documentation should focus on **code maintenance** - what the code does and how to modify it. Usage examples and integration patterns belong in the `/docs` folder.
-
-#### Class Docblocks (Max 20-30 lines)
-- Brief description of purpose (1-2 sentences)
-- Key dependencies and relationships
-- Important behaviors or side effects
-- `@property` annotations for IDE support
-
-```php
-/**
- * Manages member CRUD operations, authentication, and profile management.
- * 
- * Handles login/logout, password reset, registration, and member search.
- * Uses DataverseGridTrait for index listing with server-side filtering.
- *
- * @property \App\Model\Table\MembersTable $Members
- */
-class MembersController extends AppController
-```
-
-#### Method Docblocks (Max 5-10 lines)
-- One-line description of what the method does
-- `@param` and `@return` type annotations
-- Note any non-obvious side effects
-
-```php
-/**
- * Display paginated member list with search filtering.
- *
- * @return \Cake\Http\Response|null|void
- */
-public function index(): void
-```
-
-#### What NOT to Include Inline
-- `## Usage Examples` or `## Usage Patterns` sections
-- Code samples showing how to call the method/class
-- Integration examples with other components
-- Workflow narratives or step-by-step explanations
-- ASCII-formatted section headers in docblocks
-
-These belong in `/docs` folder documentation files.
-
-#### What TO Include Inline
-- Type hints and `@param`/`@return` annotations
-- Brief purpose statements
-- Non-obvious business logic explanations (the "why")
-- Maintenance notes (e.g., "Must be called after X")
-- `@throws` annotations for exceptions
-
-### JavaScript
-
-- Use ES6+ syntax
-- Use proper class structure for Stimulus controllers
-- Document functions and complex logic
-- Prefer const/let over var
-
-```javascript
-const handleResponse = (data) => {
-    // Implementation
-};
-
-let counter = 0;
-```
-
-## Email and Mailer Best Practices
-
-### Date Formatting in Mailers
-
-All dates and times passed to mailer methods **must be pre-formatted to the kingdom's default timezone** before being sent to email templates. Email templates receive strings and should not perform any timezone conversion themselves.
-
-**Key Principle**: Convert dates to strings in the controller or service layer using `TimezoneHelper`, not in the mailer or email template.
-
-#### Correct Pattern
-
-```php
-use App\KMP\TimezoneHelper;
-
-// In Service or Controller
-$vars = [
-    'memberScaName' => $member->sca_name,
-    'warrantName' => $warrant->name,
-    'warrantStart' => TimezoneHelper::formatDate($warrant->start_on),  // ✅ Format here
-    'warrantExpires' => TimezoneHelper::formatDate($warrant->expires_on), // ✅ Format here
-];
-$this->queueMail('KMP', 'notifyOfWarrant', $member->email_address, $vars);
-
-// In Mailer (just pass through)
-public function notifyOfWarrant(
-    string $to,
-    string $memberScaName,
-    string $warrantName,
-    string $warrantStart,      // Already a formatted string
-    string $warrantExpires,    // Already a formatted string
-): void {
-    $this->setTo($to)
-        ->setSubject("Warrant Issued: $warrantName")
-        ->setViewVars([
-            'warrantStart' => $warrantStart,    // ✅ Just pass through
-            'warrantExpires' => $warrantExpires, // ✅ Just pass through
-        ]);
-}
-```
-
-#### Incorrect Patterns
-
-```php
-// ❌ DON'T use virtual _to_string fields (they don't respect kingdom timezone)
-$vars = [
-    'warrantStart' => $warrant->start_on_to_string,  // ❌ Wrong
-    'warrantExpires' => $warrant->expires_on_to_string, // ❌ Wrong
-];
-
-// ❌ DON'T use CakePHP's format methods directly (they don't respect kingdom timezone)
-$vars = [
-    'releaseDate' => $revokedOn->toDateString(), // ❌ Wrong
-];
-
-// ❌ DON'T pass DateTime objects to mailers
-$vars = [
-    'warrantStart' => $warrant->start_on, // ❌ Wrong - pass formatted string instead
-];
-```
-
-#### Available TimezoneHelper Methods
-
-```php
-// Format date only (e.g., "March 15, 2025")
-TimezoneHelper::formatDate($dateTime)
-
-// Format date and time (e.g., "March 15, 2025 9:00 AM")
-TimezoneHelper::formatDateTime($dateTime)
-
-// Format time only (e.g., "9:00 AM")
-TimezoneHelper::formatTime($dateTime)
-
-// Custom format with user timezone
-TimezoneHelper::formatForDisplay($dateTime, $member, 'Y-m-d H:i:s')
-```
-
-### Email Template Guidelines
-
-Email templates should:
-- Display pre-formatted date strings directly using `<?= h($varName) ?>`
-- **Never** call `->format()` or timezone conversion methods
-- Focus on layout and presentation, not data transformation
-
-```php
-// In email template (text or html)
-Dear <?= h($memberScaName) ?>,
-
-Your warrant for <?= h($warrantName) ?> has been issued.
-Start Date: <?= h($warrantStart) ?>     <!-- ✅ Already formatted -->
-Expires: <?= h($warrantExpires) ?>       <!-- ✅ Already formatted -->
-```
-
-## Error Handling
-
-### PHP Exceptions
-
-- Use appropriate exception types
-- Use try/catch blocks for recovery
-- Log exceptions with sufficient context
-
-```php
-try {
-    $result = $this->service->process($data);
-} catch (ValidationException $e) {
-    $this->Flash->error($e->getMessage());
-    Log::error('Validation error: ' . $e->getMessage());
-} catch (Exception $e) {
-    $this->Flash->error('An unexpected error occurred');
-    Log::error('Error processing data: ' . $e->getMessage());
-}
-```
-
-### JavaScript Error Handling
-
-- Use try/catch for async operations
-- Add proper error handling for fetch operations
-
-```javascript
-async fetchData() {
-    try {
-        const response = await fetch(this.urlValue);
-        if (!response.ok) {
-            throw new Error(`Error: ${response.status}`);
-        }
-        return await response.json();
-    } catch (error) {
-        console.error('Error fetching data:', error);
-        // Handle error in the UI
-    }
-}
-```
-
-## View Templates and Tab Ordering
-
-### Tab Ordering System
-
-KMP uses a CSS flexbox-based tab ordering system that allows mixing plugin tabs with template-specific tabs in any order.
-
-#### Base Template Tabs
-
-When adding tabs in view templates, always specify the order using `data-tab-order` attribute and inline `style="order: X;"`:
-
-```php
-<?php $this->KMP->startBlock("tabButtons") ?>
-<button class="nav-link" 
-    id="nav-my-tab-tab" 
-    data-bs-toggle="tab" 
-    data-bs-target="#nav-my-tab" 
-    type="button" 
-    role="tab"
-    aria-controls="nav-my-tab" 
-    aria-selected="false" 
-    data-detail-tabs-target='tabBtn'
-    data-tab-order="10"
-    style="order: 10;"><?= __("My Tab") ?>
-</button>
-<?php $this->KMP->endBlock() ?>
-
-<?php $this->KMP->startBlock("tabContent") ?>
-<div class="related tab-pane fade m-3" 
-    id="nav-my-tab" 
-    role="tabpanel" 
-    aria-labelledby="nav-my-tab-tab"
-    data-detail-tabs-target="tabContent"
-    data-tab-order="10"
-    style="order: 10;">
-    <!-- Tab content here -->
-</div>
-<?php $this->KMP->endBlock() ?>
-```
-
-#### Order Value Guidelines
-
-- **1-10**: Plugin tabs (Officers, Authorizations, Awards, etc.)
-- **10-20**: Primary entity tabs (Members, Roles, Notes)
-- **20-30**: Secondary entity tabs (Additional Info, Settings)
-- **30+**: Administrative or rarely used tabs
-- **999**: Default fallback for tabs without explicit order
-
-#### Plugin Tabs
-
-Plugin tabs automatically use the `order` field from their ViewCellRegistry configuration:
-
-```php
-$cells[] = [
-    'type' => ViewCellRegistry::PLUGIN_TYPE_TAB,
-    'label' => 'Tab Name',
-    'id' => 'my-tab',
-    'order' => 5,  // Controls tab position
-    'cell' => 'Plugin.Cell',
-    'validRoutes' => [...]
-];
-```
-
-#### Key Requirements
-
-1. Both tab button and content panel must have matching `data-tab-order` and `style="order: X;"`
-2. Use increments of 5 or 10 for order values to allow future insertions
-3. Add comments explaining order choices
-4. See `/docs/tab-ordering-system.md` for complete documentation
-
-## Git Workflow
-
-- Use feature branches for new development
-- Follow semantic commit messages
-- Update dependencies regularly
-- Use migrations for database changes
-
-### Branch Naming
-
-- Feature branches: `feature/feature-name`
-- Bugfix branches: `fix/bug-description`
-- Release branches: `release/version-number`
-
-### Commit Messages
-
-Follow this format:
-- `feat: Add new feature`
-- `fix: Fix specific bug`
-- `docs: Update documentation`
-- `refactor: Code refactoring without functionality change`
-- `test: Add or update tests`
-
-## Conclusion
-
-By following these best practices, you'll ensure that the code generated for the KMP project is consistent, maintainable, and follows the established patterns in the codebase.
+  ```php
+  $query = $this->Authorization->applyScope($query, 'index');
+  ```
+
+- Use `DataverseGridTrait::processDataverseGrid()` for standard data grids. Grid actions normally set grid metadata, handle CSV export through `CsvExportService`, and select `dv_grid_content` or `dv_grid_table` for Turbo Frame requests.
+- Use `getHeaderLine('Turbo-Frame')` or the existing AppController Turbo handling for frame-aware responses.
+- Use `skipAuthorization()` only for genuinely public, health-check, or framework-required actions.
+- Keep navigation, plugin validation, restore-lock, impersonation state, and view-cell behavior centralized in `AppController`.
+
+## Authorization and policies
+
+- Policies extend `App\Policy\BasePolicy`.
+- Use `canAdd`, `canEdit`, `canDelete`, `canView`, `canIndex`, and `canGridData` naming. `canGridData()` should usually delegate to `canIndex()`.
+- Put branch filtering in `scopeIndex()` and table `addBranchScopeQuery()` implementations.
+- Use entity `getBranchId()` for branch-scoped permissions.
+- Let `BasePolicy::before()` handle super-user bypass; do not duplicate super-user checks throughout policy methods unless there is a specific reason.
+- Preserve flexible signatures on base/overridable policy methods. Adding narrower native types can break plugin policies.
+- Log or return explicit authorization failures consistently with the existing policy code. Do not silently allow or deny without matching existing patterns.
+
+## Models, tables, and entities
+
+- Tables extend `App\Model\Table\BaseTable`; entities extend `App\Model\Entity\BaseEntity`.
+- Override `BaseEntity::getBranchId()` when authorization depends on a related record rather than a direct `branch_id` field.
+- Use `BaseTable` cache invalidation constants when writes affect cached settings, permissions, or lookup data:
+
+  ```php
+  protected const CACHES_TO_CLEAR = [['cache_key', 'cache_config']];
+  protected const ID_CACHES_TO_CLEAR = [['prefix_', 'cache_config']];
+  protected const CACHE_GROUPS_TO_CLEAR = ['group_name'];
+  ```
+
+- Use `PublicIdBehavior` for non-sequential public identifiers and prefer `find('byPublicId', [$id])` for URL-facing lookups where the table supports it.
+- Use CakePHP validation in `validationDefault()` and business rules in `buildRules()`.
+- Eager-load needed associations with `contain()` to avoid N+1 queries.
+- Preserve impersonation audit logging in `BaseTable` write hooks.
+
+## Services and domain logic
+
+- Put reusable business logic in `app/src/Services` or a plugin `src/Services` directory instead of controllers or templates.
+- Use `ServiceResult` for operations that need a standard success/failure flag, reason, and data payload.
+- Prefer dependency injection with optional fallbacks to `TableRegistry` for services that need tables; this keeps tests simple.
+- Keep service methods explicit about side effects such as queueing mail, writing files, mutating records, or clearing cache.
+- Use existing domain services before creating new ones: grid views, CSV export, member registration/authentication/profile, backup/restore, documents, gatherings, navigation/view-cell registries, warrants, and active-window management.
+
+## Grid and CSV patterns
+
+- Grid column definitions extend `App\KMP\GridColumns\BaseGridColumns`.
+- Implement `getColumns()` and mark metadata such as `defaultVisible`, `searchable`, `sortable`, `filterable`, and `filterType`.
+- Override `getSystemViews()` for built-in grid views.
+- Use `getSearchableColumns()` and `getDropdownFilterColumns()` helpers instead of duplicating metadata scans.
+- Handle CSV export with `CsvExportService` and the controller grid result. Exports should respect grid column visibility and filtering.
+
+## View cells, navigation, and tabs
+
+- Register core and plugin cells through `ViewCellRegistry`; do not hard-code plugin cells in controllers or templates.
+- Use `ViewCellRegistry::PLUGIN_TYPE_TAB`, `PLUGIN_TYPE_DETAIL`, `PLUGIN_TYPE_MODAL`, `PLUGIN_TYPE_JSON`, and `PLUGIN_TYPE_MOBILE_MENU` as appropriate.
+- Include `validRoutes`, `order`, and optional `authCallback` in cell definitions.
+- KMP tab ordering is CSS-flex based. For template-defined tabs, set matching `data-tab-order` and `style="order: X;"` on both the tab button and content panel.
+- Use order ranges consistently: plugin tabs in lower values, primary entity tabs around 10-20, secondary/admin tabs later, and 999 as fallback.
+
+## Templates and helpers
+
+- Templates live under `app/templates` or `app/plugins/PluginName/templates` using CakePHP's lowercase/snake_case conventions.
+- Escape output with `h()` unless rendering already-sanitized HTML.
+- Use existing helpers: `KmpHelper`, `TimezoneHelper`, `MarkdownHelper`, AssetMix integration, BootstrapUI patterns, and reusable elements.
+- Keep data transformation in controllers/services/helpers, not templates.
+- Preserve Turbo Frame IDs and Stimulus data attributes; tests often depend on them.
+
+## Accessibility and WCAG
+
+- Invoke the `wcag-accessibility` skill for UI accessibility audits or changes that affect user-facing templates, CSS, Stimulus behavior, forms, modals, tabs, Turbo Frames, navigation, grids, or mobile layouts.
+- All user-facing pages, templates, components, and interactive states must meet WCAG 2.2 Level AA.
+- Prefer semantic HTML before ARIA. Use buttons for actions, links for navigation, headings in order, lists/tables where structurally appropriate, and labels for every form control.
+- Keep all functionality keyboard operable with a logical tab order, no keyboard traps, visible focus states, and predictable focus movement after modals, validation, Turbo Frame updates, and dynamic content changes.
+- Maintain AA color contrast, do not communicate meaning by color alone, and ensure icons/images have useful accessible names or are marked decorative with `aria-hidden="true"`.
+- Forms must associate inputs with labels, help text, and validation errors using `for`, `aria-describedby`, and existing CakePHP/Bootstrap patterns. Announce asynchronous validation or status changes through `KMP_accessibility` where appropriate.
+- Dynamic content should use accessible status messaging (`aria-live`, `role="status"`, or `KMP_accessibility.announce()`) when updates are not otherwise obvious.
+- Interactive controls should meet WCAG 2.2 target-size expectations where practical and provide adequate spacing on touch/mobile layouts.
+- Respect reduced-motion preferences and avoid auto-moving or auto-updating content without controls.
+- When changing UI behavior, include keyboard/focus expectations in tests or manual verification notes, and use Playwright for complex flows involving modals, tabs, Turbo Frames, or mobile interactions.
+
+## Timezones and dates
+
+- Store date/time data in UTC.
+- Convert for display/input using `App\KMP\TimezoneHelper`.
+- Mailer inputs should receive pre-formatted strings from the controller or service layer. Email templates should display those strings directly and must not perform timezone conversion.
+- Do not use virtual `_to_string` date fields or raw CakePHP `format()` calls for user-facing email dates when kingdom timezone formatting is required.
+
+## Mailers and queues
+
+- Mailers live in `app/src/Mailer` and extend the project's mailer base/patterns.
+- Use application settings such as sender addresses through `StaticHelpers::getAppSetting()`.
+- Keep templates presentation-only; build variables before invoking the mailer.
+- Queue async work through CakePHP queue tasks in `app/src/Queue/Task` or plugin task directories. Queue tasks extend `Cake\Queue\QueueTask` and implement `execute(array $args)`.
+
+## Plugins
+
+- Follow CakePHP plugin structure:
+
+  ```text
+  app/plugins/PluginName/
+    src/Controller/
+    src/Model/
+    src/Policy/
+    src/Services/
+    src/KMP/GridColumns/
+    src/View/Cell/
+    templates/
+    config/Migrations/
+    assets/js/
+    assets/css/
+    tests/
+  ```
+
+- Use the plugin namespace in PHP (`Awards\...`, `Activities\...`, etc.).
+- Register enabled plugins and migration order in `app/config/plugins.php`.
+- Register plugin view cells, navigation, routes, migrations, policies, and assets using the existing registry/bootstrap patterns.
+- Keep plugin code isolated unless shared behavior belongs in core `app/src`.
+
+## JavaScript and frontend
+
+- Build assets with Laravel Mix (`app/webpack.mix.js`), not Vite.
+- Place application controllers in `app/assets/js/controllers/*-controller.js`; plugin controllers go under `app/plugins/PluginName/assets/js/controllers`.
+- Controllers extend `@hotwired/stimulus` `Controller` and register through the global registry:
+
+  ```javascript
+  if (!window.Controllers) {
+      window.Controllers = {}
+  }
+  window.Controllers["my-feature"] = MyFeatureController
+  ```
+
+- Use kebab-case controller identifiers that match the filename.
+- Define `static targets`, `static values`, `static classes`, and `static outlets` instead of querying arbitrary DOM where possible.
+- Clean up event listeners, timers, observers, and pending async work in `disconnect()`.
+- Use namespaced custom events for cross-component communication, such as `offline-queue:*` or controller-specific prefixes.
+- Turbo Drive is disabled in `assets/js/index.js`; Turbo Frames remain in use. Do not re-enable Drive without a focused compatibility review.
+- Use `KMP_utils` for URL and sanitization helpers and `KMP_accessibility` for accessible alert/confirm/prompt/announce flows.
+- Bootstrap is globally provided by Webpack. Use Bootstrap classes and components consistently with existing templates.
+- Keep controllers accessibility-aware: preserve focus, update ARIA state (`aria-expanded`, `aria-selected`, `aria-busy`, etc.), avoid inaccessible hidden content, and announce async results when needed.
+
+## JavaScript tests
+
+- Jest uses jsdom with setup in `app/tests/js/setup.js`.
+- Tests live in `app/tests/js/**/*.test.js` and should cover controller registration, static targets/values, DOM behavior, and cleanup.
+- Mock `window.Controllers`, `window.Stimulus`, Bootstrap, `KMP_utils`, and `KMP_accessibility` consistently with existing tests.
+- Use the module alias `@/` for `app/assets/js` when helpful.
+
+## PHPUnit and Playwright tests
+
+- Unit/service tests should extend `App\Test\TestCase\BaseTestCase`.
+- HTTP feature tests should extend `App\Test\TestCase\Support\HttpIntegrationTestCase`.
+- Plugin-focused tests should extend the plugin integration support classes already under `tests/TestCase/Support`.
+- Use seeded constants from `BaseTestCase` instead of duplicating magic member/branch IDs.
+- Use `$this->reseedDatabase()` only when a test performs destructive operations that require a full reset.
+- Playwright uses `app/playwright.config.js` with `playwright-bdd`; features live in `app/tests/ui/bdd`, generated specs in `app/tests/ui/gen`, and reports in `app/tests/ui-reports`.
+
+## Database and migrations
+
+- Use migrations for schema changes and keep seed data in seed files or existing seed SQL workflows.
+- Name database tables plural, lowercase, and underscore-separated.
+- Add indexes and foreign keys when adding relational columns.
+- Use `bash bin/update_database.sh` or Cake migration commands from `app/` when the task requires applying migrations locally.
+- For command-line database debugging, read connection settings from `app/config/.env` and do not expose them.
+
+## Security and privacy
+
+- Prefer public IDs for URL-facing records when available.
+- Preserve CSRF, security token, authentication, and authorization checks.
+- Escape template output and sanitize user-controlled HTML through existing helpers.
+- Do not bypass restore lock, impersonation logging, retention policies, audit trails, or authorization scopes for convenience.
+- Do not ship inaccessible user-facing UI; WCAG 2.2 Level AA regressions should be fixed with the same priority as functional regressions.
+- Avoid broad `try/catch` blocks that hide failures. Surface errors through Flash messages, logs, exceptions, or service results consistent with nearby code.
+- Keep `face-api.js` at the currently configured package version unless the task is specifically to upgrade and validate face detection behavior.
+
+## Git and documentation
+
+- Do not revert or overwrite user changes. Inspect `git status` before and after edits.
+- Use conventional commit messages when creating commits.
+- Update docs when changing behavior, public commands, plugin setup, or developer workflow.
+- For documentation-only edits, a full app verification run is usually unnecessary; at minimum inspect the diff for formatting and accuracy.
+- For code edits, run targeted tests first and the broader verification command when practical.

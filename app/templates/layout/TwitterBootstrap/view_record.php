@@ -91,6 +91,8 @@
 
 use Cake\Core\Configure;
 
+$this->assign('main_content_wrapped', '1');
+
 $this->prepend(
     'tb_body_attrs',
     ' class="' .
@@ -178,7 +180,7 @@ $url = $fullBaseUrl . '/keepalive';
                 </div>
             </nav>
 
-            <main role="main" class="col-md-9 ms-sm-auto col-lg-10 px-md-4 my-3">
+            <main id="main-content" tabindex="-1" class="col-md-9 ms-sm-auto col-lg-10 px-md-4 my-3">
                 <div class="row align-items-start">
                     <div class="col">
                         <h3>

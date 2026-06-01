@@ -213,27 +213,22 @@ describe('EmailTemplateEditorController', () => {
     // showVariableMenu tests
     test('showVariableMenu inserts variable on valid selection', async () => {
         await controller.connect();
-        global.prompt = jest.fn(() => 'userName');
-        controller.showVariableMenu(controller.editor);
+        window.KMP_accessibility.prompt.mockResolvedValue('userName');
+        await controller.showVariableMenu(controller.editor);
         expect(controller.editor.codemirror.replaceSelection).toHaveBeenCalledWith('{{userName}}');
-        delete global.prompt;
     });
 
-    test('showVariableMenu alerts on invalid variable', async () => {
+    test('showVariableMenu announces invalid variable', async () => {
         await controller.connect();
-        global.prompt = jest.fn(() => 'invalidVar');
-        global.alert = jest.fn();
-        controller.showVariableMenu(controller.editor);
-        expect(global.alert).toHaveBeenCalledWith('Invalid variable name');
-        delete global.prompt;
-        delete global.alert;
+        window.KMP_accessibility.prompt.mockResolvedValue('invalidVar');
+        await controller.showVariableMenu(controller.editor);
+        expect(window.KMP_accessibility.announce).toHaveBeenCalledWith('Invalid variable name', { assertive: true });
     });
 
     test('showVariableMenu does nothing when cancelled', async () => {
         await controller.connect();
-        global.prompt = jest.fn(() => null);
-        controller.showVariableMenu(controller.editor);
+        window.KMP_accessibility.prompt.mockResolvedValue(null);
+        await controller.showVariableMenu(controller.editor);
         expect(controller.editor.codemirror.replaceSelection).not.toHaveBeenCalled();
-        delete global.prompt;
     });
 });

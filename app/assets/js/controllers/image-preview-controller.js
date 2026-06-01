@@ -86,7 +86,7 @@ class ImagePreview extends Controller {
             const file = event.target.files[0]
 
             if (this.hasMaxSizeValue && this.maxSizeValue > 0 && file.size > this.maxSizeValue) {
-                alert(this.buildOversizeMessage(file))
+                window.KMP_accessibility.announce(this.buildOversizeMessage(file), { assertive: true })
 
                 // Clear invalid selection so validators + UI stay consistent
                 event.target.value = ''

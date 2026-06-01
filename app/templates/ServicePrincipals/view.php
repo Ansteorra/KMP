@@ -33,8 +33,12 @@ $newToken = $this->request->getSession()->consume('ServicePrincipal.newToken');
             <div class="input-group mb-2">
                 <input type="text" class="form-control font-monospace" 
                        value="<?= h($newToken['bearer_token']) ?>" id="newToken" readonly>
-                <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard('newToken')">
-                    <i class="bi bi-clipboard"></i> <?= __('Copy') ?>
+                <button class="btn btn-outline-secondary" type="button"
+                    data-controller="clipboard"
+                    data-action="clipboard#copy"
+                    data-clipboard-source-selector-value="#newToken"
+                    data-clipboard-success-message-value="<?= h(__('Token copied to clipboard.')) ?>">
+                    <i class="bi bi-clipboard" aria-hidden="true"></i> <?= __('Copy') ?>
                 </button>
             </div>
             <small><?= __('This token will not be shown again.') ?></small>
@@ -276,19 +280,3 @@ $newToken = $this->request->getSession()->consume('ServicePrincipal.newToken');
         </div>
     </div>
 </div>
-
-<script>
-function copyToClipboard(elementId) {
-    const input = document.getElementById(elementId);
-    const text = input.value;
-
-    navigator.clipboard.writeText(text).then(() => {
-        const btn = input.nextElementSibling;
-        const originalHtml = btn.innerHTML;
-        btn.innerHTML = '<i class="bi bi-check"></i> <?= h(__("Copied!")) ?>';
-        setTimeout(() => {
-            btn.innerHTML = originalHtml;
-        }, 1500);
-    });
-}
-</script>

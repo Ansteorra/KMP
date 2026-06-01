@@ -9,7 +9,23 @@
 <?php $this->extend('/layout/TwitterBootstrap/dashboard'); ?>
 
 <?php $this->start('tb_actions'); ?>
-<li><?= $this->Form->postLink(__('Delete'), ['action' => 'delete', $warrantRoster->id], ['confirm' => __('Are you sure you want to delete # {0}?', $warrantRoster->id), 'class' => 'nav-link']) ?></li>
+<li>
+    <?= $this->Form->create(null, [
+        'url' => ['action' => 'delete', $warrantRoster->id],
+        'data-turbo' => 'false',
+        'style' => 'display:inline;',
+    ]) ?>
+    <?= $this->Form->button(__('Delete'), [
+        'type' => 'submit',
+        'class' => 'nav-link border-0 bg-transparent',
+        'data-controller' => 'confirmation',
+        'data-action' => 'confirmation#confirm',
+        'data-confirmation-message-value' => __('Are you sure you want to delete # {0}?', $warrantRoster->id),
+        'data-confirmation-title-value' => __('Delete roster'),
+        'data-confirmation-confirm-label-value' => __('Delete'),
+    ]) ?>
+    <?= $this->Form->end() ?>
+</li>
 <li><?= $this->Html->link(__('List Warrant Approval Sets'), ['action' => 'index'], ['class' => 'nav-link']) ?></li>
 <li><?= $this->Html->link(__('List Warrants'), ['controller' => 'Warrants', 'action' => 'index'], ['class' => 'nav-link']) ?></li>
 <li><?= $this->Html->link(__('New Warrant'), ['controller' => 'Warrants', 'action' => 'add'], ['class' => 'nav-link']) ?></li>

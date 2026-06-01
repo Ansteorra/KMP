@@ -17,15 +17,29 @@ class DeleteConfirmationController extends Controller {
     /**
      * Handle delete button click
      */
-    confirm(event) {
+    async confirm(event) {
         const message = this.buildConfirmMessage();
-        
-        if (!confirm(message)) {
-            event.preventDefault();
-            event.stopPropagation();
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const confirmed = await window.KMP_accessibility.confirm(message, {
+            title: 'Confirm delete',
+            confirmLabel: 'Delete',
+        });
+
+        if (!confirmed) {
             return false;
         }
-        
+
+        const trigger = event.currentTarget;
+        const form = trigger?.closest('form');
+        if (form instanceof HTMLFormElement) {
+            form.submit();
+        } else if (trigger instanceof HTMLAnchorElement && trigger.href) {
+            window.location.assign(trigger.href);
+        }
+
         return true;
     }
     

@@ -202,13 +202,12 @@ describe('MobileRequestAuthController', () => {
 
     test('handleSubmit prevents submission when offline', () => {
         MobileControllerBase.isOnline = false;
-        global.alert = jest.fn();
         const event = { preventDefault: jest.fn() };
 
         controller.handleSubmit.call(controller, event);
 
         expect(event.preventDefault).toHaveBeenCalled();
-        expect(global.alert).toHaveBeenCalledWith('You must be online to submit authorization requests');
+        expect(controller.approverHelpTarget.textContent).toBe('You must be online to submit authorization requests');
     });
 
     test('handleSubmit disables button and shows spinner when online', () => {

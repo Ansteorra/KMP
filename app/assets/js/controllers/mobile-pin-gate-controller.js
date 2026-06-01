@@ -5,7 +5,8 @@ const SESSION_UNLOCK_KEY = "kmp.quickLogin.sessionUnlocked";
 
 class MobilePinGateController extends Controller {
     static values = {
-        email: String
+        email: String,
+        logoutUrl: { type: String, default: "/Members/logout" }
     };
 
     initialize() {
@@ -15,6 +16,9 @@ class MobilePinGateController extends Controller {
         this._onlineHandler = this.enforceGate.bind(this);
         this._offlineHandler = this.enforceGate.bind(this);
         this._visibilityHandler = this.handleVisibilityChange.bind(this);
+        this._submitHandler = this.handleUnlockSubmit.bind(this);
+        this._focusTrapHandler = this.handleGateKeydown.bind(this);
+        this.previouslyFocusedElement = null;
     }
 
     connect() {
@@ -129,12 +133,19 @@ class MobilePinGateController extends Controller {
 
         this.overlay = document.createElement("div");
         this.overlay.className = "mobile-pin-gate-overlay";
+        this.overlay.setAttribute("role", "dialog");
+        this.overlay.setAttribute("aria-modal", "true");
+        this.overlay.setAttribute("aria-labelledby", "mobile-pin-gate-title");
+        this.overlay.setAttribute("aria-describedby", "mobile-pin-gate-message");
         this.currentGateReason = reason;
+        this.previouslyFocusedElement = document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : null;
         this.overlay.innerHTML = `
             <div class="mobile-pin-gate-card">
-                <h2 class="h4 mb-2">PIN Required</h2>
-                <p class="text-muted mb-3" data-mobile-pin-gate-message>${this.gateMessage(reason)}</p>
-                <form data-mobile-pin-gate-form>
+                <h2 class="h4 mb-2" id="mobile-pin-gate-title">PIN Required</h2>
+                <p class="text-muted mb-3" id="mobile-pin-gate-message" data-mobile-pin-gate-message>${this.gateMessage(reason)}</p>
+                <form data-mobile-pin-gate-form aria-busy="false">
                     <div class="mb-2">
                         <label class="form-label" for="mobile-pin-gate-input">PIN</label>
                         <input
@@ -149,8 +160,9 @@ class MobilePinGateController extends Controller {
                             required
                         />
                     </div>
-                    <div class="text-danger small mb-2 d-none" data-mobile-pin-gate-error></div>
-                    <button type="submit" class="btn btn-primary w-100">Unlock</button>
+                    <div class="text-danger small mb-2 d-none" role="alert" aria-live="assertive" data-mobile-pin-gate-error></div>
+                    <button type="submit" class="btn btn-primary w-100" data-mobile-pin-gate-submit>Unlock</button>
+                    <a class="btn btn-outline-danger w-100 mt-2" href="${this.escapeAttribute(this.logoutUrlValue || "/Members/logout")}" data-mobile-pin-gate-sign-out>Sign out</a>
                 </form>
             </div>
         `;
@@ -162,7 +174,10 @@ class MobilePinGateController extends Controller {
         this.errorNode = this.overlay.querySelector("[data-mobile-pin-gate-error]");
         this.pinInput = this.overlay.querySelector("#mobile-pin-gate-input");
         this.messageNode = this.overlay.querySelector("[data-mobile-pin-gate-message]");
-        this.form?.addEventListener("submit", this.handleUnlockSubmit.bind(this));
+        this.submitButton = this.overlay.querySelector("[data-mobile-pin-gate-submit]");
+        this.signOutLink = this.overlay.querySelector("[data-mobile-pin-gate-sign-out]");
+        this.form?.addEventListener("submit", this._submitHandler);
+        this.overlay.addEventListener("keydown", this._focusTrapHandler);
         this.pinInput?.focus();
     }
 
@@ -171,14 +186,23 @@ class MobilePinGateController extends Controller {
             return;
         }
 
+        this.form?.removeEventListener("submit", this._submitHandler);
+        this.overlay.removeEventListener("keydown", this._focusTrapHandler);
+        const previousFocus = this.previouslyFocusedElement;
         this.overlay.remove();
         this.overlay = null;
         this.form = null;
         this.errorNode = null;
         this.pinInput = null;
         this.messageNode = null;
+        this.submitButton = null;
+        this.signOutLink = null;
         this.currentGateReason = null;
         document.body.style.overflow = "";
+        if (previousFocus && previousFocus.isConnected && typeof previousFocus.focus === "function") {
+            previousFocus.focus();
+        }
+        this.previouslyFocusedElement = null;
     }
 
     async handleUnlockSubmit(event) {
@@ -189,15 +213,20 @@ class MobilePinGateController extends Controller {
 
         const pin = this.pinInput.value.trim();
         if (!/^\d{4,10}$/.test(pin)) {
-            this.errorNode.textContent = "PIN must be 4 to 10 digits.";
-            this.errorNode.classList.remove("d-none");
+            this.showError("PIN must be 4 to 10 digits.");
             return;
         }
 
-        const isValid = await QuickLoginService.verifyPin(pin);
+        this.showError("");
+        this.setBusy(true);
+        let isValid;
+        try {
+            isValid = await QuickLoginService.verifyPin(pin);
+        } finally {
+            this.setBusy(false);
+        }
         if (!isValid) {
-            this.errorNode.textContent = "Incorrect PIN.";
-            this.errorNode.classList.remove("d-none");
+            this.showError("Incorrect PIN.");
             this.pinInput.value = "";
             this.pinInput.focus();
             return;
@@ -206,6 +235,70 @@ class MobilePinGateController extends Controller {
         sessionStorage.setItem(SESSION_UNLOCK_KEY, "1");
         this.requireFreshEntryPinCheck = false;
         this.hideGate();
+    }
+
+    setBusy(isBusy) {
+        this.form?.setAttribute("aria-busy", isBusy ? "true" : "false");
+        if (this.submitButton) {
+            this.submitButton.disabled = isBusy;
+        }
+    }
+
+    showError(message) {
+        if (!this.errorNode) {
+            return;
+        }
+
+        this.errorNode.textContent = message;
+        this.errorNode.classList.toggle("d-none", message === "");
+    }
+
+    handleGateKeydown(event) {
+        if (!this.overlay) {
+            return;
+        }
+
+        if (event.key === "Escape") {
+            event.preventDefault();
+            this.signOutLink?.focus();
+            return;
+        }
+
+        if (event.key !== "Tab") {
+            return;
+        }
+
+        const focusable = this.focusableGateElements();
+        if (focusable.length === 0) {
+            event.preventDefault();
+            return;
+        }
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+        }
+    }
+
+    focusableGateElements() {
+        if (!this.overlay) {
+            return [];
+        }
+
+        return Array.from(this.overlay.querySelectorAll(
+            'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )).filter((element) => !element.hidden && element.getAttribute("aria-hidden") !== "true");
+    }
+
+    escapeAttribute(value) {
+        const div = document.createElement("div");
+        div.textContent = value;
+        return div.innerHTML.replace(/"/g, "&quot;");
     }
 }
 

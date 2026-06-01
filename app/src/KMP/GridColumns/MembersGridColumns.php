@@ -139,6 +139,7 @@ class MembersGridColumns extends BaseGridColumns
                 'alignment' => 'left',
                 'renderField' => 'branch.name',
                 'queryField' => 'Branches.name',
+                'filterQueryField' => 'Members.branch_id',
             ],
 
             'phone' => [

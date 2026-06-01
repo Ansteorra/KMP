@@ -365,8 +365,8 @@ class GridViewController extends Controller {
             const removeBtn = document.createElement('button')
             removeBtn.type = 'button'
             removeBtn.className = 'btn btn-link p-0 m-0 text-decoration-none d-flex align-items-center justify-content-center'
-            removeBtn.style.cssText = 'width: 18px; height: 18px; border-radius: 50%; background: rgba(0,0,0,0.1); color: #202223; font-size: 0.7rem; line-height: 1;'
-            removeBtn.setAttribute('aria-label', 'Remove filter')
+            removeBtn.style.cssText = 'width: 24px; height: 24px; min-width: 24px; min-height: 24px; border-radius: 50%; background: rgba(0,0,0,0.1); color: #202223; font-size: 0.7rem; line-height: 1;'
+            removeBtn.setAttribute('aria-label', `Remove filter ${columnLabel}: ${valueLabel}`)
             removeBtn.setAttribute('data-action', 'click->grid-view#removeFilter')
             removeBtn.setAttribute('data-filter-column', column)
             removeBtn.setAttribute('data-filter-value', value)
@@ -374,6 +374,7 @@ class GridViewController extends Controller {
             const icon = document.createElement('i')
             icon.className = 'bi bi-x'
             icon.style.cssText = 'font-size: 0.9rem; font-weight: bold;'
+            icon.setAttribute('aria-hidden', 'true')
             removeBtn.appendChild(icon)
 
             badge.appendChild(removeBtn)
@@ -484,13 +485,14 @@ class GridViewController extends Controller {
         const removeBtn = document.createElement('button')
         removeBtn.type = 'button'
         removeBtn.className = 'btn btn-link p-0 m-0 text-decoration-none d-flex align-items-center justify-content-center'
-        removeBtn.style.cssText = 'width: 18px; height: 18px; border-radius: 50%; background: rgba(0,0,0,0.1); color: #202223; font-size: 0.7rem; line-height: 1;'
+        removeBtn.style.cssText = 'width: 24px; height: 24px; min-width: 24px; min-height: 24px; border-radius: 50%; background: rgba(0,0,0,0.1); color: #202223; font-size: 0.7rem; line-height: 1;'
         removeBtn.setAttribute('aria-label', 'Remove search')
         removeBtn.setAttribute('data-action', 'click->grid-view#clearSearch')
 
         const icon = document.createElement('i')
         icon.className = 'bi bi-x'
         icon.style.cssText = 'font-size: 0.9rem; font-weight: bold;'
+        icon.setAttribute('aria-hidden', 'true')
         removeBtn.appendChild(icon)
 
         badge.appendChild(removeBtn)
@@ -1210,28 +1212,29 @@ class GridViewController extends Controller {
             const isVisible = visibleColumns.includes(column.key)
             const isRequired = column.required || false
 
-            const label = document.createElement('label')
-            label.className = `list-group-item d-flex align-items-center${!isVisible ? ' list-group-item-secondary' : ''}`
-            label.setAttribute('data-sortable-list-target', 'item')
-            label.setAttribute('data-column-key', column.key)
+            const item = document.createElement('div')
+            item.className = `list-group-item d-flex align-items-center gap-2${!isVisible ? ' list-group-item-secondary' : ''}`
+            item.setAttribute('data-sortable-list-target', 'item')
+            item.setAttribute('data-column-key', column.key)
             if (isRequired) {
-                label.setAttribute('data-column-required', 'true')
+                item.setAttribute('data-column-required', 'true')
             }
-            label.draggable = true
-            label.setAttribute('data-action', `dragstart->sortable-list#dragStart 
-                dragover->sortable-list#dragOver 
-                dragenter->sortable-list#dragEnter 
-                dragleave->sortable-list#dragLeave 
-                drop->sortable-list#drop 
+            item.draggable = true
+            item.tabIndex = -1
+            item.setAttribute('data-action', `dragstart->sortable-list#dragStart
+                dragover->sortable-list#dragOver
+                dragenter->sortable-list#dragEnter
+                dragleave->sortable-list#dragLeave
+                drop->sortable-list#drop
                 dragend->sortable-list#dragEnd`)
 
             // Drag handle
             const dragHandle = document.createElement('span')
             dragHandle.className = 'drag-handle me-2'
             dragHandle.style.cursor = 'move'
-            dragHandle.title = 'Drag to reorder'
-            dragHandle.innerHTML = '<i class="bi bi-grip-vertical"></i>'
-            label.appendChild(dragHandle)
+            dragHandle.setAttribute('aria-hidden', 'true')
+            dragHandle.innerHTML = '<i class="bi bi-grip-vertical" aria-hidden="true"></i>'
+            item.appendChild(dragHandle)
 
             // Checkbox
             const checkbox = document.createElement('input')
@@ -1239,19 +1242,24 @@ class GridViewController extends Controller {
             checkbox.type = 'checkbox'
             checkbox.value = column.key
             checkbox.checked = isVisible
+            checkbox.id = `column-picker-${this.state.config.gridKey}-${column.key}`
             if (isRequired) {
                 checkbox.disabled = true
             }
             checkbox.setAttribute('data-action', 'change->grid-view#toggleColumn')
             checkbox.setAttribute('data-column-key', column.key)
-            label.appendChild(checkbox)
+            checkbox.setAttribute('aria-label', `Show ${column.label || column.key} column`)
+            item.appendChild(checkbox)
 
             // Label content
             const contentDiv = document.createElement('div')
             contentDiv.className = 'flex-grow-1'
 
             const columnLabel = column.label && column.label.trim() !== '' ? column.label : column.key
-            const strong = document.createElement('strong')
+            item.setAttribute('data-item-label', columnLabel)
+            const strong = document.createElement('label')
+            strong.setAttribute('for', checkbox.id)
+            strong.className = 'fw-bold'
             strong.textContent = columnLabel
             contentDiv.appendChild(strong)
 
@@ -1270,9 +1278,39 @@ class GridViewController extends Controller {
                 contentDiv.appendChild(desc)
             }
 
-            label.appendChild(contentDiv)
-            container.appendChild(label)
+            item.appendChild(contentDiv)
+
+            const moveControls = document.createElement('div')
+            moveControls.className = 'btn-group btn-group-sm'
+            moveControls.setAttribute('aria-label', `Reorder ${columnLabel} column`)
+
+            const moveUpButton = document.createElement('button')
+            moveUpButton.type = 'button'
+            moveUpButton.className = 'btn btn-outline-secondary'
+            moveUpButton.setAttribute('data-action', 'click->sortable-list#moveUp')
+            moveUpButton.setAttribute('aria-label', `Move ${columnLabel} column up`)
+            moveUpButton.innerHTML = '<i class="bi bi-arrow-up" aria-hidden="true"></i>'
+            moveControls.appendChild(moveUpButton)
+
+            const moveDownButton = document.createElement('button')
+            moveDownButton.type = 'button'
+            moveDownButton.className = 'btn btn-outline-secondary'
+            moveDownButton.setAttribute('data-action', 'click->sortable-list#moveDown')
+            moveDownButton.setAttribute('aria-label', `Move ${columnLabel} column down`)
+            moveDownButton.innerHTML = '<i class="bi bi-arrow-down" aria-hidden="true"></i>'
+            moveControls.appendChild(moveDownButton)
+
+            item.appendChild(moveControls)
+            container.appendChild(item)
         })
+
+        const reorderStatus = document.createElement('div')
+        reorderStatus.className = 'visually-hidden'
+        reorderStatus.setAttribute('role', 'status')
+        reorderStatus.setAttribute('aria-live', 'polite')
+        reorderStatus.setAttribute('aria-atomic', 'true')
+        reorderStatus.setAttribute('data-sortable-list-target', 'status')
+        container.appendChild(reorderStatus)
     }
 
     // ============================================================================
@@ -1310,7 +1348,12 @@ class GridViewController extends Controller {
      * Save current state as new view
      */
     async saveView() {
-        const name = prompt("Enter a name for this view:")
+        const name = await window.KMP_accessibility.prompt("Enter a name for this view:", {
+            title: "Save view",
+            inputLabel: "View name",
+            required: true,
+            confirmLabel: "Save view",
+        })
         if (!name || name.trim() === "") return
 
         const config = this.getCurrentConfig()
@@ -1335,7 +1378,7 @@ class GridViewController extends Controller {
             const data = await response.json()
 
             if (response.ok && data.success) {
-                alert("View saved successfully")
+                window.KMP_accessibility.announce("View saved successfully")
                 // Navigate to the new view
                 const url = this.buildUrl({ view_id: data.data.view.id })
                 window.location.assign(url)
@@ -1344,7 +1387,7 @@ class GridViewController extends Controller {
             }
         } catch (error) {
             console.error("Error saving view:", error)
-            alert("Failed to save view: " + error.message)
+            window.KMP_accessibility.announce("Failed to save view: " + error.message, { assertive: true })
         }
     }
 
@@ -1353,11 +1396,14 @@ class GridViewController extends Controller {
      */
     async updateView() {
         if (!this.state.view.currentId) {
-            alert("No view selected to update")
+            window.KMP_accessibility.announce("No view selected to update", { assertive: true })
             return
         }
 
-        if (!confirm("Update this view with current settings?")) return
+        if (!await window.KMP_accessibility.confirm("Update this view with current settings?", {
+            title: "Update view",
+            confirmLabel: "Update view",
+        })) return
 
         const config = this.getCurrentConfig()
 
@@ -1377,14 +1423,14 @@ class GridViewController extends Controller {
             const data = await response.json()
 
             if (response.ok && data.success) {
-                alert("View updated successfully")
+                window.KMP_accessibility.announce("View updated successfully")
                 this.navigate(this.buildUrl({ view_id: this.state.view.currentId }), false)
             } else {
                 throw new Error(data.error || "Failed to update view")
             }
         } catch (error) {
             console.error("Error updating view:", error)
-            alert("Failed to update view: " + error.message)
+            window.KMP_accessibility.announce("Failed to update view: " + error.message, { assertive: true })
         }
     }
 
@@ -1393,11 +1439,14 @@ class GridViewController extends Controller {
      */
     async deleteView() {
         if (!this.state.view.currentId) {
-            alert("No view selected to delete")
+            window.KMP_accessibility.announce("No view selected to delete", { assertive: true })
             return
         }
 
-        if (!confirm("Are you sure you want to delete this view?")) return
+        if (!await window.KMP_accessibility.confirm("Are you sure you want to delete this view?", {
+            title: "Delete view",
+            confirmLabel: "Delete view",
+        })) return
 
         try {
             const response = await fetch(`/grid-views/delete/${this.state.view.currentId}`, {
@@ -1415,7 +1464,7 @@ class GridViewController extends Controller {
             const data = await response.json()
 
             if (response.ok && data.success) {
-                alert("View deleted successfully")
+                window.KMP_accessibility.announce("View deleted successfully")
                 const url = this.buildUrl({ view_id: null })
                 window.location.assign(url)
             } else {
@@ -1423,7 +1472,7 @@ class GridViewController extends Controller {
             }
         } catch (error) {
             console.error("Error deleting view:", error)
-            alert("Failed to delete view: " + error.message)
+            window.KMP_accessibility.announce("Failed to delete view: " + error.message, { assertive: true })
         }
     }
 
@@ -1432,7 +1481,7 @@ class GridViewController extends Controller {
      */
     async setDefault() {
         if (!this.state.view.currentId) {
-            alert("No view selected to set as default")
+            window.KMP_accessibility.announce("No view selected to set as default", { assertive: true })
             return
         }
 
@@ -1452,14 +1501,14 @@ class GridViewController extends Controller {
             const data = await response.json()
 
             if (response.ok && data.success) {
-                alert("Default view set successfully")
+                window.KMP_accessibility.announce("Default view set successfully")
                 this.navigate(window.location.pathname + window.location.search, false)
             } else {
                 throw new Error(data.error || "Failed to set default")
             }
         } catch (error) {
             console.error("Error setting default:", error)
-            alert("Failed to set default: " + error.message)
+            window.KMP_accessibility.announce("Failed to set default: " + error.message, { assertive: true })
         }
     }
 
@@ -1483,14 +1532,14 @@ class GridViewController extends Controller {
             const data = await response.json()
 
             if (response.ok && data.success) {
-                alert("Default view cleared successfully")
+                window.KMP_accessibility.announce("Default view cleared successfully")
                 this.navigate(window.location.pathname + window.location.search, false)
             } else {
                 throw new Error(data.error || "Failed to clear default")
             }
         } catch (error) {
             console.error("Error clearing default:", error)
-            alert("Failed to clear default: " + error.message)
+            window.KMP_accessibility.announce("Failed to clear default: " + error.message, { assertive: true })
         }
     }
 

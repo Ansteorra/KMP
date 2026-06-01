@@ -63,6 +63,23 @@ describe('ImageZoomController', () => {
         expect(controller.element.style.touchAction).toBe('none');
     });
 
+    test('connect adds focusability and accessible keyboard instructions when missing', () => {
+        controller.connect();
+
+        expect(controller.element.getAttribute('tabindex')).toBe('0');
+        expect(controller.element.getAttribute('aria-label')).toContain('Use plus and minus');
+    });
+
+    test('connect preserves existing focusability and accessible name', () => {
+        controller.element.setAttribute('tabindex', '-1');
+        controller.element.setAttribute('aria-label', 'Custom zoom viewer');
+
+        controller.connect();
+
+        expect(controller.element.getAttribute('tabindex')).toBe('-1');
+        expect(controller.element.getAttribute('aria-label')).toBe('Custom zoom viewer');
+    });
+
     test('connect sets image styles', () => {
         controller.connect();
         const img = controller.imageTarget;
@@ -84,6 +101,7 @@ describe('ImageZoomController', () => {
         expect(eventTypes).toContain('touchstart');
         expect(eventTypes).toContain('touchmove');
         expect(eventTypes).toContain('touchend');
+        expect(eventTypes).toContain('keydown');
     });
 
     // --- Disconnect ---
@@ -97,7 +115,109 @@ describe('ImageZoomController', () => {
         expect(containerEvents).toContain('wheel');
         expect(containerEvents).toContain('pointerdown');
         expect(containerEvents).toContain('dblclick');
+        expect(containerEvents).toContain('keydown');
         expect(imgRemoveSpy).toHaveBeenCalledWith('load', expect.any(Function));
+    });
+
+    // --- Keyboard access ---
+
+    test('_onKeyDown zooms in with plus and announces percentage', () => {
+        window.KMP_accessibility.announce.mockClear();
+        controller.connect();
+        jest.spyOn(controller, '_clampTranslation').mockImplementation(() => {});
+        jest.spyOn(controller, '_applyTransform').mockImplementation(() => {});
+        controller.element.getBoundingClientRect = jest.fn().mockReturnValue({ width: 400, height: 300 });
+        const event = { key: '+', preventDefault: jest.fn() };
+
+        controller._onKeyDown(event);
+
+        expect(controller.scale).toBeGreaterThan(1);
+        expect(event.preventDefault).toHaveBeenCalled();
+        expect(window.KMP_accessibility.announce).toHaveBeenCalledWith('Image zoom 110%.');
+    });
+
+    test('_onKeyDown zooms in with equals and zooms out with minus', () => {
+        controller.connect();
+        jest.spyOn(controller, '_clampTranslation').mockImplementation(() => {});
+        jest.spyOn(controller, '_applyTransform').mockImplementation(() => {});
+        controller.element.getBoundingClientRect = jest.fn().mockReturnValue({ width: 400, height: 300 });
+
+        controller._onKeyDown({ key: '=', preventDefault: jest.fn() });
+        const zoomedScale = controller.scale;
+        controller._onKeyDown({ key: '-', preventDefault: jest.fn() });
+
+        expect(zoomedScale).toBeGreaterThan(controller.scale);
+    });
+
+    test('_onKeyDown pans with arrow keys only when zoomed', () => {
+        controller.connect();
+        jest.spyOn(controller, '_clampTranslation').mockImplementation(() => {});
+        jest.spyOn(controller, '_applyTransform').mockImplementation(() => {});
+        const unhandledEvent = { key: 'ArrowRight', preventDefault: jest.fn() };
+
+        controller._onKeyDown(unhandledEvent);
+        expect(unhandledEvent.preventDefault).not.toHaveBeenCalled();
+
+        controller.scale = 2;
+        const handledEvent = { key: 'ArrowRight', preventDefault: jest.fn() };
+        controller._onKeyDown(handledEvent);
+
+        expect(handledEvent.preventDefault).toHaveBeenCalled();
+        expect(controller.translateX).toBe(-24);
+    });
+
+    test('_onKeyDown resets with Home or 0 and announces reset', () => {
+        window.KMP_accessibility.announce.mockClear();
+        controller.connect();
+        controller.scale = 3;
+        controller.translateX = 40;
+        controller.translateY = 20;
+        const event = { key: 'Home', preventDefault: jest.fn() };
+
+        controller._onKeyDown(event);
+
+        expect(controller.scale).toBe(1);
+        expect(controller.translateX).toBe(0);
+        expect(controller.translateY).toBe(0);
+        expect(event.preventDefault).toHaveBeenCalled();
+        expect(window.KMP_accessibility.announce).toHaveBeenCalledWith('Image zoom reset.');
+
+        controller.scale = 2;
+        controller._onKeyDown({ key: '0', preventDefault: jest.fn() });
+        expect(controller.scale).toBe(1);
+    });
+
+    test('_onKeyDown resets with Escape and hands focus to modal close button', () => {
+        document.body.innerHTML = `
+            <div class="modal">
+                <button type="button" class="btn-close">Close</button>
+                <div data-controller="image-zoom" style="width: 400px; height: 300px;">
+                    <img data-image-zoom-target="image" src="test.jpg" style="width: 200px; height: 150px;">
+                </div>
+            </div>
+        `;
+        const ctrl = new ImageZoomController();
+        ctrl.element = document.querySelector('[data-controller="image-zoom"]');
+        ctrl.imageTarget = document.querySelector('[data-image-zoom-target="image"]');
+        ctrl.minScaleValue = 1;
+        ctrl.maxScaleValue = 8;
+        ctrl.connect();
+        ctrl.scale = 2;
+        ctrl.element.focus();
+
+        ctrl._onKeyDown({ key: 'Escape', preventDefault: jest.fn() });
+
+        expect(ctrl.scale).toBe(1);
+        expect(document.activeElement).toBe(document.querySelector('.btn-close'));
+    });
+
+    test('_onKeyDown ignores unhandled keys without preventing default', () => {
+        controller.connect();
+        const event = { key: 'Tab', preventDefault: jest.fn() };
+
+        controller._onKeyDown(event);
+
+        expect(event.preventDefault).not.toHaveBeenCalled();
     });
 
     // --- _resetView ---

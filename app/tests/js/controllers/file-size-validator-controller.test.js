@@ -290,13 +290,12 @@ describe('FileSizeValidatorController', () => {
         expect(controller.warningTarget.classList.contains('d-none')).toBe(false);
     });
 
-    test('showInvalidFilesWarning falls back to alert when no warning target', () => {
+    test('showInvalidFilesWarning announces when no warning target', () => {
         controller.hasWarningTarget = false;
-        const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
 
         controller.showInvalidFilesWarning({ message: 'Too large' });
 
-        expect(alertSpy).toHaveBeenCalledWith('Too large');
+        expect(window.KMP_accessibility.announce).toHaveBeenCalledWith('Too large', { assertive: true });
     });
 
     // --- showTotalSizeWarning ---

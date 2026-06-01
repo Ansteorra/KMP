@@ -99,7 +99,7 @@ $stickyDefaults = json_encode([
 
     .calendar-day.other-month {
         background-color: #f8f9fa;
-        opacity: 0.6;
+        color: #5c636a;
     }
 
     .calendar-day.today {
@@ -135,6 +135,10 @@ $stickyDefaults = json_encode([
     .gathering-item:hover {
         transform: translateX(2px);
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .gathering-item .text-muted {
+        color: #495057 !important;
     }
 
     .gathering-item.multi-day {

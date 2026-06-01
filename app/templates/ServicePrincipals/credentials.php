@@ -43,9 +43,14 @@ $this->assign('title', __('Service Principal Created'));
                             <input type="text" class="form-control font-monospace" 
                                    value="<?= h($credentials['client_id']) ?>" 
                                    id="clientId" readonly>
-                            <button class="btn btn-outline-secondary" type="button" 
-                                    onclick="copyToClipboard('clientId')" title="<?= __('Copy') ?>">
-                                <i class="bi bi-clipboard"></i>
+                            <button class="btn btn-outline-secondary" type="button"
+                                    data-controller="clipboard"
+                                    data-action="clipboard#copy"
+                                    data-clipboard-source-selector-value="#clientId"
+                                    data-clipboard-success-message-value="<?= h(__('Client ID copied to clipboard.')) ?>"
+                                    title="<?= __('Copy') ?>">
+                                <i class="bi bi-clipboard" aria-hidden="true"></i>
+                                <span class="visually-hidden"><?= __('Copy Client ID') ?></span>
                             </button>
                         </div>
                     </div>
@@ -56,9 +61,14 @@ $this->assign('title', __('Service Principal Created'));
                             <input type="text" class="form-control font-monospace" 
                                    value="<?= h($credentials['bearer_token']) ?>" 
                                    id="bearerToken" readonly>
-                            <button class="btn btn-outline-secondary" type="button" 
-                                    onclick="copyToClipboard('bearerToken')" title="<?= __('Copy') ?>">
-                                <i class="bi bi-clipboard"></i>
+                            <button class="btn btn-outline-secondary" type="button"
+                                    data-controller="clipboard"
+                                    data-action="clipboard#copy"
+                                    data-clipboard-source-selector-value="#bearerToken"
+                                    data-clipboard-success-message-value="<?= h(__('Bearer token copied to clipboard.')) ?>"
+                                    title="<?= __('Copy') ?>">
+                                <i class="bi bi-clipboard" aria-hidden="true"></i>
+                                <span class="visually-hidden"><?= __('Copy bearer token') ?></span>
                             </button>
                         </div>
                         <div class="form-text"><?= __('Use this token in the Authorization header: Bearer {token}') ?></div>
@@ -74,8 +84,10 @@ $this->assign('title', __('Service Principal Created'));
 
                     <div class="d-flex justify-content-between">
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="confirmSaved" 
-                                   onchange="document.getElementById('continueBtn').disabled = !this.checked">
+                            <input class="form-check-input" type="checkbox" id="confirmSaved"
+                                   data-controller="enable-on-check"
+                                   data-action="enable-on-check#toggle"
+                                   data-enable-on-check-target-selector-value="#continueBtn">
                             <label class="form-check-label" for="confirmSaved">
                                 <?= __('I have saved these credentials securely') ?>
                             </label>
@@ -91,19 +103,3 @@ $this->assign('title', __('Service Principal Created'));
         </div>
     </div>
 </div>
-
-<script>
-function copyToClipboard(elementId) {
-    const input = document.getElementById(elementId);
-    input.select();
-    document.execCommand('copy');
-    
-    // Visual feedback
-    const btn = input.nextElementSibling;
-    const originalHtml = btn.innerHTML;
-    btn.innerHTML = '<i class="bi bi-check"></i>';
-    setTimeout(() => {
-        btn.innerHTML = originalHtml;
-    }, 1500);
-}
-</script>

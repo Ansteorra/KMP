@@ -217,7 +217,49 @@ describe('SortableListController', () => {
         expect(handler).toHaveBeenCalled();
         const detail = handler.mock.calls[0][0].detail;
         expect(detail.order).toEqual(['a', 'b', 'c']);
-        expect(detail.items).toBe(controller.itemTargets);
+        expect(detail.items).toEqual(controller.itemTargets);
+    });
+
+    test('moveUp moves an item up and announces the new position', () => {
+        controller.initialize();
+        const status = document.createElement('div');
+        controller.element.appendChild(status);
+        controller.statusTarget = status;
+        controller.hasStatusTarget = true;
+        const emitSpy = jest.spyOn(controller, 'emitReorderedEvent');
+        const button = document.createElement('button');
+        controller.itemTargets[1].appendChild(button);
+
+        controller.moveUp({
+            preventDefault: jest.fn(),
+            stopPropagation: jest.fn(),
+            currentTarget: button
+        });
+
+        expect(controller.getOrder()).toEqual(['b', 'a', 'c']);
+        expect(emitSpy).toHaveBeenCalled();
+        expect(status.textContent).toContain('position 1 of 3');
+    });
+
+    test('moveDown moves an item down and announces the new position', () => {
+        controller.initialize();
+        const status = document.createElement('div');
+        controller.element.appendChild(status);
+        controller.statusTarget = status;
+        controller.hasStatusTarget = true;
+        const emitSpy = jest.spyOn(controller, 'emitReorderedEvent');
+        const button = document.createElement('button');
+        controller.itemTargets[1].appendChild(button);
+
+        controller.moveDown({
+            preventDefault: jest.fn(),
+            stopPropagation: jest.fn(),
+            currentTarget: button
+        });
+
+        expect(controller.getOrder()).toEqual(['a', 'c', 'b']);
+        expect(emitSpy).toHaveBeenCalled();
+        expect(status.textContent).toContain('position 3 of 3');
     });
 
     // --- getOrder ---

@@ -113,6 +113,7 @@ class RecommendationQueryService
                 'bestowal-id' => 'bestowal_id',
             ],
             'bulkSelectionDisabledField' => 'bestowal_id',
+            'bulkSelection' => $this->recommendationBulkSelectionConfig(),
             'bulkActions' => [
                 [
                     'key' => 'bulk-edit',
@@ -363,6 +364,7 @@ class RecommendationQueryService
                 'bestowal-id' => 'bestowal_id',
             ],
             'bulkSelectionDisabledField' => 'bestowal_id',
+            'bulkSelection' => $this->recommendationBulkSelectionConfig(),
             'bulkActions' => [
                 [
                     'key' => 'bulk-edit',
@@ -461,5 +463,18 @@ class RecommendationQueryService
         }
 
         return $fields;
+    }
+
+    /**
+     * Return accessible labels for recommendation bulk selection controls.
+     *
+     * @return array<string, string>
+     */
+    private function recommendationBulkSelectionConfig(): array
+    {
+        return [
+            'selectAllLabel' => __('Select all recommendations on this page'),
+            'rowLabelTemplate' => __('Select row for {member_sca_name} - {award_name} row {id}'),
+        ];
     }
 }

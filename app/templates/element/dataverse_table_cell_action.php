@@ -176,8 +176,7 @@ switch ($actionType) {
             class="text-decoration-none"
             data-action="click->grid-view#openModal"
             data-row-id="<?= h($row[$primaryKey]) ?>"
-            data-modal-type="<?= h($actionParam) ?>"
-            onclick="event.preventDefault();">
+            data-modal-type="<?= h($actionParam) ?>">
             <?= $content ?>
         </a>
 <?php

@@ -121,27 +121,20 @@ When('I click on the {string} button for the authorization request', async ({ pa
         row = page.locator('table tbody tr').first();
     }
 
-    await runAndWaitForNetworkIdle(page, async () => {
-        if (buttonText.toLowerCase() === 'approve') {
-            const approveButton = row.locator('button:has-text("Approve"), a:has-text("Approve")').first();
+    if (buttonText.toLowerCase() === 'approve') {
+        const approveButton = row.locator('button:has-text("Approve"), a:has-text("Approve")').first();
+        await approveButton.click({ force: true });
 
-            page.once('dialog', async dialog => {
-                await dialog.accept();
-            });
-
-            await approveButton.click({ force: true });
-            return;
-        }
-
-        if (buttonText.toLowerCase() === 'deny') {
-            const denyButton = row.locator('button:has-text("Deny"), a:has-text("Deny")').first();
-            await denyButton.click({ force: true });
-            return;
-        }
-
+        const confirmDialog = page.locator('.modal.show').filter({ hasText: 'Approve authorization' });
+        await confirmDialog.waitFor({ state: 'visible', timeout: 5000 });
+        await confirmDialog.getByRole('button', { name: 'Approve', exact: true }).click();
+    } else if (buttonText.toLowerCase() === 'deny') {
+        const denyButton = row.locator('button:has-text("Deny"), a:has-text("Deny")').first();
+        await denyButton.click({ force: true });
+    } else {
         const button = row.locator(`a:has-text("${buttonText}"), button:has-text("${buttonText}")`).first();
         await button.click({ force: true });
-    });
+    }
 });
 
 Then('My Queue shows {int} pending authorization request(s)', async ({ page }, count) => {

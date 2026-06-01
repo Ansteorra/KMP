@@ -117,18 +117,18 @@ $canAddGathering = $identity && $identity->checkCan('add', $tempGathering);
 <div class="row mb-3 align-items-center">
     <div class="col-md-6">
         <h3 class="mb-0">
-            <i class="bi bi-calendar-event"></i>
+            <i class="bi bi-calendar-event" aria-hidden="true"></i>
             <?= $selectedBranch ? h($selectedBranch) . ' ' : '' ?><?= __('Calendar') ?>
         </h3>
     </div>
     <div class="col-md-6 text-end d-flex justify-content-end gap-2">
         <a class="btn btn-outline-secondary" href="<?= $this->Url->build(['action' => 'index']) ?>"
             data-turbo-frame="_top">
-            <i class="bi bi-list"></i> <?= __('List View') ?>
+            <i class="bi bi-list" aria-hidden="true"></i> <?= __('List View') ?>
         </a>
         <?php if ($canAddGathering): ?>
             <a class="btn btn-primary" href="<?= $this->Url->build(['action' => 'add']) ?>" data-turbo-frame="_top">
-                <i class="bi bi-plus-circle"></i> <?= __('Add Gathering') ?>
+                <i class="bi bi-plus-circle" aria-hidden="true"></i> <?= __('Add Gathering') ?>
             </a>
         <?php endif; ?>
     </div>
@@ -139,10 +139,11 @@ $canAddGathering = $identity && $identity->checkCan('add', $tempGathering);
         <div class="row align-items-center g-2">
             <div class="col-auto">
                 <?php if ($prevUrl): ?>
-                    <?= $this->Html->link('<i class="bi bi-chevron-left"></i>', $prevUrl, [
+                    <?= $this->Html->link('<i class="bi bi-chevron-left" aria-hidden="true"></i><span class="visually-hidden">' . h($viewMode === 'week' ? __('Previous Week') : __('Previous Month')) . '</span>', $prevUrl, [
                         'escape' => false,
                         'class' => 'btn btn-outline-primary',
                         'title' => $viewMode === 'week' ? __('Previous Week') : __('Previous Month'),
+                        'aria-label' => $viewMode === 'week' ? __('Previous Week') : __('Previous Month'),
                         'data-turbo-frame' => 'gatherings-calendar-grid-table',
                         'data-gatherings-calendar-nav' => 'prev',
                     ]) ?>
@@ -155,10 +156,11 @@ $canAddGathering = $identity && $identity->checkCan('add', $tempGathering);
             </div>
             <div class="col-auto">
                 <?php if ($nextUrl): ?>
-                    <?= $this->Html->link('<i class="bi bi-chevron-right"></i>', $nextUrl, [
+                    <?= $this->Html->link('<i class="bi bi-chevron-right" aria-hidden="true"></i><span class="visually-hidden">' . h($viewMode === 'week' ? __('Next Week') : __('Next Month')) . '</span>', $nextUrl, [
                         'escape' => false,
                         'class' => 'btn btn-outline-primary',
                         'title' => $viewMode === 'week' ? __('Next Week') : __('Next Month'),
+                        'aria-label' => $viewMode === 'week' ? __('Next Week') : __('Next Month'),
                         'data-turbo-frame' => 'gatherings-calendar-grid-table',
                         'data-gatherings-calendar-nav' => 'next',
                     ]) ?>
@@ -176,22 +178,25 @@ $canAddGathering = $identity && $identity->checkCan('add', $tempGathering);
             </div>
             <div class="col-auto">
                 <div class="btn-group" role="group" aria-label="<?= __('View mode') ?>">
-                    <?= $this->Html->link('<i class="bi bi-calendar3"></i>', $monthUrl, [
+                    <?= $this->Html->link('<i class="bi bi-calendar3" aria-hidden="true"></i><span class="visually-hidden">' . h(__('Month View')) . '</span>', $monthUrl, [
                         'escape' => false,
                         'class' => 'btn btn-sm ' . ($viewMode === 'month' ? 'btn-primary' : 'btn-outline-primary'),
                         'title' => __('Month View'),
+                        'aria-label' => __('Month View'),
                         'data-turbo-frame' => 'gatherings-calendar-grid-table',
                     ]) ?>
-                    <?= $this->Html->link('<i class="bi bi-calendar-week"></i>', $weekUrl, [
+                    <?= $this->Html->link('<i class="bi bi-calendar-week" aria-hidden="true"></i><span class="visually-hidden">' . h(__('Week View')) . '</span>', $weekUrl, [
                         'escape' => false,
                         'class' => 'btn btn-sm ' . ($viewMode === 'week' ? 'btn-primary' : 'btn-outline-primary'),
                         'title' => __('Week View'),
+                        'aria-label' => __('Week View'),
                         'data-turbo-frame' => 'gatherings-calendar-grid-table',
                     ]) ?>
-                    <?= $this->Html->link('<i class="bi bi-list-ul"></i>', $listUrl, [
+                    <?= $this->Html->link('<i class="bi bi-list-ul" aria-hidden="true"></i><span class="visually-hidden">' . h(__('List View')) . '</span>', $listUrl, [
                         'escape' => false,
                         'class' => 'btn btn-sm ' . ($viewMode === 'list' ? 'btn-primary' : 'btn-outline-primary'),
                         'title' => __('List View'),
+                        'aria-label' => __('List View'),
                         'data-turbo-frame' => 'gatherings-calendar-grid-table',
                     ]) ?>
                 </div>
@@ -210,7 +215,7 @@ $canAddGathering = $identity && $identity->checkCan('add', $tempGathering);
                     <button class="btn btn-sm btn-outline-success dropdown-toggle" type="button"
                         data-bs-toggle="dropdown" aria-expanded="false"
                         title="<?= __('Subscribe to Calendar') ?>">
-                        <i class="bi bi-rss"></i> <?= __('Subscribe') ?>
+                        <i class="bi bi-rss" aria-hidden="true"></i> <?= __('Subscribe') ?>
                     </button>
                     <div class="dropdown-menu dropdown-menu-end p-3" style="min-width: 350px;">
                         <h6 class="dropdown-header px-0"><?= __('Subscribe to Calendar Feed') ?></h6>
@@ -220,10 +225,16 @@ $canAddGathering = $identity && $identity->checkCan('add', $tempGathering);
                         <div class="input-group input-group-sm">
                             <input type="text" class="form-control" id="calendarFeedUrl"
                                 data-base-feed-url="<?= h($baseFeedUrl) ?>"
-                                value="<?= h($feedUrl) ?>" readonly onclick="this.select()">
+                                value="<?= h($feedUrl) ?>" readonly
+                                data-controller="clipboard"
+                                data-action="focus->clipboard#selectSource">
                             <button class="btn btn-outline-primary" type="button"
-                                onclick="navigator.clipboard.writeText(document.getElementById('calendarFeedUrl').value).then(() => { this.innerHTML = '<i class=\'bi bi-check\'></i>'; setTimeout(() => { this.innerHTML = '<i class=\'bi bi-clipboard\'></i>'; }, 1500); })">
-                                <i class="bi bi-clipboard"></i>
+                                data-controller="clipboard"
+                                data-action="clipboard#copy"
+                                data-clipboard-source-selector-value="#calendarFeedUrl"
+                                data-clipboard-success-message-value="<?= h(__('Calendar feed URL copied to clipboard.')) ?>">
+                                <i class="bi bi-clipboard" aria-hidden="true"></i>
+                                <span class="visually-hidden"><?= __('Copy calendar feed URL') ?></span>
                             </button>
                         </div>
                     </div>

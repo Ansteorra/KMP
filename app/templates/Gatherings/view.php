@@ -62,7 +62,10 @@ $publicLandingUrl = $this->Url->build([
         </li>
         <li>
             <a class="dropdown-item bi bi-clipboard" href="#"
-                onclick="navigator.clipboard.writeText(<?= json_encode($publicLandingUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>); alert(<?= json_encode(__('Link copied to clipboard!')) ?>); return false;">
+                data-controller="clipboard"
+                data-action="clipboard#copy"
+                data-clipboard-text-value="<?= h($publicLandingUrl) ?>"
+                data-clipboard-success-message-value="<?= h(__('Link copied to clipboard!')) ?>">
                 Copy Link
             </a>
         </li>
@@ -525,7 +528,10 @@ if ($gathering->public_page_enabled):
                         <input type="text" class="form-control" value="<?= h($publicLandingUrl) ?>" readonly
                             id="publicLandingUrlInput">
                         <button class="btn btn-outline-secondary bi bi-clipboard" type="button"
-                            onclick="navigator.clipboard.writeText(<?= json_encode($publicLandingUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>); this.innerHTML=<?= json_encode(' Copied!') ?>; setTimeout(() => this.innerHTML=<?= json_encode(' Copy') ?>, 2000)">
+                            data-controller="clipboard"
+                            data-action="clipboard#copy"
+                            data-clipboard-text-value="<?= h($publicLandingUrl) ?>"
+                            data-clipboard-success-message-value="<?= h(__('Link copied to clipboard!')) ?>">
                             Copy
                         </button>
                     </div>

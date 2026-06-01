@@ -181,10 +181,8 @@ describe('RetentionPolicyInputController', () => {
         controller.monthsInputTarget.value = '0';
         controller.daysInputTarget.value = '0';
 
-        // Mock alert
-        global.alert = jest.fn();
         expect(controller.validate()).toBe(false);
-        expect(global.alert).toHaveBeenCalled();
+        expect(window.KMP_accessibility.announce).toHaveBeenCalled();
     });
 
     test('validate returns true when at least one duration value is set', () => {

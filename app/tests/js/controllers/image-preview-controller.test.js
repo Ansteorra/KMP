@@ -149,7 +149,7 @@ describe('ImagePreviewController', () => {
         expect(spy).not.toHaveBeenCalled();
     });
 
-    test('preview alerts and clears input when file exceeds max size', () => {
+    test('preview announces and clears input when file exceeds max size', () => {
         controller.hasMaxSizeValue = true;
         controller.maxSizeValue = 1000;
         controller.maxSizeFormattedValue = '1KB';
@@ -157,10 +157,9 @@ describe('ImagePreviewController', () => {
         const file = { name: 'big.jpg', size: 5000 };
         const event = { target: { files: [file], value: 'big.jpg' } };
 
-        const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
         controller.preview(event);
 
-        expect(alertSpy).toHaveBeenCalled();
+        expect(window.KMP_accessibility.announce).toHaveBeenCalled();
         expect(event.target.value).toBe('');
     });
 });

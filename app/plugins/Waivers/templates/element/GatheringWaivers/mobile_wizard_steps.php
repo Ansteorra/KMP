@@ -19,25 +19,33 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
 ?>
 
 <!-- Step 1: Select Waiver Type -->
-<div data-waiver-upload-wizard-target="step" data-step-number="1">
+<div id="mobile-waiver-upload-step-1"
+    data-waiver-upload-wizard-target="step"
+    data-step-number="1"
+    role="region"
+    aria-labelledby="mobile-waiver-upload-step-1-heading"
+    aria-current="step"
+    aria-hidden="false">
     <div class="card">
-        <div class="card-header" style="background: var(--mobile-header-bg, #1e293b); color: white;">
-            <h5 class="mb-0">
-                <i class="bi bi-1-circle me-2"></i>
-                <?= __('Select Waiver Type') ?>
+        <div class="card-header"
+            style="background: var(--mobile-header-bg, #1e293b); color: var(--mobile-header-text, #f4efe4);">
+            <h5 id="mobile-waiver-upload-step-1-heading" class="mb-0">
+                <i class="bi bi-1-circle me-2" aria-hidden="true"></i>
+                <span class="visually-hidden"><?= __('Step 1 of 3: Select Waiver Type') ?></span>
+                <span aria-hidden="true"><?= __('Select Waiver Type') ?></span>
             </h5>
         </div>
         <div class="card-body">
             <p class="mb-3"><?= __('What type of waiver are you uploading for this gathering?') ?></p>
 
-            <?php if (!empty($waiverStatusSummary)): ?>
+            <?php if (!empty($waiverStatusSummary)) : ?>
                 <div class="mb-3 p-3 border rounded" style="background: #f8fafc;">
                     <div class="d-flex align-items-center mb-2 small text-muted">
                         <i class="bi bi-clipboard-check text-success me-2"></i>
                         <strong class="text-dark"><?= __('Waiver Status') ?></strong>
                     </div>
                     <ul class="list-group list-group-flush">
-                        <?php foreach ($waiverStatusSummary as $summary): ?>
+                        <?php foreach ($waiverStatusSummary as $summary) : ?>
                             <?php
                             $hasUploaded = $summary['uploaded_count'] > 0;
                             $hasAttestation = !empty($summary['attestation_reasons']);
@@ -49,13 +57,20 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
                                     <div class="me-2">
                                         <strong class="d-block"><?= h($summary['name']) ?></strong>
                                         <small class="text-muted">
-                                            <?php if ($hasUploaded): ?>
+                                            <?php if ($hasUploaded) : ?>
                                                 <?= __('Uploaded: {0}', $summary['uploaded_count']) ?>
-                                            <?php else: ?>
+                                            <?php else : ?>
                                                 <?= __('Uploaded: none') ?>
                                             <?php endif; ?>
-                                            <?php if ($hasAttestation): ?>
-                                                <span class="ms-1"><?= __('Attested: {0}', h(implode(', ', $summary['attestation_reasons']))) ?></span>
+                                            <?php if ($hasAttestation) : ?>
+                                                <span class="ms-1">
+                                                    <?=
+                                                        __(
+                                                            'Attested: {0}',
+                                                            h(implode(', ', $summary['attestation_reasons'])),
+                                                        )
+                                                    ?>
+                                                </span>
                                             <?php endif; ?>
                                         </small>
                                     </div>
@@ -67,9 +82,9 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
                 </div>
             <?php endif; ?>
 
-            <?php if (!empty($waiverTypesData)): ?>
+            <?php if (!empty($waiverTypesData)) : ?>
                 <div class="list-group" data-waiver-upload-wizard-target="waiverTypeSelect">
-                    <?php foreach ($waiverTypesData as $waiverType): ?>
+                    <?php foreach ($waiverTypesData as $waiverType) : ?>
                         <?php
                         $isAttested = isset($attestedWaiverTypes[$waiverType['id']]);
                         $attestationReasons = $attestedWaiverTypes[$waiverType['id']] ?? [];
@@ -84,22 +99,24 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
                                     value="<?= $waiverType['id'] ?>"
                                     id="waiver-type-<?= $waiverType['id'] ?>"
                                     data-name="<?= h($waiverType['name']) ?>"
-                                    data-exemption-reasons="<?= h(json_encode($waiverType['exemption_reasons'] ?? [])) ?>"
+                                    data-exemption-reasons="<?=
+                                        h(json_encode($waiverType['exemption_reasons'] ?? []))
+                                    ?>"
                                     data-attested="<?= $isAttested ? '1' : '0' ?>"
                                     <?= $isAttested ? 'disabled' : '' ?>
                                     data-action="change->waiver-upload-wizard#selectWaiverType">
                                 <label class="form-check-label w-100" for="waiver-type-<?= $waiverType['id'] ?>">
                                     <strong><?= h($waiverType['name']) ?></strong>
-                                    <?php if (!empty($waiverType['description'])): ?>
+                                    <?php if (!empty($waiverType['description'])) : ?>
                                         <br>
                                         <small class="text-muted"><?= h($waiverType['description']) ?></small>
                                     <?php endif; ?>
-                                    <?php if ($isAttested): ?>
+                                    <?php if ($isAttested) : ?>
                                         <br>
                                         <small class="text-muted">
                                             <i class="bi bi-shield-check"></i>
                                             <?= __('Attested not needed') ?>
-                                            <?php if (!empty($attestationReasons)): ?>
+                                            <?php if (!empty($attestationReasons)) : ?>
                                                 <span class="ms-1">(<?= h(implode(', ', $attestationReasons)) ?>)</span>
                                             <?php endif; ?>
                                         </small>
@@ -109,7 +126,7 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
                         </div>
                     <?php endforeach; ?>
                 </div>
-            <?php else: ?>
+            <?php else : ?>
                 <div class="alert alert-info">
                     <i class="bi bi-info-circle me-2"></i>
                     <?= __('No waiver types have been configured for this gathering.') ?>
@@ -120,19 +137,35 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
 </div>
 
 <!-- Step 2: Capture/Upload Photos or Attest -->
-<div data-waiver-upload-wizard-target="step" data-step-number="2" class="d-none">
+<div id="mobile-waiver-upload-step-2"
+    data-waiver-upload-wizard-target="step"
+    data-step-number="2"
+    class="d-none"
+    role="region"
+    aria-labelledby="mobile-waiver-upload-step-2-heading"
+    aria-hidden="true">
     <div class="card">
-        <div class="card-header" style="background: var(--mobile-header-bg, #1e293b); color: white;">
-            <h5 class="mb-0">
-                <i class="bi bi-2-circle me-2"></i>
-                <span data-waiver-upload-wizard-target="step3Lead"><?= __('Add Waiver Photos') ?></span>
+        <div class="card-header"
+            style="background: var(--mobile-header-bg, #1e293b); color: var(--mobile-header-text, #f4efe4);">
+            <h5 id="mobile-waiver-upload-step-2-heading" class="mb-0">
+                <i class="bi bi-2-circle me-2" aria-hidden="true"></i>
+                <span class="visually-hidden"><?= __('Step 2 of 3: Add Waiver Photos') ?></span>
+                <span aria-hidden="true" data-waiver-upload-wizard-target="step3Lead">
+                    <?= __('Add Waiver Photos') ?>
+                </span>
             </h5>
         </div>
         <div class="card-body">
-            <p class="mb-3"><?= __('Take photos or select images of the waiver pages, or attest that a waiver is not needed') ?></p>
+            <p class="mb-3">
+                <?= __('Take photos or select images of the waiver pages, or attest that a waiver is not needed') ?>
+            </p>
 
             <!-- Mode Toggle (Upload vs Attest) -->
-            <div class="btn-group d-grid mb-3 d-none" role="group" aria-label="Upload or Attest mode" data-waiver-upload-wizard-target="modeToggle">
+            <div class="btn-group d-grid mb-3 d-none"
+                role="group"
+                aria-label="Upload or Attest mode"
+                aria-hidden="true"
+                data-waiver-upload-wizard-target="modeToggle">
                 <input type="radio" class="btn-check" name="upload-mode" id="mode-upload-mobile" value="upload" checked
                     data-action="change->waiver-upload-wizard#setModeUpload">
                 <label class="btn btn-outline-primary" for="mode-upload-mobile">
@@ -147,7 +180,7 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
             </div>
 
             <!-- Upload Section -->
-            <div data-waiver-upload-wizard-target="uploadSection">
+            <div data-waiver-upload-wizard-target="uploadSection" aria-hidden="false">
                 <!-- File size validation wrapper -->
                 <div data-controller="file-size-validator"
                     data-file-size-validator-max-size-value="<?= h($uploadLimits['maxFileSize']) ?>"
@@ -161,6 +194,7 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
                     <div class="d-grid gap-2 mb-3">
                         <button type="button"
                             class="btn btn-lg btn-primary"
+                            aria-describedby="mobile-waiver-upload-file-tips"
                             data-action="click->waiver-upload-wizard#triggerFileInput">
                             <i class="bi bi-camera me-2"></i>
                             <?= __('Take Photo / Choose from Library') ?>
@@ -174,9 +208,12 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
                         class="d-none"
                         data-waiver-upload-wizard-target="fileInput"
                         data-file-size-validator-target="fileInput"
-                        data-action="change->waiver-upload-wizard#handleFileSelect change->file-size-validator#validateFiles">
+                        aria-label="<?= __('Waiver photo or PDF files') ?>"
+                        aria-describedby="mobile-waiver-upload-file-tips"
+                        data-action="change->waiver-upload-wizard#handleFileSelect
+                            change->file-size-validator#validateFiles">
 
-                    <div class="alert alert-info small">
+                    <div id="mobile-waiver-upload-file-tips" class="alert alert-info small">
                         <i class="bi bi-info-circle me-2"></i>
                         <strong><?= __('Tips:') ?></strong>
                         <ul class="mb-0 mt-2 small">
@@ -194,18 +231,23 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
             </div>
 
             <!-- Attest Section -->
-            <div class="d-none" data-waiver-upload-wizard-target="attestSection">
+            <div class="d-none" data-waiver-upload-wizard-target="attestSection" aria-hidden="true">
                 <div class="alert alert-warning">
                     <i class="bi bi-exclamation-triangle me-2"></i>
-                    <?= __('You are attesting that a waiver is not needed for this gathering. Please provide a reason.') ?>
+                    <?=
+                        __(
+                            'You are attesting that a waiver is not needed for this gathering. '
+                                . 'Please provide a reason.',
+                        )
+                        ?>
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label"><?= __('Why is this waiver not needed?') ?></label>
+                <fieldset class="mb-3">
+                    <legend class="form-label fs-6"><?= __('Why is this waiver not needed?') ?></legend>
                     <div class="list-group" data-waiver-upload-wizard-target="attestReasonList">
                         <!-- Populated dynamically by controller based on selected waiver type -->
                     </div>
-                </div>
+                </fieldset>
 
                 <div class="mb-3">
                     <label class="form-label"><?= __('Additional Notes (Optional)') ?></label>
@@ -220,12 +262,23 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
 </div>
 
 <!-- Step 3: Review & Submit -->
-<div data-waiver-upload-wizard-target="step" data-step-number="3" class="d-none">
+<div id="mobile-waiver-upload-step-3"
+    data-waiver-upload-wizard-target="step"
+    data-step-number="3"
+    class="d-none"
+    role="region"
+    aria-labelledby="mobile-waiver-upload-step-3-heading"
+    aria-hidden="true">
     <div class="card">
-        <div class="card-header" style="background: linear-gradient(135deg, var(--mobile-success, #10b981), #059669); color: white;">
-            <h5 class="mb-0">
-                <i class="bi bi-3-circle me-2"></i>
-                <?= __('Review & Submit') ?>
+        <div class="card-header"
+            style="
+                background: linear-gradient(135deg, var(--mobile-success, #1e6f50), #0f5132);
+                color: var(--medieval-parchment, #f4efe4);
+            ">
+            <h5 id="mobile-waiver-upload-step-3-heading" class="mb-0">
+                <i class="bi bi-3-circle me-2" aria-hidden="true"></i>
+                <span class="visually-hidden"><?= __('Step 3 of 3: Review & Submit') ?></span>
+                <span aria-hidden="true"><?= __('Review & Submit') ?></span>
             </h5>
         </div>
         <div class="card-body">
@@ -242,13 +295,15 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
             </div>
 
             <!-- Upload Section - Pages and Notes -->
-            <div data-waiver-upload-wizard-target="reviewUploadSection">
+            <div data-waiver-upload-wizard-target="reviewUploadSection" aria-hidden="false">
                 <!-- Pages -->
                 <div class="mb-3">
                     <h6 class="text-muted mb-2">
                         <i class="bi bi-images me-2"></i>
                         <?= __('Pages') ?>
-                        <span class="badge ms-2" style="background: var(--mobile-accent, #3b82f6);" data-waiver-upload-wizard-target="reviewPageCount"></span>
+                        <span class="badge ms-2"
+                            style="background: var(--mobile-accent, #c9a227); color: var(--medieval-ink, #212529);"
+                            data-waiver-upload-wizard-target="reviewPageCount"></span>
                     </h6>
                     <div class="row g-2 ps-3" data-waiver-upload-wizard-target="reviewPagesList">
                         <!-- Populated by controller -->
@@ -268,7 +323,7 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
             </div>
 
             <!-- Attest Section - Reason and Notes -->
-            <div class="d-none" data-waiver-upload-wizard-target="reviewAttestSection">
+            <div class="d-none" data-waiver-upload-wizard-target="reviewAttestSection" aria-hidden="true">
                 <div class="mb-3">
                     <h6 class="text-muted mb-2">
                         <i class="bi bi-file-earmark-x me-2"></i><?= __('Attestation: Waiver Not Needed') ?>
@@ -280,7 +335,7 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
                 </div>
 
                 <!-- Notes (if provided) -->
-                <div class="mb-3 d-none" data-waiver-upload-wizard-target="reviewAttestNotesSection">
+                <div class="mb-3 d-none" data-waiver-upload-wizard-target="reviewAttestNotesSection" aria-hidden="true">
                     <h6 class="text-muted mb-2">
                         <i class="bi bi-sticky me-2"></i><?= __('Additional Notes') ?>
                     </h6>

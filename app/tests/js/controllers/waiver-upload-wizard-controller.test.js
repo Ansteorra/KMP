@@ -208,6 +208,10 @@ describe('WaiverUploadWizardController', () => {
         expect(controller.stepTargets[0].classList.contains('d-none')).toBe(true);
         expect(controller.stepTargets[1].classList.contains('d-none')).toBe(false);
         expect(controller.stepTargets[2].classList.contains('d-none')).toBe(true);
+        expect(controller.stepTargets[0].getAttribute('aria-hidden')).toBe('true');
+        expect(controller.stepTargets[1].getAttribute('aria-hidden')).toBe('false');
+        expect(controller.stepTargets[1].getAttribute('aria-current')).toBe('step');
+        expect(controller.stepTargets[2].hasAttribute('aria-current')).toBe(false);
     });
 
     test('nextStep advances when current step is valid', () => {
@@ -261,6 +265,7 @@ describe('WaiverUploadWizardController', () => {
         controller.updateStepIndicators(2);
         expect(controller.stepIndicatorTargets[0].classList.contains('completed')).toBe(true);
         expect(controller.stepIndicatorTargets[1].classList.contains('active')).toBe(true);
+        expect(controller.stepIndicatorTargets[1].getAttribute('aria-current')).toBe('step');
         expect(controller.stepIndicatorTargets[2].classList.contains('active')).toBe(false);
     });
 
@@ -309,6 +314,7 @@ describe('WaiverUploadWizardController', () => {
         controller.updateProgressBar(2);
         const expectedWidth = (2 / 3) * 100;
         expect(controller.progressBarTarget.style.width).toBe(`${expectedWidth}%`);
+        expect(controller.progressBarTarget.getAttribute('aria-valuetext')).toBe('Step 2 of 3');
     });
 
     // --- Waiver Type Selection ---
@@ -402,7 +408,9 @@ describe('WaiverUploadWizardController', () => {
         controller.setModeUpload();
         expect(controller.isAttestMode).toBe(false);
         expect(controller.uploadSectionTarget.classList.contains('d-none')).toBe(false);
+        expect(controller.uploadSectionTarget.getAttribute('aria-hidden')).toBe('false');
         expect(controller.attestSectionTarget.classList.contains('d-none')).toBe(true);
+        expect(controller.attestSectionTarget.getAttribute('aria-hidden')).toBe('true');
     });
 
     test('setModeAttest shows attest section when exemption reasons exist', () => {
@@ -410,7 +418,9 @@ describe('WaiverUploadWizardController', () => {
         controller.setModeAttest();
         expect(controller.isAttestMode).toBe(true);
         expect(controller.uploadSectionTarget.classList.contains('d-none')).toBe(true);
+        expect(controller.uploadSectionTarget.getAttribute('aria-hidden')).toBe('true');
         expect(controller.attestSectionTarget.classList.contains('d-none')).toBe(false);
+        expect(controller.attestSectionTarget.getAttribute('aria-hidden')).toBe('false');
     });
 
     test('setModeAttest refuses when no exemption reasons', () => {
@@ -453,6 +463,8 @@ describe('WaiverUploadWizardController', () => {
         controller.populateAttestationReasons();
 
         const radios = controller.attestReasonListTarget.querySelectorAll('input[type="radio"]');
+        expect(controller.attestReasonListTarget.querySelector('fieldset')).not.toBeNull();
+        expect(controller.attestReasonListTarget.querySelector('legend')).not.toBeNull();
         expect(radios.length).toBe(2);
         expect(radios[0].value).toBe('Under 18');
         expect(radios[1].value).toBe('Guardian present');

@@ -59,7 +59,7 @@ $currentUrl = $this->request->getRequestTarget();
                 <tr class="align-top">
                     <!-- <th><?= $this->Form->checkbox('selectAll', ['onchange' => 'checkAll(this)']) ?></th> -->
                     <th><input type="checkbox" name="checkAllButton" data-awards-rec-table-target="CheckAllBox"
-                            data-action="awards-rec-table#checkAll"></th>
+                            data-action="awards-rec-table#checkAll" aria-label="<?= h(__('Select all recommendations')) ?>"></th>
                     <!--                     <?php
                                                 if ($user->checkCan("edit", "Awards.Recommendations")): ?>
                         <th scope="col"></th>
@@ -74,6 +74,7 @@ $currentUrl = $this->request->getRequestTarget();
                                 "type" => "text",
                                 "label" => false,
                                 "placeholder" => "For",
+                                "aria-label" => __("Filter recommendations by recipient"),
                                 "value" => $this->request->getQuery("for"),
                                 "data-action" => "change->filter-grid#submitForm",
                             ]) ?>
@@ -99,6 +100,7 @@ $currentUrl = $this->request->getRequestTarget();
                             <?= $this->Form->control("branch_id", [
                                 "type" => "select",
                                 "label" => false,
+                                "aria-label" => __("Filter recommendations by branch"),
                                 "value" => $this->request->getQuery("branch_id"),
                                 "options" => $branches,
                                 "empty" => true,
@@ -122,6 +124,7 @@ $currentUrl = $this->request->getRequestTarget();
                                 "type" => "text",
                                 "label" => false,
                                 "placeholder" => "Submitted By",
+                                "aria-label" => __("Filter recommendations by submitter"),
                                 "value" => $this->request->getQuery("requester_sca_name"),
                                 "data-action" => "change->filter-grid#submitForm",
                             ]) ?>
@@ -138,6 +141,7 @@ $currentUrl = $this->request->getRequestTarget();
                             <?= $this->Form->control("domain_id", [
                                 "type" => "select",
                                 "label" => false,
+                                "aria-label" => __("Filter recommendations by domain"),
                                 "value" => $this->request->getQuery("domain_id"),
                                 "options" => $domains,
                                 "empty" => true,
@@ -151,6 +155,7 @@ $currentUrl = $this->request->getRequestTarget();
                                 "type" => "select",
                                 "label" => false,
                                 "placeholder" => "Award",
+                                "aria-label" => __("Filter recommendations by award"),
                                 "value" => $this->request->getQuery("award_id"),
                                 "options" => $awards,
                                 "empty" => true,
@@ -176,6 +181,7 @@ $currentUrl = $this->request->getRequestTarget();
                                 "type" => "select",
                                 "label" => false,
                                 "placeholder" => "State",
+                                "aria-label" => __("Filter recommendations by state"),
                                 "value" => $this->request->getQuery("state"),
                                 "options" => $statusList,
                                 "empty" => true,
@@ -196,6 +202,7 @@ $currentUrl = $this->request->getRequestTarget();
                         <th scope="col"><?= $this->Paginator->sort("Given Date") ?></th>
                     <?php endif; ?>
                     <th scope="col" class="actions">
+                        <span class="visually-hidden"><?= __('Actions') ?></span>
                         <?= $this->Form->button('Filter', ["id" => "filter_btn", "class" => "d-none"]); ?>
                     </th>
                 </tr>
@@ -204,8 +211,13 @@ $currentUrl = $this->request->getRequestTarget();
                 <?php foreach ($recommendations as $recommendation) : ?>
                     <tr>
                         <?php if ($user->checkCan("edit", "Awards.Recommendations")): ?>
+                            <?php
+                            $recipientName = $recommendation->member_sca_name ?: __('unknown recipient');
+                            $awardName = $recommendation->award?->abbreviation ?: __('unknown award');
+                            ?>
                             <td><input type="checkbox" name="check_list[]" value=<?= h($recommendation->id) ?> form="bulkForm"
-                                    data-awards-rec-table-target="rowCheckbox" data-action="awards-rec-table#checked"></td>
+                                    data-awards-rec-table-target="rowCheckbox" data-action="awards-rec-table#checked"
+                                    aria-label="<?= h(__('Select row for {0} - {1} row {2}', $recipientName, $awardName, $recommendation->id)) ?>"></td>
                         <?php endif; ?>
 
                         <?php if ($columns["Submitted"]): ?>

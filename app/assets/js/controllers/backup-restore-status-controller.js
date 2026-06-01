@@ -64,17 +64,25 @@ class BackupRestoreStatusController extends Controller {
         }
 
         const confirmMessage = form.dataset.confirmMessage || 'Restore this backup and replace all current data?'
-        if (confirmMessage && !window.confirm(confirmMessage)) {
+        if (confirmMessage && !await window.KMP_accessibility.confirm(confirmMessage, {
+            title: 'Restore backup',
+            confirmLabel: 'Restore backup',
+        })) {
             return
         }
 
         const restoreKeyPrompt = form.dataset.restoreKeyPrompt || 'Enter the backup encryption key to continue restore:'
-        const restoreKey = window.prompt(restoreKeyPrompt)
+        const restoreKey = await window.KMP_accessibility.prompt(restoreKeyPrompt, {
+            title: 'Backup encryption key',
+            inputLabel: 'Encryption key',
+            required: true,
+            confirmLabel: 'Continue restore',
+        })
         if (restoreKey === null) {
             return
         }
         if (restoreKey.trim() === '') {
-            window.alert('An encryption key is required to restore this backup.')
+            window.KMP_accessibility.announce('An encryption key is required to restore this backup.', { assertive: true })
             return
         }
 

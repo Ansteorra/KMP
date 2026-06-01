@@ -4,7 +4,7 @@
  * Mobile Gathering Selection Template
  *
  * @var \App\View\AppView $this
- * @var \App\Model\Entity\Gathering[] $authorizedGatherings
+ * @var array<\App\Model\Entity\Gathering> $authorizedGatherings
  */
 ?>
 
@@ -15,7 +15,7 @@
         <?= __('Choose the gathering for which you want to upload waivers.') ?>
     </div>
 
-    <?php if (empty($authorizedGatherings)): ?>
+    <?php if (empty($authorizedGatherings)) : ?>
         <!-- No Gatherings Available -->
         <div class="alert alert-warning" role="alert">
             <i class="bi bi-exclamation-triangle me-2"></i>
@@ -23,19 +23,20 @@
         </div>
 
         <div class="d-grid gap-2">
-            <a href="javascript:history.back()" class="btn btn-secondary btn-lg">
-                <i class="bi bi-arrow-left me-2"></i><?= __('Go Back') ?>
-            </a>
+            <button type="button" class="btn btn-secondary btn-lg" data-controller="history-back"
+                data-action="history-back#go">
+                <i class="bi bi-arrow-left me-2" aria-hidden="true"></i><?= __('Go Back') ?>
+            </button>
         </div>
-    <?php else: ?>
+    <?php else : ?>
         <!-- Gatherings List -->
         <div class="list-group mb-4">
-            <?php foreach ($authorizedGatherings as $gathering): ?>
+            <?php foreach ($authorizedGatherings as $gathering) : ?>
                 <?php
                 // Determine card styling based on status
                 $cardClass = '';
                 $borderColor = 'var(--section-waivers, #ec4899)';
-                
+
                 if ($gathering->is_waiver_complete) {
                     $cardClass = 'status-complete';
                     $borderColor = '#10b981'; // Green
@@ -56,45 +57,45 @@
                     <div class="d-flex w-100 justify-content-between align-items-start">
                         <div class="flex-grow-1">
                             <h5 class="mb-1">
-                                <i class="bi bi-calendar-event text-primary me-1"></i>
+                                <i class="bi bi-calendar-event text-primary me-1" aria-hidden="true"></i>
                                 <?= h($gathering->name) ?>
                             </h5>
                             
                             <!-- Status Badges -->
                             <div class="mb-2">
-                                <?php if ($gathering->is_waiver_complete): ?>
+                                <?php if ($gathering->is_waiver_complete) : ?>
                                     <span class="badge bg-success">
-                                        <i class="bi bi-check-circle me-1"></i><?= __('Complete') ?>
+                                        <i class="bi bi-check-circle me-1" aria-hidden="true"></i><?= __('Complete') ?>
                                     </span>
-                                <?php else: ?>
+                                <?php else : ?>
                                     <span class="badge bg-warning">
-                                        <i class="bi bi-exclamation-circle me-1"></i><?= __n('{0} Missing', '{0} Missing', $gathering->missing_waiver_count, $gathering->missing_waiver_count) ?>
+                                        <i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i><?= __n('{0} Missing', '{0} Missing', $gathering->missing_waiver_count, $gathering->missing_waiver_count) ?>
                                     </span>
                                 <?php endif; ?>
                                 
-                                <?php if ($gathering->is_ready_to_close): ?>
+                                <?php if ($gathering->is_ready_to_close) : ?>
                                     <span class="badge bg-info">
-                                        <i class="bi bi-check2-square me-1"></i><?= __('Ready to Close') ?>
+                                        <i class="bi bi-check2-square me-1" aria-hidden="true"></i><?= __('Ready to Close') ?>
                                     </span>
                                 <?php endif; ?>
                                 
-                                <?php if ($gathering->is_ended): ?>
+                                <?php if ($gathering->is_ended) : ?>
                                     <span class="badge bg-danger">
-                                        <i class="bi bi-calendar-x me-1"></i><?= __('Ended') ?>
+                                        <i class="bi bi-calendar-x me-1" aria-hidden="true"></i><?= __('Ended') ?>
                                     </span>
-                                <?php elseif ($gathering->is_ongoing): ?>
+                                <?php elseif ($gathering->is_ongoing) : ?>
                                     <span class="badge bg-warning">
-                                        <i class="bi bi-alarm me-1"></i><?= __('In Progress') ?>
+                                        <i class="bi bi-alarm me-1" aria-hidden="true"></i><?= __('In Progress') ?>
                                     </span>
-                                <?php elseif ($gathering->is_upcoming): ?>
+                                <?php elseif ($gathering->is_upcoming) : ?>
                                     <span class="badge bg-info">
-                                        <i class="bi bi-clock me-1"></i><?= __('Upcoming') ?>
+                                        <i class="bi bi-clock me-1" aria-hidden="true"></i><?= __('Upcoming') ?>
                                     </span>
                                 <?php endif; ?>
                             </div>
                             
                             <!-- Missing Waivers List -->
-                            <?php if (!empty($gathering->missing_waiver_names)): ?>
+                            <?php if (!empty($gathering->missing_waiver_names)) : ?>
                                 <p class="mb-1 small text-danger">
                                     <i class="bi bi-file-earmark-x me-1"></i>
                                     <?= __('Missing: {0}', implode(', ', $gathering->missing_waiver_names)) ?>
@@ -107,11 +108,11 @@
                             <p class="mb-0 small">
                                 <i class="bi bi-calendar3 me-1"></i>
                                 <?= $this->Timezone->format($gathering->start_date, $gathering, 'M j, Y') ?>
-                                <?php if ($this->Timezone->format($gathering->start_date, $gathering, 'Y-m-d') !== $this->Timezone->format($gathering->end_date, $gathering, 'Y-m-d')): ?>
+                                <?php if ($this->Timezone->format($gathering->start_date, $gathering, 'Y-m-d') !== $this->Timezone->format($gathering->end_date, $gathering, 'Y-m-d')) : ?>
                                     - <?= $this->Timezone->format($gathering->end_date, $gathering, 'M j, Y') ?>
                                 <?php endif; ?>
                             </p>
-                            <?php if (!empty($gathering->location)): ?>
+                            <?php if (!empty($gathering->location)) : ?>
                                 <p class="mb-0 text-muted small">
                                     <i class="bi bi-map me-1"></i><?= h($gathering->location) ?>
                                 </p>

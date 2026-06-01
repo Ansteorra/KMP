@@ -2,10 +2,10 @@
 
 /**
  * Waiver Attestation Modal
- * 
+ *
  * Modal for attesting that a waiver is not needed for a specific activity/waiver type combination.
  * The modal displays configurable reasons from the waiver type.
- * 
+ *
  * This modal is controlled by the waiver-attestation-controller.js Stimulus controller.
  */
 ?>
@@ -26,13 +26,15 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p class="lead"><?= __('Why was this waiver not needed?') ?></p>
-                <p class="text-muted">
+                <p class="lead" id="waiverAttestationReasonPrompt"><?= __('Why was this waiver not needed?') ?></p>
+                <p class="text-muted" id="waiverAttestationReasonHelp">
                     <?= __('Select the reason why this waiver requirement does not apply to this activity.') ?>
                 </p>
 
                 <!-- Reason Selection (populated dynamically) -->
-                <div data-waivers-waiver-attestation-target="reasonList" class="mb-3">
+                <div data-waivers-waiver-attestation-target="reasonList"
+                    class="mb-3"
+                    aria-describedby="waiverAttestationReasonPrompt waiverAttestationReasonHelp">
                     <!-- Radio buttons will be dynamically inserted here -->
                 </div>
 

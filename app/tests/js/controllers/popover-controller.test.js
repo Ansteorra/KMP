@@ -91,6 +91,7 @@ describe('PopoverController', () => {
         const addSpy = jest.spyOn(document, 'addEventListener');
         controller.connect();
         expect(addSpy).toHaveBeenCalledWith('click', expect.any(Function));
+        expect(addSpy).toHaveBeenCalledWith('keydown', expect.any(Function));
     });
 
     // --- disconnect ---
@@ -104,6 +105,7 @@ describe('PopoverController', () => {
         expect(mockPopoverInstance.dispose).toHaveBeenCalled();
         expect(controller.popover).toBeNull();
         expect(removeSpy).toHaveBeenCalledWith('click', expect.any(Function));
+        expect(removeSpy).toHaveBeenCalledWith('keydown', expect.any(Function));
     });
 
     test('disconnect handles null popover gracefully', () => {
@@ -203,5 +205,27 @@ describe('PopoverController', () => {
         controller.handleCloseClick(event);
 
         expect(mockPopoverInstance.hide).not.toHaveBeenCalled();
+    });
+
+    test('Escape hides popover and restores focus to trigger', () => {
+        controller.connect();
+        controller.element.setAttribute('aria-describedby', 'popover-1');
+        const event = { key: 'Escape', preventDefault: jest.fn() };
+
+        controller.handleEscapeKey(event);
+
+        expect(mockPopoverInstance.hide).toHaveBeenCalled();
+        expect(document.activeElement).toBe(controller.element);
+        expect(event.preventDefault).toHaveBeenCalled();
+    });
+
+    test('Escape does nothing when this popover is not shown', () => {
+        controller.connect();
+        const event = { key: 'Escape', preventDefault: jest.fn() };
+
+        controller.handleEscapeKey(event);
+
+        expect(mockPopoverInstance.hide).not.toHaveBeenCalled();
+        expect(event.preventDefault).not.toHaveBeenCalled();
     });
 });

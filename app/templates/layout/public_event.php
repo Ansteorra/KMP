@@ -99,6 +99,25 @@
             -moz-osx-font-smoothing: grayscale;
         }
 
+        :focus-visible {
+            outline: 3px solid var(--color-accent);
+            outline-offset: 3px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            html {
+                scroll-behavior: auto;
+            }
+
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
         /* Hero Section */
         .hero {
             position: relative;
@@ -633,8 +652,13 @@
 </head>
 
 <body>
+    <a class="visually-hidden-focusable position-absolute top-0 start-0 z-3 m-2 p-2 bg-white border rounded" href="#main-content">
+        <?= __('Skip to main content') ?>
+    </a>
     <?= $this->Flash->render() ?>
-    <?= $this->fetch('content') ?>
+    <main id="main-content" tabindex="-1">
+        <?= $this->fetch('content') ?>
+    </main>
 
     <!-- Bootstrap JS for dropdowns and interactive components -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

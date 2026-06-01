@@ -53,15 +53,19 @@ class MobileRequestAuthController extends MobileControllerBase {
      */
     updateOnlineUI() {
         if (!this.online) {
-            this.onlineStatusTarget.hidden = false;
-            this.onlineStatusTarget.classList.add('offline');
+            if (this.hasOnlineStatusTarget) {
+                this.onlineStatusTarget.hidden = false;
+                this.onlineStatusTarget.classList.add('offline');
+            }
             this.activitySelectTarget.disabled = true;
             this.approverSelectTarget.disabled = true;
             this.submitBtnTarget.disabled = true;
             this.approverHelpTarget.textContent = "You must be online to submit requests";
         } else {
-            this.onlineStatusTarget.hidden = true;
-            this.onlineStatusTarget.classList.remove('offline');
+            if (this.hasOnlineStatusTarget) {
+                this.onlineStatusTarget.hidden = true;
+                this.onlineStatusTarget.classList.remove('offline');
+            }
             this.activitySelectTarget.disabled = false;
             this.approverSelectTarget.disabled = false;
             this.validateForm();
@@ -149,7 +153,7 @@ class MobileRequestAuthController extends MobileControllerBase {
     handleSubmit(event) {
         if (!this.online) {
             event.preventDefault();
-            alert('You must be online to submit authorization requests');
+            this.approverHelpTarget.textContent = 'You must be online to submit authorization requests';
             return false;
         }
 

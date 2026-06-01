@@ -129,6 +129,9 @@
 
 $attrs = '';
 $class = '';
+$inputId = str_replace('_', '-', $inputField) . '-disp';
+$resultsId = str_replace('_', '-', $inputField) . '-results';
+$statusId = str_replace('_', '-', $inputField) . '-status';
 if ($additionalAttrs) {
     if (isset($additionalAttrs['class'])) {
         $class = $additionalAttrs['class'];
@@ -142,6 +145,12 @@ $textEntry = $Form->control($inputField . '-Disp', [
     'required' => $required,
     'type' => 'text',
     'label' => $label,
+    'id' => $inputId,
+    'role' => 'combobox',
+    'aria-autocomplete' => 'list',
+    'aria-expanded' => 'false',
+    'aria-controls' => $resultsId,
+    'aria-describedby' => $statusId,
     'data-ac-target' => 'input',
     'container' => ['style' => 'margin:0 !important;'],
     'append' => ['clearBtn'],
@@ -156,7 +165,6 @@ $textEntry = str_replace(
 
 <div data-controller='ac'
     data-ac-url-value='<?= h($url) ?>'
-    role='combobox'
     class='position-relative mb-3 kmp_autoComplete <?= h($class) ?>'
     data-ac-allow-other-value='<?= $allowOtherValues ? 'true' : 'false' ?>'
     data-ac-min-length-value='<?= (int)$minLength ?>'
@@ -175,6 +183,10 @@ $textEntry = str_replace(
     <?= $textEntry ?>
 
     <ul data-ac-target='results'
+        id='<?= h($resultsId) ?>'
+        role='listbox'
         class='list-group z-3 col-12 position-absolute auto-complete-list'
         hidden='hidden'></ul>
+    <div id='<?= h($statusId) ?>' class='visually-hidden' role='status' aria-live='polite' aria-atomic='true'
+        data-ac-target='status'></div>
 </div>

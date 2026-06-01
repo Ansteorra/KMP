@@ -71,7 +71,7 @@ $this->KMP->endBlock();
 
     .waiver-calendar-day.other-month {
         background: #f8f9fa;
-        color: #adb5bd;
+        color: #5c636a;
     }
 
     .waiver-calendar-day.today {
@@ -86,7 +86,7 @@ $this->KMP->endBlock();
     }
 
     .waiver-calendar-day.other-month .waiver-calendar-day-number {
-        color: #ced4da;
+        color: #5c636a;
     }
 
     .waiver-calendar-item {
@@ -100,6 +100,10 @@ $this->KMP->endBlock();
         color: inherit;
         cursor: pointer;
         transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+
+    .waiver-calendar-meta {
+        color: #495057;
     }
 
     .waiver-calendar-item:hover {
@@ -137,6 +141,7 @@ $this->KMP->endBlock();
 
     .waiver-calendar-item.status-none {
         background-color: #dc3545;
+        color: #fff;
     }
 
     .waiver-calendar-item.status-partial {
@@ -150,10 +155,12 @@ $this->KMP->endBlock();
 
     .waiver-calendar-item.status-complete {
         background-color: #198754;
+        color: #fff;
     }
 
     .waiver-calendar-item.status-closed {
         background-color: #0d6efd;
+        color: #fff;
     }
 
     .waiver-calendar-nav {
@@ -215,7 +222,7 @@ $this->KMP->endBlock();
             </div>
         </div>
         <div class="col-lg-3 col-md-3 col-sm-6 mb-3">
-            <div class="card text-white bg-info">
+            <div class="card text-dark bg-info">
                 <div class="card-body text-center">
                     <h2 class="display-4"><?= number_format(count($gatheringsReadyToClose)) ?></h2>
                     <p class="card-text"><?= __('Ready to Close') ?></p>
@@ -280,7 +287,7 @@ $this->KMP->endBlock();
                                 <?= __('Waivers submitted') ?>
                             </div>
                             <div class="waiver-calendar-legend-item">
-                                <span class="badge bg-info"><?= __('Exempted') ?></span>
+                                <span class="badge bg-info text-dark"><?= __('Exempted') ?></span>
                                 <?= __('Waiver not required') ?>
                             </div>
                             <div class="waiver-calendar-legend-item">
@@ -303,7 +310,7 @@ $this->KMP->endBlock();
         <div class="row mb-4">
             <div class="col-md-12">
                 <div class="card border-info">
-                    <div class="card-header bg-info text-white"
+                    <div class="card-header bg-info text-dark"
                         data-bs-toggle="collapse" data-bs-target="#collapse-ready-close" aria-expanded="true">
                         <h5 class="mb-0 d-flex justify-content-between align-items-center">
                             <span>
@@ -481,7 +488,7 @@ $this->KMP->endBlock();
                                                     <?php endif; ?>
                                                 </td>
                                                 <td>
-                                                    <span class="badge bg-info"><?= $gathering->uploaded_waiver_count ?? 0 ?></span>
+                                                    <span class="badge bg-info text-dark"><?= $gathering->uploaded_waiver_count ?? 0 ?></span>
                                                     <?php if (!empty($gathering->uploaded_waiver_names ?? [])): ?>
                                                         <ul class="mb-0 mt-1">
                                                             <?php foreach ($gathering->uploaded_waiver_names as $waiverName): ?>
@@ -594,7 +601,7 @@ $this->KMP->endBlock();
                                                     </ul>
                                                 </td>
                                                 <td>
-                                                    <span class="badge bg-info"><?= $gathering->uploaded_waiver_count ?? 0 ?></span>
+                                                    <span class="badge bg-info text-dark"><?= $gathering->uploaded_waiver_count ?? 0 ?></span>
                                                     <?php if (!empty($gathering->uploaded_waiver_names ?? [])): ?>
                                                         <ul class="mb-0 mt-1">
                                                             <?php foreach ($gathering->uploaded_waiver_names as $waiverName): ?>
@@ -671,7 +678,7 @@ $this->KMP->endBlock();
                                                         ['escape' => false]
                                                     ) ?>
                                                     <?php if ($hasStarted && !$hasEnded): ?>
-                                                        <span class="badge bg-info ms-2">
+                                                        <span class="badge bg-info text-dark ms-2">
                                                             <i class="bi bi-play-circle"></i> <?= __('In Progress') ?>
                                                         </span>
                                                     <?php endif; ?>
@@ -704,7 +711,7 @@ $this->KMP->endBlock();
                                                     <?php endif; ?>
                                                 </td>
                                                 <td>
-                                                    <span class="badge bg-info"><?= $gathering->missing_waiver_count ?></span>
+                                                    <span class="badge bg-info text-dark"><?= $gathering->missing_waiver_count ?></span>
                                                     <ul class="mb-0 mt-1">
                                                         <?php foreach ($gathering->missing_waiver_names as $waiverName): ?>
                                                             <li><?= h($waiverName) ?></li>
@@ -780,7 +787,7 @@ $this->KMP->endBlock();
     <div class="row mb-4">
         <div class="col-md-12">
             <div class="card">
-                <div class="card-header bg-info text-white"
+                <div class="card-header bg-info text-dark"
                     data-bs-toggle="collapse" data-bs-target="#collapse-recent" aria-expanded="false">
                     <h5 class="mb-0 d-flex justify-content-between align-items-center">
                         <span>

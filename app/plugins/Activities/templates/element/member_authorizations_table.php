@@ -35,7 +35,7 @@ $hasActions = $isCurrentView || $isPendingView;
                 <?php endif; ?>
                 <?php endforeach; ?>
                 <?php if ($hasActions): ?>
-                <th scope="col" class="actions"></th>
+                <th scope="col" class="actions"><span class="visually-hidden"><?= __('Actions') ?></span></th>
                 <?php endif; ?>
             </tr>
         </thead>
@@ -128,7 +128,11 @@ $hasActions = $isCurrentView || $isPendingView;
                         'style' => 'display:inline;',
                     ]) ?>
                     <button type="submit" class="btn-sm btn btn-warning retract-btn"
-                        onclick="return confirm('<?= h(__("Are you sure you want to retract this authorization request?")) ?>');">
+                        data-controller="confirmation"
+                        data-action="confirmation#confirm"
+                        data-confirmation-message-value="<?= h(__('Are you sure you want to retract this authorization request?')) ?>"
+                        data-confirmation-title-value="<?= h(__('Retract authorization request')) ?>"
+                        data-confirmation-confirm-label-value="<?= h(__('Retract')) ?>">
                         <?= __("Retract") ?>
                     </button>
                     <?= $this->Form->end() ?>

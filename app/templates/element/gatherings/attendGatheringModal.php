@@ -132,7 +132,12 @@ if ($isEdit) {
             <div class="modal-footer">
                 <?php if ($isEdit): ?>
                     <button type="button" class="btn btn-outline-danger btn-sm me-auto"
-                        onclick="if (confirm('<?= h(__('Are you sure you want to remove your attendance registration?')) ?>')) { document.getElementById('deleteAttendanceForm_<?= $userAttendance->id ?>').submit(); }">
+                        data-controller="confirmation"
+                        data-action="confirmation#confirm"
+                        data-confirmation-message-value="<?= h(__('Are you sure you want to remove your attendance registration?')) ?>"
+                        data-confirmation-title-value="<?= h(__('Remove attendance registration')) ?>"
+                        data-confirmation-confirm-label-value="<?= h(__('Remove')) ?>"
+                        data-confirmation-submit-selector-value="#deleteAttendanceForm_<?= $userAttendance->id ?>">
                         <?= __('Remove My Attendance') ?>
                     </button>
                 <?php endif; ?>

@@ -2,7 +2,7 @@
 
 /**
  * Mobile Authorization Request Template
- * 
+ *
  * Mobile-optimized interface for requesting new activity authorizations.
  * Uses the mobile_app layout for consistent PWA experience.
  * All PWA infrastructure, menu, and styling is provided by the mobile_app layout.
@@ -14,9 +14,12 @@
     data-mobile-request-auth-approvers-url-value="<?= $this->Url->build(['controller' => 'Activities', 'action' => 'approversList', 'plugin' => 'Activities']) ?>"
     data-mobile-request-auth-member-id-value="<?= h($memberId) ?>">
     <div class="card-body">
+        <div class="alert alert-warning" role="status" data-mobile-request-auth-target="onlineStatus" hidden>
+            <?= __('You must be online to submit authorization requests.') ?>
+        </div>
         <?= $this->Form->create(null, [
             'url' => ['controller' => 'Authorizations', 'action' => 'add', 'plugin' => 'Activities'],
-            'data-mobile-request-auth-target' => 'form'
+            'data-mobile-request-auth-target' => 'form',
         ]); ?>
 
         <?= $this->Form->hidden('member_id', ['value' => $memberId]) ?>
@@ -31,8 +34,8 @@
                     'class' => 'form-select form-select-lg',
                     'id' => 'activity',
                     'data-mobile-request-auth-target' => 'activitySelect',
-                    'data-action' => 'change->mobile-request-auth#loadApprovers'
-                ]
+                    'data-action' => 'change->mobile-request-auth#loadApprovers',
+                ],
             ) ?>
             <div class="form-text">What activity do you want to be authorized for?</div>
         </div>
@@ -48,10 +51,10 @@
                     'id' => 'approver',
                     'disabled' => true,
                     'data-mobile-request-auth-target' => 'approverSelect',
-                    'data-action' => 'change->mobile-request-auth#validateForm'
-                ]
+                    'data-action' => 'change->mobile-request-auth#validateForm',
+                ],
             ) ?>
-            <div class="form-text" data-mobile-request-auth-target="approverHelp">
+            <div class="form-text" role="status" aria-live="polite" data-mobile-request-auth-target="approverHelp">
                 Loading approvers...
             </div>
         </div>
@@ -62,9 +65,10 @@
                 <span data-mobile-request-auth-target="submitText">Submit Request</span>
             </button>
 
-            <a href="javascript:history.back()" class="btn btn-secondary btn-lg">
-                <i class="bi bi-arrow-left me-2"></i>Cancel
-            </a>
+            <button type="button" class="btn btn-secondary btn-lg" data-controller="history-back"
+                data-action="history-back#go">
+                <i class="bi bi-arrow-left me-2" aria-hidden="true"></i>Cancel
+            </button>
         </div>
 
         <?= $this->Form->end() ?>

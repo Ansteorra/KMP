@@ -661,9 +661,9 @@ class MobileCalendarController extends MobileControllerBase {
             if (event.is_cancelled) cardClasses.push('cancelled');
             if (event.user_attending) cardClasses.push('attending');
             
-            const typeStyle = event.type?.color 
-                ? `background-color: ${event.type.color}; color: white;` 
-                : 'background-color: var(--bs-secondary); color: white;';
+            const typeColor = event.type?.color || 'var(--bs-secondary)';
+            const typeTextColor = this.getReadableTextColor(typeColor);
+            const typeStyle = `background-color: ${typeColor}; color: ${typeTextColor};`;
             
             // Show RSVP button for future events; when offline only show for new RSVPs (not edit)
             const canRsvpOffline = !event.user_attending;
@@ -1112,6 +1112,60 @@ class MobileCalendarController extends MobileControllerBase {
         const meta = document.querySelector('meta[name="csrf-token"]') 
             || document.querySelector('meta[name="csrfToken"]');
         return meta?.getAttribute('content') || '';
+    }
+
+    getReadableTextColor(backgroundColor) {
+        const rgb = this.parseColor(backgroundColor);
+        if (!rgb) {
+            return '#fff';
+        }
+
+        const luminance = this.relativeLuminance(rgb);
+        const whiteContrast = (1.05) / (luminance + 0.05);
+        const darkContrast = (luminance + 0.05) / 0.05;
+
+        return darkContrast >= whiteContrast ? '#212529' : '#fff';
+    }
+
+    parseColor(color) {
+        if (!color || typeof color !== 'string') {
+            return null;
+        }
+
+        const hex = color.trim();
+        const hexMatch = hex.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+        if (hexMatch) {
+            let value = hexMatch[1];
+            if (value.length === 3) {
+                value = value.split('').map((char) => char + char).join('');
+            }
+
+            return {
+                r: parseInt(value.slice(0, 2), 16),
+                g: parseInt(value.slice(2, 4), 16),
+                b: parseInt(value.slice(4, 6), 16)
+            };
+        }
+
+        const rgbMatch = hex.match(/^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/i);
+        if (rgbMatch) {
+            return {
+                r: Math.min(255, parseInt(rgbMatch[1], 10)),
+                g: Math.min(255, parseInt(rgbMatch[2], 10)),
+                b: Math.min(255, parseInt(rgbMatch[3], 10))
+            };
+        }
+
+        return null;
+    }
+
+    relativeLuminance({ r, g, b }) {
+        const normalize = (channel) => {
+            const value = channel / 255;
+            return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+        };
+
+        return 0.2126 * normalize(r) + 0.7152 * normalize(g) + 0.0722 * normalize(b);
     }
 
     showToast(message, type = 'info') {

@@ -58,6 +58,8 @@ $tableColumns = $columns ?? $gridState['columns']['all'] ?? [];
                     'rowActions' => $rowActions,
                     'enableColumnPicker' => $gridState['config']['enableColumnPicker'] ?? true,
                     'tableFrameId' => $tableFrameId,
+                    'enableBulkSelection' => $gridState['config']['enableBulkSelection'] ?? false,
+                    'bulkSelection' => $gridState['config']['bulkSelection'] ?? [],
                 ]) ?>
 
                 <div class="paginator">

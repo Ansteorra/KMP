@@ -15,11 +15,13 @@
  * @var bool $enableBulkSelection
  * @var array $bulkSelectionDataFields
  * @var string|null $bulkSelectionDisabledField
+ * @var string|null $bulkSelectionLabel
  * @var string|null $rowDomIdPrefix
  * @var bool $showActionsColumn
  */
 
 $rowId = is_array($row) ? ($row[$primaryKey] ?? null) : ($row->{$primaryKey} ?? null);
+$bulkSelectionLabel = $bulkSelectionLabel ?? __('Select row {0}', $rowId);
 $rowDomId = null;
 if ($rowDomIdPrefix !== null && $rowDomIdPrefix !== '' && $rowId !== null) {
     $rowDomId = $rowDomIdPrefix . '-row-' . $rowId;
@@ -42,6 +44,7 @@ if ($rowDomIdPrefix !== null && $rowDomIdPrefix !== '' && $rowId !== null) {
                    value="<?= h($rowId) ?>"
                    data-<?= h($controllerName) ?>-target="rowCheckbox"
                    data-action="change-><?= h($controllerName) ?>#toggleRowSelection"
+                   aria-label="<?= h($bulkSelectionLabel) ?>"
                    <?php if ($bulkRowDisabled) : ?>
                    disabled
                    title="<?= h(__('Linked to a bestowal — cannot bulk edit')) ?>"

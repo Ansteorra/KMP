@@ -1,125 +1,123 @@
-# KMP Agent Guide
+# KMP agent guide
 
-Kingdom Management Portal — agent context for Cursor and other AI coding tools.
+This file is the quick-start runbook for coding agents working in this repository. For detailed conventions, read `.github/copilot-instructions.md`.
 
-## Guidance hierarchy
+## Mission
 
-1. **Constitution** — `.specify/memory/constitution.md` (non-negotiable principles)
-2. **Copilot instructions** — `.github/copilot-instructions.md` (patterns and examples)
-3. **Cursor rules** — `.cursor/rules/*.mdc` (always-on and file-scoped conventions)
-4. **Cursor skills** — `.cursor/skills/*/SKILL.md` (workflows; read when relevant)
-5. **Shared skills** — `.github/skills/` (also symlinked under `.cursor/skills/`)
-6. **Documentation** — `docs/` (architecture and usage)
-7. **Memories** — `.github/copilot-memories.md` (verified facts with citations)
+Deliver small, correct, verified changes that match the existing CakePHP 5, Stimulus, Bootstrap, Turbo Frame, and plugin patterns. Keep user-facing UI WCAG 2.2 Level AA compliant and prefer proven project abstractions over new one-off code.
 
-## Project overview
+## Start every task
 
-- **Stack**: CakePHP 5.x, PHP 8.1+, MySQL/MariaDB, Hotwired (Turbo + Stimulus), Bootstrap, Laravel Mix
-- **App root**: `app/` (Composer, PHPUnit, npm, webroot)
-- **Plugins**: `app/plugins/` (Awards, Activities, Waivers, Officers, Queue, …)
-## Verification runbook
+1. Check the current worktree with `git status --short`.
+2. Identify whether the change belongs in root-level infrastructure or in `app/`.
+3. Search for existing patterns before editing.
+4. Preserve unrelated user changes.
+5. Choose the narrowest useful verification command before finishing.
 
-**Run checks inside the app container** (or via root scripts that exec into it). Paths below are container paths (`/var/www/html` = host `./app`).
+## Important paths
 
-| Check | Command | Notes |
-|-------|---------|-------|
-| Full suite | `docker compose exec app bash -lc 'bash bin/verify.sh'` | From repo root |
-| Full suite (in container) | `bash bin/verify.sh` | After `docker compose exec app bash` |
-| PHPUnit | `composer test` | Do **not** use `--testsuite all` (incomplete; runs ~509/1018) |
-| Jest | `npm run test:js` | Stimulus controller tests |
-| Build | `npm run dev` | Vite/Webpack asset build |
-| PHPCS | `composer cs-check` | Changed files only in verify.sh |
-| PHPStan | `composer stan` | Level 5; baseline handles pre-existing issues |
-| E2E | `PLAYWRIGHT_SKIP_WEBSERVER=1 npm run test:ui` (default `http://kmp.localhost:8080`; fixture PHP via Docker on host) | Reset DB first: `./dev-reset-db.sh --seed` |
+| Path | Purpose |
+| --- | --- |
+| `.github/copilot-instructions.md` | Detailed coding instructions for Copilot sessions |
+| `app/src/Controller` | Web and API controllers |
+| `app/src/Model` | CakePHP tables, entities, and behaviors |
+| `app/src/Policy` | Authorization policies and scopes |
+| `app/src/Services` | Business services, registries, and domain workflows |
+| `app/src/KMP/GridColumns` | Dataverse grid column definitions |
+| `app/templates` | CakePHP views and reusable elements |
+| `app/assets/js/controllers` | Core Stimulus controllers |
+| `app/plugins` | First-party plugins |
+| `app/tests` | PHPUnit, Jest, and Playwright tests |
+| `.github/skills/wcag-accessibility` | WCAG 2.2 Level AA accessibility review and implementation skill |
+| `app/bin/verify.sh` | Full local verification script |
 
-**Minimum by change type** (see `.cursor/skills/code-verification/SKILL.md`):
+## Current stack
 
-- PHP: PHPUnit + PHPCS + PHPStan
-- JS/Stimulus: Jest + build
-- Migrations: full PHPUnit + E2E
-- Config: full `verify.sh`
+- PHP 8.3, CakePHP 5, CakePHP Authentication and Authorization plugins.
+- JavaScript bundled with Laravel Mix/Webpack.
+- Stimulus controllers registered through `window.Controllers`.
+- Bootstrap 5 UI components.
+- Turbo Drive disabled; Turbo Frames used for dynamic content.
+- PHPUnit, Jest/jsdom, and Playwright BDD tests.
 
-## Dangerous patterns
+## Core coding patterns
 
-- **Never** run `phpcbf` on the entire codebase — breaks LSP/type hints in policies and tables
-- **Never** add native type hints to overridable `BasePolicy` methods (`$query`, `$entity`)
-- **Keep** `face-api.js` at `^0.22.2` (downgrade weakens photo validation)
-- **PHPUnit**: use `composer test`, not `--testsuite all`
-- **PR merges**: Ansteorra/KMP disallows squash merges — use merge commits
+- PHP files use `declare(strict_types=1);`.
+- Web controllers extend `AppController`; API controllers extend `ApiController`.
+- Tables extend `BaseTable`; entities extend `BaseEntity`; policies extend `BasePolicy`.
+- Use `$this->Authorization->authorize(...)`, `authorizeModel(...)`, and `applyScope(...)` instead of ad-hoc permission checks.
+- Use `DataverseGridTrait` plus `BaseGridColumns` for grid screens.
+- Use `ViewCellRegistry` and navigation registries for plugin UI integration.
+- Use `TimezoneHelper` for display/input date conversion and pre-format dates before passing them to mailers.
+- Put business workflows in `app/src/Services` or plugin `src/Services`, not templates.
+- Frontend controllers live in `*-controller.js`, use static targets/values/outlets, and register in `window.Controllers`.
+- User-facing templates and frontend changes must preserve WCAG 2.2 Level AA accessibility.
+- Tests should use project base classes and seeded constants instead of raw magic IDs.
 
-## Dev environment
+## Commands
 
-**Default workflow is Docker Compose** — source code lives in this repo on the host; containers bind-mount it and run PHP, Composer, Node, and the database stack. Do not assume the host has PHP/Composer/Node installed or can reach DB hostnames like `db` directly.
+Run these from `app/` unless noted.
 
-| What | Where / how |
-|------|-------------|
-| App source | `./app` on host → `/var/www/html` in container |
-| Compose project | `kmp` (`docker-compose.yml` at repo root) |
-| App container | `kmp-app` — run Composer, Cake, PHPUnit, npm here |
-| DB container | `kmp-db` — PostgreSQL 16 (default local driver) |
-| App URL | http://kmp.localhost:8080 (Apache HTTP, not HTTPS) |
-| Test password | `TestPassword` (seeded users) |
+| Need | Command |
+| --- | --- |
+| Full verification | `bash bin/verify.sh` |
+| PHP tests | `composer test` |
+| Targeted PHP suite | `vendor/bin/phpunit --testsuite core-unit` |
+| Targeted PHP test | `vendor/bin/phpunit path/to/Test.php` or `vendor/bin/phpunit --filter Name` |
+| JS tests | `npm run test:js` |
+| Webpack build | `npm run dev` |
+| Playwright BDD | `npm run test:ui` |
+| PHPCS on a file | `vendor/bin/phpcs path/to/file.php` |
+| PHPStan | `vendor/bin/phpstan analyse --no-progress` |
 
-### Root scripts (preferred — they wrap `docker compose`)
+`bin/verify.sh` checks PHPUnit, Jest, Webpack, changed PHP files with PHPCS, and PHPStan.
 
-Run from **repo root**, not from inside the container:
+## Do not do these
 
-| Script | Purpose |
-|--------|---------|
-| `./dev-up.sh` | Start stack; optionally `--build`; resets DB by default on first bring-up |
-| `./dev-down.sh` | Stop stack (`--volumes` only when intentionally wiping DB volumes) |
-| `./dev-reset-db.sh` | Drop/recreate DB, migrate, `updateDatabase`; rebuilds test DB schema |
-| `./dev-reset-db.sh --seed` | Same + load `pg_seed_baseline.sql` demo data (full local dev dataset) |
+- Do not run `phpcbf` over the whole codebase.
+- Do not add native type hints to inherited CakePHP/plugin methods just because a docblock exists.
+- Do not bypass authorization, restore-lock handling, impersonation logging, CSRF/security token checks, or branch scopes.
+- Do not hard-code plugin UI into core controllers/templates; use registries and view cells.
+- Do not re-enable Turbo Drive without a focused compatibility review.
+- Do not ship inaccessible UI or treat accessibility as optional.
+- Do not expose `.env` values or other secrets.
+- Do not downgrade or casually change face-detection dependencies.
+- Do not reformat unrelated files.
 
-After schema/migration changes that add **reference/seed data** (workflow definitions, state machines, permissions): run `./dev-reset-db.sh --seed` and confirm Cake seeds ran. PostgreSQL tests import schema-only dumps — configuration seeds must be wired like `InitWorkflowDefinitionsSeed` / `SeedManager` (see `app/tests/TestCase/Support/SeedManager.php`).
+## Verification guidance
 
-### In-container commands (when not using a root script)
+- Documentation-only changes normally need diff review rather than a full app verification run.
+- PHP behavior changes should get a targeted PHPUnit run and PHPCS on changed PHP files.
+- Frontend behavior changes should get `npm run test:js`; run `npm run dev` when bundling or imports change.
+- UI/template changes should include an accessibility check for keyboard operation, focus visibility/order, labels, ARIA state, status announcements, contrast, and non-color-only cues.
+- Cross-cutting changes should get `bash bin/verify.sh` when practical.
+- Playwright is appropriate for browser flows, Turbo Frames, modals, and multi-page interactions.
 
-```bash
-docker compose exec app bash -lc 'composer test'
-docker compose exec app bash -lc 'bash bin/verify.sh'
-docker compose exec app bash -lc 'bin/cake migrations migrate -p Awards'
-docker compose exec app bash -lc 'bash bin/setup_test_database.sh'
-```
+## Plugin guidance
 
-`node_modules` and Composer cache live in Docker volumes — use container commands for npm/Jest/Vite.
+Active first-party plugins are `Activities`, `Officers`, `Awards`, and `Waivers`. `Template` is present as a skeleton but is not enabled.
 
-### Legacy (non-Docker)
+When changing plugin behavior:
 
-- `sudo bash reset_dev_database.sh` — older host-Apache/MySQL path; prefer `./dev-reset-db.sh` when using Docker
-- DB config: `app/config/.env`
+1. Keep plugin namespaces and directories isolated.
+2. Add migrations under the plugin `config/Migrations` directory.
+3. Put plugin controllers, policies, services, grid columns, cells, assets, and tests inside the plugin.
+4. Register cells/navigation through the existing registries.
+5. Add or update plugin-specific tests under the plugin or `app/tests/TestCase/Plugins`.
 
-## Test data
+## Frontend guidance
 
-Seed SQL loaded via `SeedManager`; tests wrap in transactions (`BaseTestCase`). Constants like `self::ADMIN_MEMBER_ID` in test support classes. See `app/tests/TestDataReference.md`.
+Invoke the `wcag-accessibility` skill for UI accessibility audits or changes that affect user-facing templates, CSS, Stimulus behavior, forms, modals, tabs, Turbo Frames, navigation, grids, or mobile layouts.
 
-## Architecture essentials
+Use existing utilities:
 
-- **Plugins**: self-contained under `app/plugins/`, registered in `config/plugins.php`
-- **Services**: business logic in `src/Services/` or `plugins/*/src/Services/` — not controllers
-- **Policies**: `src/Policy/` + plugin policies; authorization via CakePHP Authorization plugin
-- **Frontend**: Turbo frames/streams + Stimulus controllers in `assets/js/controllers/`
-- **No inline JS** in templates — Stimulus data attributes only
+- `KMP_utils` for URL and sanitization helpers.
+- `KMP_accessibility` for accessible alert, confirm, prompt, and announce behavior.
+- Bootstrap for modals, tabs, tooltips, and styling.
+- `detail-tabs-controller` tab ordering conventions for mixed core/plugin tabs.
 
-## Agent tooling map
+Clean up listeners in `disconnect()`, preserve data attributes used by templates/tests, and use namespaced custom events for cross-component state changes. Preserve WCAG 2.2 Level AA by using semantic HTML, labeled controls, visible focus, keyboard-operable interactions, adequate contrast, meaningful alt text or decorative `aria-hidden`, and accessible announcements for async updates.
 
-| Harness | Location | Cursor equivalent |
-|---------|----------|-------------------|
-| GitHub Copilot instructions | `.github/copilot-instructions.md` | `.cursor/rules/kmp-*.mdc` |
-| Copilot memories | `.github/copilot-memories.md` | This file + rules |
-| Copilot skills | `.github/skills/` | Symlinks in `.cursor/skills/` |
-| Claude Code skills | `.claude/skills/` | Prefer `.github/skills/playwright-cli` |
-| Constitution | `.specify/memory/constitution.md` | `.cursor/rules/kmp-core.mdc` |
+## Documentation guidance
 
-## When to use which skill
-
-| Task | Skill |
-|------|-------|
-| Verify changes / write tests | `code-verification` |
-| Security review / pen test | `security-audit` |
-| Deploy nightly Azure env | `nightly-deploy` |
-| Conventional commit | `git-commit` |
-| Update user changelog | `sync-changelog` |
-| Review docs quality | `double-check-docs` |
-| Browser/E2E automation | `playwright-cli` |
-| Install community skills | `install-skills` |
+Keep inline docblocks short and maintenance-oriented. Put usage examples, architecture narratives, and workflow documentation in `app/docs` or another existing docs location. Update `.github/copilot-instructions.md` and this file when project-wide agent guidance changes.

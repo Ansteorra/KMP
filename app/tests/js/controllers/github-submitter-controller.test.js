@@ -98,42 +98,45 @@ describe('GitHubSubmitter', () => {
         expect(controller.successTarget.style.display).toBe('block');
     });
 
-    test('submit shows alert on server error message', async () => {
+    test('submit announces on server error message', async () => {
         global.fetch = jest.fn(() => Promise.resolve({
             ok: true,
             json: () => Promise.resolve({ message: 'Rate limited' })
         }));
-        global.alert = jest.fn();
 
         const event = { preventDefault: jest.fn() };
         await controller.submit(event);
         await new Promise(resolve => setTimeout(resolve, 0));
 
-        expect(global.alert).toHaveBeenCalledWith('Error: Rate limited');
+        expect(window.KMP_accessibility.announce).toHaveBeenCalledWith('Error: Rate limited', { assertive: true });
     });
 
-    test('submit shows alert on fetch failure', async () => {
+    test('submit announces on fetch failure', async () => {
         global.fetch = jest.fn(() => Promise.resolve({
             ok: false
         }));
-        global.alert = jest.fn();
 
         const event = { preventDefault: jest.fn() };
         await controller.submit(event);
         await new Promise(resolve => setTimeout(resolve, 0));
 
-        expect(global.alert).toHaveBeenCalledWith('An error occurred while creating the issue.');
+        expect(window.KMP_accessibility.announce).toHaveBeenCalledWith(
+            'An error occurred while creating the issue.',
+            { assertive: true }
+        );
     });
 
-    test('submit shows alert on network error', async () => {
+    test('submit announces on network error', async () => {
         global.fetch = jest.fn(() => Promise.reject(new Error('Network error')));
-        global.alert = jest.fn();
 
         const event = { preventDefault: jest.fn() };
         await controller.submit(event);
         await new Promise(resolve => setTimeout(resolve, 0));
 
-        expect(global.alert).toHaveBeenCalledWith('An error occurred while creating the issue.');
+        expect(window.KMP_accessibility.announce).toHaveBeenCalledWith(
+            'An error occurred while creating the issue.',
+            { assertive: true }
+        );
     });
 
     // --- modalTargetConnected ---

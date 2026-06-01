@@ -102,7 +102,6 @@ describe('PermissionImportController', () => {
     // --- File validation ---
 
     test('handleFileSelect rejects non-JSON files', () => {
-        const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
         const event = {
             target: {
                 files: [{ name: 'data.csv' }],
@@ -112,7 +111,7 @@ describe('PermissionImportController', () => {
 
         controller.handleFileSelect(event);
 
-        expect(alertSpy).toHaveBeenCalledWith('Please select a JSON file.');
+        expect(window.KMP_accessibility.announce).toHaveBeenCalledWith('Please select a JSON file.', { assertive: true });
         expect(event.target.value).toBe('');
     });
 
@@ -279,27 +278,28 @@ describe('PermissionImportController', () => {
         expect(showModalSpy).toHaveBeenCalled();
     });
 
-    test('previewImport shows alert on error response', async () => {
+    test('previewImport announces on error response', async () => {
         global.fetch = jest.fn().mockResolvedValue({
             ok: false,
             json: () => Promise.resolve({ error: 'Invalid file' }),
         });
-        const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
         const file = new File(['{}'], 'test.json', { type: 'application/json' });
 
         await controller.previewImport(file);
 
-        expect(alertSpy).toHaveBeenCalledWith('Invalid file');
+        expect(window.KMP_accessibility.announce).toHaveBeenCalledWith('Invalid file', { assertive: true });
     });
 
     test('previewImport handles fetch exception', async () => {
         global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
-        const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
         const file = new File(['{}'], 'test.json', { type: 'application/json' });
 
         await controller.previewImport(file);
 
-        expect(alertSpy).toHaveBeenCalledWith('An error occurred while analyzing the import file.');
+        expect(window.KMP_accessibility.announce).toHaveBeenCalledWith(
+            'An error occurred while analyzing the import file.',
+            { assertive: true }
+        );
     });
 
     // --- confirmImport ---
@@ -310,7 +310,6 @@ describe('PermissionImportController', () => {
             ok: true,
             json: () => Promise.resolve({ results: { added: 3, removed: 1, errors: [] } }),
         });
-        const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
         const hideModalSpy = jest.spyOn(controller, 'hideModal').mockImplementation(() => {});
         // Mock window.location.reload
         delete window.location;
@@ -323,19 +322,21 @@ describe('PermissionImportController', () => {
             method: 'POST',
             body: JSON.stringify({ import_data: 'base64data' }),
         }));
-        expect(alertSpy).toHaveBeenCalledWith(expect.stringContaining('Added: 3'));
+        expect(window.KMP_accessibility.alert).toHaveBeenCalledWith(
+            expect.stringContaining('Added: 3'),
+            expect.any(Object)
+        );
         expect(hideModalSpy).toHaveBeenCalled();
         expect(controller.importData).toBeNull();
     });
 
-    test('confirmImport alerts when no import data', async () => {
+    test('confirmImport announces when no import data', async () => {
         controller.importData = null;
-        const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
         const event = { preventDefault: jest.fn() };
 
         await controller.confirmImport(event);
 
-        expect(alertSpy).toHaveBeenCalledWith('No import data available.');
+        expect(window.KMP_accessibility.announce).toHaveBeenCalledWith('No import data available.', { assertive: true });
     });
 
     // --- disconnect ---

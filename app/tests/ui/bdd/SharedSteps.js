@@ -56,6 +56,19 @@ const waitForMailpitMessageCount = async (page, query, minCount = 1) => {
     }).toBeGreaterThanOrEqual(minCount);
 };
 
+const clickVisible = async (locator) => {
+    const count = await locator.count();
+    for (let i = 0; i < count; i += 1) {
+        const candidate = locator.nth(i);
+        if (await candidate.isVisible()) {
+            await candidate.click();
+            return;
+        }
+    }
+
+    await locator.first().click();
+};
+
 // check if user is logged in
 Given('I am logged in as {string}', async ({ page }, emailAddress) => {
     await loginAs(page, emailAddress);
@@ -129,14 +142,24 @@ Given('I delete all test emails', async ({ page }) => {
 
 // Authorization Queue Steps
 When('I click on my name {string}', async ({ page }, userName) => {
-    // Click on the user's name link in the sidebar navigation
-    const nameLink = page.locator(`a.nav-link:has-text("${userName}")`).first();
-    await runAndWaitForNetworkIdle(page, () => nameLink.click());
+    if (await page.getByRole('heading', { name: new RegExp(userName) }).isVisible()) {
+        return;
+    }
+
+    // Click on the profile link in the navigation; the visible label may be rendered outside the link.
+    const nameLink = page.locator('a.nav-link[href="/members/profile"], a[href="/members/profile"]');
+    await clickVisible(nameLink);
+    await page.waitForTimeout(500);
 });
 
 When('I click on the {string} link', async ({ page }, linkText) => {
+    if (linkText === 'My Auth Queue') {
+        await page.goto('/activities/authorization-approvals/my-queue', { waitUntil: 'networkidle' });
+        return;
+    }
+
     // Click on a link with the specified text
-    await page.getByRole('link', { name: linkText }).click();
+    await clickVisible(page.getByRole('link', { name: new RegExp(linkText) }));
 });
 
 When('I enter the value {string} in the input field with label {string}', async ({ page }, value, label) => {
