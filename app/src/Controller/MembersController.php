@@ -254,7 +254,22 @@ class MembersController extends AppController
         $previousPiiSetting = MembersGridColumns::setIncludePii($canViewPii);
 
         try {
-            $baseQuery = $this->Members->find()->contain(['Branches', 'Parents']);
+            $queryContext = $this->resolveDataverseGridQueryContext([
+                'gridKey' => 'Members.index.main',
+                'gridColumnsClass' => MembersGridColumns::class,
+                'defaultSort' => ['Members.sca_name' => 'asc'],
+            ]);
+            $contain = [];
+            if ($queryContext->loadsColumn('branch_id')) {
+                $contain[] = 'Branches';
+            }
+            if ($queryContext->loadsColumn('parent_id')) {
+                $contain[] = 'Parents';
+            }
+            $baseQuery = $this->Members->find();
+            if ($contain !== []) {
+                $baseQuery->contain($contain);
+            }
             $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
             // Use unified trait for grid processing (saved views mode)
             $result = $this->processDataverseGrid([

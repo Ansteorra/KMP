@@ -20,60 +20,18 @@ class BestowalQueryService
      * @param bool $canEdit Whether the current user can manage bestowals.
      * @return array{query: \Cake\ORM\Query\SelectQuery, gridOptions: array<string, mixed>}
      */
-    public function buildIndexQuery(Table $bestowalsTable, bool $canEdit): array
+    public function buildIndexQuery(Table $bestowalsTable, bool $canEdit, ?array $visibleColumns = null): array
     {
+        $contain = $this->bestowalContain($visibleColumns);
+        $selectFields = $this->bestowalSelectFields($visibleColumns);
+
         $baseQuery = $bestowalsTable->find()
             ->leftJoinWith('Gatherings')
-            ->leftJoinWith('Members')
-            ->contain([
-                'Members' => function ($query) {
-                    return $query->select([
-                        'id',
-                        'sca_name',
-                        'title',
-                        'pronouns',
-                        'pronunciation',
-                        'additional_info',
-                    ]);
-                },
-                'Gatherings' => function ($query) {
-                    return $query->select(['id', 'name', 'start_date', 'end_date', 'cancelled_at']);
-                },
-                'GatheringScheduledActivities' => function ($query) {
-                    return $query->select([
-                        'id',
-                        'gathering_id',
-                        'gathering_activity_id',
-                        'display_title',
-                        'start_datetime',
-                        'end_datetime',
-                    ]);
-                },
-                'Awards' => function ($query) {
-                    return $query->select(['id', 'abbreviation', 'name', 'branch_id', 'level_id']);
-                },
-                'Awards.Levels' => function ($query) {
-                    return $query->select(['id', 'name']);
-                },
-                'PrimaryRecommendation' => function ($query) {
-                    return $query->select(['id', 'member_sca_name', 'award_id', 'state', 'status']);
-                },
-                'PrimaryRecommendation.Awards' => function ($query) {
-                    return $query->select(['id', 'abbreviation', 'branch_id', 'level_id']);
-                },
-                'PrimaryRecommendation.Awards.Levels' => function ($query) {
-                    return $query->select(['id', 'name']);
-                },
-                'Recommendations' => function ($query) {
-                    return $query->select(['id', 'award_id', 'member_sca_name', 'reason', 'specialty']);
-                },
-                'Recommendations.Awards' => function ($query) {
-                    return $query->select(['id', 'abbreviation', 'branch_id', 'level_id']);
-                },
-                'Recommendations.Awards.Levels' => function ($query) {
-                    return $query->select(['id', 'name']);
-                },
-            ]);
+            ->leftJoinWith('Members');
+        if ($selectFields !== null) {
+            $baseQuery->select($selectFields);
+        }
+        $baseQuery->contain($contain);
 
         $systemViews = BestowalsGridColumns::getSystemViews([]);
 
@@ -115,59 +73,21 @@ class BestowalQueryService
      * @param bool $canEdit Whether the current user can manage bestowals.
      * @return array{query: \Cake\ORM\Query\SelectQuery, gridOptions: array<string, mixed>}
      */
-    public function buildGatheringBestowalsQuery(Table $bestowalsTable, int $gatheringId, bool $canEdit): array
-    {
+    public function buildGatheringBestowalsQuery(
+        Table $bestowalsTable,
+        int $gatheringId,
+        bool $canEdit,
+        ?array $visibleColumns = null,
+    ): array {
+        $contain = $this->bestowalContain($visibleColumns);
+        $selectFields = $this->bestowalSelectFields($visibleColumns);
+
         $baseQuery = $bestowalsTable->find()
-            ->where(['Bestowals.gathering_id' => $gatheringId])
-            ->contain([
-                'Members' => function ($query) {
-                    return $query->select([
-                        'id',
-                        'sca_name',
-                        'title',
-                        'pronouns',
-                        'pronunciation',
-                        'additional_info',
-                    ]);
-                },
-                'Gatherings' => function ($query) {
-                    return $query->select(['id', 'name', 'start_date', 'end_date', 'cancelled_at']);
-                },
-                'GatheringScheduledActivities' => function ($query) {
-                    return $query->select([
-                        'id',
-                        'gathering_id',
-                        'gathering_activity_id',
-                        'display_title',
-                        'start_datetime',
-                        'end_datetime',
-                    ]);
-                },
-                'Awards' => function ($query) {
-                    return $query->select(['id', 'abbreviation', 'name', 'branch_id', 'level_id']);
-                },
-                'Awards.Levels' => function ($query) {
-                    return $query->select(['id', 'name']);
-                },
-                'PrimaryRecommendation' => function ($query) {
-                    return $query->select(['id', 'member_sca_name', 'award_id', 'state', 'status']);
-                },
-                'PrimaryRecommendation.Awards' => function ($query) {
-                    return $query->select(['id', 'abbreviation', 'branch_id', 'level_id']);
-                },
-                'PrimaryRecommendation.Awards.Levels' => function ($query) {
-                    return $query->select(['id', 'name']);
-                },
-                'Recommendations' => function ($query) {
-                    return $query->select(['id', 'award_id', 'member_sca_name', 'reason', 'specialty']);
-                },
-                'Recommendations.Awards' => function ($query) {
-                    return $query->select(['id', 'abbreviation', 'branch_id', 'level_id']);
-                },
-                'Recommendations.Awards.Levels' => function ($query) {
-                    return $query->select(['id', 'name']);
-                },
-            ]);
+            ->where(['Bestowals.gathering_id' => $gatheringId]);
+        if ($selectFields !== null) {
+            $baseQuery->select($selectFields);
+        }
+        $baseQuery->contain($contain);
 
         $systemViews = BestowalsGridColumns::getSystemViews(['context' => 'gatheringBestowals']);
 
@@ -223,5 +143,125 @@ class BestowalQueryService
         return $query->where([
             'Bestowals.state NOT IN' => ['Given', 'Cancelled', 'Announced Not Given'],
         ]);
+    }
+
+    /**
+     * @param array<int,string>|null $visibleColumns
+     * @return array<string,mixed>
+     */
+    private function bestowalContain(?array $visibleColumns): array
+    {
+        $contain = [];
+
+        if ($this->shouldLoadColumn('member_sca_name', $visibleColumns)) {
+            $contain['Members'] = function ($query) {
+                return $query->select([
+                    'id',
+                    'sca_name',
+                    'title',
+                    'pronouns',
+                    'pronunciation',
+                    'additional_info',
+                ]);
+            };
+        }
+
+        if (
+            $this->shouldLoadColumn('gathering_name', $visibleColumns)
+            || $this->shouldLoadColumn('court_slot', $visibleColumns)
+        ) {
+            $contain['Gatherings'] = function ($query) {
+                return $query->select(['id', 'name', 'start_date', 'end_date', 'cancelled_at']);
+            };
+        }
+
+        if ($this->shouldLoadColumn('court_slot', $visibleColumns)) {
+            $contain['GatheringScheduledActivities'] = function ($query) {
+                return $query->select([
+                    'id',
+                    'gathering_id',
+                    'gathering_activity_id',
+                    'display_title',
+                    'start_datetime',
+                    'end_datetime',
+                ]);
+            };
+        }
+
+        if ($this->shouldLoadColumn('awards', $visibleColumns)) {
+            $contain['Awards'] = function ($query) {
+                return $query->select(['id', 'abbreviation', 'name', 'branch_id', 'level_id']);
+            };
+            $contain['Awards.Levels'] = function ($query) {
+                return $query->select(['id', 'name']);
+            };
+            $contain['PrimaryRecommendation'] = function ($query) {
+                return $query->select(['id', 'member_sca_name', 'award_id', 'state', 'status']);
+            };
+            $contain['PrimaryRecommendation.Awards'] = function ($query) {
+                return $query->select(['id', 'abbreviation', 'branch_id', 'level_id']);
+            };
+            $contain['PrimaryRecommendation.Awards.Levels'] = function ($query) {
+                return $query->select(['id', 'name']);
+            };
+            $contain['Recommendations'] = function ($query) {
+                return $query->select(['id', 'award_id', 'member_sca_name', 'reason', 'specialty']);
+            };
+            $contain['Recommendations.Awards'] = function ($query) {
+                return $query->select(['id', 'abbreviation', 'branch_id', 'level_id']);
+            };
+            $contain['Recommendations.Awards.Levels'] = function ($query) {
+                return $query->select(['id', 'name']);
+            };
+        }
+
+        return $contain;
+    }
+
+    /**
+     * @param array<int,string>|null $visibleColumns
+     * @return array<int,string>|null
+     */
+    private function bestowalSelectFields(?array $visibleColumns): ?array
+    {
+        if ($visibleColumns === null) {
+            return null;
+        }
+
+        $fields = [
+            'Bestowals.id',
+            'Bestowals.member_id',
+            'Bestowals.gathering_id',
+            'Bestowals.gathering_scheduled_activity_id',
+            'Bestowals.primary_recommendation_id',
+            'Bestowals.award_id',
+            'Bestowals.status',
+            'Bestowals.state',
+            'Bestowals.state_date',
+            'Bestowals.stack_rank',
+            'Bestowals.bestowed_at',
+            'Bestowals.source',
+            'Bestowals.call_into_court',
+            'Bestowals.court_availability',
+            'Bestowals.person_to_notify',
+            'Bestowals.roaming_court',
+            'Bestowals.created',
+            'Bestowals.modified',
+            'Bestowals.deleted',
+        ];
+
+        if ($this->shouldLoadColumn('herald_notes_preview', $visibleColumns)) {
+            $fields[] = 'Bestowals.herald_notes';
+        }
+
+        return $fields;
+    }
+
+    /**
+     * @param array<int,string>|null $visibleColumns
+     */
+    private function shouldLoadColumn(string $columnKey, ?array $visibleColumns): bool
+    {
+        return $visibleColumns === null || in_array($columnKey, $visibleColumns, true);
     }
 }

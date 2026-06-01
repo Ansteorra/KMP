@@ -39,6 +39,15 @@ class AwardsRecommendationBulkEditForm extends Controller {
     };
     static outlets = ['outlet-btn'];
 
+    /** @return {HTMLFormElement|null} */
+    getForm() {
+        if (this.element instanceof HTMLFormElement) {
+            return this.element;
+        }
+
+        return this.element.querySelector('#recommendation_bulk_form');
+    }
+
     /** Receive bulk IDs from table selection and update form action URL. */
     setId(event) {
         let selected = event.detail?.ids ?? [];
@@ -67,11 +76,14 @@ class AwardsRecommendationBulkEditForm extends Controller {
         }
         this.bulkIdsValue = selected;
         this.bulkIdsTarget.value = selected;
-        let actionUrl = this.element.getAttribute("action");
-        //replace url
-        actionUrl = actionUrl.replace(/update-states/, "updateStates");
-        this.element.setAttribute("action", actionUrl);
-        console.log("setId", this.element["action"]);
+        const form = this.getForm();
+        if (form) {
+            let actionUrl = form.getAttribute("action") || this.formUrlValue || "";
+            actionUrl = actionUrl.replace(/update-states/, "updateStates");
+            if (actionUrl) {
+                form.setAttribute("action", actionUrl);
+            }
+        }
 
         // Update gatherings list based on selected recommendations
         this.updateGatherings();
@@ -160,8 +172,9 @@ class AwardsRecommendationBulkEditForm extends Controller {
         outlet.removeListener(this.setId.bind(this));
     }
 
-    /** Allow turbo-modal to close; validation handled by form. */
+    /** Close modal after form submission; validation handled by form. */
     submit() {
+        document.getElementById("recommendation_bulk_edit_close")?.click();
     }
 
     /** Apply field rules when state target connects. */

@@ -71,17 +71,39 @@ class WorkflowInstancesController extends AppController
      */
     public function gridData(?int $definitionId = null)
     {
-        $baseQuery = $this->fetchTable('WorkflowInstances')->find()
-            ->contain(['WorkflowDefinitions', 'WorkflowVersions']);
+        $gridKey = $definitionId !== null
+            ? "Workflows.instances.definition.{$definitionId}"
+            : 'Workflows.instances.main';
+        $systemViews = WorkflowInstancesGridColumns::getSystemViews();
+        $queryContext = $this->resolveDataverseGridQueryContext([
+            'gridKey' => $gridKey,
+            'gridColumnsClass' => WorkflowInstancesGridColumns::class,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-workflow-instances-recent',
+            'defaultSort' => [
+                'WorkflowInstances.started_at' => 'DESC',
+                'WorkflowInstances.id' => 'DESC',
+            ],
+        ]);
+        $contain = [];
+        if ($queryContext->loadsColumn('workflow_name')) {
+            $contain[] = 'WorkflowDefinitions';
+        }
+        if ($queryContext->loadsColumn('version_number')) {
+            $contain[] = 'WorkflowVersions';
+        }
+
+        $baseQuery = $this->fetchTable('WorkflowInstances')->find();
+        if ($contain !== []) {
+            $baseQuery->contain($contain);
+        }
 
         if ($definitionId !== null) {
             $baseQuery->where(['WorkflowInstances.workflow_definition_id' => $definitionId]);
         }
 
         $result = $this->processDataverseGrid([
-            'gridKey' => $definitionId !== null
-                ? "Workflows.instances.definition.{$definitionId}"
-                : 'Workflows.instances.main',
+            'gridKey' => $gridKey,
             'gridColumnsClass' => WorkflowInstancesGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'WorkflowInstances',
@@ -90,7 +112,7 @@ class WorkflowInstancesController extends AppController
                 'WorkflowInstances.id' => 'DESC',
             ],
             'defaultPageSize' => 25,
-            'systemViews' => WorkflowInstancesGridColumns::getSystemViews(),
+            'systemViews' => $systemViews,
             'defaultSystemView' => 'sys-workflow-instances-recent',
             'showAllTab' => true,
             'canAddViews' => false,

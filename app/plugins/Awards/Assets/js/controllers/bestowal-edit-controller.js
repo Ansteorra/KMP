@@ -203,15 +203,12 @@ class AwardsBestowalEditForm extends Controller {
 
     /** Refresh field state after the Bootstrap modal becomes visible. */
     handleModalShown() {
-        const frame = this.getTurboFrame();
-        if (frame?.src) {
-            frame.reload();
-        }
         this.refreshAfterTurboLoad();
     }
 
     /** Stimulus action handler for turbo frame load events. */
     onTurboFrameLoad() {
+        this.markTurboFrameLoaded();
         this.refreshAfterTurboLoad();
     }
 
@@ -259,6 +256,16 @@ class AwardsBestowalEditForm extends Controller {
         }
 
         const url = `${this.turboFrameUrlValue}/${bestowalId}`;
+        const loadingId = String(bestowalId);
+        const currentFrameUrl = frame.getAttribute("src") || frame.src;
+        if (
+            frame.dataset.bestowalEditLoadingId === loadingId
+            && currentFrameUrl === url
+        ) {
+            return;
+        }
+
+        frame.dataset.bestowalEditLoadingId = loadingId;
         if (!frame.querySelector("#bestowal_form")) {
             frame.replaceChildren();
             const loading = document.createElement("div");
@@ -296,8 +303,16 @@ class AwardsBestowalEditForm extends Controller {
     }
 
     handleTurboFrameLoad = () => {
+        this.markTurboFrameLoaded();
         this.refreshAfterTurboLoad();
     };
+
+    markTurboFrameLoaded() {
+        const frame = this.getTurboFrame();
+        if (frame) {
+            delete frame.dataset.bestowalEditLoadingId;
+        }
+    }
 
     /** Keep at least one recommendation linked when choosing unlink targets. */
     updateUnlinkAvailability(event) {

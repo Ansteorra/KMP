@@ -100,12 +100,30 @@ describe('AwardsBestowalEditForm', () => {
         expect(controller.submitButtonTarget.disabled).toBe(true);
     });
 
-    test('handleModalShown reloads turbo frame when src is set', () => {
+    test('loadBestowalForm ignores duplicate in-flight frame loads', () => {
+        controller.loadBestowalForm(42);
+        const loading = controller.turboFrameTarget.querySelector('.text-center');
+        loading.textContent = 'Still loading';
+
+        controller.loadBestowalForm(42);
+
+        expect(controller.turboFrameTarget.querySelector('.text-center').textContent).toBe('Still loading');
+        expect(controller.turboFrameTarget.dataset.bestowalEditLoadingId).toBe('42');
+    });
+
+    test('onTurboFrameLoad clears duplicate-load guard', () => {
+        controller.loadBestowalForm(42);
+        controller.onTurboFrameLoad();
+
+        expect(controller.turboFrameTarget.dataset.bestowalEditLoadingId).toBeUndefined();
+    });
+
+    test('handleModalShown does not reload turbo frame', () => {
         const reload = jest.fn();
         controller.turboFrameTarget.src = '/awards/bestowals/turbo-edit-form/42';
         controller.turboFrameTarget.reload = reload;
         controller.handleModalShown();
-        expect(reload).toHaveBeenCalled();
+        expect(reload).not.toHaveBeenCalled();
     });
 
     test('onDomainChange clears paired award when domain is cleared', () => {

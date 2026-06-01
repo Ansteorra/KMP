@@ -144,6 +144,53 @@ class BestowalsControllerGridTurboTest extends HttpIntegrationTestCase
         $this->assertResponseContains('<turbo-stream action="replace" target="bestowals-grid-table"');
     }
 
+    public function testBulkUpdateTurboStreamRendersSingleSuccessFlash(): void
+    {
+        $this->ensureActiveWorkflow('awards-bestowal-bulk-transition');
+        $bestowal = $this->createExistingBestowal();
+
+        $this->mockServiceClean(TriggerDispatcher::class, function () use ($bestowal) {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->exactly(2))
+                ->method('dispatch')
+                ->willReturnCallback(function (string $event, array $context) use ($bestowal): array {
+                    if ($event === 'Awards.BestowalBulkTransitionRequested') {
+                        $this->assertSame([(int)$bestowal->id], $context['bestowalIds']);
+
+                        return [$this->successfulWorkflowDispatchResult([
+                            'bestowalIds' => [(int)$bestowal->id],
+                        ])];
+                    }
+
+                    if ($event === 'Awards.BestowalStateChanged') {
+                        $this->assertSame((int)$bestowal->id, $context['bestowalId']);
+                    }
+
+                    return [];
+                });
+
+            return $mock;
+        });
+
+        $this->configRequest([
+            'headers' => [
+                'Accept' => 'text/vnd.turbo-stream.html',
+            ],
+        ]);
+        $this->post('/awards/bestowals/update-states', [
+            'page_context_url' => '/awards/bestowals?sort=member_sca_name&direction=desc',
+            'ids' => (string)$bestowal->id,
+            'newState' => 'Court Scheduled',
+        ]);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('<turbo-stream action="replace" target="bestowals-grid-table"');
+        $this->assertSame(
+            1,
+            substr_count((string)$this->_response->getBody(), 'The bestowals have been updated.'),
+        );
+    }
+
     private function createExistingBestowal(): Bestowal
     {
         $gathering = $this->getTableLocator()->get('Gatherings')

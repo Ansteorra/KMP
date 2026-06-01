@@ -183,17 +183,28 @@ class ApprovalsController extends AppController
         $currentUser = $this->request->getAttribute('identity');
         $approvalManager = $this->getApprovalManager();
         $approvalsTable = $this->fetchTable('WorkflowApprovals');
+        $systemViews = ApprovalsGridColumns::getSystemViews();
+        $queryContext = $this->resolveDataverseGridQueryContext([
+            'gridKey' => 'Workflows.approvals.main',
+            'gridColumnsClass' => ApprovalsGridColumns::class,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-approvals-pending',
+            'defaultSort' => ['WorkflowApprovals.modified' => 'desc'],
+        ]);
+        $contain = [];
+        if ($queryContext->loadsAny(['workflow_name', 'request', 'requester'])) {
+            $contain['WorkflowInstances'] = ['WorkflowDefinitions'];
+        }
+        if ($queryContext->loadsColumn('current_approver')) {
+            $contain['CurrentApprover'] = function ($q) {
+                return $q->select(['id', 'sca_name']);
+            };
+        }
 
-        $baseQuery = $approvalsTable->find()
-            ->contain([
-                'WorkflowInstances' => ['WorkflowDefinitions'],
-                'CurrentApprover' => function ($q) {
-                    return $q->select(['id', 'sca_name']);
-                },
-            ])
-            ->leftJoinWith('CurrentApprover');
-
-        $systemViews = \App\KMP\GridColumns\ApprovalsGridColumns::getSystemViews();
+        $baseQuery = $approvalsTable->find()->contain($contain);
+        if ($queryContext->loadsColumn('current_approver')) {
+            $baseQuery->leftJoinWith('CurrentApprover');
+        }
 
         $queryCallback = function ($query, $systemView) use ($currentUser, $approvalManager) {
             if ($systemView === null) {
@@ -221,7 +232,7 @@ class ApprovalsController extends AppController
 
         $result = $this->processDataverseGrid([
             'gridKey' => 'Workflows.approvals.main',
-            'gridColumnsClass' => \App\KMP\GridColumns\ApprovalsGridColumns::class,
+            'gridColumnsClass' => ApprovalsGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'WorkflowApprovals',
             'defaultSort' => ['WorkflowApprovals.modified' => 'desc'],
@@ -238,35 +249,15 @@ class ApprovalsController extends AppController
             'showSearchBox' => true,
         ]);
 
-        foreach ($result['data'] as $approval) {
-            $approval->workflow_name = $approval->workflow_instance?->workflow_definition?->name ?? __('Unknown');
+        $this->prepareApprovalsForGrid($result['data'], $result['visibleColumns']);
 
-            if ($approval->status === \App\Model\Entity\WorkflowApproval::STATUS_PENDING) {
-                $approval->status_label = __('Pending ({0}/{1})', $approval->approved_count, $approval->required_count);
-            } else {
-                $approval->status_label = ucfirst($approval->status);
-            }
-
-            $approval->current_approver = $approval->current_approver?->sca_name ?? '—';
-
-            $instance = $approval->workflow_instance;
-            if ($instance) {
-                $ctx = ApprovalContextRendererRegistry::render($instance);
-                $approval->request = $ctx->getTitle();
-                $approval->requester = $ctx->getRequester() ?? '—';
-            } else {
-                $approval->request = '—';
-                $approval->requester = '—';
-            }
-        }
-
-        $rowActions = \App\KMP\GridColumns\ApprovalsGridColumns::getRowActions();
+        $rowActions = ApprovalsGridColumns::getRowActions();
         $this->set([
             'data' => $result['data'],
             'gridState' => $result['gridState'],
             'columns' => $result['columnsMetadata'],
             'visibleColumns' => $result['visibleColumns'],
-            'searchableColumns' => \App\KMP\GridColumns\ApprovalsGridColumns::getSearchableColumns(),
+            'searchableColumns' => ApprovalsGridColumns::getSearchableColumns(),
             'dropdownFilterColumns' => $result['dropdownFilterColumns'],
             'filterOptions' => $result['filterOptions'],
             'currentFilters' => $result['currentFilters'],
@@ -310,17 +301,25 @@ class ApprovalsController extends AppController
     public function allApprovalsGridData()
     {
         $approvalsTable = $this->fetchTable('WorkflowApprovals');
+        $systemViews = ApprovalsGridColumns::getAdminSystemViews();
+        $queryContext = $this->resolveDataverseGridQueryContext([
+            'gridKey' => 'Workflows.allApprovals.main',
+            'gridColumnsClass' => ApprovalsGridColumns::class,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-admin-pending',
+            'defaultSort' => ['WorkflowApprovals.modified' => 'desc'],
+        ]);
+        $contain = [];
+        if ($queryContext->loadsAny(['workflow_name', 'request', 'requester'])) {
+            $contain['WorkflowInstances'] = ['WorkflowDefinitions'];
+        }
+        $contain['CurrentApprover'] = function ($q) {
+            return $q->select(['id', 'sca_name']);
+        };
 
         $baseQuery = $approvalsTable->find()
-            ->contain([
-                'WorkflowInstances' => ['WorkflowDefinitions'],
-                'CurrentApprover' => function ($q) {
-                    return $q->select(['id', 'sca_name']);
-                },
-            ])
+            ->contain($contain)
             ->leftJoinWith('CurrentApprover');
-
-        $systemViews = \App\KMP\GridColumns\ApprovalsGridColumns::getAdminSystemViews();
 
         $queryCallback = function ($query, $systemView) {
             if ($systemView === null) {
@@ -341,7 +340,7 @@ class ApprovalsController extends AppController
 
         $result = $this->processDataverseGrid([
             'gridKey' => 'Workflows.allApprovals.main',
-            'gridColumnsClass' => \App\KMP\GridColumns\ApprovalsGridColumns::class,
+            'gridColumnsClass' => ApprovalsGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'WorkflowApprovals',
             'defaultSort' => ['WorkflowApprovals.modified' => 'desc'],
@@ -358,39 +357,18 @@ class ApprovalsController extends AppController
             'showSearchBox' => true,
         ]);
 
-        foreach ($result['data'] as $approval) {
-            $approval->workflow_name = $approval->workflow_instance?->workflow_definition?->name ?? __('Unknown');
-
-            if ($approval->status === \App\Model\Entity\WorkflowApproval::STATUS_PENDING) {
-                $approval->status_label = __('Pending ({0}/{1})', $approval->approved_count, $approval->required_count);
-            } else {
-                $approval->status_label = ucfirst($approval->status);
-            }
-
-            $approval->current_approver = $approval->current_approver?->sca_name ?? '—';
-
-            $instance = $approval->workflow_instance;
-            if ($instance) {
-                $ctx = ApprovalContextRendererRegistry::render($instance);
-                $approval->request = $ctx->getTitle();
-                $approval->requester = $ctx->getRequester() ?? '—';
-            } else {
-                $approval->request = '—';
-                $approval->requester = '—';
-            }
-        }
-
         if (!in_array('current_approver', $result['gridState']['columns']['visible'])) {
             $result['gridState']['columns']['visible'][] = 'current_approver';
         }
+        $this->prepareApprovalsForGrid($result['data'], $result['gridState']['columns']['visible']);
 
-        $rowActions = \App\KMP\GridColumns\ApprovalsGridColumns::getAdminRowActions();
+        $rowActions = ApprovalsGridColumns::getAdminRowActions();
         $this->set([
             'data' => $result['data'],
             'gridState' => $result['gridState'],
             'columns' => $result['columnsMetadata'],
             'visibleColumns' => $result['gridState']['columns']['visible'],
-            'searchableColumns' => \App\KMP\GridColumns\ApprovalsGridColumns::getSearchableColumns(),
+            'searchableColumns' => ApprovalsGridColumns::getSearchableColumns(),
             'dropdownFilterColumns' => $result['dropdownFilterColumns'],
             'filterOptions' => $result['filterOptions'],
             'currentFilters' => $result['currentFilters'],
@@ -413,6 +391,63 @@ class ApprovalsController extends AppController
             $this->set('frameId', 'all-approvals-grid');
             $this->viewBuilder()->disableAutoLayout();
             $this->viewBuilder()->setTemplate('../element/dv_grid_content');
+        }
+    }
+
+    /**
+     * Add computed approval grid fields only when their columns are visible.
+     *
+     * @param iterable<\App\Model\Entity\WorkflowApproval> $approvals
+     * @param array<int,string> $visibleColumns
+     */
+    private function prepareApprovalsForGrid(iterable $approvals, array $visibleColumns): void
+    {
+        $includeWorkflowName = in_array('workflow_name', $visibleColumns, true);
+        $includeStatusLabel = in_array('status_label', $visibleColumns, true);
+        $includeCurrentApprover = in_array('current_approver', $visibleColumns, true);
+        $includeRequest = in_array('request', $visibleColumns, true);
+        $includeRequester = in_array('requester', $visibleColumns, true);
+
+        foreach ($approvals as $approval) {
+            if ($includeWorkflowName) {
+                $approval->workflow_name = $approval->workflow_instance?->workflow_definition?->name ?? __('Unknown');
+            }
+
+            if ($includeStatusLabel) {
+                if ($approval->status === \App\Model\Entity\WorkflowApproval::STATUS_PENDING) {
+                    $approval->status_label = __(
+                        'Pending ({0}/{1})',
+                        $approval->approved_count,
+                        $approval->required_count,
+                    );
+                } else {
+                    $approval->status_label = ucfirst($approval->status);
+                }
+            }
+
+            if ($includeCurrentApprover) {
+                $approval->current_approver = $approval->current_approver?->sca_name ?? '—';
+            }
+
+            if ($includeRequest || $includeRequester) {
+                $instance = $approval->workflow_instance;
+                if ($instance) {
+                    $ctx = ApprovalContextRendererRegistry::render($instance);
+                    if ($includeRequest) {
+                        $approval->request = $ctx->getTitle();
+                    }
+                    if ($includeRequester) {
+                        $approval->requester = $ctx->getRequester() ?? '—';
+                    }
+                } else {
+                    if ($includeRequest) {
+                        $approval->request = '—';
+                    }
+                    if ($includeRequester) {
+                        $approval->requester = '—';
+                    }
+                }
+            }
         }
     }
 

@@ -14,9 +14,9 @@ use Cake\TestSuite\TestCase;
  */
 class BestowalCourtSlotServiceTest extends TestCase
 {
-  /**
-   * @return void
-   */
+    /**
+     * @return void
+     */
     public function testGatheringSupportsCourtSlotsWhenGatheringSelected(): void
     {
         $service = new BestowalCourtSlotService();
@@ -75,9 +75,9 @@ class BestowalCourtSlotServiceTest extends TestCase
         $this->assertFalse($service->isRoamingCourt($bestowal));
     }
 
-  /**
-   * @return void
-   */
+    /**
+     * @return void
+     */
     public function testHelpMessagesAreNonEmpty(): void
     {
         $this->assertNotSame('', BestowalCourtSlotService::fieldHelpText());
@@ -85,9 +85,9 @@ class BestowalCourtSlotServiceTest extends TestCase
         $this->assertStringContainsString('Event Schedule', BestowalCourtSlotService::fieldHelpText());
     }
 
-  /**
-   * @return void
-   */
+    /**
+     * @return void
+     */
     public function testResolveBestowedDateWithoutGathering(): void
     {
         $service = new BestowalCourtSlotService();
@@ -96,11 +96,43 @@ class BestowalCourtSlotServiceTest extends TestCase
         $this->assertSame([], $service->buildOptionDates(null));
     }
 
-  /**
-   * Court session labels use the viewer timezone (same helper as dropdown formatting).
-   *
-   * @return void
-   */
+    /**
+     * @return void
+     */
+    public function testBuildInitialFormDataWithoutGatheringReturnsEmptyContext(): void
+    {
+        $service = new BestowalCourtSlotService();
+
+        $data = $service->buildInitialFormData(null);
+
+        $this->assertFalse($data['available']);
+        $this->assertFalse($data['hasScheduledSessions']);
+        $this->assertSame([], $data['options']);
+        $this->assertSame([], $data['optionDates']);
+        $this->assertNull($data['gatheringStartDate']);
+        $this->assertNull($data['suggestedBestowedDate']);
+    }
+
+    /**
+     * @return void
+     */
+    public function testBuildInitialFormDataIncludesRoamingForSelectedGathering(): void
+    {
+        $service = new BestowalCourtSlotService();
+
+        $data = $service->buildInitialFormData(999999);
+
+        $this->assertTrue($data['available']);
+        $this->assertFalse($data['hasScheduledSessions']);
+        $this->assertArrayHasKey(BestowalCourtSlotService::ROAMING_COURT_VALUE, $data['options']);
+        $this->assertSame('', $data['optionDates'][BestowalCourtSlotService::ROAMING_COURT_VALUE]);
+    }
+
+    /**
+     * Court session labels use the viewer timezone (same helper as dropdown formatting).
+     *
+     * @return void
+     */
     public function testCourtSessionDisplayUsesViewerTimezone(): void
     {
         $utc = new DateTime('2026-06-15 18:00:00', 'UTC');

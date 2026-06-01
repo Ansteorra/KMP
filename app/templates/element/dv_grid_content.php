@@ -35,6 +35,7 @@ $renderInlineTable = isset($data) && isset($gridState);
 $rowActions = $rowActions ?? [];
 $customElement = $customElement ?? null;
 $customElementOptions = $customElementOptions ?? [];
+$tableColumns = $columns ?? $gridState['columns']['all'] ?? [];
 ?>
 <turbo-frame id="<?= h($frameId) ?>">
     <!-- Grid Toolbar (Static - doesn't reload with filters) -->
@@ -51,7 +52,7 @@ $customElementOptions = $customElementOptions ?? [];
         <?php if ($renderInlineTable): ?>
             <!-- Grid State (JSON) - Read by grid-view-controller on load -->
             <script type="application/json" id="<?= h($tableFrameId) ?>-state">
-                <?= json_encode($gridState, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?>
+                <?= json_encode($gridState, JSON_UNESCAPED_SLASHES) ?>
             </script>
 
             <?php if ($customElement): ?>
@@ -63,7 +64,7 @@ $customElementOptions = $customElementOptions ?? [];
             <?php else: ?>
                 <!-- Dataverse Table -->
                 <?= $this->element('dataverse_table', [
-                    'columns' => $gridState['columns']['all'],
+                    'columns' => $tableColumns,
                     'visibleColumns' => $gridState['columns']['visible'],
                     'data' => $data,
                     'currentSort' => $gridState['sort'],

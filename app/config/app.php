@@ -259,6 +259,16 @@ return [
         ],
 
         /**
+         * Grid Filter Options Cache
+         * Stores relatively static dropdown option lists used by dataverse grids.
+         * Short TTL keeps admin edits visible without re-querying on every frame refresh.
+         */
+        "grid_filter_options" => $redisConfig + [
+            "className" => $cacheEngine,
+            "duration" => "+10 minutes",
+        ],
+
+        /**
          * Restore Status Cache
          * Uses file cache so restore lock/progress state is shared between web and CLI.
          */

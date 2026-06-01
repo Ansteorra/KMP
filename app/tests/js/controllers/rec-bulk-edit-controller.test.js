@@ -25,7 +25,7 @@ describe('AwardsRecommendationBulkEditForm', () => {
                 <textarea data-awards-rec-bulk-edit-target="closeReason"></textarea>
                 <div data-awards-rec-bulk-edit-target="closeReasonBlock"></div>
                 <div data-awards-rec-bulk-edit-target="stateRulesBlock">{"Submitted":{},"Given":{"Visible":["givenBlockTarget","planToGiveBlockTarget"],"Required":["givenDateTarget"]},"Closed":{"Visible":["closeReasonBlockTarget"],"Required":["closeReasonTarget"]}}</div>
-                <button id="recommendation_bulk_edit_close" style="display:none;"></button>
+                <button id="recommendation_bulk_edit_close" type="button" style="display:none;"></button>
             </form>
         `;
 
@@ -103,6 +103,40 @@ describe('AwardsRecommendationBulkEditForm', () => {
         expect(controller.bulkIdsValue).toEqual([1, 2, 3]);
         expect(controller.bulkIdsTarget.value).toBe('1,2,3');
         expect(controller.element.getAttribute('action'))
+            .toContain('updateStates');
+    });
+
+    test('setId updates submitted ids when controller is on wrapper element', () => {
+        document.body.innerHTML = `
+            <div id="recommendation_bulk_edit_root"
+                 data-controller="awards-rec-bulk-edit"
+                 data-awards-rec-bulk-edit-form-url-value="/awards/recommendations/updateStates"
+                 data-awards-rec-bulk-edit-gatherings-lookup-url-value="/awards/gatherings-lookup">
+                <form id="recommendation_bulk_form" action="/awards/recommendations/update-states">
+                    <input type="hidden" name="bulkIds" value="">
+                    <input type="hidden" name="ids" data-awards-rec-bulk-edit-target="bulkIds" value="">
+                    <select data-awards-rec-bulk-edit-target="state"><option value="Submitted">Submitted</option></select>
+                    <div data-awards-rec-bulk-edit-target="planToGiveGathering"></div>
+                </form>
+            </div>
+        `;
+        controller = new RecBulkEditController();
+        controller.element = document.getElementById('recommendation_bulk_edit_root');
+        controller.bulkIdsTarget = document.querySelector('[name="ids"]');
+        controller.stateTarget = document.querySelector('[data-awards-rec-bulk-edit-target="state"]');
+        controller.planToGiveGatheringTarget = document.querySelector('[data-awards-rec-bulk-edit-target="planToGiveGathering"]');
+        controller.formUrlValue = '/awards/recommendations/updateStates';
+        controller.gatheringsLookupUrlValue = '/awards/gatherings-lookup';
+        controller.hasBulkIdsTarget = true;
+        controller.hasStateTarget = true;
+        controller.hasPlanToGiveGatheringTarget = true;
+        controller.hasGatheringsLookupUrlValue = true;
+
+        controller.setId({ detail: { ids: [4, 9] } });
+
+        expect(document.querySelector('[name="ids"]').value).toBe('4,9');
+        expect(document.querySelector('[name="bulkIds"]').value).toBe('');
+        expect(document.getElementById('recommendation_bulk_form').getAttribute('action'))
             .toContain('updateStates');
     });
 

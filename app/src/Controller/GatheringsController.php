@@ -112,6 +112,25 @@ class GatheringsController extends AppController
 
         $systemViews = GatheringsGridColumns::getSystemViews(['timezone' => $userTimezone]);
         $queryCallback = $this->buildGatheringSystemViewQueryCallback($userTimezone);
+        $queryContext = $this->resolveDataverseGridQueryContext([
+            'gridKey' => 'Gatherings.index.main',
+            'gridColumnsClass' => GatheringsGridColumns::class,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-gatherings-this-month',
+            'defaultSort' => ['Gatherings.start_date' => 'DESC'],
+        ]);
+        $contain = [];
+        if ($queryContext->loadsColumn('branch_id')) {
+            $contain['Branches'] = ['fields' => ['id', 'name']];
+        }
+        if ($queryContext->loadsColumn('gathering_type_id')) {
+            $contain['GatheringTypes'] = ['fields' => ['id', 'name']];
+        }
+        if ($queryContext->loadsAny(['activity_count', 'activity_filter'])) {
+            $contain['GatheringActivities'] = [
+                'fields' => ['GatheringActivities.id', 'GatheringActivities.name'],
+            ];
+        }
 
         $baseQuery = $this->Gatherings->find()
             ->select([
@@ -127,12 +146,7 @@ class GatheringsController extends AppController
                 'Gatherings.created',
                 'Gatherings.modified',
             ])
-            ->contain([
-                'Branches' => ['fields' => ['id', 'name']],
-                'GatheringTypes' => ['fields' => ['id', 'name']],
-                'GatheringActivities' => ['fields' => ['GatheringActivities.id', 'GatheringActivities.name']],
-                'Creators' => ['fields' => ['id', 'sca_name']],
-            ])
+            ->contain($contain)
             ->leftJoinWith('GatheringActivities')
             ->distinct();
 

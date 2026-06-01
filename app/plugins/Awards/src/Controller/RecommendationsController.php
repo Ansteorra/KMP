@@ -11,8 +11,12 @@ use Awards\Services\RecommendationGroupingService;
 use Cake\I18n\DateTime;
 use Cake\Routing\Router;
 use App\KMP\StaticHelpers;
+use App\KMP\GridViewConfig;
+use App\Model\Entity\Member;
+use App\Model\Table\GridViewsTable;
 use App\Controller\DataverseGridTrait;
 use App\Services\ServiceResult;
+use App\Services\GridViewService;
 use Authorization\Exception\ForbiddenException;
 use Cake\Log\Log;
 use Cake\ORM\Query\SelectQuery;
@@ -125,9 +129,19 @@ class RecommendationsController extends AppController
         $canViewHidden = $user->checkCan('ViewHidden', $emptyRecommendation);
 
         // Build via service
+        $systemViews = RecommendationsGridColumns::getSystemViews([]);
+        $queryContext = $this->resolveDataverseGridQueryContext([
+            'gridKey' => 'Awards.Recommendations.index.main',
+            'gridColumnsClass' => RecommendationsGridColumns::class,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-recs-all',
+            'defaultSort' => ['Recommendations.created' => 'desc'],
+        ]);
         $built = $queryService->buildMainGridQuery(
             $this->Recommendations,
             $user->checkCan('edit', $emptyRecommendation),
+            $queryContext->loadsColumn('notes'),
+            $queryContext->queryVisibleColumns(),
         );
         $baseQuery = $built['query'];
         $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
@@ -147,50 +161,22 @@ class RecommendationsController extends AppController
 
         // Post-process data to add computed fields for display
         $recommendations = $result['data'];
-        $this->enrichRecommendationsForGrid($recommendations);
+        $this->enrichRecommendationsForGrid($recommendations, (array)$result['visibleColumns']);
 
         // Get row actions from grid columns
         $rowActions = RecommendationsGridColumns::getRowActions();
 
-        // Set view variables
-        $this->set([
-            'recommendations' => $recommendations,
-            'data' => $recommendations,
-            'rowActions' => $rowActions,
-            'gridState' => $result['gridState'],
-            'columns' => $result['columnsMetadata'],
-            'visibleColumns' => $result['visibleColumns'],
-            'searchableColumns' => RecommendationsGridColumns::getSearchableColumns(),
-            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
-            'filterOptions' => $result['filterOptions'],
-            'currentFilters' => $result['currentFilters'],
-            'currentSearch' => $result['currentSearch'],
-            'currentView' => $result['currentView'],
-            'availableViews' => $result['availableViews'],
-            'gridKey' => $result['gridKey'],
-            'currentSort' => $result['currentSort'],
-            'currentMember' => $result['currentMember'],
-            'canViewHidden' => $canViewHidden,
-        ]);
-
-        // Determine which template to render based on Turbo-Frame header
-        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
-
-        if ($turboFrame === 'recommendations-grid-table') {
-            // Inner frame request - render table data only
-            $this->set('tableFrameId', 'recommendations-grid-table');
-            $this->viewBuilder()->setPlugin(null);
-            $this->viewBuilder()->disableAutoLayout();
-            $this->viewBuilder()->setTemplatePath('element');
-            $this->viewBuilder()->setTemplate('dv_grid_table');
-        } else {
-            // Outer frame request (or no frame) - render toolbar + table frame
-            $this->set('frameId', 'recommendations-grid');
-            $this->viewBuilder()->setPlugin(null);
-            $this->viewBuilder()->disableAutoLayout();
-            $this->viewBuilder()->setTemplatePath('element');
-            $this->viewBuilder()->setTemplate('dv_grid_content');
-        }
+        $this->renderDataverseGridResponse(
+            result: $result,
+            frameId: 'recommendations-grid',
+            collectionVar: 'recommendations',
+            extraViewVars: [
+                'data' => $recommendations,
+                'rowActions' => $rowActions,
+                'searchableColumns' => RecommendationsGridColumns::getSearchableColumns(),
+                'canViewHidden' => $canViewHidden,
+            ],
+        );
     }
 
     /**
@@ -703,7 +689,19 @@ class RecommendationsController extends AppController
         $canViewHidden = $isOwnSubmissions || $user->checkCan('ViewHidden', $emptyRecommendation);
 
         // Build via service
-        $built = $queryService->buildMemberSubmittedQuery($this->Recommendations, $memberId);
+        $systemViews = RecommendationsGridColumns::getSystemViews(['context' => 'memberSubmitted']);
+        $queryContext = $this->resolveDataverseGridQueryContext([
+            'gridKey' => 'Awards.Recommendations.memberSubmitted.' . $memberId,
+            'gridColumnsClass' => RecommendationsGridColumns::class,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-recs-submitted-by',
+            'defaultSort' => ['Recommendations.created' => 'desc'],
+        ]);
+        $built = $queryService->buildMemberSubmittedQuery(
+            $this->Recommendations,
+            $memberId,
+            $queryContext->queryVisibleColumns(),
+        );
         $baseQuery = $built['query'];
         $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
         $built['gridOptions']['baseQuery'] = $baseQuery;
@@ -791,7 +789,19 @@ class RecommendationsController extends AppController
         $canViewHidden = true;
 
         // Build via service
-        $built = $queryService->buildRecsForMemberQuery($this->Recommendations, $memberId);
+        $systemViews = RecommendationsGridColumns::getSystemViews(['context' => 'recsForMember']);
+        $queryContext = $this->resolveDataverseGridQueryContext([
+            'gridKey' => 'Awards.Recommendations.forMember.' . $memberId,
+            'gridColumnsClass' => RecommendationsGridColumns::class,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-recs-for-member',
+            'defaultSort' => ['Recommendations.created' => 'desc'],
+        ]);
+        $built = $queryService->buildRecsForMemberQuery(
+            $this->Recommendations,
+            $memberId,
+            $queryContext->queryVisibleColumns(),
+        );
         $baseQuery = $built['query'];
 
         // Apply authorization scope
@@ -880,10 +890,19 @@ class RecommendationsController extends AppController
         $canViewHidden = $user->checkCan('ViewHidden', $recommendation);
 
         // Build via service
+        $systemViews = RecommendationsGridColumns::getSystemViews(['context' => 'gatheringAwards']);
+        $queryContext = $this->resolveDataverseGridQueryContext([
+            'gridKey' => 'Awards.Recommendations.gathering.' . $gatheringId,
+            'gridColumnsClass' => RecommendationsGridColumns::class,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-recs-gathering',
+            'defaultSort' => ['Recommendations.member_sca_name' => 'asc'],
+        ]);
         $built = $queryService->buildGatheringAwardsQuery(
             $this->Recommendations,
             $gatheringId,
             $user->checkCan('edit', $recommendation),
+            $queryContext->queryVisibleColumns(),
         );
         $baseQuery = $built['query'];
         $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
@@ -1023,7 +1042,10 @@ class RecommendationsController extends AppController
         $recommendation = $this->Recommendations->newEmptyEntity();
         $this->Authorization->authorize($recommendation);
 
-        $ids = explode(',', $this->request->getData('ids'));
+        $ids = array_values(array_filter(
+            array_map('trim', explode(',', (string)$this->request->getData('ids'))),
+            static fn(string $id): bool => $id !== '' && ctype_digit($id),
+        ));
         $newState = $this->request->getData('newState');
         $result = ['success' => false];
 
@@ -1051,7 +1073,7 @@ class RecommendationsController extends AppController
                     'actorId' => (int)$user->id,
                 ],
             );
-            if (!$this->request->getHeader('Turbo-Frame')) {
+            if (!$this->request->getHeader('Turbo-Frame') && !$this->wantsTurboStreamRequest()) {
                 if ($result['success']) {
                     $this->Flash->success(__('The recommendations have been updated.'));
                 } else {
@@ -2675,15 +2697,21 @@ class RecommendationsController extends AppController
      *
      * @param iterable<\Awards\Model\Entity\Recommendation> $recommendations
      */
-    private function enrichRecommendationsForGrid(iterable $recommendations): void
+    private function enrichRecommendationsForGrid(iterable $recommendations, array $visibleColumns = []): void
     {
+        $includeGroupCount = $this->isRecommendationColumnVisible('group_children_count', $visibleColumns);
+        $includeOpLinks = $this->isRecommendationColumnVisible('op_links', $visibleColumns);
+        $includeGatherings = $this->isRecommendationColumnVisible('gatherings', $visibleColumns);
+        $includeNotes = $this->isRecommendationColumnVisible('notes', $visibleColumns);
+        $includeReason = $this->isRecommendationColumnVisible('reason', $visibleColumns);
+
         $recIds = [];
         foreach ($recommendations as $recommendation) {
             $recIds[] = $recommendation->id;
         }
 
         $groupCounts = [];
-        if ($recIds !== []) {
+        if ($includeGroupCount && $recIds !== []) {
             $countQuery = $this->Recommendations->find()
                 ->select([
                     'recommendation_group_id',
@@ -2698,18 +2726,235 @@ class RecommendationsController extends AppController
             }
         }
 
-        $memberAttendanceGatherings = $this->getMemberAttendanceGatherings($recommendations);
+        $memberAttendanceGatherings = $includeGatherings
+            ? $this->getMemberAttendanceGatherings($recommendations)
+            : [];
 
         foreach ($recommendations as $recommendation) {
-            $recommendation->group_children_count = isset($groupCounts[$recommendation->id])
-                ? $groupCounts[$recommendation->id] + 1
-                : 0;
-            $recommendation->op_links = $this->buildOpLinksHtml($recommendation);
-            $attendanceGatherings = $memberAttendanceGatherings[$recommendation->member_id] ?? [];
-            $recommendation->gatherings = $this->buildGatheringsHtml($recommendation, $attendanceGatherings);
-            $recommendation->notes = $this->buildNotesHtml($recommendation);
-            $recommendation->reason = $this->buildReasonHtml($recommendation);
+            if ($includeGroupCount) {
+                $recommendation->group_children_count = isset($groupCounts[$recommendation->id])
+                    ? $groupCounts[$recommendation->id] + 1
+                    : 0;
+            }
+            if ($includeOpLinks) {
+                $recommendation->op_links = $this->buildOpLinksHtml($recommendation);
+            }
+            if ($includeGatherings) {
+                $attendanceGatherings = $memberAttendanceGatherings[$recommendation->member_id] ?? [];
+                $recommendation->gatherings = $this->buildGatheringsHtml($recommendation, $attendanceGatherings);
+            }
+            if ($includeNotes) {
+                $recommendation->notes = $this->buildNotesHtml($recommendation);
+            }
+            if ($includeReason) {
+                $recommendation->reason = $this->buildReasonHtml($recommendation);
+            }
         }
+    }
+
+    /**
+     * Determine whether a recommendation column should be treated as visible.
+     *
+     * @param string $columnKey
+     * @param array<int,string> $visibleColumns
+     * @return bool
+     */
+    private function isRecommendationColumnVisible(string $columnKey, array $visibleColumns = []): bool
+    {
+        if ($visibleColumns !== []) {
+            return in_array($columnKey, $visibleColumns, true);
+        }
+
+        $column = RecommendationsGridColumns::getColumns()[$columnKey] ?? null;
+
+        return (bool)($column['defaultVisible'] ?? false);
+    }
+
+    /**
+     * Determine whether a column is requested for the current grid request.
+     *
+     * @param string $columnKey
+     * @return bool
+     */
+    private function shouldIncludeRecommendationColumn(string $columnKey, ?array $visibleColumns = null): bool
+    {
+        if ($visibleColumns !== null) {
+            return $this->isRecommendationColumnVisible($columnKey, $visibleColumns);
+        }
+
+        $columnsParam = (string)$this->request->getQuery('columns', '');
+        if ($columnsParam !== '') {
+            $requested = array_filter(explode(',', $columnsParam));
+
+            return in_array($columnKey, $requested, true);
+        }
+
+        return $this->isRecommendationColumnVisible($columnKey);
+    }
+
+    /**
+     * Resolve visible columns early so recommendation queries can skip hidden display-only associations.
+     *
+     * @param string $gridKey Grid identifier.
+     * @param array<string,array<string,mixed>> $systemViews System view definitions.
+     * @param string $defaultSystemView Default system view key.
+     * @return array<int,string>|null Null means all display data is required.
+     */
+    private function resolveRecommendationVisibleColumns(
+        string $gridKey,
+        array $systemViews,
+        string $defaultSystemView,
+    ): ?array {
+        if ($this->isCsvExportRequest()) {
+            return null;
+        }
+
+        $columnsParam = (string)$this->request->getQuery('columns', '');
+        if ($columnsParam !== '') {
+            return $this->appendActiveRecommendationColumns(array_values(array_filter(explode(',', $columnsParam))));
+        }
+
+        if ($this->request->getQuery('ignore_default')) {
+            return $this->appendActiveRecommendationColumns($this->defaultRecommendationVisibleColumns());
+        }
+
+        $currentMember = $this->request->getAttribute('identity');
+        $viewId = $this->request->getQuery('view_id');
+        $requestedViewId = is_string($viewId) && $viewId !== '' ? $viewId : null;
+        if ($requestedViewId === null && $currentMember instanceof Member) {
+            $gridViewsTable = $this->fetchTable('GridViews');
+            $requestedViewId = (new GridViewService(
+                $gridViewsTable instanceof GridViewsTable ? $gridViewsTable : null,
+            ))
+                ->getUserPreferenceViewId($gridKey, $currentMember);
+        }
+        $requestedViewId ??= $defaultSystemView;
+
+        if (is_string($requestedViewId) && isset($systemViews[$requestedViewId])) {
+            return $this->appendActiveRecommendationColumns(
+                $this->normalizeRecommendationColumns($systemViews[$requestedViewId]['config']['columns'] ?? []),
+            );
+        }
+
+        if (is_numeric($requestedViewId)) {
+            $customColumns = $this->loadRecommendationGridViewColumns(
+                $gridKey,
+                (int)$requestedViewId,
+                $currentMember instanceof Member ? (int)$currentMember->id : null,
+            );
+            if ($customColumns !== null) {
+                return $this->appendActiveRecommendationColumns($customColumns);
+            }
+        }
+
+        if (isset($systemViews[$defaultSystemView])) {
+            return $this->appendActiveRecommendationColumns(
+                $this->normalizeRecommendationColumns($systemViews[$defaultSystemView]['config']['columns'] ?? []),
+            );
+        }
+
+        return $this->appendActiveRecommendationColumns($this->defaultRecommendationVisibleColumns());
+    }
+
+    /**
+     * @param string $gridKey Grid identifier.
+     * @param int $viewId Grid view id.
+     * @param int|null $memberId Current member id.
+     * @return array<int,string>|null
+     */
+    private function loadRecommendationGridViewColumns(string $gridKey, int $viewId, ?int $memberId): ?array
+    {
+        $query = $this->fetchTable('GridViews')
+            ->find()
+            ->where([
+                'id' => $viewId,
+                'grid_key' => $gridKey,
+            ]);
+
+        if ($memberId !== null) {
+            $query->where([
+                'OR' => [
+                    'member_id' => $memberId,
+                    [
+                        'is_system_default' => true,
+                        'member_id IS' => null,
+                    ],
+                ],
+            ]);
+        } else {
+            $query->where([
+                'is_system_default' => true,
+                'member_id IS' => null,
+            ]);
+        }
+
+        $view = $query->first();
+        if ($view === null || !method_exists($view, 'getConfigArray')) {
+            return null;
+        }
+
+        $config = $view->getConfigArray();
+        if (empty($config['columns']) || !is_array($config['columns'])) {
+            return null;
+        }
+
+        return $this->normalizeRecommendationColumns($config['columns']);
+    }
+
+    /**
+     * @param array<int,mixed> $columns
+     * @return array<int,string>
+     */
+    private function normalizeRecommendationColumns(array $columns): array
+    {
+        $firstColumn = reset($columns);
+        if (is_string($firstColumn)) {
+            return array_values(array_filter($columns, 'is_string'));
+        }
+
+        return GridViewConfig::extractVisibleColumns(
+            ['columns' => $columns],
+            RecommendationsGridColumns::getColumns(),
+        );
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    private function defaultRecommendationVisibleColumns(): array
+    {
+        $columns = [];
+        foreach (RecommendationsGridColumns::getColumns() as $key => $column) {
+            if (!empty($column['defaultVisible'])) {
+                $columns[] = $key;
+            }
+        }
+
+        return $columns;
+    }
+
+    /**
+     * @param array<int,string> $columns
+     * @return array<int,string>
+     */
+    private function appendActiveRecommendationColumns(array $columns): array
+    {
+        $activeColumns = $columns;
+        $sortColumn = $this->request->getQuery('sort');
+        if (is_string($sortColumn) && $sortColumn !== '') {
+            $activeColumns[] = $sortColumn;
+        }
+
+        $filters = $this->request->getQuery('filter', []);
+        if (is_array($filters)) {
+            foreach (array_keys($filters) as $filterColumn) {
+                if (is_string($filterColumn) && $filterColumn !== '') {
+                    $activeColumns[] = $filterColumn;
+                }
+            }
+        }
+
+        return array_values(array_unique($activeColumns));
     }
 
     /**

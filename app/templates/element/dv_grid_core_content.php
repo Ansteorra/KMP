@@ -28,6 +28,7 @@ $renderInlineTable = isset($data) && isset($gridState);
 $rowActions = $rowActions ?? [];
 $customElement = $customElement ?? null;
 $customElementOptions = $customElementOptions ?? [];
+$tableColumns = $columns ?? $gridState['columns']['all'] ?? [];
 ?>
 <turbo-frame id="<?= h($frameId) ?>">
     <turbo-frame
@@ -36,7 +37,7 @@ $customElementOptions = $customElementOptions ?? [];
         data-grid-src="<?= h($tableDataUrl) ?>">
         <?php if ($renderInlineTable): ?>
             <script type="application/json" id="<?= h($tableFrameId) ?>-state">
-                <?= json_encode($gridState, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?>
+                <?= json_encode($gridState, JSON_UNESCAPED_SLASHES) ?>
             </script>
 
             <?php if ($customElement): ?>
@@ -47,7 +48,7 @@ $customElementOptions = $customElementOptions ?? [];
                 ])) ?>
             <?php else: ?>
                 <?= $this->element('dataverse_table', [
-                    'columns' => $gridState['columns']['all'],
+                    'columns' => $tableColumns,
                     'visibleColumns' => $gridState['columns']['visible'],
                     'data' => $data,
                     'currentSort' => $gridState['sort'],

@@ -27,6 +27,15 @@ class AwardsBestowalBulkEditForm extends Controller {
     };
     static outlets = ["outlet-btn"];
 
+    /** @return {HTMLFormElement|null} */
+    getForm() {
+        if (this.element instanceof HTMLFormElement) {
+            return this.element;
+        }
+
+        return this.element.querySelector("#bestowal_bulk_form");
+    }
+
     /** Receive bulk IDs from grid selection and update form action URL. */
     setId(event) {
         const selected = event.detail.ids;
@@ -37,9 +46,14 @@ class AwardsBestowalBulkEditForm extends Controller {
         if (this.hasBulkIdsTarget) {
             this.bulkIdsTarget.value = selected;
         }
-        let actionUrl = this.element.getAttribute("action");
-        actionUrl = actionUrl.replace(/update-states/, "updateStates");
-        this.element.setAttribute("action", actionUrl);
+        const form = this.getForm();
+        if (form) {
+            let actionUrl = form.getAttribute("action") || this.formUrlValue || "";
+            actionUrl = actionUrl.replace(/update-states/, "updateStates");
+            if (actionUrl) {
+                form.setAttribute("action", actionUrl);
+            }
+        }
         this.updateGatherings();
         this.updateSubmitState();
     }
@@ -131,7 +145,7 @@ class AwardsBestowalBulkEditForm extends Controller {
         if (!this.isFormSubmittable()) {
             event.preventDefault();
             event.stopPropagation();
-            this.element.reportValidity?.();
+            this.getForm()?.reportValidity?.();
             return;
         }
 
@@ -148,8 +162,9 @@ class AwardsBestowalBulkEditForm extends Controller {
             return false;
         }
 
-        if (typeof this.element.checkValidity === "function") {
-            return this.element.checkValidity();
+        const form = this.getForm();
+        if (typeof form?.checkValidity === "function") {
+            return form.checkValidity();
         }
 
         return true;

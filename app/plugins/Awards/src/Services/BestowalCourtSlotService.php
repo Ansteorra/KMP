@@ -94,10 +94,88 @@ class BestowalCourtSlotService
     }
 
     /**
+     * Build the initial court slot data needed by edit forms in one pass.
+     *
+     * @param int|null $gatheringId Gathering primary key.
+     * @param string|int|null $selectedActivityId Selected scheduled activity or roaming value.
+     * @param \App\Model\Entity\Member|array|null $member Viewer for timezone conversion.
+     * @param bool $roamingCourtSelected Whether roaming court is the current selection.
+     * @return array{
+     *   options: array<int|string, string>,
+     *   available: bool,
+     *   hasScheduledSessions: bool,
+     *   optionDates: array<int|string, string>,
+     *   gatheringStartDate: string|null,
+     *   suggestedBestowedDate: string|null
+     * }
+     */
+    public function buildInitialFormData(
+        ?int $gatheringId,
+        int|string|null $selectedActivityId = null,
+        $member = null,
+        bool $roamingCourtSelected = false,
+    ): array {
+        if (!$this->gatheringSupportsCourtSlots($gatheringId)) {
+            return [
+                'options' => [],
+                'available' => false,
+                'hasScheduledSessions' => false,
+                'optionDates' => [],
+                'gatheringStartDate' => null,
+                'suggestedBestowedDate' => null,
+            ];
+        }
+
+        $activities = $this->fetchScheduledActivities($gatheringId, $selectedActivityId);
+        $gatheringStartDate = $this->findGatheringStartDateYmd($gatheringId);
+        $options = [
+            self::ROAMING_COURT_VALUE => self::roamingCourtLabel(),
+        ];
+        $optionDates = [
+            self::ROAMING_COURT_VALUE => $gatheringStartDate ?? '',
+        ];
+
+        foreach ($activities as $activity) {
+            $options[(int)$activity->id] = $this->buildActivityLabel($activity, $member);
+            if ($activity->start_datetime === null) {
+                continue;
+            }
+            $ymd = $this->courtSessionDateYmd($activity->start_datetime, $member);
+            if ($ymd !== '') {
+                $optionDates[(int)$activity->id] = $ymd;
+            }
+        }
+        $hasScheduledSessions = false;
+        foreach ($activities as $activity) {
+            if ((int)$activity->gathering_id === $gatheringId) {
+                $hasScheduledSessions = true;
+                break;
+            }
+        }
+
+        if ($roamingCourtSelected && !isset($options[self::ROAMING_COURT_VALUE])) {
+            $options = [self::ROAMING_COURT_VALUE => self::roamingCourtLabel()] + $options;
+        }
+
+        return [
+            'options' => $options,
+            'available' => true,
+            'hasScheduledSessions' => $hasScheduledSessions,
+            'optionDates' => $optionDates,
+            'gatheringStartDate' => $gatheringStartDate,
+            'suggestedBestowedDate' => $this->suggestedBestowedDateFromContext(
+                $selectedActivityId,
+                $optionDates,
+                $gatheringStartDate,
+            ),
+        ];
+    }
+
+    /**
      * Selected value for the court session dropdown.
      *
      * @param \Awards\Model\Entity\Bestowal $bestowal Bestowal entity.
-     * @return int|string|null
+     * @return string|int|null
      */
     public function courtSessionSelectValue(Bestowal $bestowal): int|string|null
     {
@@ -155,7 +233,18 @@ class BestowalCourtSlotService
             return false;
         }
 
-        return filter_var($bestowal->roaming_court, FILTER_VALIDATE_BOOLEAN);
+        $value = $bestowal->get('roaming_court');
+        if (is_string($value)) {
+            $normalized = strtolower(trim($value));
+            if (in_array($normalized, ['t', 'true', '1', 'yes', 'on'], true)) {
+                return true;
+            }
+            if (in_array($normalized, ['f', 'false', '0', 'no', 'off', ''], true)) {
+                return false;
+            }
+        }
+
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN);
     }
 
     /**
@@ -185,21 +274,7 @@ class BestowalCourtSlotService
      */
     public function getGatheringStartDateYmd(?int $gatheringId): ?string
     {
-        if ($gatheringId === null || $gatheringId <= 0) {
-            return null;
-        }
-
-        try {
-            $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
-            $gathering = $gatheringsTable->get($gatheringId, fields: ['id', 'start_date']);
-            if ($gathering->start_date === null) {
-                return null;
-            }
-
-            return $gathering->start_date->i18nFormat('yyyy-MM-dd');
-        } catch (Throwable) {
-            return null;
-        }
+        return $this->findGatheringStartDateYmd($gatheringId);
     }
 
     /**
@@ -211,38 +286,14 @@ class BestowalCourtSlotService
      */
     public function buildOptionDates(?int $gatheringId, $member = null): array
     {
-        if (!$this->gatheringSupportsCourtSlots($gatheringId)) {
-            return [];
-        }
-
-        $dates = [
-            self::ROAMING_COURT_VALUE => $this->getGatheringStartDateYmd($gatheringId) ?? '',
-        ];
-
-        $activitiesTable = TableRegistry::getTableLocator()->get('GatheringScheduledActivities');
-        $activities = $activitiesTable->find()
-            ->where(['gathering_id' => $gatheringId])
-            ->orderBy(['start_datetime' => 'ASC'])
-            ->all();
-
-        foreach ($activities as $activity) {
-            if ($activity->start_datetime === null) {
-                continue;
-            }
-            $ymd = $this->courtSessionDateYmd($activity->start_datetime, $member);
-            if ($ymd !== '') {
-                $dates[(int)$activity->id] = $ymd;
-            }
-        }
-
-        return $dates;
+        return $this->buildInitialFormData($gatheringId, null, $member)['optionDates'];
     }
 
     /**
      * Suggested bestowed date: court session day when assigned, otherwise first day of the event.
      *
      * @param int|null $gatheringId Gathering primary key.
-     * @param int|string|null $scheduledActivityId Scheduled court activity or roaming value.
+     * @param string|int|null $scheduledActivityId Scheduled court activity or roaming value.
      * @param \App\Model\Entity\Member|array|null $member Viewer for timezone conversion.
      * @return string|null Date in Y-m-d form.
      */
@@ -251,35 +302,7 @@ class BestowalCourtSlotService
         int|string|null $scheduledActivityId = null,
         $member = null,
     ): ?string {
-        if ($gatheringId !== null && $gatheringId > 0) {
-            if ((string)$scheduledActivityId === self::ROAMING_COURT_VALUE) {
-                return $this->getGatheringStartDateYmd($gatheringId);
-            }
-
-            if (
-                is_int($scheduledActivityId)
-                || (is_string($scheduledActivityId) && ctype_digit($scheduledActivityId))
-            ) {
-                $activityId = (int)$scheduledActivityId;
-                if ($activityId > 0) {
-                    $optionDates = $this->buildOptionDates($gatheringId, $member);
-                    if (isset($optionDates[$activityId])) {
-                        return $optionDates[$activityId];
-                    }
-
-                    try {
-                        $activitiesTable = TableRegistry::getTableLocator()->get('GatheringScheduledActivities');
-                        $activity = $activitiesTable->get($activityId);
-                        if ($activity->start_datetime !== null) {
-                            return $this->courtSessionDateYmd($activity->start_datetime, $member);
-                        }
-                    } catch (Throwable) {
-                    }
-                }
-            }
-        }
-
-        return $this->getGatheringStartDateYmd($gatheringId);
+        return $this->buildInitialFormData($gatheringId, $scheduledActivityId, $member)['suggestedBestowedDate'];
     }
 
     /**
@@ -326,6 +349,98 @@ class BestowalCourtSlotService
         }
 
         return $label;
+    }
+
+    /**
+     * @return array<int, object>
+     */
+    private function fetchScheduledActivities(?int $gatheringId, int|string|null $selectedActivityId = null): array
+    {
+        if ($gatheringId === null || $gatheringId <= 0) {
+            return [];
+        }
+
+        $activitiesTable = TableRegistry::getTableLocator()->get('GatheringScheduledActivities');
+        $activities = $activitiesTable->find()
+            ->where(['gathering_id' => $gatheringId])
+            ->select(['id', 'gathering_id', 'display_title', 'start_datetime', 'end_datetime'])
+            ->orderBy(['start_datetime' => 'ASC'])
+            ->all()
+            ->toList();
+
+        if (
+            $selectedActivityId !== null
+            && ctype_digit((string)$selectedActivityId)
+        ) {
+            $selectedActivityId = (int)$selectedActivityId;
+            $hasSelected = false;
+            foreach ($activities as $activity) {
+                if ((int)$activity->id === $selectedActivityId) {
+                    $hasSelected = true;
+                    break;
+                }
+            }
+            if (!$hasSelected) {
+                $selected = $activitiesTable->find()
+                    ->where(['id' => $selectedActivityId])
+                    ->select(['id', 'gathering_id', 'display_title', 'start_datetime', 'end_datetime'])
+                    ->first();
+                if ($selected !== null) {
+                    $activities[] = $selected;
+                }
+            }
+        }
+
+        return $activities;
+    }
+
+    /**
+     * First day of a gathering as Y-m-d, or null when missing.
+     *
+     * @param int|null $gatheringId Gathering primary key.
+     * @return string|null
+     */
+    private function findGatheringStartDateYmd(?int $gatheringId): ?string
+    {
+        if ($gatheringId === null || $gatheringId <= 0) {
+            return null;
+        }
+
+        $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
+        $gathering = $gatheringsTable->find()
+            ->select(['id', 'start_date'])
+            ->where(['id' => $gatheringId])
+            ->first();
+        if ($gathering === null || $gathering->start_date === null) {
+            return null;
+        }
+
+        return $gathering->start_date->i18nFormat('yyyy-MM-dd');
+    }
+
+    /**
+     * @param array<int|string, string> $optionDates
+     */
+    private function suggestedBestowedDateFromContext(
+        int|string|null $scheduledActivityId,
+        array $optionDates,
+        ?string $gatheringStartDate,
+    ): ?string {
+        if ((string)$scheduledActivityId === self::ROAMING_COURT_VALUE) {
+            return $gatheringStartDate;
+        }
+
+        if (
+            $scheduledActivityId !== null
+            && ctype_digit((string)$scheduledActivityId)
+        ) {
+            $activityId = (int)$scheduledActivityId;
+            if ($activityId > 0 && isset($optionDates[$activityId])) {
+                return $optionDates[$activityId];
+            }
+        }
+
+        return $gatheringStartDate;
     }
 
     /**

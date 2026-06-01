@@ -76,7 +76,7 @@ class GridViewController extends Controller {
 
         try {
             const stateJson = stateScript.textContent
-            this.state = JSON.parse(stateJson)
+            this.state = this.mergeStateWithPrevious(JSON.parse(stateJson))
             console.log('Grid state loaded from inline content:', this.state)
 
             // Update toolbar UI based on state
@@ -137,7 +137,7 @@ class GridViewController extends Controller {
 
             try {
                 const stateJson = stateScript.textContent
-                this.state = JSON.parse(stateJson)
+                this.state = this.mergeStateWithPrevious(JSON.parse(stateJson))
                 console.log('Grid state updated from table frame:', this.state)
 
                 // Update toolbar UI based on new state
@@ -158,6 +158,41 @@ class GridViewController extends Controller {
             // This happens when dv_grid_content renders with inline data (no nested src)
             this.loadInlineState()
         }
+    }
+
+    /**
+     * Preserve static metadata across table-only refreshes.
+     *
+     * @param {object} nextState
+     * @returns {object}
+     */
+    mergeStateWithPrevious(nextState) {
+        if (!this.state || !nextState || typeof nextState !== 'object') {
+            return nextState
+        }
+
+        const merged = { ...nextState }
+        const previousColumns = this.state.columns || {}
+        const nextColumns = merged.columns || {}
+        if (
+            (!nextColumns.all || Object.keys(nextColumns.all).length === 0)
+            && previousColumns.all
+            && Object.keys(previousColumns.all).length > 0
+        ) {
+            merged.columns = { ...nextColumns, all: previousColumns.all }
+        }
+
+        const previousView = this.state.view || {}
+        const nextView = merged.view || {}
+        if (
+            (!Array.isArray(nextView.available) || nextView.available.length === 0)
+            && Array.isArray(previousView.available)
+            && previousView.available.length > 0
+        ) {
+            merged.view = { ...nextView, available: previousView.available }
+        }
+
+        return merged
     }
 
     /**

@@ -93,9 +93,18 @@ class BestowalsController extends AppController
         $user = $this->request->getAttribute('identity');
         $canViewHidden = $user->checkCan('ViewHidden', $emptyBestowal);
 
+        $systemViews = BestowalsGridColumns::getSystemViews([]);
+        $queryContext = $this->resolveDataverseGridQueryContext([
+            'gridKey' => 'Awards.Bestowals.index.main',
+            'gridColumnsClass' => BestowalsGridColumns::class,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-bestowals-all',
+            'defaultSort' => ['Bestowals.created' => 'desc'],
+        ]);
         $built = $queryService->buildIndexQuery(
             $this->Bestowals,
             $user->checkCan('edit', $emptyBestowal),
+            $queryContext->queryVisibleColumns(),
         );
         $baseQuery = $built['query'];
         $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
@@ -106,13 +115,13 @@ class BestowalsController extends AppController
         $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
 
         if (!empty($result['isCsvExport'])) {
-            $exportData = $this->prepareBestowalsForDisplay($result['query']->all());
+            $exportData = $this->prepareBestowalsForDisplay($result['query']->all(), null);
 
             return $this->handleCsvExport($result, $csvExportService, 'bestowals', 'Awards.Bestowals', $exportData);
         }
 
         $bestowals = $result['data'];
-        $this->prepareBestowalsForDisplay($bestowals);
+        $this->prepareBestowalsForDisplay($bestowals, $result['visibleColumns']);
 
         $this->setGridViewVariables($bestowals, $result, 'bestowals-grid', 'bestowals-grid-table');
 
@@ -147,10 +156,19 @@ class BestowalsController extends AppController
         $this->Authorization->authorize($bestowal, 'ViewGatheringBestowals');
         $canViewHidden = $user->checkCan('ViewHidden', $bestowal);
 
+        $systemViews = BestowalsGridColumns::getSystemViews(['context' => 'gatheringBestowals']);
+        $queryContext = $this->resolveDataverseGridQueryContext([
+            'gridKey' => 'Awards.Bestowals.gathering.' . $gatheringId,
+            'gridColumnsClass' => BestowalsGridColumns::class,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-bestowals-gathering',
+            'defaultSort' => ['Bestowals.stack_rank' => 'asc', 'Bestowals.id' => 'asc'],
+        ]);
         $built = $queryService->buildGatheringBestowalsQuery(
             $this->Bestowals,
             $gatheringId,
             $user->checkCan('edit', $bestowal),
+            $queryContext->queryVisibleColumns(),
         );
         $baseQuery = $built['query'];
         $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
@@ -161,7 +179,7 @@ class BestowalsController extends AppController
         $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
 
         if (!empty($result['isCsvExport'])) {
-            $exportData = $this->prepareBestowalsForDisplay($result['query']->all());
+            $exportData = $this->prepareBestowalsForDisplay($result['query']->all(), null);
 
             return $this->handleCsvExport(
                 $result,
@@ -173,7 +191,7 @@ class BestowalsController extends AppController
         }
 
         $bestowals = $result['data'];
-        $this->prepareBestowalsForDisplay($bestowals);
+        $this->prepareBestowalsForDisplay($bestowals, $result['visibleColumns']);
 
         $frameId = 'gathering-bestowals-grid-' . $gatheringId;
         $queryParams = $this->request->getQueryParams();
@@ -441,7 +459,7 @@ class BestowalsController extends AppController
                 ],
             );
 
-            if (!$this->request->getHeader('Turbo-Frame')) {
+            if (!$this->request->getHeader('Turbo-Frame') && !$this->wantsTurboStreamRequest()) {
                 if ($result['success']) {
                     $this->Flash->success(__('The bestowals have been updated.'));
                 } else {
@@ -552,16 +570,14 @@ class BestowalsController extends AppController
 
         $member = $this->request->getAttribute('identity');
         $courtSlotService = new BestowalCourtSlotService();
-        $enabled = $courtSlotService->gatheringSupportsCourtSlots($gatheringId);
-        $options = $enabled ? $courtSlotService->buildOptions($gatheringId, null, $member) : [];
-        $hasScheduledSessions = $enabled && $courtSlotService->countScheduledActivities($gatheringId) > 0;
+        $courtSlotData = $courtSlotService->buildInitialFormData($gatheringId, null, $member);
 
         $payload = [
-            'enabled' => $enabled,
-            'hasScheduledSessions' => $hasScheduledSessions,
-            'options' => $options,
-            'optionDates' => $enabled ? $courtSlotService->buildOptionDates($gatheringId, $member) : [],
-            'gatheringStartDate' => $courtSlotService->getGatheringStartDateYmd($gatheringId),
+            'enabled' => $courtSlotData['available'],
+            'hasScheduledSessions' => $courtSlotData['hasScheduledSessions'],
+            'options' => $courtSlotData['options'],
+            'optionDates' => $courtSlotData['optionDates'],
+            'gatheringStartDate' => $courtSlotData['gatheringStartDate'],
             'helpText' => BestowalCourtSlotService::fieldHelpText(),
             'emptyMessage' => BestowalCourtSlotService::noScheduleMessage(),
         ];
@@ -862,17 +878,38 @@ class BestowalsController extends AppController
      * Add computed display fields to bestowal entities in place.
      *
      * @param iterable<\Awards\Model\Entity\Bestowal> $bestowals Paginated bestowal entities
-     * @return void
+     * @param array<int,string>|null $visibleColumns Visible display columns, or null to prepare all
+     * @return iterable<\Awards\Model\Entity\Bestowal>
      */
-    protected function prepareBestowalsForDisplay(iterable $bestowals): void
+    protected function prepareBestowalsForDisplay(iterable $bestowals, ?array $visibleColumns = null): iterable
     {
         foreach ($bestowals as $bestowal) {
-            $bestowal->member_sca_name = $bestowal->member->sca_name ?? '';
-            $bestowal->awards = $this->buildAwardsHtml($bestowal);
-            $bestowal->court_slot = $this->buildCourtSlotHtml($bestowal);
-            $bestowal->herald_notes_preview = $this->buildHeraldNotesPreviewHtml($bestowal);
-            $bestowal->gathering_name = $bestowal->gathering->name ?? '';
+            if ($this->shouldLoadBestowalDisplayColumn('member_sca_name', $visibleColumns)) {
+                $bestowal->member_sca_name = $bestowal->member->sca_name ?? '';
+            }
+            if ($this->shouldLoadBestowalDisplayColumn('awards', $visibleColumns)) {
+                $bestowal->awards = $this->buildAwardsHtml($bestowal);
+            }
+            if ($this->shouldLoadBestowalDisplayColumn('court_slot', $visibleColumns)) {
+                $bestowal->court_slot = $this->buildCourtSlotHtml($bestowal);
+            }
+            if ($this->shouldLoadBestowalDisplayColumn('herald_notes_preview', $visibleColumns)) {
+                $bestowal->herald_notes_preview = $this->buildHeraldNotesPreviewHtml($bestowal);
+            }
+            if ($this->shouldLoadBestowalDisplayColumn('gathering_name', $visibleColumns)) {
+                $bestowal->gathering_name = $bestowal->gathering->name ?? '';
+            }
         }
+
+        return $bestowals;
+    }
+
+    /**
+     * @param array<int,string>|null $visibleColumns
+     */
+    private function shouldLoadBestowalDisplayColumn(string $columnKey, ?array $visibleColumns): bool
+    {
+        return $visibleColumns === null || in_array($columnKey, $visibleColumns, true);
     }
 
     /**
@@ -1206,16 +1243,37 @@ class BestowalsController extends AppController
             $canEdit = $user->checkCan('edit', $emptyBestowal);
 
             if ($syncContext['contextKey'] === 'gathering') {
+                $systemViews = BestowalsGridColumns::getSystemViews(['context' => 'gatheringBestowals']);
+                $queryContext = $this->resolveDataverseGridQueryContext([
+                    'gridKey' => 'Awards.Bestowals.gathering.' . $syncContext['gatheringId'],
+                    'gridColumnsClass' => BestowalsGridColumns::class,
+                    'systemViews' => $systemViews,
+                    'defaultSystemView' => 'sys-bestowals-gathering',
+                    'defaultSort' => ['Bestowals.stack_rank' => 'asc', 'Bestowals.id' => 'asc'],
+                ]);
                 $built = $queryService->buildGatheringBestowalsQuery(
                     $this->Bestowals,
                     $syncContext['gatheringId'],
                     $canEdit,
+                    $queryContext->queryVisibleColumns(),
                 );
                 $baseQuery = $built['query'];
                 $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
                 $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
             } else {
-                $built = $queryService->buildIndexQuery($this->Bestowals, $canEdit);
+                $systemViews = BestowalsGridColumns::getSystemViews([]);
+                $queryContext = $this->resolveDataverseGridQueryContext([
+                    'gridKey' => 'Awards.Bestowals.index.main',
+                    'gridColumnsClass' => BestowalsGridColumns::class,
+                    'systemViews' => $systemViews,
+                    'defaultSystemView' => 'sys-bestowals-all',
+                    'defaultSort' => ['Bestowals.created' => 'desc'],
+                ]);
+                $built = $queryService->buildIndexQuery(
+                    $this->Bestowals,
+                    $canEdit,
+                    $queryContext->queryVisibleColumns(),
+                );
                 $baseQuery = $built['query'];
                 $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
                 $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
@@ -1242,7 +1300,7 @@ class BestowalsController extends AppController
                 ];
             }
 
-            $this->prepareBestowalsForDisplay($bestowals);
+            $this->prepareBestowalsForDisplay($bestowals, $result['visibleColumns']);
             $bestowal = $bestowals[0];
             $rowActions = BestowalsGridColumns::getRowActions();
             $gridState = $result['gridState'];

@@ -38,7 +38,6 @@ echo $this->Form->control('bulkIds', [
     'type' => 'hidden',
     'id' => 'recommendation__ids',
     'value' => [],
-    'data-awards-rec-bulk-edit-target' => 'bulkIds',
 ]);
 echo $this->Modal->create('Bulk Edit Recommendations', [
     'id' => $modalId,
@@ -75,7 +74,7 @@ echo $this->Modal->create('Bulk Edit Recommendations', [
             false,
             false,
             2,
-            ['data-awards-rec-bulk-edit-target' => 'planToGiveGathering']
+            ['data-awards-rec-bulk-edit-target' => 'planToGiveGathering'],
         ) ?>
     </div>
     <?php

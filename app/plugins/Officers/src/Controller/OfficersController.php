@@ -5,6 +5,7 @@ namespace Officers\Controller;
 
 use App\Controller\DataverseGridTrait;
 use App\Controller\WorkflowDispatchTrait;
+use App\KMP\DataverseGridQueryContext;
 use App\KMP\GridRowDomId;
 use Cake\Http\Response;
 use Cake\ORM\TableRegistry;
@@ -366,7 +367,6 @@ class OfficersController extends AppController
         // Determine context from query parameters
         $memberId = $this->request->getQuery('member_id');
         $branchId = $this->request->getQuery('branch_id');
-        $search = $this->request->getQuery('search');
 
         // Authorization: check context-specific permissions
         $newOfficer = $this->Officers->newEmptyEntity();
@@ -385,32 +385,44 @@ class OfficersController extends AppController
 
         // Get system views for temporal/warrant filtering with context-specific columns
         $systemViews = OfficersGridColumns::getSystemViews(['context' => $context]);
+        $queryContext = $this->resolveDataverseGridQueryContext([
+            'gridKey' => $context === 'member'
+                ? 'Officers.Officers.member.main'
+                : 'Officers.Officers.branch.main',
+            'gridColumnsClass' => OfficersGridColumns::class,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-officers-current',
+            'defaultSort' => ['Officers.start_on' => 'DESC'],
+        ]);
 
-        // Build base query with required associations
+        // Build base query with context-aware associations.
+        $contain = [
+            'Members' => function ($q) {
+                return $q->select(['id', 'sca_name']);
+            },
+            'Offices' => function ($q) {
+                return $q->select(['id', 'name', 'requires_warrant', 'deputy_to_id']);
+            },
+            'Offices.Departments' => function ($q) {
+                return $q->select(['id', 'name']);
+            },
+        ];
+        if ($queryContext->loadsColumn('warrant_state')) {
+            $contain['CurrentWarrants'] = function ($q) {
+                return $q->select(['id', 'start_on', 'expires_on', 'entity_id']);
+            };
+            $contain['PendingWarrants'] = function ($q) {
+                return $q->select(['id', 'start_on', 'expires_on', 'entity_id']);
+            };
+        }
+        if ($queryContext->loadsColumn('branch_name') && $context !== 'branch') {
+            $contain['Branches'] = function ($q) {
+                return $q->select(['id', 'name']);
+            };
+        }
+
         $baseQuery = $this->Officers->find()
-            ->contain([
-                'Members' => function ($q) {
-                    return $q->select(['id', 'sca_name']);
-                },
-                'Offices' => function ($q) {
-                    return $q->select(['id', 'name', 'requires_warrant', 'deputy_to_id']);
-                },
-                'Offices.Departments' => function ($q) {
-                    return $q->select(['id', 'name']);
-                },
-                'Branches' => function ($q) {
-                    return $q->select(['id', 'name']);
-                },
-                'CurrentWarrants' => function ($q) {
-                    return $q->select(['id', 'start_on', 'expires_on', 'entity_id']);
-                },
-                'PendingWarrants' => function ($q) {
-                    return $q->select(['id', 'start_on', 'expires_on', 'entity_id']);
-                },
-                'RevokedBy' => function ($q) {
-                    return $q->select(['id', 'sca_name']);
-                },
-            ]);
+            ->contain($contain);
 
         // Apply context filters
         if ($memberId) {
@@ -420,31 +432,8 @@ class OfficersController extends AppController
             $baseQuery->where(['Officers.branch_id' => (int)$branchId]);
         }
 
-        // Apply special character search (Þ/th handling for SCA names)
-        if (!empty($search)) {
-            $nsearch = str_replace('Þ', 'th', $search);
-            $nsearch = str_replace('þ', 'th', $nsearch);
-            $usearch = str_replace('th', 'Þ', $search);
-            $usearch = str_replace('TH', 'Þ', $usearch);
-            $usearch = str_replace('Th', 'Þ', $usearch);
-
-            $baseQuery->where([
-                'OR' => [
-                    ['Members.sca_name LIKE' => '%' . $search . '%'],
-                    ['Members.sca_name LIKE' => '%' . $nsearch . '%'],
-                    ['Members.sca_name LIKE' => '%' . $usearch . '%'],
-                    ['Offices.name LIKE' => '%' . $search . '%'],
-                    ['Offices.name LIKE' => '%' . $nsearch . '%'],
-                    ['Offices.name LIKE' => '%' . $usearch . '%'],
-                    ['Departments.name LIKE' => '%' . $search . '%'],
-                    ['Departments.name LIKE' => '%' . $nsearch . '%'],
-                    ['Departments.name LIKE' => '%' . $usearch . '%'],
-                ],
-            ]);
-        }
-
         // Build query callback for system view processing
-        $queryCallback = $this->buildOfficerQueryCallback();
+        $queryCallback = $this->buildOfficerQueryCallback($queryContext);
 
         // Determine frame ID based on context
         $frameId = 'officers-grid';
@@ -490,48 +479,17 @@ class OfficersController extends AppController
         // Get row actions from grid columns
         $rowActions = OfficersGridColumns::getRowActions();
 
-        // Set view variables
-        $this->set([
-            'officers' => $result['data'],
-            'gridState' => $result['gridState'],
-            'columns' => $result['columnsMetadata'],
-            'visibleColumns' => $result['visibleColumns'],
-            'searchableColumns' => OfficersGridColumns::getSearchableColumns(),
-            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
-            'filterOptions' => $result['filterOptions'],
-            'currentFilters' => $result['currentFilters'],
-            'currentSearch' => $result['currentSearch'],
-            'currentView' => $result['currentView'],
-            'availableViews' => $result['availableViews'],
-            'gridKey' => $result['gridKey'],
-            'currentSort' => $result['currentSort'],
-            'currentMember' => $result['currentMember'],
-            'memberId' => $memberId,
-            'branchId' => $branchId,
-            'rowActions' => $rowActions,
-        ]);
-
-        // Determine which template to render based on Turbo-Frame header
-        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
-
-        // Use main app's element templates (not plugin templates)
-        $this->viewBuilder()->setPlugin(null);
-
-        if ($turboFrame === $frameId . '-table') {
-            // Inner frame request - render table data only
-            $this->set('data', $result['data']);
-            $this->set('tableFrameId', $frameId . '-table');
-            $this->viewBuilder()->disableAutoLayout();
-            $this->viewBuilder()->setTemplatePath('element');
-            $this->viewBuilder()->setTemplate('dv_grid_table');
-        } else {
-            // Outer frame request (or no frame) - render toolbar + table frame
-            $this->set('data', $result['data']);
-            $this->set('frameId', $frameId);
-            $this->viewBuilder()->disableAutoLayout();
-            $this->viewBuilder()->setTemplatePath('element');
-            $this->viewBuilder()->setTemplate('dv_grid_content');
-        }
+        $this->renderDataverseGridResponse(
+            result: $result,
+            frameId: $frameId,
+            collectionVar: 'officers',
+            extraViewVars: [
+                'searchableColumns' => OfficersGridColumns::getSearchableColumns(),
+                'memberId' => $memberId,
+                'branchId' => $branchId,
+                'rowActions' => $rowActions,
+            ],
+        );
     }
 
     /**
@@ -539,9 +497,9 @@ class OfficersController extends AppController
      *
      * @return callable
      */
-    protected function buildOfficerQueryCallback(): callable
+    protected function buildOfficerQueryCallback(?DataverseGridQueryContext $queryContext = null): callable
     {
-        return function ($query, $selectedSystemView) {
+        return function ($query, $selectedSystemView) use ($queryContext) {
             // Determine the display type based on the selected view
             $viewId = $selectedSystemView['id'] ?? 'sys-officers-current';
 
@@ -554,7 +512,10 @@ class OfficersController extends AppController
             }
 
             // Add reporting relationships for current/upcoming views
-            if ($type === 'current' || $type === 'upcoming') {
+            if (
+                ($type === 'current' || $type === 'upcoming')
+                && ($queryContext === null || $queryContext->loadsColumn('reports_to_list'))
+            ) {
                 $query->contain([
                     'ReportsToCurrently' => function ($q) {
                         return $q
@@ -868,17 +829,28 @@ class OfficersController extends AppController
             $systemViews = OfficersGridColumns::getSystemViews(
                 $systemViewContext !== null ? ['context' => $systemViewContext] : [],
             );
+            $queryContext = $this->resolveDataverseGridQueryContext([
+                'gridKey' => $syncContext['gridKey'],
+                'gridColumnsClass' => OfficersGridColumns::class,
+                'systemViews' => $systemViews,
+                'defaultSystemView' => 'sys-officers-current',
+                'defaultSort' => ['Officers.start_on' => 'DESC'],
+            ]);
+            $contain = [
+                'Members' => fn($q) => $q->select(['id', 'sca_name']),
+                'Offices' => fn($q) => $q->select(['id', 'name', 'requires_warrant', 'deputy_to_id']),
+                'Offices.Departments' => fn($q) => $q->select(['id', 'name']),
+            ];
+            if ($queryContext->loadsColumn('branch_name')) {
+                $contain['Branches'] = fn($q) => $q->select(['id', 'name']);
+            }
+            if ($queryContext->loadsColumn('warrant_state')) {
+                $contain['CurrentWarrants'] = fn($q) => $q->select(['id', 'start_on', 'expires_on', 'entity_id']);
+                $contain['PendingWarrants'] = fn($q) => $q->select(['id', 'start_on', 'expires_on', 'entity_id']);
+            }
             $baseQuery = $this->Officers->find()
                 ->where(['Officers.id' => $officerId])
-                ->contain([
-                    'Members' => fn($q) => $q->select(['id', 'sca_name']),
-                    'Offices' => fn($q) => $q->select(['id', 'name', 'requires_warrant', 'deputy_to_id']),
-                    'Offices.Departments' => fn($q) => $q->select(['id', 'name']),
-                    'Branches' => fn($q) => $q->select(['id', 'name']),
-                    'CurrentWarrants' => fn($q) => $q->select(['id', 'start_on', 'expires_on', 'entity_id']),
-                    'PendingWarrants' => fn($q) => $q->select(['id', 'start_on', 'expires_on', 'entity_id']),
-                    'RevokedBy' => fn($q) => $q->select(['id', 'sca_name']),
-                ]);
+                ->contain($contain);
 
             if ($context === 'member') {
                 $baseQuery->where(['Officers.member_id' => $syncContext['memberId']]);
@@ -895,7 +867,7 @@ class OfficersController extends AppController
                 'defaultPageSize' => 25,
                 'systemViews' => $systemViews,
                 'defaultSystemView' => 'sys-officers-current',
-                'queryCallback' => $this->buildOfficerQueryCallback(),
+                'queryCallback' => $this->buildOfficerQueryCallback($queryContext),
                 'showAllTab' => false,
                 'canAddViews' => false,
                 'canFilter' => true,

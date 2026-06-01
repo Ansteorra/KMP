@@ -497,6 +497,61 @@ class RecommendationsControllerWorkflowDispatchTest extends HttpIntegrationTestC
         $this->assertRedirect();
     }
 
+    public function testUpdateStatesTurboStreamShowsSingleSuccessFlash(): void
+    {
+        $this->ensureActiveWorkflow('awards-recommendation-bulk-transition');
+        $recommendation = $this->createExistingRecommendation();
+
+        $this->mockServiceClean(TriggerDispatcher::class, function () use ($recommendation) {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->exactly(2))
+                ->method('dispatch')
+                ->willReturnCallback(function (string $event, array $context) use ($recommendation): array {
+                    if ($event === 'Awards.RecommendationBulkTransitionRequested') {
+                        $this->assertSame([(string)$recommendation->id], $context['recommendationIds']);
+
+                        return [$this->successfulWorkflowDispatchResult([
+                            'processedCount' => 1,
+                            'recommendationIds' => [(int)$recommendation->id],
+                            'results' => [],
+                        ])];
+                    }
+
+                    if ($event === 'Awards.RecommendationStateChanged') {
+                        $this->assertSame((int)$recommendation->id, $context['recommendationId']);
+                    }
+
+                    return [];
+                });
+
+            return $mock;
+        });
+        $this->mockServiceClean(RecommendationTransitionService::class, function () {
+            $mock = $this->createMock(RecommendationTransitionService::class);
+            $mock->expects($this->never())->method('transitionMany');
+
+            return $mock;
+        });
+
+        $this->configRequest([
+            'headers' => [
+                'Accept' => 'text/vnd.turbo-stream.html',
+            ],
+        ]);
+        $this->post($this->recommendationsUrl('updateStates'), [
+            'ids' => (string)$recommendation->id,
+            'newState' => 'In Consideration',
+            'page_context_url' => '/awards/recommendations?sort=member_sca_name&direction=desc',
+        ]);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('<turbo-stream action="replace" target="recommendations-grid-table"');
+        $this->assertSame(
+            1,
+            substr_count((string)$this->_response->getBody(), 'The recommendations have been updated.'),
+        );
+    }
+
     public function testGroupRecommendationsFailWhenWorkflowInactive(): void
     {
         $this->deactivateWorkflows(['awards-recommendations-group']);

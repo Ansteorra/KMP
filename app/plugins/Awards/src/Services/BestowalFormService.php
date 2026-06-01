@@ -6,6 +6,7 @@ namespace Awards\Services;
 use Awards\Model\Entity\Bestowal;
 use Cake\ORM\Table;
 use Cake\ORM\TableRegistry;
+use Throwable;
 
 /**
  * Prepares lookup data for bestowal edit and bulk edit forms.
@@ -173,25 +174,22 @@ class BestowalFormService
             ? $this->gatheringLookupService->getMemberAttendanceGatherings((int)$bestowal->member_id)
             : [];
         $gatheringId = $bestowal->gathering_id !== null ? (int)$bestowal->gathering_id : null;
-        $courtSlotList = $this->courtSlotService->buildOptions(
+        $courtSlotValue = $this->courtSlotService->courtSessionSelectValue($bestowal);
+        $courtSlotData = $this->courtSlotService->buildInitialFormData(
             $gatheringId,
-            $bestowal->gathering_scheduled_activity_id !== null
-                ? (int)$bestowal->gathering_scheduled_activity_id
-                : null,
+            $courtSlotValue,
             $member,
             !empty($bestowal->roaming_court),
         );
-        $courtSlotsAvailable = $gatheringId !== null
-            && $this->courtSlotService->gatheringSupportsCourtSlots($gatheringId);
-        $courtSlotHasScheduledSessions = $gatheringId !== null
-            && $this->courtSlotService->countScheduledActivities($gatheringId) > 0;
+        $courtSlotList = $courtSlotData['options'];
+        $courtSlotsAvailable = $courtSlotData['available'];
+        $courtSlotHasScheduledSessions = $courtSlotData['hasScheduledSessions'];
         $courtSlotHelpText = BestowalCourtSlotService::fieldHelpText();
         $courtSlotNoScheduleText = BestowalCourtSlotService::noScheduleMessage();
-        $courtSlotValue = $this->courtSlotService->courtSessionSelectValue($bestowal);
-        $gatheringStartDateYmd = $this->courtSlotService->getGatheringStartDateYmd($gatheringId);
-        $courtSessionDates = $this->courtSlotService->buildOptionDates($gatheringId, $member);
+        $gatheringStartDateYmd = $courtSlotData['gatheringStartDate'];
+        $courtSessionDates = $courtSlotData['optionDates'];
         $suggestedBestowedDate = $bestowal->bestowed_at === null
-            ? $this->courtSlotService->resolveBestowedDate($gatheringId, $courtSlotValue, $member)
+            ? $courtSlotData['suggestedBestowedDate']
             : null;
         $gatheringScheduleUrl = null;
         if ($bestowal->hasValue('gathering') && !empty($bestowal->gathering->public_id)) {
@@ -349,5 +347,4 @@ class BestowalFormService
 
         return $map;
     }
-
 }

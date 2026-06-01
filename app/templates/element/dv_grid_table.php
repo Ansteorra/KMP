@@ -16,6 +16,8 @@
 $rowActions = $rowActions ?? [];
 $customElement = $customElement ?? null;
 $customElementOptions = $customElementOptions ?? [];
+// Table-frame responses omit columns.all from JSON; controllers pass full metadata as $columns.
+$tableColumns = $columns ?? $gridState['columns']['all'] ?? [];
 ?>
 <turbo-frame
     id="<?= h($tableFrameId) ?>"
@@ -23,7 +25,7 @@ $customElementOptions = $customElementOptions ?? [];
     <!-- Grid State (JSON) - Read by grid-view-controller on load -->
     <!-- State is here because it changes with filters/sort/pagination -->
     <script type="application/json" id="<?= h($tableFrameId) ?>-state">
-        <?= json_encode($gridState, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?>
+        <?= json_encode($gridState, JSON_UNESCAPED_SLASHES) ?>
     </script>
 
     <?php if ($customElement): ?>
@@ -35,7 +37,7 @@ $customElementOptions = $customElementOptions ?? [];
     <?php else: ?>
         <!-- Dataverse Table -->
         <?= $this->element('dataverse_table', [
-            'columns' => $gridState['columns']['all'],
+            'columns' => $tableColumns,
             'visibleColumns' => $gridState['columns']['visible'],
             'data' => $data,
             'currentSort' => $gridState['sort'],
