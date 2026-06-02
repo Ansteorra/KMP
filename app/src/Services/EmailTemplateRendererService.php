@@ -3,8 +3,10 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\KMP\TimezoneHelper;
 use App\Model\Entity\EmailTemplate;
 use Cake\Log\Log;
+use DateTimeInterface;
 use Parsedown;
 use RuntimeException;
 
@@ -66,6 +68,8 @@ class EmailTemplateRendererService
      */
     public function renderSubject(EmailTemplate $emailTemplate, array $vars): string
     {
+        $vars = $this->normalizeTemplateVars($emailTemplate, $vars);
+
         return $this->renderTemplate($emailTemplate->subject_template, $vars);
     }
 
@@ -86,6 +90,7 @@ class EmailTemplateRendererService
 
             return null;
         }
+        $vars = $this->normalizeTemplateVars($template, $vars);
 
         // Step 1: Replace variables in the markdown template
         $markdown = $this->renderTemplate($template->html_template, $vars);
@@ -122,6 +127,7 @@ class EmailTemplateRendererService
         if (empty($template->html_template)) {
             return null;
         }
+        $vars = $this->normalizeTemplateVars($template, $vars);
 
         // Replace variables in the markdown template
         $markdown = $this->renderTemplate($template->html_template, $vars);
@@ -142,16 +148,47 @@ class EmailTemplateRendererService
         if (empty($emailTemplate->text_template)) {
             return null;
         }
+        $vars = $this->normalizeTemplateVars($emailTemplate, $vars);
 
         return $this->renderTemplate($emailTemplate->text_template, $vars);
+    }
+
+    /**
+     * Normalize send-time variables using the template contract.
+     *
+     * @param \App\Model\Entity\EmailTemplate $template
+     * @param array $vars Variable name => value pairs
+     * @return array
+     */
+    protected function normalizeTemplateVars(EmailTemplate $template, array $vars): array
+    {
+        foreach ($template->variables_schema as $entry) {
+            if (!isset($entry['name'], $entry['type']) || !is_string($entry['name'])) {
+                continue;
+            }
+            $name = $entry['name'];
+            if (!array_key_exists($name, $vars)) {
+                continue;
+            }
+
+            $type = strtolower((string)$entry['type']);
+            if (in_array($type, ['date_time', 'datetime', 'date-time', 'timestamp'], true)) {
+                $vars[$name] = $this->formatDateTimeValue($vars[$name]);
+            } elseif ($type === 'date') {
+                $vars[$name] = $this->formatDateValue($vars[$name]);
+            }
+        }
+
+        return $vars;
     }
 
     /**
      * Process conditional blocks in template before variable substitution.
      *
      * Parses {{#if condition}}...{{/if}} blocks as a safe DSL.
-     * Supports ==, !=, || (OR), and && (AND) operators.
+     * Supports ==, !=, bare variable presence, || (OR), and && (AND) operators.
      *
+     * Example: {{#if awardReason}}...{{/if}}
      * Example: {{#if status == "Approved" || status == "Revoked"}}...{{/if}}
      *
      * @param string $template Template with conditional blocks
@@ -242,7 +279,7 @@ class EmailTemplateRendererService
     }
 
     /**
-     * Evaluate a single comparison: varName == "value" or varName != "value"
+     * Evaluate a single comparison or bare variable presence check.
      *
      * Supports both == (equality) and != (not-equal) operators.
      * Variable names do not use a $ prefix in the {{#if}} syntax.
@@ -269,9 +306,32 @@ class EmailTemplateRendererService
             return $actualValue === $expectedValue;
         }
 
+        if (preg_match('/^\$?(\w+)$/', $comparison, $matches)) {
+            return $this->hasUsefulValue($vars[$matches[1]] ?? null);
+        }
+
         Log::warning('EmailTemplateRendererService: unsupported conditional expression: ' . $comparison);
 
         return false;
+    }
+
+    /**
+     * Determine whether a value is useful enough to render a bare {{#if variable}} block.
+     *
+     * @param mixed $value Value to test
+     * @return bool
+     */
+    protected function hasUsefulValue(mixed $value): bool
+    {
+        if ($value === null || $value === false) {
+            return false;
+        }
+
+        if (is_array($value) && $value === []) {
+            return false;
+        }
+
+        return trim($this->formatValue($value)) !== '';
     }
 
     /**
@@ -336,13 +396,16 @@ class EmailTemplateRendererService
             return implode(', ', $value);
         }
 
+        if ($value instanceof DateTimeInterface) {
+            return $this->formatDateTimeValue($value);
+        }
+
         if (is_object($value)) {
+            if (method_exists($value, 'format')) {
+                return $this->formatDateTimeValue($value);
+            }
             if (method_exists($value, '__toString')) {
                 return (string)$value;
-            }
-            if (method_exists($value, 'format')) {
-                // Handle DateTime objects
-                return $value->format('Y-m-d H:i:s');
             }
 
             return '[Object]';
@@ -379,7 +442,8 @@ class EmailTemplateRendererService
         preg_match_all('/\{\{#if\s+(.+?)\}\}/s', $template, $condMatches);
         if (!empty($condMatches[1])) {
             foreach ($condMatches[1] as $condition) {
-                preg_match_all('/\b(\w+)\s*(?:==|!=)/', $condition, $varMatches);
+                $conditionWithoutStrings = preg_replace('/["\'][^"\']*["\']/', '', $condition) ?? $condition;
+                preg_match_all('/\$?\b(\w+)\b/', $conditionWithoutStrings, $varMatches);
                 if (!empty($varMatches[1])) {
                     $variables = array_merge($variables, $varMatches[1]);
                 }
@@ -387,6 +451,36 @@ class EmailTemplateRendererService
         }
 
         return array_unique($variables);
+    }
+
+    /**
+     * Format a date/time value in the kingdom default timezone.
+     *
+     * @param mixed $value Date/time value
+     * @return string
+     */
+    protected function formatDateTimeValue(mixed $value): string
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+
+        return TimezoneHelper::formatForDisplay($value, null, TimezoneHelper::DISPLAY_DATETIME_FORMAT, true);
+    }
+
+    /**
+     * Format a date value in the kingdom default timezone.
+     *
+     * @param mixed $value Date value
+     * @return string
+     */
+    protected function formatDateValue(mixed $value): string
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+
+        return TimezoneHelper::formatForDisplay($value, null, TimezoneHelper::DISPLAY_DATE_FORMAT);
     }
 
     /**
@@ -458,7 +552,8 @@ class EmailTemplateRendererService
         // 1. Rendered placeholders in template content but no value in $vars
         $unresolved = array_diff($renderedPlaceholders, $providedKeys);
         foreach ($unresolved as $placeholder) {
-            $errors[] = "Placeholder '{{{{$placeholder}}}}' is used in the template but no value was provided; it will render as a literal token.";
+            $errors[] = "Placeholder '{{{{$placeholder}}}}' is used in the template but no value was provided; " .
+                'it will render as a literal token.';
         }
 
         // 2. Schema required vars missing from $vars
@@ -480,7 +575,8 @@ class EmailTemplateRendererService
         if (!empty($schemaDeclaredNames)) {
             foreach ($allPlaceholders as $placeholder) {
                 if (!in_array($placeholder, $schemaDeclaredNames, true)) {
-                    $warnings[] = "Placeholder '{{{{$placeholder}}}}' is used in the template but not declared in variables_schema.";
+                    $warnings[] = "Placeholder '{{{{$placeholder}}}}' is used in the template but not declared " .
+                        'in variables_schema.';
                 }
             }
         }
@@ -515,7 +611,7 @@ class EmailTemplateRendererService
      * get a unified view of what the template actually needs.
      *
      * @param \App\Model\Entity\EmailTemplate $template
-     * @return string[] Unique placeholder names
+     * @return array<string> Unique placeholder names
      */
     public function extractAllPlaceholders(EmailTemplate $template): array
     {
@@ -537,7 +633,7 @@ class EmailTemplateRendererService
      * evaluate false and do not render literal tokens.
      *
      * @param \App\Model\Entity\EmailTemplate $template
-     * @return string[]
+     * @return array<string>
      */
     protected function extractRenderedPlaceholders(EmailTemplate $template): array
     {
@@ -583,7 +679,8 @@ class EmailTemplateRendererService
             }
             $name = $entry['name'];
             if (!in_array($name, $allPlaceholders, true)) {
-                $warnings[] = "Schema variable '{$name}' is declared in variables_schema but not used in any template content.";
+                $warnings[] = "Schema variable '{$name}' is declared in variables_schema but not used in any " .
+                    'template content.';
             }
         }
 

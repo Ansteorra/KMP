@@ -154,12 +154,40 @@ document.addEventListener('DOMContentLoaded', function() {
         const approvedCount = btnData.approved_count || 0;
         const serialPickNext = approverConfig.serial_pick_next || false;
         const commentWarning = approverConfig.comment_warning || '';
+        const feedbackResponse = approverConfig.feedback_response || false;
+        const responseLabel = approverConfig.response_label || 'Submit Response';
+        const approveLabel = approverConfig.approve_label || 'Approve';
+        const hideReject = approverConfig.hide_reject || false;
+        const requiresComment = approverConfig.requires_comment || false;
+        const form = document.getElementById('approvalResponseForm');
+
+        const modalTitle = document.getElementById('approvalResponseModalLabel');
+        if (modalTitle) {
+            modalTitle.innerHTML = feedbackResponse
+                ? '<i class="bi bi-chat-left-text me-2"></i><?= __('Send Feedback') ?>'
+                : '<i class="bi bi-check2-square me-2"></i><?= __('Respond to Approval') ?>';
+        }
+        const approveLabelEl = document.querySelector('label[for="decisionApprove"]');
+        if (approveLabelEl) {
+            approveLabelEl.innerHTML = '<i class="bi bi-check-circle me-1"></i>' + approveLabel;
+        }
+        const rejectOption = document.getElementById('decisionReject')?.closest('.form-check');
+        if (rejectOption) {
+            rejectOption.hidden = !!hideReject;
+        }
+        const submitBtn = form?.querySelector('[data-approval-response-target="submitBtn"]');
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="bi bi-send me-1"></i>' + responseLabel;
+        }
+        const commentHint = form?.querySelector('[data-approval-response-target="commentRequiredHint"]');
+        if (commentHint) {
+            commentHint.textContent = feedbackResponse ? '<?= __('(required)') ?>' : '<?= __('(required for rejections)') ?>';
+        }
 
         // Set hidden field
         document.getElementById('approvalResponseApprovalId').value = approvalId;
 
         // Configure the Stimulus controller
-        const form = document.getElementById('approvalResponseForm');
         const controller = window.Stimulus?.getControllerForElementAndIdentifier(form, 'approval-response');
         if (controller) {
             controller.configure({
@@ -169,6 +197,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 approvedCount: approvedCount,
                 eligibleUrl: '/approvals/eligible-approvers/' + approvalId,
                 commentWarning: commentWarning,
+                requiresComment: requiresComment,
+                defaultDecision: feedbackResponse ? 'approve' : null,
             });
         }
     });

@@ -139,6 +139,10 @@ class RecommendationsTable extends BaseTable
             "className" => "Notes",
             "conditions" => ["Notes.entity_type" => "Awards.Recommendations"],
         ]);
+        $this->hasMany("FeedbackRequestItems", [
+            "foreignKey" => "recommendation_id",
+            "className" => "Awards.RecommendationFeedbackRequestItems",
+        ]);
         $this->hasMany("RecommendationStateLogs", [
             "foreignKey" => "recommendation_id",
             "className" => "Awards.RecommendationsStatesLog",

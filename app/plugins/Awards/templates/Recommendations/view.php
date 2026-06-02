@@ -23,6 +23,13 @@ echo $this->KMP->startBlock("pageTitle") ?>
     data-controller="outlet-btn" data-action="click->outlet-btn#fireNotice"
     data-outlet-btn-btn-data-value='{ "id":<?= $recommendation->id ?>}'>Edit</button>
 <?php endif; ?>
+<?php if ($user->checkCan('requestFeedback', $recommendation)) : ?>
+<button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#requestRecommendationFeedbackModal"
+    data-controller="outlet-btn" data-action="click->outlet-btn#fireNotice"
+    data-outlet-btn-btn-data-value='{ "id":<?= $recommendation->id ?>}'>
+    <i class="bi bi-chat-left-text"></i> <?= __('Request Feedback') ?>
+</button>
+<?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("recordDetails") ?>
 <?php if ($recommendation->isGroupChild()) : ?>
@@ -195,6 +202,14 @@ echo $this->KMP->startBlock("pageTitle") ?>
 </tr>
 <?php
 $this->KMP->endBlock() ?>
+<?php
+$feedbackRequests = [];
+foreach ($recommendation->feedback_request_items ?? [] as $feedbackItem) {
+    if (!empty($feedbackItem->feedback_request)) {
+        $feedbackRequests[$feedbackItem->feedback_request->id] = $feedbackItem->feedback_request;
+    }
+}
+?>
 <?php $this->KMP->startBlock("tabButtons") ?>
 <?php if (!empty($recommendation->group_children)) : ?>
 <button class="nav-link" id="nav-grouped-tab" data-bs-toggle="tab" data-bs-target="#nav-grouped" type="button" role="tab"
@@ -207,6 +222,13 @@ $this->KMP->endBlock() ?>
     aria-controls="nav-notes" aria-selected="false" data-detail-tabs-target='tabBtn'
     data-tab-order="10" style="order: 10;"><?= __("Notes") ?>
 </button>
+<?php if (!empty($feedbackRequests)) : ?>
+<button class="nav-link" id="nav-feedback-tab" data-bs-toggle="tab" data-bs-target="#nav-feedback" type="button" role="tab"
+    aria-controls="nav-feedback" aria-selected="false" data-detail-tabs-target='tabBtn'
+    data-tab-order="15" style="order: 15;">
+    <?= __("Feedback") ?> <span class="badge bg-info"><?= count($feedbackRequests) ?></span>
+</button>
+<?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabContent") ?>
 <?php if (!empty($recommendation->group_children)) : ?>
@@ -286,10 +308,82 @@ $this->KMP->endBlock() ?>
         'canCreate' => $user->checkCan('edit', $recommendation),
     ]) ?>
 </div>
+<?php if (!empty($feedbackRequests)) : ?>
+<div class="related tab-pane fade m-3" id="nav-feedback" role="tabpanel" aria-labelledby="nav-feedback-tab"
+    data-detail-tabs-target="tabContent" data-tab-order="15" style="order: 15;">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0"><i class="bi bi-chat-left-text"></i> <?= __('Feedback Requests') ?></h5>
+    </div>
+    <?php foreach ($feedbackRequests as $feedbackRequest) : ?>
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <strong><?= __('Request #{0}', $feedbackRequest->id) ?></strong>
+                <span class="badge bg-secondary ms-2"><?= h(ucfirst((string)$feedbackRequest->status)) ?></span>
+                <span class="text-muted ms-2">
+                    <?= __('Requested by {0}', h($feedbackRequest->requester->sca_name ?? $feedbackRequest->requester->member_number ?? $feedbackRequest->requester_id)) ?>
+                </span>
+            </div>
+            <?php if (
+                $feedbackRequest->status === 'pending'
+                && $user->checkCan('retractFeedback', $recommendation)
+            ) : ?>
+            <?= $this->Form->postLink(
+                '<i class="bi bi-x-circle"></i> ' . __('Retract'),
+                ['action' => 'retractFeedback'],
+                [
+                    'data' => ['feedback_request_id' => $feedbackRequest->id],
+                    'class' => 'btn btn-sm btn-outline-danger',
+                    'confirm' => __('Retract this pending feedback request?'),
+                    'escape' => false,
+                ]
+            ) ?>
+            <?php endif; ?>
+        </div>
+        <div class="card-body">
+            <?php if (!empty($feedbackRequest->message)) : ?>
+            <p class="mb-3"><strong><?= __('Message:') ?></strong> <?= h($feedbackRequest->message) ?></p>
+            <?php endif; ?>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
+                        <tr>
+                            <th><?= __('Recipient') ?></th>
+                            <th><?= __('Status') ?></th>
+                            <th><?= __('Response') ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($feedbackRequest->recipients ?? [] as $recipient) : ?>
+                        <tr>
+                            <td><?= h($recipient->recipient_member->sca_name ?? $recipient->recipient_id) ?></td>
+                            <td>
+                                <span class="badge bg-secondary"><?= h(ucfirst((string)$recipient->status)) ?></span>
+                            </td>
+                            <td>
+                                <?php if (!empty($recipient->response_comment)) : ?>
+                                    <?= $this->Text->autoParagraph(h($recipient->response_comment)) ?>
+                                <?php else : ?>
+                                    <span class="text-muted"><?= __('No response yet') ?></span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <?php endforeach; ?>
+</div>
+<?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 <?php
 echo $this->KMP->startBlock("modals"); ?>
 
 <?= $this->element('recommendationEditModal') ?>
+<?php if ($user->checkCan("requestFeedback", $recommendation)) : ?>
+<?= $this->element('recommendationFeedbackModal', ['modalId' => 'requestRecommendationFeedbackModal']) ?>
+<?php endif; ?>
 
 <?php $this->KMP->endBlock(); ?>

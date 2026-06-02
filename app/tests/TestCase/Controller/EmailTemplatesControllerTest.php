@@ -36,5 +36,13 @@ class EmailTemplatesControllerTest extends HttpIntegrationTestCase
         $this->assertResponseOk();
         $this->assertResponseContains('{{memberScaName}}');
         $this->assertResponseContains('{{memberViewUrl}}');
+        $this->assertResponseContains('Template conditional blocks');
+        $this->assertResponseContains('data-bs-toggle="collapse"');
+        $this->assertResponseContains('aria-controls="template-conditional-help-details"');
+        $this->assertResponseContains('{{#if awardReason}}');
+        $this->assertResponseContains('Add one row for each placeholder');
+        $this->assertResponseContains('data-email-template-form-target="variableRows"');
+        $this->assertResponseContains('data-email-template-form-target="variablesSchema"');
+        $this->assertResponseNotContains('Variables Schema (JSON)');
     }
 }

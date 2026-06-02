@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace App\View\Cell;
 
 use App\Services\NavigationRegistry;
+use Authorization\Exception\Exception as AuthorizationException;
+use Cake\Log\Log;
 use Cake\Routing\Router;
 use Cake\View\Cell;
 
@@ -157,10 +159,20 @@ class NavigationCell extends Cell
                 continue;
             }
 
-            if (isset($item['url'])) {
+            if (isset($item['url']) && empty($item['skipAuthorization'])) {
                 $url = $item['url'];
                 $url['plugin'] = $url['plugin'] ?? false;
-                if (!$user->canAccessUrl($url)) {
+                try {
+                    $canAccess = $user->canAccessUrl($url);
+                } catch (AuthorizationException $exception) {
+                    Log::warning(sprintf(
+                        'Skipping navigation item "%s": %s',
+                        (string)($item['label'] ?? $item['url']['controller'] ?? 'unknown'),
+                        $exception->getMessage(),
+                    ));
+                    continue;
+                }
+                if (!$canAccess) {
                     continue;
                 }
             }

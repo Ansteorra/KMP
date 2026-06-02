@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Services;
@@ -412,6 +413,7 @@ class CoreNavigationProvider
                     'controller' => 'Approvals',
                     'action' => 'approvals',
                 ],
+                'skipAuthorization' => true,
                 'icon' => 'bi-check2-square',
                 'badgeClass' => 'bg-danger',
                 'badgeValue' => [

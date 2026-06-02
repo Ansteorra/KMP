@@ -5,6 +5,7 @@ namespace App\Model\Table;
 
 use App\Services\Cache\TenantAwareCache;
 use Cake\Cache\Cache;
+use Cake\Database\Exception\DatabaseException;
 use Cake\Datasource\EntityInterface;
 use Cake\Log\Log;
 use Cake\ORM\RulesChecker;
@@ -201,25 +202,36 @@ class AppSettingsTable extends BaseTable
         $setting = $this->find()
             ->where(['name' => $name])
             ->first();
+        $isNewSetting = $setting === null;
         $effectiveType = $type ?? ($setting?->type ?? 'string');
         $encodedValue = $this->resolveValueForWrite($effectiveType, $value, $setting !== null);
 
         if ($setting) {
-            $setting->saving = true;
-            if ($encodedValue !== null) {
-                $setting->value = $encodedValue;
-            }
-            $setting->type = $effectiveType;
-            $setting->required = $required;
+            $this->assignSettingValues($setting, $effectiveType, $encodedValue, $required);
         } else {
             $setting = $this->newEmptyEntity();
-            $setting->saving = true;
             $setting->name = $name;
-            $setting->type = $effectiveType;
-            $setting->value = $encodedValue;
-            $setting->required = $required;
+            $this->assignSettingValues($setting, $effectiveType, $encodedValue, $required);
         }
-        if ($this->save($setting)) {
+
+        try {
+            $savedSetting = $this->save($setting);
+        } catch (DatabaseException $exception) {
+            if (!$isNewSetting || !$this->isUniqueSettingConflict($exception)) {
+                throw $exception;
+            }
+
+            $setting = $this->find()
+                ->where(['name' => $name])
+                ->first();
+            if (!$setting) {
+                throw $exception;
+            }
+            $this->assignSettingValues($setting, $effectiveType, $encodedValue, $required);
+            $savedSetting = $this->save($setting);
+        }
+
+        if ($savedSetting) {
             if (!$this->isSensitiveSetting($name)) {
                 $cacheKey = $this->cacheKey($name);
                 Cache::delete($this->assetCacheKey($name), 'default');
@@ -230,6 +242,48 @@ class AppSettingsTable extends BaseTable
         }
 
         return false;
+    }
+
+    /**
+     * Assign mutable setting fields before saving.
+     *
+     * @param \Cake\Datasource\EntityInterface $setting App setting entity
+     * @param string $type Effective setting type
+     * @param string|null $encodedValue Encoded value to persist
+     * @param bool $required Required flag
+     * @return void
+     */
+    private function assignSettingValues(
+        EntityInterface $setting,
+        string $type,
+        ?string $encodedValue,
+        bool $required,
+    ): void {
+        $setting->saving = true;
+        if ($encodedValue !== null) {
+            $setting->value = $encodedValue;
+        }
+        $setting->type = $type;
+        $setting->required = $required;
+    }
+
+    /**
+     * Detect duplicate-name conflicts from read-then-insert setting creation.
+     *
+     * @param \Cake\Database\Exception\DatabaseException $exception Database exception
+     * @return bool
+     */
+    private function isUniqueSettingConflict(DatabaseException $exception): bool
+    {
+        $messages = [$exception->getMessage()];
+        if ($exception->getPrevious()) {
+            $messages[] = $exception->getPrevious()->getMessage();
+        }
+        $message = strtolower(implode(' ', $messages));
+
+        return str_contains($message, 'app_settings_name')
+            || str_contains($message, 'duplicate entry')
+            || str_contains($message, 'unique constraint');
     }
 
     /**

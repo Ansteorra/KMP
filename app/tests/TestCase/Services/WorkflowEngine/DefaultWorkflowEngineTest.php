@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services\WorkflowEngine;
@@ -7,10 +6,10 @@ namespace App\Test\TestCase\Services\WorkflowEngine;
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowExecutionLog;
 use App\Model\Entity\WorkflowInstance;
-use App\Services\ServiceResult;
+use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
+use App\Services\WorkflowEngine\Actions\CoreActions;
 use App\Services\WorkflowEngine\DefaultWorkflowEngine;
 use App\Services\WorkflowRegistry\WorkflowActionRegistry;
-use App\Services\WorkflowRegistry\WorkflowConditionRegistry;
 use App\Test\TestCase\BaseTestCase;
 use Cake\Core\ContainerInterface;
 use Cake\ORM\TableRegistry;
@@ -807,6 +806,71 @@ class DefaultWorkflowEngineTest extends BaseTestCase
 
         $this->assertFalse($result->isSuccess());
         $this->assertStringContainsString('not found', $result->reason);
+    }
+
+    public function testActionContextUpdatesAreAvailableToDownstreamNodes(): void
+    {
+        $awm = $this->createMock(ActiveWindowManagerInterface::class);
+        $actions = new CoreActions($awm);
+        $container = $this->createMock(ContainerInterface::class);
+        $container->method('has')
+            ->with(CoreActions::class)
+            ->willReturn(true);
+        $container->method('get')
+            ->with(CoreActions::class)
+            ->willReturn($actions);
+        $engine = new DefaultWorkflowEngine($container);
+
+        WorkflowActionRegistry::register('TestContextUpdates', [[
+            'action' => 'Core.SetVariable',
+            'label' => 'Assign to Variable',
+            'description' => 'Assign a variable',
+            'inputSchema' => [],
+            'outputSchema' => [],
+            'serviceClass' => CoreActions::class,
+            'serviceMethod' => 'setVariable',
+        ]]);
+
+        $slug = 'action-context-updates-' . uniqid();
+        $this->createWorkflow($slug, [
+            'nodes' => [
+                'trigger1' => [
+                    'type' => 'trigger',
+                    'config' => [],
+                    'outputs' => [['port' => 'default', 'target' => 'assign1']],
+                ],
+                'assign1' => [
+                    'type' => 'action',
+                    'config' => [
+                        'action' => 'Core.SetVariable',
+                        'name' => 'selectedMemberId',
+                        'value' => '$.trigger.memberId',
+                    ],
+                    'outputs' => [['port' => 'default', 'target' => 'end1']],
+                ],
+                'end1' => [
+                    'type' => 'end',
+                    'config' => [
+                        'result' => [
+                            'memberId' => '$.variables.selectedMemberId',
+                            'nodeValue' => '$.nodes.assign1.result.value',
+                        ],
+                    ],
+                    'outputs' => [],
+                ],
+            ],
+        ]);
+
+        $result = $engine->startWorkflow($slug, ['memberId' => 42]);
+
+        $this->assertTrue($result->isSuccess());
+        $instance = $this->instancesTable->get($result->data['instanceId']);
+        $this->assertSame(42, $instance->context['variables']['selectedMemberId']);
+        $this->assertArrayNotHasKey('_contextUpdates', $instance->context['nodes']['assign1']['result']);
+        $this->assertSame([
+            'memberId' => 42,
+            'nodeValue' => 42,
+        ], $result->data['workflowResult']);
     }
 
     // =====================================================

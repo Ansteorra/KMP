@@ -4,6 +4,9 @@ declare(strict_types=1);
 namespace App\Model\Table;
 
 use App\Model\Entity\WorkflowDefinition;
+use Cake\Database\Exception\DatabaseException;
+use Cake\Datasource\Exception\RecordNotFoundException;
+use Cake\I18n\DateTime;
 use Cake\ORM\RulesChecker;
 use Cake\Validation\Validator;
 
@@ -70,7 +73,11 @@ class WorkflowDefinitionsTable extends BaseTable
             ->maxLength('slug', 100)
             ->requirePresence('slug', 'create')
             ->notEmptyString('slug')
-            ->regex('slug', '/^[a-z0-9]+(?:-[a-z0-9]+)*$/', 'Slug must contain only lowercase alphanumeric characters and dashes');
+            ->regex(
+                'slug',
+                '/^[a-z0-9]+(?:-[a-z0-9]+)*$/',
+                'Slug must contain only lowercase alphanumeric characters and dashes',
+            );
 
         $validator
             ->scalar('description')
@@ -122,5 +129,56 @@ class WorkflowDefinitionsTable extends BaseTable
         ]);
 
         return $rules;
+    }
+
+    /**
+     * Check whether a workflow definition has execution history.
+     *
+     * @param int $id Workflow definition ID
+     * @return bool
+     */
+    public function hasExecutionHistory(int $id): bool
+    {
+        return $this->WorkflowInstances->exists(['workflow_definition_id' => $id]);
+    }
+
+    /**
+     * Archive a workflow definition while preserving versions and run history.
+     *
+     * @param \App\Model\Entity\WorkflowDefinition $workflow Workflow definition
+     * @return bool
+     */
+    public function archiveDefinition(WorkflowDefinition $workflow): bool
+    {
+        $workflow->is_active = false;
+        $workflow->deleted ??= DateTime::now();
+
+        return (bool)$this->save($workflow);
+    }
+
+    /**
+     * Delete an unused workflow definition.
+     *
+     * @param \App\Model\Entity\WorkflowDefinition $workflow Workflow definition
+     * @return bool
+     */
+    public function deleteUnusedDefinition(WorkflowDefinition $workflow): bool
+    {
+        if ($this->hasExecutionHistory((int)$workflow->id)) {
+            return false;
+        }
+
+        try {
+            return (bool)$this->getConnection()->transactional(function () use ($workflow): bool {
+                $workflow->current_version_id = null;
+                if (!$this->save($workflow)) {
+                    return false;
+                }
+
+                return (bool)$this->delete($workflow);
+            });
+        } catch (DatabaseException | RecordNotFoundException) {
+            return false;
+        }
     }
 }

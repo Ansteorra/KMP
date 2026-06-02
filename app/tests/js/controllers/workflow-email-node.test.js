@@ -37,14 +37,14 @@ function makeSelect(option) {
     return { select, analysis, container }
 }
 
-function makeHandler({ workflowVars = null } = {}) {
+function makeHandler({ workflowVars = null, nodeConfig = {} } = {}) {
     // Minimal designer/editor stub
     const mockVariablePicker = workflowVars !== null
         ? { buildVariableList: jest.fn(() => workflowVars) }
         : null
 
     const mockEditor = {
-        getNodeFromId: jest.fn(() => ({ data: { type: 'action', config: {} } }))
+        getNodeFromId: jest.fn(() => ({ data: { type: 'action', config: nodeConfig } }))
     }
 
     const mockNodeConfigTarget = document.createElement('div')
@@ -191,16 +191,10 @@ describe('WorkflowNodeConfigHandler._renderTemplateAnalysis — missing required
         { name: 'memberName', type: 'string', required: true },
         { name: 'warrantTitle', type: 'string', required: true },
     ]
-    // workflowVars has neither memberName nor warrantTitle
-    const workflowVars = [
-        { path: '$.instance.id', label: 'Instance ID', type: 'integer' },
-        { path: '$.trigger.entity_id', label: 'Entity ID', type: 'integer' },
-    ]
-
     let handler, select, analysis
 
     beforeEach(() => {
-        ({ handler } = makeHandler({ workflowVars }))
+        ({ handler } = makeHandler())
         const opt = makeOption({ value: '7', slug: 'warrant-issued', isWorkflowNative: true, variablesSchema: schema })
         ;({ select, analysis } = makeSelect(opt))
     })
@@ -210,7 +204,7 @@ describe('WorkflowNodeConfigHandler._renderTemplateAnalysis — missing required
     test('shows danger alert when required vars are unmapped', () => {
         handler._renderTemplateAnalysis(select, 'node-1')
         expect(analysis.innerHTML).toContain('alert-danger')
-        expect(analysis.innerHTML).toContain('not mapped from workflow context')
+        expect(analysis.innerHTML).toContain('not configured in this Send Email step')
     })
 
     test('shows x-circle icons for unmapped required vars', () => {
@@ -223,14 +217,18 @@ describe('WorkflowNodeConfigHandler._renderTemplateAnalysis — mapped required 
     const schema = [
         { name: 'memberName', type: 'string', required: true },
     ]
-    const workflowVars = [
-        { path: '$.entity.memberName', label: 'Member Name', type: 'string' },
-    ]
-
     let handler, select, analysis
 
     beforeEach(() => {
-        ({ handler } = makeHandler({ workflowVars }))
+        ({ handler } = makeHandler({
+            nodeConfig: {
+                params: {
+                    vars: {
+                        memberName: '$.nodes.action-1.result.memberName',
+                    },
+                },
+            },
+        }))
         const opt = makeOption({ value: '9', slug: 'welcome', isWorkflowNative: true, variablesSchema: schema })
         ;({ select, analysis } = makeSelect(opt))
     })
@@ -245,6 +243,76 @@ describe('WorkflowNodeConfigHandler._renderTemplateAnalysis — mapped required 
     test('does not show danger alert when all required vars are mapped', () => {
         handler._renderTemplateAnalysis(select, 'node-2')
         expect(analysis.innerHTML).not.toContain('alert-danger')
+    })
+
+    test('does not require the mapped value path to share the template variable name', () => {
+        handler._renderTemplateAnalysis(select, 'node-2')
+        expect(analysis.innerHTML).toContain('bi-check-circle-fill text-success')
+    })
+})
+
+describe('WorkflowNodeConfigHandler._renderTemplateAnalysis — empty mapped vars are missing', () => {
+    const schema = [
+        { name: 'memberName', type: 'string', required: true },
+    ]
+
+    let handler, select, analysis
+
+    beforeEach(() => {
+        ({ handler } = makeHandler({
+            nodeConfig: {
+                params: {
+                    vars: {
+                        memberName: '',
+                    },
+                },
+            },
+        }))
+        const opt = makeOption({ value: '10', slug: 'welcome', isWorkflowNative: true, variablesSchema: schema })
+        ;({ select, analysis } = makeSelect(opt))
+    })
+
+    afterEach(() => { document.body.innerHTML = '' })
+
+    test('shows danger alert when a required mapping has no value', () => {
+        handler._renderTemplateAnalysis(select, 'node-3')
+        expect(analysis.innerHTML).toContain('alert-danger')
+        expect(analysis.innerHTML).toContain('bi-x-circle-fill text-danger')
+    })
+})
+
+describe('WorkflowNodeConfigHandler._renderTemplateAnalysis — all configured email vars pass', () => {
+    const schema = [
+        { name: 'award', type: 'string', required: true },
+        { name: 'recipient_name', type: 'string', required: true },
+        { name: 'sca_name', type: 'string', required: true },
+    ]
+
+    let handler, select, analysis
+
+    beforeEach(() => {
+        ({ handler } = makeHandler({
+            nodeConfig: {
+                params: {
+                    vars: {
+                        award: '$.nodes.action-1780419627954.result.record.name',
+                        recipient_name: '$.trigger.member.name',
+                        sca_name: '$.trigger.member.sca_name',
+                    },
+                },
+            },
+        }))
+        const opt = makeOption({ value: '11', slug: 'feedback-request', isWorkflowNative: true, variablesSchema: schema })
+        ;({ select, analysis } = makeSelect(opt))
+    })
+
+    afterEach(() => { document.body.innerHTML = '' })
+
+    test('does not warn when all required template variables have configured mappings', () => {
+        handler._renderTemplateAnalysis(select, 'node-4')
+
+        expect(analysis.innerHTML).not.toContain('alert-danger')
+        expect(analysis.querySelectorAll('.bi-check-circle-fill.text-success')).toHaveLength(3)
     })
 })
 
@@ -443,5 +511,146 @@ describe('WorkflowConfigPanel._renderEmailTemplateSelect', () => {
     test('change action points to onEmailTemplateChange', () => {
         const html = panel._renderEmailTemplateSelect('params.template', { label: 'Template' }, '')
         expect(html).toContain('onEmailTemplateChange')
+    })
+})
+
+// ── WorkflowConfigPanel key-value template variables ─────────────────────────
+
+describe('WorkflowConfigPanel._renderKvRow', () => {
+    let panel
+
+    beforeEach(() => {
+        panel = new WorkflowConfigPanel(
+            { triggers: [], actions: [], conditions: [], resolvers: [] },
+            []
+        )
+    })
+
+    afterEach(() => { document.body.innerHTML = '' })
+
+    test('marks context values as variable-picker inputs', () => {
+        document.body.innerHTML = panel._renderKvRow('params.vars', 0, 'award', '$.trigger.award')
+
+        const valueInput = document.querySelector('[name="params.vars__val__0"]')
+        expect(valueInput.getAttribute('data-variable-picker')).toBe('true')
+        expect(valueInput.placeholder).toBe('Choose a workflow variable')
+    })
+
+    test('does not mark fixed values as variable-picker inputs', () => {
+        document.body.innerHTML = panel._renderKvRow('params.vars', 0, 'award', 'Court Baronage')
+
+        const valueInput = document.querySelector('[name="params.vars__val__0"]')
+        expect(valueInput.hasAttribute('data-variable-picker')).toBe(false)
+        expect(valueInput.placeholder).toBe('Value')
+    })
+
+    test('renders template variables as labeled mapping cards with an accessible remove action', () => {
+        document.body.innerHTML = panel._renderKvRow('params.vars', 0, 'award', '$.trigger.award')
+
+        const row = document.querySelector('.wf-template-variable-card')
+        const keyInput = document.querySelector('[name="params.vars__key__0"]')
+        const typeSelect = document.querySelector('[data-kv-vtype]')
+        const valueInput = document.querySelector('[name="params.vars__val__0"]')
+        const removeButton = document.querySelector('.wf-template-variable-remove')
+
+        expect(row).not.toBeNull()
+        expect(document.querySelector(`label[for="${keyInput.id}"]`)).toHaveTextContent('Template variable')
+        expect(document.querySelector(`label[for="${typeSelect.id}"]`)).toHaveTextContent('Source')
+        expect(document.querySelector(`label[for="${valueInput.id}"]`)).toHaveTextContent('Value')
+        expect(removeButton.getAttribute('aria-label')).toBe('Remove template variable award')
+    })
+})
+
+describe('WorkflowNodeConfigHandler key-value context mode', () => {
+    afterEach(() => { document.body.innerHTML = '' })
+
+    test('attaches variable picker when a template variable row switches to context path', () => {
+        const attachPickers = jest.fn()
+        const mockEditor = {
+            getNodeFromId: jest.fn(() => ({ data: { config: { params: {} } } })),
+            updateNodeDataFromId: jest.fn(),
+        }
+        const mockDesigner = {
+            editor: mockEditor,
+            _configPanel: new WorkflowConfigPanel({ triggers: [], actions: [], conditions: [], resolvers: [] }, []),
+            _variablePicker: { attachPickers, removeSelectedVariableHint: jest.fn() },
+            nodeConfigTarget: document.createElement('div'),
+            hasNodeConfigTarget: true,
+            _selectedNodes: new Set(),
+            canvasTarget: document.createElement('div'),
+            _shiftHeld: false,
+            clearMultiSelect: jest.fn(),
+        }
+        const handler = new WorkflowNodeConfigHandler(mockDesigner)
+
+        document.body.innerHTML = `
+            <form data-node-id="node-1">
+                <div class="kv-editor">
+                    <div data-kv-rows="params.vars">
+                        ${mockDesigner._configPanel._renderKvRow('params.vars', 0, 'award', 'Court Baronage')}
+                    </div>
+                </div>
+            </form>
+        `
+        const select = document.querySelector('[data-kv-vtype]')
+        select.value = 'context'
+
+        handler.onKvValueTypeChange({ target: select })
+
+        const valueInput = document.querySelector('[name="params.vars__val__0"]')
+        expect(valueInput.getAttribute('data-variable-picker')).toBe('true')
+        expect(valueInput.placeholder).toBe('Choose a workflow variable')
+        expect(valueInput.value).toBe('')
+        expect(attachPickers).toHaveBeenCalledWith(select.closest('.kv-row'), 'node-1', mockEditor)
+    })
+
+    test('refreshes template analysis when template variable mappings are saved', () => {
+        const schema = [
+            { name: 'award', type: 'string', required: true },
+        ]
+        const opt = makeOption({ value: '12', slug: 'feedback-request', isWorkflowNative: true, variablesSchema: schema })
+        const nodeData = { data: { config: { params: {} } } }
+        const mockEditor = {
+            getNodeFromId: jest.fn(() => nodeData),
+            updateNodeDataFromId: jest.fn((id, data) => { nodeData.data = data }),
+        }
+        const mockDesigner = {
+            editor: mockEditor,
+            _configPanel: new WorkflowConfigPanel({ triggers: [], actions: [], conditions: [], resolvers: [] }, []),
+            _variablePicker: null,
+            nodeConfigTarget: document.createElement('div'),
+            hasNodeConfigTarget: true,
+            _selectedNodes: new Set(),
+            canvasTarget: document.createElement('div'),
+            _shiftHeld: false,
+            clearMultiSelect: jest.fn(),
+        }
+        const handler = new WorkflowNodeConfigHandler(mockDesigner)
+
+        const selectMarkup = document.createElement('select')
+        selectMarkup.dataset.emailTemplateSelect = 'true'
+        selectMarkup.appendChild(opt)
+        document.body.innerHTML = `
+            <form data-node-id="node-1">
+                <div class="mb-3">
+                    ${selectMarkup.outerHTML}
+                    <div class="email-template-analysis"></div>
+                </div>
+                <div class="kv-editor">
+                    <div data-kv-rows="params.vars">
+                        ${mockDesigner._configPanel._renderKvRow('params.vars', 0, 'award', '$.nodes.find-award.result.record.name')}
+                    </div>
+                </div>
+            </form>
+        `
+        const form = document.querySelector('form')
+
+        handler._renderTemplateAnalysis(document.querySelector('[data-email-template-select="true"]'), 'node-1')
+        expect(document.querySelector('.email-template-analysis').innerHTML).toContain('alert-danger')
+
+        handler._saveKvFieldsFromForm(form)
+
+        expect(document.querySelector('.email-template-analysis').innerHTML).not.toContain('alert-danger')
+        expect(document.querySelector('.email-template-analysis').innerHTML).toContain('bi-check-circle-fill text-success')
     })
 })

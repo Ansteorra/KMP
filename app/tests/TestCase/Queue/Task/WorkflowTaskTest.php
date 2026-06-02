@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Queue\Task;
@@ -10,8 +9,12 @@ use App\Queue\Task\WorkflowResumeTask;
 use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\WorkflowEngineInterface;
 use App\Test\TestCase\BaseTestCase;
+use Cake\Core\ContainerInterface;
+use Cake\Event\EventManager;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
+use InvalidArgumentException;
+use RuntimeException;
 
 /**
  * Tests for workflow queue tasks.
@@ -25,21 +28,21 @@ class WorkflowTaskTest extends BaseTestCase
     public function testResumeTaskThrowsOnMissingInstanceId(): void
     {
         $task = $this->createResumeTask();
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $task->run(['nodeId' => 'n1'], 1);
     }
 
     public function testResumeTaskThrowsOnMissingNodeId(): void
     {
         $task = $this->createResumeTask();
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $task->run(['instanceId' => 1], 1);
     }
 
     public function testResumeTaskThrowsOnEmptyData(): void
     {
         $task = $this->createResumeTask();
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $task->run([], 1);
     }
 
@@ -67,7 +70,7 @@ class WorkflowTaskTest extends BaseTestCase
             ->willReturn(new ServiceResult(false, 'Engine error'));
 
         $task = $this->createResumeTask($engine);
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $task->run(['instanceId' => 1, 'nodeId' => 'n1'], 1);
     }
 
@@ -183,6 +186,75 @@ class WorkflowTaskTest extends BaseTestCase
         $this->assertEquals(WorkflowApproval::STATUS_EXPIRED, $updated->status);
     }
 
+    public function testDeadlineTaskDispatchesExpiredApprovalEvent(): void
+    {
+        $defTable = TableRegistry::getTableLocator()->get('WorkflowDefinitions');
+        $def = $defTable->newEntity([
+            'name' => 'Deadline Event Test ' . uniqid(),
+            'slug' => 'deadline-event-' . uniqid(),
+            'trigger_type' => 'manual',
+        ]);
+        $defTable->saveOrFail($def);
+
+        $versionsTable = TableRegistry::getTableLocator()->get('WorkflowVersions');
+        $version = $versionsTable->newEntity([
+            'workflow_definition_id' => $def->id,
+            'version_number' => 1,
+            'definition' => ['nodes' => []],
+            'status' => 'published',
+        ]);
+        $versionsTable->saveOrFail($version);
+
+        $instancesTable = TableRegistry::getTableLocator()->get('WorkflowInstances');
+        $instance = $instancesTable->newEntity([
+            'workflow_definition_id' => $def->id,
+            'workflow_version_id' => $version->id,
+            'status' => 'waiting',
+        ]);
+        $instancesTable->saveOrFail($instance);
+
+        $logsTable = TableRegistry::getTableLocator()->get('WorkflowExecutionLogs');
+        $log = $logsTable->newEntity([
+            'workflow_instance_id' => $instance->id,
+            'node_id' => 'approval_event_node',
+            'node_type' => 'approval',
+            'status' => 'waiting',
+        ]);
+        $logsTable->saveOrFail($log);
+
+        $approvalsTable = TableRegistry::getTableLocator()->get('WorkflowApprovals');
+        $approval = $approvalsTable->newEntity([
+            'workflow_instance_id' => $instance->id,
+            'node_id' => 'approval_event_node',
+            'execution_log_id' => $log->id,
+            'approver_type' => WorkflowApproval::APPROVER_TYPE_MEMBER,
+            'approver_config' => ['member_id' => self::ADMIN_MEMBER_ID],
+            'required_count' => 1,
+            'approved_count' => 0,
+            'rejected_count' => 0,
+            'status' => WorkflowApproval::STATUS_PENDING,
+            'allow_parallel' => true,
+            'deadline' => DateTime::now()->modify('-1 hour'),
+        ]);
+        $approvalsTable->saveOrFail($approval);
+
+        $expiredApprovalIds = [];
+        EventManager::instance()->on('Workflow.Approval.Expired', function ($event) use (&$expiredApprovalIds): void {
+            $expiredApproval = $event->getData('approval');
+            if ($expiredApproval instanceof WorkflowApproval) {
+                $expiredApprovalIds[] = (int)$expiredApproval->id;
+            }
+        });
+
+        $engine = $this->createMock(WorkflowEngineInterface::class);
+        $engine->method('resumeWorkflow')->willReturn(new ServiceResult(true));
+
+        $task = $this->createDeadlineTask($engine);
+        $task->run([], 1);
+
+        $this->assertContains((int)$approval->id, $expiredApprovalIds);
+    }
+
     // =====================================================
     // Helpers
     // =====================================================
@@ -190,9 +262,9 @@ class WorkflowTaskTest extends BaseTestCase
     /**
      * Build a mock DI container that returns the given engine.
      */
-    private function makeContainer(WorkflowEngineInterface $engine): \Cake\Core\ContainerInterface
+    private function makeContainer(WorkflowEngineInterface $engine): ContainerInterface
     {
-        $container = $this->createMock(\Cake\Core\ContainerInterface::class);
+        $container = $this->createMock(ContainerInterface::class);
         $container->method('get')
             ->with(WorkflowEngineInterface::class)
             ->willReturn($engine);

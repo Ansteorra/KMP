@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services\WorkflowEngine\Actions;
@@ -243,20 +242,94 @@ class CoreActions
      */
     public function setVariable(array $context, array $config): array
     {
-        $value = $config['value'];
+        $name = trim((string)($config['name'] ?? ''));
+        $value = $config['value'] ?? null;
 
         // Expression mode: "=" prefix triggers expression evaluation
         if (is_string($value) && str_starts_with($value, '=')) {
             $expression = substr($value, 1);
+            $resolvedValue = $this->expressionEvaluator->evaluate($expression, $context);
 
-            return [
-                $config['name'] => $this->expressionEvaluator->evaluate($expression, $context),
-            ];
+            return $this->variableResult($name, $resolvedValue);
         }
 
-        return [
-            $config['name'] => $this->resolveValue($value, $context),
-        ];
+        return $this->variableResult($name, $this->resolveValue($value, $context));
+    }
+
+    /**
+     * Get one registered workflow object by primary key.
+     *
+     * Only workflow-safe entity fields are returned so this action cannot expose
+     * columns filtered out by the workflow entity registry.
+     *
+     * @param array $context Current workflow context
+     * @param array $config Action configuration with 'entityType' and 'entityId'
+     * @return array Output with 'found', 'record', and diagnostic fields
+     */
+    public function getObjectById(array $context, array $config): array
+    {
+        try {
+            $entityType = (string)$this->resolveValue($config['entityType'] ?? '', $context);
+            $entityId = $this->resolveValue($config['entityId'] ?? null, $context);
+            $registeredEntity = WorkflowEntityRegistry::getEntityWithSchema($entityType);
+            if ($registeredEntity === null) {
+                return [
+                    'found' => false,
+                    'record' => null,
+                    'entityType' => $entityType,
+                    'entityId' => $entityId,
+                    'error' => "Entity type '{$entityType}' is not available for workflow operations.",
+                ];
+            }
+
+            $table = TableRegistry::getTableLocator()->get($this->tableAliasForRegisteredEntity($registeredEntity));
+            if (is_array($table->getPrimaryKey())) {
+                return [
+                    'found' => false,
+                    'record' => null,
+                    'entityType' => $entityType,
+                    'entityId' => $entityId,
+                    'error' => "Entity type '{$entityType}' uses a composite primary key and cannot be fetched by one ID.",
+                ];
+            }
+
+            $fields = array_keys($registeredEntity['fields'] ?? []);
+            $query = $table->find()
+                ->where([$table->getPrimaryKey() => $entityId]);
+            if (!empty($fields)) {
+                $query = $query->select($fields);
+            }
+            $record = $query->first();
+
+            if ($record === null) {
+                return [
+                    'found' => false,
+                    'record' => null,
+                    'entityType' => $entityType,
+                    'entityId' => $entityId,
+                ];
+            }
+
+            $recordData = [];
+            foreach ($fields as $field) {
+                $recordData[$field] = $record->get($field);
+            }
+
+            return [
+                'found' => true,
+                'record' => $recordData,
+                'entityType' => $entityType,
+                'entityId' => $entityId,
+            ];
+        } catch (\Throwable $e) {
+            Log::error('Workflow GetObjectById failed: ' . $e->getMessage());
+
+            return [
+                'found' => false,
+                'record' => null,
+                'error' => $e->getMessage(),
+            ];
+        }
     }
 
     /**
@@ -455,6 +528,57 @@ class CoreActions
         }
 
         return array_values(array_unique($aliases));
+    }
+
+    /**
+     * Build the assign-variable action result and context update payload.
+     *
+     * @param string $name Variable name
+     * @param mixed $value Variable value
+     * @return array
+     */
+    private function variableResult(string $name, mixed $value): array
+    {
+        return [
+            $name => $value,
+            'name' => $name,
+            'value' => $value,
+            '_contextUpdates' => [
+                'variables' => [
+                    $name => $value,
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Resolve a workflow entity registration to a Cake table alias.
+     *
+     * @param array $registeredEntity Workflow entity registration
+     * @return string Table alias for TableLocator
+     */
+    private function tableAliasForRegisteredEntity(array $registeredEntity): string
+    {
+        if (!empty($registeredEntity['tableAlias'])) {
+            return (string)$registeredEntity['tableAlias'];
+        }
+
+        $tableClass = (string)($registeredEntity['tableClass'] ?? '');
+        if (
+            preg_match(
+                '/^(?:(?<plugin>[^\\\\]+)\\\\)?Model\\\\Table\\\\(?<table>[^\\\\]+)Table$/',
+                ltrim($tableClass, '\\'),
+                $matches,
+            )
+        ) {
+            if (($matches['plugin'] ?? '') && $matches['plugin'] !== 'App') {
+                return $matches['plugin'] . '.' . $matches['table'];
+            }
+
+            return $matches['table'];
+        }
+
+        return (string)($registeredEntity['entityType'] ?? $tableClass);
     }
 
     /**

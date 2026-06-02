@@ -14,7 +14,10 @@ echo $this->KMP->getAppSetting('KMP.ShortSiteTitle') . ': ' . ($emailTemplate->i
 $this->KMP->endBlock(); ?>
 
 <div class="emailTemplates form content">
-    <?= $this->Form->create($emailTemplate, ['data-controller' => 'email-template-form']) ?>
+    <?= $this->Form->create($emailTemplate, [
+        'data-controller' => 'email-template-form',
+        'data-action' => 'submit->email-template-form#serializeVariableContract',
+    ]) ?>
     <fieldset>
         <legend>
             <?= $this->element('backButton') ?>
@@ -87,6 +90,71 @@ $this->KMP->endBlock(); ?>
             'switch' => true,
         ]) ?>
     </fieldset>
+
+    <section class="alert alert-info mt-4" aria-labelledby="template-conditional-help-heading">
+        <div class="d-flex flex-column flex-md-row gap-2 justify-content-between align-items-md-start">
+            <div>
+                <h2 class="h6 alert-heading mb-1" id="template-conditional-help-heading">
+                    <i class="bi bi-lightbulb" aria-hidden="true"></i>
+                    <?= __('Template conditional blocks') ?>
+                </h2>
+                <p class="small mb-0">
+                    <?= __(
+                        'Use conditional blocks to include text only when workflow data is present, useful, ' .
+                        'or has a specific value.',
+                    ) ?>
+                </p>
+            </div>
+            <button
+                class="btn btn-sm btn-info"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#template-conditional-help-details"
+                aria-expanded="false"
+                aria-controls="template-conditional-help-details"
+            >
+                <i class="bi bi-chevron-down" aria-hidden="true"></i>
+                <?= __('Show examples') ?>
+            </button>
+        </div>
+        <div class="collapse mt-3" id="template-conditional-help-details">
+            <p class="small mb-2">
+                <?= __('A bare variable is useful when it is not missing, blank, null, false, or an empty list.') ?>
+            </p>
+            <div class="row small g-3">
+                <div class="col-lg-6">
+                    <h3 class="h6"><?= __('Presence checks') ?></h3>
+                    <p class="mb-1"><?= __('Show a section only when a value exists:') ?></p>
+                    <pre class="border rounded bg-light p-2 mb-2 text-dark"><code>{{#if awardReason}}
+Reason: {{awardReason}}
+{{/if}}</code></pre>
+                    <p class="mb-1"><?= __('Show fallback wording when the value is missing or blank:') ?></p>
+                    <pre class="border rounded bg-light p-2 mb-0 text-dark"><code>{{#if awardReason}}
+Reason: {{awardReason}}
+{{/if}}
+{{#if awardReason == ""}}
+No award reason was provided.
+{{/if}}</code></pre>
+                </div>
+                <div class="col-lg-6">
+                    <h3 class="h6"><?= __('Value checks') ?></h3>
+                    <p class="mb-1"><?= __('Compare values with equality, inequality, AND, and OR:') ?></p>
+                    <pre class="border rounded bg-light p-2 mb-2 text-dark"><code>{{#if status == "Approved"}}
+This request was approved.
+{{/if}}</code></pre>
+                    <pre class="border rounded bg-light p-2 mb-0 text-dark"><code>{{#if status == "Approved" || status == "Pending"}}
+This request is still active.
+{{/if}}</code></pre>
+                </div>
+            </div>
+            <p class="small mb-0 mt-2">
+                <?= __(
+                    'Use variable names without curly braces inside the condition. ' .
+                    'Comparisons must quote the expected value.',
+                ) ?>
+            </p>
+        </div>
+    </section>
 
     <!-- Template Tabs -->
     <div data-controller="detail-tabs" class="mt-4">
@@ -211,8 +279,7 @@ $this->KMP->endBlock(); ?>
                     <p class="text-muted">
                         <i class="bi bi-info-circle"></i>
                         The <strong>Variables Contract</strong> declares every placeholder this template can use.
-                        Workflow nodes use this to validate data before sending.
-                        Each entry: <code>{"name":"varName","description":"...","type":"string","required":true}</code>
+                        Workflow nodes use this to validate data before sending. Add one row for each placeholder.
                     </p>
 
                     <!-- Parsed placeholders helper -->
@@ -223,21 +290,131 @@ $this->KMP->endBlock(); ?>
                                 <small class="fw-semibold"><i class="bi bi-magic"></i> Placeholders detected in your templates</small>
                             </div>
                             <div class="card-body py-2">
-                                <p class="small text-muted mb-2">These <code>{{variable}}</code> names were found in your HTML/text templates. Copy them into the schema below to document the variable contract.</p>
+                                <p class="small text-muted mb-2">
+                                    These <code>{{variable}}</code> names were found in your HTML/text templates.
+                                    Click one to add it to the contract.
+                                </p>
                                 <div data-email-template-form-target="parsedVarsList" class="d-flex flex-wrap gap-1"></div>
                             </div>
                         </div>
                     </div>
 
-                    <?= $this->Form->control('variables_schema', [
-                        'label' => __('Variables Schema (JSON)'),
-                        'type' => 'textarea',
-                        'class' => 'font-monospace',
-                        'rows' => 10,
-                        'placeholder' => '[{"name":"recipientName","description":"Full name of the recipient","type":"string","required":true}]',
+                    <div class="card">
+                        <div class="card-header d-flex flex-column flex-md-row gap-2 justify-content-between align-items-md-center">
+                            <div>
+                                <h3 class="h6 mb-0"><?= __('Variables') ?></h3>
+                                <p class="small text-muted mb-0">
+                                    <?= __('Define what each template placeholder means and whether it is required.') ?>
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                class="btn btn-primary btn-sm"
+                                data-action="email-template-form#addVariable"
+                            >
+                                <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                                <?= __('Add variable') ?>
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div
+                                class="d-flex flex-column gap-3"
+                                data-email-template-form-target="variableRows"
+                                aria-live="polite"
+                            ></div>
+                            <p
+                                class="text-muted mb-0"
+                                data-email-template-form-target="emptyVariableMessage"
+                            >
+                                <?= __('No variables are defined yet. Add a variable or click a detected placeholder above.') ?>
+                            </p>
+                        </div>
+                    </div>
+
+                    <template data-email-template-form-target="variableRowTemplate">
+                        <div class="border rounded p-3" data-variable-contract-row>
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-3">
+                                    <label class="form-label small fw-semibold">
+                                        <?= __('Variable name') ?>
+                                        <input
+                                            type="text"
+                                            class="form-control"
+                                            placeholder="recipientName"
+                                            aria-label="<?= h(__('Variable name')) ?>"
+                                            data-email-template-form-target="variableName"
+                                            data-action="input->email-template-form#variableContractChanged"
+                                            autocomplete="off"
+                                            pattern="[A-Za-z_][A-Za-z0-9_]*"
+                                        >
+                                    </label>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-semibold">
+                                        <?= __('Description') ?>
+                                        <input
+                                            type="text"
+                                            class="form-control"
+                                            placeholder="<?= h(__('Full name of the recipient')) ?>"
+                                            aria-label="<?= h(__('Variable description')) ?>"
+                                            data-email-template-form-target="variableDescription"
+                                            data-action="input->email-template-form#variableContractChanged"
+                                        >
+                                    </label>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small fw-semibold">
+                                        <?= __('Type') ?>
+                                        <select
+                                            class="form-select"
+                                            aria-label="<?= h(__('Variable type')) ?>"
+                                            data-email-template-form-target="variableType"
+                                            data-action="change->email-template-form#variableContractChanged"
+                                        >
+                                            <option value="string"><?= __('Text') ?></option>
+                                            <option value="number"><?= __('Number') ?></option>
+                                            <option value="boolean"><?= __('Yes/No') ?></option>
+                                            <option value="date"><?= __('Date') ?></option>
+                                            <option value="url"><?= __('URL') ?></option>
+                                            <option value="array"><?= __('List') ?></option>
+                                            <option value="object"><?= __('Object') ?></option>
+                                        </select>
+                                    </label>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="form-check mb-2">
+                                        <input
+                                            type="checkbox"
+                                            class="form-check-input"
+                                            aria-label="<?= h(__('Variable is required')) ?>"
+                                            data-email-template-form-target="variableRequired"
+                                            data-action="change->email-template-form#variableContractChanged"
+                                        >
+                                        <label class="form-check-label small fw-semibold">
+                                            <?= __('Required') ?>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-1 text-md-end">
+                                    <button
+                                        type="button"
+                                        class="btn btn-danger btn-sm"
+                                        data-action="email-template-form#removeVariable"
+                                        aria-label="<?= h(__('Remove variable')) ?>"
+                                        title="<?= h(__('Remove variable')) ?>"
+                                    >
+                                        <i class="bi bi-trash" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <?= $this->Form->hidden('variables_schema', [
                         'value' => !empty($emailTemplate->variables_schema)
                             ? json_encode($emailTemplate->variables_schema, JSON_PRETTY_PRINT)
                             : '',
+                        'data-email-template-form-target' => 'variablesSchema',
                     ]) ?>
                 </div>
             </div>

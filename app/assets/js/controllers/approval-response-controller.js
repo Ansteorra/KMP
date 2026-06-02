@@ -35,9 +35,14 @@ class ApprovalResponseController extends Controller {
         this.approvedCountValue = approvalData.approvedCount || 0
         this.eligibleUrlValue = approvalData.eligibleUrl || ''
         this._commentWarning = approvalData.commentWarning || ''
+        this._requiresComment = approvalData.requiresComment || false
 
         // Reset form
         this.decisionTargets.forEach(el => el.checked = false)
+        if (approvalData.defaultDecision) {
+            const defaultDecision = this.decisionTargets.find(el => el.value === approvalData.defaultDecision)
+            if (defaultDecision) defaultDecision.checked = true
+        }
         if (this.hasCommentTarget) this.commentTarget.value = ''
         if (this.hasNextApproverInputTarget) {
             // Clear the autocomplete widget
@@ -90,11 +95,13 @@ class ApprovalResponseController extends Controller {
 
         this.nextApproverSectionTarget.hidden = !showPicker
 
-        // Comment is required for rejections
+        // Comment is required for rejections and feedback responses.
         if (this.hasCommentTarget) {
-            if (isReject) {
+            if (isReject || this._requiresComment) {
                 this.commentTarget.setAttribute('required', 'required')
-                this.commentTarget.placeholder = 'A reason is required when rejecting...'
+                this.commentTarget.placeholder = isReject
+                    ? 'A reason is required when rejecting...'
+                    : 'Feedback is required...'
             } else {
                 this.commentTarget.removeAttribute('required')
                 this.commentTarget.placeholder = 'Optional comment...'
@@ -103,7 +110,7 @@ class ApprovalResponseController extends Controller {
 
         // Show/hide rejection reason label
         if (this.hasCommentRequiredHintTarget) {
-            this.commentRequiredHintTarget.hidden = !isReject
+            this.commentRequiredHintTarget.hidden = !(isReject || this._requiresComment)
         }
 
         // Update required state on hidden input

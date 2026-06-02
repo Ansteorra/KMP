@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services\WorkflowEngine;
@@ -109,6 +108,7 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
                     'slug' => $workflowSlug,
                     'is_active' => true,
                     'current_version_id IS NOT' => null,
+                    'deleted IS' => null,
                 ])
                 ->first();
 
@@ -399,6 +399,7 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
                 ->where([
                     'is_active' => true,
                     'current_version_id IS NOT' => null,
+                    'deleted IS' => null,
                 ])
                 ->contain(['CurrentVersion'])
                 ->all();
@@ -691,6 +692,7 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
         }
 
         $result = $this->executeActionService($service, $serviceMethod, $context, $nodeConfig);
+        $result = $this->applyActionContextUpdates($context, $result);
 
         // Store result in context
         $context['nodes'][$nodeId] = ['result' => $result];
@@ -2350,7 +2352,11 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
                             $nodeConfig = array_merge($nodeConfig, $resolvedParams);
                         }
 
-                        $result = $this->executeActionService($service, $serviceMethod, $instance->context ?? [], $nodeConfig);
+                        $context = $instance->context ?? [];
+                        $result = $this->executeActionService($service, $serviceMethod, $context, $nodeConfig);
+                        $result = $this->applyActionContextUpdates($context, $result);
+                        $context['nodes'][$targetNodeId] = ['result' => $result];
+                        $instance->context = $context;
 
                         $log->status = WorkflowExecutionLog::STATUS_COMPLETED;
                         $log->output_data = $result;
@@ -2407,6 +2413,25 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
         } finally {
             WorkflowTriggerBehavior::$suppressTriggers = $wasSuppressing;
         }
+    }
+
+    /**
+     * Apply action-requested context updates and remove private payload data from output.
+     *
+     * @param array $context Workflow context, updated by reference
+     * @param mixed $result Raw action result
+     * @return mixed Public action result
+     */
+    private function applyActionContextUpdates(array &$context, mixed $result): mixed
+    {
+        if (!is_array($result) || !isset($result['_contextUpdates']) || !is_array($result['_contextUpdates'])) {
+            return $result;
+        }
+
+        $context = array_replace_recursive($context, $result['_contextUpdates']);
+        unset($result['_contextUpdates']);
+
+        return $result;
     }
 
     /**

@@ -64,6 +64,22 @@ class RecommendationsGridColumns extends BaseGridColumns
                     'idField' => 'id',
                 ],
             ],
+            'request-feedback' => [
+                'key' => 'request-feedback',
+                'type' => 'modal',
+                'label' => '',
+                'icon' => 'bi-chat-left-text',
+                'class' => 'btn-sm btn btn-outline-primary',
+                'modalTarget' => '#requestRecommendationFeedbackModal',
+                'permission' => 'requestFeedback',
+                'dataAttributes' => [
+                    'controller' => 'outlet-btn',
+                    'action' => 'click->outlet-btn#fireNotice',
+                    'outlet-btn-btn-data-value' => [
+                        'id' => 'id',
+                    ],
+                ],
+            ],
         ];
     }
 

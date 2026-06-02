@@ -504,10 +504,48 @@
 }
 
 /* ----- Variable Picker Dropdown ----- */
+.wf-template-variable-card {
+    border-color: #d8dee9 !important;
+}
+
+.wf-template-variable-card .form-label {
+    color: #334155;
+    font-weight: 600;
+}
+
+.wf-template-variable-card .wf-template-variable-remove {
+    flex: 0 0 auto;
+    min-width: 2rem;
+    min-height: 2rem;
+    margin-top: 1.45rem;
+}
+
+.wf-template-variable-value .wf-var-picker-wrapper {
+    width: 100%;
+}
+
+.wf-template-variable-value .wf-var-picker-wrapper input {
+    min-width: 0;
+}
+
+.wf-var-picker-wrapper-open {
+    z-index: 2000;
+}
+
+.wf-var-picker-group-open {
+    position: relative;
+    z-index: 2000;
+}
+
 .wf-var-dropdown {
+    position: fixed;
+    z-index: 2001;
+    min-width: 280px;
+    overflow-y: auto;
     border-radius: 8px;
     border: 1px solid #e2e6ea;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    background: #fff;
 }
 
 .wf-var-dropdown .list-group-item {

@@ -293,6 +293,12 @@ return function (RouteBuilder $routes): void {
                 ->setPass(['id']);
             $builder->connect('/designer', ['controller' => 'WorkflowDefinitions', 'action' => 'designer']);
             $builder->connect('/save', ['controller' => 'WorkflowDefinitions', 'action' => 'save']);
+            $builder->connect('/update-metadata/{id}', [
+                'controller' => 'WorkflowDefinitions',
+                'action' => 'updateMetadata',
+            ])
+                ->setPass(['id'])
+                ->setPatterns(['id' => '\d+']);
             $builder->connect('/publish', ['controller' => 'WorkflowDefinitions', 'action' => 'publish']);
             $builder->connect('/registry', ['controller' => 'WorkflowDefinitions', 'action' => 'registry']);
             $builder->connect('/load-version/{versionId}', ['controller' => 'WorkflowDefinitions', 'action' => 'loadVersion'])
@@ -303,6 +309,12 @@ return function (RouteBuilder $routes): void {
                 ->setPass(['definitionId']);
             $builder->connect('/compare-versions', ['controller' => 'WorkflowDefinitions', 'action' => 'compareVersions']);
             $builder->connect('/toggle-active/{id}', ['controller' => 'WorkflowDefinitions', 'action' => 'toggleActive'])
+                ->setPatterns(['id' => '\d+'])
+                ->setPass(['id']);
+            $builder->connect('/archive/{id}', ['controller' => 'WorkflowDefinitions', 'action' => 'archive'])
+                ->setPatterns(['id' => '\d+'])
+                ->setPass(['id']);
+            $builder->connect('/delete/{id}', ['controller' => 'WorkflowDefinitions', 'action' => 'delete'])
                 ->setPatterns(['id' => '\d+'])
                 ->setPass(['id']);
             $builder->connect('/create-draft', ['controller' => 'WorkflowDefinitions', 'action' => 'createDraft']);

@@ -21,6 +21,17 @@ echo $this->KMP->startBlock("css");
 echo $this->Vite->css('drawflow');
 echo $this->Vite->css('workflow-designer');
 $this->KMP->endBlock();
+
+$triggerTypeOptions = [
+    'event' => __('Event-Driven'),
+    'manual' => __('Manual'),
+    'scheduled' => __('Scheduled'),
+    'api' => __('API'),
+];
+$executionModeOptions = [
+    'durable' => __('Durable'),
+    'ephemeral' => __('Ephemeral'),
+];
 ?>
 
 <div class="workflows designer content"
@@ -38,20 +49,23 @@ $this->KMP->endBlock();
         data-controller="workflow-toolbar"
         data-workflow-toolbar-save-url-value="<?= $this->Url->build(['action' => 'save']) ?>"
         data-workflow-toolbar-publish-url-value="<?= $this->Url->build(['action' => 'publish']) ?>"
+        <?php if ($workflow) : ?>
+        data-workflow-toolbar-update-metadata-url-value="<?= $this->Url->build(['action' => 'updateMetadata', $workflow->id]) ?>"
+        <?php endif; ?>
         data-workflow-toolbar-csrf-token-value="<?= $this->request->getAttribute('csrfToken') ?>"
         data-workflow-toolbar-workflow-designer-outlet=".workflows.designer.content">
         <h5 class="mb-0 me-2">
             <?php if ($workflow) : ?>
-                <i class="bi bi-diagram-3 me-1"></i><?= h($workflow->name) ?>
+                <i class="bi bi-diagram-3 me-1"></i><span data-workflow-toolbar-target="workflowName"><?= h($workflow->name) ?></span>
                 <?php if ($draftVersion) : ?>
                     <span class="badge bg-warning text-dark ms-2"><?= __('Draft v{0}', $draftVersion->version_number) ?></span>
                 <?php endif; ?>
                 <?php if ($workflow->execution_mode === 'ephemeral') : ?>
-                    <span class="badge bg-info text-dark ms-2" title="<?= __('Ephemeral workflows run in-memory with no persistence. Async nodes (approvals, delays) are not supported.') ?>">
+                    <span class="badge bg-info text-dark ms-2" data-workflow-toolbar-target="executionModeBadge" title="<?= __('Ephemeral workflows run in-memory with no persistence. Async nodes (approvals, delays) are not supported.') ?>">
                         <i class="bi bi-lightning-charge me-1"></i><?= __('Ephemeral') ?>
                     </span>
                 <?php else : ?>
-                    <span class="badge bg-primary ms-2" title="<?= __('Durable workflows persist execution state and support async nodes like approvals and delays.') ?>">
+                    <span class="badge bg-primary ms-2" data-workflow-toolbar-target="executionModeBadge" title="<?= __('Durable workflows persist execution state and support async nodes like approvals and delays.') ?>">
                         <i class="bi bi-database me-1"></i><?= __('Durable') ?>
                     </span>
                 <?php endif; ?>
@@ -90,6 +104,12 @@ $this->KMP->endBlock();
 
         <div class="ms-auto d-flex gap-2">
             <?php if ($workflow) : ?>
+                <button class="btn btn-sm btn-outline-secondary"
+                    type="button"
+                    data-bs-toggle="modal"
+                    data-bs-target="#workflow-metadata-modal">
+                    <i class="bi bi-pencil-square me-1"></i><?= __('Edit Details') ?>
+                </button>
                 <?= $this->Html->link(
                     '<i class="bi bi-arrow-left me-1"></i>' . __('Back'),
                     ['action' => 'index'],
@@ -107,6 +127,64 @@ $this->KMP->endBlock();
                 <i class="bi bi-rocket-takeoff me-1"></i><?= __('Publish') ?>
             </button>
         </div>
+        <?php if ($workflow) : ?>
+            <div class="modal fade" id="workflow-metadata-modal" tabindex="-1" aria-labelledby="workflow-metadata-modal-title" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                    <div class="modal-content">
+                        <form data-workflow-toolbar-target="metadataForm" data-action="submit->workflow-toolbar#saveMetadata">
+                            <div class="modal-header">
+                                <h2 class="modal-title fs-5" id="workflow-metadata-modal-title"><?= __('Edit Workflow Details') ?></h2>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?= __('Close') ?>"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="alert alert-danger d-none" role="alert" data-workflow-toolbar-target="metadataStatus"></div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="workflow-metadata-name"><?= __('Workflow Name') ?></label>
+                                        <input class="form-control" id="workflow-metadata-name" name="name" value="<?= h($workflow->name) ?>" maxlength="255" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="workflow-metadata-slug"><?= __('Slug') ?></label>
+                                        <input class="form-control" id="workflow-metadata-slug" name="slug" value="<?= h($workflow->slug) ?>" maxlength="100" pattern="[a-z0-9-]+" required aria-describedby="workflow-metadata-slug-help">
+                                        <div class="form-text" id="workflow-metadata-slug-help"><?= __('Use lowercase letters, numbers, and dashes.') ?></div>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label" for="workflow-metadata-description"><?= __('Description') ?></label>
+                                        <textarea class="form-control" id="workflow-metadata-description" name="description" rows="3"><?= h((string)$workflow->description) ?></textarea>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label" for="workflow-metadata-trigger-type"><?= __('Trigger Type') ?></label>
+                                        <select class="form-select" id="workflow-metadata-trigger-type" name="trigger_type" required>
+                                            <?php foreach ($triggerTypeOptions as $value => $label) : ?>
+                                                <option value="<?= h($value) ?>" <?= $workflow->trigger_type === $value ? 'selected' : '' ?>><?= h($label) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label" for="workflow-metadata-entity-type"><?= __('Object Type') ?></label>
+                                        <input class="form-control" id="workflow-metadata-entity-type" name="entity_type" value="<?= h((string)$workflow->entity_type) ?>" maxlength="100" placeholder="App\Model\Entity\Member">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label" for="workflow-metadata-execution-mode"><?= __('Execution Mode') ?></label>
+                                        <select class="form-select" id="workflow-metadata-execution-mode" name="execution_mode" required>
+                                            <?php foreach ($executionModeOptions as $value => $label) : ?>
+                                                <option value="<?= h($value) ?>" <?= $workflow->execution_mode === $value ? 'selected' : '' ?>><?= h($label) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><?= __('Cancel') ?></button>
+                                <button type="submit" class="btn btn-primary" data-workflow-toolbar-target="metadataSaveBtn">
+                                    <i class="bi bi-save me-1"></i><?= __('Save Details') ?>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
     </div>
 
     <!-- Validation Results (initially hidden) -->

@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services\WorkflowRegistry;
@@ -206,15 +205,36 @@ class WorkflowPluginLoader
             ],
             [
                 'action' => 'Core.SetVariable',
-                'label' => 'Set Workflow Variable',
-                'description' => 'Set a variable in the workflow context',
+                'label' => 'Assign to Variable',
+                'description' => 'Assign a value to $.variables.<name> for later workflow steps',
                 'inputSchema' => [
                     'name' => ['type' => 'string', 'label' => 'Variable Name', 'required' => true],
                     'value' => ['type' => 'mixed', 'label' => 'Value', 'required' => true],
                 ],
-                'outputSchema' => [],
+                'outputSchema' => [
+                    'name' => ['type' => 'string', 'label' => 'Variable Name'],
+                    'value' => ['type' => 'mixed', 'label' => 'Assigned Value'],
+                ],
                 'serviceClass' => $coreActions,
                 'serviceMethod' => 'setVariable',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Core.GetObjectById',
+                'label' => 'Get Object by ID',
+                'description' => 'Load one registered workflow object by primary key and return its published fields',
+                'inputSchema' => [
+                    'entityType' => ['type' => 'entity', 'label' => 'Object/Table', 'required' => true],
+                    'entityId' => ['type' => 'integer', 'label' => 'Object ID', 'required' => true],
+                ],
+                'outputSchema' => [
+                    'found' => ['type' => 'boolean', 'label' => 'Record Found'],
+                    'record' => ['type' => 'object', 'label' => 'Record Fields'],
+                    'entityType' => ['type' => 'string', 'label' => 'Object/Table'],
+                    'entityId' => ['type' => 'integer', 'label' => 'Object ID'],
+                ],
+                'serviceClass' => $coreActions,
+                'serviceMethod' => 'getObjectById',
                 'isAsync' => false,
             ],
             [

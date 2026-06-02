@@ -4,9 +4,12 @@ declare(strict_types=1);
 namespace Awards\Test\TestCase\Controller;
 
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
+use Awards\Controller\RecommendationsController;
 use Awards\Model\Entity\Recommendation;
 use Cake\Cache\Cache;
+use Cake\Http\ServerRequest;
 use Cake\I18n\DateTime;
+use ReflectionMethod;
 
 class RecommendationsControllerTest extends HttpIntegrationTestCase
 {
@@ -68,6 +71,21 @@ class RecommendationsControllerTest extends HttpIntegrationTestCase
         Cache::delete('permissions_policies' . self::TEST_MEMBER_AGATHA_ID, 'member_permissions');
 
         parent::tearDown();
+    }
+
+    public function testFeedbackRecipientParserAcceptsMemberPublicIds(): void
+    {
+        $members = $this->getTableLocator()->get('Members');
+        $bryce = $members->get(self::TEST_MEMBER_BRYCE_ID);
+
+        $controller = new RecommendationsController(new ServerRequest());
+        $method = new ReflectionMethod($controller, 'parseMemberIdList');
+        $method->setAccessible(true);
+
+        $ids = $method->invoke($controller, $bryce->public_id . ', ' . self::TEST_MEMBER_AGATHA_ID);
+
+        sort($ids);
+        $this->assertSame([self::TEST_MEMBER_AGATHA_ID, self::TEST_MEMBER_BRYCE_ID], $ids);
     }
 
     public function testGatheringAwardsGridDataAppliesRecommendationScope(): void

@@ -3,9 +3,12 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Services;
 
+use App\KMP\TimezoneHelper;
 use App\Model\Entity\EmailTemplate;
 use App\Services\EmailTemplateRendererService;
 use App\Test\TestCase\BaseTestCase;
+use Cake\I18n\DateTime;
+use ReflectionClass;
 use RuntimeException;
 
 class EmailTemplateRendererServiceTest extends BaseTestCase
@@ -16,7 +19,23 @@ class EmailTemplateRendererServiceTest extends BaseTestCase
     {
         parent::setUp();
         $this->skipIfPostgres();
+        $this->forceAppTimezone('America/Chicago');
         $this->service = new EmailTemplateRendererService();
+    }
+
+    protected function tearDown(): void
+    {
+        $this->forceAppTimezone(null);
+
+        parent::tearDown();
+    }
+
+    private function forceAppTimezone(?string $timezone): void
+    {
+        $reflection = new ReflectionClass(TimezoneHelper::class);
+        $property = $reflection->getProperty('appTimezoneCache');
+        $property->setAccessible(true);
+        $property->setValue(null, $timezone);
     }
 
     // =========================================
@@ -77,6 +96,46 @@ class EmailTemplateRendererServiceTest extends BaseTestCase
         $vars = ['val' => null];
         $result = $this->service->renderTemplate($template, $vars);
         $this->assertEquals('Value is: ', $result);
+    }
+
+    public function testRenderTemplateFormatsDateTimeInKingdomTimezone(): void
+    {
+        $template = 'Expires: {{expires_on}}';
+        $vars = ['expires_on' => new DateTime('2026-06-02T20:00:00Z')];
+
+        $result = $this->service->renderTemplate($template, $vars);
+
+        $this->assertSame('Expires: June 2, 2026 3:00 PM CDT', $result);
+    }
+
+    public function testRenderSubjectFormatsSchemaDateTimeStringInKingdomTimezone(): void
+    {
+        $template = new EmailTemplate();
+        $template->subject_template = 'Expires: {{expires_on}}';
+        $template->variables_schema = [
+            ['name' => 'expires_on', 'type' => 'date_time'],
+        ];
+
+        $result = $this->service->renderSubject($template, [
+            'expires_on' => '2026-06-02T20:00:00+00:00',
+        ]);
+
+        $this->assertSame('Expires: June 2, 2026 3:00 PM CDT', $result);
+    }
+
+    public function testRenderSubjectFormatsSchemaDateStringInKingdomTimezone(): void
+    {
+        $template = new EmailTemplate();
+        $template->subject_template = 'Event date: {{event_date}}';
+        $template->variables_schema = [
+            ['name' => 'event_date', 'type' => 'date'],
+        ];
+
+        $result = $this->service->renderSubject($template, [
+            'event_date' => '2026-06-02T20:00:00+00:00',
+        ]);
+
+        $this->assertSame('Event date: June 2, 2026', $result);
     }
 
     public function testRenderTemplateBoolValues(): void
@@ -153,6 +212,25 @@ class EmailTemplateRendererServiceTest extends BaseTestCase
         $vars = ['status' => 'Approved', 'name' => 'Alice'];
         $result = $this->service->renderTemplate($template, $vars);
         $this->assertEquals('Welcome Alice!', $result);
+    }
+
+    public function testConditionalBareVariableRendersWhenUseful(): void
+    {
+        $template = '{{#if awardReason}}Reason: {{awardReason}}{{/if}}';
+        $vars = ['awardReason' => 'Long service'];
+        $result = $this->service->renderTemplate($template, $vars);
+        $this->assertEquals('Reason: Long service', $result);
+    }
+
+    public function testConditionalBareVariableSkipsWhenMissingOrEmpty(): void
+    {
+        $template = '{{#if awardReason}}Reason: {{awardReason}}{{/if}}';
+
+        $this->assertSame('', $this->service->renderTemplate($template, []));
+        $this->assertSame('', $this->service->renderTemplate($template, ['awardReason' => '']));
+        $this->assertSame('', $this->service->renderTemplate($template, ['awardReason' => null]));
+        $this->assertSame('', $this->service->renderTemplate($template, ['awardReason' => false]));
+        $this->assertSame('', $this->service->renderTemplate($template, ['awardReason' => []]));
     }
 
     // =========================================
@@ -259,10 +337,12 @@ class EmailTemplateRendererServiceTest extends BaseTestCase
 
     public function testExtractVariablesFromConditionals(): void
     {
-        $template = '{{#if status == "Approved"}}Done{{/if}} {{name}}';
+        $template = '{{#if status == "Approved" && awardReason}}Done{{/if}} {{name}}';
         $vars = $this->service->extractVariables($template);
         $this->assertContains('status', $vars);
+        $this->assertContains('awardReason', $vars);
         $this->assertContains('name', $vars);
+        $this->assertNotContains('Approved', $vars);
     }
 
     public function testExtractVariablesDeduplicates(): void
@@ -491,7 +571,7 @@ class EmailTemplateRendererServiceTest extends BaseTestCase
         $template->html_template = 'Role: {{role}}';
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessageMatches("/role/");
+        $this->expectExceptionMessageMatches('/role/');
         $this->service->assertValidForSend($template, ['name' => 'Bob']);
     }
 

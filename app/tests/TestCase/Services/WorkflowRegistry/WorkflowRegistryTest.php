@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services\WorkflowRegistry;
@@ -506,6 +505,50 @@ class WorkflowRegistryTest extends TestCase
 
         $designer = WorkflowEntityRegistry::getForDesigner();
         $this->assertCount(2, $designer[0]['fields']);
+    }
+
+    public function testEntityRegistryCanIncludeReflectedModelSchemasForDesigner(): void
+    {
+        $designer = WorkflowEntityRegistry::getForDesigner(true);
+        $members = array_values(array_filter(
+            $designer,
+            fn(array $entity): bool => $entity['entityType'] === 'Core.Members',
+        ));
+
+        $this->assertNotEmpty($members);
+        $this->assertArrayHasKey('id', $members[0]['fields']);
+        $this->assertArrayHasKey('sca_name', $members[0]['fields']);
+        $this->assertArrayNotHasKey('password', $members[0]['fields']);
+        $this->assertArrayNotHasKey('password_token', $members[0]['fields']);
+    }
+
+    public function testEntityRegistryDoesNotAutoDiscoverSensitiveOperationalTables(): void
+    {
+        $designer = WorkflowEntityRegistry::getForDesigner(true);
+        $entityTypes = array_column($designer, 'entityType');
+
+        $this->assertNotContains('Core.ServicePrincipalTokens', $entityTypes);
+        $this->assertNotContains('Core.ServicePrincipalAuditLogs', $entityTypes);
+        $this->assertNotContains('Core.Notes', $entityTypes);
+    }
+
+    public function testEntityRegistryFiltersSensitiveFieldsFromRegisteredEntities(): void
+    {
+        $entity = $this->makeEntity('Core.Members');
+        $entity['tableClass'] = 'Members';
+        $entity['fields'] = [
+            'sca_name' => ['type' => 'string', 'label' => 'SCA Name'],
+            'password' => ['type' => 'string', 'label' => 'Password'],
+            'password_token' => ['type' => 'string', 'label' => 'Password Token'],
+        ];
+        WorkflowEntityRegistry::register('Core', [$entity]);
+
+        $found = WorkflowEntityRegistry::getEntityWithSchema('Core.Members');
+
+        $this->assertNotNull($found);
+        $this->assertArrayHasKey('sca_name', $found['fields']);
+        $this->assertArrayNotHasKey('password', $found['fields']);
+        $this->assertArrayNotHasKey('password_token', $found['fields']);
     }
 
     // =====================================================

@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\KMP\GridColumns;
@@ -14,6 +13,11 @@ use App\Model\Entity\WorkflowApproval;
  */
 class ApprovalsGridColumns extends BaseGridColumns
 {
+    /**
+     * Column definitions for approval grids.
+     *
+     * @return array<string, array<string, mixed>>
+     */
     public static function getColumns(): array
     {
         return [
@@ -117,6 +121,59 @@ class ApprovalsGridColumns extends BaseGridColumns
     }
 
     /**
+     * Normalize workflow approval config from database JSON.
+     *
+     * @param array<string, mixed>|string|null $approverConfig Approval config
+     * @return array<string, mixed>
+     */
+    public static function normalizeApproverConfig(array|string|null $approverConfig): array
+    {
+        if (is_array($approverConfig)) {
+            return $approverConfig;
+        }
+        if (is_string($approverConfig)) {
+            $decoded = json_decode($approverConfig, true);
+
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        return [];
+    }
+
+    /**
+     * Determine whether an approval represents a feedback response.
+     *
+     * @param array<string, mixed>|string|null $approverConfig Approval config
+     * @return bool
+     */
+    public static function isFeedbackResponse(array|string|null $approverConfig): bool
+    {
+        $config = self::normalizeApproverConfig($approverConfig);
+
+        return !empty($config['feedback_response']);
+    }
+
+    /**
+     * Compute the pending status label for a grid approval.
+     *
+     * @param \App\Model\Entity\WorkflowApproval $approval Approval entity
+     * @param array<string, mixed>|null $approverConfig Normalized approver config
+     * @return string
+     */
+    public static function getPendingStatusLabel(WorkflowApproval $approval, ?array $approverConfig = null): string
+    {
+        $approverConfig ??= self::normalizeApproverConfig($approval->approver_config);
+        if (isset($approverConfig['pending_status_label']) && $approverConfig['pending_status_label'] !== '') {
+            return __($approverConfig['pending_status_label']);
+        }
+        if (!empty($approverConfig['feedback_response'])) {
+            return __('Feedback requested');
+        }
+
+        return __('Pending ({0}/{1})', $approval->approved_count, $approval->required_count);
+    }
+
+    /**
      * Row actions for the approvals grid.
      *
      * @return array<string, array<string, mixed>>
@@ -142,6 +199,27 @@ class ApprovalsGridColumns extends BaseGridColumns
                 'class' => 'btn btn-sm btn-primary',
                 'modalTarget' => '#approvalResponseModal',
                 'statusFilter' => [WorkflowApproval::STATUS_PENDING],
+                'condition' => ['is_feedback_response' => false],
+                'dataAttributes' => [
+                    'controller' => 'outlet-btn',
+                    'action' => 'click->outlet-btn#fireNotice',
+                    'outlet-btn-btn-data-value' => [
+                        'id' => 'id',
+                        'approver_config' => 'approver_config',
+                        'required_count' => 'required_count',
+                        'approved_count' => 'approved_count',
+                    ],
+                ],
+            ],
+            'send_feedback' => [
+                'key' => 'send_feedback',
+                'type' => 'modal',
+                'label' => 'Send Feedback',
+                'icon' => 'bi-chat-left-text',
+                'class' => 'btn btn-sm btn-primary',
+                'modalTarget' => '#approvalResponseModal',
+                'statusFilter' => [WorkflowApproval::STATUS_PENDING],
+                'condition' => ['is_feedback_response' => true],
                 'dataAttributes' => [
                     'controller' => 'outlet-btn',
                     'action' => 'click->outlet-btn#fireNotice',
@@ -167,8 +245,8 @@ class ApprovalsGridColumns extends BaseGridColumns
         return [
             'sys-approvals-pending' => [
                 'id' => 'sys-approvals-pending',
-                'name' => __('Pending Approvals'),
-                'description' => __('Approvals waiting for your response'),
+                'name' => __('Pending Action Items'),
+                'description' => __('Items waiting for your response'),
                 'canManage' => false,
                 'config' => [
                     'filters' => [

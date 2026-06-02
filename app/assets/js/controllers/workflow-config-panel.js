@@ -62,8 +62,8 @@ export default class WorkflowConfigPanel {
         html += `<div class="config-panel-body" aria-live="polite">
                 <form data-node-id="${nodeId}">
                     <div class="mb-3">
-                        <label class="form-label">Label</label>
-                        <input type="text" class="form-control form-control-sm" name="label" value="${nodeData.name || ''}"
+                        <label class="form-label" for="workflow-node-label-${this._escapeAttr(nodeId)}">Label</label>
+                        <input type="text" class="form-control form-control-sm" id="workflow-node-label-${this._escapeAttr(nodeId)}" name="label" value="${this._escapeAttr(nodeData.data?.label || nodeData.data?.config?._nodeLabel || nodeData.name || '')}"
                             data-action="change->workflow-designer#updateNodeConfig">
                     </div>`
         html += this.getTypeSpecificHTML(type, nodeData.data?.config || {})
@@ -686,6 +686,22 @@ export default class WorkflowConfigPanel {
             </div>`
         }
 
+        if (dataType === 'entity') {
+            const selectedValue = String(values.fixedValue || '')
+            let options = '<option value="">Select an object/table...</option>'
+            this.registryData.entities?.forEach(entity => {
+                const value = entity.entityType || ''
+                const selected = selectedValue === value ? 'selected' : ''
+                const label = entity.label ? `${entity.label} (${value})` : value
+                options += `<option value="${this._escapeAttr(value)}" ${selected}>${this._escapeAttr(label)}</option>`
+            })
+
+            return `<select class="form-select form-select-sm" name="${escapedFieldName}"
+                data-action="change->workflow-designer#updateNodeConfig">
+                ${options}
+            </select>`
+        }
+
         // Default: string text input
         return `<input type="text" class="form-control form-control-sm"
             name="${escapedFieldName}" value="${this._escapeAttr(String(values.fixedValue))}"
@@ -731,16 +747,18 @@ export default class WorkflowConfigPanel {
             rowsHTML += this._renderKvRow(escapedFieldName, idx, key, val)
         })
 
-        return `<div class="mb-2 kv-editor" data-kv-field="${escapedFieldName}">
-            <label class="form-label form-label-sm mb-1">${label}</label>
+        return `<div class="mb-2 kv-editor wf-template-variable-editor" data-kv-field="${escapedFieldName}">
+            <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                <label class="form-label form-label-sm mb-0">${label}</label>
+                <button type="button" class="btn btn-outline-secondary btn-sm"
+                    data-action="click->workflow-designer#addKvRow"
+                    data-kv-target="${escapedFieldName}">
+                    <i class="bi bi-plus-circle" aria-hidden="true"></i> Add Variable
+                </button>
+            </div>
             <div class="kv-rows" data-kv-rows="${escapedFieldName}">
                 ${rowsHTML}
             </div>
-            <button type="button" class="btn btn-outline-secondary btn-sm mt-1"
-                data-action="click->workflow-designer#addKvRow"
-                data-kv-target="${escapedFieldName}">
-                <i class="bi bi-plus-circle"></i> Add Variable
-            </button>
         </div>`
     }
 
@@ -770,23 +788,52 @@ export default class WorkflowConfigPanel {
             `<option value="app_setting" ${valueType === 'app_setting' ? 'selected' : ''}>App Setting</option>`,
         ].join('')
 
-        return `<div class="input-group input-group-sm mb-1 kv-row" data-kv-idx="${idx}">
-            <input type="text" class="form-control" style="max-width: 120px;"
-                placeholder="Variable name"
-                name="${fieldName}__key__${idx}" value="${escapedKey}"
-                data-action="change->workflow-designer#updateNodeConfig">
-            <select class="form-select" style="max-width: 110px;"
-                data-kv-vtype="${fieldName}__${idx}"
-                data-action="change->workflow-designer#onKvValueTypeChange">
-                ${typeOptions}
-            </select>
-            <input type="text" class="form-control"
-                placeholder="${valueType === 'context' ? '$.path.to.value' : 'value'}"
-                name="${fieldName}__val__${idx}" value="${this._escapeAttr(valueDisplay)}"
-                data-action="change->workflow-designer#updateNodeConfig">
-            <button type="button" class="btn btn-outline-danger"
-                data-action="click->workflow-designer#removeKvRow"
-                title="Remove"><i class="bi bi-trash"></i></button>
+        const safeFieldId = String(fieldName).replace(/[^a-zA-Z0-9_-]/g, '-')
+        const keyId = `${safeFieldId}-key-${idx}`
+        const typeId = `${safeFieldId}-type-${idx}`
+        const valueId = `${safeFieldId}-value-${idx}`
+        const removeLabel = escapedKey
+            ? `Remove template variable ${escapedKey}`
+            : `Remove template variable ${idx + 1}`
+
+        return `<div class="card border bg-light mb-2 kv-row wf-template-variable-card" data-kv-idx="${idx}">
+            <div class="card-body p-2">
+                <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                    <div class="flex-grow-1">
+                        <label class="form-label form-label-sm mb-1" for="${this._escapeAttr(keyId)}">Template variable</label>
+                        <input type="text" class="form-control form-control-sm"
+                            id="${this._escapeAttr(keyId)}"
+                            placeholder="Variable name"
+                            name="${fieldName}__key__${idx}" value="${escapedKey}"
+                            data-action="change->workflow-designer#updateNodeConfig">
+                    </div>
+                    <button type="button" class="btn btn-outline-danger btn-sm wf-template-variable-remove"
+                        data-action="click->workflow-designer#removeKvRow"
+                        aria-label="${this._escapeAttr(removeLabel)}">
+                        <i class="bi bi-trash" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <div class="row g-2 align-items-start">
+                    <div class="col-12 col-sm-4">
+                        <label class="form-label form-label-sm mb-1" for="${this._escapeAttr(typeId)}">Source</label>
+                        <select class="form-select form-select-sm"
+                            id="${this._escapeAttr(typeId)}"
+                            data-kv-vtype="${fieldName}__${idx}"
+                            data-action="change->workflow-designer#onKvValueTypeChange">
+                            ${typeOptions}
+                        </select>
+                    </div>
+                    <div class="col-12 col-sm-8 wf-template-variable-value">
+                        <label class="form-label form-label-sm mb-1" for="${this._escapeAttr(valueId)}">Value</label>
+                        <input type="text" class="form-control form-control-sm"
+                            id="${this._escapeAttr(valueId)}"
+                            placeholder="${valueType === 'context' ? 'Choose a workflow variable' : 'Value'}"
+                            name="${fieldName}__val__${idx}" value="${this._escapeAttr(valueDisplay)}"
+                            data-action="change->workflow-designer#updateNodeConfig"
+                            ${valueType === 'context' ? 'data-variable-picker="true"' : ''}>
+                    </div>
+                </div>
+            </div>
         </div>`
     }
 

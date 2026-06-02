@@ -13,11 +13,14 @@ use Cake\Routing\RouteBuilder;
 use App\KMP\KMPPluginInterface;
 use Cake\Event\EventManager;
 use Awards\Event\CallForCellsHandler;
+use Awards\Event\RecommendationFeedbackApprovalListener;
 use App\Services\NavigationRegistry;
 use App\Services\ViewCellRegistry;
 use Awards\Services\AwardsNavigationProvider;
 use Awards\Services\AwardsViewCellProvider;
 use Awards\Services\RecommendationFormService;
+use Awards\Services\RecommendationFeedbackContextRenderer;
+use Awards\Services\RecommendationFeedbackService;
 use Awards\Services\RecommendationGroupingService;
 use Awards\Services\RecommendationQueryService;
 use Awards\Services\RecommendationStateLogService;
@@ -37,6 +40,8 @@ use Awards\Services\BestowalStateLogService;
 use Awards\Services\BestowalTransitionService;
 use Awards\Services\BestowalUpdateService;
 use App\KMP\StaticHelpers;
+use App\Services\ApprovalContext\ApprovalContextRendererRegistry;
+use App\Services\WorkflowEngine\TriggerDispatcher;
 
 /**
  * Awards Plugin - Award recommendation management with state machine workflow.
@@ -93,6 +98,13 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
                 return AwardsViewCellProvider::getViewCells($urlParams, $user);
             }
         );
+
+        ApprovalContextRendererRegistry::register(
+            'AwardsFeedback',
+            new RecommendationFeedbackContextRenderer()
+        );
+
+        EventManager::instance()->on(new RecommendationFeedbackApprovalListener());
 
         $currentConfigVersion = "26.02.22.a"; // Removed Awards.ViewConfig.* settings (unused)
 
@@ -158,6 +170,9 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
     public function services(ContainerInterface $container): void
     {
         $container->add(RecommendationFormService::class);
+        $container->add(RecommendationFeedbackService::class)
+            ->addArgument(TriggerDispatcher::class);
+        $container->add(RecommendationFeedbackContextRenderer::class);
         $container->add(RecommendationQueryService::class);
         $container->add(RecommendationSubmissionService::class);
         $container->add(RecommendationUpdateService::class);

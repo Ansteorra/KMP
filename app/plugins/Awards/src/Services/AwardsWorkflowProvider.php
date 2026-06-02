@@ -158,6 +158,34 @@ class AwardsWorkflowProvider
                 ],
             ],
             [
+                'event' => RecommendationFeedbackService::EVENT_FEEDBACK_REQUESTED,
+                'label' => 'Recommendation Feedback Requested',
+                'description' => 'When one recipient is asked to provide feedback on a recommendation request',
+                'payloadSchema' => self::feedbackPayloadSchema(),
+            ],
+            [
+                'event' => RecommendationFeedbackService::EVENT_FEEDBACK_RETURNED,
+                'label' => 'Recommendation Feedback Returned',
+                'description' => 'When a feedback recipient submits their feedback comment',
+                'payloadSchema' => self::feedbackPayloadSchema([
+                    'responseComment' => ['type' => 'string', 'label' => 'Feedback Comment'],
+                ]),
+            ],
+            [
+                'event' => RecommendationFeedbackService::EVENT_FEEDBACK_RETRACTED,
+                'label' => 'Recommendation Feedback Retracted',
+                'description' => 'When a pending recommendation feedback request is retracted for one recipient',
+                'payloadSchema' => self::feedbackPayloadSchema([
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ]),
+            ],
+            [
+                'event' => RecommendationFeedbackService::EVENT_FEEDBACK_EXPIRED,
+                'label' => 'Recommendation Feedback Expired',
+                'description' => 'When one recipient misses the recommendation feedback deadline',
+                'payloadSchema' => self::feedbackPayloadSchema(),
+            ],
+            [
                 'event' => 'Awards.BestowalTransitionRequested',
                 'label' => 'Bestowal Transition Requested',
                 'description' => 'When a workflow should transition a single bestowal',
@@ -252,6 +280,45 @@ class AwardsWorkflowProvider
                 ],
             ],
         ]);
+    }
+
+    /**
+     * Build the common workflow trigger schema for recommendation feedback events.
+     *
+     * @param array<string, array<string, mixed>> $extra Event-specific fields.
+     * @return array<string, array<string, mixed>>
+     */
+    private static function feedbackPayloadSchema(array $extra = []): array
+    {
+        return $extra + [
+            'feedbackRequestId' => ['type' => 'integer', 'label' => 'Feedback Request ID'],
+            'feedbackRequestRecipientId' => ['type' => 'integer', 'label' => 'Feedback Request Recipient ID'],
+            'entityType' => ['type' => 'string', 'label' => 'Entity Type'],
+            'entityId' => ['type' => 'integer', 'label' => 'Entity ID'],
+            'requestStatus' => ['type' => 'string', 'label' => 'Request Status'],
+            'recipientStatus' => ['type' => 'string', 'label' => 'Recipient Status'],
+            'requesterId' => ['type' => 'integer', 'label' => 'Requester Member ID'],
+            'requesterScaName' => ['type' => 'string', 'label' => 'Requester SCA Name'],
+            'requesterEmail' => ['type' => 'string', 'label' => 'Requester Email'],
+            'recipientId' => ['type' => 'integer', 'label' => 'Recipient Member ID'],
+            'recipientScaName' => ['type' => 'string', 'label' => 'Recipient SCA Name'],
+            'recipientEmail' => ['type' => 'string', 'label' => 'Recipient Email'],
+            'workflowInstanceId' => ['type' => 'integer', 'label' => 'Workflow Instance ID'],
+            'workflowApprovalId' => ['type' => 'integer', 'label' => 'Workflow Approval ID'],
+            'workflowApprovalResponseId' => ['type' => 'integer', 'label' => 'Workflow Approval Response ID'],
+            'message' => ['type' => 'string', 'label' => 'Requester Message'],
+            'deadline' => ['type' => 'datetime', 'label' => 'Feedback Deadline'],
+            'expires_on' => ['type' => 'datetime', 'label' => 'Feedback Expires On'],
+            'expiresOn' => ['type' => 'datetime', 'label' => 'Feedback Expires On'],
+            'respondedAt' => ['type' => 'datetime', 'label' => 'Responded At'],
+            'retractedAt' => ['type' => 'datetime', 'label' => 'Retracted At'],
+            'expiredAt' => ['type' => 'datetime', 'label' => 'Expired At'],
+            'responseComment' => ['type' => 'string', 'label' => 'Feedback Comment'],
+            'recommendationIds' => ['type' => 'array', 'label' => 'Recommendation IDs'],
+            'primaryRecommendationId' => ['type' => 'integer', 'label' => 'Primary Recommendation ID'],
+            'recommendationCount' => ['type' => 'integer', 'label' => 'Recommendation Count'],
+            'recommendations' => ['type' => 'array', 'label' => 'Recommendation Snapshots'],
+        ];
     }
 
     /**

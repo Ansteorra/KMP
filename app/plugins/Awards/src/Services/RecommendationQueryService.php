@@ -127,6 +127,12 @@ class RecommendationQueryService
                     'icon' => 'bi-collection',
                     'modalTarget' => '#groupRecommendationsModal',
                 ],
+                [
+                    'key' => 'request-feedback',
+                    'label' => 'Request Feedback',
+                    'icon' => 'bi-chat-left-text',
+                    'modalTarget' => '#requestRecommendationFeedbackModal',
+                ],
             ],
         ];
 
@@ -371,6 +377,12 @@ class RecommendationQueryService
                     'label' => 'Bulk Edit',
                     'icon' => 'bi-pencil-square',
                     'modalTarget' => '#bulkEditRecommendationModal',
+                ],
+                [
+                    'key' => 'request-feedback',
+                    'label' => 'Request Feedback',
+                    'icon' => 'bi-chat-left-text',
+                    'modalTarget' => '#requestRecommendationFeedbackModal',
                 ],
             ],
         ];

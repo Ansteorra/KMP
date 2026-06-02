@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
 use App\Migrations\CrossEngineMigrationTrait;
+use Migrations\AbstractMigration;
 
 /**
  * Backfill all existing Activities authorization approvals into the workflow engine tables.
@@ -18,6 +18,11 @@ class BackfillAuthorizationApprovalsToWorkflowEngine extends AbstractMigration
 {
     use CrossEngineMigrationTrait;
 
+    /**
+     * Backfill existing authorization approval history into workflow tables.
+     *
+     * @return void
+     */
     public function up(): void
     {
         // Skip backfill if the source plugin table doesn't exist yet.
@@ -26,119 +31,154 @@ class BackfillAuthorizationApprovalsToWorkflowEngine extends AbstractMigration
         // absent when this migration runs.
         if (!$this->tableExistsInDb('activities_authorizations')) {
             echo "Skipping backfill: activities_authorizations table does not exist (fresh install).\n";
+
             return;
         }
 
         $ctxText = $this->jsonAsText('context');
         // Check idempotency — skip if we already have migrated records
         $existing = $this->fetchRow(
-            "SELECT COUNT(*) AS cnt FROM workflow_instances " .
-            "WHERE entity_type = 'Activities.Authorizations' AND $ctxText LIKE '%\"migrated\":true%'"
+            'SELECT COUNT(*) AS cnt FROM workflow_instances ' .
+            "WHERE entity_type = 'Activities.Authorizations' AND $ctxText LIKE '%\"migrated\":true%'",
         );
         if ($existing && (int)$existing['cnt'] > 0) {
             echo "Backfill already applied ({$existing['cnt']} migrated instances found). Skipping.\n";
+
             return;
         }
 
         // Step 1: Find the workflow definition and published version
         $defRow = $this->fetchRow(
-            "SELECT id FROM workflow_definitions WHERE slug = 'activities-authorization-request'"
+            "SELECT id FROM workflow_definitions WHERE slug = 'activities-authorization-request'",
         );
         if (!$defRow) {
             echo "Workflow definition 'activities-authorization-request' not found. Skipping backfill.\n";
+
             return;
         }
         $defId = (int)$defRow['id'];
 
         $versionRow = $this->fetchRow(
-            "SELECT id FROM workflow_versions " .
+            'SELECT id FROM workflow_versions ' .
             "WHERE workflow_definition_id = {$defId} AND status = 'published' " .
-            "ORDER BY version_number DESC LIMIT 1"
+            'ORDER BY version_number DESC LIMIT 1',
         );
         if (!$versionRow) {
             echo "No published workflow version found. Skipping backfill.\n";
+
             return;
         }
         $versionId = (int)$versionRow['id'];
 
-        // Step 2: Fetch all authorizations
-        $authorizations = $this->fetchAll("SELECT * FROM activities_authorizations");
+        // Step 2: Fetch all source data once. The seeded dev database contains
+        // thousands of authorizations; doing selects/inserts per row makes reset
+        // effectively hang on this migration.
+        $authorizations = $this->fetchAll(
+            'SELECT aa.*, act.num_required_authorizors, act.num_required_renewers ' .
+            'FROM activities_authorizations aa ' .
+            'LEFT JOIN activities_activities act ON act.id = aa.activity_id ' .
+            'ORDER BY aa.id',
+        );
         if (empty($authorizations)) {
             echo "No authorizations to migrate.\n";
+
             return;
+        }
+
+        $sourceApprovals = $this->fetchAll(
+            'SELECT authorization_id, approver_id, approved, approver_notes, requested_on, responded_on ' .
+            'FROM activities_authorization_approvals ORDER BY authorization_id, requested_on',
+        );
+        $approvalStats = [];
+        $responsesByAuthorization = [];
+        foreach ($sourceApprovals as $approval) {
+            $authorizationId = (int)$approval['authorization_id'];
+            $approvalStats[$authorizationId] ??= [
+                'approved_count' => 0,
+                'rejected_count' => 0,
+                'last_responded' => null,
+                'pending_approver_id' => null,
+                'pending_requested_on' => null,
+            ];
+
+            if ($approval['responded_on'] !== null) {
+                if ($this->isTruthy($approval['approved'])) {
+                    $approvalStats[$authorizationId]['approved_count']++;
+                } else {
+                    $approvalStats[$authorizationId]['rejected_count']++;
+                }
+                if (
+                    $approvalStats[$authorizationId]['last_responded'] === null ||
+                    $approval['responded_on'] > $approvalStats[$authorizationId]['last_responded']
+                ) {
+                    $approvalStats[$authorizationId]['last_responded'] = $approval['responded_on'];
+                }
+                $responsesByAuthorization[$authorizationId][] = $approval;
+            } elseif (
+                $approvalStats[$authorizationId]['pending_requested_on'] === null ||
+                $approval['requested_on'] > $approvalStats[$authorizationId]['pending_requested_on']
+            ) {
+                $approvalStats[$authorizationId]['pending_approver_id'] = (int)$approval['approver_id'];
+                $approvalStats[$authorizationId]['pending_requested_on'] = $approval['requested_on'];
+            }
         }
 
         $now = date('Y-m-d H:i:s');
 
         // Status mappings
         $instanceStatusMap = [
-            'pending'   => 'waiting',
-            'approved'  => 'completed',
-            'denied'    => 'completed',
-            'revoked'   => 'completed',
-            'expired'   => 'completed',
+            'pending' => 'waiting',
+            'approved' => 'completed',
+            'denied' => 'completed',
+            'revoked' => 'completed',
+            'expired' => 'completed',
             'retracted' => 'cancelled',
         ];
 
         $logStatusMap = [
-            'pending'   => 'waiting',
-            'approved'  => 'completed',
-            'denied'    => 'completed',
-            'revoked'   => 'completed',
-            'expired'   => 'completed',
+            'pending' => 'waiting',
+            'approved' => 'completed',
+            'denied' => 'completed',
+            'revoked' => 'completed',
+            'expired' => 'completed',
             'retracted' => 'completed',
         ];
 
         $approvalStatusMap = [
-            'pending'   => 'pending',
-            'approved'  => 'approved',
-            'denied'    => 'rejected',
-            'revoked'   => 'approved',
-            'expired'   => 'expired',
+            'pending' => 'pending',
+            'approved' => 'approved',
+            'denied' => 'rejected',
+            'revoked' => 'approved',
+            'expired' => 'expired',
             'retracted' => 'cancelled',
         ];
 
+        $instanceRows = [];
+        $instanceMetadata = [];
         foreach ($authorizations as $auth) {
             $authId = (int)$auth['id'];
             $memberId = (int)$auth['member_id'];
             $activityId = (int)$auth['activity_id'];
             $status = strtolower($auth['status']);
-            $isRenewal = !empty($auth['is_renewal']) ? 1 : 0;
+            $isRenewal = $this->isTruthy($auth['is_renewal']) ? 1 : 0;
             $created = $auth['created'];
-
-            // Get required approvals count from the activity
-            $activityRow = $this->fetchRow(
-                "SELECT num_required_authorizors, num_required_renewers " .
-                "FROM activities_activities WHERE id = {$activityId}"
-            );
-            $requiredCount = 1;
-            if ($activityRow) {
-                $requiredCount = $isRenewal
-                    ? (int)$activityRow['num_required_renewers']
-                    : (int)$activityRow['num_required_authorizors'];
+            $requiredCount = $isRenewal
+                ? (int)($auth['num_required_renewers'] ?? 1)
+                : (int)($auth['num_required_authorizors'] ?? 1);
+            if ($requiredCount < 1) {
+                $requiredCount = 1;
             }
 
-            // Count approved and rejected responses
-            $countsRow = $this->fetchRow(
-                "SELECT " .
-                "COUNT(CASE WHEN approved = TRUE AND responded_on IS NOT NULL THEN 1 END) AS approved_count, " .
-                "COUNT(CASE WHEN approved = FALSE AND responded_on IS NOT NULL THEN 1 END) AS rejected_count " .
-                "FROM activities_authorization_approvals WHERE authorization_id = {$authId}"
-            );
-            $approvedCount = $countsRow ? (int)$countsRow['approved_count'] : 0;
-            $rejectedCount = $countsRow ? (int)$countsRow['rejected_count'] : 0;
+            $stats = $approvalStats[$authId] ?? [];
+            $approvedCount = (int)($stats['approved_count'] ?? 0);
+            $rejectedCount = (int)($stats['rejected_count'] ?? 0);
 
             // Determine completed_at for terminal statuses
             $completedAt = null;
             $isTerminal = in_array($status, ['approved', 'denied', 'revoked', 'expired', 'retracted']);
             if ($isTerminal) {
-                $lastResponse = $this->fetchRow(
-                    "SELECT MAX(responded_on) AS last_responded " .
-                    "FROM activities_authorization_approvals " .
-                    "WHERE authorization_id = {$authId} AND responded_on IS NOT NULL"
-                );
-                $completedAt = ($lastResponse && $lastResponse['last_responded'])
-                    ? $lastResponse['last_responded']
+                $completedAt = !empty($stats['last_responded'])
+                    ? $stats['last_responded']
                     : $created;
             }
 
@@ -148,7 +188,7 @@ class BackfillAuthorizationApprovalsToWorkflowEngine extends AbstractMigration
             $approvalStatus = $approvalStatusMap[$status] ?? 'pending';
 
             // Active nodes
-            $activeNodes = ($status === 'pending') ? '["approval-gate"]' : '[]';
+            $activeNodes = $status === 'pending' ? '["approval-gate"]' : '[]';
 
             // Context JSON
             $context = json_encode([
@@ -164,159 +204,227 @@ class BackfillAuthorizationApprovalsToWorkflowEngine extends AbstractMigration
             ]);
             $contextEsc = $this->sqlEscape($context);
 
-            // (a) Create workflow_instances
-            $completedAtSql = $completedAt ? "'{$completedAt}'" : 'NULL';
-            $this->execute(
-                "INSERT INTO workflow_instances " .
-                "(workflow_definition_id, workflow_version_id, entity_type, entity_id, " .
-                "status, context, active_nodes, started_by, started_at, completed_at, created, modified) " .
-                "VALUES ({$defId}, {$versionId}, 'Activities.Authorizations', {$authId}, " .
+            $completedAtSql = $this->sqlDateOrNull($completedAt);
+            $instanceRows[] = "({$defId}, {$versionId}, 'Activities.Authorizations', {$authId}, " .
                 "'{$instanceStatus}', '{$contextEsc}', '{$activeNodes}', {$memberId}, " .
-                "'{$created}', {$completedAtSql}, '{$created}', '{$now}')"
-            );
+                "'{$created}', {$completedAtSql}, '{$created}', '{$now}')";
+            $instanceMetadata[$authId] = [
+                'log_status' => $logStatus,
+                'approval_status' => $approvalStatus,
+                'completed_at' => $completedAt,
+                'created' => $created,
+                'activity_id' => $activityId,
+                'required_count' => $requiredCount,
+                'approved_count' => $approvedCount,
+                'rejected_count' => $rejectedCount,
+                'pending_approver_id' => $stats['pending_approver_id'] ?? null,
+            ];
+        }
+        $this->bulkInsertSql(
+            'workflow_instances',
+            '(workflow_definition_id, workflow_version_id, entity_type, entity_id, ' .
+            'status, context, active_nodes, started_by, started_at, completed_at, created, modified)',
+            $instanceRows,
+        );
 
-            // Retrieve the newly inserted instance ID
-            $instanceRow = $this->fetchRow(
-                "SELECT id FROM workflow_instances " .
-                "WHERE entity_type = 'Activities.Authorizations' AND entity_id = {$authId} " .
-                "AND $ctxText LIKE '%\"migrated\":true%' " .
-                "ORDER BY id DESC LIMIT 1"
-            );
-            if (!$instanceRow) {
+        $instanceIdByAuthorization = $this->fetchIdMap(
+            'SELECT id, entity_id FROM workflow_instances ' .
+            "WHERE entity_type = 'Activities.Authorizations' AND $ctxText LIKE '%\"migrated\":true%'",
+        );
+
+        $logRows = [];
+        foreach ($instanceMetadata as $authId => $metadata) {
+            if (!isset($instanceIdByAuthorization[$authId])) {
                 continue;
             }
-            $instanceId = (int)$instanceRow['id'];
+            $instanceId = $instanceIdByAuthorization[$authId];
+            $completedAtSql = $this->sqlDateOrNull($metadata['completed_at']);
+            $logRows[] = "({$instanceId}, 'approval-gate', 'approval', 1, " .
+                "'{$metadata['log_status']}', '{$metadata['created']}', {$completedAtSql}, '{$metadata['created']}')";
+        }
+        $this->bulkInsertSql(
+            'workflow_execution_logs',
+            '(workflow_instance_id, node_id, node_type, attempt_number, status, started_at, completed_at, created)',
+            $logRows,
+        );
 
-            // (b) Create workflow_execution_logs
-            $logCompletedAtSql = $completedAt ? "'{$completedAt}'" : 'NULL';
-            $this->execute(
-                "INSERT INTO workflow_execution_logs " .
-                "(workflow_instance_id, node_id, node_type, attempt_number, " .
-                "status, started_at, completed_at, created) " .
-                "VALUES ({$instanceId}, 'approval-gate', 'approval', 1, " .
-                "'{$logStatus}', '{$created}', {$logCompletedAtSql}, '{$created}')"
-            );
+        $logIdByInstance = $this->fetchIdMap(
+            'SELECT id, workflow_instance_id AS entity_id FROM workflow_execution_logs ' .
+            "WHERE node_id = 'approval-gate' AND workflow_instance_id IN (" .
+            implode(',', array_values($instanceIdByAuthorization)) . ')',
+        );
 
-            // Retrieve the execution log ID
-            $logRow = $this->fetchRow(
-                "SELECT id FROM workflow_execution_logs " .
-                "WHERE workflow_instance_id = {$instanceId} AND node_id = 'approval-gate' " .
-                "ORDER BY id DESC LIMIT 1"
-            );
-            if (!$logRow) {
+        $approvalRows = [];
+        foreach ($instanceMetadata as $authId => $metadata) {
+            if (!isset($instanceIdByAuthorization[$authId])) {
                 continue;
             }
-            $logId = (int)$logRow['id'];
+            $instanceId = $instanceIdByAuthorization[$authId];
+            if (!isset($logIdByInstance[$instanceId])) {
+                continue;
+            }
 
-            // (c) Create workflow_approvals
             $approverConfig = [
                 'service' => 'Activities.AuthorizationApproverResolver',
                 'method' => 'getEligibleApproverIds',
-                'activity_id' => $activityId,
+                'activity_id' => $metadata['activity_id'],
             ];
-
-            // For pending authorizations, find the current pending approver
-            if ($status === 'pending') {
-                $pendingApproval = $this->fetchRow(
-                    "SELECT approver_id FROM activities_authorization_approvals " .
-                    "WHERE authorization_id = {$authId} AND responded_on IS NULL " .
-                    "ORDER BY requested_on DESC LIMIT 1"
-                );
-                if ($pendingApproval) {
-                    $approverConfig['current_approver_id'] = (int)$pendingApproval['approver_id'];
-                }
+            if ($metadata['pending_approver_id'] !== null) {
+                $approverConfig['current_approver_id'] = (int)$metadata['pending_approver_id'];
             }
-
             $approverConfigJson = $this->sqlEscape(json_encode($approverConfig));
             $approvalToken = bin2hex(random_bytes(16));
+            $approvalRows[] = "({$instanceId}, 'approval-gate', {$logIdByInstance[$instanceId]}, " .
+                "'dynamic', '{$approverConfigJson}', {$metadata['required_count']}, " .
+                "{$metadata['approved_count']}, {$metadata['rejected_count']}, " .
+                "'{$metadata['approval_status']}', FALSE, NULL, 1, '{$approvalToken}', " .
+                "'{$metadata['created']}', '{$now}')";
+        }
+        $this->bulkInsertSql(
+            'workflow_approvals',
+            '(workflow_instance_id, node_id, execution_log_id, approver_type, approver_config, ' .
+            'required_count, approved_count, rejected_count, status, allow_parallel, deadline, version, ' .
+            'approval_token, created, modified)',
+            $approvalRows,
+        );
 
-            $this->execute(
-                "INSERT INTO workflow_approvals " .
-                "(workflow_instance_id, node_id, execution_log_id, " .
-                "approver_type, approver_config, required_count, approved_count, rejected_count, " .
-                "status, allow_parallel, deadline, version, approval_token, created, modified) " .
-                "VALUES ({$instanceId}, 'approval-gate', {$logId}, " .
-                "'dynamic', '{$approverConfigJson}', {$requiredCount}, {$approvedCount}, {$rejectedCount}, " .
-                "'{$approvalStatus}', FALSE, NULL, 1, '{$approvalToken}', '{$created}', '{$now}')"
-            );
+        $approvalIdByAuthorization = [];
+        $approvalRows = $this->fetchAll(
+            'SELECT wa.id, wi.entity_id ' .
+            'FROM workflow_approvals wa ' .
+            'INNER JOIN workflow_instances wi ON wi.id = wa.workflow_instance_id ' .
+            "WHERE wi.entity_type = 'Activities.Authorizations' " .
+            "AND $ctxText LIKE '%\"migrated\":true%'",
+        );
+        foreach ($approvalRows as $approvalRow) {
+            $approvalIdByAuthorization[(int)$approvalRow['entity_id']] = (int)$approvalRow['id'];
+        }
 
-            // Retrieve the workflow approval ID
-            $approvalRow = $this->fetchRow(
-                "SELECT id FROM workflow_approvals " .
-                "WHERE workflow_instance_id = {$instanceId} AND node_id = 'approval-gate' " .
-                "ORDER BY id DESC LIMIT 1"
-            );
-            if (!$approvalRow) {
+        $responseRows = [];
+        foreach ($responsesByAuthorization as $authId => $responses) {
+            if (!isset($approvalIdByAuthorization[$authId])) {
                 continue;
             }
-            $workflowApprovalId = (int)$approvalRow['id'];
-
-            // (d) Create workflow_approval_responses for responded approvals
-            $responses = $this->fetchAll(
-                "SELECT approver_id, approved, approver_notes, responded_on " .
-                "FROM activities_authorization_approvals " .
-                "WHERE authorization_id = {$authId} AND responded_on IS NOT NULL"
-            );
-
             foreach ($responses as $resp) {
                 $respMemberId = (int)$resp['approver_id'];
-                $decision = ((int)$resp['approved'] === 1) ? 'approve' : 'reject';
+                $decision = $this->isTruthy($resp['approved']) ? 'approve' : 'reject';
                 $comment = $resp['approver_notes']
                     ? "'" . $this->sqlEscape($resp['approver_notes']) . "'"
                     : 'NULL';
                 $respondedOn = $resp['responded_on'];
-
-                $this->execute(
-                    "INSERT INTO workflow_approval_responses " .
-                    "(workflow_approval_id, member_id, decision, comment, responded_at, created) " .
-                    "VALUES ({$workflowApprovalId}, {$respMemberId}, '{$decision}', " .
-                    "{$comment}, '{$respondedOn}', '{$respondedOn}')"
-                );
+                $responseRows[] = "({$approvalIdByAuthorization[$authId]}, {$respMemberId}, '{$decision}', " .
+                    "{$comment}, '{$respondedOn}', '{$respondedOn}')";
             }
         }
+        $this->bulkInsertSql(
+            'workflow_approval_responses',
+            '(workflow_approval_id, member_id, decision, comment, responded_at, created)',
+            $responseRows,
+        );
 
         // Step 3: Verification
-        $authCount = $this->fetchRow("SELECT COUNT(*) AS cnt FROM activities_authorizations");
+        $authCount = $this->fetchRow('SELECT COUNT(*) AS cnt FROM activities_authorizations');
         $instanceCount = $this->fetchRow(
-            "SELECT COUNT(*) AS cnt FROM workflow_instances " .
-            "WHERE entity_type = 'Activities.Authorizations' AND $ctxText LIKE '%\"migrated\":true%'"
+            'SELECT COUNT(*) AS cnt FROM workflow_instances ' .
+            "WHERE entity_type = 'Activities.Authorizations' AND $ctxText LIKE '%\"migrated\":true%'",
         );
         $approvalCount = $this->fetchRow(
-            "SELECT COUNT(*) AS cnt FROM workflow_approval_responses " .
-            "WHERE workflow_approval_id IN (" .
-            "SELECT id FROM workflow_approvals WHERE workflow_instance_id IN (" .
-            "SELECT id FROM workflow_instances " .
-            "WHERE entity_type = 'Activities.Authorizations' AND $ctxText LIKE '%\"migrated\":true%'))"
+            'SELECT COUNT(*) AS cnt FROM workflow_approval_responses ' .
+            'WHERE workflow_approval_id IN (' .
+            'SELECT id FROM workflow_approvals WHERE workflow_instance_id IN (' .
+            'SELECT id FROM workflow_instances ' .
+            "WHERE entity_type = 'Activities.Authorizations' AND $ctxText LIKE '%\"migrated\":true%'))",
         );
 
         $authTotal = $authCount ? (int)$authCount['cnt'] : 0;
         $instTotal = $instanceCount ? (int)$instanceCount['cnt'] : 0;
         $respTotal = $approvalCount ? (int)$approvalCount['cnt'] : 0;
 
-        echo "Backfill complete: {$authTotal} authorizations → {$instTotal} workflow instances, {$respTotal} approval responses.\n";
+        echo "Backfill complete: {$authTotal} authorizations -> " .
+            "{$instTotal} workflow instances, {$respTotal} approval responses.\n";
     }
 
+    /**
+     * Insert raw SQL values in chunks.
+     *
+     * @param string $table Table name
+     * @param string $columns Column list, including parentheses
+     * @param array<string> $rows SQL value tuples
+     * @return void
+     */
+    private function bulkInsertSql(string $table, string $columns, array $rows): void
+    {
+        foreach (array_chunk($rows, 500) as $chunk) {
+            $this->execute("INSERT INTO {$table} {$columns} VALUES " . implode(', ', $chunk));
+        }
+    }
+
+    /**
+     * Fetch a map keyed by the `entity_id` alias from a query returning `id`.
+     *
+     * @param string $query SQL query
+     * @return array<int, int>
+     */
+    private function fetchIdMap(string $query): array
+    {
+        $map = [];
+        foreach ($this->fetchAll($query) as $row) {
+            $map[(int)$row['entity_id']] = (int)$row['id'];
+        }
+
+        return $map;
+    }
+
+    /**
+     * Convert date-ish values to nullable SQL literals.
+     *
+     * @param mixed $value Date value
+     * @return string SQL literal
+     */
+    private function sqlDateOrNull(mixed $value): string
+    {
+        return $value ? "'" . $this->sqlEscape((string)$value) . "'" : 'NULL';
+    }
+
+    /**
+     * Normalize cross-driver boolean values.
+     *
+     * @param mixed $value Boolean-ish value
+     * @return bool
+     */
+    private function isTruthy(mixed $value): bool
+    {
+        return in_array($value, [true, 1, '1', 't', 'true', 'TRUE'], true);
+    }
+
+    /**
+     * Remove migrated workflow history rows.
+     *
+     * @return void
+     */
     public function down(): void
     {
+        $ctxText = $this->jsonAsText('context');
+
         $this->execute(
-            "DELETE FROM workflow_approval_responses WHERE workflow_approval_id IN " .
-            "(SELECT id FROM workflow_approvals WHERE workflow_instance_id IN " .
-            "(SELECT id FROM workflow_instances " .
-            "WHERE entity_type = 'Activities.Authorizations' AND $ctxText LIKE '%\"migrated\":true%'))"
+            'DELETE FROM workflow_approval_responses WHERE workflow_approval_id IN ' .
+            '(SELECT id FROM workflow_approvals WHERE workflow_instance_id IN ' .
+            '(SELECT id FROM workflow_instances ' .
+            "WHERE entity_type = 'Activities.Authorizations' AND $ctxText LIKE '%\"migrated\":true%'))",
         );
         $this->execute(
-            "DELETE FROM workflow_approvals WHERE workflow_instance_id IN " .
-            "(SELECT id FROM workflow_instances " .
-            "WHERE entity_type = 'Activities.Authorizations' AND $ctxText LIKE '%\"migrated\":true%')"
+            'DELETE FROM workflow_approvals WHERE workflow_instance_id IN ' .
+            '(SELECT id FROM workflow_instances ' .
+            "WHERE entity_type = 'Activities.Authorizations' AND $ctxText LIKE '%\"migrated\":true%')",
         );
         $this->execute(
-            "DELETE FROM workflow_execution_logs WHERE workflow_instance_id IN " .
-            "(SELECT id FROM workflow_instances " .
-            "WHERE entity_type = 'Activities.Authorizations' AND $ctxText LIKE '%\"migrated\":true%')"
+            'DELETE FROM workflow_execution_logs WHERE workflow_instance_id IN ' .
+            '(SELECT id FROM workflow_instances ' .
+            "WHERE entity_type = 'Activities.Authorizations' AND $ctxText LIKE '%\"migrated\":true%')",
         );
         $this->execute(
-            "DELETE FROM workflow_instances " .
-            "WHERE entity_type = 'Activities.Authorizations' AND $ctxText LIKE '%\"migrated\":true%'"
+            'DELETE FROM workflow_instances ' .
+            "WHERE entity_type = 'Activities.Authorizations' AND $ctxText LIKE '%\"migrated\":true%'",
         );
     }
 }

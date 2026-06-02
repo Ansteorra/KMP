@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
@@ -13,7 +12,10 @@ use App\Services\WorkflowRegistry\WorkflowConditionRegistry;
 use App\Services\WorkflowRegistry\WorkflowEntityRegistry;
 use App\Services\WorkflowRegistry\WorkflowTriggerRegistry;
 use Cake\Controller\ComponentRegistry;
+use Cake\Http\Response;
 use Cake\Http\ServerRequest;
+use ReflectionClass;
+use ReflectionMethod;
 
 /**
  * WorkflowDefinitions Controller
@@ -29,6 +31,14 @@ class WorkflowDefinitionsController extends AppController
     private WorkflowEngineInterface $engine;
     private WorkflowVersionManagerInterface $versionManager;
 
+    /**
+     * Constructor.
+     *
+     * @param \Cake\Http\ServerRequest $request Request instance
+     * @param \App\Services\WorkflowEngine\WorkflowEngineInterface $engine Workflow engine
+     * @param \App\Services\WorkflowEngine\WorkflowVersionManagerInterface $versionManager Version manager
+     * @param \Cake\Controller\ComponentRegistry|null $components Component registry
+     */
     public function __construct(
         ServerRequest $request,
         WorkflowEngineInterface $engine,
@@ -40,6 +50,11 @@ class WorkflowDefinitionsController extends AppController
         $this->versionManager = $versionManager;
     }
 
+    /**
+     * Initialize controller.
+     *
+     * @return void
+     */
     public function initialize(): void
     {
         parent::initialize();
@@ -49,11 +64,14 @@ class WorkflowDefinitionsController extends AppController
             'loadVersion',
             'registry',
             'save',
+            'updateMetadata',
             'publish',
             'add',
             'versions',
             'compareVersions',
             'toggleActive',
+            'archive',
+            'delete',
             'createDraft',
             'migrateInstances',
         );
@@ -66,7 +84,15 @@ class WorkflowDefinitionsController extends AppController
      */
     public function index()
     {
-        $workflows = $this->fetchTable('WorkflowDefinitions')->find()
+        $definitionsTable = $this->fetchTable('WorkflowDefinitions');
+        $instancesTable = $this->fetchTable('WorkflowInstances');
+        $instanceCountQuery = $instancesTable->find()
+            ->select(['count' => $instancesTable->find()->func()->count('*')])
+            ->where(['WorkflowInstances.workflow_definition_id = WorkflowDefinitions.id']);
+
+        $workflows = $definitionsTable->find()
+            ->select(['instance_count' => $instanceCountQuery])
+            ->enableAutoFields(true)
             ->contain(['CurrentVersion'])
             ->where(['WorkflowDefinitions.deleted IS' => null])
             ->orderBy(['WorkflowDefinitions.name' => 'ASC'])
@@ -97,7 +123,7 @@ class WorkflowDefinitionsController extends AppController
                     $id,
                     $workflow->current_version->definition ?? ['nodes' => []],
                     $workflow->current_version->canvas_layout,
-                    'Cloned from v' . $workflow->current_version->version_number
+                    'Cloned from v' . $workflow->current_version->version_number,
                 );
                 if ($result->isSuccess()) {
                     $draftVersion = $versionsTable->get($result->data['versionId']);
@@ -145,7 +171,7 @@ class WorkflowDefinitionsController extends AppController
             'triggers' => WorkflowTriggerRegistry::getForDesigner(),
             'actions' => WorkflowActionRegistry::getForDesigner(),
             'conditions' => WorkflowConditionRegistry::getForDesigner(),
-            'entities' => WorkflowEntityRegistry::getForDesigner(),
+            'entities' => WorkflowEntityRegistry::getForDesigner(true),
             'resolvers' => WorkflowApproverResolverRegistry::getForDesigner(),
             'approvalOutputSchema' => WorkflowActionRegistry::APPROVAL_OUTPUT_SCHEMA,
             'builtinContext' => [
@@ -180,14 +206,14 @@ class WorkflowDefinitionsController extends AppController
                     (int)$data['versionId'],
                     $data['definition'] ?? [],
                     $data['canvasLayout'] ?? null,
-                    $data['changeNotes'] ?? null
+                    $data['changeNotes'] ?? null,
                 );
             } else {
                 $result = $versionManager->createDraft(
                     $workflowId,
                     $data['definition'] ?? [],
                     $data['canvasLayout'] ?? null,
-                    $data['changeNotes'] ?? null
+                    $data['changeNotes'] ?? null,
                 );
             }
         } else {
@@ -205,7 +231,7 @@ class WorkflowDefinitionsController extends AppController
                     $workflow->id,
                     $data['definition'] ?? ['nodes' => []],
                     $data['canvasLayout'] ?? null,
-                    'Initial draft'
+                    'Initial draft',
                 );
                 $result->data['workflowId'] = $workflow->id;
             } else {
@@ -214,6 +240,55 @@ class WorkflowDefinitionsController extends AppController
         }
 
         return $this->buildServiceResultResponse($result);
+    }
+
+    /**
+     * API: Update workflow definition metadata from the designer.
+     *
+     * @param int $id Workflow definition ID
+     * @return \Cake\Http\Response
+     */
+    public function updateMetadata(int $id): Response
+    {
+        $this->request->allowMethod(['post', 'put']);
+        $definitionsTable = $this->fetchTable('WorkflowDefinitions');
+        $workflow = $definitionsTable->get($id);
+        $workflow = $definitionsTable->patchEntity($workflow, $this->request->getData(), [
+            'fields' => [
+                'name',
+                'slug',
+                'description',
+                'trigger_type',
+                'entity_type',
+                'execution_mode',
+            ],
+        ]);
+
+        if ($workflow->hasErrors()) {
+            return $this->buildServiceResultResponse(new ServiceResult(
+                false,
+                $this->formatValidationErrors($workflow->getErrors()),
+            ));
+        }
+
+        if (!$definitionsTable->save($workflow)) {
+            return $this->buildServiceResultResponse(new ServiceResult(
+                false,
+                $this->formatValidationErrors($workflow->getErrors()) ?: __('Could not update workflow details.'),
+            ));
+        }
+
+        return $this->buildServiceResultResponse(new ServiceResult(true, null, [
+            'workflow' => [
+                'id' => (int)$workflow->id,
+                'name' => $workflow->name,
+                'slug' => $workflow->slug,
+                'description' => $workflow->description,
+                'triggerType' => $workflow->trigger_type,
+                'entityType' => $workflow->entity_type,
+                'executionMode' => $workflow->execution_mode,
+            ],
+        ]));
     }
 
     /**
@@ -298,6 +373,25 @@ class WorkflowDefinitionsController extends AppController
         $this->request->allowMethod(['post']);
         $definitionsTable = $this->fetchTable('WorkflowDefinitions');
         $workflow = $definitionsTable->get($id);
+        if ($workflow->deleted !== null) {
+            if ($this->request->is('ajax')) {
+                $result = [
+                    'success' => false,
+                    'message' => __('Archived workflows cannot be activated.'),
+                ];
+                $this->set('result', $result);
+                $this->viewBuilder()->setOption('serialize', 'result');
+                $this->response = $this->response->withType('application/json');
+                $this->viewBuilder()->setClassName('Json');
+
+                return;
+            }
+
+            $this->Flash->error(__('Archived workflows cannot be activated.'));
+
+            return $this->redirect(['action' => 'index']);
+        }
+
         $workflow->is_active = !$workflow->is_active;
         $definitionsTable->save($workflow);
 
@@ -312,6 +406,58 @@ class WorkflowDefinitionsController extends AppController
 
             return $this->redirect(['action' => 'index']);
         }
+    }
+
+    /**
+     * Archive a workflow definition and keep its run history.
+     *
+     * @param int $id Workflow definition ID
+     * @return \Cake\Http\Response
+     */
+    public function archive(int $id): Response
+    {
+        $this->request->allowMethod(['post']);
+        $definitionsTable = $this->fetchTable('WorkflowDefinitions');
+        $workflow = $definitionsTable->get($id);
+
+        if ($definitionsTable->archiveDefinition($workflow)) {
+            $this->Flash->success(__('Workflow "{0}" was archived.', $workflow->name));
+        } else {
+            $this->Flash->error(__('Workflow "{0}" could not be archived.', $workflow->name));
+        }
+
+        return $this->redirect(['action' => 'index']);
+    }
+
+    /**
+     * Delete an unused workflow definition.
+     *
+     * @param int $id Workflow definition ID
+     * @return \Cake\Http\Response
+     */
+    public function delete(int $id): Response
+    {
+        $this->request->allowMethod(['post', 'delete']);
+        $definitionsTable = $this->fetchTable('WorkflowDefinitions');
+        $workflow = $definitionsTable->get($id);
+        $workflowName = $workflow->name;
+
+        if ($definitionsTable->hasExecutionHistory($id)) {
+            $this->Flash->error(__(
+                'Workflow "{0}" has run history and must be archived instead of deleted.',
+                $workflowName,
+            ));
+
+            return $this->redirect(['action' => 'index']);
+        }
+
+        if ($definitionsTable->deleteUnusedDefinition($workflow)) {
+            $this->Flash->success(__('Workflow "{0}" was deleted.', $workflowName));
+        } else {
+            $this->Flash->error(__('Workflow "{0}" could not be deleted.', $workflowName));
+        }
+
+        return $this->redirect(['action' => 'index']);
     }
 
     /**
@@ -333,7 +479,7 @@ class WorkflowDefinitionsController extends AppController
             $workflowId,
             $definition,
             $canvasLayout,
-            'Cloned from v' . ($workflow->current_version->version_number ?? '0')
+            'Cloned from v' . ($workflow->current_version->version_number ?? '0'),
         );
 
         return $this->buildServiceResultResponse($result);
@@ -455,8 +601,8 @@ class WorkflowDefinitionsController extends AppController
             && str_ends_with($className, 'Policy')
             && str_contains($className, '\\Policy\\')
         ) {
-            $reflection = new \ReflectionClass($className);
-            foreach ($reflection->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
+            $reflection = new ReflectionClass($className);
+            foreach ($reflection->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
                 if (
                     str_starts_with($method->getName(), 'can')
                     && $method->getDeclaringClass()->getName() === $className
@@ -510,7 +656,7 @@ class WorkflowDefinitionsController extends AppController
     /**
      * Build a flat JSON response from a ServiceResult.
      */
-    private function buildServiceResultResponse(ServiceResult $result): \Cake\Http\Response
+    private function buildServiceResultResponse(ServiceResult $result): Response
     {
         $responseData = ['success' => $result->success];
         if ($result->reason) {
@@ -528,11 +674,46 @@ class WorkflowDefinitionsController extends AppController
         return $response;
     }
 
+    /**
+     * Flatten Cake validation errors for JSON API responses.
+     *
+     * @param array<string, mixed> $errors Entity validation/rule errors
+     * @return string
+     */
+    private function formatValidationErrors(array $errors): string
+    {
+        $messages = [];
+        foreach ($errors as $field => $fieldErrors) {
+            if (!is_array($fieldErrors)) {
+                continue;
+            }
+            foreach ($fieldErrors as $message) {
+                if (is_array($message)) {
+                    continue;
+                }
+                $messages[] = sprintf('%s: %s', $field, $message);
+            }
+        }
+
+        return implode('; ', $messages);
+    }
+
+    /**
+     * Get workflow version manager.
+     *
+     * @return \App\Services\WorkflowEngine\WorkflowVersionManagerInterface
+     */
     private function getVersionManager(): WorkflowVersionManagerInterface
     {
         return $this->versionManager;
     }
 
+    /**
+     * Check whether a policy class belongs to an entity.
+     *
+     * @param string $className Class name
+     * @return bool
+     */
     private function isEntityPolicy(string $className): bool
     {
         if ($className === 'BasePolicy') {
@@ -548,11 +729,23 @@ class WorkflowDefinitionsController extends AppController
         return true;
     }
 
+    /**
+     * Convert a policy class name to a human-readable label.
+     *
+     * @param string $className Class name
+     * @return string
+     */
     private function policyLabel(string $className): string
     {
         return trim(preg_replace('/([a-z])([A-Z])/', '$1 $2', $className));
     }
 
+    /**
+     * Convert a policy action name to a human-readable label.
+     *
+     * @param string $action Action method name
+     * @return string
+     */
     private function actionLabel(string $action): string
     {
         return trim(ucfirst(preg_replace('/([a-z])([A-Z])/', '$1 $2', $action)));

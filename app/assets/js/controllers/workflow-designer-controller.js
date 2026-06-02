@@ -244,13 +244,37 @@ class WorkflowDesignerController extends Controller {
         if (!this.hasNodePaletteTarget) return
         let html = this._buildPaletteHTML()
         this.nodePaletteTarget.innerHTML = html
+        const filterInput = this.nodePaletteTarget.querySelector('#workflow-palette-filter')
+        if (filterInput) {
+            this.filterNodePalette({ target: filterInput })
+        }
     }
 
     _buildPaletteHTML() {
-        let html = ''
+        let html = `<div class="palette-filter mb-2">
+            <label for="workflow-palette-filter" class="form-label small mb-1">Filter nodes</label>
+            <input id="workflow-palette-filter" type="search" class="form-control form-control-sm"
+                placeholder="Type to filter nodes..."
+                aria-describedby="workflow-palette-filter-status"
+                data-action="input->workflow-designer#filterNodePalette">
+            <div id="workflow-palette-filter-status" class="form-text small" role="status" aria-live="polite"
+                data-palette-filter-status></div>
+        </div>
+        <p class="text-muted small mb-2" data-palette-empty-message hidden>No matching nodes found.</p>`
 
         const makeIcon = (faClass) =>
             `<span class="palette-node-icon"><i class="fa-solid ${faClass}"></i></span>`
+        const makeNode = ({ type, label, icon, data = {}, searchText = '' }) => {
+            const dataAttrs = Object.entries(data)
+                .map(([key, value]) => ` ${key}="${this._escapeAttr(value)}"`)
+                .join('')
+            const searchableText = `${label} ${type} ${searchText}`.trim()
+
+            return `<div class="palette-node" draggable="true" data-node-type="${this._escapeAttr(type)}"${dataAttrs}
+                    data-palette-node data-palette-search="${this._escapeAttr(searchableText)}"
+                    data-action="dragstart->workflow-designer#onPaletteDragStart"
+                    role="button" aria-label="${this._escapeAttr(label)}">${makeIcon(icon)} ${this._escapeHtml(label)}</div>`
+        }
 
         const groupBySource = (items) => {
             const groups = {}
@@ -262,7 +286,7 @@ class WorkflowDesignerController extends Controller {
             return groups
         }
 
-        html += '<div class="palette-category"><h6 class="palette-category-title">Flow Control</h6>'
+        html += '<div class="palette-category" data-palette-category><h6 class="palette-category-title">Flow Control</h6>'
         const flowNodes = [
             { type: 'condition', label: 'Condition', icon: 'fa-diamond' },
             { type: 'fork', label: 'Parallel Fork', icon: 'fa-code-branch' },
@@ -273,20 +297,26 @@ class WorkflowDesignerController extends Controller {
             { type: 'end', label: 'End', icon: 'fa-stop' },
         ]
         flowNodes.forEach(node => {
-            html += `<div class="palette-node" draggable="true" data-node-type="${node.type}" data-action="dragstart->workflow-designer#onPaletteDragStart" role="button" aria-label="${node.label}">${makeIcon(node.icon)} ${node.label}</div>`
+            html += makeNode(node)
         })
         html += '</div>'
 
-        html += '<div class="palette-category"><h6 class="palette-category-title">Approvals</h6>'
-        html += `<div class="palette-node" draggable="true" data-node-type="approval" data-action="dragstart->workflow-designer#onPaletteDragStart" role="button" aria-label="Approval Gate">${makeIcon('fa-check-double')} Approval Gate</div>`
+        html += '<div class="palette-category" data-palette-category><h6 class="palette-category-title">Approvals</h6>'
+        html += makeNode({ type: 'approval', label: 'Approval Gate', icon: 'fa-check-double' })
         html += '</div>'
 
         if (this.registryData.triggers && this.registryData.triggers.length > 0) {
             const groups = groupBySource(this.registryData.triggers)
             for (const [source, triggers] of Object.entries(groups)) {
-                html += `<div class="palette-category"><h6 class="palette-category-title"><i class="fa-solid fa-bolt fa-xs me-1"></i>Triggers — ${source}</h6>`
+                html += `<div class="palette-category" data-palette-category><h6 class="palette-category-title"><i class="fa-solid fa-bolt fa-xs me-1"></i>Triggers — ${this._escapeHtml(source)}</h6>`
                 triggers.forEach(trigger => {
-                    html += `<div class="palette-node" draggable="true" data-node-type="trigger" data-node-event="${trigger.event}" data-action="dragstart->workflow-designer#onPaletteDragStart" role="button" aria-label="${trigger.label}">${makeIcon('fa-bolt')} ${trigger.label}</div>`
+                    html += makeNode({
+                        type: 'trigger',
+                        label: trigger.label,
+                        icon: 'fa-bolt',
+                        data: { 'data-node-event': trigger.event },
+                        searchText: `${trigger.event} ${source} trigger`,
+                    })
                 })
                 html += '</div>'
             }
@@ -295,9 +325,15 @@ class WorkflowDesignerController extends Controller {
         if (this.registryData.actions && this.registryData.actions.length > 0) {
             const groups = groupBySource(this.registryData.actions)
             for (const [source, actions] of Object.entries(groups)) {
-                html += `<div class="palette-category"><h6 class="palette-category-title"><i class="fa-solid fa-gear fa-xs me-1"></i>Actions — ${source}</h6>`
+                html += `<div class="palette-category" data-palette-category><h6 class="palette-category-title"><i class="fa-solid fa-gear fa-xs me-1"></i>Actions — ${this._escapeHtml(source)}</h6>`
                 actions.forEach(action => {
-                    html += `<div class="palette-node" draggable="true" data-node-type="action" data-node-action="${action.action}" data-action="dragstart->workflow-designer#onPaletteDragStart" role="button" aria-label="${action.label}">${makeIcon('fa-gear')} ${action.label}</div>`
+                    html += makeNode({
+                        type: 'action',
+                        label: action.label,
+                        icon: 'fa-gear',
+                        data: { 'data-node-action': action.action },
+                        searchText: `${action.action} ${source} action`,
+                    })
                 })
                 html += '</div>'
             }
@@ -306,15 +342,69 @@ class WorkflowDesignerController extends Controller {
         if (this.registryData.conditions && this.registryData.conditions.length > 0) {
             const groups = groupBySource(this.registryData.conditions)
             for (const [source, conditions] of Object.entries(groups)) {
-                html += `<div class="palette-category"><h6 class="palette-category-title"><i class="fa-solid fa-diamond fa-xs me-1"></i>Conditions — ${source}</h6>`
+                html += `<div class="palette-category" data-palette-category><h6 class="palette-category-title"><i class="fa-solid fa-diamond fa-xs me-1"></i>Conditions — ${this._escapeHtml(source)}</h6>`
                 conditions.forEach(cond => {
-                    html += `<div class="palette-node" draggable="true" data-node-type="condition" data-node-condition="${cond.condition}" data-action="dragstart->workflow-designer#onPaletteDragStart" role="button" aria-label="${cond.label}">${makeIcon('fa-diamond')} ${cond.label}</div>`
+                    html += makeNode({
+                        type: 'condition',
+                        label: cond.label,
+                        icon: 'fa-diamond',
+                        data: { 'data-node-condition': cond.condition },
+                        searchText: `${cond.condition} ${source} condition`,
+                    })
                 })
                 html += '</div>'
             }
         }
 
         return html
+    }
+
+    filterNodePalette(event) {
+        const palette = event.target.closest('[data-workflow-designer-target~="nodePalette"]') || this.nodePaletteTarget
+        const filter = (event.target.value || '').trim().toLowerCase()
+        const nodes = Array.from(palette.querySelectorAll('[data-palette-node]'))
+        let visibleCount = 0
+
+        nodes.forEach(node => {
+            const searchText = (node.dataset.paletteSearch || node.textContent || '').toLowerCase()
+            const matches = filter === '' || searchText.includes(filter)
+            node.hidden = !matches
+            if (matches) {
+                visibleCount += 1
+            }
+        })
+
+        palette.querySelectorAll('[data-palette-category]').forEach(category => {
+            const hasVisibleNode = Array.from(category.querySelectorAll('[data-palette-node]'))
+                .some(node => !node.hidden)
+            category.hidden = !hasVisibleNode
+        })
+
+        const emptyMessage = palette.querySelector('[data-palette-empty-message]')
+        if (emptyMessage) {
+            emptyMessage.hidden = visibleCount > 0
+        }
+
+        const status = palette.querySelector('[data-palette-filter-status]')
+        if (status) {
+            const totalCount = nodes.length
+            status.textContent = filter === ''
+                ? `${totalCount} nodes available.`
+                : `${visibleCount} of ${totalCount} nodes match.`
+        }
+    }
+
+    _escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+    }
+
+    _escapeAttr(value) {
+        return this._escapeHtml(value)
     }
 
     // --- Drag & Drop ---

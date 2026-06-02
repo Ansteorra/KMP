@@ -7,10 +7,10 @@
  * @var iterable<\App\Model\Entity\WorkflowDefinition> $workflows
  */
 
-$this->extend("/layout/TwitterBootstrap/dashboard");
+$this->extend('/layout/TwitterBootstrap/dashboard');
 
-echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Workflows';
+echo $this->KMP->startBlock('title');
+echo $this->KMP->getAppSetting('KMP.ShortSiteTitle') . ': Workflows';
 $this->KMP->endBlock();
 
 $this->assign('title', __('Workflows'));
@@ -30,14 +30,16 @@ $toggleUrl = $this->Url->build(['action' => 'toggleActive', '__id__']);
             <?= $this->Html->link(
                 '<i class="bi bi-plus-circle me-1"></i>' . __('New Workflow'),
                 ['action' => 'add'],
-                ['class' => 'btn btn-primary', 'escape' => false]
+                ['class' => 'btn btn-primary', 'escape' => false],
             ) ?>
         </div>
     </div>
 
     <!-- Search/Filter -->
     <div class="mb-3">
+        <label class="form-label" for="workflow-definition-search"><?= __('Search workflows') ?></label>
         <input type="text" class="form-control"
+            id="workflow-definition-search"
             data-workflow-index-target="search"
             data-action="input->workflow-index#filter"
             placeholder="<?= __('Search workflows by name, slug, or trigger...') ?>">
@@ -59,7 +61,17 @@ $toggleUrl = $this->Url->build(['action' => 'toggleActive', '__id__']);
             </thead>
             <tbody data-workflow-index-target="body">
                 <?php foreach ($workflows as $workflow) : ?>
-                <tr data-search-text="<?= h(strtolower($workflow->name . ' ' . $workflow->slug . ' ' . $workflow->trigger_type . ' ' . ($workflow->entity_type ?? '') . ' ' . ($workflow->execution_mode ?? ''))) ?>">
+                    <?php
+                    $instanceCount = (int)$workflow->get('instance_count');
+                    $searchText = strtolower(implode(' ', [
+                        $workflow->name,
+                        $workflow->slug,
+                        $workflow->trigger_type,
+                        $workflow->entity_type ?? '',
+                        $workflow->execution_mode ?? '',
+                    ]));
+                    ?>
+                <tr data-search-text="<?= h($searchText) ?>">
                     <td><strong><?= h($workflow->name) ?></strong></td>
                     <td><code><?= h($workflow->slug) ?></code></td>
                     <td>
@@ -69,7 +81,9 @@ $toggleUrl = $this->Url->build(['action' => 'toggleActive', '__id__']);
                                 data-action="change->workflow-index#toggleActive"
                                 data-workflow-id="<?= h($workflow->id) ?>"
                                 <?= $workflow->is_active ? 'checked' : '' ?>>
-                            <label class="form-check-label visually-hidden" for="toggle-active-<?= h($workflow->id) ?>"><?= __('Toggle active for {0}', h($workflow->name)) ?></label>
+                            <label class="form-check-label visually-hidden" for="toggle-active-<?= h($workflow->id) ?>">
+                                <?= __('Toggle active for {0}', h($workflow->name)) ?>
+                            </label>
                         </div>
                     </td>
                     <td>
@@ -92,20 +106,68 @@ $toggleUrl = $this->Url->build(['action' => 'toggleActive', '__id__']);
                     <td class="text-end">
                         <div class="btn-group btn-group-sm">
                             <?= $this->Html->link(
-                                '<i class="bi bi-pencil-square"></i> ' . __('Design'),
+                                '<i class="bi bi-pencil-square" aria-hidden="true"></i>',
                                 ['action' => 'designer', $workflow->id],
-                                ['class' => 'btn btn-outline-primary', 'escape' => false, 'title' => __('Designer')]
+                                [
+                                    'class' => 'btn btn-primary',
+                                    'escape' => false,
+                                    'title' => __('Design workflow'),
+                                    'aria-label' => __('Design workflow {0}', $workflow->name),
+                                ],
                             ) ?>
                             <?= $this->Html->link(
-                                '<i class="bi bi-play-circle"></i> ' . __('Instances'),
+                                '<i class="bi bi-play-circle" aria-hidden="true"></i>',
                                 ['controller' => 'WorkflowInstances', 'action' => 'instances', $workflow->id],
-                                ['class' => 'btn btn-outline-info', 'escape' => false, 'title' => __('Instances')]
+                                [
+                                    'class' => 'btn btn-info',
+                                    'escape' => false,
+                                    'title' => __('View instances'),
+                                    'aria-label' => __('View instances for workflow {0}', $workflow->name),
+                                ],
                             ) ?>
                             <?= $this->Html->link(
-                                '<i class="bi bi-clock-history"></i> ' . __('Versions'),
+                                '<i class="bi bi-clock-history" aria-hidden="true"></i>',
                                 ['action' => 'versions', $workflow->id],
-                                ['class' => 'btn btn-outline-secondary', 'escape' => false, 'title' => __('Versions')]
+                                [
+                                    'class' => 'btn btn-secondary',
+                                    'escape' => false,
+                                    'title' => __('View versions'),
+                                    'aria-label' => __('View versions for workflow {0}', $workflow->name),
+                                ],
                             ) ?>
+                            <?php if ($instanceCount > 0) : ?>
+                                <?= $this->Form->postLink(
+                                    '<i class="bi bi-archive" aria-hidden="true"></i>',
+                                    ['action' => 'archive', $workflow->id],
+                                    [
+                                        'class' => 'btn btn-warning',
+                                        'escape' => false,
+                                        'title' => __('Archive workflow'),
+                                        'aria-label' => __('Archive workflow {0}', $workflow->name),
+                                        'confirm' => __(
+                                            'Archive workflow "{0}"? It will be deactivated and hidden, '
+                                            . 'but run history will be preserved.',
+                                            $workflow->name,
+                                        ),
+                                    ],
+                                ) ?>
+                            <?php else : ?>
+                                <?= $this->Form->postLink(
+                                    '<i class="bi bi-trash" aria-hidden="true"></i>',
+                                    ['action' => 'delete', $workflow->id],
+                                    [
+                                        'class' => 'btn btn-danger',
+                                        'escape' => false,
+                                        'title' => __('Delete workflow'),
+                                        'aria-label' => __('Delete workflow {0}', $workflow->name),
+                                        'confirm' => __(
+                                            'Delete workflow "{0}"? This removes the unused workflow '
+                                            . 'and its draft/published versions.',
+                                            $workflow->name,
+                                        ),
+                                    ],
+                                ) ?>
+                            <?php endif; ?>
                         </div>
                     </td>
                 </tr>

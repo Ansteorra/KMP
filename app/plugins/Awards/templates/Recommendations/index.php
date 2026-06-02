@@ -89,5 +89,9 @@ if ($user->checkCan("edit", "Awards.Recommendations")):
 <?php
 endif;
 
+if ($user->checkCan("requestFeedback", "Awards.Recommendations")):
+    echo $this->element('recommendationFeedbackModal', ['modalId' => 'requestRecommendationFeedbackModal']);
+endif;
+
 $this->KMP->endBlock();
 ?>

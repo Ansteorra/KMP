@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\KMP\GridColumns;
@@ -85,6 +84,9 @@ class ApprovalsGridColumnsTest extends TestCase
         $actions = ApprovalsGridColumns::getRowActions();
         $this->assertArrayHasKey('detail', $actions);
         $this->assertArrayHasKey('respond', $actions);
+        $this->assertArrayHasKey('send_feedback', $actions);
+        $this->assertSame(['is_feedback_response' => false], $actions['respond']['condition']);
+        $this->assertSame(['is_feedback_response' => true], $actions['send_feedback']['condition']);
     }
 
     public function testGetAdminRowActionsIncludesReassign(): void

@@ -229,6 +229,25 @@ class RecommendationPolicy extends BasePolicy
         return $this->_hasPolicy($user, $method, $entity);
     }
 
+    public function canRequestFeedback(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    {
+        if ($entity instanceof BaseEntity) {
+            return $this->_hasPolicy($user, __FUNCTION__, $entity) || $this->canEdit($user, $entity, ...$optionalArgs);
+        }
+
+        return $this->_hasPolicy($user, __FUNCTION__, $entity);
+    }
+
+    public function canRetractFeedback(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    {
+        return $this->canRequestFeedback($user, $entity, ...$optionalArgs);
+    }
+
+    public function canAdministerFeedback(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    {
+        return $this->_hasPolicy($user, __FUNCTION__, $entity) || $user->isSuperUser();
+    }
+
     /**
      * Check if user can add new recommendations.
      *

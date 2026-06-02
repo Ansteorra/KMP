@@ -27,6 +27,7 @@ use App\KMP\GridRowDomId;
 use App\Services\CsvExportService;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use Awards\Services\RecommendationFormService;
+use Awards\Services\RecommendationFeedbackService;
 use Awards\Services\RecommendationSubmissionService;
 use Awards\Services\RecommendationTransitionService;
 use Awards\Services\RecommendationQueryService;
@@ -1122,6 +1123,70 @@ class RecommendationsController extends AppController
     }
 
     /**
+     * Request feedback on selected recommendations or recommendation groups.
+     */
+    public function requestFeedback(RecommendationFeedbackService $feedbackService): ?\Cake\Http\Response
+    {
+        $this->request->allowMethod(['post']);
+        $recommendation = $this->Recommendations->newEmptyEntity();
+        $this->Authorization->authorize($recommendation, 'requestFeedback');
+
+        $ids = $this->parseIdList((string)$this->request->getData('ids'));
+        $recipientIds = $this->parseMemberIdList((string)$this->request->getData('recipient_ids'));
+        $message = $this->request->getData('message');
+        $deadline = $this->request->getData('deadline');
+        $user = $this->request->getAttribute('identity');
+
+        $result = $feedbackService->createRequests(
+            $ids,
+            $recipientIds,
+            (int)$user->id,
+            is_string($message) ? $message : null,
+            is_string($deadline) && $deadline !== '' ? $deadline : null,
+        );
+
+        if ($result->isSuccess()) {
+            $this->Flash->success(__('Feedback request sent.'));
+        } else {
+            $this->Flash->error($result->getError() ?? __('Feedback request could not be sent.'));
+        }
+
+        $pageContext = $this->getPageContextUrl();
+        if ($result->isSuccess() && $this->wantsTurboStreamRequest() && $pageContext !== null) {
+            return $this->renderTurboCloseModal(
+                'recommendations-grid-table',
+                ['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'gridData'],
+                $pageContext,
+            );
+        }
+
+        return $this->redirect($pageContext ?: ['action' => 'index']);
+    }
+
+    /**
+     * Retract a pending recommendation feedback request.
+     */
+    public function retractFeedback(RecommendationFeedbackService $feedbackService): ?\Cake\Http\Response
+    {
+        $this->request->allowMethod(['post', 'delete']);
+        $recommendation = $this->Recommendations->newEmptyEntity();
+        $this->Authorization->authorize($recommendation, 'retractFeedback');
+
+        $user = $this->request->getAttribute('identity');
+        $requestId = (int)$this->request->getData('feedback_request_id');
+        $adminOverride = $user->checkCan('administerFeedback', $recommendation);
+        $result = $feedbackService->retractRequest($requestId, (int)$user->id, $adminOverride);
+
+        if ($result->isSuccess()) {
+            $this->Flash->success(__('Feedback request retracted.'));
+        } else {
+            $this->Flash->error($result->getError() ?? __('Feedback request could not be retracted.'));
+        }
+
+        return $this->redirect($this->referer(['action' => 'index']));
+    }
+
+    /**
      * Display a single recommendation with its workflow context and related entities.
      *
      * Loads the recommendation together with related data (requester, member, branch, award, gatherings)
@@ -1139,6 +1204,12 @@ class RecommendationsController extends AppController
                 'Bestowals',
                 'GroupHead' => ['Awards'],
                 'GroupChildren' => ['Awards', 'Requesters'],
+                'FeedbackRequestItems' => [
+                    'FeedbackRequests' => [
+                        'Requesters',
+                        'Recipients' => ['RecipientMembers'],
+                    ],
+                ],
             ]);
             if (!$recommendation) {
                 throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
@@ -2519,6 +2590,60 @@ class RecommendationsController extends AppController
                 'recommendation' => null,
             ];
         }
+    }
+
+    /**
+     * Parse comma or whitespace separated numeric IDs.
+     *
+     * @return array<int>
+     */
+    private function parseIdList(string $value): array
+    {
+        $ids = [];
+        foreach (preg_split('/[,\s]+/', $value) ?: [] as $id) {
+            if ($id !== '' && ctype_digit($id)) {
+                $ids[(int)$id] = true;
+            }
+        }
+
+        return array_keys($ids);
+    }
+
+    /**
+     * Parse member IDs from normal member lookup values.
+     *
+     * The member autocomplete returns public_id values; numeric IDs are still
+     * accepted for callers that do not use the lookup control.
+     *
+     * @return array<int>
+     */
+    private function parseMemberIdList(string $value): array
+    {
+        $ids = [];
+        $publicIds = [];
+        foreach (preg_split('/[,\s]+/', $value) ?: [] as $id) {
+            if ($id === '') {
+                continue;
+            }
+            if (ctype_digit($id)) {
+                $ids[(int)$id] = true;
+            } else {
+                $publicIds[$id] = true;
+            }
+        }
+
+        if ($publicIds !== []) {
+            $members = $this->fetchTable('Members')->find()
+                ->select(['id'])
+                ->where(['public_id IN' => array_keys($publicIds)])
+                ->disableHydration()
+                ->all();
+            foreach ($members as $member) {
+                $ids[(int)$member['id']] = true;
+            }
+        }
+
+        return array_keys($ids);
     }
 
     /**

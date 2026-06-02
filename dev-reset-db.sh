@@ -153,13 +153,13 @@ elif [ "$LOAD_SEED" = true ] && { [ "$DB_DRIVER" = "postgres" ] || [ "$DB_DRIVER
     fi
 
     echo "[2/5] Running migrations to the PostgreSQL seed baseline..."
-    "${COMPOSE[@]}" exec -T app bin/cake migrations migrate --target 20260206000001
-    "${COMPOSE[@]}" exec -T app bin/cake migrations migrate --plugin Queue --target 20260210163129
-    "${COMPOSE[@]}" exec -T app bin/cake migrations migrate --plugin Activities --target 20250228144601
-    "${COMPOSE[@]}" exec -T app bin/cake migrations migrate --plugin Officers --target 20250228133830
-    "${COMPOSE[@]}" exec -T app bin/cake migrations migrate --plugin Awards --target 20251130230000
-    "${COMPOSE[@]}" exec -T app bin/cake migrations migrate --plugin Waivers --target 20260131001511
-    "${COMPOSE[@]}" exec -T app bin/cake migrations migrate --plugin Tools --target 20200430170235
+    "${COMPOSE[@]}" exec -T app bin/cake migrations migrate --no-lock --target 20260206000001
+    "${COMPOSE[@]}" exec -T app bin/cake migrations migrate --no-lock --plugin Queue --target 20260210163129
+    "${COMPOSE[@]}" exec -T app bin/cake migrations migrate --no-lock --plugin Activities --target 20250228144601
+    "${COMPOSE[@]}" exec -T app bin/cake migrations migrate --no-lock --plugin Officers --target 20250228133830
+    "${COMPOSE[@]}" exec -T app bin/cake migrations migrate --no-lock --plugin Awards --target 20251130230000
+    "${COMPOSE[@]}" exec -T app bin/cake migrations migrate --no-lock --plugin Waivers --target 20260131001511
+    "${COMPOSE[@]}" exec -T app bin/cake migrations migrate --no-lock --plugin Tools --target 20200430170235
 
     SEEDED_TABLES="$(grep -oE 'INSERT INTO "[^"]+"' "$PG_SEED_FILE" \
         | sed -E 's/INSERT INTO "([^"]+)"/"\1"/' \

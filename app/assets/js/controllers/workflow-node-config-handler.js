@@ -317,6 +317,9 @@ export default class WorkflowNodeConfigHandler {
                 const acKey = key.substring(15)
                 newApproverConfig[acKey] = value
                 hasApproverConfig = true
+            } else if (key === 'label') {
+                nodeData.data.label = value
+                nodeData.data.config._nodeLabel = value
             } else {
                 nodeData.data.config[key] = value
             }
@@ -366,9 +369,21 @@ export default class WorkflowNodeConfigHandler {
         nodeData.data.config.serialPickNext = form.querySelector('[name="serialPickNext"]')?.checked ?? false
 
         this.editor.updateNodeDataFromId(nodeId, nodeData.data)
+        this.designer._updateDirtyState?.()
+        this._refreshTemplateAnalysis(form, nodeId)
 
         const changedField = event.target?.name
-        if (changedField === 'action' || changedField === 'condition' || changedField === 'event') {
+        if (changedField === 'label') {
+            this._refreshNodeHtml(nodeId, nodeData)
+        }
+        const shouldRerenderConfig = [
+            'action',
+            'condition',
+            'event',
+            'params.entityType',
+            'params.name',
+        ].includes(changedField)
+        if (shouldRerenderConfig) {
             const updatedNode = this.editor.getNodeFromId(nodeId)
             if (this.hasNodeConfigTarget && this.configPanel) {
                 const variableInfo = this._buildVariableInfo(nodeId, updatedNode)
@@ -379,6 +394,23 @@ export default class WorkflowNodeConfigHandler {
             }
         } else if (this.variablePicker && this.hasNodeConfigTarget) {
             this.variablePicker.attachPickers(this.nodeConfigTarget, nodeId, this.editor)
+        }
+    }
+
+    _refreshNodeHtml(nodeId, nodeData) {
+        if (!this.designer._serializer || !this.designer.canvasTarget) return
+
+        const type = nodeData.data?.type || 'unknown'
+        const nodeKey = nodeData.data?.nodeKey || nodeData.name
+        const config = {
+            ...(nodeData.data?.config || {}),
+            _nodeLabel: nodeData.data?.label || '',
+        }
+        const html = this.designer._serializer.buildNodeHTML(type, nodeKey, config)
+        const nodeEl = this.designer.canvasTarget.querySelector(`#node-${nodeId}`)
+        const contentEl = nodeEl?.querySelector('.drawflow_content_node')
+        if (contentEl) {
+            contentEl.innerHTML = html
         }
     }
 
@@ -499,7 +531,7 @@ export default class WorkflowNodeConfigHandler {
      * Shows:
      *  - Template identity (name + slug badge, workflow-native indicator)
      *  - Required vs optional variables from variables_schema
-     *  - Whether each is mapped/unmapped against available workflow context vars
+     *  - Whether each is configured in this Send Email node's template-variable mappings
      *  - Parsed subject placeholders not covered by variables_schema
      *
      * @param {HTMLSelectElement} select
@@ -527,22 +559,7 @@ export default class WorkflowNodeConfigHandler {
         const isWorkflowNative = option.dataset.isWorkflowNative === '1'
         const subjectPreview = option.dataset.subject || ''
 
-        // Build the set of available workflow variable names (short names from paths like $.entity.field → field)
-        const workflowVarPaths = new Set()
-        const workflowVarNames = new Set()
-        if (nodeId && this.variablePicker) {
-            const nodeData = this.editor.getNodeFromId(nodeId)
-            if (nodeData) {
-                const wfVars = this.variablePicker.buildVariableList(nodeId, this.editor)
-                wfVars.forEach(v => {
-                    workflowVarPaths.add(v.path)
-                    // Extract trailing name component ($.entity.someField → someField)
-                    const parts = v.path.split('.')
-                    workflowVarNames.add(parts[parts.length - 1])
-                    workflowVarNames.add(v.path) // also match full path
-                })
-            }
-        }
+        const configuredTemplateVars = this._getConfiguredTemplateVars(nodeId)
 
         let html = '<div class="border rounded p-2 bg-light">'
 
@@ -574,13 +591,9 @@ export default class WorkflowNodeConfigHandler {
                 const type = entry.type || 'string'
                 const desc = entry.description ? ` — ${entry.description}` : ''
                 const req = entry.required
-                const mapped = workflowVarNames.has(name) || workflowVarNames.size === 0
+                const mapped = configuredTemplateVars.has(name)
                 let statusIcon, statusClass
-                if (workflowVarNames.size === 0) {
-                    // No workflow context available — neutral display
-                    statusIcon = '<i class="bi bi-dash-circle text-secondary"></i>'
-                    statusClass = ''
-                } else if (mapped) {
+                if (mapped) {
                     statusIcon = '<i class="bi bi-check-circle-fill text-success"></i>'
                     statusClass = ''
                 } else {
@@ -614,7 +627,7 @@ export default class WorkflowNodeConfigHandler {
             if (missingRequired > 0) {
                 html += `<div class="alert alert-danger py-1 px-2 mb-0 mt-1" style="font-size:0.8em;" role="alert">
                     <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                    ${missingRequired} required variable${missingRequired > 1 ? 's are' : ' is'} not mapped from workflow context. Check your workflow variables.
+                    ${missingRequired} required template variable${missingRequired > 1 ? 's are' : ' is'} not configured in this Send Email step.
                 </div>`
             }
 
@@ -635,6 +648,29 @@ export default class WorkflowNodeConfigHandler {
 
         html += '</div>'
         analysisEl.innerHTML = html
+    }
+
+    _getConfiguredTemplateVars(nodeId) {
+        const mappedVars = new Set()
+        if (!nodeId) return mappedVars
+
+        const nodeData = this.editor.getNodeFromId(nodeId)
+        const vars = nodeData?.data?.config?.params?.vars ?? nodeData?.data?.config?.vars ?? {}
+        if (!vars || typeof vars !== 'object' || Array.isArray(vars)) {
+            return mappedVars
+        }
+
+        Object.entries(vars).forEach(([key, value]) => {
+            if (!key || value === '' || value === null || typeof value === 'undefined') return
+            if (typeof value === 'object' && value !== null) {
+                const hasContextPath = value.type === 'context' && Boolean(value.path)
+                const hasAppSetting = value.type === 'app_setting' && Boolean(value.key)
+                if (!hasContextPath && !hasAppSetting) return
+            }
+            mappedVars.add(key)
+        })
+
+        return mappedVars
     }
 
     /**
@@ -662,6 +698,10 @@ export default class WorkflowNodeConfigHandler {
 
         const rowHTML = this.configPanel._renderKvRow(fieldName, nextIdx, '', '')
         container.insertAdjacentHTML('beforeend', rowHTML)
+        if (this.variablePicker) {
+            const nodeId = btn.closest('form')?.dataset.nodeId
+            this.variablePicker.attachPickers(container, nodeId, this.editor)
+        }
     }
 
     removeKvRow(event) {
@@ -678,8 +718,19 @@ export default class WorkflowNodeConfigHandler {
         const row = select.closest('.kv-row')
         const valInput = row.querySelector('[name*="__val__"]')
         if (valInput) {
-            valInput.placeholder = selectedType === 'context' ? '$.path.to.value' : 'value'
+            valInput.placeholder = selectedType === 'context' ? 'Choose a workflow variable' : 'Value'
             valInput.value = ''
+            if (selectedType === 'context') {
+                valInput.setAttribute('data-variable-picker', 'true')
+            } else {
+                this.variablePicker?.removeSelectedVariableHint?.(valInput)
+                valInput.removeAttribute('data-variable-picker')
+                valInput.closest('.wf-var-picker-wrapper')?.replaceWith(valInput)
+            }
+        }
+        if (this.variablePicker) {
+            const nodeId = select.closest('form')?.dataset.nodeId
+            this.variablePicker.attachPickers(row, nodeId, this.editor)
         }
         // Trigger config update
         const form = select.closest('form')
@@ -693,6 +744,7 @@ export default class WorkflowNodeConfigHandler {
 
         this._extractKvFields(form, nodeData)
         this.editor.updateNodeDataFromId(nodeId, nodeData.data)
+        this._refreshTemplateAnalysis(form, nodeId)
     }
 
     _extractKvFields(form, nodeData) {
@@ -731,6 +783,13 @@ export default class WorkflowNodeConfigHandler {
                 nodeData.data.config[fieldName] = obj
             }
         })
+    }
+
+    _refreshTemplateAnalysis(form, nodeId) {
+        const templateSelect = form.querySelector('[data-email-template-select="true"]')
+        if (templateSelect) {
+            this._renderTemplateAnalysis(templateSelect, nodeId)
+        }
     }
 
     disconnect() {

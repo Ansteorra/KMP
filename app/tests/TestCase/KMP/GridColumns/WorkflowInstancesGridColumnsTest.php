@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\KMP\GridColumns;
@@ -76,6 +75,10 @@ class WorkflowInstancesGridColumnsTest extends TestCase
 
         $this->assertArrayHasKey('view', $actions);
         $this->assertSame('link', $actions['view']['type']);
+        $this->assertSame('', $actions['view']['label']);
+        $this->assertSame('bi-eye', $actions['view']['icon']);
+        $this->assertSame('View instance', $actions['view']['title']);
+        $this->assertSame('View workflow instance {{id}}', $actions['view']['ariaLabel']);
     }
 
     public function testGetSystemViewsReturnsRecentView(): void

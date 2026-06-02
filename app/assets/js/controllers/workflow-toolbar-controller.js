@@ -8,13 +8,23 @@ import { Controller } from "@hotwired/stimulus"
  * Communicates with the main designer controller via Stimulus outlet.
  */
 class WorkflowToolbarController extends Controller {
-    static targets = ["saveBtn", "publishBtn", "zoomLevel"]
+    static targets = [
+        "saveBtn",
+        "publishBtn",
+        "zoomLevel",
+        "workflowName",
+        "executionModeBadge",
+        "metadataForm",
+        "metadataStatus",
+        "metadataSaveBtn",
+    ]
 
     static outlets = ["workflow-designer"]
 
     static values = {
         saveUrl: String,
         publishUrl: String,
+        updateMetadataUrl: String,
         csrfToken: String,
     }
 
@@ -116,6 +126,7 @@ class WorkflowToolbarController extends Controller {
                     const errors = errorText.split('; ').filter(e => e.trim())
                     designer.showValidationResults({ valid: false, errors, warnings: [] })
                 }
+
                 this.showFlash(reason, 'danger')
             }
         } catch (error) {
@@ -123,6 +134,42 @@ class WorkflowToolbarController extends Controller {
             this.showFlash('Error publishing workflow', 'danger')
         } finally {
             this._setBtnLoading(this.hasPublishBtnTarget ? this.publishBtnTarget : null, false)
+        }
+    }
+
+    async saveMetadata(event) {
+        if (event) event.preventDefault()
+        if (!this.hasMetadataFormTarget || !this.hasUpdateMetadataUrlValue) return
+
+        this._setMetadataStatus('')
+        this._setBtnLoading(this.hasMetadataSaveBtnTarget ? this.metadataSaveBtnTarget : null, true)
+
+        try {
+            const formData = new FormData(this.metadataFormTarget)
+            const payload = Object.fromEntries(formData.entries())
+            const response = await fetch(this.updateMetadataUrlValue, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': this.csrfTokenValue,
+                },
+                body: JSON.stringify(payload),
+            })
+            const result = await response.json()
+
+            if (response.ok && result.success) {
+                this._updateMetadataDisplay(result.workflow || payload)
+                this._closeMetadataModal()
+                this.showFlash('Workflow details updated', 'success')
+                return
+            }
+
+            this._setMetadataStatus(result.reason || 'Failed to update workflow details')
+        } catch (error) {
+            console.error('Metadata update failed:', error)
+            this._setMetadataStatus('Error updating workflow details')
+        } finally {
+            this._setBtnLoading(this.hasMetadataSaveBtnTarget ? this.metadataSaveBtnTarget : null, false)
         }
     }
 
@@ -143,9 +190,48 @@ class WorkflowToolbarController extends Controller {
         toast.className = `alert alert-${type} alert-dismissible fade show wf-toast`
         toast.setAttribute('role', 'alert')
         toast.setAttribute('aria-live', 'assertive')
-        toast.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`
+        toast.innerHTML = `${this._escapeHtml(message)}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`
         document.body.appendChild(toast)
         setTimeout(() => toast.remove(), 4000)
+    }
+
+    _setMetadataStatus(message) {
+        if (!this.hasMetadataStatusTarget) return
+        this.metadataStatusTarget.textContent = message
+        this.metadataStatusTarget.classList.toggle('d-none', !message)
+    }
+
+    _closeMetadataModal() {
+        const modalElement = this.metadataFormTarget?.closest('.modal')
+        const modal = window.bootstrap?.Modal?.getInstance(modalElement)
+        if (modal) {
+            modal.hide()
+        }
+    }
+
+    _updateMetadataDisplay(workflow) {
+        if (this.hasWorkflowNameTarget && workflow.name) {
+            this.workflowNameTarget.textContent = workflow.name
+        }
+        if (!this.hasExecutionModeBadgeTarget) return
+
+        const executionMode = workflow.executionMode || workflow.execution_mode
+        if (executionMode === 'ephemeral') {
+            this.executionModeBadgeTarget.className = 'badge bg-info text-dark ms-2'
+            this.executionModeBadgeTarget.title = 'Ephemeral workflows run in-memory with no persistence. Async nodes (approvals, delays) are not supported.'
+            this.executionModeBadgeTarget.innerHTML = '<i class="bi bi-lightning-charge me-1"></i>Ephemeral'
+        } else {
+            this.executionModeBadgeTarget.className = 'badge bg-primary ms-2'
+            this.executionModeBadgeTarget.title = 'Durable workflows persist execution state and support async nodes like approvals and delays.'
+            this.executionModeBadgeTarget.innerHTML = '<i class="bi bi-database me-1"></i>Durable'
+        }
+    }
+
+    _escapeHtml(value) {
+        const element = document.createElement('div')
+        element.textContent = value
+
+        return element.innerHTML
     }
 
     // --- Undo / Redo ---

@@ -78,10 +78,19 @@ class MobileApprovalsController extends MobileControllerBase {
     }
 
     _renderCard(approval) {
+        const hideProgress = approval.approverConfig?.hideProgress === true
+            || approval.approverConfig?.feedbackResponse === true
         const pct = approval.progress.required > 0
             ? Math.round((approval.progress.approved / approval.progress.required) * 100)
             : 0
         const age = this._timeAgo(approval.modified)
+        const progressHtml = hideProgress ? "" : `
+                        <span class="approval-progress">
+                            <span class="approval-progress-bar">
+                                <span class="approval-progress-fill" style="width: ${pct}%"></span>
+                            </span>
+                            <small>${approval.progress.approved}/${approval.progress.required}</small>
+                        </span>`
 
         return `
         <div class="card approval-card" data-approval-id="${approval.id}">
@@ -95,12 +104,7 @@ class MobileApprovalsController extends MobileControllerBase {
                     <div class="approval-card-title">${this._escHtml(approval.title)}</div>
                     <div class="approval-card-meta">
                         <span><i class="bi bi-person me-1"></i>${this._escHtml(approval.requester)}</span>
-                        <span class="approval-progress">
-                            <span class="approval-progress-bar">
-                                <span class="approval-progress-fill" style="width: ${pct}%"></span>
-                            </span>
-                            <small>${approval.progress.approved}/${approval.progress.required}</small>
-                        </span>
+                        ${progressHtml}
                         <span><i class="bi bi-clock me-1"></i>${age}</span>
                     </div>
                 </div>

@@ -58,9 +58,7 @@ export default class WorkflowSerializer {
         const icon = icons[type] || 'fa-circle'
         let label = typeLabels[type] || type
 
-        if (config._nodeLabel) {
-            label = config._nodeLabel
-        } else if (config.event) {
+        if (config.event) {
             const trigger = this.registryData.triggers?.find(t => t.event === config.event)
             if (trigger) label = trigger.label
         }
@@ -68,6 +66,10 @@ export default class WorkflowSerializer {
             const action = this.registryData.actions?.find(a => a.action === config.action)
             if (action) label = action.label
         }
+        if (config._nodeLabel) {
+            label = config._nodeLabel
+        }
+        const escapedLabel = this._escapeHtml(label)
 
         let description = ''
         if (config.event) description = config.event.split('.').pop()
@@ -110,7 +112,7 @@ export default class WorkflowSerializer {
         return `<div class="wf-node wf-node-${type}">
             <div class="wf-node-header">
                 <span class="wf-node-icon"><i class="fa-solid ${icon}"></i></span>
-                <span class="wf-node-title" title="${label}">${label}</span>
+                <span class="wf-node-title" title="${escapedLabel}">${escapedLabel}</span>
             </div>
             <div class="wf-node-body">
                 <span class="wf-node-type-label">${typeLabels[type] || type}</span>
@@ -118,6 +120,15 @@ export default class WorkflowSerializer {
             </div>
             ${portLabelsHtml}
         </div>`
+    }
+
+    _escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
     }
 
     exportWorkflow(editor) {
@@ -144,7 +155,10 @@ export default class WorkflowSerializer {
                 }
             }
 
-            nodes[nodeKey] = { type, label: node.data?.label || node.name, config, outputs }
+            const label = node.data?.label || config._nodeLabel || node.name
+            const persistedConfig = { ...config }
+            delete persistedConfig._nodeLabel
+            nodes[nodeKey] = { type, label, config: persistedConfig, outputs }
             canvasLayout[nodeKey] = { x: node.pos_x, y: node.pos_y, drawflowId: parseInt(drawflowId) }
         }
 
@@ -175,7 +189,7 @@ export default class WorkflowSerializer {
             const drawflowId = editor.addNode(
                 nodeKey, inputs, outputs,
                 pos.x, pos.y, `${nodeKey} wf-type-${nodeDef.type}`,
-                { type: nodeDef.type, config: nodeDef.config || {}, nodeKey, label: nodeDef.label || '' },
+                { type: nodeDef.type, config, nodeKey, label: nodeDef.label || '' },
                 html
             )
             nodeIdMap[nodeKey] = drawflowId

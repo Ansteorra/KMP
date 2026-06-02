@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services\WorkflowEngine\Actions;
@@ -9,6 +8,7 @@ use App\Services\WorkflowEngine\Actions\CoreActions;
 use App\Services\WorkflowRegistry\WorkflowEntityRegistry;
 use App\Test\TestCase\BaseTestCase;
 use Cake\ORM\TableRegistry;
+use ReflectionMethod;
 
 /**
  * Unit tests for CoreActions: sendEmail, createNote, updateEntity, assignRole, setVariable.
@@ -370,7 +370,7 @@ class CoreActionsTest extends BaseTestCase
     {
         // assignRole always returns ['memberRoleId' => ...] structure
         // Test via reflection that the method exists and returns array
-        $reflection = new \ReflectionMethod(CoreActions::class, 'assignRole');
+        $reflection = new ReflectionMethod(CoreActions::class, 'assignRole');
         $this->assertEquals('array', (string)$reflection->getReturnType());
     }
 
@@ -386,6 +386,9 @@ class CoreActionsTest extends BaseTestCase
         $result = $this->actions->setVariable($context, $config);
         $this->assertArrayHasKey('myVar', $result);
         $this->assertEquals('hello', $result['myVar']);
+        $this->assertSame('myVar', $result['name']);
+        $this->assertSame('hello', $result['value']);
+        $this->assertSame(['variables' => ['myVar' => 'hello']], $result['_contextUpdates']);
     }
 
     public function testSetVariableResolvesContextPath(): void
@@ -449,6 +452,109 @@ class CoreActionsTest extends BaseTestCase
 
         $result = $this->actions->setVariable($context, $config);
         $this->assertSame(0, $result['zero']);
+    }
+
+    // =====================================================
+    // getObjectById()
+    // =====================================================
+
+    public function testGetObjectByIdReturnsRegisteredFieldsOnly(): void
+    {
+        WorkflowEntityRegistry::register('Core', [[
+            'entityType' => 'Core.Members',
+            'label' => 'Members',
+            'description' => 'Member records',
+            'tableClass' => 'App\\Model\\Table\\MembersTable',
+            'fields' => [
+                'id' => ['type' => 'integer', 'label' => 'ID'],
+                'sca_name' => ['type' => 'string', 'label' => 'SCA Name'],
+            ],
+        ]]);
+
+        $result = $this->actions->getObjectById([], [
+            'entityType' => 'Core.Members',
+            'entityId' => self::ADMIN_MEMBER_ID,
+        ]);
+
+        $this->assertTrue($result['found']);
+        $this->assertSame('Core.Members', $result['entityType']);
+        $this->assertSame(self::ADMIN_MEMBER_ID, $result['entityId']);
+        $this->assertArrayHasKey('id', $result['record']);
+        $this->assertArrayHasKey('sca_name', $result['record']);
+        $this->assertArrayHasKey('email_address', $result['record']);
+        $this->assertArrayNotHasKey('password', $result['record']);
+        $this->assertArrayNotHasKey('password_token', $result['record']);
+    }
+
+    public function testGetObjectByIdResolvesEntityIdFromContext(): void
+    {
+        WorkflowEntityRegistry::register('Core', [[
+            'entityType' => 'Core.Members',
+            'label' => 'Members',
+            'description' => 'Member records',
+            'tableClass' => 'Members',
+            'fields' => [
+                'id' => ['type' => 'integer', 'label' => 'ID'],
+            ],
+        ]]);
+
+        $result = $this->actions->getObjectById(['trigger' => ['memberId' => self::ADMIN_MEMBER_ID]], [
+            'entityType' => 'Core.Members',
+            'entityId' => '$.trigger.memberId',
+        ]);
+
+        $this->assertTrue($result['found']);
+        $this->assertSame(self::ADMIN_MEMBER_ID, $result['record']['id']);
+        $this->assertArrayHasKey('sca_name', $result['record']);
+        $this->assertArrayNotHasKey('password', $result['record']);
+    }
+
+    public function testGetObjectByIdReturnsNotFoundForMissingRecord(): void
+    {
+        WorkflowEntityRegistry::register('Core', [[
+            'entityType' => 'Core.Members',
+            'label' => 'Members',
+            'description' => 'Member records',
+            'tableClass' => 'Members',
+            'fields' => [
+                'id' => ['type' => 'integer', 'label' => 'ID'],
+            ],
+        ]]);
+
+        $result = $this->actions->getObjectById([], [
+            'entityType' => 'Core.Members',
+            'entityId' => 999999,
+        ]);
+
+        $this->assertFalse($result['found']);
+        $this->assertNull($result['record']);
+        $this->assertArrayNotHasKey('error', $result);
+    }
+
+    public function testGetObjectByIdRejectsUnregisteredEntityType(): void
+    {
+        $result = $this->actions->getObjectById([], [
+            'entityType' => 'Missing.Entity',
+            'entityId' => self::ADMIN_MEMBER_ID,
+        ]);
+
+        $this->assertFalse($result['found']);
+        $this->assertNull($result['record']);
+        $this->assertStringContainsString('not available', $result['error']);
+    }
+
+    public function testGetObjectByIdUsesReflectedSchemaEntity(): void
+    {
+        $result = $this->actions->getObjectById([], [
+            'entityType' => 'Core.Members',
+            'entityId' => self::ADMIN_MEMBER_ID,
+        ]);
+
+        $this->assertTrue($result['found']);
+        $this->assertArrayHasKey('id', $result['record']);
+        $this->assertArrayHasKey('sca_name', $result['record']);
+        $this->assertArrayNotHasKey('password', $result['record']);
+        $this->assertArrayNotHasKey('password_token', $result['record']);
     }
 
     // =====================================================
