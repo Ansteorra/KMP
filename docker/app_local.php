@@ -18,6 +18,7 @@ $databaseDriver = match ($databaseDriverName) {
 $isPostgres = in_array($databaseDriverName, ['postgres', 'pgsql'], true)
     || str_starts_with(strtolower((string)$databaseUrl), 'postgres');
 $mysqlSsl = filter_var(env('MYSQL_SSL', false), FILTER_VALIDATE_BOOLEAN);
+$dbQueryLogEnabled = filter_var(env('PERF_DB_QUERY_LOG_ENABLED', false), FILTER_VALIDATE_BOOLEAN);
 
 // Build PDO connection flags based on driver and SSL requirements
 $pdoFlags = [];
@@ -54,6 +55,7 @@ return [
             'database' => env('DB_DATABASE', env('MYSQL_DB_NAME')),
             'url' => $databaseUrl,
             'flags' => $pdoFlags,
+            'log' => $dbQueryLogEnabled,
         ],
         'test' => [
             'className' => \Cake\Database\Connection::class,
@@ -65,6 +67,7 @@ return [
             'database' => env('DB_DATABASE', env('MYSQL_DB_NAME')) . '_test',
             'url' => $databaseTestUrl,
             'flags' => $pdoFlags,
+            'log' => $dbQueryLogEnabled,
         ],
     ],
 

@@ -7,6 +7,7 @@ use App\Services\BackupStorageService;
 use App\Services\Platform\PlatformAdminJobEnqueuer;
 use App\Services\Platform\PlatformAuditService;
 use App\Services\Platform\TenantConfigSchema;
+use App\Services\Platform\TenantHostResolver;
 use App\Services\Secrets\SecretStoreFactory;
 use App\Services\Secrets\SensitiveString;
 use App\Services\Secrets\WritableSecretStoreInterface;
@@ -638,6 +639,7 @@ class TenantsController extends PlatformAdminAppController
             $this->upsertPrimaryHost((string)$tenant['id'], (string)$tenantData['primary_host'], $now);
             $this->auditTenantRegistryChange('tenant.created', $tenant, [], $tenantData, $config);
         });
+        TenantHostResolver::clearCache();
 
         return $tenant;
     }
@@ -704,6 +706,7 @@ class TenantsController extends PlatformAdminAppController
             $this->upsertPrimaryHost((string)$tenant['id'], (string)$tenantData['primary_host'], $now);
             $this->auditTenantRegistryChange('tenant.updated', $tenant, $oldConfig, $tenantData, $newConfig);
         });
+        TenantHostResolver::clearCache();
     }
 
     /**

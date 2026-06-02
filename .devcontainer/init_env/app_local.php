@@ -9,6 +9,7 @@ $databaseUrl = env('DATABASE_URL', null);
 $databaseTestUrl = env('DATABASE_TEST_URL', null);
 $isPostgresUrl = str_starts_with(strtolower((string)$databaseUrl), 'postgres');
 $mysqlSsl = filter_var(env('MYSQL_SSL', false), FILTER_VALIDATE_BOOLEAN);
+$dbQueryLogEnabled = filter_var(env('PERF_DB_QUERY_LOG_ENABLED', false), FILTER_VALIDATE_BOOLEAN);
 
 // Build PDO connection flags based on driver and SSL requirements
 $pdoFlags = [];
@@ -81,6 +82,7 @@ return [
              */
             'url' => $databaseUrl,
             'flags' => $pdoFlags,
+            'log' => $dbQueryLogEnabled,
         ],
 
         /*
@@ -109,6 +111,7 @@ return [
              * You can use a DSN string to set the entire configuration
              */
             'url' => $databaseTestUrl ?? ($isPostgresUrl ? $databaseUrl : null),
+            'log' => $dbQueryLogEnabled,
         ],
     ],
 

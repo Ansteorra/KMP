@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
 
+use App\Services\ViewCellRegistry;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Services\BestowalQueryService;
 use Cake\Datasource\FactoryLocator;
@@ -61,6 +62,73 @@ class DataverseGridPerformanceTest extends HttpIntegrationTestCase
             $outerSize,
             $tableSize,
         ));
+    }
+
+    public function testFullPageRequestsBuildPluginViewCells(): void
+    {
+        $calls = 0;
+        ViewCellRegistry::register('PerformanceSentinel', [], function () use (&$calls): array {
+            $calls++;
+
+            return [];
+        });
+
+        try {
+            $this->get('/members');
+            $this->assertResponseOk();
+            $this->assertSame(1, $calls);
+        } finally {
+            ViewCellRegistry::unregister('PerformanceSentinel');
+        }
+    }
+
+    public function testGridDataRequestsSkipPluginViewCells(): void
+    {
+        $calls = 0;
+        ViewCellRegistry::register('PerformanceSentinel', [], function () use (&$calls): array {
+            $calls++;
+
+            return [];
+        });
+
+        try {
+            $this->get('/members/grid-data');
+            $this->assertResponseOk();
+            $this->assertSame(0, $calls);
+        } finally {
+            ViewCellRegistry::unregister('PerformanceSentinel');
+        }
+    }
+
+    public function testAppSettingAssetRequestsSkipPluginViewCells(): void
+    {
+        $assetName = 'Performance.FastPathAsset';
+        $assetBody = 'fast path asset';
+        $assetPayload = json_encode([
+            'storage' => 'database',
+            'filename' => 'fast-path.txt',
+            'mime' => 'text/plain',
+            'sha256' => hash('sha256', $assetBody),
+            'data' => base64_encode($assetBody),
+        ], JSON_THROW_ON_ERROR);
+        $appSettings = $this->getTableLocator()->get('AppSettings');
+        $this->assertTrue($appSettings->setAppSetting($assetName, $assetPayload, 'file'));
+
+        $calls = 0;
+        ViewCellRegistry::register('PerformanceSentinel', [], function () use (&$calls): array {
+            $calls++;
+
+            return [];
+        });
+
+        try {
+            $this->get('/app-settings/asset/' . rawurlencode($assetName));
+            $this->assertResponseOk();
+            $this->assertResponseEquals($assetBody);
+            $this->assertSame(0, $calls);
+        } finally {
+            ViewCellRegistry::unregister('PerformanceSentinel');
+        }
     }
 
     public function testBranchOfficersOuterFrameIncludesSystemViewTabs(): void

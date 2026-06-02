@@ -94,6 +94,22 @@ if (!is_dir($restoreStatusPath)) {
     @mkdir($restoreStatusPath, 0777, true);
 }
 @chmod($restoreStatusPath, 0777);
+$tenantHostMapCachePath = env('TENANT_HOST_MAP_CACHE_PATH', CACHE . 'tenant_host_map' . DS);
+if (!is_dir($tenantHostMapCachePath)) {
+    @mkdir($tenantHostMapCachePath, 0777, true);
+}
+@chmod($tenantHostMapCachePath, 0777);
+$tenantHostMapCacheConfig = $cacheEngine === RedisEngine::class
+    ? $redisConfig + [
+        "className" => RedisEngine::class,
+        "duration" => "+999 days",
+    ]
+    : [
+        "className" => FileEngine::class,
+        "duration" => "+999 days",
+        "path" => $tenantHostMapCachePath,
+    ];
+$dbQueryLogEnabled = filter_var(env('PERF_DB_QUERY_LOG_ENABLED', false), FILTER_VALIDATE_BOOLEAN);
 
 return [
     /** @var bool Enable debug mode - set via DEBUG environment variable */
@@ -224,6 +240,12 @@ return [
             "className" => $cacheEngine,
             'duration' => '+1 hours',
         ],
+
+        /**
+         * Platform tenant host map cache.
+         * Shared across all tenants/users and explicitly cleared when platform tenant registry changes.
+         */
+        "tenant_host_map" => $tenantHostMapCacheConfig,
 
         /** 
          * Member Permissions Cache
@@ -432,8 +454,8 @@ return [
             /** @var bool Cache database metadata for performance */
             "cacheMetadata" => true,
 
-            /** @var bool Log database queries (disabled for performance) */
-            "log" => false,
+            /** @var bool Log database queries for performance debugging */
+            "log" => $dbQueryLogEnabled,
 
             /** @var bool Quote identifiers for reserved words/special characters */
             "quoteIdentifiers" => false,
@@ -492,8 +514,8 @@ return [
             /** @var bool Quote identifiers */
             "quoteIdentifiers" => false,
 
-            /** @var bool Log queries (disabled for test performance) */
-            "log" => false,
+            /** @var bool Log database queries for performance debugging */
+            "log" => $dbQueryLogEnabled,
 
             /** @var array Database initialization commands */
             //'init' => ['SET GLOBAL innodb_stats_on_metadata = 0'],
@@ -520,7 +542,7 @@ return [
             "flags" => [],
             "cacheMetadata" => true,
             "quoteIdentifiers" => false,
-            "log" => false,
+            "log" => $dbQueryLogEnabled,
         ],
 
         /**
@@ -540,7 +562,7 @@ return [
             "flags" => [],
             "cacheMetadata" => true,
             "quoteIdentifiers" => false,
-            "log" => false,
+            "log" => $dbQueryLogEnabled,
         ],
     ],
 

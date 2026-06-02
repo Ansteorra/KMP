@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Services\Platform\TenantHostResolver;
 use App\Services\Secrets\SecretStoreFactory;
 use App\Services\Secrets\SensitiveString;
 use App\Services\Secrets\WritableSecretStoreInterface;
@@ -347,6 +348,7 @@ class TenantProvisionCommand extends Command
                 'created_at' => $now,
                 'modified_at' => $now,
             ]);
+            TenantHostResolver::clearCache(self::PLATFORM_CONNECTION);
 
             return;
         }
@@ -357,6 +359,7 @@ class TenantProvisionCommand extends Command
             'status' => self::STATUS_ACTIVE,
             'modified_at' => $now,
         ], ['id' => $hostRow['id']]);
+        TenantHostResolver::clearCache(self::PLATFORM_CONNECTION);
     }
 
     /**

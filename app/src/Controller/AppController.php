@@ -29,6 +29,7 @@ use Cake\Http\Response;
 class AppController extends Controller
 {
     use TurboResponseTrait;
+
     /** @var string Event for plugin view cell registration */
     public const VIEW_PLUGIN_EVENT = 'KMP.plugins.callForViewCells';
 
@@ -150,18 +151,24 @@ class AppController extends Controller
             $pageStack = [];
         }
 
-        // Exclude AJAX/Turbo/POST requests from history
+        // Fragment requests render into existing pages, so they should not build app chrome.
         $isAjax = $this->request
             ->is('ajax') || $this->request->is('json') || $this->request->is('xml') || $this->request->is('csv');
         $turboRequest = $this->request->getHeader('Turbo-Frame') != null;
-        $isAjax = $isAjax || $turboRequest;
+        $acceptHeader = $this->request->getHeaderLine('Accept');
+        $turboStreamRequest = str_contains($acceptHeader, 'text/vnd.turbo-stream.html');
+        $controllerName = (string)$this->request->getParam('controller');
+        $actionName = (string)$this->request->getParam('action');
+        $gridDataRequest = str_ends_with($actionName, 'GridData') || str_ends_with($actionName, 'gridData');
+        $assetRequest = $controllerName === 'AppSettings' && $actionName === 'asset';
+        $isFragmentRequest = $isAjax || $turboRequest || $turboStreamRequest || $gridDataRequest || $assetRequest;
         if (!$isNoStack) {
             $isNoStack = $this->request->getQuery('nostack') != null;
         }
         $isPostType = $this->request->is('post') || $this->request->is('put') || $this->request->is('delete');
 
         // Update page stack
-        if (!$isAjax && !$isPostType && !$isNoStack) {
+        if (!$isFragmentRequest && !$isPostType && !$isNoStack) {
             if (empty($pageStack)) {
                 $pageStack[] = $currentUrl;
             }
@@ -178,7 +185,9 @@ class AppController extends Controller
             }
         }
 
-        $session->write('pageStack', $pageStack);
+        if (!$isFragmentRequest) {
+            $session->write('pageStack', $pageStack);
+        }
         $this->set('pageStack', $pageStack);
 
         // Load view cells from registry
@@ -191,13 +200,21 @@ class AppController extends Controller
             'query' => $this->request->getQueryParams(),
         ];
 
-        $currentUser = $this->request->getAttribute('identity');
-        // ViewCellRegistry expects a Member entity; pass null for non-Member identities (e.g. ServicePrincipal)
-        $memberUser = $currentUser instanceof Member ? $currentUser : null;
         $impersonationService = new ImpersonationService();
         $impersonationState = $impersonationService->getState($session);
-        $this->pluginViewCells = ViewCellRegistry::getViewCells($urlParams, $memberUser);
+        if (!$isFragmentRequest) {
+            $currentUser = $this->request->getAttribute('identity');
+            // ViewCellRegistry expects a Member entity; pass null for non-Member identities (e.g. ServicePrincipal)
+            $memberUser = $currentUser instanceof Member ? $currentUser : null;
+            $this->pluginViewCells = ViewCellRegistry::getViewCells($urlParams, $memberUser);
+        } else {
+            $this->pluginViewCells = [];
+        }
         $this->set('pluginViewCells', $this->pluginViewCells);
+
+        if ($isFragmentRequest) {
+            $session->close();
+        }
 
         // Turbo Frame handling
         if ($this->request->getHeader('Turbo-Frame')) {

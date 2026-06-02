@@ -152,7 +152,7 @@ services:
     <<: *app-base
     container_name: kmp-worker
     restart: unless-stopped
-    command: ["bin/cake", "queue", "run", "-q"]
+    command: ["bin/queue-worker-loop.sh"]
     environment:
       <<: *app-environment
       KMP_SKIP_CRON: "true"

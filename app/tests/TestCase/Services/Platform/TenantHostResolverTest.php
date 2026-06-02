@@ -3,7 +3,10 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Services\Platform;
 
+use App\Services\Cache\TenantAwareCache;
 use App\Services\Platform\TenantHostResolver;
+use Cake\Cache\Cache;
+use Cake\Cache\Exception\CacheWriteException;
 use Cake\Database\Driver\Sqlite;
 use Cake\Datasource\ConnectionManager;
 use Cake\TestSuite\TestCase;
@@ -16,11 +19,13 @@ class TenantHostResolverTest extends TestCase
     {
         parent::setUp();
         $this->platformConfig = ConnectionManager::getConfig('platform');
+        $this->clearTenantHostCache();
         $this->configurePlatform();
     }
 
     protected function tearDown(): void
     {
+        $this->clearTenantHostCache();
         ConnectionManager::drop('platform');
         if ($this->platformConfig !== null) {
             ConnectionManager::setConfig('platform', $this->platformConfig);
@@ -44,6 +49,55 @@ class TenantHostResolverTest extends TestCase
         $resolver = new TenantHostResolver();
 
         $this->assertNull($resolver->resolve('inactive.example.test'));
+    }
+
+    public function testResolveUsesCachedHostMapAfterInitialLoad(): void
+    {
+        $resolver = new TenantHostResolver();
+        $this->assertSame('alpha', $resolver->resolve('alpha.example.test')?->slug);
+
+        ConnectionManager::drop('platform');
+
+        $this->assertSame('alpha', $resolver->resolve('alpha.example.test')?->slug);
+    }
+
+    public function testClearCacheForcesFreshHostMap(): void
+    {
+        $resolver = new TenantHostResolver();
+        $this->assertSame('alpha', $resolver->resolve('alpha.example.test')?->slug);
+
+        ConnectionManager::get('platform')->update('tenants', [
+            'slug' => 'beta',
+            'display_name' => 'Beta',
+        ], ['id' => 'tenant-alpha']);
+
+        $this->assertSame('alpha', $resolver->resolve('alpha.example.test')?->slug);
+        TenantHostResolver::clearCache();
+
+        $this->assertSame('beta', $resolver->resolve('alpha.example.test')?->slug);
+    }
+
+    public function testResolveDoesNotFailWhenCacheWriteFails(): void
+    {
+        $throwingCache = new class extends TenantAwareCache {
+            public function writePlatform(string $key, mixed $value, string $config = 'default'): bool
+            {
+                throw new CacheWriteException('cache write failed');
+            }
+        };
+        $resolver = new TenantHostResolver('platform', $throwingCache);
+
+        $tenant = $resolver->resolve('alpha.example.test');
+
+        $this->assertNotNull($tenant);
+        $this->assertSame('alpha', $tenant->slug);
+    }
+
+    private function clearTenantHostCache(): void
+    {
+        if (in_array('tenant_host_map', Cache::configured(), true)) {
+            Cache::clear('tenant_host_map');
+        }
     }
 
     private function configurePlatform(): void
