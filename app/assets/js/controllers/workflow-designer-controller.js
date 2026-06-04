@@ -483,6 +483,8 @@ class WorkflowDesignerController extends Controller {
     addKvRow(event) { this._nodeConfigHandler.addKvRow(event) }
     removeKvRow(event) { this._nodeConfigHandler.removeKvRow(event) }
     onKvValueTypeChange(event) { this._nodeConfigHandler.onKvValueTypeChange(event) }
+    addArrayRow(event) { this._nodeConfigHandler.addArrayRow(event) }
+    removeArrayRow(event) { this._nodeConfigHandler.removeArrayRow(event) }
 
     filterVariableCatalog(event) {
         const filter = (event.target.value || '').toLowerCase()

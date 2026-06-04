@@ -306,8 +306,13 @@ export default class WorkflowNodeConfigHandler {
             if (vpFields.has(key)) continue
             if (key.startsWith('params.') && vpFields.has(key)) continue
             if (key.startsWith('approverConfig.') && vpFields.has(key)) continue
-            // Skip KV editor sub-fields — they are handled by _extractKvFields
-            if (key.includes('__key__') || key.includes('__val__')) continue
+            // Skip structured editor sub-fields — they are handled by dedicated extractors.
+            if (
+                key.includes('__key__') ||
+                key.includes('__val__') ||
+                key.includes('__option_value__') ||
+                key.includes('__option_label__')
+            ) continue
 
             if (key.startsWith('params.')) {
                 const paramKey = key.substring(7)
@@ -364,6 +369,7 @@ export default class WorkflowNodeConfigHandler {
 
         // Extract key-value editor fields (e.g., vars for Core.SendEmail)
         this._extractKvFields(form, nodeData)
+        this._extractArrayFields(form, nodeData)
 
         nodeData.data.config.allowParallel = form.querySelector('[name="allowParallel"]')?.checked ?? true
         nodeData.data.config.serialPickNext = form.querySelector('[name="serialPickNext"]')?.checked ?? false
@@ -704,12 +710,32 @@ export default class WorkflowNodeConfigHandler {
         }
     }
 
+    addArrayRow(event) {
+        const btn = event.target.closest('[data-array-target]')
+        const fieldName = btn.dataset.arrayTarget
+        const container = btn.closest('.option-array-editor').querySelector(`[data-array-rows="${fieldName}"]`)
+        const existingIndexes = [...container.querySelectorAll('.option-array-row')]
+            .map(row => Number(row.dataset.arrayIdx))
+            .filter(Number.isFinite)
+        const nextIdx = existingIndexes.length > 0 ? Math.max(...existingIndexes) + 1 : 0
+
+        const rowHTML = this.configPanel._renderOptionArrayRow(fieldName, nextIdx)
+        container.insertAdjacentHTML('beforeend', rowHTML)
+    }
+
     removeKvRow(event) {
         const row = event.target.closest('.kv-row')
         const form = row.closest('form')
         row.remove()
         // Re-trigger config save after removal
-        this._saveKvFieldsFromForm(form)
+        this._saveStructuredFieldsFromForm(form)
+    }
+
+    removeArrayRow(event) {
+        const row = event.target.closest('.option-array-row')
+        const form = row.closest('form')
+        row.remove()
+        this._saveStructuredFieldsFromForm(form)
     }
 
     onKvValueTypeChange(event) {
@@ -734,15 +760,16 @@ export default class WorkflowNodeConfigHandler {
         }
         // Trigger config update
         const form = select.closest('form')
-        if (form) this._saveKvFieldsFromForm(form)
+        if (form) this._saveStructuredFieldsFromForm(form)
     }
 
-    _saveKvFieldsFromForm(form) {
+    _saveStructuredFieldsFromForm(form) {
         const nodeId = form.dataset.nodeId
         const nodeData = this.editor.getNodeFromId(nodeId)
         if (!nodeData?.data?.config) return
 
         this._extractKvFields(form, nodeData)
+        this._extractArrayFields(form, nodeData)
         this.editor.updateNodeDataFromId(nodeId, nodeData.data)
         this._refreshTemplateAnalysis(form, nodeId)
     }
@@ -781,6 +808,37 @@ export default class WorkflowNodeConfigHandler {
                 nodeData.data.config.params[paramKey] = obj
             } else {
                 nodeData.data.config[fieldName] = obj
+            }
+        })
+    }
+
+    _extractArrayFields(form, nodeData) {
+        const arrayEditors = form.querySelectorAll('.option-array-editor')
+        arrayEditors.forEach(editor => {
+            const fieldName = editor.querySelector('[data-array-rows]')?.dataset.arrayRows
+            if (!fieldName) return
+
+            const options = []
+            const rows = editor.querySelectorAll('.option-array-row')
+            rows.forEach(row => {
+                const valueInput = row.querySelector('[name*="__option_value__"]')
+                const labelInput = row.querySelector('[name*="__option_label__"]')
+                const value = valueInput?.value?.trim()
+                const label = labelInput?.value?.trim()
+                if (!value && !label) return
+
+                options.push({
+                    value: value || label,
+                    label: label || value,
+                })
+            })
+
+            if (fieldName.startsWith('params.')) {
+                const paramKey = fieldName.substring(7)
+                if (!nodeData.data.config.params) nodeData.data.config.params = {}
+                nodeData.data.config.params[paramKey] = options
+            } else {
+                nodeData.data.config[fieldName] = options
             }
         })
     }

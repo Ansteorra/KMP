@@ -203,6 +203,8 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?php
 $this->KMP->endBlock() ?>
 <?php
+use App\KMP\WorkflowApprovalDecisionOptions;
+
 $feedbackRequests = [];
 foreach ($recommendation->feedback_request_items ?? [] as $feedbackItem) {
     if (!empty($feedbackItem->feedback_request)) {
@@ -315,6 +317,25 @@ foreach ($recommendation->feedback_request_items ?? [] as $feedbackItem) {
         <h5 class="mb-0"><i class="bi bi-chat-left-text"></i> <?= __('Feedback Requests') ?></h5>
     </div>
     <?php foreach ($feedbackRequests as $feedbackRequest) : ?>
+    <?php
+    $answerTally = [];
+    $respondedCount = 0;
+    $hasDecisionAnswers = false;
+    foreach ($feedbackRequest->recipients ?? [] as $recipient) {
+        $response = $recipient->workflow_approval_response ?? null;
+        $approvalConfig = $recipient->workflow_approval->approver_config ?? [];
+        $hasOptions = WorkflowApprovalDecisionOptions::normalizeOptions($approvalConfig) !== [];
+        if ($recipient->status !== 'responded' || empty($response?->decision) || !$hasOptions) {
+            continue;
+        }
+
+        $respondedCount++;
+        $hasDecisionAnswers = true;
+        $answerLabel = WorkflowApprovalDecisionOptions::labelForDecision((string)$response->decision, $approvalConfig);
+        $answerTally[$answerLabel] = ($answerTally[$answerLabel] ?? 0) + 1;
+    }
+    $recipientCount = count($feedbackRequest->recipients ?? []);
+    ?>
     <div class="card mb-3">
         <div class="card-header d-flex justify-content-between align-items-center">
             <div>
@@ -344,21 +365,62 @@ foreach ($recommendation->feedback_request_items ?? [] as $feedbackItem) {
             <?php if (!empty($feedbackRequest->message)) : ?>
             <p class="mb-3"><strong><?= __('Message:') ?></strong> <?= h($feedbackRequest->message) ?></p>
             <?php endif; ?>
+            <?php if ($hasDecisionAnswers) : ?>
+            <div class="mb-3" aria-label="<?= h(__('Feedback answer summary')) ?>">
+                <div class="fw-semibold mb-2">
+                    <?= __('Answer Summary ({0} of {1} responded)', $respondedCount, $recipientCount) ?>
+                </div>
+                <?php foreach ($answerTally as $answerLabel => $answerCount) : ?>
+                <?php $percentage = $respondedCount > 0 ? round(($answerCount / $respondedCount) * 100) : 0; ?>
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between">
+                        <span><?= h($answerLabel) ?></span>
+                        <span><?= __('{0} ({1}%)', $answerCount, $percentage) ?></span>
+                    </div>
+                    <div class="progress" role="img" aria-label="<?= h(__('{0}: {1} of {2} responses, {3}%', $answerLabel, $answerCount, $respondedCount, $percentage)) ?>">
+                        <div class="progress-bar" style="width: <?= (int)$percentage ?>%"></div>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
             <div class="table-responsive">
                 <table class="table table-sm align-middle">
                     <thead>
                         <tr>
                             <th><?= __('Recipient') ?></th>
                             <th><?= __('Status') ?></th>
+                            <th><?= __('Answer') ?></th>
                             <th><?= __('Response') ?></th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($feedbackRequest->recipients ?? [] as $recipient) : ?>
+                        <?php
+                        $response = $recipient->workflow_approval_response ?? null;
+                        $approvalConfig = $recipient->workflow_approval->approver_config ?? [];
+                        $answerLabel = null;
+                        if (
+                            !empty($response?->decision)
+                            && WorkflowApprovalDecisionOptions::normalizeOptions($approvalConfig) !== []
+                        ) {
+                            $answerLabel = WorkflowApprovalDecisionOptions::labelForDecision(
+                                (string)$response->decision,
+                                $approvalConfig,
+                            );
+                        }
+                        ?>
                         <tr>
                             <td><?= h($recipient->recipient_member->sca_name ?? $recipient->recipient_id) ?></td>
                             <td>
                                 <span class="badge bg-secondary"><?= h(ucfirst((string)$recipient->status)) ?></span>
+                            </td>
+                            <td>
+                                <?php if ($answerLabel !== null) : ?>
+                                    <span class="badge bg-info text-dark"><?= h($answerLabel) ?></span>
+                                <?php else : ?>
+                                    <span class="text-muted"><?= __('No answer') ?></span>
+                                <?php endif; ?>
                             </td>
                             <td>
                                 <?php if (!empty($recipient->response_comment)) : ?>

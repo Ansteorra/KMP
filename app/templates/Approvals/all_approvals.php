@@ -49,9 +49,9 @@ $this->KMP->endBlock(); ?>
                 <input type="hidden" name="approvalId" id="approvalResponseApprovalId" value="">
 
                 <!-- Decision -->
-                <div class="mb-3">
-                    <label class="form-label fw-semibold"><?= __('Decision') ?></label>
-                    <div class="d-flex gap-3">
+                <fieldset class="mb-3" data-approval-response-target="decisionSection">
+                    <legend class="form-label fw-semibold fs-6 mb-2" data-approval-response-target="decisionLegend"><?= __('Decision') ?></legend>
+                    <div class="d-flex gap-3 flex-wrap" data-approval-response-target="decisionOptions">
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="decision" id="decisionApprove" value="approve"
                                 data-approval-response-target="decision"
@@ -68,7 +68,7 @@ $this->KMP->endBlock(); ?>
                                 <i class="bi bi-x-circle me-1"></i><?= __('Reject') ?>
                             </label>
                         </div>
-                    </div>
+                    </fieldset>
                 </div>
 
                 <!-- Comment -->
@@ -214,10 +214,52 @@ document.addEventListener('DOMContentLoaded', function() {
             const approvedCount = btnData.approved_count || 0;
             const serialPickNext = approverConfig.serial_pick_next || false;
             const commentWarning = approverConfig.comment_warning || '';
+            const feedbackResponse = approverConfig.feedback_response || false;
+            const responseLabel = approverConfig.response_label
+                || (feedbackResponse ? '<?= __('Send Feedback') ?>' : '<?= __('Submit Response') ?>');
+            const approveLabel = approverConfig.approve_label || 'Approve';
+            const hideReject = feedbackResponse || approverConfig.hide_reject || false;
+            const requiresComment = approverConfig.requires_comment || false;
+            const decisionPromptLabel = approverConfig.decision_prompt_label
+                || approverConfig.decisionPromptLabel
+                || '<?= __('Decision') ?>';
+            const decisionOptions = Array.isArray(approverConfig.decision_options)
+                ? approverConfig.decision_options
+                : (Array.isArray(approverConfig.decisionOptions) ? approverConfig.decisionOptions : []);
 
             document.getElementById('approvalResponseApprovalId').value = approvalId;
 
             const form = document.getElementById('approvalResponseForm');
+            const modalTitle = document.getElementById('approvalResponseModalLabel');
+            if (modalTitle) {
+                modalTitle.innerHTML = feedbackResponse
+                    ? '<i class="bi bi-chat-left-text me-2"></i><?= __('Send Feedback') ?>'
+                    : '<i class="bi bi-check2-square me-2"></i><?= __('Respond to Approval') ?>';
+            }
+            const approveLabelEl = document.querySelector('label[for="decisionApprove"]');
+            if (approveLabelEl) {
+                approveLabelEl.innerHTML = '<i class="bi bi-check-circle me-1"></i>' + approveLabel;
+            }
+            const rejectOption = document.getElementById('decisionReject')?.closest('.form-check');
+            if (rejectOption) {
+                rejectOption.hidden = !!hideReject;
+            }
+            const submitBtn = form?.querySelector('[data-approval-response-target="submitBtn"]');
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="bi bi-send me-1"></i>' + responseLabel;
+            }
+            const commentHint = form?.querySelector('[data-approval-response-target="commentRequiredHint"]');
+            if (commentHint) {
+                commentHint.textContent = feedbackResponse
+                    ? '<?= __('(required)') ?>'
+                    : '<?= __('(required for rejections)') ?>';
+            }
+            const commentLabel = form?.querySelector('label[for="approvalComment"]');
+            if (commentLabel) {
+                const hintHtml = commentHint ? commentHint.outerHTML : '';
+                const labelText = feedbackResponse ? '<?= __('Feedback') ?>' : '<?= __('Comment') ?>';
+                commentLabel.innerHTML = labelText + ' ' + hintHtml;
+            }
             const controller = window.Stimulus?.getControllerForElementAndIdentifier(form, 'approval-response');
             if (controller) {
                 controller.configure({
@@ -227,6 +269,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     approvedCount: approvedCount,
                     eligibleUrl: '/approvals/eligible-approvers/' + approvalId,
                     commentWarning: commentWarning,
+                    requiresComment: requiresComment,
+                    feedbackResponse: feedbackResponse,
+                    decisionOptions: decisionOptions,
+                    decisionPromptLabel: decisionPromptLabel,
+                    approveLabel: approveLabel,
+                    hideReject: hideReject,
+                    defaultDecision: feedbackResponse && decisionOptions.length === 0 ? 'approve' : null,
                 });
             }
         });

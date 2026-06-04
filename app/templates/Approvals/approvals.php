@@ -57,9 +57,9 @@ $this->KMP->endBlock(); ?>
                 <?= $this->Form->hidden('page_context_url', ['value' => '']) ?>
 
                 <!-- Decision -->
-                <div class="mb-3">
-                    <label class="form-label fw-semibold"><?= __('Decision') ?></label>
-                    <div class="d-flex gap-3">
+                <fieldset class="mb-3" data-approval-response-target="decisionSection">
+                    <legend class="form-label fw-semibold fs-6 mb-2" data-approval-response-target="decisionLegend"><?= __('Decision') ?></legend>
+                    <div class="d-flex gap-3 flex-wrap" data-approval-response-target="decisionOptions">
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="decision" id="decisionApprove" value="approve"
                                 data-approval-response-target="decision"
@@ -77,7 +77,7 @@ $this->KMP->endBlock(); ?>
                             </label>
                         </div>
                     </div>
-                </div>
+                </fieldset>
 
                 <!-- Comment -->
                 <div class="mb-3">
@@ -155,10 +155,17 @@ document.addEventListener('DOMContentLoaded', function() {
         const serialPickNext = approverConfig.serial_pick_next || false;
         const commentWarning = approverConfig.comment_warning || '';
         const feedbackResponse = approverConfig.feedback_response || false;
-        const responseLabel = approverConfig.response_label || 'Submit Response';
+        const responseLabel = approverConfig.response_label
+            || (feedbackResponse ? '<?= __('Send Feedback') ?>' : '<?= __('Submit Response') ?>');
         const approveLabel = approverConfig.approve_label || 'Approve';
-        const hideReject = approverConfig.hide_reject || false;
+        const hideReject = feedbackResponse || approverConfig.hide_reject || false;
         const requiresComment = approverConfig.requires_comment || false;
+        const decisionPromptLabel = approverConfig.decision_prompt_label
+            || approverConfig.decisionPromptLabel
+            || '<?= __('Decision') ?>';
+        const decisionOptions = Array.isArray(approverConfig.decision_options)
+            ? approverConfig.decision_options
+            : (Array.isArray(approverConfig.decisionOptions) ? approverConfig.decisionOptions : []);
         const form = document.getElementById('approvalResponseForm');
 
         const modalTitle = document.getElementById('approvalResponseModalLabel');
@@ -181,7 +188,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         const commentHint = form?.querySelector('[data-approval-response-target="commentRequiredHint"]');
         if (commentHint) {
-            commentHint.textContent = feedbackResponse ? '<?= __('(required)') ?>' : '<?= __('(required for rejections)') ?>';
+            commentHint.textContent = feedbackResponse
+                ? '<?= __('(required)') ?>'
+                : '<?= __('(required for rejections)') ?>';
+        }
+        const commentLabel = form?.querySelector('label[for="approvalComment"]');
+        if (commentLabel) {
+            const hintHtml = commentHint ? commentHint.outerHTML : '';
+            const labelText = feedbackResponse ? '<?= __('Feedback') ?>' : '<?= __('Comment') ?>';
+            commentLabel.innerHTML = labelText + ' ' + hintHtml;
         }
 
         // Set hidden field
@@ -198,7 +213,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 eligibleUrl: '/approvals/eligible-approvers/' + approvalId,
                 commentWarning: commentWarning,
                 requiresComment: requiresComment,
-                defaultDecision: feedbackResponse ? 'approve' : null,
+                feedbackResponse: feedbackResponse,
+                decisionOptions: decisionOptions,
+                decisionPromptLabel: decisionPromptLabel,
+                approveLabel: approveLabel,
+                hideReject: hideReject,
+                defaultDecision: feedbackResponse && decisionOptions.length === 0 ? 'approve' : null,
             });
         }
     });

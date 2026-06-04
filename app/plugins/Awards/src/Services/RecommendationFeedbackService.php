@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Awards\Services;
 
+use App\KMP\WorkflowApprovalDecisionOptions;
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowApprovalResponse;
 use App\Services\ServiceResult;
@@ -163,13 +164,8 @@ class RecommendationFeedbackService
     /**
      * Mark feedback returned from a workflow approval response.
      */
-    public function recordFeedbackFromApproval(int $approvalId, int $memberId, string $comment): ServiceResult
+    public function recordFeedbackFromApproval(int $approvalId, int $memberId, ?string $comment = null): ServiceResult
     {
-        $comment = trim($comment);
-        if ($comment === '') {
-            return new ServiceResult(false, 'Feedback comment is required.');
-        }
-
         try {
             $workflowEvents = [];
             $result = ConnectionManager::get('default')->transactional(function () use (
@@ -223,6 +219,19 @@ class RecommendationFeedbackService
 
                     return new ServiceResult(false, 'Feedback response was not found.');
                 }
+                $approval = $response->workflow_approval ?? $this->workflowApprovalsTable->get($approvalId);
+                $approverConfig = $approval instanceof WorkflowApproval ? ($approval->approver_config ?? []) : [];
+                $comment = trim((string)($comment ?? $response->comment ?? ''));
+                $requiresComment = !empty($approverConfig['requires_comment']);
+                if ($requiresComment && $comment === '') {
+                    return new ServiceResult(false, 'Feedback comment is required.');
+                }
+                $answerLabel = WorkflowApprovalDecisionOptions::labelForDecision(
+                    (string)$response->decision,
+                    $approverConfig,
+                );
+                $hasDecisionOptions = WorkflowApprovalDecisionOptions::normalizeOptions($approverConfig) !== [];
+                $noteBody = $this->formatFeedbackNoteBody($comment, $hasDecisionOptions ? $answerLabel : null);
 
                 $now = DateTime::now();
                 $this->recipientsTable->updateAll(
@@ -244,7 +253,7 @@ class RecommendationFeedbackService
                         (int)$item->recommendation_id,
                         $memberId,
                         (int)$recipientRow['feedback_request_id'],
-                        $comment,
+                        $noteBody,
                     );
                 }
 
@@ -253,6 +262,8 @@ class RecommendationFeedbackService
                     'eventName' => self::EVENT_FEEDBACK_RETURNED,
                     'eventData' => $this->buildWorkflowEventPayload((int)$recipientId, [
                         'responseComment' => $comment,
+                        'responseDecision' => $response->decision,
+                        'responseDecisionLabel' => $answerLabel,
                     ]),
                     'triggeredBy' => $memberId,
                 ];
@@ -609,17 +620,34 @@ class RecommendationFeedbackService
     /**
      * Mirror returned feedback into recommendation notes for owner visibility.
      */
-    private function createFeedbackNote(int $recommendationId, int $authorId, int $requestId, string $comment): void
+    private function createFeedbackNote(int $recommendationId, int $authorId, int $requestId, string $body): void
     {
         $note = $this->notesTable->newEmptyEntity();
         $note->author_id = $authorId;
         $note->entity_type = 'Awards.Recommendations';
         $note->entity_id = $recommendationId;
         $note->subject = sprintf('Feedback Request #%d', $requestId);
-        $note->body = $comment;
+        $note->body = $body;
         $note->private = false;
 
         $this->notesTable->saveOrFail($note);
+    }
+
+    /**
+     * Format the note body mirrored back to each award recommendation.
+     */
+    private function formatFeedbackNoteBody(string $comment, ?string $answerLabel): string
+    {
+        if ($answerLabel === null || $answerLabel === '') {
+            return $comment;
+        }
+
+        $body = sprintf('Answer: %s', $answerLabel);
+        if ($comment !== '') {
+            $body .= "\n\n" . $comment;
+        }
+
+        return $body;
     }
 
     /**

@@ -157,6 +157,8 @@ export default class WorkflowValidationService {
                 }
                 const schema = actionDef.inputSchema || {}
                 for (const [key, meta] of Object.entries(schema)) {
+                    if (this._isSchemaFieldHidden(meta)) continue
+
                     if (meta.required && !params[key] && !(key in config)) {
                         errors.push(`Action node "${node.name}" (#${id}): required parameter '${key}' is not configured.`)
                     }
@@ -171,11 +173,17 @@ export default class WorkflowValidationService {
                 }
                 const schema = condDef.inputSchema || {}
                 for (const [key, meta] of Object.entries(schema)) {
+                    if (this._isSchemaFieldHidden(meta)) continue
+
                     if (meta.required && !params[key] && !(key in config)) {
                         errors.push(`Condition node "${node.name}" (#${id}): required parameter '${key}' is not configured.`)
                     }
                 }
             }
         })
+    }
+
+    _isSchemaFieldHidden(meta) {
+        return meta?.hidden === true || meta?.visible === false
     }
 }

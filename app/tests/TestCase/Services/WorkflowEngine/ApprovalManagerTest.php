@@ -357,6 +357,55 @@ class ApprovalManagerTest extends BaseTestCase
         $this->assertEquals(WorkflowApproval::STATUS_PENDING, $approval->status);
     }
 
+    public function testCustomFeedbackDecisionResolvesApprovalWithoutIncrementingCounts(): void
+    {
+        [, $instanceId, $logId] = $this->createWorkflowContext();
+        $approvalId = $this->createApproval($instanceId, $logId, [
+            'approverType' => WorkflowApproval::APPROVER_TYPE_MEMBER,
+            'approverConfig' => [
+                'member_id' => self::ADMIN_MEMBER_ID,
+                'feedback_response' => true,
+                'requires_comment' => false,
+                'decision_options' => [
+                    ['value' => 'support', 'label' => 'Support'],
+                    ['value' => 'oppose', 'label' => 'Oppose'],
+                ],
+            ],
+        ]);
+
+        $result = $this->manager->recordResponse($approvalId, self::ADMIN_MEMBER_ID, 'support');
+
+        $this->assertTrue($result->isSuccess(), (string)$result->getError());
+        $this->assertEquals(WorkflowApproval::STATUS_APPROVED, $result->data['approvalStatus']);
+        $approval = $this->approvalsTable->get($approvalId);
+        $this->assertEquals(0, $approval->approved_count);
+        $this->assertEquals(0, $approval->rejected_count);
+        $response = $this->responsesTable->find()
+            ->where(['workflow_approval_id' => $approvalId, 'member_id' => self::ADMIN_MEMBER_ID])
+            ->firstOrFail();
+        $this->assertSame('support', $response->decision);
+    }
+
+    public function testInvalidCustomDecisionIsRejected(): void
+    {
+        [, $instanceId, $logId] = $this->createWorkflowContext();
+        $approvalId = $this->createApproval($instanceId, $logId, [
+            'approverType' => WorkflowApproval::APPROVER_TYPE_MEMBER,
+            'approverConfig' => [
+                'member_id' => self::ADMIN_MEMBER_ID,
+                'feedback_response' => true,
+                'decision_options' => [
+                    ['value' => 'support', 'label' => 'Support'],
+                ],
+            ],
+        ]);
+
+        $result = $this->manager->recordResponse($approvalId, self::ADMIN_MEMBER_ID, 'not_configured');
+
+        $this->assertFalse($result->isSuccess());
+        $this->assertStringContainsString('invalid', strtolower((string)$result->getError()));
+    }
+
     // =====================================================
     // recordResponse on non-existent approval
     // =====================================================

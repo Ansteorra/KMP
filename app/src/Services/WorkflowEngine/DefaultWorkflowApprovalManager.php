@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\WorkflowEngine;
 
+use App\KMP\WorkflowApprovalDecisionOptions;
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowApprovalResponse;
 use App\Services\ServiceResult;
@@ -110,6 +111,11 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
                 return new ServiceResult(false, 'You are not eligible to respond to this approval.');
             }
 
+            $approverConfig = $approval->approver_config ?? [];
+            if (!in_array($decision, WorkflowApprovalDecisionOptions::allowedValues($approverConfig), true)) {
+                return new ServiceResult(false, 'Invalid approval decision.');
+            }
+
             // Check for duplicate response
             $existing = $responsesTable->find()
                 ->where([
@@ -166,11 +172,13 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
             $approval = $approvalsTable->get($approval->id);
 
             // Check for serial pick-next mode
-            $approverConfig = $approval->approver_config ?? [];
             $isSerialPickNext = !empty($approverConfig['serial_pick_next']);
+            $isFeedbackResponse = !empty($approverConfig['feedback_response']);
 
             // Check resolution: threshold met or any rejection
-            if ($approval->approved_count >= $approval->required_count) {
+            if ($isFeedbackResponse) {
+                $approval->status = WorkflowApproval::STATUS_APPROVED;
+            } elseif ($approval->approved_count >= $approval->required_count) {
                 $approval->status = WorkflowApproval::STATUS_APPROVED;
             } elseif ($approval->rejected_count > 0) {
                 $approval->status = WorkflowApproval::STATUS_REJECTED;

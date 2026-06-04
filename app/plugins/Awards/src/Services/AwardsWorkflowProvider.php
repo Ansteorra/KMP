@@ -738,7 +738,19 @@ class AwardsWorkflowProvider
                     'recipientId' => ['type' => 'integer', 'label' => 'Recipient Member ID', 'required' => true],
                     'feedbackRequestRecipientId' => ['type' => 'integer', 'label' => 'Feedback Request Recipient Row ID', 'required' => true],
                     'deadline' => ['type' => 'string', 'label' => 'Response Deadline (ATOM)'],
-                    'nodeId' => ['type' => 'string', 'label' => 'Action Node ID'],
+                    'nodeId' => ['type' => 'string', 'label' => 'Action Node ID', 'hidden' => true],
+                    'decisionPromptLabel' => [
+                        'type' => 'string',
+                        'label' => 'Decision Prompt Label',
+                        'description' => 'Optional label shown above the response choices, such as Your View or Polling Response.',
+                    ],
+                    'decisionOptions' => [
+                        'type' => 'array',
+                        'label' => 'Decision Options',
+                        'editor' => 'options',
+                        'description' => 'Choices shown to feedback recipients, such as Support, Oppose, or Indifferent.',
+                    ],
+                    'requiresComment' => ['type' => 'boolean', 'label' => 'Require Comment'],
                 ],
                 'outputSchema' => [
                     'success' => ['type' => 'boolean', 'label' => 'Creation Successful'],

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Model\Table;
 
-use App\Model\Entity\WorkflowApprovalResponse;
 use Cake\ORM\RulesChecker;
 use Cake\Validation\Validator;
 
@@ -62,12 +61,8 @@ class WorkflowApprovalResponsesTable extends BaseTable
             ->scalar('decision')
             ->requirePresence('decision', 'create')
             ->notEmptyString('decision')
-            ->inList('decision', [
-                WorkflowApprovalResponse::DECISION_APPROVE,
-                WorkflowApprovalResponse::DECISION_REJECT,
-                WorkflowApprovalResponse::DECISION_ABSTAIN,
-                WorkflowApprovalResponse::DECISION_REQUEST_CHANGES,
-            ]);
+            ->maxLength('decision', 20)
+            ->regex('decision', '/^[a-z0-9_]+$/');
 
         $validator
             ->scalar('comment')

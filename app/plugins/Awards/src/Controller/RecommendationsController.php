@@ -1207,7 +1207,11 @@ class RecommendationsController extends AppController
                 'FeedbackRequestItems' => [
                     'FeedbackRequests' => [
                         'Requesters',
-                        'Recipients' => ['RecipientMembers'],
+                        'Recipients' => [
+                            'RecipientMembers',
+                            'WorkflowApprovals',
+                            'WorkflowApprovalResponses',
+                        ],
                     ],
                 ],
             ]);

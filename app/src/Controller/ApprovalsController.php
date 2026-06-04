@@ -6,7 +6,9 @@ namespace App\Controller;
 
 use App\KMP\GridColumns\ApprovalsGridColumns;
 use App\KMP\TimezoneHelper;
+use App\KMP\WorkflowApprovalDecisionOptions;
 use App\Model\Entity\WorkflowApproval;
+use App\Model\Entity\WorkflowApprovalResponse;
 use App\Model\Entity\WorkflowInstance;
 use App\Services\ApprovalContext\ApprovalContextRendererRegistry;
 use App\Services\WorkflowEngine\WorkflowApprovalManagerInterface;
@@ -115,6 +117,7 @@ class ApprovalsController extends AppController
                 ? json_decode($approval->approver_config, true)
                 : ($approval->approver_config ?? []);
             $isFeedbackResponse = !empty($approverConfig['feedback_response']);
+            $decisionOptions = WorkflowApprovalDecisionOptions::normalizeOptions($approverConfig);
 
             $approvals[] = [
                 'id' => $approval->id,
@@ -135,6 +138,9 @@ class ApprovalsController extends AppController
                     'feedbackResponse' => $isFeedbackResponse,
                     'hideProgress' => $isFeedbackResponse,
                     'commentWarning' => $approverConfig['comment_warning'] ?? '',
+                    'requiresComment' => !empty($approverConfig['requires_comment']),
+                    'decisionOptions' => $decisionOptions,
+                    'decisionPromptLabel' => $approverConfig['decision_prompt_label'] ?? '',
                 ],
                 'modified' => $approval->modified ? $approval->modified->toIso8601String() : null,
             ];
@@ -472,13 +478,19 @@ class ApprovalsController extends AppController
         $approvalId = (int)$this->request->getData('approvalId');
         $decision = $this->request->getData('decision');
         $comment = $this->request->getData('comment');
-        $nextApproverId = $this->request->getData('next_approver_id') ? (int)$this->request->getData('next_approver_id') : null;
+        $nextApproverId = $this->request->getData('next_approver_id')
+            ? (int)$this->request->getData('next_approver_id')
+            : null;
         $currentUser = $this->request->getAttribute('identity');
         $approval = $this->fetchTable('WorkflowApprovals')->find()
             ->where(['WorkflowApprovals.id' => $approvalId])
             ->first();
         $approverConfig = $approval?->approver_config ?? [];
         $isFeedbackResponse = !empty($approverConfig['feedback_response']);
+        $decisionOptions = WorkflowApprovalDecisionOptions::normalizeOptions($approverConfig);
+        if ($isFeedbackResponse && $decisionOptions === []) {
+            $decision = WorkflowApprovalResponse::DECISION_APPROVE;
+        }
         $requiresComment = $decision === 'reject' || !empty($approverConfig['requires_comment']);
 
         if ($requiresComment && empty(trim((string)$comment))) {
@@ -512,7 +524,7 @@ class ApprovalsController extends AppController
             $result = $feedbackService->recordFeedbackFromApproval(
                 $approvalId,
                 (int)$currentUser->id,
-                (string)$comment,
+                $comment,
             );
             $feedbackRecorded = $result->isSuccess();
         }
@@ -521,7 +533,7 @@ class ApprovalsController extends AppController
             $feedbackResult = $feedbackService->recordFeedbackFromApproval(
                 $approvalId,
                 (int)$currentUser->id,
-                (string)$comment,
+                $comment,
             );
             if (!$feedbackResult->isSuccess()) {
                 $result = $feedbackResult;
@@ -633,6 +645,7 @@ class ApprovalsController extends AppController
         ];
         $approverConfig = ApprovalsGridColumns::normalizeApproverConfig($approval->approver_config);
         $isFeedbackResponse = !empty($approverConfig['feedback_response']);
+        $decisionOptions = WorkflowApprovalDecisionOptions::normalizeOptions($approverConfig);
 
         $responses = [];
         if (!empty($approval->workflow_approval_responses)) {
@@ -643,6 +656,10 @@ class ApprovalsController extends AppController
                 $responses[] = [
                     'memberName' => $memberName,
                     'decision' => $resp->decision,
+                    'decisionLabel' => WorkflowApprovalDecisionOptions::labelForDecision(
+                        (string)$resp->decision,
+                        $approverConfig,
+                    ),
                     'comment' => $resp->comment,
                     'respondedAt' => TimezoneHelper::formatDateTime($resp->responded_at),
                 ];
@@ -656,6 +673,7 @@ class ApprovalsController extends AppController
             'ui' => [
                 'feedbackResponse' => $isFeedbackResponse,
                 'hideProgress' => $isFeedbackResponse,
+                'decisionOptions' => $decisionOptions,
             ],
         ];
 

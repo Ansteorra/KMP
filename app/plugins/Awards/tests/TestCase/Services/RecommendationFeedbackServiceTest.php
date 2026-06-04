@@ -169,7 +169,6 @@ class RecommendationFeedbackServiceTest extends BaseTestCase
         $result = $this->service->recordFeedbackFromApproval(
             (int)$approval->id,
             self::TEST_MEMBER_BRYCE_ID,
-            'Looks like a strong recommendation.',
         );
 
         $this->assertTrue($result->isSuccess(), (string)$result->getError());
@@ -201,6 +200,66 @@ class RecommendationFeedbackServiceTest extends BaseTestCase
         $this->assertSame(RecommendationFeedbackRequestRecipient::STATUS_RESPONDED, $event['eventData']['recipientStatus']);
         $this->assertSame('Looks like a strong recommendation.', $event['eventData']['responseComment']);
         $this->assertSame((int)$response->id, $event['eventData']['workflowApprovalResponseId']);
+    }
+
+    public function testRecordFeedbackFromCustomDecisionApprovalCopiesAnswerAndCommentToNote(): void
+    {
+        $recommendation = $this->createRecommendation();
+        $request = $this->requestsTable->saveOrFail($this->requestsTable->newEntity([
+            'requester_id' => self::ADMIN_MEMBER_ID,
+            'status' => RecommendationFeedbackRequest::STATUS_PENDING,
+            'created_by' => self::ADMIN_MEMBER_ID,
+            'modified_by' => self::ADMIN_MEMBER_ID,
+        ]));
+        $this->itemsTable->saveOrFail($this->itemsTable->newEntity([
+            'feedback_request_id' => $request->id,
+            'recommendation_id' => $recommendation->id,
+            'snapshot' => ['recommendationId' => (int)$recommendation->id],
+        ]));
+        $approval = $this->createApprovedFeedbackApproval((int)$request->id, [
+            'decision_options' => [
+                ['value' => 'support', 'label' => 'Support'],
+                ['value' => 'oppose', 'label' => 'Oppose'],
+            ],
+        ]);
+        $this->workflowApprovalResponsesTable->saveOrFail(
+            $this->workflowApprovalResponsesTable->newEntity([
+                'workflow_approval_id' => $approval->id,
+                'member_id' => self::TEST_MEMBER_BRYCE_ID,
+                'decision' => 'support',
+                'comment' => 'The service record backs this.',
+                'responded_at' => DateTime::now(),
+            ]),
+        );
+        $recipient = $this->recipientsTable->saveOrFail($this->recipientsTable->newEntity([
+            'feedback_request_id' => $request->id,
+            'recipient_id' => self::TEST_MEMBER_BRYCE_ID,
+            'workflow_approval_id' => $approval->id,
+            'status' => RecommendationFeedbackRequestRecipient::STATUS_PENDING,
+        ]));
+
+        $result = $this->service->recordFeedbackFromApproval(
+            (int)$approval->id,
+            self::TEST_MEMBER_BRYCE_ID,
+            'The service record backs this.',
+        );
+
+        $this->assertTrue($result->isSuccess(), (string)$result->getError());
+        $note = $this->notesTable->find()
+            ->where([
+                'entity_type' => 'Awards.Recommendations',
+                'entity_id' => $recommendation->id,
+                'subject' => sprintf('Feedback Request #%d', $request->id),
+            ])
+            ->firstOrFail();
+        $this->assertSame("Answer: Support\n\nThe service record backs this.", $note->body);
+
+        $event = $this->findWorkflowEvent(RecommendationFeedbackService::EVENT_FEEDBACK_RETURNED);
+        $this->assertNotNull($event);
+        $this->assertSame('support', $event['eventData']['responseDecision']);
+        $this->assertSame('Support', $event['eventData']['responseDecisionLabel']);
+        $updatedRecipient = $this->recipientsTable->get((int)$recipient->id);
+        $this->assertSame('The service record backs this.', $updatedRecipient->response_comment);
     }
 
     public function testExpireFeedbackForApprovalMarksRecipientAndRequestExpired(): void
@@ -413,15 +472,21 @@ class RecommendationFeedbackServiceTest extends BaseTestCase
         return (bool)$method->invoke($this->service, $recommendationIds, $recipientId);
     }
 
-    private function createApprovedFeedbackApproval(int $requestId): WorkflowApproval
+    private function createApprovedFeedbackApproval(int $requestId, array $approverConfig = []): WorkflowApproval
     {
-        return $this->createFeedbackApproval($requestId, self::TEST_MEMBER_BRYCE_ID, WorkflowApproval::STATUS_APPROVED);
+        return $this->createFeedbackApproval(
+            $requestId,
+            self::TEST_MEMBER_BRYCE_ID,
+            WorkflowApproval::STATUS_APPROVED,
+            $approverConfig,
+        );
     }
 
     private function createFeedbackApproval(
         int $requestId,
         int $recipientId = self::TEST_MEMBER_BRYCE_ID,
         string $status = WorkflowApproval::STATUS_PENDING,
+        array $approverConfig = [],
     ): WorkflowApproval {
         $workflowDefinition = $this->workflowDefinitionsTable->find()
             ->where(['current_version_id IS NOT' => null])
@@ -452,7 +517,7 @@ class RecommendationFeedbackServiceTest extends BaseTestCase
             'node_id' => $log->node_id,
             'execution_log_id' => $log->id,
             'approver_type' => WorkflowApproval::APPROVER_TYPE_MEMBER,
-            'approver_config' => [
+            'approver_config' => $approverConfig + [
                 'member_id' => $recipientId,
                 'feedback_response' => true,
                 'requires_comment' => true,

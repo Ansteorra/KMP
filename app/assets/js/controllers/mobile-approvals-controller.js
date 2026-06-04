@@ -230,34 +230,57 @@ class MobileApprovalsController extends MobileControllerBase {
     _renderResponseForm(approval) {
         const cfg = approval.approverConfig || {}
         const commentWarning = cfg.commentWarning || ''
+        const isFeedbackResponse = cfg.feedbackResponse === true
+        const decisionOptions = Array.isArray(cfg.decisionOptions) ? cfg.decisionOptions : []
+        const decisionPromptLabel = cfg.decisionPromptLabel || 'Decision'
+        const requiresComment = cfg.requiresComment === true
 
-        let html = `<div class="approval-response-form" data-approval-form-id="${approval.id}">`
+        let html = `<div class="approval-response-form" data-approval-form-id="${approval.id}"${isFeedbackResponse && decisionOptions.length === 0 ? ' data-selected-decision="approve"' : ''}>`
 
-        // Decision buttons
-        html += `<div class="approval-decision-btns">
-            <button type="button" class="btn btn-approve"
-                    data-action="click->mobile-approvals#selectDecision"
-                    data-id="${approval.id}" data-decision="approve">
-                <i class="bi bi-check-circle me-1"></i>Approve
-            </button>
-            <button type="button" class="btn btn-reject"
-                    data-action="click->mobile-approvals#selectDecision"
-                    data-id="${approval.id}" data-decision="reject">
-                <i class="bi bi-x-circle me-1"></i>Reject
-            </button>
-        </div>`
+        if (decisionOptions.length > 0) {
+            html += `<fieldset class="mb-2">
+                <legend class="form-label fw-semibold mb-1" style="font-size: 0.85rem;">${this._escHtml(decisionPromptLabel)}</legend>`
+            for (const [index, option] of decisionOptions.entries()) {
+                const inputId = `approval-${approval.id}-decision-${index}`
+                html += `<div class="form-check">
+                    <input class="form-check-input" type="radio" name="decision-${approval.id}" id="${inputId}"
+                           value="${this._escHtml(option.value)}"
+                           data-action="change->mobile-approvals#selectDecision"
+                           data-id="${approval.id}" data-decision="${this._escHtml(option.value)}">
+                    <label class="form-check-label" for="${inputId}">${this._escHtml(option.label)}</label>
+                </div>`
+            }
+            html += '</fieldset>'
+        } else if (!isFeedbackResponse) {
+            html += `<div class="approval-decision-btns">
+                <button type="button" class="btn btn-approve"
+                       data-action="click->mobile-approvals#selectDecision"
+                       data-id="${approval.id}" data-decision="approve">
+                    <i class="bi bi-check-circle me-1"></i>Approve
+                </button>
+                <button type="button" class="btn btn-reject"
+                       data-action="click->mobile-approvals#selectDecision"
+                       data-id="${approval.id}" data-decision="reject">
+                    <i class="bi bi-x-circle me-1"></i>Reject
+                </button>
+            </div>`
+        }
 
         // Comment
+        const commentPlaceholder = isFeedbackResponse
+            ? 'Enter requested feedback...'
+            : 'Comment (required for rejections)...'
         html += `<div class="mb-2">
+            ${isFeedbackResponse ? `<label class="form-label fw-semibold" style="font-size: 0.85rem;">Feedback${requiresComment ? ' <span class="text-danger">(required)</span>' : ''}</label>` : ''}
             <textarea class="approval-comment-box"
                       data-approval-comment="${approval.id}"
-                      placeholder="Comment (required for rejections)..."
+                      placeholder="${commentPlaceholder}"
                       rows="2"></textarea>`
         if (commentWarning) {
             html += `<div class="approval-comment-warning"><i class="bi bi-eye me-1"></i>${this._escHtml(commentWarning)}</div>`
         }
         html += `<div class="text-danger small" data-comment-required="${approval.id}" hidden>
-            <i class="bi bi-exclamation-circle me-1"></i>A comment is required when rejecting.
+            <i class="bi bi-exclamation-circle me-1"></i>${isFeedbackResponse ? 'Feedback is required.' : 'A comment is required when rejecting.'}
         </div></div>`
 
         // Next approver (hidden until needed)
@@ -274,8 +297,8 @@ class MobileApprovalsController extends MobileControllerBase {
         // Submit
         html += `<button type="button" class="btn approval-submit-btn"
                          data-action="click->mobile-approvals#submitResponse"
-                         data-submit-btn="${approval.id}" disabled>
-            <i class="bi bi-send me-1"></i>Submit Response
+                         data-submit-btn="${approval.id}"${isFeedbackResponse && decisionOptions.length === 0 ? '' : ' disabled'}>
+            <i class="bi bi-send me-1"></i>${isFeedbackResponse ? 'Send Feedback' : 'Submit Response'}
         </button>`
 
         html += '</div>'
@@ -293,7 +316,9 @@ class MobileApprovalsController extends MobileControllerBase {
 
         // Update button states
         form.querySelectorAll('.btn-approve, .btn-reject').forEach(btn => btn.classList.remove('active'))
-        event.currentTarget.classList.add('active')
+        if (event.currentTarget.classList.contains('btn')) {
+            event.currentTarget.classList.add('active')
+        }
 
         // Store decision
         form.dataset.selectedDecision = decision
@@ -309,7 +334,7 @@ class MobileApprovalsController extends MobileControllerBase {
         const cfg = approval?.approverConfig || {}
         const nextSection = form.querySelector(`[data-next-approver-section="${id}"]`)
 
-        if (decision === 'approve' && cfg.serialPickNext) {
+        if (decision === 'approve' && cfg.serialPickNext && cfg.feedbackResponse !== true) {
             const remaining = (approval.progress.required || 1) - (approval.progress.approved || 0) - 1
             if (remaining > 0) {
                 if (nextSection) {
@@ -378,7 +403,10 @@ class MobileApprovalsController extends MobileControllerBase {
         const nextApproverId = form.querySelector(`[data-next-approver-select="${id}"]`)?.value || null
 
         // Validate
-        if (decision === 'reject' && !comment) {
+        const approval = this._approvals.find(a => a.id === id)
+        const cfg = approval?.approverConfig || {}
+        const requiresComment = decision === 'reject' || cfg.requiresComment === true
+        if (requiresComment && !comment) {
             const hint = form.querySelector(`[data-comment-required="${id}"]`)
             if (hint) hint.hidden = false
             form.querySelector(`[data-approval-comment="${id}"]`)?.focus()
@@ -442,8 +470,10 @@ class MobileApprovalsController extends MobileControllerBase {
             this._expandedId = null
             this._updateBadge()
 
-            const verb = decision === 'approve' ? 'approved' : 'rejected'
-            this._showToast(`Approval ${verb} successfully.`, 'success')
+            const message = cfg.feedbackResponse === true
+                ? 'Feedback sent successfully.'
+                : `Approval ${decision === 'approve' ? 'approved' : 'rejected'} successfully.`
+            this._showToast(message, 'success')
 
             // Show empty state if none left
             if (this._approvals.length === 0) {

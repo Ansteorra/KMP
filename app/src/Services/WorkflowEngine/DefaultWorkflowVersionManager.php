@@ -258,6 +258,10 @@ class DefaultWorkflowVersionManager implements WorkflowVersionManagerInterface
                 $params = $node['config']['params'] ?? [];
 
                 foreach ($inputSchema as $paramKey => $paramMeta) {
+                    if ($this->isSchemaFieldHidden($paramMeta)) {
+                        continue;
+                    }
+
                     if (!empty($paramMeta['required']) && empty($params[$paramKey]) && !isset($node['config'][$paramKey])) {
                         $errors[] = "Action node '{$key}' ({$actionName}): required parameter '{$paramKey}' is not configured.";
                     }
@@ -277,6 +281,10 @@ class DefaultWorkflowVersionManager implements WorkflowVersionManagerInterface
                     $params = $node['config']['params'] ?? [];
 
                     foreach ($inputSchema as $paramKey => $paramMeta) {
+                        if ($this->isSchemaFieldHidden($paramMeta)) {
+                            continue;
+                        }
+
                         if (!empty($paramMeta['required']) && empty($params[$paramKey]) && !isset($node['config'][$paramKey])) {
                             $errors[] = "Condition node '{$key}' ({$conditionName}): required parameter '{$paramKey}' is not configured.";
                         }
@@ -286,6 +294,17 @@ class DefaultWorkflowVersionManager implements WorkflowVersionManagerInterface
         }
 
         return $errors;
+    }
+
+    /**
+     * Check whether a schema field is internal-only and should be skipped by user-facing validation.
+     *
+     * @param array $paramMeta Schema metadata
+     * @return bool
+     */
+    private function isSchemaFieldHidden(array $paramMeta): bool
+    {
+        return ($paramMeta['hidden'] ?? false) === true || ($paramMeta['visible'] ?? true) === false;
     }
 
     /**

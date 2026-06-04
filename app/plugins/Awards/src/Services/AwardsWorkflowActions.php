@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Awards\Services;
 
 use App\KMP\StaticHelpers;
+use App\KMP\WorkflowApprovalDecisionOptions;
 use App\Model\Entity\WorkflowApproval;
 use App\Services\WorkflowEngine\StateMachine\StateMachineHandler;
 use App\Services\WorkflowEngine\WorkflowContextAwareTrait;
@@ -165,7 +166,7 @@ class AwardsWorkflowActions
      *
      * @param array $context Workflow context (includes instanceId and the trigger payload).
      * @param array $config Resolved node config: recipientId (member id), feedbackRequestRecipientId
-     *     (recipient row id), deadline (ATOM string), nodeId (action node id).
+     *     (recipient row id), deadline (ATOM string), nodeId (action node id), and optional decisionPromptLabel.
      * @return array Output with success and approvalId.
      * @throws \RuntimeException When required context is missing, the execution log or recipient
      *     row cannot be resolved, the recipient is not pending, or linking the approval fails.
@@ -187,6 +188,8 @@ class AwardsWorkflowActions
         }
 
         $deadline = $this->parseAtomDeadline($config['deadline'] ?? null);
+        $decisionOptions = WorkflowApprovalDecisionOptions::normalizeOptions($config);
+        $decisionPromptLabel = trim((string)$this->resolveValue($config['decisionPromptLabel'] ?? '', $context));
 
         // The engine persists the action node's execution log (STATUS_RUNNING) before invoking
         // this handler; resolve its id to satisfy the required execution_log_id on the approval.
@@ -215,6 +218,9 @@ class AwardsWorkflowActions
             $nodeId,
             $executionLogId,
             $deadline,
+            $decisionOptions,
+            $decisionPromptLabel,
+            $config,
         ) {
             $recipient = $recipientsTable->find()
                 ->where(['id' => $recipientRowId])
@@ -237,16 +243,25 @@ class AwardsWorkflowActions
                 );
             }
 
+            $approverConfig = [
+                'feedback_response' => true,
+                'requires_comment' => !array_key_exists('requiresComment', $config)
+                    || filter_var($config['requiresComment'], FILTER_VALIDATE_BOOLEAN),
+                'member_id' => $recipientMemberId,
+            ];
+            if ($decisionOptions !== []) {
+                $approverConfig['decision_options'] = $decisionOptions;
+            }
+            if ($decisionPromptLabel !== '') {
+                $approverConfig['decision_prompt_label'] = $decisionPromptLabel;
+            }
+
             $approval = $approvalsTable->newEntity([
                 'workflow_instance_id' => $instanceId,
                 'node_id' => $nodeId,
                 'execution_log_id' => $executionLogId,
                 'approver_type' => WorkflowApproval::APPROVER_TYPE_MEMBER,
-                'approver_config' => [
-                    'feedback_response' => true,
-                    'requires_comment' => true,
-                    'member_id' => $recipientMemberId,
-                ],
+                'approver_config' => $approverConfig,
                 'current_approver_id' => $recipientMemberId,
                 'required_count' => 1,
                 'approved_count' => 0,

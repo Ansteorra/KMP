@@ -8,7 +8,7 @@ import { Controller } from "@hotwired/stimulus"
  * and serialPickNext configuration.
  */
 class ApprovalResponseController extends Controller {
-    static targets = ["decision", "nextApproverSection", "nextApproverInput", "submitBtn", "comment", "commentRequiredHint", "commentWarning", "commentWarningText", "infoText"]
+    static targets = ["decision", "decisionSection", "decisionLegend", "decisionOptions", "nextApproverSection", "nextApproverInput", "submitBtn", "comment", "commentRequiredHint", "commentWarning", "commentWarningText", "infoText"]
     static values = {
         serialPickNext: Boolean,
         requiredCount: Number,
@@ -36,6 +36,12 @@ class ApprovalResponseController extends Controller {
         this.eligibleUrlValue = approvalData.eligibleUrl || ''
         this._commentWarning = approvalData.commentWarning || ''
         this._requiresComment = approvalData.requiresComment || false
+        this._feedbackResponse = approvalData.feedbackResponse || false
+        this._decisionOptions = Array.isArray(approvalData.decisionOptions) ? approvalData.decisionOptions : []
+        this._decisionPromptLabel = approvalData.decisionPromptLabel || 'Decision'
+        this._approveLabel = approvalData.approveLabel || 'Approve'
+        this._hideReject = approvalData.hideReject || false
+        this._renderDecisionOptions()
 
         // Reset form
         this.decisionTargets.forEach(el => el.checked = false)
@@ -91,7 +97,14 @@ class ApprovalResponseController extends Controller {
         const isApprove = decision === 'approve'
         const isReject = decision === 'reject'
         const needsMore = (this.approvedCountValue + 1) < this.requiredCountValue
-        const showPicker = isApprove && this.serialPickNextValue && needsMore
+        const showPicker = !this._feedbackResponse && isApprove && this.serialPickNextValue && needsMore
+
+        if (this.hasDecisionSectionTarget) {
+            this.decisionSectionTarget.hidden = this._feedbackResponse && this._decisionOptions.length === 0
+        }
+        if (this.hasDecisionLegendTarget) {
+            this.decisionLegendTarget.textContent = this._decisionPromptLabel || 'Decision'
+        }
 
         this.nextApproverSectionTarget.hidden = !showPicker
 
@@ -139,6 +152,55 @@ class ApprovalResponseController extends Controller {
             if (el.checked) return el.value
         }
         return null
+    }
+
+    _renderDecisionOptions() {
+        if (!this.hasDecisionOptionsTarget) return
+
+        if (this._decisionOptions.length === 0) {
+            const rejectHidden = this._hideReject ? ' hidden' : ''
+            this.decisionOptionsTarget.innerHTML = `
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="decision" id="decisionApprove" value="approve"
+                        data-approval-response-target="decision"
+                        data-action="change->approval-response#onDecisionChange">
+                    <label class="form-check-label text-success fw-semibold" for="decisionApprove">
+                        <i class="bi bi-check-circle me-1"></i>${this._escHtml(this._approveLabel)}
+                    </label>
+                </div>
+                <div class="form-check"${rejectHidden}>
+                    <input class="form-check-input" type="radio" name="decision" id="decisionReject" value="reject"
+                        data-approval-response-target="decision"
+                        data-action="change->approval-response#onDecisionChange">
+                    <label class="form-check-label text-danger fw-semibold" for="decisionReject">
+                        <i class="bi bi-x-circle me-1"></i>Reject
+                    </label>
+                </div>`
+            return
+        }
+
+        this.decisionOptionsTarget.innerHTML = this._decisionOptions.map((option, index) => {
+            const id = `decisionCustom${index}`
+            const value = this._escAttr(option.value)
+            const label = this._escHtml(option.label)
+
+            return `<div class="form-check">
+                <input class="form-check-input" type="radio" name="decision" id="${id}" value="${value}"
+                    data-approval-response-target="decision"
+                    data-action="change->approval-response#onDecisionChange">
+                <label class="form-check-label fw-semibold" for="${id}">${label}</label>
+            </div>`
+        }).join('')
+    }
+
+    _escHtml(value) {
+        const div = document.createElement('div')
+        div.textContent = String(value ?? '')
+        return div.innerHTML
+    }
+
+    _escAttr(value) {
+        return this._escHtml(value).replace(/"/g, '&quot;')
     }
 }
 

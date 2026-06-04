@@ -208,6 +208,8 @@ export default class WorkflowConfigPanel {
                 html += '<h6 class="mt-3 mb-2 text-muted small">Input Parameters</h6>'
                 const params = config.params || {}
                 for (const [key, meta] of Object.entries(action.inputSchema)) {
+                    if (this._isSchemaFieldHidden(meta)) continue
+
                     const currentVal = params[key] !== undefined ? params[key] : ''
                     const desc = meta.description ? `<small class="form-text text-muted">${meta.description}</small>` : ''
                     if (meta.type === 'emailTemplate') {
@@ -216,6 +218,8 @@ export default class WorkflowConfigPanel {
                     } else if (meta.type === 'object') {
                         html += this._renderKeyValueEditor(`params.${key}`, meta, currentVal)
                         html += desc
+                    } else if (meta.type === 'array' && meta.editor === 'options') {
+                        html += this._renderOptionArrayEditor(`params.${key}`, meta, currentVal)
                     } else {
                         html += this.renderValuePicker(`params.${key}`, {
                             label: meta.label || key,
@@ -272,6 +276,8 @@ export default class WorkflowConfigPanel {
                 html += '<h6 class="mt-3 mb-2 text-muted small">Condition Parameters</h6>'
                 const params = config.params || {}
                 for (const [key, meta] of Object.entries(cond.inputSchema)) {
+                    if (this._isSchemaFieldHidden(meta)) continue
+
                     const currentVal = params[key] !== undefined ? params[key] : (config[key] || '')
                     html += this.renderValuePicker(`params.${key}`, {
                         label: meta.label || key,
@@ -762,6 +768,71 @@ export default class WorkflowConfigPanel {
         </div>`
     }
 
+    _renderOptionArrayEditor(fieldName, fieldMeta, currentValue) {
+        const label = fieldMeta.label || fieldName
+        const escapedFieldName = this._escapeAttr(fieldName)
+        const options = Array.isArray(currentValue) ? currentValue : []
+        const description = fieldMeta.description
+            ? `<small class="form-text text-muted d-block mb-2">${this._escapeAttr(fieldMeta.description)}</small>`
+            : ''
+
+        let rowsHTML = ''
+        options.forEach((option, idx) => {
+            rowsHTML += this._renderOptionArrayRow(escapedFieldName, idx, option)
+        })
+
+        return `<div class="mb-2 option-array-editor" data-array-field="${escapedFieldName}">
+            <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                <label class="form-label form-label-sm mb-0">${label}</label>
+                <button type="button" class="btn btn-outline-secondary btn-sm"
+                    data-action="click->workflow-designer#addArrayRow"
+                    data-array-target="${escapedFieldName}">
+                    <i class="bi bi-plus-circle" aria-hidden="true"></i> Add Option
+                </button>
+            </div>
+            ${description}
+            <div class="option-array-rows" data-array-rows="${escapedFieldName}">
+                ${rowsHTML}
+            </div>
+        </div>`
+    }
+
+    _renderOptionArrayRow(fieldName, idx, option = {}) {
+        const rawValue = typeof option === 'object' && option !== null ? (option.value ?? '') : String(option ?? '')
+        const rawLabel = typeof option === 'object' && option !== null ? (option.label ?? rawValue) : String(option ?? '')
+        const safeFieldId = String(fieldName).replace(/[^a-zA-Z0-9_-]/g, '-')
+        const valueId = `${safeFieldId}-option-value-${idx}`
+        const labelId = `${safeFieldId}-option-label-${idx}`
+        const optionName = rawLabel || rawValue
+        const removeLabel = optionName ? `Remove option ${optionName}` : `Remove option ${idx + 1}`
+
+        return `<div class="card border bg-light mb-2 option-array-row" data-array-idx="${idx}">
+            <div class="card-body p-2">
+                <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                    <div class="flex-grow-1">
+                        <label class="form-label form-label-sm mb-1" for="${this._escapeAttr(valueId)}">Stored value</label>
+                        <input type="text" class="form-control form-control-sm"
+                            id="${this._escapeAttr(valueId)}"
+                            placeholder="support"
+                            name="${fieldName}__option_value__${idx}" value="${this._escapeAttr(rawValue)}"
+                            data-action="change->workflow-designer#updateNodeConfig">
+                    </div>
+                    <button type="button" class="btn btn-outline-danger btn-sm"
+                        data-action="click->workflow-designer#removeArrayRow"
+                        aria-label="${this._escapeAttr(removeLabel)}">
+                        <i class="bi bi-trash" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <label class="form-label form-label-sm mb-1" for="${this._escapeAttr(labelId)}">Display label</label>
+                <input type="text" class="form-control form-control-sm"
+                    id="${this._escapeAttr(labelId)}"
+                    placeholder="Support"
+                    name="${fieldName}__option_label__${idx}" value="${this._escapeAttr(rawLabel)}"
+                    data-action="change->workflow-designer#updateNodeConfig">
+            </div>
+        </div>`
+    }
+
     _renderKvRow(fieldName, idx, key, val) {
         const escapedKey = this._escapeAttr(key)
 
@@ -840,5 +911,9 @@ export default class WorkflowConfigPanel {
     _escapeAttr(str) {
         if (!str) return ''
         return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    }
+
+    _isSchemaFieldHidden(meta) {
+        return meta?.hidden === true || meta?.visible === false
     }
 }
