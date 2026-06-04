@@ -46,11 +46,14 @@ Run commands from `app/` unless noted.
 | Targeted PHPUnit file/filter | `vendor/bin/phpunit path/to/Test.php` or `vendor/bin/phpunit --filter TestName` |
 | JavaScript unit tests | `npm run test:js` |
 | Webpack/Laravel Mix build | `npm run dev` |
+| Curated Playwright journey | `npm run test:ui:journey` |
 | Playwright BDD tests | `npm run test:ui` |
 | PHP code style on changed files | `vendor/bin/phpcs path/to/file.php` |
 | PHPStan | `vendor/bin/phpstan analyse --no-progress` |
 
 `bin/verify.sh` runs PHPUnit, Jest, Webpack, PHPCS for changed PHP files under `app/src`, `app/plugins`, and `app/tests`, and PHPStan. `app/phpstan.neon` currently has no analysis level configured, so PHPStan may report "No rules detected"; do not invent a new level unless the task is specifically about static analysis configuration.
+
+Playwright lanes share the local Docker app, DB, worker, scheduler, and Mailpit containers. Run only one lane at a time; concurrent E2E lanes can race database resets, queue delivery, scheduler runs, and mailbox assertions. Use `PLAYWRIGHT_RESET_DB=0` only for targeted reruns after a lane reset has already completed.
 
 Do not run `phpcbf` across the whole codebase. The PHPCS config intentionally excludes some native type-hint sniffs because automatic fixes can add signatures that violate CakePHP/plugin inheritance compatibility.
 
@@ -223,6 +226,15 @@ Do not run `phpcbf` across the whole codebase. The PHPCS config intentionally ex
 - Tests live in `app/tests/js/**/*.test.js` and should cover controller registration, static targets/values, DOM behavior, and cleanup.
 - Mock `window.Controllers`, `window.Stimulus`, Bootstrap, `KMP_utils`, and `KMP_accessibility` consistently with existing tests.
 - Use the module alias `@/` for `app/assets/js` when helpful.
+
+## Playwright workflow tests
+
+- `npm run test:ui:journey` is the curated one-click local whole-app journey. It resets the dev database, regenerates BDD specs, and runs tenancy, member registration, activities authorization, officers/warrants, gatherings, and awards feedback coverage.
+- Workflow E2E tests must prove the trigger-driven chain: application code dispatches triggers, workflow definitions react, queue jobs drain, and Mailpit receives the expected emails. Do not call workflow actions directly from services or tests to fake the result.
+- Use `runPhpJson()` from `tests/ui/support/ui-helpers.cjs` for fixture setup; PHP snippets read JSON from STDIN with `stream_get_contents(STDIN)`.
+- Use `flushWorkflowsAndQueue()` and `waitForQueueSettled()` before email/side-effect assertions. Only pass `{ forceScheduler: true }` when a scenario intentionally exercises scheduled workflows.
+- Negative email assertions must be fixture-scoped and use the shared stable Mailpit/queue helpers so due, delayed, or just-delivered emails cannot false-pass.
+- Tenant scenarios use host-bound contexts via `tests/ui/support/tenant-context.cjs` and should assert both active-tenant visibility and cross-tenant isolation.
 
 ## PHPUnit and Playwright tests
 

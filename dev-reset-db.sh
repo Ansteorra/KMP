@@ -64,6 +64,30 @@ if ! printf '%s\n' "$RUNNING_SERVICES" | grep -x "app" >/dev/null; then
     exit 1
 fi
 
+BACKGROUND_SERVICES_TO_RESTART=()
+for service in worker scheduler; do
+    if printf '%s\n' "$RUNNING_SERVICES" | grep -x "$service" >/dev/null; then
+        BACKGROUND_SERVICES_TO_RESTART+=("$service")
+    fi
+done
+
+restart_background_services() {
+    status=$?
+    if [ ${#BACKGROUND_SERVICES_TO_RESTART[@]} -gt 0 ]; then
+        echo "[cleanup] Restarting background services: ${BACKGROUND_SERVICES_TO_RESTART[*]}"
+        if ! "${COMPOSE[@]}" start "${BACKGROUND_SERVICES_TO_RESTART[@]}" >/dev/null; then
+            echo "⚠️  Warning: failed to restart one or more background services. Run ./dev-up.sh to recover."
+        fi
+    fi
+    exit "$status"
+}
+
+if [ ${#BACKGROUND_SERVICES_TO_RESTART[@]} -gt 0 ]; then
+    trap restart_background_services EXIT
+    echo "[pre] Pausing background services during database reset: ${BACKGROUND_SERVICES_TO_RESTART[*]}"
+    "${COMPOSE[@]}" stop "${BACKGROUND_SERVICES_TO_RESTART[@]}" >/dev/null
+fi
+
 DB_DRIVER="$(env_or_file KMP_DB_DRIVER postgres)"
 DB_DRIVER="$(printf '%s' "$DB_DRIVER" | tr '[:upper:]' '[:lower:]')"
 
@@ -449,14 +473,21 @@ require "vendor/autoload.php";
 require "config/bootstrap.php";
 use Cake\ORM\TableRegistry;
 $members = TableRegistry::getTableLocator()->get("Members");
-$all = $members->find("all");
-$count = 0; $errors = 0;
-foreach ($all as $m) {
-    $m->password = "TestPassword";
-    if ($members->save($m)) { $count++; } else { $errors++; }
+$member = $members->newEmptyEntity();
+$member->password = "TestPassword";
+$passwordHash = $member->password;
+$conditions = ["Members.deleted IS" => null];
+$count = $members->find("all")->where($conditions)->count();
+$updated = $members->updateAll([
+    "password" => $passwordHash,
+    "modified" => gmdate("Y-m-d H:i:s"),
+], $conditions);
+$errors = $updated === $count ? 0 : $count - $updated;
+echo "Updated passwords for $updated members. Errors: $errors\n";
+if ($errors !== 0) {
+    fwrite(STDERR, "Expected to update $count active members.\n");
+    exit(1);
 }
-echo "Updated passwords for $count members. Errors: $errors\n";
-if ($errors > 0) { exit(1); }
 '
 
 if [ "$LOAD_SEED" = true ] && { [ "$DB_DRIVER" = "postgres" ] || [ "$DB_DRIVER" = "pgsql" ]; }; then

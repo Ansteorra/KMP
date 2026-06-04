@@ -8,12 +8,9 @@ use App\Model\Entity\MemberRole;
 use App\Model\Entity\Warrant;
 use App\Model\Entity\WarrantPeriod;
 use App\Model\Entity\WarrantRoster;
-use App\Model\Entity\WorkflowApproval;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\TriggerDispatcher;
-use App\Services\WorkflowEngine\WorkflowApprovalManagerInterface;
-use App\Services\WorkflowEngine\WorkflowEngineInterface;
 use Cake\I18n\Date;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
@@ -27,27 +24,19 @@ class DefaultWarrantManager implements WarrantManagerInterface
 
     private ActiveWindowManagerInterface $activeWindowManager;
     private TriggerDispatcher $triggerDispatcher;
-    private WorkflowApprovalManagerInterface $approvalManager;
-    private WorkflowEngineInterface $workflowEngine;
 
     /**
      * Constructor.
      *
      * @param \App\Services\ActiveWindowManager\ActiveWindowManagerInterface $activeWindowManager
      * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher
-     * @param \App\Services\WorkflowEngine\WorkflowApprovalManagerInterface $approvalManager
-     * @param \App\Services\WorkflowEngine\WorkflowEngineInterface $workflowEngine
      */
     public function __construct(
         ActiveWindowManagerInterface $activeWindowManager,
         TriggerDispatcher $triggerDispatcher,
-        WorkflowApprovalManagerInterface $approvalManager,
-        WorkflowEngineInterface $workflowEngine,
     ) {
         $this->activeWindowManager = $activeWindowManager;
         $this->triggerDispatcher = $triggerDispatcher;
-        $this->approvalManager = $approvalManager;
-        $this->workflowEngine = $workflowEngine;
         //Datetime tomorrow
         $yesterday = new DateTime();
         $yesterday->modify('-1 day');
@@ -61,7 +50,7 @@ class DefaultWarrantManager implements WarrantManagerInterface
                 $warrant->status = Warrant::EXPIRED_STATUS;
                 $warrantTable->save($warrant);
             }
-            StaticHelpers::setAppSetting('Warrant.LastCheck', DateTime::now());
+            StaticHelpers::setAppSetting('Warrant.LastCheck', DateTime::now()->toDateString());
         }
     }
 
@@ -253,36 +242,76 @@ class DefaultWarrantManager implements WarrantManagerInterface
     }
 
     /**
-     * Decline.
+     * Decline a warrant roster that the workflow has already rejected.
      *
-     * @param mixed $warrant_roster_id
-     * @param mixed $rejecter_id
-     * @param mixed $reason
+     * Pure domain work: declines all pending warrants on the roster, stops their
+     * dependants, and transitions the roster to DECLINED. This is the decline
+     * counterpart to {@see self::activateApprovedRoster()} and must NOT drive the
+     * workflow engine — the engine has already routed to this action via the
+     * approval-gate's rejected port before this runs.
+     *
+     * @param mixed $warrant_roster_id Warrant roster ID
+     * @param mixed $rejecter_id Member performing the decline
+     * @param mixed $reason Reason for the decline
      * @return \App\Services\ServiceResult
      */
     public function decline($warrant_roster_id, $rejecter_id, $reason): ServiceResult
     {
         $warrantRosterTable = TableRegistry::getTableLocator()->get('WarrantRosters');
-        $warrantRoster = $warrantRosterTable->get($warrant_roster_id);
+        $warrantTable = TableRegistry::getTableLocator()->get('Warrants');
+
+        $warrantRoster = $warrantRosterTable->find()
+            ->where(['id' => $warrant_roster_id])
+            ->first();
         if ($warrantRoster == null) {
             return new ServiceResult(false, 'Warrant Roster not found');
         }
         if ($warrantRoster->status != WarrantRoster::STATUS_PENDING) {
             return new ServiceResult(false, 'Warrant Roster is not pending');
         }
-        if ($warrantRoster->hasRequiredApprovals()) {
-            return new ServiceResult(false, 'Warrant approval set is already approved');
+
+        $warrants = $warrantTable->find()
+            ->where([
+                'warrant_roster_id' => $warrant_roster_id,
+                'status' => Warrant::PENDING_STATUS,
+            ])
+            ->all();
+
+        $connection = $warrantRosterTable->getConnection();
+        $connection->begin();
+
+        foreach ($warrants as $warrant) {
+            $result = $this->declineWarrant($warrantTable, $warrant, $rejecter_id, $reason);
+            if (!$result->success) {
+                $connection->rollback();
+
+                return $result;
+            }
         }
 
-        $workflowApproval = $this->findWorkflowApprovalForRoster($warrant_roster_id);
-        if (!$workflowApproval) {
-            return new ServiceResult(
-                false,
-                'No workflow approval found for roster. All rosters require a workflow approval instance.',
-            );
+        $warrantRoster->status = WarrantRoster::STATUS_DECLINED;
+        if (!$warrantRosterTable->save($warrantRoster)) {
+            $connection->rollback();
+
+            return new ServiceResult(false, 'Failed to decline Warrant Roster');
         }
 
-        return $this->declineViaWorkflow($workflowApproval, $rejecter_id, $reason);
+        $noteTbl = TableRegistry::getTableLocator()->get('Notes');
+        $note = $noteTbl->newEmptyEntity();
+        $note->entity_type = 'WarrantRosters';
+        $note->entity_id = $warrantRoster->id;
+        $note->subject = 'Warrant Roster declined';
+        $note->body = $reason;
+        $note->author_id = $rejecter_id;
+        if (!$noteTbl->save($note)) {
+            $connection->rollback();
+
+            return new ServiceResult(false, 'Failed to decline Warrant Roster');
+        }
+
+        $connection->commit();
+
+        return new ServiceResult(true);
     }
 
     /**
@@ -438,78 +467,6 @@ class DefaultWarrantManager implements WarrantManagerInterface
         }
 
         return $warrantPeriod;
-    }
-
-    /**
-     * Find a pending workflow approval for a roster with a waiting workflow instance.
-     */
-    protected function findWorkflowApprovalForRoster(int $rosterId): ?WorkflowApproval
-    {
-        try {
-            $instancesTable = TableRegistry::getTableLocator()->get('WorkflowInstances');
-            $approvalsTable = TableRegistry::getTableLocator()->get('WorkflowApprovals');
-
-            $instances = $instancesTable->find()
-                ->where(['status' => 'waiting'])
-                ->all();
-
-            foreach ($instances as $instance) {
-                $context = $instance->context ?? [];
-                $triggerRosterId = $context['trigger']['rosterId'] ?? null;
-                if ((int)$triggerRosterId !== $rosterId) {
-                    continue;
-                }
-
-                $approval = $approvalsTable->find()
-                    ->where([
-                        'workflow_instance_id' => $instance->id,
-                        'status' => WorkflowApproval::STATUS_PENDING,
-                    ])
-                    ->first();
-
-                if ($approval) {
-                    return $approval;
-                }
-            }
-        } catch (Exception $e) {
-            Log::warning('Failed to find workflow approval for roster ' . $rosterId . ': ' . $e->getMessage());
-        }
-
-        return null;
-    }
-
-    /**
-     * Record a decline response through the workflow engine.
-     */
-    protected function declineViaWorkflow(WorkflowApproval $approval, int $rejecterId, string $reason): ServiceResult
-    {
-        $result = $this->approvalManager->recordResponse(
-            $approval->id,
-            $rejecterId,
-            'deny',
-            $reason,
-        );
-
-        if (!$result->isSuccess()) {
-            return new ServiceResult(false, $result->getError() ?? 'Failed to record workflow decline');
-        }
-
-        $data = $result->getData();
-        if ($data && ($data['approvalStatus'] ?? '') === 'rejected') {
-            $this->workflowEngine->resumeWorkflow(
-                $data['instanceId'],
-                $data['nodeId'],
-                'rejected',
-                [
-                    'approval' => $data,
-                    'approverId' => $rejecterId,
-                    'decision' => 'deny',
-                    'comment' => $reason,
-                ],
-            );
-        }
-
-        return new ServiceResult(true);
     }
 
     /**

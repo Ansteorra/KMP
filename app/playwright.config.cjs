@@ -10,7 +10,13 @@ const testDir = defineBddConfig({
   featuresRoot: './tests/ui/bdd',
   outputDir: 'tests/ui/gen',
   steps: ['tests/ui/bdd/**/*.js'],
-  /** Allow And/Given/When interchange (matches Cucumber keyword flexibility). */
+  /**
+   * Enforce Gherkin keyword discipline: And/But inherit the preceding primary
+   * keyword's phase (Given=CONTEXT, When=ACTION, Then=OUTCOME) and a step only
+   * matches a definition registered under a compatible keyword. Convention:
+   * never cross a phase boundary with And — use a primary When for actions and a
+   * primary Then for the assertions that follow.
+   */
   matchKeywords: true,
   /** Generate tests even when path-scoped steps look missing; runtime will surface gaps. */
   missingSteps: 'fail-on-run',

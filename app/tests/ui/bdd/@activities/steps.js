@@ -43,9 +43,20 @@ const selectComboBoxOption = async (page, inputSelector, optionText) => {
     }, optionText);
 };
 
+// The member-authorization grid labels its system views ("Active", "Pending",
+// "Previous") differently from their internal view ids ("current", "pending",
+// "previous"). Map the user-facing label used in features to the id exposed in
+// the grid's JSON state so assertions compare against the real source of truth.
+const MEMBER_AUTH_VIEW_IDS = {
+    active: 'current',
+    pending: 'pending',
+    previous: 'previous',
+};
+
 const openMemberAuthorizationView = async (page, viewName) => {
     const section = authorizationSection(page);
     const authTab = page.locator('[data-detail-tabs-target="tabBtn"]').filter({ hasText: /Authorizations/i }).first();
+    const expectedViewId = MEMBER_AUTH_VIEW_IDS[viewName.toLowerCase()] ?? viewName.toLowerCase();
 
     if (await authTab.count() > 0) {
         await clickTabAndWait(authTab, section);
@@ -61,7 +72,9 @@ const openMemberAuthorizationView = async (page, viewName) => {
         await viewTab.click();
     }
 
-    await expect(viewTab).toHaveAttribute('aria-selected', 'true', { timeout: 15000 });
+    // Switching a view performs a Turbo Frame round-trip; wait for the grid's
+    // internal state (source of truth) to settle on the requested view before
+    // asserting the user-facing/accessible tab state.
     await expect
         .poll(async () => {
             const stateScript = section.locator('turbo-frame#member-auth-grid-table script[type="application/json"]').first();
@@ -78,7 +91,23 @@ const openMemberAuthorizationView = async (page, viewName) => {
         }, {
             timeout: 15000,
         })
-        .toBe(viewName.toLowerCase());
+        .toBe(expectedViewId);
+
+    // Accessibility oracle: once the view has settled, the active tab must
+    // expose aria-selected='true' (WCAG 2.2 tab semantics). Re-resolve fresh
+    // because switchView rebuilds the tab buttons.
+    const settledViewTab = section
+        .locator('[data-view-tabs-container] [role="tab"]')
+        .filter({ hasText: new RegExp(`^${viewName}`, 'i') })
+        .first();
+    await expect(settledViewTab).toHaveAttribute('aria-selected', 'true', { timeout: 15000 });
+
+    // Regression guard: a view switch must leave EXACTLY one tab selected.
+    // A stale/duplicate selected state would indicate the toolbar lost track of
+    // the active view on a table-frame reload (WCAG 4.1.2).
+    await expect(
+        section.locator('[data-view-tabs-container] [role="tab"][aria-selected="true"]'),
+    ).toHaveCount(1, { timeout: 15000 });
 
     return section;
 };

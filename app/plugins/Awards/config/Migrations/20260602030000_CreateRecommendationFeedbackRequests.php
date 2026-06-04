@@ -198,18 +198,41 @@ class CreateRecommendationFeedbackRequests extends BaseMigration
         $now = DateTime::now()->toDateTimeString();
         $definition = [
             'nodes' => [
-                'feedback-approval' => [
-                    'type' => 'approval',
-                    'label' => 'Recommendation Feedback',
+                'trigger-feedback' => [
+                    'type' => 'trigger',
+                    'label' => 'Recommendation Feedback Requested',
                     'config' => [
-                        'approverType' => 'member',
-                        'requiredCount' => 1,
-                        'allowComments' => true,
+                        'event' => 'Awards.RecommendationFeedbackRequested',
+                        'entityIdField' => 'feedbackRequestId',
                     ],
+                    'outputs' => [
+                        ['port' => 'next', 'target' => 'create-feedback-approval'],
+                    ],
+                ],
+                'create-feedback-approval' => [
+                    'type' => 'action',
+                    'label' => 'Create Feedback Approval',
+                    'config' => [
+                        'action' => 'Awards.CreateFeedbackApproval',
+                        'nodeId' => 'create-feedback-approval',
+                        'params' => [
+                            'recipientId' => '$.trigger.recipientId',
+                            'feedbackRequestRecipientId' => '$.trigger.feedbackRequestRecipientId',
+                            'deadline' => '$.trigger.deadline',
+                        ],
+                    ],
+                    'outputs' => [
+                        ['port' => 'next', 'target' => 'end-feedback'],
+                    ],
+                ],
+                'end-feedback' => [
+                    'type' => 'end',
+                    'label' => 'Feedback Approval Created',
+                    'config' => [],
                     'outputs' => [],
                 ],
             ],
-            'startNode' => 'feedback-approval',
+            'startNode' => 'trigger-feedback',
         ];
 
         $definitions = $this->table('workflow_definitions');

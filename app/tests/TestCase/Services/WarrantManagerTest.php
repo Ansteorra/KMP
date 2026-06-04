@@ -9,8 +9,6 @@ use App\Services\ServiceResult;
 use App\Services\WarrantManager\DefaultWarrantManager;
 use App\Services\WarrantManager\WarrantRequest;
 use App\Services\WorkflowEngine\TriggerDispatcher;
-use App\Services\WorkflowEngine\WorkflowApprovalManagerInterface;
-use App\Services\WorkflowEngine\WorkflowEngineInterface;
 use App\Test\TestCase\BaseTestCase;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
@@ -30,10 +28,8 @@ class WarrantManagerTest extends BaseTestCase
     {
         $activeWindowManager ??= $this->createMock(ActiveWindowManagerInterface::class);
         $triggerDispatcher = $this->createMock(TriggerDispatcher::class);
-        $approvalManager = $this->createMock(WorkflowApprovalManagerInterface::class);
-        $workflowEngine = $this->createMock(WorkflowEngineInterface::class);
 
-        return new DefaultWarrantManager($activeWindowManager, $triggerDispatcher, $approvalManager, $workflowEngine);
+        return new DefaultWarrantManager($activeWindowManager, $triggerDispatcher);
     }
 
     // =========================================

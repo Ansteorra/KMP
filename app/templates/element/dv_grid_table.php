@@ -33,6 +33,7 @@ $tableColumns = $columns ?? $gridState['columns']['all'] ?? [];
             'data' => $data,
             'gridState' => $gridState,
             'tableFrameId' => $tableFrameId,
+            'columns' => $tableColumns,
         ])) ?>
     <?php else: ?>
         <!-- Dataverse Table -->

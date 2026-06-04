@@ -99,6 +99,47 @@ const getMysqlConfig = () => parseMysqlUrl(getEnvValue('DATABASE_URL')) ?? {
     database: getEnvValue('DB_DATABASE', 'MYSQL_DB_NAME') || 'kmp',
 };
 
+const parsePostgresUrl = (databaseUrl) => {
+    if (!databaseUrl) {
+        return null;
+    }
+
+    try {
+        const parsed = new URL(databaseUrl);
+        if (!parsed.protocol.startsWith('postgres')) {
+            return null;
+        }
+
+        return {
+            host: parsed.hostname || '127.0.0.1',
+            port: parsed.port || '5432',
+            user: decodeURIComponent(parsed.username || ''),
+            password: decodeURIComponent(parsed.password || ''),
+            database: decodeURIComponent(parsed.pathname.replace(/^\//, '')),
+        };
+    } catch {
+        return null;
+    }
+};
+
+const getPostgresConfig = () => parsePostgresUrl(getEnvValue('DATABASE_URL')) ?? {
+    host: getEnvValue('DB_HOST', 'POSTGRES_HOST') || '127.0.0.1',
+    port: getEnvValue('DB_PORT', 'POSTGRES_PORT') || '5432',
+    user: getEnvValue('DB_USERNAME', 'POSTGRES_USER') || 'postgres',
+    password: getEnvValue('DB_PASSWORD', 'POSTGRES_PASSWORD') || '',
+    database: getEnvValue('DB_DATABASE', 'POSTGRES_DB') || 'KMP_DEV',
+};
+
+/**
+ * Name of the running Docker container hosting the Cake app (for `docker exec`).
+ */
+const getAppContainerName = () => getEnvValue('PLAYWRIGHT_APP_CONTAINER') || 'kmp-app';
+
+/**
+ * Name of the running Docker container hosting Postgres (for `docker exec` psql cleanup).
+ */
+const getDbContainerName = () => getEnvValue('PLAYWRIGHT_DB_CONTAINER') || 'kmp-db';
+
 const DEFAULT_PLAYWRIGHT_HOST_HEADER = 'kmp.localhost';
 
 /**
@@ -152,6 +193,33 @@ const getMailpitApiUrl = (pathname = '') => new URL(
     `${getUiTestEnvironment().mailpitUrl}/`,
 ).toString();
 
+const DEFAULT_TENANT = 'kmp';
+
+/**
+ * Resolve the per-tenant base URL + Host header for a given tenant slug.
+ *
+ * Two tenants are seeded (`kmp.localhost`, `kmp2.localhost`); the active tenant is
+ * selected by the HTTP Host header. When the base URL targets loopback we keep the
+ * URL and override the Host header; otherwise we swap the hostname to `<tenant>.localhost`.
+ */
+const getTenantContextOptions = (tenant = DEFAULT_TENANT) => {
+    const slug = (tenant || DEFAULT_TENANT).toString().trim().toLowerCase();
+    const tenantHost = `${slug}.localhost`;
+    const { baseUrl, hostHeader } = getUiTestEnvironment();
+
+    if (hostHeader) {
+        return { baseURL: baseUrl, hostHeader: tenantHost };
+    }
+
+    try {
+        const url = new URL(baseUrl);
+        url.hostname = tenantHost;
+        return { baseURL: trimTrailingSlash(url.toString()), hostHeader: null };
+    } catch {
+        return { baseURL: baseUrl, hostHeader: tenantHost };
+    }
+};
+
 /**
  * Run fixture PHP via `docker compose exec app` when tests run on the host against Docker DB.
  */
@@ -171,7 +239,11 @@ module.exports = {
     APP_ROOT,
     REPO_ROOT,
     CONFIG_ENV_PATH,
+    getAppContainerName,
+    getDbContainerName,
     getMailpitApiUrl,
+    getPostgresConfig,
+    getTenantContextOptions,
     getUiTestEnvironment,
     shouldUseDockerPhp,
 };

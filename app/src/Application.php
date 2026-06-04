@@ -678,15 +678,14 @@ class Application extends BaseApplication implements
         );
 
         // Register WarrantManager for warrant lifecycle management
-        // Depends on ActiveWindowManager, TriggerDispatcher, ApprovalManager, and WorkflowEngine
+        // Depends on ActiveWindowManager and TriggerDispatcher. It fires triggers only;
+        // workflows react to those triggers and drive the engine — the manager never does.
         $container->add(
             WarrantManagerInterface::class, // Interface for dependency injection
             DefaultWarrantManager::class, // Concrete implementation
         )->addArguments([
             ActiveWindowManagerInterface::class,
             TriggerDispatcher::class,
-            WorkflowApprovalManagerInterface::class,
-            WorkflowEngineInterface::class,
         ]);
 
         // Register CSV export service for data export functionality

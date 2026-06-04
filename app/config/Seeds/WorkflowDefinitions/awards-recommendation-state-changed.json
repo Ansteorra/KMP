@@ -2,9 +2,9 @@
     "nodes": {
         "trigger": {
             "type": "trigger",
-            "label": "Recommendation Transition Requested",
+            "label": "Recommendation State Changed",
             "config": {
-                "event": "Awards.RecommendationTransitionRequested",
+                "event": "Awards.RecommendationStateChanged",
                 "entityIdField": "recommendationId"
             },
             "position": {
@@ -14,21 +14,17 @@
             "outputs": [
                 {
                     "port": "next",
-                    "target": "transition-recommendation"
+                    "target": "is-handoff-state"
                 }
             ]
         },
-        "transition-recommendation": {
-            "type": "action",
-            "label": "Transition Recommendation",
+        "is-handoff-state": {
+            "type": "condition",
+            "label": "Need to Schedule?",
             "config": {
-                "action": "Awards.TransitionState",
-                "params": {
-                    "recommendationId": "$.trigger.recommendationId",
-                    "targetState": "$.trigger.targetState",
-                    "data": "$.trigger.data",
-                    "actorId": "$.trigger.actorId"
-                }
+                "condition": "Core.FieldEquals",
+                "field": "$.trigger.newState",
+                "value": "Need to Schedule"
             },
             "position": {
                 "x": 350,
@@ -36,18 +32,26 @@
             },
             "outputs": [
                 {
-                    "port": "next",
-                    "target": "transition-succeeded"
+                    "port": "true",
+                    "target": "create-bestowal",
+                    "label": "Create bestowal"
+                },
+                {
+                    "port": "false",
+                    "target": "end-noop",
+                    "label": "No bestowal"
                 }
             ]
         },
-        "transition-succeeded": {
-            "type": "condition",
-            "label": "Transition Succeeded?",
+        "create-bestowal": {
+            "type": "action",
+            "label": "Create Bestowal",
             "config": {
-                "condition": "Core.FieldEquals",
-                "field": "$.nodes.transition-recommendation.result.success",
-                "value": true
+                "action": "Awards.CreateBestowal",
+                "params": {
+                    "recommendationId": "$.trigger.recommendationId",
+                    "actorId": "$.trigger.actorId"
+                }
             },
             "position": {
                 "x": 650,
@@ -55,9 +59,28 @@
             },
             "outputs": [
                 {
+                    "port": "next",
+                    "target": "create-succeeded"
+                }
+            ]
+        },
+        "create-succeeded": {
+            "type": "condition",
+            "label": "Bestowal Created?",
+            "config": {
+                "condition": "Core.FieldEquals",
+                "field": "$.nodes.create-bestowal.result.success",
+                "value": true
+            },
+            "position": {
+                "x": 950,
+                "y": 250
+            },
+            "outputs": [
+                {
                     "port": "true",
                     "target": "end-success",
-                    "label": "Transitioned"
+                    "label": "Created"
                 },
                 {
                     "port": "false",
@@ -68,24 +91,40 @@
         },
         "end-success": {
             "type": "end",
-            "label": "Transition Complete",
+            "label": "State Change Complete",
             "config": {
-                "result": "$.nodes.transition-recommendation.result"
+                "result": "$.nodes.create-bestowal.result"
             },
             "position": {
-                "x": 950,
+                "x": 1250,
                 "y": 225
+            },
+            "outputs": []
+        },
+        "end-noop": {
+            "type": "end",
+            "label": "State Change Complete",
+            "config": {
+                "result": {
+                    "success": true,
+                    "skipped": true,
+                    "reason": "No handoff bestowal required."
+                }
+            },
+            "position": {
+                "x": 650,
+                "y": 425
             },
             "outputs": []
         },
         "end-failed": {
             "type": "end",
-            "label": "Transition Failed",
+            "label": "Bestowal Creation Failed",
             "config": {
-                "result": "$.nodes.transition-recommendation.result"
+                "result": "$.nodes.create-bestowal.result"
             },
             "position": {
-                "x": 950,
+                "x": 1250,
                 "y": 375
             },
             "outputs": []

@@ -1454,6 +1454,11 @@ class RecommendationsController extends AppController
         ?string $id = null,
     ): ?\Cake\Http\Response
     {
+        $id = $id ?? $this->request->getData('id');
+        if (!$id || is_array($id)) {
+            throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
+        }
+
         try {
             $recommendation = $this->Recommendations->get($id, contain: ['Gatherings']);
             if (!$recommendation) {
@@ -1478,6 +1483,12 @@ class RecommendationsController extends AppController
                 );
 
                 if ($result['success']) {
+                    $this->dispatchRecommendationStateChangedEvent(
+                        $triggerDispatcher,
+                        $result,
+                        $recommendation,
+                        (int)$identity->id,
+                    );
                     $stream = $this->tryRecommendationsGridTurboResponse(
                         $pageContext,
                         true,
@@ -2770,6 +2781,48 @@ class RecommendationsController extends AppController
         }
 
         return null;
+    }
+
+    /**
+     * Fire a recommendation state-changed reaction event after a successful single update.
+     *
+     * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher Workflow trigger dispatcher.
+     * @param array{data?: array<string, mixed>} $result Normalized update result.
+     * @param \Awards\Model\Entity\Recommendation $previousRecommendation Recommendation before the update.
+     * @param int $actorId Current user ID.
+     * @return void
+     */
+    private function dispatchRecommendationStateChangedEvent(
+        TriggerDispatcher $triggerDispatcher,
+        array $result,
+        Recommendation $previousRecommendation,
+        int $actorId,
+    ): void {
+        $data = $result['data'] ?? [];
+        $recommendationId = $this->extractRecommendationIdFromResult($result) ?? (int)$previousRecommendation->id;
+        if ($recommendationId <= 0) {
+            return;
+        }
+
+        $savedRecommendation = $this->Recommendations->get($recommendationId);
+        $previousState = $data['previousState'] ?? (string)($previousRecommendation->state ?? '');
+        $newState = $data['state'] ?? (string)($savedRecommendation->state ?? '');
+        if ($previousState === null || $newState === null || $previousState === $newState) {
+            return;
+        }
+
+        $this->dispatchWorkflowEvent(
+            $triggerDispatcher,
+            'Awards.RecommendationStateChanged',
+            [
+                'recommendationId' => $recommendationId,
+                'previousState' => $previousState,
+                'newState' => $newState,
+                'previousStatus' => $data['previousStatus'] ?? $previousRecommendation->status,
+                'newStatus' => $data['status'] ?? $savedRecommendation->status,
+                'actorId' => $actorId,
+            ],
+        );
     }
 
     /**

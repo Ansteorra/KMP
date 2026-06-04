@@ -7,7 +7,7 @@ use App\KMP\GridColumns\GatheringAttendancesGridColumns;
 use App\KMP\GridRowDomId;
 use App\KMP\TimezoneHelper;
 use Cake\Http\Response;
-use Cake\I18n\Date;
+use Cake\I18n\DateTime as CakeDateTime;
 use Cake\Log\Log;
 use Cake\Routing\Router;
 use DateTime;
@@ -82,7 +82,7 @@ class GatheringAttendancesController extends AppController
                 return $this->redirect($this->referer());
             }
 
-            $today = Date::now();
+            $today = CakeDateTime::now()->startOfDay();
 
             // Check if gathering has already ended
             if ($gathering->end_date < $today) {
@@ -167,7 +167,7 @@ class GatheringAttendancesController extends AppController
             $data['is_public'] = '0';
 
             // Validate that the gathering hasn't ended
-            $today = Date::now();
+            $today = CakeDateTime::now()->startOfDay();
             if ($gatheringAttendance->gathering->end_date < $today) {
                 $this->Flash->error(__('Cannot update attendance for a gathering that has already ended.'));
 
@@ -297,7 +297,7 @@ class GatheringAttendancesController extends AppController
             return $this->jsonResponse(['success' => false, 'error' => 'Gathering not found'], 404);
         }
 
-        $today = Date::now();
+        $today = CakeDateTime::now()->startOfDay();
         if ($gathering->end_date < $today) {
             return $this->jsonResponse(['success' => false, 'error' => 'Cannot RSVP to a past gathering'], 400);
         }

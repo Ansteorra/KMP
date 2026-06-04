@@ -15,6 +15,7 @@
         "test:js:coverage:security": "bash bin/run-jest-coverage.sh security",
         "test:ui": "npm run test:ui:uat",
         "test:ui:smoke": "bash bin/run-playwright-lane.sh smoke",
+        "test:ui:journey": "bash bin/run-playwright-lane.sh journey",
         "test:ui:uat": "bash bin/run-playwright-lane.sh uat",
         "test:ui:headed": "bash bin/run-playwright-lane.sh uat --headed",
         "test:ui:debug": "bash bin/run-playwright-lane.sh uat --debug",

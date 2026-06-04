@@ -27,26 +27,22 @@ class RecommendationTransitionService
     private RecommendationGroupingService $groupingService;
     private RecommendationStateLogService $stateLogService;
     private RecommendationBestowalStatePolicyService $statePolicyService;
-    private BestowalCreationService $bestowalCreationService;
 
     /**
      * @param \Awards\Services\RecommendationGroupingService|null $groupingService Optional grouping service.
      * @param \Awards\Services\RecommendationStateLogService|null $stateLogService Optional state-log service.
      * @param \Awards\Services\RecommendationBestowalStatePolicyService|null $statePolicyService Optional state policy.
-     * @param \Awards\Services\BestowalCreationService|null $bestowalCreationService Optional bestowal creator.
      */
     public function __construct(
         ?RecommendationGroupingService $groupingService = null,
         ?RecommendationStateLogService $stateLogService = null,
         ?RecommendationBestowalStatePolicyService $statePolicyService = null,
-        ?BestowalCreationService $bestowalCreationService = null,
     ) {
         $this->stateLogService = $stateLogService ?? new RecommendationStateLogService();
         $this->groupingService = $groupingService ?? new RecommendationGroupingService(
             stateLogService: $this->stateLogService,
         );
         $this->statePolicyService = $statePolicyService ?? new RecommendationBestowalStatePolicyService();
-        $this->bestowalCreationService = $bestowalCreationService ?? new BestowalCreationService();
     }
 
     /**
@@ -224,14 +220,6 @@ class RecommendationTransitionService
                             $defaultNoteSubject,
                         );
 
-                        if ($this->statePolicyService->isHandoffState($targetState)) {
-                            $handoffResult = $this->createHandoffBestowal((int)$result['recommendationId'], $actorId);
-                            $bestowalId = (int)$handoffResult['data']['bestowalId'];
-                            $bestowalIds[] = $bestowalId;
-                            $result['bestowalId'] = $bestowalId;
-                            $result['bestowalRecommendationIds'] = $handoffResult['data']['recommendationIds'] ?? [];
-                        }
-
                         $results[] = $result;
                     }
 
@@ -314,34 +302,6 @@ class RecommendationTransitionService
         }
 
         return array_values(array_unique($resolvedIds));
-    }
-
-    /**
-     * Create the bestowal for a handoff and turn skipped/failed results into transition failures.
-     *
-     * @return array<string, mixed>
-     */
-    private function createHandoffBestowal(int $recommendationId, int $actorId): array
-    {
-        $result = $this->bestowalCreationService->createFromRecommendationInCallerTransaction(
-            $recommendationId,
-            $actorId,
-        );
-
-        if (!($result['success'] ?? false)) {
-            throw new RuntimeException((string)($result['error'] ?? 'Bestowal creation failed.'));
-        }
-
-        if ($result['skipped'] ?? false) {
-            $reason = $result['data']['reason'] ?? 'Bestowal creation was skipped.';
-            throw new RuntimeException((string)$reason);
-        }
-
-        if (empty($result['data']['bestowalId'])) {
-            throw new RuntimeException('Bestowal creation did not return a bestowal ID.');
-        }
-
-        return $result;
     }
 
     /**

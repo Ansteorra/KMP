@@ -2,6 +2,14 @@ const { createBdd } = require('playwright-bdd');
 const { expect } = require('@playwright/test');
 const { execFileSync } = require('node:child_process');
 const path = require('node:path');
+const {
+    runPhpJson,
+    waitForQueueSettled,
+    flushWorkflowsAndQueue,
+    dbQuery,
+    assertNoQueuedEmailFor,
+    mailpitSearchTotal,
+} = require('../../support/ui-helpers.cjs');
 
 const { Given, When, Then } = createBdd();
 
@@ -12,7 +20,7 @@ const SETUP_FIXTURE_PHP = String.raw`
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';
 
-$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$input = json_decode((string)stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 $locator = \Cake\ORM\TableRegistry::getTableLocator();
 $definitions = $locator->get('WorkflowDefinitions');
 $branches = $locator->get('Branches');
@@ -133,7 +141,7 @@ const INSPECT_FIXTURE_PHP = String.raw`
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';
 
-$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$input = json_decode((string)stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 $locator = \Cake\ORM\TableRegistry::getTableLocator();
 $members = $locator->get('Members');
 $officers = $locator->get('Officers.Officers');
@@ -271,7 +279,7 @@ const SETUP_OVERLAP_FIXTURE_PHP = String.raw`
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';
 
-$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$input = json_decode((string)stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 $case = (string)($input['case'] ?? '');
 $locator = \Cake\ORM\TableRegistry::getTableLocator();
 $definitions = $locator->get('WorkflowDefinitions');
@@ -579,7 +587,7 @@ const INSPECT_OVERLAP_FIXTURE_PHP = String.raw`
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';
 
-$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$input = json_decode((string)stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 $locator = \Cake\ORM\TableRegistry::getTableLocator();
 $members = $locator->get('Members');
 $officers = $locator->get('Officers.Officers');
@@ -745,23 +753,6 @@ echo json_encode([
 
 const normalizeText = (value) => value.replace(/[·\u00B7\u00A0]/g, ' ').replace(/\s+/g, ' ').trim();
 
-const runPhpJson = (script, payload = {}) => {
-    const output = execFileSync(
-        'php',
-        ['-d', 'xdebug.mode=off', '-r', script],
-        {
-            cwd: APP_ROOT,
-            env: {
-                ...process.env,
-                FIXTURE_JSON: JSON.stringify(payload),
-            },
-            encoding: 'utf8',
-        },
-    ).trim();
-
-    return output === '' ? {} : JSON.parse(output);
-};
-
 const ensureFixture = (page) => {
     const fixture = page.__officerLifecycleFixture;
     if (!fixture) {
@@ -874,30 +865,21 @@ const setOfficerAssignee = async (modal, fixture) => {
     });
 };
 
-const runQueueWorker = () => {
-    try {
-        execFileSync(
-            'bash',
-            [path.join(APP_ROOT, 'bin/cake'), 'queue', 'run', '-q'],
-            {
-                cwd: APP_ROOT,
-                env: process.env,
-                stdio: 'pipe',
-            },
-        );
-    } catch (error) {
-        const details = [error?.stdout, error?.stderr, error?.message]
-            .filter(Boolean)
-            .join('\n');
-        if (details.includes('Too many workers running')) {
-            return;
-        }
-
-        throw error;
-    }
+const drainQueuedEmails = async () => {
+    flushWorkflowsAndQueue();
+    await waitForQueueSettled();
 };
 
 const resetDevDatabase = () => {
+    // The full host-shell reset (~10 min) is redundant when the lane runner has
+    // already reset+seeded the DB once up front, and it otherwise consumes the
+    // entire per-test timeout. Skip it when PLAYWRIGHT_RESET_DB is explicitly
+    // disabled; the fixture builds its own data via runPhpJson with a unique
+    // timestamp token, so a pristine DB is not required.
+    const resetFlag = (process.env.PLAYWRIGHT_RESET_DB ?? '').toLowerCase();
+    if (resetFlag === '0' || resetFlag === 'false' || resetFlag === 'no') {
+        return;
+    }
     execFileSync(
         'bash',
         [path.join(REPO_ROOT, 'reset_dev_database.sh')],
@@ -1008,6 +990,70 @@ Then('the officer lifecycle should have an active warrant', async ({ page }) => 
     expect(state.memberRole.roleId).toBe(fixture.roleId);
 });
 
+When('I decline the officer lifecycle warrant roster', async ({ page }) => {
+    const state = await waitForFixtureState(
+        page,
+        (current) => Boolean(current.workflowApproval && current.workflowApproval.status === 'pending'),
+        'No pending warrant approval was available to decline.',
+    );
+
+    page.__officerLifecycleDeclineReason = `Roster decline regression ${Date.now()}`;
+
+    await page.goto('/approvals', { waitUntil: 'networkidle' });
+    const respondButton = page.locator(
+        `button[data-outlet-btn-btn-data-value*='"id":${state.workflowApproval.id}']`,
+    ).first();
+    await expect(respondButton).toBeVisible({ timeout: 15000 });
+    await respondButton.click();
+
+    const modal = page.locator('#approvalResponseModal');
+    await expect(modal).toBeVisible({ timeout: 10000 });
+    await modal.locator('#decisionReject').click();
+    const comment = modal.locator('#approvalComment');
+    await expect(comment).toBeVisible({ timeout: 10000 });
+    await comment.fill(page.__officerLifecycleDeclineReason);
+    await Promise.all([
+        page.waitForLoadState('networkidle'),
+        modal.locator('button[type="submit"]').click(),
+    ]);
+});
+
+Then('the officer lifecycle warrant roster should be declined', async ({ page }) => {
+    const state = await waitForFixtureState(
+        page,
+        (current) => Boolean(
+            current.warrant &&
+            current.warrant.status === 'Declined' &&
+            current.warrant.warrantRosterId,
+        ),
+        'Officer lifecycle warrant never reached a declined state.',
+    );
+
+    const rosterId = state.warrant.warrantRosterId;
+    const rosterStatus = dbQuery(`SELECT status FROM warrant_rosters WHERE id = ${rosterId};`).trim();
+    expect(rosterStatus).toBe('Declined');
+
+    const reason = page.__officerLifecycleDeclineReason ?? '';
+    const noteBody = dbQuery(
+        `SELECT body FROM notes WHERE entity_type = 'WarrantRosters' AND entity_id = ${rosterId} AND subject = 'Warrant Roster declined' ORDER BY id DESC LIMIT 1;`,
+    ).trim();
+    expect(noteBody).toContain(reason);
+});
+
+Then('no warrant-issued email should be queued for the officer lifecycle member', async ({ page }) => {
+    const memberEmail = refreshFixtureState(page).memberEmail;
+    expect(memberEmail).toBeTruthy();
+
+    await waitForQueueSettled();
+    assertNoQueuedEmailFor(memberEmail);
+
+    const warrantIssued = await mailpitSearchTotal(
+        page.request,
+        `to:"${memberEmail}" subject:"Warrant Issued"`,
+    );
+    expect(warrantIssued).toBe(0);
+});
+
 When('I release the officer lifecycle member', async ({ page }) => {
     const fixture = ensureFixture(page);
     const currentState = refreshFixtureState(page);
@@ -1036,10 +1082,7 @@ When('I release the officer lifecycle member', async ({ page }) => {
 });
 
 When('I process queued emails for the officer lifecycle', async ({ page }) => {
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-        runQueueWorker();
-        await page.waitForTimeout(250);
-    }
+    await drainQueuedEmails();
 });
 
 Then('the officer lifecycle database records should show the full lifecycle', async ({ page }) => {
@@ -1155,10 +1198,7 @@ Then('the officer overlap replacement should have a pending warrant approval', a
 });
 
 When('I process queued emails for the officer overlap fixture', async ({ page }) => {
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-        runQueueWorker();
-        await page.waitForTimeout(250);
-    }
+    await drainQueuedEmails();
 });
 
 Then('the officer overlap state for {string} should be correct', async ({ page }, caseId) => {

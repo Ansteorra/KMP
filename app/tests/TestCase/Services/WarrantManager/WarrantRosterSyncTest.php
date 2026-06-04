@@ -6,10 +6,12 @@ namespace App\Test\TestCase\Services\WarrantManager;
 
 use App\Model\Entity\Warrant;
 use App\Model\Entity\WarrantRoster;
+use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use App\Services\ServiceResult;
 use App\Services\WarrantManager\DefaultWarrantManager;
 use App\Services\WarrantManager\WarrantManagerInterface;
 use App\Services\WorkflowEngine\Providers\WarrantWorkflowActions;
+use App\Services\WorkflowEngine\TriggerDispatcher;
 use App\Test\TestCase\BaseTestCase;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
@@ -41,12 +43,11 @@ class WarrantRosterSyncTest extends BaseTestCase
      */
     private function createWarrantManager(): WarrantManagerInterface
     {
-        $awm = $this->createMock(\App\Services\ActiveWindowManager\ActiveWindowManagerInterface::class);
-        $td = $this->createMock(\App\Services\WorkflowEngine\TriggerDispatcher::class);
-        $am = $this->createMock(\App\Services\WorkflowEngine\WorkflowApprovalManagerInterface::class);
-        $we = $this->createMock(\App\Services\WorkflowEngine\WorkflowEngineInterface::class);
+        $awm = $this->createMock(ActiveWindowManagerInterface::class);
+        $awm->method('stop')->willReturn(new ServiceResult(true));
+        $td = $this->createMock(TriggerDispatcher::class);
 
-        return new DefaultWarrantManager($awm, $td, $am, $we);
+        return new DefaultWarrantManager($awm, $td);
     }
 
     /**
@@ -565,5 +566,37 @@ class WarrantRosterSyncTest extends BaseTestCase
         // Only the approve response should increment the roster counter
         $roster = $this->rosterTable->get($rosterId);
         $this->assertEquals(1, $roster->approval_count, 'Only approve decisions should increment counter');
+    }
+
+    // =====================================================
+    // decline() — pure domain work, no engine driving
+    // =====================================================
+
+    public function testDeclineMarksWarrantsAndRosterDeclined(): void
+    {
+        $wm = $this->createWarrantManager();
+        [$rosterId, $warrantId] = $this->createPendingRoster();
+
+        $result = $wm->decline($rosterId, self::ADMIN_MEMBER_ID, 'Not approved');
+
+        $this->assertTrue($result->isSuccess());
+
+        $warrant = $this->warrantTable->get($warrantId);
+        $this->assertEquals(Warrant::DECLINED_STATUS, $warrant->status, 'Pending warrant should be declined');
+
+        $roster = $this->rosterTable->get($rosterId);
+        $this->assertEquals(WarrantRoster::STATUS_DECLINED, $roster->status, 'Roster should be declined');
+    }
+
+    public function testDeclineDoesNotRequireWorkflowApproval(): void
+    {
+        // A roster with no workflow approval instance must still decline cleanly,
+        // because the engine has already routed to the decline action by this point.
+        $wm = $this->createWarrantManager();
+        [$rosterId] = $this->createPendingRoster();
+
+        $result = $wm->decline($rosterId, self::ADMIN_MEMBER_ID, 'Denied');
+
+        $this->assertTrue($result->isSuccess());
     }
 }

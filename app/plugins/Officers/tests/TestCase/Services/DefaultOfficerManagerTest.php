@@ -6,8 +6,6 @@ namespace Officers\Test\TestCase\Services;
 use App\Services\ActiveWindowManager\DefaultActiveWindowManager;
 use App\Services\WarrantManager\DefaultWarrantManager;
 use App\Services\WorkflowEngine\TriggerDispatcher;
-use App\Services\WorkflowEngine\WorkflowApprovalManagerInterface;
-use App\Services\WorkflowEngine\WorkflowEngineInterface;
 use App\Test\TestCase\BaseTestCase;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
@@ -134,9 +132,7 @@ class DefaultOfficerManagerTest extends BaseTestCase
         // Manually create service for testing
         $activeWindowManager = new DefaultActiveWindowManager();
         $triggerDispatcher = $this->createMock(TriggerDispatcher::class);
-        $approvalManager = $this->createMock(WorkflowApprovalManagerInterface::class);
-        $workflowEngine = $this->createMock(WorkflowEngineInterface::class);
-        $warrantManager = new DefaultWarrantManager($activeWindowManager, $triggerDispatcher, $approvalManager, $workflowEngine);
+        $warrantManager = new DefaultWarrantManager($activeWindowManager, $triggerDispatcher);
 
         // Create a partial mock that doesn't actually queue mail (to avoid Queue plugin config issues)
         $this->officerManager = $this->getMockBuilder(DefaultOfficerManager::class)

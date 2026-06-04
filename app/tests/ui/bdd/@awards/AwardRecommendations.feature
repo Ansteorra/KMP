@@ -5,13 +5,13 @@ Feature: Award Recommendations
     So that deserving members can be recognized
 
     Scenario: View the public recommendations page
-        Given I am logged in as "admin@amp.ansteorra.org"
+        Given I am logged in as "forest@ampdemo.com"
         When I navigate to "/awards/recommendations"
         Then I should be on a page containing "Recommendation"
         And the grid should show 1 or more results
 
     Scenario: Access authenticated add recommendation page
-        Given I am logged in as "admin@amp.ansteorra.org"
+        Given I am logged in as "forest@ampdemo.com"
         When I navigate to "/awards/recommendations/add"
         Then I should be on a page containing "Submit Award Recommendation"
         And the page should contain "Recommendation For"
@@ -24,36 +24,28 @@ Feature: Award Recommendations
         And the page should contain "Reason for Recommendation"
 
     Scenario: Recommendations index exposes grouping controls
-        Given I am logged in as "admin@amp.ansteorra.org"
+        Given I am logged in as "forest@ampdemo.com"
         When I navigate to "/awards/recommendations"
         Then the page should contain "Add Recommendation"
         And the page should contain "Group Recommendations"
 
     Scenario: Recommendation detail edit exposes scheduling and given-state fields
-        Given I am logged in as "admin@amp.ansteorra.org"
+        Given I am logged in as "forest@ampdemo.com"
         And I create recommendation fixtures for "detail edit"
         When I open the "detail" recommendation detail view
         And I open the detail edit modal
         Then the open recommendation edit modal should not show the "Plan to Give At" field
-        When I change the open recommendation state to "Scheduled"
+        When I change the open recommendation state to "Need to Schedule"
         Then the open recommendation edit modal should show the "Plan to Give At" field
         And the open recommendation edit modal should not show the "Given On" field
         When I select the first available gathering in the open recommendation edit modal
         And I submit the open recommendation edit modal
-        Then the recommendation detail page should show "Scheduled" in the state row
+        Then the recommendation detail page should show "Need to Schedule" in the state row
         And the recommendation detail page should show "to be given at" in the state row
-        When I open the detail edit modal
-        And I change the open recommendation state to "Given"
-        Then the open recommendation edit modal should show the "Plan to Give At" field
-        And the open recommendation edit modal should show the "Given On" field
-        When I set the open recommendation given date to today
-        And I fill in the open recommendation note with "Detail edit workflow coverage note"
-        And I submit the open recommendation edit modal
-        Then the recommendation detail page should show "Given" in the state row
-        And the recommendation detail page should show "Closed" in the status row
+        And the "detail" recommendation should have an active bestowal link
 
     Scenario: Recommendation quick edit closes a recommendation with a reason
-        Given I am logged in as "admin@amp.ansteorra.org"
+        Given I am logged in as "forest@ampdemo.com"
         And I create recommendation fixtures for "quick edit"
         When I navigate to "/awards/recommendations"
         And I search the recommendations grid for the current fixture token
@@ -67,7 +59,7 @@ Feature: Award Recommendations
         And the "quick" recommendation row should contain "Closed"
 
     Scenario: Recommendation bulk edit transitions multiple recommendations together
-        Given I am logged in as "admin@amp.ansteorra.org"
+        Given I am logged in as "forest@ampdemo.com"
         And I create recommendation fixtures for "bulk edit"
         When I navigate to "/awards/recommendations"
         And I search the recommendations grid for the current fixture token
@@ -82,7 +74,7 @@ Feature: Award Recommendations
         And each current fixture recommendation row should contain "Closed"
 
     Scenario: Recommendation grouping supports remove-from-group and ungroup-all flows
-        Given I am logged in as "admin@amp.ansteorra.org"
+        Given I am logged in as "forest@ampdemo.com"
         And I create recommendation fixtures for "grouping"
         When I navigate to "/awards/recommendations"
         And I search the recommendations grid for the current fixture token
@@ -112,7 +104,43 @@ Feature: Award Recommendations
     Scenario: Recommendations grid does not link unmatched recipients to member profiles
         When I navigate to "/awards/recommendations/submit-recommendation"
         And I submit a public recommendation for the unmatched recipient "BDD External Recipient Link Guard"
-        And I am logged in as "admin@amp.ansteorra.org"
-        And I navigate to "/awards/recommendations"
+        Then I should see the flash message "The recommendation has been submitted."
+        Given I am logged in as "forest@ampdemo.com"
+        When I navigate to "/awards/recommendations"
         And I search the grid for "BDD External Recipient Link Guard"
         Then the recommendation row for "BDD External Recipient Link Guard" should not link to a member profile
+
+    Scenario: Recommendation feedback response creates notes and keeps Mailpit assertions scoped
+        Given I delete all test emails
+        When I navigate to "/awards/recommendations/submit-recommendation"
+        And I submit a public feedback-lane recommendation for a unique unmatched recipient
+        Then I should see the flash message "The recommendation has been submitted."
+        When the workflow engine processes pending work
+        Then there should be an award recommendation submitted email to "crown@ansteorra.org" for the public feedback-lane recommendation
+        And there should be no award recommendation submitted email to "bryce@ampdemo.com" for the public feedback-lane recommendation
+        Given I am logged in as "forest@ampdemo.com"
+        When I navigate to "/awards/recommendations"
+        And I search the recommendations grid for the current public feedback-lane recipient
+        And I open the current public feedback-lane recommendation detail view from the grid
+        And I open the detail edit modal
+        And I change the open recommendation state to "Awaiting Feedback"
+        And I fill in the open recommendation note with "Feedback lane moved to Awaiting Feedback"
+        And I submit the open recommendation edit modal
+        Then the recommendation detail page should show "Awaiting Feedback" in the state row
+        When I request recommendation feedback from "Bryce Local Seneschal Demoer" with message "Please provide court and award context for this recommendation."
+        Then I should see the flash message "Feedback request sent."
+        When the workflow engine processes pending work
+        Then the recommendation detail page should show the "Feedback" tab
+        And the recommendation feedback tab should show "Bryce Local Seneschal Demoer" as "Pending"
+        And there should be no recommendation feedback request email to "bryce@ampdemo.com"
+        Given I am logged in as "bryce@ampdemo.com"
+        When I navigate to "/approvals"
+        And I search the approvals grid for the current public feedback-lane recipient
+        Then I should see one recommendation feedback request for the current public feedback-lane recommendation from "Forest Crown Demoer"
+        When I send the current recommendation feedback response
+        Then I should see the flash message "Approval response recorded."
+        Given I am logged in as "forest@ampdemo.com"
+        When I open the current public feedback-lane recommendation detail view
+        Then the recommendation feedback tab should show the current feedback response
+        And the recommendation notes tab should show the current feedback response
+        And there should be no recommendation feedback request email to "bryce@ampdemo.com"

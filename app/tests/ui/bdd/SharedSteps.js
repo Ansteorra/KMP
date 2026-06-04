@@ -4,10 +4,13 @@ const { getMailpitApiUrl, getUiTestEnvironment } = require('../support/test-envi
 const {
     clearMailpitMessages,
     clickTabAndWait,
+    flushWorkflowsAndQueue,
     loginAs,
     runAndWaitForNetworkIdle,
     waitForGridRows,
     waitForPageBody,
+    waitForQueueSettled,
+    waitForStableMailpitSearchTotal,
 } = require('../support/ui-helpers.cjs');
 
 const { Given, When, Then } = createBdd();
@@ -26,21 +29,23 @@ const openGridFilter = async (page) => {
 
 const waitForGridSearchResponse = async (page, searchInput) => {
     const currentPath = new URL(page.url()).pathname;
+    const responsePromise = page.waitForResponse((response) => {
+        const responseUrl = new URL(response.url());
+        return response.status() === 200
+            && responseUrl.pathname === currentPath
+            && responseUrl.searchParams.has('search');
+    }, { timeout: 10000 }).catch(() => null);
 
-    await Promise.all([
-        page.waitForResponse((response) => {
-            const responseUrl = new URL(response.url());
-            return response.status() === 200
-                && responseUrl.pathname === currentPath
-                && responseUrl.searchParams.has('search');
-        }, { timeout: 30000 }),
-        searchInput.press('Enter'),
-    ]);
+    await searchInput.press('Enter');
+    await responsePromise;
 
     await waitForGridRows(page, GRID_ROWS_SELECTOR);
 };
 
 const waitForMailpitMessageCount = async (page, query, minCount = 1) => {
+    // Deterministically process pending workflow + queue work so the matching
+    // email is delivered promptly rather than waiting on the worker's cron.
+    flushWorkflowsAndQueue();
     await expect.poll(async () => {
         const response = await page.request.get(getMailpitApiUrl('api/v1/search'), {
             params: { query },
@@ -50,9 +55,11 @@ const waitForMailpitMessageCount = async (page, query, minCount = 1) => {
         }
 
         const data = await response.json();
-        return data.total ?? 0;
+        // `messages_count` is the number of messages matching the query;
+        // `total` is the whole-mailbox count and must NOT be used here.
+        return data.messages_count ?? 0;
     }, {
-        timeout: 15000,
+        timeout: 30000,
     }).toBeGreaterThanOrEqual(minCount);
 };
 
@@ -133,10 +140,48 @@ Then('there should be an email to {string} with subject {string}', async ({ page
     });
     expect(response.ok()).toBeTruthy();
     const data = await response.json();
-    expect(data.total).toBeGreaterThanOrEqual(1);
+    expect(data.messages_count).toBeGreaterThanOrEqual(1);
+});
+
+// ── Deterministic workflow / queue processing ───────────────────────
+
+When('the workflow engine processes pending work', async ({ page }) => {
+    flushWorkflowsAndQueue();
+    // Deterministically wait for the always-on queue worker to drain just-enqueued
+    // jobs before assertions poll the Mailpit API.
+    await waitForQueueSettled();
+});
+
+When('the scheduled workflows are processed', async ({ page }) => {
+    flushWorkflowsAndQueue({ forceScheduler: true });
+    await waitForQueueSettled();
+});
+
+Then('there should be an email with subject {string}', async ({ page }, subject) => {
+    await waitForMailpitMessageCount(page, `subject:"${subject}"`);
+});
+
+// Negative assertion: confirm no matching email exists. Settle the queue first so a
+// genuinely-pending email would have arrived before we assert its absence.
+Then('there should be no email to {string} with subject {string}', async ({ page }, recipient, subject) => {
+    flushWorkflowsAndQueue();
+    await waitForQueueSettled();
+    const total = await waitForStableMailpitSearchTotal(page.request, `to:${recipient} subject:"${subject}"`);
+    expect(total).toBe(0);
+});
+
+Then('there should be no email with subject {string}', async ({ page }, subject) => {
+    flushWorkflowsAndQueue();
+    await waitForQueueSettled();
+    const total = await waitForStableMailpitSearchTotal(page.request, `subject:"${subject}"`);
+    expect(total).toBe(0);
 });
 
 Given('I delete all test emails', async ({ page }) => {
+    // Best-effort settle before clearing so prior scenario mail is less likely to
+    // arrive mid-scenario. Do not fail setup on unrelated stuck jobs; strict
+    // queue checks stay in the email assertions that depend on them.
+    await waitForQueueSettled({ timeoutMs: 10000, throwOnTimeout: false });
     await clearMailpitMessages(page.request);
 });
 

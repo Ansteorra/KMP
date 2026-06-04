@@ -3,12 +3,17 @@ declare(strict_types=1);
 
 namespace Awards\Services;
 
+use App\KMP\StaticHelpers;
+use App\Model\Entity\WorkflowApproval;
 use App\Services\WorkflowEngine\StateMachine\StateMachineHandler;
 use App\Services\WorkflowEngine\WorkflowContextAwareTrait;
 use Awards\Model\Entity\Recommendation;
+use Awards\Model\Entity\RecommendationFeedbackRequestRecipient;
+use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\ORM\Locator\LocatorAwareTrait;
 use Cake\ORM\Table;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -145,6 +150,148 @@ class AwardsWorkflowActions
             Log::error('Workflow CreateRecommendation failed: ' . $e->getMessage());
 
             return ['success' => false, 'error' => $e->getMessage(), 'data' => ['errors' => []]];
+        }
+    }
+
+    /**
+     * Create a workflow approval for a recommendation feedback recipient and link it
+     * back to the recipient row so the recipient can respond from the approvals queue.
+     *
+     * Invoked by the awards-recommendation-feedback-request workflow action node. Fires
+     * once per recipient (one workflow instance per RecommendationFeedbackRequested event).
+     * Idempotent at the recipient-row level: a replayed event returns the existing approval
+     * id instead of creating a duplicate. Throws on any invariant violation so the engine
+     * marks the action node failed rather than silently advancing to the end node.
+     *
+     * @param array $context Workflow context (includes instanceId and the trigger payload).
+     * @param array $config Resolved node config: recipientId (member id), feedbackRequestRecipientId
+     *     (recipient row id), deadline (ATOM string), nodeId (action node id).
+     * @return array Output with success and approvalId.
+     * @throws \RuntimeException When required context is missing, the execution log or recipient
+     *     row cannot be resolved, the recipient is not pending, or linking the approval fails.
+     */
+    public function createFeedbackApproval(array $context, array $config): array
+    {
+        $instanceId = (int)($context['instanceId'] ?? 0);
+        $nodeId = (string)($config['nodeId'] ?? 'create-feedback-approval');
+        $recipientMemberId = (int)($config['recipientId'] ?? 0);
+        $recipientRowId = (int)($config['feedbackRequestRecipientId'] ?? 0);
+
+        if ($instanceId <= 0 || $recipientMemberId <= 0 || $recipientRowId <= 0) {
+            throw new RuntimeException(sprintf(
+                'CreateFeedbackApproval missing required context (instanceId=%d, recipientId=%d, feedbackRequestRecipientId=%d).',
+                $instanceId,
+                $recipientMemberId,
+                $recipientRowId,
+            ));
+        }
+
+        $deadline = $this->parseAtomDeadline($config['deadline'] ?? null);
+
+        // The engine persists the action node's execution log (STATUS_RUNNING) before invoking
+        // this handler; resolve its id to satisfy the required execution_log_id on the approval.
+        $logsTable = $this->fetchTable('WorkflowExecutionLogs');
+        $log = $logsTable->find()
+            ->select(['id'])
+            ->where(['workflow_instance_id' => $instanceId, 'node_id' => $nodeId])
+            ->orderBy(['id' => 'DESC'])
+            ->first();
+        if ($log === null) {
+            throw new RuntimeException(
+                "CreateFeedbackApproval could not resolve execution log for instance #{$instanceId} node '{$nodeId}'.",
+            );
+        }
+        $executionLogId = (int)$log->id;
+
+        $recipientsTable = $this->fetchTable('Awards.RecommendationFeedbackRequestRecipients');
+        $approvalsTable = $this->fetchTable('WorkflowApprovals');
+
+        return $recipientsTable->getConnection()->transactional(function () use (
+            $recipientsTable,
+            $approvalsTable,
+            $recipientRowId,
+            $recipientMemberId,
+            $instanceId,
+            $nodeId,
+            $executionLogId,
+            $deadline,
+        ) {
+            $recipient = $recipientsTable->find()
+                ->where(['id' => $recipientRowId])
+                ->first();
+            if ($recipient === null) {
+                throw new RuntimeException("CreateFeedbackApproval: recipient row #{$recipientRowId} not found.");
+            }
+            if ((int)$recipient->recipient_id !== $recipientMemberId) {
+                throw new RuntimeException(
+                    "CreateFeedbackApproval: recipient row #{$recipientRowId} member mismatch "
+                    . "(row={$recipient->recipient_id}, expected={$recipientMemberId}).",
+                );
+            }
+            if (!empty($recipient->workflow_approval_id)) {
+                return ['success' => true, 'approvalId' => (int)$recipient->workflow_approval_id, 'idempotent' => true];
+            }
+            if ($recipient->status !== RecommendationFeedbackRequestRecipient::STATUS_PENDING) {
+                throw new RuntimeException(
+                    "CreateFeedbackApproval: recipient row #{$recipientRowId} is not pending (status={$recipient->status}).",
+                );
+            }
+
+            $approval = $approvalsTable->newEntity([
+                'workflow_instance_id' => $instanceId,
+                'node_id' => $nodeId,
+                'execution_log_id' => $executionLogId,
+                'approver_type' => WorkflowApproval::APPROVER_TYPE_MEMBER,
+                'approver_config' => [
+                    'feedback_response' => true,
+                    'requires_comment' => true,
+                    'member_id' => $recipientMemberId,
+                ],
+                'current_approver_id' => $recipientMemberId,
+                'required_count' => 1,
+                'approved_count' => 0,
+                'rejected_count' => 0,
+                'status' => WorkflowApproval::STATUS_PENDING,
+                'allow_parallel' => false,
+                'deadline' => $deadline,
+                'escalation_config' => null,
+                'approval_token' => StaticHelpers::generateToken(32),
+            ]);
+            $approvalsTable->saveOrFail($approval);
+
+            // Atomic link: only attach when the row is still unlinked, guarding against a
+            // replayed event racing a second instance. A rolled-back txn discards the approval.
+            $affected = $recipientsTable->updateAll(
+                ['workflow_approval_id' => $approval->id],
+                ['id' => $recipientRowId, 'workflow_approval_id IS' => null],
+            );
+            if ($affected !== 1) {
+                throw new RuntimeException(
+                    "CreateFeedbackApproval: failed to link approval to recipient row #{$recipientRowId} (affected={$affected}).",
+                );
+            }
+
+            return ['success' => true, 'approvalId' => (int)$approval->id];
+        });
+    }
+
+    /**
+     * Parse an ATOM/ISO-8601 deadline string into a DateTime, tolerating empties and bad input.
+     *
+     * @param mixed $value Raw deadline value from the trigger payload.
+     * @return \Cake\I18n\DateTime|null Parsed deadline, or null when absent/unparseable.
+     */
+    private function parseAtomDeadline(mixed $value): ?DateTime
+    {
+        if (empty($value) || !is_string($value)) {
+            return null;
+        }
+        try {
+            return new DateTime($value);
+        } catch (Throwable $e) {
+            Log::warning('CreateFeedbackApproval: unparseable deadline "' . $value . '": ' . $e->getMessage());
+
+            return null;
         }
     }
 

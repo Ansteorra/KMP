@@ -20,11 +20,22 @@ case "$lane" in
             "tests/ui/gen/@workflows/workflow-admin.feature.spec.js"
         )
         ;;
+    journey)
+        specs=(
+            "tests/ui/gen/@tenancy/Tenancy.feature.spec.js"
+            "tests/ui/gen/@members/MemberRegistration.feature.spec.js"
+            "tests/ui/gen/@activities/@mode:serial/RequestAndReceiveAuth.feature.spec.js"
+            "tests/ui/gen/@officers/OfficerReleaseWorkflow.feature.spec.js"
+            "tests/ui/gen/@warrants/WarrantRosterDecline.feature.spec.js"
+            "tests/ui/gen/@gatherings/Gatherings.feature.spec.js"
+            "tests/ui/gen/@awards/AwardRecommendations.feature.spec.js"
+        )
+        ;;
     uat|full)
         specs=()
         ;;
     *)
-        echo "Usage: bash bin/run-playwright-lane.sh [smoke|uat] [playwright args...]" >&2
+        echo "Usage: bash bin/run-playwright-lane.sh [smoke|journey|uat|full] [playwright args...]" >&2
         exit 1
         ;;
 esac
@@ -35,7 +46,13 @@ if [[ "${PLAYWRIGHT_RESET_DB:-1}" != "0" ]]; then
     bash ../reset_dev_database.sh
 fi
 
-if [ "$lane" = "smoke" ]; then
+# After the one-time lane reset above, prevent per-scenario features from running
+# their own redundant (~10 min) full DB reset, which would blow the per-test
+# timeout. Features build their own fixtures additively via runPhpJson with
+# unique timestamped tokens, so the lane's single reset is authoritative.
+export PLAYWRIGHT_RESET_DB=0
+
+if [ "$lane" = "smoke" ] || [ "$lane" = "journey" ]; then
     npx playwright test "${specs[@]}" "$@"
 else
     npx playwright test "$@"

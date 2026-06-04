@@ -38,13 +38,21 @@ class KMPMailer extends Mailer
         }
 
         $this->setTo($to)
-            ->setFrom(StaticHelpers::getAppSetting('Email.SystemEmailFromAddress'));
+            ->setFrom(StaticHelpers::getAppSetting('Email.SystemEmailFromAddress', 'site@test.com', null, true));
 
         if ($_replyTo) {
             $this->setReplyTo($_replyTo);
         }
 
         $this->_preloadedTemplate = $template;
-        $this->setViewVars($templateVars);
+
+        // Inject site-wide email variables as defaults so every DB-backed template
+        // (workflow-sent via Core.SendEmail or manually sent) can reference them
+        // without each caller or seed workflow mapping them explicitly. Per-send
+        // values still win because they are merged on top of these defaults.
+        $globalVars = [
+            'siteAdminSignature' => StaticHelpers::getAppSetting('Email.SiteAdminSignature', '', null, true),
+        ];
+        $this->setViewVars(array_merge($globalVars, $templateVars));
     }
 }

@@ -8,15 +8,56 @@ const {
     assertGridShellPreserved,
     waitForGridStateJson,
     waitForPageBody,
+    flushWorkflowsAndQueue,
+    waitForQueueSettled,
+    waitForGridRows,
+    waitForStableMailpitSearchTotal,
 } = require('../../support/ui-helpers.cjs');
 
 const { Given, When, Then, After } = createBdd();
 
 const APP_ROOT = path.resolve(__dirname, '../../../..');
 const REPO_ROOT = path.resolve(APP_ROOT, '..');
-const { shouldUseDockerPhp } = require('../../support/test-environment.cjs');
+const { getMailpitApiUrl, shouldUseDockerPhp } = require('../../support/test-environment.cjs');
 const FIXTURE_MEMBER_NAME = 'Iris Basic User Demoer';
-const FIXTURE_REQUESTER_EMAIL = 'admin@amp.ansteorra.org';
+const FIXTURE_REQUESTER_EMAIL = 'forest@ampdemo.com';
+const FEEDBACK_RECIPIENT_NAME = 'Bryce Local Seneschal Demoer';
+const GRID_ROWS_SELECTOR = 'table.table tbody tr:visible, .dataTable tbody tr:visible';
+
+const scopedMailpitMessageCount = async (page, query) => {
+    const response = await page.request.get(getMailpitApiUrl('api/v1/search'), {
+        params: { query },
+    });
+    if (!response.ok()) {
+        return 0;
+    }
+
+    const data = await response.json();
+    return data.messages_count ?? 0;
+};
+
+const waitForScopedMailpitMessageCount = async (page, query, minCount = 1) => {
+    flushWorkflowsAndQueue();
+    await waitForQueueSettled();
+    await expect.poll(async () => scopedMailpitMessageCount(page, query), {
+        timeout: 30000,
+    }).toBeGreaterThanOrEqual(minCount);
+};
+
+const publicFeedbackFixture = (page) => {
+    const fixture = page.__awardPublicFeedbackFixture;
+    if (!fixture) {
+        throw new Error('The public feedback-lane recommendation has not been submitted yet.');
+    }
+
+    return fixture;
+};
+
+const publicFeedbackSubmissionSubject = (page) => {
+    const fixture = publicFeedbackFixture(page);
+
+    return `Award Recommendation: ${fixture.awardName} for ${fixture.recipient}`;
+};
 
 const FIXTURE_SETS = {
     'detail edit': [
@@ -126,6 +167,21 @@ foreach ($ids as $id) {
 echo json_encode(['deleted' => $ids], JSON_THROW_ON_ERROR);
 `;
 
+const GET_RECOMMENDATION_BESTOWAL_PHP = `
+require 'vendor/autoload.php';
+require 'config/bootstrap.php';
+
+$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$recommendations = \\Cake\\ORM\\TableRegistry::getTableLocator()->get('Awards.Recommendations');
+$recommendation = $recommendations->get((int)$input['recommendationId'], contain: ['Bestowals']);
+
+echo json_encode([
+    'recommendationId' => (int)$recommendation->id,
+    'bestowalId' => $recommendation->bestowal_id === null ? null : (int)$recommendation->bestowal_id,
+    'bestowalState' => $recommendation->bestowal?->state,
+], JSON_THROW_ON_ERROR);
+`;
+
 const normalizeText = (value) => value.replace(/\s+/g, ' ').trim();
 
 const runPhpJson = (script, payload) => {
@@ -231,6 +287,81 @@ const searchRecommendationsGrid = async (page, query) => {
     await page.waitForTimeout(1000);
     await page.keyboard.press('Escape').catch(() => {});
     await page.waitForTimeout(500);
+};
+
+const searchCurrentGrid = async (page, query) => {
+    await waitForGridRows(page, GRID_ROWS_SELECTOR);
+    const filterBtn = page.locator('#filterDropdown, button:has-text("Filter")').first();
+    await filterBtn.click();
+
+    const searchInput = page.locator('[data-grid-view-target="searchInput"]');
+    await expect(searchInput).toBeVisible({ timeout: 15000 });
+    await searchInput.fill(query);
+    // The grid view controller fetches a server-rendered HTML fragment from the
+    // grid-data endpoint with the search term as a query param. Deterministically
+    // await THAT request (matched by the endpoint suffix + the exact search value)
+    // so we never race the pre-search grid. The original predicate matched the page
+    // path ('/approvals') instead of the grid-data endpoint, so it never resolved.
+    const [response] = await Promise.all([
+        page.waitForResponse((res) => {
+            const resUrl = new URL(res.url());
+            return res.status() === 200
+                && resUrl.pathname.endsWith('/grid-data')
+                && resUrl.searchParams.get('search') === query;
+        }, { timeout: 30000 }).catch(() => null),
+        searchInput.press('Enter'),
+    ]);
+    // Inspect the server-rendered grid fragment before waiting for rows so empty
+    // server-side results fail clearly instead of timing out on a missing row.
+    let serverShowing = null;
+    let responseBody = '';
+    if (response) {
+        responseBody = await response.text().catch(() => '');
+        const showingMatch = responseBody.match(/showing\s+(\d+)\s+record/i);
+        const showing = showingMatch ? showingMatch[1] : 'unknown';
+        serverShowing = showing;
+        const bodyHasQuery = responseBody.includes(query);
+        if (showing === '0' || !bodyHasQuery) {
+            throw new Error(
+                `approvals grid-data search for "${query}" returned ${showing} record(s) `
+                + `and captured fragment query-present=${bodyHasQuery}.`,
+            );
+        }
+    }
+
+    if (serverShowing !== '0') {
+        await waitForGridRows(page, GRID_ROWS_SELECTOR);
+    }
+    await expect(page.locator('table.table, .dataTable, table').first()).toContainText(query, { timeout: 30000 });
+    await page.keyboard.press('Escape').catch(() => {});
+
+    return { response, body: responseBody };
+};
+
+const selectAutocompleteOption = async (page, comboBox, optionText) => {
+    const input = comboBox.locator('[data-ac-target="input"]');
+    await expect(input).toBeVisible({ timeout: 15000 });
+
+    // Drive the autocomplete like a real user. URL-backed autocompletes (e.g. the
+    // recipient lookup) render fetched results as <li role="option"> nodes into the
+    // results target and never populate the controller's in-memory option array, so
+    // reading controller.options would never resolve. Typing + clicking the rendered
+    // option exercises the same code path a user would and works for both URL-backed
+    // and pre-loaded (dataList) autocompletes.
+    await input.click();
+    await Promise.all([
+        page.waitForResponse((response) => response.url().includes('/members/auto-complete')
+            && response.status() === 200, { timeout: 15000 }).catch(() => null),
+        input.fill(optionText),
+    ]);
+
+    const option = comboBox
+        .locator('[data-ac-target="results"] [role="option"]:not([aria-disabled="true"])')
+        .filter({ hasText: optionText })
+        .first();
+
+    await expect(option).toBeVisible({ timeout: 15000 });
+    await option.click();
 };
 
 const selectFixtureRows = async (page) => {
@@ -372,6 +503,16 @@ Then('the recommendation detail page should show {string} in the status row', as
     await expect(getStatusRow(page)).toContainText(text);
 });
 
+Then('the {string} recommendation should have an active bestowal link', async ({ page }, name) => {
+    const fixture = getFixture(page, name);
+    const data = runPhpJson(GET_RECOMMENDATION_BESTOWAL_PHP, {
+        recommendationId: fixture.id,
+    });
+
+    expect(data.bestowalId).toBeGreaterThan(0);
+    expect(data.bestowalState).toBeTruthy();
+});
+
 When('I select all current fixture recommendations in the grid', async ({ page }) => {
     await selectFixtureRows(page);
 });
@@ -442,6 +583,11 @@ When('I submit the group recommendations modal', async ({ page }) => {
 });
 
 Then('the recommendation detail page should show the {string} tab', async ({ page }, tabLabel) => {
+    // Feedback/grouping tabs are server-rendered from the detail view; modal submits
+    // refresh the grid frame (Turbo stream) but not the detail tab list. Reload so the
+    // freshly-created records surface their tabs before asserting.
+    await page.reload();
+    await page.waitForLoadState('networkidle');
     await expect(page.getByRole('tab', { name: new RegExp(`^${tabLabel}`) })).toBeVisible();
 });
 
@@ -461,16 +607,20 @@ When('I remove the grouped recommendation {string} from the detail view', async 
         has: page.locator(`a[href="/awards/recommendations/view/${fixture.id}"]`),
     });
     await expect(row).toHaveCount(1);
-    page.once('dialog', (dialog) => dialog.accept());
     await row.locator('[title="Remove from group"], .btn-outline-danger').first().click();
+    const confirmDialog = page.getByRole('dialog', { name: 'Confirm action' });
+    await expect(confirmDialog).toBeVisible({ timeout: 10000 });
+    await confirmDialog.getByRole('button', { name: 'Confirm' }).click();
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
 });
 
 When('I ungroup all recommendations from the detail view', async ({ page }) => {
     await page.getByRole('tab', { name: /^Grouped/ }).click();
-    page.once('dialog', (dialog) => dialog.accept());
     await page.locator('#nav-grouped').getByText('Ungroup All').click();
+    const confirmDialog = page.getByRole('dialog', { name: 'Confirm action' });
+    await expect(confirmDialog).toBeVisible({ timeout: 10000 });
+    await confirmDialog.getByRole('button', { name: 'Confirm' }).click();
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
 });
@@ -534,7 +684,7 @@ When('I submit a public recommendation for the unmatched recipient {string}', as
     await expect(page.locator('#award_name-disp')).toBeEnabled();
 
     const firstAward = page.locator('#award_descriptions button[data-award-id]').first();
-    const firstAwardText = (await firstAward.textContent()).trim();
+    const firstAwardText = normalizeText(await firstAward.textContent());
     await commitComboboxByTyping(page, '#award_name-disp', '[name="award_id"]', firstAwardText);
 
     await page.locator('#recommendation_reason').fill('Public submission regression coverage for a non-member recipient.');
@@ -542,10 +692,207 @@ When('I submit a public recommendation for the unmatched recipient {string}', as
     await page.waitForLoadState('networkidle');
 });
 
+When('I submit a public feedback-lane recommendation for a unique unmatched recipient', async ({ page }) => {
+    const token = `E2E-FEEDBACK-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const recipient = `BDD Feedback Recipient ${token}`;
+    const reason = `${token} feedback and notes workflow coverage`;
+
+    await page.locator('#recommendation__requester_sca_name').fill('External Feedback Recommender');
+    await page.locator('#contact-email').fill('external-feedback@example.com');
+
+    const recipientInput = page.locator('#member-sca-name-disp');
+    await recipientInput.fill(recipient);
+    await page.waitForResponse(resp =>
+        resp.url().includes('/members/auto-complete')
+        && resp.status() === 200
+    );
+    await recipientInput.press('Tab');
+    await expect(page.locator('[data-awards-rec-add-target="branch"]')).toHaveJSProperty('hidden', false);
+
+    await commitComboboxByTyping(page, '#branch_name-disp', '[name="branch_id"]', 'Out of Kingdom');
+    const awardResponse = page.waitForResponse(resp =>
+        resp.url().includes('/awards/awards/awards-by-domain/')
+        && resp.status() === 200
+    );
+    await commitComboboxByTyping(page, '#domain_name-disp', '[name="domain_id"]', 'General');
+    await awardResponse;
+    await expect(page.locator('#award_name-disp')).toBeEnabled();
+
+    const firstAward = page.locator('#award_descriptions button[data-award-id]').first();
+    const awardName = normalizeText(await firstAward.textContent());
+    await commitComboboxByTyping(page, '#award_name-disp', '[name="award_id"]', awardName);
+
+    await page.locator('#recommendation_reason').fill(reason);
+    page.__awardPublicFeedbackFixture = {
+        token,
+        recipient,
+        awardName,
+        reason,
+        feedbackComment: `${token} returned feedback note`,
+    };
+
+    await page.getByRole('button', { name: /submit/i }).click();
+    await page.waitForLoadState('networkidle');
+});
+
+Then('there should be an award recommendation submitted email to {string} for the public feedback-lane recommendation', async ({ page }, recipientEmail) => {
+    const subject = publicFeedbackSubmissionSubject(page);
+    const query = `to:${recipientEmail} subject:"${subject}"`;
+    await waitForScopedMailpitMessageCount(page, query);
+    expect(await scopedMailpitMessageCount(page, query)).toBeGreaterThanOrEqual(1);
+});
+
+Then('there should be no award recommendation submitted email to {string} for the public feedback-lane recommendation', async ({ page }, recipientEmail) => {
+    const subject = publicFeedbackSubmissionSubject(page);
+    const query = `to:${recipientEmail} subject:"${subject}"`;
+    flushWorkflowsAndQueue();
+    await waitForQueueSettled();
+    expect(await waitForStableMailpitSearchTotal(page.request, query)).toBe(0);
+});
+
 Then('the recommendation row for {string} should not link to a member profile', async ({ page }, recipient) => {
     const row = page.locator('table tbody tr', { hasText: recipient }).first();
     await expect(row).toContainText(recipient);
     await expect(row.locator('a').filter({ hasText: recipient })).toHaveCount(0);
+});
+
+When('I search the recommendations grid for the current public feedback-lane recipient', async ({ page }) => {
+    await searchRecommendationsGrid(page, publicFeedbackFixture(page).recipient);
+});
+
+When('I open the current public feedback-lane recommendation detail view from the grid', async ({ page }) => {
+    const fixture = publicFeedbackFixture(page);
+    const row = page.locator('table tbody tr', { hasText: fixture.recipient }).first();
+    await expect(row).toBeVisible({ timeout: 30000 });
+
+    const id = Number(await row.getAttribute('data-id'));
+    expect(id).toBeGreaterThan(0);
+    fixture.recommendationId = id;
+    page.__awardRecommendationFixtures = {
+        token: fixture.token,
+        fixtureMap: {
+            'public-feedback': {
+                id,
+                awardName: fixture.awardName,
+                memberScaName: fixture.recipient,
+                reason: fixture.reason,
+            },
+        },
+        ids: [id],
+        headId: id,
+        headName: 'public-feedback',
+    };
+
+    await page.goto(`/awards/recommendations/view/${id}`, { waitUntil: 'networkidle' });
+});
+
+When('I open the current public feedback-lane recommendation detail view', async ({ page }) => {
+    const fixture = publicFeedbackFixture(page);
+    expect(fixture.recommendationId).toBeGreaterThan(0);
+    await page.goto(`/awards/recommendations/view/${fixture.recommendationId}`, { waitUntil: 'networkidle' });
+});
+
+When('I request recommendation feedback from {string} with message {string}', async ({ page }, recipientName, message) => {
+    await page.getByRole('button', { name: /Request Feedback/ }).click();
+    const modal = page.locator('#requestRecommendationFeedbackModal');
+    await expect(modal).toBeVisible({ timeout: 10000 });
+
+    const comboBox = modal.locator('[data-controller="ac"]').filter({
+        has: page.getByLabel('Find recipient member'),
+    }).first();
+    await selectAutocompleteOption(page, comboBox, recipientName);
+    await expect(modal.getByRole('button', { name: 'Add Recipient' })).toBeEnabled({ timeout: 10000 });
+    await modal.getByRole('button', { name: 'Add Recipient' }).click();
+    await expect(modal.locator('[data-recommendation-feedback-modal-target="recipientList"]')).toContainText(recipientName);
+
+    await modal.getByLabel('Message to recipients').fill(message);
+    await expect(modal.getByRole('button', { name: 'Send Feedback Request' })).toBeEnabled({ timeout: 10000 });
+    await modal.getByRole('button', { name: 'Send Feedback Request' }).click();
+    await expect(modal).toBeHidden({ timeout: 15000 });
+    await page.waitForLoadState('networkidle');
+});
+
+Then('the recommendation feedback tab should show {string} as {string}', async ({ page }, recipientName, status) => {
+    await page.getByRole('tab', { name: /^Feedback/ }).click();
+    const row = page.locator('#nav-feedback tbody tr', { hasText: recipientName }).first();
+    await expect(row).toBeVisible({ timeout: 15000 });
+    await expect(row).toContainText(status);
+});
+
+Then('the recommendation feedback tab should show the current feedback response', async ({ page }) => {
+    const fixture = publicFeedbackFixture(page);
+    await page.getByRole('tab', { name: /^Feedback/ }).click();
+    const row = page.locator('#nav-feedback tbody tr', { hasText: FEEDBACK_RECIPIENT_NAME }).first();
+    await expect(row).toContainText('Responded');
+    await expect(row).toContainText(fixture.feedbackComment);
+});
+
+When('I search the approvals grid for the current public feedback-lane recipient', async ({ page }) => {
+    const fixture = publicFeedbackFixture(page);
+    // The approvals grid renders the request/requester columns from workflow context
+    // (searchable:false), so a server-side search can't match the recipient name. The
+    // approver may hold many pending approvals, so narrow the grid via the searchable
+    // workflow-name column, then locate the specific feedback row by its rendered title.
+    const expectedTitle = `Feedback: ${fixture.recipient}`;
+    const searchResult = await searchCurrentGrid(page, 'Award Recommendation Feedback Request');
+    // Distinguish a genuine server-side miss (approval never created / not eligible /
+    // not visible to this approver) from a client-side render/race: inspect the actual
+    // grid-data fragment the server returned for this search. A timeout below with a
+    // populated server body means a DOM race; an absent title here is a real bug.
+    if (searchResult.response) {
+        if (searchResult.body && !searchResult.body.includes(expectedTitle)) {
+            throw new Error(
+                `approvals grid-data response did not include "${expectedTitle}" `
+                + 'for the feedback approver — the feedback workflow_approval was not '
+                + 'created/visible server-side (not a client race).',
+            );
+        }
+    }
+    const row = page.locator('table tbody tr')
+        .filter({ hasText: expectedTitle })
+        .first();
+    await expect(row).toBeVisible({ timeout: 30000 });
+});
+
+Then('I should see one recommendation feedback request for the current public feedback-lane recommendation from {string}', async ({ page }, requesterName) => {
+    const fixture = publicFeedbackFixture(page);
+    const row = page.locator('table tbody tr')
+        .filter({ hasText: `Feedback: ${fixture.recipient}` })
+        .filter({ hasText: requesterName })
+        .first();
+    await expect(row).toBeVisible({ timeout: 30000 });
+});
+
+When('I send the current recommendation feedback response', async ({ page }) => {
+    const fixture = publicFeedbackFixture(page);
+    const row = page.locator('table tbody tr')
+        .filter({ hasText: `Feedback: ${fixture.recipient}` })
+        .first();
+    await expect(row).toBeVisible({ timeout: 30000 });
+
+    const responseButton = row.getByRole('button', { name: /Send Feedback|Respond/ }).first();
+    await responseButton.click();
+
+    const modal = page.locator('#approvalResponseModal');
+    await expect(modal).toBeVisible({ timeout: 10000 });
+    await modal.locator('#approvalComment').fill(fixture.feedbackComment);
+    await expect(modal.locator('button[type="submit"]')).toBeEnabled({ timeout: 15000 });
+    await modal.locator('button[type="submit"]').click();
+    await expect(modal).toBeHidden({ timeout: 15000 });
+    await page.waitForLoadState('networkidle');
+});
+
+Then('the recommendation notes tab should show the current feedback response', async ({ page }) => {
+    const fixture = publicFeedbackFixture(page);
+    await page.getByRole('tab', { name: /^Notes/ }).click();
+    await expect(page.locator('#nav-notes')).toContainText(fixture.feedbackComment, { timeout: 15000 });
+});
+
+Then('there should be no recommendation feedback request email to {string}', async ({ page }, recipientEmail) => {
+    const query = `to:${recipientEmail} subject:"Award Recommendation Feedback Request"`;
+    flushWorkflowsAndQueue();
+    await waitForQueueSettled();
+    expect(await waitForStableMailpitSearchTotal(page.request, query)).toBe(0);
 });
 
 // ── Award Bestowals ─────────────────────────────────────────────────
@@ -890,12 +1237,20 @@ Then('the bestowal handoff recommendation row should contain {string}', async ({
     await expect(page.locator(`table tbody tr[data-id="${fixture.recommendationId}"]`)).toContainText(text);
 });
 
-Then('the bestowals grid should load successfully', async ({ page }) => {
+const waitForBestowalsGrid = async (page) => {
     await page.waitForSelector('turbo-frame#bestowals-grid', { state: 'attached', timeout: 30000 });
     await expect(page.locator('body')).not.toContainText('Database Error');
     await expect(page.locator('body')).not.toContainText('TypeError');
     await expect(page.locator('body')).not.toContainText('Content missing');
     await page.waitForSelector('turbo-frame#bestowals-grid table.table tbody tr', { state: 'visible', timeout: 30000 });
+};
+
+Then('the bestowals grid should load successfully', async ({ page }) => {
+    await waitForBestowalsGrid(page);
+});
+
+When('the bestowals grid should load successfully', async ({ page }) => {
+    await waitForBestowalsGrid(page);
 });
 
 Then('the handoff recommendation should have a linked bestowal', async ({ page }) => {
@@ -961,8 +1316,10 @@ Then('the bestowal detail page should show {string} in the source row', async ({
 });
 
 When('I cancel the open bestowal from the detail page', async ({ page }) => {
-    page.once('dialog', (dialog) => dialog.accept());
     await page.getByRole('link', { name: 'Cancel Bestowal' }).click();
+    const confirmDialog = page.getByRole('dialog', { name: 'Confirm action' });
+    await expect(confirmDialog).toBeVisible({ timeout: 10000 });
+    await confirmDialog.getByRole('button', { name: 'Confirm' }).click();
     await page.waitForLoadState('networkidle');
 });
 
@@ -1194,6 +1551,10 @@ Then('the bestowal states grid should load successfully', async ({ page }) => {
     await waitForConfigGrid(page, 'bestowal-states-grid');
 });
 
+When('the bestowal states grid should load successfully', async ({ page }) => {
+    await waitForConfigGrid(page, 'bestowal-states-grid');
+});
+
 When('I open the bestowal state named {string} from the grid', async ({ page }, stateName) => {
     const row = page.locator('turbo-frame#bestowal-states-grid table.table tbody tr', {
         hasText: stateName,
@@ -1220,6 +1581,26 @@ When('I navigate to the bestowal state view for {string}', async ({ page }, stat
 });
 
 When('I add a visible field rule for {string} on the current bestowal state', async ({ page }, fieldTarget) => {
+    runPhpJson(`
+require 'vendor/autoload.php';
+require 'config/bootstrap.php';
+$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$states = \\Cake\\ORM\\TableRegistry::getTableLocator()->get('Awards.BestowalStates');
+$rules = \\Cake\\ORM\\TableRegistry::getTableLocator()->get('Awards.BestowalStateFieldRules');
+$state = $states->find()
+    ->select(['id', 'name'])
+    ->where(['name' => $input['stateName']])
+    ->firstOrFail();
+$deleted = $rules->deleteAll([
+    'state_id' => (int)$state->id,
+    'field_target' => $input['fieldTarget'],
+    'rule_type' => 'Visible',
+]);
+echo json_encode(['deleted' => $deleted], JSON_THROW_ON_ERROR);
+`, {
+        stateName: page.__bestowalWorkflowStateName,
+        fieldTarget,
+    });
     await page.locator('#nav-field-rules-tab').click();
     await page.locator('[data-bs-target="#addFieldRuleModal"]').click();
     const modal = page.locator('#addFieldRuleModal');
@@ -1245,7 +1626,7 @@ When('I submit the open recommendation quick edit with a turbo stream response',
     await expect(form).toBeVisible({ timeout: 15000 });
 
     await waitForTurboStreamResponse(page, async () => {
-        await form.locator('button[type="submit"]').click();
+        await modal.locator('button[type="submit"][form="recommendation_form"]').click();
     });
 
     await expect(modal).toBeHidden({ timeout: 15000 });

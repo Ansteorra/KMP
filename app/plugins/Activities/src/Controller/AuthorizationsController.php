@@ -349,6 +349,7 @@ class AuthorizationsController extends AppController
             'member_id' => $id,
         ]);
         $this->set('data', $result['data']);
+        $this->set('columns', $result['columnsMetadata']);
         $this->set('customElement', 'Activities.member_authorizations_table');
         $this->set('customElementOptions', ['member_id' => $id]);
 

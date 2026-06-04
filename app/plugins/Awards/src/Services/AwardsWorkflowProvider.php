@@ -730,6 +730,24 @@ class AwardsWorkflowProvider
                 'serviceMethod' => 'recordAdHocBestowal',
                 'isAsync' => false,
             ],
+            [
+                'action' => 'Awards.CreateFeedbackApproval',
+                'label' => 'Create Feedback Approval',
+                'description' => 'Create a workflow approval for a recommendation feedback recipient and link it back to the recipient row',
+                'inputSchema' => [
+                    'recipientId' => ['type' => 'integer', 'label' => 'Recipient Member ID', 'required' => true],
+                    'feedbackRequestRecipientId' => ['type' => 'integer', 'label' => 'Feedback Request Recipient Row ID', 'required' => true],
+                    'deadline' => ['type' => 'string', 'label' => 'Response Deadline (ATOM)'],
+                    'nodeId' => ['type' => 'string', 'label' => 'Action Node ID'],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Creation Successful'],
+                    'approvalId' => ['type' => 'integer', 'label' => 'Workflow Approval ID'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'createFeedbackApproval',
+                'isAsync' => false,
+            ],
         ]);
     }
 

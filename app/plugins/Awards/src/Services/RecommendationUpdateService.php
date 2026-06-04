@@ -19,26 +19,22 @@ class RecommendationUpdateService
     private RecommendationGroupingService $groupingService;
     private RecommendationStateLogService $stateLogService;
     private RecommendationBestowalStatePolicyService $statePolicyService;
-    private BestowalCreationService $bestowalCreationService;
 
     /**
      * @param \Awards\Services\RecommendationGroupingService|null $groupingService Optional grouping service.
      * @param \Awards\Services\RecommendationStateLogService|null $stateLogService Optional state-log service.
      * @param \Awards\Services\RecommendationBestowalStatePolicyService|null $statePolicyService Optional state policy.
-     * @param \Awards\Services\BestowalCreationService|null $bestowalCreationService Optional bestowal creator.
      */
     public function __construct(
         ?RecommendationGroupingService $groupingService = null,
         ?RecommendationStateLogService $stateLogService = null,
         ?RecommendationBestowalStatePolicyService $statePolicyService = null,
-        ?BestowalCreationService $bestowalCreationService = null,
     ) {
         $this->stateLogService = $stateLogService ?? new RecommendationStateLogService();
         $this->groupingService = $groupingService ?? new RecommendationGroupingService(
             stateLogService: $this->stateLogService,
         );
         $this->statePolicyService = $statePolicyService ?? new RecommendationBestowalStatePolicyService();
-        $this->bestowalCreationService = $bestowalCreationService ?? new BestowalCreationService();
     }
 
     /**
@@ -124,10 +120,30 @@ class RecommendationUpdateService
             ? $this->normalizeCheckboxValue($data['not_found'])
             : null;
         $beforeMemberId = $recommendation->member_id !== null ? (int)$recommendation->member_id : null;
+        if ($beforeMemberId === null && $recommendation->id !== null) {
+            $persistedRecommendation = $recommendationsTable->find()
+                ->select(['id', 'member_id'])
+                ->where(['id' => $recommendation->id])
+                ->first();
+            $beforeMemberId = $persistedRecommendation?->member_id !== null
+                ? (int)$persistedRecommendation->member_id
+                : null;
+        }
         $beforeState = (string)($recommendation->state ?? 'New');
         $beforeStatus = (string)($recommendation->status ?? $this->stateLogService->inferStatusForState($beforeState));
         $createdNote = null;
-        $handoffResult = null;
+        $memberIdInputProvided = false;
+        if (array_key_exists('member_id', $workingData)) {
+            $memberIdValue = $workingData['member_id'];
+            $memberIdInputProvided = (is_int($memberIdValue) && $memberIdValue > 0)
+                || (is_string($memberIdValue) && ctype_digit($memberIdValue) && (int)$memberIdValue > 0);
+        }
+        if ($memberIdInputProvided) {
+            $explicitNotFound = false;
+        }
+        if (!$memberIdInputProvided && $explicitNotFound !== true) {
+            unset($workingData['member_id']);
+        }
 
         unset($workingData['given'], $workingData['note'], $workingData['not_found']);
 
@@ -142,11 +158,10 @@ class RecommendationUpdateService
                     $beforeState,
                     $beforeStatus,
                     $explicitNotFound,
+                    $memberIdInputProvided,
                     $given,
                     $note,
                     $authorId,
-                    $handoffRequested,
-                    &$handoffResult,
                 ): int {
                     $recommendation = $recommendationsTable->patchEntity(
                         $recommendation,
@@ -155,6 +170,10 @@ class RecommendationUpdateService
                     );
 
                     $this->normalizeSpecialty($recommendation);
+
+                    if (!$memberIdInputProvided && $explicitNotFound !== true && $beforeMemberId !== null) {
+                        $recommendation->member_id = $beforeMemberId;
+                    }
 
                     if ($explicitNotFound !== null) {
                         $recommendation->not_found = $explicitNotFound;
@@ -215,10 +234,6 @@ class RecommendationUpdateService
                         $recommendationsTable->Notes->saveOrFail($createdNote);
                     }
 
-                    if ($handoffRequested) {
-                        $handoffResult = $this->createHandoffBestowal((int)$saved->id, $authorId);
-                    }
-
                     return (int)$saved->id;
                 },
             );
@@ -276,15 +291,14 @@ class RecommendationUpdateService
         $extraOutput = [
             'previousMemberId' => $beforeMemberId,
             'memberChanged' => $beforeMemberId !== $savedMemberId,
+            'previousState' => $beforeState,
+            'previousStatus' => $beforeStatus,
+            'stateChanged' => $beforeState !== (string)$savedRecommendation->state,
             'noteId' => $createdNote?->id,
             'noteSubject' => $createdNote?->subject,
             'noteBody' => $createdNote?->body,
             'notFound' => $explicitNotFound ?? false,
         ];
-        if ($handoffResult !== null) {
-            $extraOutput['bestowalId'] = $handoffResult['data']['bestowalId'] ?? null;
-            $extraOutput['bestowalRecommendationIds'] = $handoffResult['data']['recommendationIds'] ?? [];
-        }
         $output = $this->buildOutputData($recommendationsTable, $savedRecommendation, $extraOutput);
 
         return [
@@ -313,31 +327,4 @@ class RecommendationUpdateService
         return $state === '' ? null : $state;
     }
 
-    /**
-     * Create the bestowal for an edit-form handoff.
-     *
-     * @return array<string, mixed>
-     */
-    private function createHandoffBestowal(int $recommendationId, int $authorId): array
-    {
-        $result = $this->bestowalCreationService->createFromRecommendationInCallerTransaction(
-            $recommendationId,
-            $authorId,
-        );
-
-        if (!($result['success'] ?? false)) {
-            throw new RuntimeException((string)($result['error'] ?? 'Bestowal creation failed.'));
-        }
-
-        if ($result['skipped'] ?? false) {
-            $reason = $result['data']['reason'] ?? 'Bestowal creation was skipped.';
-            throw new RuntimeException((string)$reason);
-        }
-
-        if (empty($result['data']['bestowalId'])) {
-            throw new RuntimeException('Bestowal creation did not return a bestowal ID.');
-        }
-
-        return $result;
-    }
 }

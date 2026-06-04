@@ -2,19 +2,20 @@ const { createBdd } = require('playwright-bdd');
 const { expect } = require('@playwright/test');
 const { execFileSync } = require('node:child_process');
 const path = require('node:path');
+const { flushWorkflowsAndQueue, runPhpJson, waitForQueueSettled } = require('../../support/ui-helpers.cjs');
 
 const { Given, When, Then } = createBdd();
 
 const APP_ROOT = path.resolve(__dirname, '../../../..');
 const REPO_ROOT = path.resolve(APP_ROOT, '..');
-const VALID_CARD_PATH = path.resolve(REPO_ROOT, 'elli.png');
+const VALID_CARD_PATH = path.resolve(APP_ROOT, 'webroot/img/badge.png');
 const INVALID_CARD_PATH = path.resolve(REPO_ROOT, 'README.md');
 
 const SETUP_REGISTRATION_FIXTURE_PHP = String.raw`
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';
 
-$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 $locator = \Cake\ORM\TableRegistry::getTableLocator();
 $definitions = $locator->get('WorkflowDefinitions');
 $branches = $locator->get('Branches');
@@ -78,7 +79,7 @@ const INSPECT_REGISTRATION_FIXTURE_PHP = String.raw`
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';
 
-$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 $locator = \Cake\ORM\TableRegistry::getTableLocator();
 $members = $locator->get('Members');
 $workflowInstances = $locator->get('WorkflowInstances');
@@ -143,24 +144,12 @@ echo json_encode([
 
 const normalizeText = (value) => value.replace(/[·\u00B7\u00A0]/g, ' ').replace(/\s+/g, ' ').trim();
 
-const runPhpJson = (script, payload = {}) => {
-    const output = execFileSync(
-        'php',
-        ['-d', 'xdebug.mode=off', '-r', script],
-        {
-            cwd: APP_ROOT,
-            env: {
-                ...process.env,
-                FIXTURE_JSON: JSON.stringify(payload),
-            },
-            encoding: 'utf8',
-        },
-    ).trim();
-
-    return output === '' ? {} : JSON.parse(output);
-};
-
 const resetDevDatabase = () => {
+    const resetFlag = (process.env.PLAYWRIGHT_RESET_DB ?? '').toLowerCase();
+    if (resetFlag === '0' || resetFlag === 'false' || resetFlag === 'no') {
+        return;
+    }
+
     execFileSync(
         'bash',
         [path.join(REPO_ROOT, 'reset_dev_database.sh')],
@@ -170,29 +159,6 @@ const resetDevDatabase = () => {
             stdio: 'pipe',
         },
     );
-};
-
-const runQueueWorker = () => {
-    try {
-        execFileSync(
-            'bash',
-            [path.join(APP_ROOT, 'bin/cake'), 'queue', 'run', '-q'],
-            {
-                cwd: APP_ROOT,
-                env: process.env,
-                stdio: 'pipe',
-            },
-        );
-    } catch (error) {
-        const details = [error?.stdout, error?.stderr, error?.message]
-            .filter(Boolean)
-            .join('\n');
-        if (details.includes('Too many workers running')) {
-            return;
-        }
-
-        throw error;
-    }
 };
 
 const ensureFixture = (page) => {
@@ -358,7 +324,8 @@ Then('the registration should create the member in the expected state', async ({
 });
 
 When('I process the registration email queue', async () => {
-    runQueueWorker();
+    flushWorkflowsAndQueue();
+    await waitForQueueSettled();
 });
 
 Then('the registration emails should match the expected workflow notifications', async ({ page }) => {

@@ -12,7 +12,6 @@ use App\Services\GatheringScheduleService;
 use App\Services\ICalendarService;
 use Cake\Event\EventInterface;
 use Cake\Http\Exception\NotFoundException;
-use Cake\I18n\Date;
 use Cake\I18n\DateTime as CakeDateTime;
 use Cake\Routing\Router;
 use DateTime;
@@ -575,7 +574,9 @@ class GatheringsController extends AppController
             ->first();
 
         // Check if user can still attend (gathering hasn't ended)
-        $today = Date::now();
+        // Compare against start of today; Cake\I18n\Date is not a DateTimeInterface in
+        // Chronos 3, so DateTime (end_date) vs Date comparisons are unreliable.
+        $today = CakeDateTime::now()->startOfDay();
         $canAttend = $gathering->end_date >= $today;
 
         $this->set(compact('gathering', 'userAttendance', 'canAttend'));

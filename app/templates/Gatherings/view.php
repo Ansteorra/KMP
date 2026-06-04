@@ -22,9 +22,12 @@ echo $this->KMP->startBlock('pageTitle') ?>
 <?= $this->KMP->startBlock('recordActions') ?>
 <?php
 
-use Cake\I18n\Date;
+use Cake\I18n\DateTime;
 
-$today = Date::now();
+// Compare against the start of today so a gathering ending any time today is still
+// attendable. Note: $gathering->end_date is a Cake\I18n\DateTime, and Cake\I18n\Date
+// (Chronos 3) is not a DateTimeInterface, so DateTime vs Date comparisons are unreliable.
+$today = DateTime::now()->startOfDay();
 $canAttend = $gathering->end_date >= $today; // Can only register if gathering hasn't ended
 $isPastEvent = $gathering->end_date < $today; // Event has ended
 // Build public landing URL using dashed route format

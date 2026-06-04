@@ -1195,20 +1195,29 @@ trait DataverseGridTrait
         $currentId = null;
         $currentName = 'All';
 
-        if ($includeViewMetadata && $systemViews !== null) {
-            // System views mode - add system views first
-            $effectiveDefaultId = $preferredViewId ?? array_key_first($systemViews);
-
-            // Set current view info (could be system view OR user view)
+        // Resolve the active view's id/name independent of whether the full view
+        // catalog is serialized. Table-frame (minimal metadata) responses still
+        // apply the selected view to the underlying query, so the state must
+        // report which view is active. Otherwise the toolbar loses its
+        // selected-tab indication after a view switch (a11y: WCAG 4.1.2 — the
+        // tab's selected state is no longer conveyed). The available-views
+        // catalog stays gated on $includeViewMetadata below (perf optimization).
+        if ($systemViews !== null) {
             if ($currentView) {
-                // User view is active
                 $currentId = $currentView->id;
                 $currentName = $currentView->name;
             } elseif ($selectedSystemView) {
-                // System view is active
                 $currentId = $selectedSystemView['id'];
                 $currentName = $selectedSystemView['name'];
             }
+        } elseif ($currentView) {
+            $currentId = $currentView->id;
+            $currentName = $currentView->name;
+        }
+
+        if ($includeViewMetadata && $systemViews !== null) {
+            // System views mode - add system views first
+            $effectiveDefaultId = $preferredViewId ?? array_key_first($systemViews);
 
             foreach ($systemViews as $view) {
                 $isPreferred = $preferredViewId !== null && $view['id'] === $preferredViewId;
@@ -1256,11 +1265,6 @@ trait DataverseGridTrait
                     'isSystemDefault' => $view->isSystemDefault(),
                     'canManage' => $currentMember instanceof Member && $view->member_id === $currentMember->id,
                 ];
-            }
-
-            if ($currentView) {
-                $currentId = $currentView->id;
-                $currentName = $currentView->name;
             }
         }
 

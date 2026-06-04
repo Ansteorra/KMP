@@ -82,9 +82,9 @@ class InitWorkflowDefinitionsSeed extends BaseSeed
             [
                 'name' => 'Award Recommendation State Changed',
                 'slug' => 'awards-recommendation-state-changed',
-                'description' => 'Transitions a single recommendation using the shared transition semantics.',
+                'description' => 'Runs state-change side effects after a recommendation transitions.',
                 'trigger_type' => 'event',
-                'trigger_config' => ['event' => 'Awards.RecommendationTransitionRequested'],
+                'trigger_config' => ['event' => 'Awards.RecommendationStateChanged'],
                 'entity_type' => 'Awards',
                 'json_file' => 'awards-recommendation-state-changed.json',
                 'execution_mode' => 'ephemeral',

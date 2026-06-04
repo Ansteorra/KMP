@@ -43,12 +43,53 @@ Playwright scenarios should prefer the canonical seed accounts documented in `/R
 | `composer mutate` | Run Infection against policies and the Awards recommendation state machine. |
 | `composer mutate:policy` | Run Infection only for `src/Policy`. |
 | `npm run test:ui:smoke` | Generate Playwright-BDD tests, reset the dev database, and run the fast CI smoke subset (`UserLogin` + `workflow-admin`). |
+| `npm run test:ui:journey` | Generate Playwright-BDD tests, reset the dev database, and run the curated local whole-app journey across tenancy, member registration, activities authorization, officers/warrants, gatherings, and awards feedback. |
 | `npm run test:ui` / `npm run test:ui:uat` | Generate Playwright-BDD tests, reset the dev database, and execute the full browser regression set used for UAT/nightly verification. |
 | `bash bin/verify.sh` | Run the standard local verification bundle: PHPUnit, Jest, Vite build, PHPCS, and PHPStan. |
 | `bash bin/verify.sh --with-coverage` | Run the standard verification bundle, then add focused PHP + JS coverage reports. |
 | `bash bin/verify.sh --with-mutation` | Run the standard verification bundle, then add focused PHP + JS mutation analysis. |
 
 > `bin/verify.sh` does **not** currently execute Playwright. If the testing contract for a change requires E2E coverage, run `npm run test:ui` in addition to `bash bin/verify.sh`.
+
+### Playwright lanes and local workflow
+
+Playwright-BDD specs are generated before every lane. The lane runner performs one database reset at the start unless `PLAYWRIGHT_RESET_DB=0` is set; after that, scenario fixtures must be additive and uniquely named.
+
+| Lane | Command | Use |
+| --- | --- | --- |
+| Smoke | `npm run test:ui:smoke` | Fast login + workflow-admin browser gate. |
+| Journey | `npm run test:ui:journey` | Trusted one-click local app journey. Current reset-backed baseline: 27 tests passing in about 8.5 minutes. |
+| UAT/full | `npm run test:ui` or `npm run test:ui:uat` | Full generated Playwright-BDD regression set for UAT/nightly evidence. |
+
+Run only **one Playwright lane at a time** against the shared local Docker stack. The app, DB, worker, scheduler, and Mailpit containers are shared resources, so concurrent lanes can race database resets, queue delivery, scheduled workflows, and mailbox assertions.
+
+For targeted reruns after a lane reset, use:
+
+```bash
+PLAYWRIGHT_RESET_DB=0 npx playwright test path/to/generated.spec.js --reporter=line
+```
+
+Do not add a second reset inside a scenario. If a feature needs setup data, create it through `runPhpJson()` with fixture-unique tokens and STDIN JSON payloads.
+
+### Workflow, queue, and Mailpit assertions
+
+Services and controllers must dispatch triggers; workflows react to those triggers and enqueue side effects such as email. E2E tests should prove that chain without directly invoking workflow actions from services.
+
+Use these shared helpers from `tests/ui/support/ui-helpers.cjs`:
+
+- `runPhpJson()` for Docker-aware fixture setup. PHP snippets must read payloads with `stream_get_contents(STDIN)`.
+- `flushWorkflowsAndQueue()` before workflow/email assertions. It runs scheduled workflows only when called with `{ forceScheduler: true }`.
+- `waitForQueueSettled()` after flushing so due queue jobs have drained before assertions.
+- `waitForStableMailpitSearchTotal()` for negative email assertions; it requires the Mailpit count to remain stable across a quiet window to avoid racing just-delivered mail.
+- `assertNoQueuedEmailFor()` when proving a specific fixture token has no due or delayed queued mail.
+
+Prefer Mailpit API assertions scoped by recipient, subject, and fixture token instead of scraping the Mailpit UI. UI checks are acceptable for email rendering assertions, but mailbox presence/absence should use API-backed helpers.
+
+The background scheduler is paused during reset and restarted afterward by the reset script. During tests, avoid broad unscoped scheduled-workflow assertions: `workflow_scheduler --force` scans global state, so assertions must use fixture-scoped Mailpit and queue tokens.
+
+### Multi-tenant browser coverage
+
+Tenant E2E coverage uses host-bound browser contexts (`kmp.localhost` and `kmp2.localhost`) through `tests/ui/support/tenant-context.cjs`. Tenant assertions should verify both positive visibility in the active tenant and negative isolation for records that belong only to another tenant.
 
 ## 🧬 Mutation and Coverage Workflow
 
@@ -150,7 +191,7 @@ The same declared contract scales through each promotion step:
 
 | Stage | Required evidence |
 | --- | --- |
-| Local before commit | Run all declared layers for the change. For normal code changes, finish with `bash bin/verify.sh`. If E2E is declared, also run `npm run test:ui`. |
+| Local before commit | Run all declared layers for the change. For normal code changes, finish with `bash bin/verify.sh`. If E2E is declared, run the narrowest relevant Playwright lane or spec; use `npm run test:ui:journey` for whole-app workflow confidence and `npm run test:ui` for full UAT evidence. |
 | Pull request gate | Keep the gate fast, but do not drop declared coverage. The `Quality Gates` workflow now runs PHPUnit, Jest, and the Playwright smoke lane. Changes that declare broader E2E coverage should still run the relevant local/full Playwright lane before review. |
 | UAT / release candidate | Run the full regression set for declared layers, including `bash bin/verify.sh` and `npm run test:ui:uat` on the exact candidate ref. The nightly/UAT verification workflow is the CI lane for that evidence. UAT signoff must reference the same contract declared during implementation. |
 | Promotion from UAT to production | Promote only the same verified SHA/config/schema combination that passed UAT. No open failures, waivers, or untested critical-path changes are allowed. Re-run post-deploy smoke checks for declared `P0` paths. |

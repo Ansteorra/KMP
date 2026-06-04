@@ -15,6 +15,7 @@ use App\Services\WorkflowEngine\WorkflowContextAwareTrait;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\ORM\TableRegistry;
+use RuntimeException;
 
 /**
  * Workflow action implementations for warrant operations.
@@ -292,11 +293,20 @@ class WarrantWorkflowActions
 
             $result = $this->warrantManager->decline($rosterId, $rejecterId, $reason);
 
-            return ['declined' => $result->success];
+            if (!$result->success) {
+                // The decline-roster node has a single output port, so the engine would
+                // advance to end-declined regardless of this return value. Throw so the
+                // engine marks the instance failed instead of silently completing.
+                throw new RuntimeException(
+                    'Failed to decline warrant roster ' . $rosterId . ': ' . ($result->reason ?? 'unknown error'),
+                );
+            }
+
+            return ['declined' => true];
         } catch (\Throwable $e) {
             Log::error('Workflow DeclineRoster failed: ' . $e->getMessage());
 
-            return ['declined' => false];
+            throw $e;
         }
     }
 

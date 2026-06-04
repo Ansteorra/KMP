@@ -11,6 +11,7 @@
  * @var array $gridState Grid state object
  * @var string $tableFrameId Table frame ID
  * @var int $member_id Member ID for action buttons
+ * @var array $columns Full column metadata catalog (table-frame reloads omit gridState columns.all)
  */
 
 $currentViewId = $gridState['view']['currentId'] ?? 'current';
@@ -18,7 +19,8 @@ $isCurrentView = $currentViewId === 'current';
 $isPendingView = $currentViewId === 'pending';
 $isPreviousView = $currentViewId === 'previous';
 $visibleColumns = $gridState['columns']['visible'] ?? [];
-$allColumns = $gridState['columns']['all'] ?? [];
+// Table-frame responses omit columns.all from gridState; fall back to the $columns view var.
+$allColumns = $columns ?? $gridState['columns']['all'] ?? [];
 $hasActions = $isCurrentView || $isPendingView;
 ?>
 
