@@ -153,28 +153,23 @@ class BestowalRecommendationSyncService
     public function resolveSyncTargetStateName(string $bestowalState): ?string
     {
         $stateRow = $this->bestowalStatesTable->find()
-            ->select(['id', 'sync_recommendation_state_id'])
-            ->contain([
-                'SyncRecommendationState' => function ($query) {
-                    return $query->select(['id', 'name']);
-                },
-            ])
+            ->select(['id', 'sync_recommendation_state'])
             ->where(['BestowalStates.name' => $bestowalState])
             ->first();
 
-        if ($stateRow === null || $stateRow->sync_recommendation_state_id === null) {
+        if ($stateRow === null || $stateRow->sync_recommendation_state === null) {
             return null;
         }
 
-        $syncState = $stateRow->sync_recommendation_state ?? null;
-        if ($syncState === null || empty($syncState->name)) {
+        $syncState = $stateRow->sync_recommendation_state;
+        if ($syncState === null || $syncState === '') {
             throw new RuntimeException(
                 'Configured sync recommendation state could not be resolved for bestowal state '
                 . $bestowalState . '.',
             );
         }
 
-        return (string)$syncState->name;
+        return (string)$syncState;
     }
 
     /**
@@ -185,25 +180,20 @@ class BestowalRecommendationSyncService
     public function resolveUnwindTargetStateName(): ?string
     {
         $stateRow = $this->bestowalStatesTable->find()
-            ->select(['id', 'unwind_recommendation_state_id'])
-            ->contain([
-                'UnwindRecommendationState' => function ($query) {
-                    return $query->select(['id', 'name']);
-                },
-            ])
+            ->select(['id', 'unwind_recommendation_state'])
             ->where(['BestowalStates.name' => 'Cancelled'])
             ->first();
 
-        if ($stateRow === null || $stateRow->unwind_recommendation_state_id === null) {
+        if ($stateRow === null || $stateRow->unwind_recommendation_state === null) {
             return null;
         }
 
-        $unwindState = $stateRow->unwind_recommendation_state ?? null;
-        if ($unwindState === null || empty($unwindState->name)) {
+        $unwindState = $stateRow->unwind_recommendation_state;
+        if ($unwindState === null || $unwindState === '') {
             throw new RuntimeException('Configured unwind recommendation state could not be resolved.');
         }
 
-        return (string)$unwindState->name;
+        return (string)$unwindState;
     }
 
     /**

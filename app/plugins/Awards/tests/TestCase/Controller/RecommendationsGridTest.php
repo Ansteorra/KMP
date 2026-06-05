@@ -3,8 +3,11 @@ declare(strict_types=1);
 
 namespace Awards\Test\TestCase\Controller;
 
+use App\Model\Entity\WorkflowInstance;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Model\Entity\Recommendation;
+use Awards\Model\Entity\RecommendationApprovalRun;
+use DateTimeImmutable;
 
 class RecommendationsGridTest extends HttpIntegrationTestCase
 {
@@ -75,6 +78,47 @@ class RecommendationsGridTest extends HttpIntegrationTestCase
         $this->assertResponseContains('https://op.example.test/people/id/424242');
     }
 
+    public function testInApprovalSystemViewUsesApprovalQueueState(): void
+    {
+        $award = $this->getTableLocator()->get('Awards.Awards')
+            ->find()
+            ->select(['id'])
+            ->firstOrFail();
+
+        $queuedReason = 'approval-queue-filter-match-' . uniqid();
+        $closedRunReason = 'approval-queue-filter-closed-' . uniqid();
+        $noQueueReason = 'approval-queue-filter-none-' . uniqid();
+
+        $queuedRecommendation = $this->createRecommendation($award->id, $queuedReason);
+        $closedRunRecommendation = $this->createRecommendation($award->id, $closedRunReason);
+        $this->createRecommendation($award->id, $noQueueReason);
+
+        $this->createApprovalRun(
+            (int)$queuedRecommendation->id,
+            RecommendationApprovalRun::STATUS_IN_PROGRESS,
+            'Crown Review',
+        );
+        $this->createApprovalRun(
+            (int)$closedRunRecommendation->id,
+            RecommendationApprovalRun::STATUS_APPROVED,
+            'Approved',
+        );
+
+        $url = '/awards/recommendations/grid-data?' . http_build_query([
+            'view_id' => 'sys-recs-in-approval',
+            'search' => 'approval-queue-filter-',
+        ]);
+
+        $this->get($url);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('In Approval');
+        $this->assertResponseContains('Crown Review');
+        $this->assertResponseContains($queuedReason);
+        $this->assertResponseNotContains($closedRunReason);
+        $this->assertResponseNotContains($noQueueReason);
+    }
+
     /**
      * @return array{0: \Awards\Model\Entity\Award, 1: \Awards\Model\Entity\Award}
      */
@@ -143,5 +187,60 @@ class RecommendationsGridTest extends HttpIntegrationTestCase
         $this->assertNotFalse($saved, 'Failed to save test recommendation');
 
         return $saved;
+    }
+
+    private function createApprovalRun(int $recommendationId, string $status, string $stepLabel): void
+    {
+        $workflowDefinitions = $this->getTableLocator()->get('WorkflowDefinitions');
+        $workflowDefinition = $workflowDefinitions->newEntity([
+            'name' => 'Recommendation Approval Queue Test ' . uniqid(),
+            'slug' => 'recommendation-approval-queue-test-' . uniqid(),
+            'trigger_type' => 'manual',
+            'entity_type' => 'Awards.Recommendations',
+            'is_active' => true,
+            'execution_mode' => 'durable',
+        ]);
+        $workflowDefinition = $workflowDefinitions->saveOrFail($workflowDefinition);
+
+        $workflowVersions = $this->getTableLocator()->get('WorkflowVersions');
+        $workflowVersion = $workflowVersions->newEntity([
+            'workflow_definition_id' => $workflowDefinition->id,
+            'version_number' => 1,
+            'definition' => ['nodes' => [], 'connections' => []],
+            'status' => 'published',
+            'published_by' => self::ADMIN_MEMBER_ID,
+        ]);
+        $workflowVersion = $workflowVersions->saveOrFail($workflowVersion);
+
+        $workflowInstances = $this->getTableLocator()->get('WorkflowInstances');
+        $workflowInstance = $workflowInstances->newEntity([
+            'workflow_definition_id' => $workflowDefinition->id,
+            'workflow_version_id' => $workflowVersion->id,
+            'entity_type' => 'Awards.Recommendations',
+            'entity_id' => $recommendationId,
+            'status' => WorkflowInstance::STATUS_WAITING,
+            'started_by' => self::ADMIN_MEMBER_ID,
+        ]);
+        $workflowInstance = $workflowInstances->saveOrFail($workflowInstance);
+
+        $approvalProcesses = $this->getTableLocator()->get('Awards.ApprovalProcesses');
+        $approvalProcess = $approvalProcesses->newEntity([
+            'name' => 'Recommendation Approval Queue Test ' . uniqid(),
+            'description' => 'Test approval queue process',
+            'is_active' => true,
+        ]);
+        $approvalProcess = $approvalProcesses->saveOrFail($approvalProcess);
+
+        $approvalRuns = $this->getTableLocator()->get('Awards.RecommendationApprovalRuns');
+        $approvalRun = $approvalRuns->newEntity([
+            'recommendation_id' => $recommendationId,
+            'approval_process_id' => $approvalProcess->id,
+            'workflow_instance_id' => $workflowInstance->id,
+            'status' => $status,
+            'current_step_key' => 'crown_review',
+            'current_step_label' => $stepLabel,
+            'started' => new DateTimeImmutable(),
+        ]);
+        $approvalRuns->saveOrFail($approvalRun);
     }
 }

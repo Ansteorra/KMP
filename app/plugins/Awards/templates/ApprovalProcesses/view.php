@@ -30,22 +30,22 @@ $this->KMP->endBlock();
 echo $this->KMP->startBlock('pageTitle') ?>
 <?= h($approvalProcess->name) ?>
 <?php if ($approvalProcess->is_active) : ?>
-    <span class="badge bg-success"><?= __('Active') ?></span>
+<span class="badge bg-success"><?= __('Active') ?></span>
 <?php else : ?>
-    <span class="badge bg-secondary"><?= __('Inactive') ?></span>
+<span class="badge bg-secondary"><?= __('Inactive') ?></span>
 <?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 
 <?= $this->KMP->startBlock('recordActions') ?>
 <?php if ($user->checkCan('edit', $approvalProcess)) : ?>
-    <?= $this->Html->link(
+<?= $this->Html->link(
         __('Edit'),
         ['action' => 'edit', $approvalProcess->id],
         ['class' => 'btn btn-primary btn-sm'],
     ) ?>
 <?php endif; ?>
 <?php if (empty($approvalProcess->awards) && $user->checkCan('delete', $approvalProcess)) : ?>
-    <?= $this->Form->postLink(
+<?= $this->Form->postLink(
         __('Delete'),
         ['action' => 'delete', $approvalProcess->id],
         [
@@ -61,9 +61,9 @@ echo $this->KMP->startBlock('pageTitle') ?>
     <th scope="row"><?= __('Description') ?></th>
     <td>
         <?php if ($approvalProcess->description) : ?>
-            <?= $this->Text->autoParagraph(h($approvalProcess->description)) ?>
+        <?= $this->Text->autoParagraph(h($approvalProcess->description)) ?>
         <?php else : ?>
-            <span class="text-muted"><?= __('No description') ?></span>
+        <span class="text-muted"><?= __('No description') ?></span>
         <?php endif; ?>
     </td>
 </tr>
@@ -79,16 +79,13 @@ echo $this->KMP->startBlock('pageTitle') ?>
 
 <?php $this->KMP->startBlock('tabButtons') ?>
 <button class="nav-link active" id="nav-steps-tab" data-bs-toggle="tab" data-bs-target="#nav-steps" type="button"
-    role="tab" aria-controls="nav-steps" aria-selected="true" data-detail-tabs-target="tabBtn"
-    data-tab-order="10" style="order: 10;">
+    role="tab" aria-controls="nav-steps" aria-selected="true" data-detail-tabs-target="tabBtn" data-tab-order="10"
+    style="order: 10;">
     <?= __('Steps') ?>
-    <span class="badge bg-secondary">
-        <?= count($approvalProcess->approval_process_steps ?? []) ?>
-    </span>
 </button>
 <button class="nav-link" id="nav-preview-tab" data-bs-toggle="tab" data-bs-target="#nav-preview" type="button"
-    role="tab" aria-controls="nav-preview" aria-selected="false" data-detail-tabs-target="tabBtn"
-    data-tab-order="20" style="order: 20;">
+    role="tab" aria-controls="nav-preview" aria-selected="false" data-detail-tabs-target="tabBtn" data-tab-order="20"
+    style="order: 20;">
     <?= __('Preview') ?>
 </button>
 <?php $this->KMP->endBlock() ?>
@@ -103,15 +100,15 @@ echo $this->KMP->startBlock('pageTitle') ?>
                 <?=
                 __(
                     'Configure each queue in order. Role, permission, and office approvers are resolved ' .
-                    'within the selected branch scope.',
+                        'within the selected branch scope.',
                 )
                 ?>
             </small>
         </div>
         <?php if ($user->checkCan('edit', $approvalProcess)) : ?>
-            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addStepModal">
-                <i class="bi bi-plus-circle" aria-hidden="true"></i> <?= __('Add Step') ?>
-            </button>
+        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addStepModal">
+            <i class="bi bi-plus-circle" aria-hidden="true"></i> <?= __('Add Step') ?>
+        </button>
         <?php endif; ?>
     </div>
 
@@ -140,66 +137,65 @@ echo $this->KMP->startBlock('pageTitle') ?>
     };
     ?>
     <?php if (!empty($approvalProcess->approval_process_steps)) : ?>
-        <div class="table-responsive">
-            <table class="table table-striped table-sm">
-                <thead>
-                    <tr>
-                        <th scope="col"><?= __('Order') ?></th>
-                        <th scope="col"><?= __('Label') ?></th>
-                        <th scope="col"><?= __('Approver') ?></th>
-                        <th scope="col"><?= __('Branch Scope') ?></th>
-                        <th scope="col"><?= __('Threshold') ?></th>
-                        <th scope="col" class="actions text-end"><?= __('Actions') ?></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($approvalProcess->approval_process_steps as $step) : ?>
-                    <tr>
-                        <td><?= h($step->sequence) ?></td>
-                        <td>
-                            <strong><?= h($step->label) ?></strong><br>
-                            <small class="text-muted"><?= h($step->step_key) ?></small>
-                        </td>
-                        <td><?= h($approverSourceLabel($step)) ?></td>
-                        <td>
-                            <?= h($branchModeOptions[$step->branch_mode] ?? $step->branch_mode) ?>
-                            <?php if ($step->branch_type) : ?>
-                                <br><small class="text-muted"><?= h($step->branch_type) ?></small>
-                            <?php endif; ?>
-                        </td>
-                        <td><?= h($step->threshold_summary) ?></td>
-                        <td class="actions text-end text-nowrap">
-                            <?php if ($user->checkCan('edit', $approvalProcess)) : ?>
-                                <button type="button" class="btn btn-sm btn-secondary bi bi-pencil-fill"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#editStepModal-<?= $step->id ?>"
-                                    aria-label="<?= __('Edit {0}', $step->label) ?>"></button>
-                                <?= $this->Form->postLink(
-                                    '',
-                                    ['action' => 'delete-step', $step->id],
-                                    [
-                                        'confirm' => __('Remove approval step "{0}"?', $step->label),
-                                        'title' => __('Remove'),
-                                        'aria-label' => __('Remove {0}', $step->label),
-                                        'class' => 'btn-sm btn btn-outline-danger bi bi-trash-fill',
-                                    ],
-                                ) ?>
-                            <?php endif; ?>
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
+    <div class="table-responsive">
+        <table class="table table-striped table-sm">
+            <thead>
+                <tr>
+                    <th scope="col"><?= __('Order') ?></th>
+                    <th scope="col"><?= __('Label') ?></th>
+                    <th scope="col"><?= __('Approver') ?></th>
+                    <th scope="col"><?= __('Branch Scope') ?></th>
+                    <th scope="col"><?= __('Threshold') ?></th>
+                    <th scope="col" class="actions text-end"><?= __('Actions') ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($approvalProcess->approval_process_steps as $step) : ?>
+                <tr>
+                    <td><?= h($step->sequence) ?></td>
+                    <td>
+                        <strong><?= h($step->label) ?></strong><br>
+                        <small class="text-muted"><?= h($step->step_key) ?></small>
+                    </td>
+                    <td><?= h($approverSourceLabel($step)) ?></td>
+                    <td>
+                        <?= h($branchModeOptions[$step->branch_mode] ?? $step->branch_mode) ?>
+                        <?php if ($step->branch_type) : ?>
+                        <br><small class="text-muted"><?= h($step->branch_type) ?></small>
+                        <?php endif; ?>
+                    </td>
+                    <td><?= h($step->threshold_summary) ?></td>
+                    <td class="actions text-end text-nowrap">
+                        <?php if ($user->checkCan('edit', $approvalProcess)) : ?>
+                        <button type="button" class="btn btn-sm btn-secondary bi bi-pencil-fill" data-bs-toggle="modal"
+                            data-bs-target="#editStepModal-<?= $step->id ?>"
+                            aria-label="<?= __('Edit {0}', $step->label) ?>"></button>
+                        <?= $this->Form->postLink(
+                                        '',
+                                        ['action' => 'delete-step', $step->id],
+                                        [
+                                            'confirm' => __('Remove approval step "{0}"?', $step->label),
+                                            'title' => __('Remove'),
+                                            'aria-label' => __('Remove {0}', $step->label),
+                                            'class' => 'btn-sm btn btn-outline-danger bi bi-trash-fill',
+                                        ],
+                                    ) ?>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
     <?php else : ?>
-        <div class="alert alert-warning" role="status">
-            <?=
+    <div class="alert alert-warning" role="status">
+        <?=
             __(
                 'No approval steps are configured yet. Add at least one step before assigning this process ' .
-                'to awards.',
+                    'to awards.',
             )
             ?>
-        </div>
+    </div>
     <?php endif; ?>
 </div>
 
@@ -217,7 +213,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
 
 <?php $this->KMP->startBlock('modals') ?>
 <?php if ($user->checkCan('edit', $approvalProcess)) : ?>
-    <?php
+<?php
     $renderStepFields = function ($step = null) use (
         $approverTypeOptions,
         $branchModeOptions,
@@ -289,7 +285,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
         echo '<p class="text-muted small mb-3">' .
             __(
                 'Choose the source matching the selected type. Hidden source controls are disabled so only ' .
-                'the active source is saved.',
+                    'the active source is saved.',
             ) .
             '</p>';
         echo '<div data-awards-approval-step-form-target="sourceGroup" data-approver-source-type="' .
@@ -372,8 +368,8 @@ echo $this->KMP->startBlock('pageTitle') ?>
         echo '<div id="' . h($fieldPrefix) . '-dynamic-resolver-help" class="form-text">' .
             __(
                 'Enter a registered workflow approver resolver key. Dynamic resolvers receive the recommendation, ' .
-                'award, process step, and resolved branch context; use this only for cases that cannot be ' .
-                'represented by role, permission, office, or member sources.',
+                    'award, process step, and resolved branch context; use this only for cases that cannot be ' .
+                    'represented by role, permission, office, or member sources.',
             ) .
             '</div>';
         echo '</div>';
@@ -428,37 +424,37 @@ echo $this->KMP->startBlock('pageTitle') ?>
         ]);
     };
     ?>
-    <?= $this->Form->create(null, ['url' => ['action' => 'add-step', $approvalProcess->id]]) ?>
-    <?= $this->Modal->create(__('Add Approval Step'), ['id' => 'addStepModal', 'close' => true]) ?>
-    <fieldset data-controller="awards-approval-step-form">
-        <?php $renderStepFields(); ?>
-    </fieldset>
-    <?= $this->Modal->end([
+<?= $this->Form->create(null, ['url' => ['action' => 'add-step', $approvalProcess->id]]) ?>
+<?= $this->Modal->create(__('Add Approval Step'), ['id' => 'addStepModal', 'close' => true]) ?>
+<fieldset data-controller="awards-approval-step-form">
+    <?php $renderStepFields(); ?>
+</fieldset>
+<?= $this->Modal->end([
         $this->Form->button(__('Add Step'), ['class' => 'btn btn-primary']),
         $this->Form->button(
             __('Close'),
             ['type' => 'button', 'class' => 'btn btn-secondary', 'data-bs-dismiss' => 'modal'],
         ),
     ]) ?>
-    <?= $this->Form->end() ?>
+<?= $this->Form->end() ?>
 
-    <?php foreach ($approvalProcess->approval_process_steps ?? [] as $step) : ?>
-        <?= $this->Form->create($step, ['url' => ['action' => 'edit-step', $step->id]]) ?>
-        <?= $this->Modal->create(
+<?php foreach ($approvalProcess->approval_process_steps ?? [] as $step) : ?>
+<?= $this->Form->create($step, ['url' => ['action' => 'edit-step', $step->id]]) ?>
+<?= $this->Modal->create(
             __('Edit Approval Step: {0}', $step->label),
             ['id' => 'editStepModal-' . $step->id, 'close' => true],
         ) ?>
-        <fieldset data-controller="awards-approval-step-form">
-            <?php $renderStepFields($step); ?>
-        </fieldset>
-        <?= $this->Modal->end([
+<fieldset data-controller="awards-approval-step-form">
+    <?php $renderStepFields($step); ?>
+</fieldset>
+<?= $this->Modal->end([
             $this->Form->button(__('Save Step'), ['class' => 'btn btn-primary']),
             $this->Form->button(
                 __('Close'),
                 ['type' => 'button', 'class' => 'btn btn-secondary', 'data-bs-dismiss' => 'modal'],
             ),
         ]) ?>
-        <?= $this->Form->end() ?>
-    <?php endforeach; ?>
+<?= $this->Form->end() ?>
+<?php endforeach; ?>
 <?php endif; ?>
 <?php $this->KMP->endBlock() ?>

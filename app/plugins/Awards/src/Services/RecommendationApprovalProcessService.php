@@ -182,9 +182,6 @@ class RecommendationApprovalProcessService
     public function resolveConfiguredApproverIds(WorkflowApproval $approval): array
     {
         $config = $approval->approver_config ?? [];
-        if (!empty($config['eligible_member_ids']) && is_array($config['eligible_member_ids'])) {
-            return array_values(array_unique(array_map('intval', $config['eligible_member_ids'])));
-        }
 
         try {
             $runsTable = $this->fetchTable('Awards.RecommendationApprovalRuns');
@@ -204,14 +201,28 @@ class RecommendationApprovalProcessService
             }
 
             $recommendation = $this->loadGroupHeadRecommendation((int)$run->recommendation_id);
-            $steps = $this->orderedSteps($recommendation->award->approval_process->approval_process_steps ?? []);
-            $stepKey = (string)($config['award_approval_step_key'] ?? $run->current_step_key);
-            $stepIndex = $this->findStepIndex($steps, $stepKey);
-            if ($stepIndex === null) {
+            $step = $this->configuredStep($config);
+            if ($step === null) {
+                $steps = $this->orderedSteps($recommendation->award->approval_process->approval_process_steps ?? []);
+                $stepKey = (string)($config['award_approval_step_key'] ?? $run->current_step_key);
+                $stepIndex = $this->findStepIndex($steps, $stepKey);
+                if ($stepIndex === null) {
+                    return [];
+                }
+                $step = $steps[$stepIndex];
+            }
+
+            if (
+                $step->approver_type !== ApprovalProcessStep::APPROVER_TYPE_MEMBER
+                && empty($step->approver_source_id)
+            ) {
                 return [];
             }
 
-            return $this->approverIds($steps[$stepIndex], $recommendation);
+            $approverIds = $this->approverIds($step, $recommendation);
+            $this->syncRequiredCount($approval, $config, $approverIds);
+
+            return $approverIds;
         } catch (Throwable $e) {
             Log::error('Award approval dynamic approver resolution failed: ' . $e->getMessage());
 
@@ -266,17 +277,99 @@ class RecommendationApprovalProcessService
             'currentStepLabel' => (string)$step->label,
             'approverIds' => $approverIds,
             'requiredCount' => $requiredCount,
-            'approvalApproverConfig' => [
-                'service' => 'Awards.ResolveApprovalStepApprovers',
-                'method' => 'resolveConfiguredApproverIds',
-                'award_approval_run_id' => (int)$run->id,
-                'award_approval_step_key' => (string)$step->step_key,
-                'eligible_member_ids' => $approverIds,
-                'retain_read_visibility' => (bool)$step->retain_read_visibility,
-                'on_reject' => (string)$step->on_reject,
-                'on_request_changes' => (string)$step->on_request_changes,
-            ],
+            'approvalApproverConfig' => $this->approvalApproverConfig($run, $step),
         ];
+    }
+
+    /**
+     * Build the dynamic approver resolver config without snapshotting resolved users.
+     *
+     * @param \Awards\Model\Entity\RecommendationApprovalRun $run Approval run.
+     * @param \Awards\Model\Entity\ApprovalProcessStep $step Approval step.
+     * @return array<string, mixed>
+     */
+    private function approvalApproverConfig(RecommendationApprovalRun $run, ApprovalProcessStep $step): array
+    {
+        $config = [
+            'service' => 'Awards.ResolveApprovalStepApprovers',
+            'method' => 'resolveConfiguredApproverIds',
+            'award_approval_run_id' => (int)$run->id,
+            'award_approval_step_key' => (string)$step->step_key,
+            'award_approval_approver_type' => (string)$step->approver_type,
+            'award_approval_approver_source_id' => $step->approver_source_id !== null
+                ? (int)$step->approver_source_id
+                : null,
+            'award_approval_approver_source_key' => $step->approver_source_key,
+            'award_approval_branch_mode' => (string)$step->branch_mode,
+            'award_approval_branch_type' => $step->branch_type,
+            'award_approval_threshold_mode' => (string)$step->threshold_mode,
+            'award_approval_required_count' => $step->required_count !== null ? (int)$step->required_count : null,
+            'retain_read_visibility' => (bool)$step->retain_read_visibility,
+            'on_reject' => (string)$step->on_reject,
+            'on_request_changes' => (string)$step->on_request_changes,
+        ];
+
+        if ($step->approver_type === ApprovalProcessStep::APPROVER_TYPE_MEMBER) {
+            $config['member_id'] = (int)$step->approver_source_id;
+        }
+
+        return $config;
+    }
+
+    /**
+     * Rehydrate a configured approval target from workflow approval config.
+     *
+     * @param array<string, mixed> $config Workflow approval approver config.
+     * @return \Awards\Model\Entity\ApprovalProcessStep|null
+     */
+    private function configuredStep(array $config): ?ApprovalProcessStep
+    {
+        if (empty($config['award_approval_approver_type'])) {
+            return null;
+        }
+
+        return new ApprovalProcessStep([
+            'step_key' => $config['award_approval_step_key'] ?? null,
+            'approver_type' => $config['award_approval_approver_type'],
+            'approver_source_id' => $config['award_approval_approver_source_id'] ?? ($config['member_id'] ?? null),
+            'approver_source_key' => $config['award_approval_approver_source_key'] ?? null,
+            'branch_mode' => $config['award_approval_branch_mode'] ?? ApprovalProcessStep::BRANCH_MODE_AWARD,
+            'branch_type' => $config['award_approval_branch_type'] ?? null,
+        ]);
+    }
+
+    /**
+     * Keep dynamic workflow approval counts aligned with the current target pool.
+     *
+     * @param \App\Model\Entity\WorkflowApproval $approval Workflow approval.
+     * @param array<string, mixed> $config Workflow approval approver config.
+     * @param array<int> $approverIds Current approver IDs.
+     * @return void
+     */
+    private function syncRequiredCount(WorkflowApproval $approval, array $config, array $approverIds): void
+    {
+        $thresholdMode = $config['award_approval_threshold_mode'] ?? null;
+        $requiredCount = match ($thresholdMode) {
+            ApprovalProcessStep::THRESHOLD_ALL => count($approverIds),
+            ApprovalProcessStep::THRESHOLD_COUNT => min(
+                (int)($config['award_approval_required_count'] ?? $approval->required_count),
+                count($approverIds),
+            ),
+            default => (int)$approval->required_count,
+        };
+        $requiredCount = max(1, $requiredCount);
+
+        if (
+            (int)$approval->required_count !== $requiredCount
+            && !empty($approval->id)
+            && $approval->status === WorkflowApproval::STATUS_PENDING
+        ) {
+            $this->fetchTable('WorkflowApprovals')->updateAll(
+                ['required_count' => $requiredCount],
+                ['id' => (int)$approval->id, 'status' => WorkflowApproval::STATUS_PENDING],
+            );
+            $approval->required_count = $requiredCount;
+        }
     }
 
     /**

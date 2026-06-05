@@ -19,22 +19,26 @@ class RecommendationUpdateService
     private RecommendationGroupingService $groupingService;
     private RecommendationStateLogService $stateLogService;
     private RecommendationBestowalStatePolicyService $statePolicyService;
+    private BestowalCreationService $bestowalCreationService;
 
     /**
      * @param \Awards\Services\RecommendationGroupingService|null $groupingService Optional grouping service.
      * @param \Awards\Services\RecommendationStateLogService|null $stateLogService Optional state-log service.
      * @param \Awards\Services\RecommendationBestowalStatePolicyService|null $statePolicyService Optional state policy.
+     * @param \Awards\Services\BestowalCreationService|null $bestowalCreationService Optional bestowal creation service.
      */
     public function __construct(
         ?RecommendationGroupingService $groupingService = null,
         ?RecommendationStateLogService $stateLogService = null,
         ?RecommendationBestowalStatePolicyService $statePolicyService = null,
+        ?BestowalCreationService $bestowalCreationService = null,
     ) {
         $this->stateLogService = $stateLogService ?? new RecommendationStateLogService();
         $this->groupingService = $groupingService ?? new RecommendationGroupingService(
             stateLogService: $this->stateLogService,
         );
         $this->statePolicyService = $statePolicyService ?? new RecommendationBestowalStatePolicyService();
+        $this->bestowalCreationService = $bestowalCreationService ?? new BestowalCreationService();
     }
 
     /**
@@ -132,11 +136,14 @@ class RecommendationUpdateService
         $beforeState = (string)($recommendation->state ?? 'New');
         $beforeStatus = (string)($recommendation->status ?? $this->stateLogService->inferStatusForState($beforeState));
         $createdNote = null;
+        $handoffBestowalId = null;
+        $handoffEventName = null;
+        $handoffEventPayload = null;
         $memberIdInputProvided = false;
         if (array_key_exists('member_id', $workingData)) {
             $memberIdValue = $workingData['member_id'];
-            $memberIdInputProvided = (is_int($memberIdValue) && $memberIdValue > 0)
-                || (is_string($memberIdValue) && ctype_digit($memberIdValue) && (int)$memberIdValue > 0);
+            $memberIdInputProvided = (is_int($memberIdValue) && $memberIdValue >= 0)
+                || (is_string($memberIdValue) && ctype_digit($memberIdValue));
         }
         if ($memberIdInputProvided) {
             $explicitNotFound = false;
@@ -162,6 +169,10 @@ class RecommendationUpdateService
                     $given,
                     $note,
                     $authorId,
+                    $handoffRequested,
+                    &$handoffBestowalId,
+                    &$handoffEventName,
+                    &$handoffEventPayload,
                 ): int {
                     $recommendation = $recommendationsTable->patchEntity(
                         $recommendation,
@@ -220,10 +231,6 @@ class RecommendationUpdateService
                         $authorId,
                     );
 
-                    if ($beforeStatus !== (string)$saved->status && $saved->recommendation_group_id === null) {
-                        $this->groupingService->syncLinkedChildrenState($saved, $authorId);
-                    }
-
                     if ($note) {
                         $createdNote = $recommendationsTable->Notes->newEmptyEntity();
                         $createdNote->entity_id = $saved->id;
@@ -232,6 +239,24 @@ class RecommendationUpdateService
                         $createdNote->body = $note;
                         $createdNote->author_id = $authorId;
                         $recommendationsTable->Notes->saveOrFail($createdNote);
+                    }
+
+                    if ($handoffRequested) {
+                        $bestowalResult = $this->bestowalCreationService->createFromRecommendationInCallerTransaction(
+                            (int)$saved->id,
+                            $authorId,
+                        );
+                        if (!($bestowalResult['success'] ?? false)) {
+                            $bestowalError = $bestowalResult['error'] ?? 'Bestowal creation failed.';
+                            throw new RuntimeException((string)$bestowalError);
+                        }
+                        $handoffBestowalId = $bestowalResult['data']['bestowalId'] ?? null;
+                        $handoffEventName = $bestowalResult['data']['eventName'] ?? null;
+                        $handoffEventPayload = $bestowalResult['data']['eventPayload'] ?? null;
+                    }
+
+                    if ($saved->recommendation_group_id === null) {
+                        $this->groupingService->syncLinkedChildrenState($saved, $authorId);
                     }
 
                     return (int)$saved->id;
@@ -298,6 +323,7 @@ class RecommendationUpdateService
             'noteSubject' => $createdNote?->subject,
             'noteBody' => $createdNote?->body,
             'notFound' => $explicitNotFound ?? false,
+            'bestowalId' => $handoffBestowalId === null ? null : (int)$handoffBestowalId,
         ];
         $output = $this->buildOutputData($recommendationsTable, $savedRecommendation, $extraOutput);
 
@@ -305,8 +331,8 @@ class RecommendationUpdateService
             'success' => true,
             'recommendation' => $savedRecommendation,
             'output' => $output,
-            'eventName' => null,
-            'eventPayload' => null,
+            'eventName' => $handoffEventName,
+            'eventPayload' => $handoffEventPayload,
             'errorCode' => null,
             'message' => null,
             'errors' => [],
@@ -326,5 +352,4 @@ class RecommendationUpdateService
 
         return $state === '' ? null : $state;
     }
-
 }

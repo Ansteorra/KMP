@@ -436,17 +436,26 @@ class RecommendationPolicy extends BasePolicy
             ])
             ->all();
 
+        $retainedApprovalIds = [];
         foreach ($retainedApprovals as $approval) {
             $approverConfig = is_array($approval->approver_config) ? $approval->approver_config : [];
             if (empty($approverConfig['retain_read_visibility'])) {
                 continue;
             }
-            $eligibleIds = array_map('intval', $approverConfig['eligible_member_ids'] ?? []);
-            if (in_array($memberId, $eligibleIds, true)) {
-                return true;
-            }
+            $retainedApprovalIds[] = (int)$approval->id;
         }
 
-        return false;
+        if ($retainedApprovalIds === []) {
+            return false;
+        }
+
+        $responses = TableRegistry::getTableLocator()->get('WorkflowApprovalResponses');
+
+        return $responses->find()
+            ->where([
+                'workflow_approval_id IN' => $retainedApprovalIds,
+                'member_id' => $memberId,
+            ])
+            ->count() > 0;
     }
 }

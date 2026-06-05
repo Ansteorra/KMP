@@ -8,7 +8,6 @@ use Awards\Model\Entity\Recommendation;
 use Awards\Services\RecommendationDeletionService;
 use Awards\Services\RecommendationGroupingService;
 use Awards\Services\RecommendationTransitionService;
-use Cake\I18n\DateTime;
 use Cake\ORM\Table;
 
 class RecommendationGroupingServiceTest extends BaseTestCase
@@ -61,7 +60,7 @@ class RecommendationGroupingServiceTest extends BaseTestCase
         $transitionService->transition(
             $this->recommendationsTable,
             (int)$head->id,
-            ['targetState' => $this->stateForStatus('Closed', ['Linked - Closed'])],
+            ['targetState' => $this->stateForStatus('Closed', ['Linked - Closed', 'Given'])],
             self::ADMIN_MEMBER_ID,
         );
 
@@ -124,7 +123,7 @@ class RecommendationGroupingServiceTest extends BaseTestCase
         $transitionService->transition(
             $this->recommendationsTable,
             (int)$head->id,
-            ['targetState' => $this->stateForStatus('Closed', ['Linked - Closed'])],
+            ['targetState' => $this->stateForStatus('Closed', ['Linked - Closed', 'Given'])],
             self::ADMIN_MEMBER_ID,
         );
 

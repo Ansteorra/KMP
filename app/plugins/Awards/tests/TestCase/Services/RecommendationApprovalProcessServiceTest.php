@@ -4,8 +4,10 @@ declare(strict_types=1);
 namespace Awards\Test\TestCase\Services;
 
 use App\Model\Entity\WorkflowApproval;
+use App\Model\Entity\WorkflowExecutionLog;
 use App\Model\Entity\WorkflowInstance;
 use App\Services\WorkflowEngine\Conditions\CoreConditions;
+use App\Services\WorkflowEngine\DefaultWorkflowApprovalManager;
 use App\Services\WorkflowEngine\DefaultWorkflowEngine;
 use App\Services\WorkflowRegistry\WorkflowActionRegistry;
 use App\Services\WorkflowRegistry\WorkflowApproverResolverRegistry;
@@ -61,6 +63,12 @@ class RecommendationApprovalProcessServiceTest extends BaseTestCase
             'Awards.ResolveApprovalStepApprovers',
             $result->data['approvalApproverConfig']['service'],
         );
+        $this->assertArrayNotHasKey('eligible_member_ids', $result->data['approvalApproverConfig']);
+        $this->assertSame(
+            ApprovalProcessStep::APPROVER_TYPE_MEMBER,
+            $result->data['approvalApproverConfig']['award_approval_approver_type'],
+        );
+        $this->assertSame(self::ADMIN_MEMBER_ID, $result->data['approvalApproverConfig']['member_id']);
         $this->assertSame('Submitted', $this->freshRecommendationState((int)$recommendation->id));
     }
 
@@ -115,13 +123,80 @@ class RecommendationApprovalProcessServiceTest extends BaseTestCase
         $this->assertSame('Submitted', $this->freshRecommendationState((int)$recommendation->id));
     }
 
-    public function testDynamicResolverUsesSnapshotEligibleIds(): void
+    public function testDynamicResolverUsesCurrentConfiguredRoleTarget(): void
     {
+        $role = $this->createRole();
+        $oldRole = $this->createMemberRole(self::TEST_MEMBER_AGATHA_ID, (int)$role->id);
+        [$recommendation, $instanceId] = $this->buildApprovalScenario([
+            $this->roleStepData('role_approval', 'Role approval', 1, (int)$role->id),
+        ]);
+        $result = $this->service->startProcess(
+            ['instanceId' => $instanceId],
+            ['recommendationId' => (int)$recommendation->id],
+        );
+
+        $this->assertTrue($result->isSuccess(), $result->getError() ?? '');
+        $this->assertSame([self::TEST_MEMBER_AGATHA_ID], $result->data['approverIds']);
+        $this->assertArrayNotHasKey('eligible_member_ids', $result->data['approvalApproverConfig']);
+
+        $memberRoles = $this->getTableLocator()->get('MemberRoles');
+        $oldRole->expires_on = DateTime::now()->modify('-1 day');
+        $memberRoles->saveOrFail($oldRole);
+        $this->createMemberRole(self::TEST_MEMBER_BRYCE_ID, (int)$role->id);
+
         $approval = new WorkflowApproval([
-            'approver_config' => ['eligible_member_ids' => ['2', self::ADMIN_MEMBER_ID, self::ADMIN_MEMBER_ID]],
+            'workflow_instance_id' => $instanceId,
+            'approver_config' => $result->data['approvalApproverConfig'],
         ]);
 
-        $this->assertSame([2, self::ADMIN_MEMBER_ID], $this->service->resolveConfiguredApproverIds($approval));
+        $this->assertSame([self::TEST_MEMBER_BRYCE_ID], $this->service->resolveConfiguredApproverIds($approval));
+    }
+
+    public function testAllThresholdRefreshesWhenDynamicRoleTargetGainsApprover(): void
+    {
+        AwardsWorkflowProvider::register();
+        $role = $this->createRole();
+        $this->createMemberRole(self::TEST_MEMBER_AGATHA_ID, (int)$role->id);
+        [$recommendation, $instanceId] = $this->buildApprovalScenario([
+            $this->roleStepData(
+                'role_approval_all',
+                'Role approval',
+                1,
+                (int)$role->id,
+                ApprovalProcessStep::THRESHOLD_ALL,
+            ),
+        ]);
+        $result = $this->service->startProcess(
+            ['instanceId' => $instanceId],
+            ['recommendationId' => (int)$recommendation->id],
+        );
+        $this->assertTrue($result->isSuccess(), $result->getError() ?? '');
+        $this->assertSame(1, $result->data['requiredCount']);
+
+        $approvalId = $this->createWorkflowApproval(
+            $instanceId,
+            $result->data['approvalApproverConfig'],
+            $result->data['requiredCount'],
+        );
+
+        $this->createMemberRole(self::TEST_MEMBER_BRYCE_ID, (int)$role->id);
+        $manager = new DefaultWorkflowApprovalManager();
+        $bryceApprovals = $manager->getPendingApprovalsForMember(self::TEST_MEMBER_BRYCE_ID);
+        $this->assertContains($approvalId, array_map(static fn($approval): int => (int)$approval->id, $bryceApprovals));
+
+        $approval = $this->getTableLocator()->get('WorkflowApprovals')->get($approvalId);
+        $this->assertSame(2, (int)$approval->required_count);
+        $this->assertSame(0, (int)$approval->approved_count);
+
+        $response = $manager->recordResponse($approvalId, self::TEST_MEMBER_AGATHA_ID, 'approve');
+        $this->assertTrue($response->isSuccess(), $response->getError() ?? '');
+        $this->assertSame('pending', $response->data['approvalStatus']);
+        $this->assertTrue($response->data['needsMore']);
+
+        $approval = $this->getTableLocator()->get('WorkflowApprovals')->get($approvalId);
+        $this->assertSame(2, (int)$approval->required_count);
+        $this->assertSame(1, (int)$approval->approved_count);
+        $this->assertSame(WorkflowApproval::STATUS_PENDING, $approval->status);
     }
 
     public function testSubmittedWorkflowStartsAndAdvancesConfiguredApprovalProcess(): void
@@ -191,7 +266,12 @@ class RecommendationApprovalProcessServiceTest extends BaseTestCase
             ])
             ->firstOrFail();
         $this->assertSame(WorkflowApproval::APPROVER_TYPE_DYNAMIC, $approval->approver_type);
-        $this->assertSame([self::ADMIN_MEMBER_ID], $approval->approver_config['eligible_member_ids']);
+        $this->assertArrayNotHasKey('eligible_member_ids', $approval->approver_config);
+        $this->assertSame(
+            ApprovalProcessStep::APPROVER_TYPE_MEMBER,
+            $approval->approver_config['award_approval_approver_type'],
+        );
+        $this->assertSame(self::ADMIN_MEMBER_ID, $approval->approver_config['member_id']);
 
         $firstResume = $engine->resumeWorkflow((int)$instance->id, 'award-approval-gate', 'approved', [
             'approverId' => self::ADMIN_MEMBER_ID,
@@ -272,6 +352,83 @@ class RecommendationApprovalProcessServiceTest extends BaseTestCase
             'on_request_changes' => ApprovalProcessStep::ACTION_RETURN_PREVIOUS,
             'retain_read_visibility' => true,
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function roleStepData(
+        string $key,
+        string $label,
+        int $sequence,
+        int $roleId,
+        string $thresholdMode = ApprovalProcessStep::THRESHOLD_ANY,
+    ): array {
+        return [
+            'step_key' => $key,
+            'label' => $label,
+            'sequence' => $sequence,
+            'step_type' => ApprovalProcessStep::STEP_TYPE_APPROVAL,
+            'approver_type' => ApprovalProcessStep::APPROVER_TYPE_ROLE,
+            'approver_source_id' => $roleId,
+            'branch_mode' => ApprovalProcessStep::BRANCH_MODE_AWARD,
+            'threshold_mode' => $thresholdMode,
+            'on_reject' => ApprovalProcessStep::ACTION_RETURN_PREVIOUS,
+            'on_request_changes' => ApprovalProcessStep::ACTION_RETURN_PREVIOUS,
+            'retain_read_visibility' => true,
+        ];
+    }
+
+    private function createWorkflowApproval(int $instanceId, array $approverConfig, int $requiredCount): int
+    {
+        $logs = $this->getTableLocator()->get('WorkflowExecutionLogs');
+        $log = $logs->saveOrFail($logs->newEntity([
+            'workflow_instance_id' => $instanceId,
+            'node_id' => 'award-approval-gate',
+            'node_type' => 'approval',
+            'attempt_number' => 1,
+            'status' => WorkflowExecutionLog::STATUS_WAITING,
+        ]));
+
+        $approvals = $this->getTableLocator()->get('WorkflowApprovals');
+        $approval = $approvals->saveOrFail($approvals->newEntity([
+            'workflow_instance_id' => $instanceId,
+            'node_id' => 'award-approval-gate',
+            'execution_log_id' => $log->id,
+            'approver_type' => WorkflowApproval::APPROVER_TYPE_DYNAMIC,
+            'approver_config' => $approverConfig,
+            'required_count' => $requiredCount,
+            'approved_count' => 0,
+            'rejected_count' => 0,
+            'status' => WorkflowApproval::STATUS_PENDING,
+            'allow_parallel' => false,
+            'version' => 1,
+        ]));
+
+        return (int)$approval->id;
+    }
+
+    private function createRole()
+    {
+        $roles = $this->getTableLocator()->get('Roles');
+
+        return $roles->saveOrFail($roles->newEntity([
+            'name' => 'Approval Dynamic Role ' . uniqid('', true),
+        ]));
+    }
+
+    private function createMemberRole(int $memberId, int $roleId)
+    {
+        $memberRoles = $this->getTableLocator()->get('MemberRoles');
+        $memberRole = $memberRoles->newEmptyEntity();
+        $memberRole->member_id = $memberId;
+        $memberRole->role_id = $roleId;
+        $memberRole->branch_id = self::KINGDOM_BRANCH_ID;
+        $memberRole->approver_id = self::ADMIN_MEMBER_ID;
+        $memberRole->start_on = DateTime::now()->modify('-1 day');
+        $memberRole->expires_on = DateTime::now()->modify('+30 days');
+
+        return $memberRoles->saveOrFail($memberRole);
     }
 
     /**

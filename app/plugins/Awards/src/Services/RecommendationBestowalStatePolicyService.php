@@ -103,15 +103,7 @@ class RecommendationBestowalStatePolicyService
         )));
 
         $rows = $bestowalStatesTable->find()
-            ->select(['id', 'name', 'sync_recommendation_state_id', 'unwind_recommendation_state_id'])
-            ->contain([
-                'SyncRecommendationState' => function ($query) {
-                    return $query->select(['id', 'name']);
-                },
-                'UnwindRecommendationState' => function ($query) {
-                    return $query->select(['id', 'name']);
-                },
-            ])
+            ->select(['id', 'name', 'sync_recommendation_state', 'unwind_recommendation_state'])
             ->where(['BestowalStates.name IN' => $bestowalStateNames])
             ->all()
             ->indexBy('name')
@@ -120,7 +112,7 @@ class RecommendationBestowalStatePolicyService
         foreach (self::EXPECTED_SYNC_MAPPINGS as $bestowalState => $recommendationState) {
             $row = $rows[$bestowalState] ?? null;
             $syncState = $row !== null ? ($row->sync_recommendation_state ?? null) : null;
-            if ($syncState === null || (string)$syncState->name !== $recommendationState) {
+            if ($syncState === null || (string)$syncState !== $recommendationState) {
                 throw new RuntimeException(
                     sprintf(
                         'Bestowal state "%s" must sync recommendations to "%s".',
@@ -134,7 +126,7 @@ class RecommendationBestowalStatePolicyService
         foreach (self::EXPECTED_UNWIND_MAPPINGS as $bestowalState => $recommendationState) {
             $row = $rows[$bestowalState] ?? null;
             $unwindState = $row !== null ? ($row->unwind_recommendation_state ?? null) : null;
-            if ($unwindState === null || (string)$unwindState->name !== $recommendationState) {
+            if ($unwindState === null || (string)$unwindState !== $recommendationState) {
                 throw new RuntimeException(
                     sprintf(
                         'Bestowal state "%s" must unwind recommendations to "%s".',

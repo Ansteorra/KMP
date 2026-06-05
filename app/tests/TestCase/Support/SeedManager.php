@@ -8,6 +8,8 @@ use Cake\Database\Driver\Postgres;
 use Cake\Datasource\ConnectionManager;
 use Cake\TestSuite\Fixture\SchemaLoader;
 use Exception;
+use InitWorkflowDefinitionsSeed;
+use Migrations\Migrations;
 use RuntimeException;
 
 /**
@@ -27,11 +29,6 @@ final class SeedManager
      * PostgreSQL-compatible data-only seed generated from dev_seed_clean.sql.
      */
     private const POSTGRES_SEED_FILENAME = 'pg_seed.sql';
-
-    /**
-     * PostgreSQL-compatible seed for data inserted by Awards plugin migrations.
-     */
-    private const POSTGRES_AWARDS_STATE_SEED_FILENAME = 'pg_awards_state_seed.sql';
 
     /**
      * Tracks whether the seed has been applied during the current process.
@@ -154,7 +151,6 @@ final class SeedManager
             );
             $conn->getDriver()->exec($sql);
             self::seedPostgresWorkflowDefinitions($conn);
-            self::seedPostgresAwardStates($conn);
             self::seedPostgresBestowalReference($conn);
 
             return;
@@ -163,7 +159,6 @@ final class SeedManager
         $conn = ConnectionManager::get($connection);
         $conn->getDriver()->exec($sql);
         self::seedPostgresWorkflowDefinitions($conn);
-        self::seedPostgresAwardStates($conn);
         self::seedPostgresBestowalReference($conn);
     }
 
@@ -187,7 +182,7 @@ final class SeedManager
         $jsonDir = dirname($seedPath) . '/WorkflowDefinitions/';
         require_once $seedPath;
 
-        $seed = new \InitWorkflowDefinitionsSeed();
+        $seed = new InitWorkflowDefinitionsSeed();
         $now = date('Y-m-d H:i:s');
         foreach ($seed->getWorkflowMeta() as $meta) {
             $jsonPath = $jsonDir . $meta['json_file'];
@@ -247,34 +242,6 @@ final class SeedManager
     }
 
     /**
-     * Seed Awards recommendation state-machine configuration for PostgreSQL tests.
-     *
-     * @param \Cake\Database\Connection $conn Test database connection.
-     * @return void
-     */
-    private static function seedPostgresAwardStates(Connection $conn): void
-    {
-        $count = (int)$conn->execute('SELECT count(*) FROM awards_recommendation_statuses')->fetchColumn(0);
-        if ($count > 0) {
-            return;
-        }
-
-        $seedPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . self::POSTGRES_AWARDS_STATE_SEED_FILENAME;
-        $sql = file_get_contents($seedPath);
-        if ($sql === false) {
-            throw new RuntimeException(sprintf('Unable to read Awards PostgreSQL seed file at %s', $seedPath));
-        }
-
-        $sql = preg_replace('/^\\\\.*$/m', '', $sql);
-        if ($sql === null) {
-            throw new RuntimeException(sprintf('Unable to normalize Awards PostgreSQL seed file at %s', $seedPath));
-        }
-
-        $conn->getDriver()->exec($sql);
-        $conn->getDriver()->exec('SET search_path TO public');
-    }
-
-    /**
      * Seed Awards bestowal state-machine configuration for PostgreSQL tests.
      *
      * @param \Cake\Database\Connection $conn Test database connection.
@@ -287,7 +254,7 @@ final class SeedManager
             return;
         }
 
-        (new \Migrations\Migrations())->seed([
+        (new Migrations())->seed([
             'connection' => $conn->configName(),
             'plugin' => 'Awards',
             'seed' => 'InitBestowalReferenceSeed',

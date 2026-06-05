@@ -50,7 +50,14 @@ class AwardsWorkflowProvider
                 'configSchema' => [
                     'award_approval_run_id' => ['type' => 'integer', 'label' => 'Approval Run ID'],
                     'award_approval_step_key' => ['type' => 'string', 'label' => 'Approval Step Key'],
-                    'eligible_member_ids' => ['type' => 'array', 'label' => 'Snapshot Eligible Member IDs'],
+                    'award_approval_approver_type' => ['type' => 'string', 'label' => 'Approval Target Type'],
+                    'award_approval_approver_source_id' => ['type' => 'integer', 'label' => 'Approval Target ID'],
+                    'award_approval_approver_source_key' => ['type' => 'string', 'label' => 'Approval Target Key'],
+                    'award_approval_branch_mode' => ['type' => 'string', 'label' => 'Approval Branch Mode'],
+                    'award_approval_branch_type' => ['type' => 'string', 'label' => 'Approval Branch Type'],
+                    'award_approval_threshold_mode' => ['type' => 'string', 'label' => 'Approval Threshold Mode'],
+                    'award_approval_required_count' => ['type' => 'integer', 'label' => 'Approval Required Count'],
+                    'member_id' => ['type' => 'integer', 'label' => 'Explicit Member ID'],
                 ],
             ],
         ]);

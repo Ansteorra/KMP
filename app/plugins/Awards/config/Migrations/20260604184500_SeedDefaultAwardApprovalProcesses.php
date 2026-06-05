@@ -17,26 +17,31 @@ class SeedDefaultAwardApprovalProcesses extends BaseMigration
      */
     public function up(): void
     {
-        $ansteorraBranchId = $this->lookupRequiredId(
+        $ansteorraBranchId = $this->lookupOptionalId(
             'branches',
             "name = 'Ansteorra' AND type = 'Kingdom'",
-            'Ansteorra kingdom branch',
         );
-        $nonArmigerousLevelId = $this->lookupRequiredId(
+        $nonArmigerousLevelId = $this->lookupOptionalId(
             'awards_levels',
             "name = 'Non-Armigerous'",
-            'Non-Armigerous award level',
         );
-        $crownOfficeId = $this->lookupRequiredId(
+        $crownOfficeId = $this->lookupOptionalId(
             'officers_offices',
             "name = 'Crown'",
-            'Crown office',
         );
-        $localLandedOfficeId = $this->lookupRequiredId(
+        $localLandedOfficeId = $this->lookupOptionalId(
             'officers_offices',
             "name = 'Local Landed'",
-            'Local Landed office',
         );
+
+        if (
+            $ansteorraBranchId === null
+            || $nonArmigerousLevelId === null
+            || $crownOfficeId === null
+            || $localLandedOfficeId === null
+        ) {
+            return;
+        }
 
         $singleCrownProcessId = $this->upsertProcess(
             self::SINGLE_CROWN_PROCESS,
@@ -59,6 +64,7 @@ class SeedDefaultAwardApprovalProcesses extends BaseMigration
                 'approver_source_id' => $crownOfficeId,
                 'branch_mode' => 'award_branch',
                 'branch_type' => null,
+                'threshold_mode' => 'all',
             ],
         ]);
         $this->replaceSteps($singleLocalProcessId, [
@@ -69,6 +75,7 @@ class SeedDefaultAwardApprovalProcesses extends BaseMigration
                 'approver_source_id' => $localLandedOfficeId,
                 'branch_mode' => 'award_branch',
                 'branch_type' => null,
+                'threshold_mode' => 'all',
             ],
         ]);
         $this->replaceSteps($localThenCrownProcessId, [
@@ -79,6 +86,7 @@ class SeedDefaultAwardApprovalProcesses extends BaseMigration
                 'approver_source_id' => $localLandedOfficeId,
                 'branch_mode' => 'award_branch',
                 'branch_type' => null,
+                'threshold_mode' => 'all',
             ],
             [
                 'step_key' => 'crown',
@@ -87,6 +95,7 @@ class SeedDefaultAwardApprovalProcesses extends BaseMigration
                 'approver_source_id' => $crownOfficeId,
                 'branch_mode' => 'ancestor_branch_type',
                 'branch_type' => 'Kingdom',
+                'threshold_mode' => 'all',
             ],
         ]);
 
@@ -109,7 +118,7 @@ class SeedDefaultAwardApprovalProcesses extends BaseMigration
         $names = $this->quotedProcessNames();
         $this->execute(
             'UPDATE awards_awards SET approval_process_id = NULL '
-            . "WHERE approval_process_id IN (SELECT id FROM awards_approval_processes WHERE name IN ({$names}))",
+                . "WHERE approval_process_id IN (SELECT id FROM awards_approval_processes WHERE name IN ({$names}))",
         );
         $this->execute("DELETE FROM awards_approval_processes WHERE name IN ({$names})");
     }
@@ -120,11 +129,11 @@ class SeedDefaultAwardApprovalProcesses extends BaseMigration
      * @param string $description Human-readable lookup description.
      * @return int
      */
-    private function lookupRequiredId(string $table, string $where, string $description): int
+    private function lookupOptionalId(string $table, string $where): ?int
     {
         $row = $this->fetchRow("SELECT id FROM {$table} WHERE {$where} AND deleted IS NULL LIMIT 1");
         if ($row === false) {
-            throw new RuntimeException("Unable to seed award approval processes: missing {$description}.");
+            return null;
         }
 
         return (int)$row['id'];
@@ -164,8 +173,8 @@ class SeedDefaultAwardApprovalProcesses extends BaseMigration
 
         $this->execute(
             'UPDATE awards_approval_processes '
-            . "SET description = {$descriptionSql}, is_active = TRUE, modified = '{$now}', modified_by = 1, "
-            . 'deleted = NULL WHERE id = ' . (int)$row['id'],
+                . "SET description = {$descriptionSql}, is_active = TRUE, modified = '{$now}', modified_by = 1, "
+                . 'deleted = NULL WHERE id = ' . (int)$row['id'],
         );
 
         return (int)$row['id'];
@@ -194,7 +203,7 @@ class SeedDefaultAwardApprovalProcesses extends BaseMigration
                 'approver_source_key' => null,
                 'branch_mode' => $step['branch_mode'],
                 'branch_type' => $step['branch_type'],
-                'threshold_mode' => 'any',
+                'threshold_mode' => $step['threshold_mode'],
                 'required_count' => null,
                 'on_reject' => 'return_previous',
                 'on_request_changes' => 'return_previous',
@@ -226,15 +235,15 @@ class SeedDefaultAwardApprovalProcesses extends BaseMigration
     ): void {
         $this->execute(
             "UPDATE awards_awards SET approval_process_id = {$singleCrownProcessId} "
-            . "WHERE branch_id = {$ansteorraBranchId} AND deleted IS NULL",
+                . "WHERE branch_id = {$ansteorraBranchId} AND deleted IS NULL",
         );
         $this->execute(
             "UPDATE awards_awards SET approval_process_id = {$singleLocalProcessId} "
-            . "WHERE branch_id <> {$ansteorraBranchId} AND level_id = {$nonArmigerousLevelId} AND deleted IS NULL",
+                . "WHERE branch_id <> {$ansteorraBranchId} AND level_id = {$nonArmigerousLevelId} AND deleted IS NULL",
         );
         $this->execute(
             "UPDATE awards_awards SET approval_process_id = {$localThenCrownProcessId} "
-            . "WHERE branch_id <> {$ansteorraBranchId} AND level_id <> {$nonArmigerousLevelId} AND deleted IS NULL",
+                . "WHERE branch_id <> {$ansteorraBranchId} AND level_id <> {$nonArmigerousLevelId} AND deleted IS NULL",
         );
     }
 

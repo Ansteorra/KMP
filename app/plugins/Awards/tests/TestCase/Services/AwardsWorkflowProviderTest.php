@@ -71,7 +71,9 @@ class AwardsWorkflowProviderTest extends TestCase
         $resolver = WorkflowApproverResolverRegistry::getResolver('Awards.ResolveApprovalStepApprovers');
         $this->assertNotNull($resolver);
         $this->assertSame('resolveConfiguredApproverIds', $resolver['serviceMethod']);
-        $this->assertArrayHasKey('eligible_member_ids', $resolver['configSchema']);
+        $this->assertArrayHasKey('award_approval_approver_type', $resolver['configSchema']);
+        $this->assertArrayHasKey('award_approval_approver_source_id', $resolver['configSchema']);
+        $this->assertArrayNotHasKey('eligible_member_ids', $resolver['configSchema']);
     }
 
     /**

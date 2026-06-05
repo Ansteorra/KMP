@@ -141,38 +141,6 @@ class AwardsNavigationProvider
             [
                 'type' => 'link',
                 'mergePath' => ['Config'],
-                'label' => 'Rec. Statuses',
-                'order' => 34,
-                'url' => [
-                    'controller' => 'RecommendationStatuses',
-                    'plugin' => 'Awards',
-                    'action' => 'index',
-                    'model' => 'Awards.RecommendationStatuses',
-                ],
-                'icon' => 'bi-diagram-3',
-                'activePaths' => [
-                    'awards/recommendation-statuses/view/*',
-                ],
-            ],
-            [
-                'type' => 'link',
-                'mergePath' => ['Config'],
-                'label' => 'Rec. States',
-                'order' => 35,
-                'url' => [
-                    'controller' => 'RecommendationStates',
-                    'plugin' => 'Awards',
-                    'action' => 'index',
-                    'model' => 'Awards.RecommendationStates',
-                ],
-                'icon' => 'bi-signpost-split',
-                'activePaths' => [
-                    'awards/recommendation-states/view/*',
-                ],
-            ],
-            [
-                'type' => 'link',
-                'mergePath' => ['Config'],
                 'label' => 'Bestowal Statuses',
                 'order' => 36,
                 'url' => [

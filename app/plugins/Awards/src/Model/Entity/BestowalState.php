@@ -12,8 +12,8 @@ use App\Model\Entity\BaseEntity;
  * @property int $status_id
  * @property string $name
  * @property int $sort_order
- * @property int|null $sync_recommendation_state_id
- * @property int|null $unwind_recommendation_state_id
+ * @property string|null $sync_recommendation_state
+ * @property string|null $unwind_recommendation_state
  * @property bool $locks_recommendations
  * @property bool $supports_gathering
  * @property bool $is_hidden
@@ -25,8 +25,6 @@ use App\Model\Entity\BaseEntity;
  * @property \Cake\I18n\DateTime|null $deleted
  *
  * @property \Awards\Model\Entity\BestowalStatus $bestowal_status
- * @property \Awards\Model\Entity\RecommendationState|null $sync_recommendation_state
- * @property \Awards\Model\Entity\RecommendationState|null $unwind_recommendation_state
  * @property \Awards\Model\Entity\BestowalStateFieldRule[] $bestowal_state_field_rules
  * @property \Awards\Model\Entity\BestowalStateTransition[] $outgoing_transitions
  * @property \Awards\Model\Entity\BestowalStateTransition[] $incoming_transitions
@@ -40,8 +38,8 @@ class BestowalState extends BaseEntity
         'status_id' => true,
         'name' => true,
         'sort_order' => true,
-        'sync_recommendation_state_id' => true,
-        'unwind_recommendation_state_id' => true,
+        'sync_recommendation_state' => true,
+        'unwind_recommendation_state' => true,
         'locks_recommendations' => true,
         'supports_gathering' => true,
         'is_hidden' => true,

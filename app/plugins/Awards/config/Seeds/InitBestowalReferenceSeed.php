@@ -41,19 +41,11 @@ class InitBestowalReferenceSeed extends BaseSeed
         }
         $statusTable->saveData();
 
-        $recStateRows = $this->fetchAll(
-            'SELECT id, name FROM awards_recommendation_states ORDER BY id',
-        );
-        $recStateIdMap = [];
-        foreach ($recStateRows as $row) {
-            $recStateIdMap[$row['name']] = (int)$row['id'];
-        }
-
-        $needToScheduleId = $recStateIdMap['Need to Schedule'] ?? null;
-        $scheduledId = $recStateIdMap['Scheduled'] ?? null;
-        $givenId = $recStateIdMap['Given'] ?? null;
-        $announcedNotGivenId = $recStateIdMap['Announced Not Given'] ?? null;
-        $kingApprovedId = $recStateIdMap['King Approved'] ?? null;
+        $needToScheduleId = 'Need to Schedule';
+        $scheduledId = 'Scheduled';
+        $givenId = 'Given';
+        $announcedNotGivenId = 'Announced Not Given';
+        $kingApprovedId = 'King Approved';
 
         $statusRows = $this->fetchAll(
             'SELECT id, sort_order FROM awards_bestowal_statuses ORDER BY sort_order',
@@ -70,8 +62,8 @@ class InitBestowalReferenceSeed extends BaseSeed
                     'sort_order' => 1,
                     'supports_gathering' => false,
                     'is_hidden' => false,
-                    'sync_recommendation_state_id' => $needToScheduleId,
-                    'unwind_recommendation_state_id' => null,
+                    'sync_recommendation_state' => $needToScheduleId,
+                    'unwind_recommendation_state' => null,
                     'locks_recommendations' => true,
                 ],
                 [
@@ -79,8 +71,8 @@ class InitBestowalReferenceSeed extends BaseSeed
                     'sort_order' => 2,
                     'supports_gathering' => true,
                     'is_hidden' => false,
-                    'sync_recommendation_state_id' => $needToScheduleId,
-                    'unwind_recommendation_state_id' => null,
+                    'sync_recommendation_state' => $needToScheduleId,
+                    'unwind_recommendation_state' => null,
                     'locks_recommendations' => true,
                 ],
             ],
@@ -90,8 +82,8 @@ class InitBestowalReferenceSeed extends BaseSeed
                     'sort_order' => 1,
                     'supports_gathering' => false,
                     'is_hidden' => false,
-                    'sync_recommendation_state_id' => $needToScheduleId,
-                    'unwind_recommendation_state_id' => null,
+                    'sync_recommendation_state' => $needToScheduleId,
+                    'unwind_recommendation_state' => null,
                     'locks_recommendations' => true,
                 ],
                 [
@@ -99,8 +91,8 @@ class InitBestowalReferenceSeed extends BaseSeed
                     'sort_order' => 2,
                     'supports_gathering' => false,
                     'is_hidden' => false,
-                    'sync_recommendation_state_id' => $needToScheduleId,
-                    'unwind_recommendation_state_id' => null,
+                    'sync_recommendation_state' => $needToScheduleId,
+                    'unwind_recommendation_state' => null,
                     'locks_recommendations' => true,
                 ],
             ],
@@ -110,8 +102,8 @@ class InitBestowalReferenceSeed extends BaseSeed
                     'sort_order' => 1,
                     'supports_gathering' => true,
                     'is_hidden' => false,
-                    'sync_recommendation_state_id' => $needToScheduleId,
-                    'unwind_recommendation_state_id' => null,
+                    'sync_recommendation_state' => $needToScheduleId,
+                    'unwind_recommendation_state' => null,
                     'locks_recommendations' => true,
                 ],
                 [
@@ -119,8 +111,8 @@ class InitBestowalReferenceSeed extends BaseSeed
                     'sort_order' => 2,
                     'supports_gathering' => true,
                     'is_hidden' => false,
-                    'sync_recommendation_state_id' => $scheduledId,
-                    'unwind_recommendation_state_id' => null,
+                    'sync_recommendation_state' => $scheduledId,
+                    'unwind_recommendation_state' => null,
                     'locks_recommendations' => true,
                 ],
             ],
@@ -130,8 +122,8 @@ class InitBestowalReferenceSeed extends BaseSeed
                     'sort_order' => 1,
                     'supports_gathering' => true,
                     'is_hidden' => false,
-                    'sync_recommendation_state_id' => $scheduledId,
-                    'unwind_recommendation_state_id' => null,
+                    'sync_recommendation_state' => $scheduledId,
+                    'unwind_recommendation_state' => null,
                     'locks_recommendations' => true,
                 ],
             ],
@@ -141,8 +133,8 @@ class InitBestowalReferenceSeed extends BaseSeed
                     'sort_order' => 1,
                     'supports_gathering' => true,
                     'is_hidden' => false,
-                    'sync_recommendation_state_id' => $givenId,
-                    'unwind_recommendation_state_id' => null,
+                    'sync_recommendation_state' => $givenId,
+                    'unwind_recommendation_state' => null,
                     'locks_recommendations' => false,
                 ],
                 [
@@ -150,8 +142,8 @@ class InitBestowalReferenceSeed extends BaseSeed
                     'sort_order' => 2,
                     'supports_gathering' => false,
                     'is_hidden' => false,
-                    'sync_recommendation_state_id' => null,
-                    'unwind_recommendation_state_id' => $kingApprovedId,
+                    'sync_recommendation_state' => null,
+                    'unwind_recommendation_state' => $kingApprovedId,
                     'locks_recommendations' => false,
                 ],
                 [
@@ -159,8 +151,8 @@ class InitBestowalReferenceSeed extends BaseSeed
                     'sort_order' => 3,
                     'supports_gathering' => false,
                     'is_hidden' => false,
-                    'sync_recommendation_state_id' => $announcedNotGivenId,
-                    'unwind_recommendation_state_id' => null,
+                    'sync_recommendation_state' => $announcedNotGivenId,
+                    'unwind_recommendation_state' => null,
                     'locks_recommendations' => true,
                 ],
             ],
@@ -174,8 +166,8 @@ class InitBestowalReferenceSeed extends BaseSeed
                     'status_id' => $statusId,
                     'name' => $state['name'],
                     'sort_order' => $state['sort_order'],
-                    'sync_recommendation_state_id' => $state['sync_recommendation_state_id'],
-                    'unwind_recommendation_state_id' => $state['unwind_recommendation_state_id'],
+                    'sync_recommendation_state' => $state['sync_recommendation_state'],
+                    'unwind_recommendation_state' => $state['unwind_recommendation_state'],
                     'locks_recommendations' => $state['locks_recommendations'],
                     'is_system' => false,
                     'supports_gathering' => $state['supports_gathering'],

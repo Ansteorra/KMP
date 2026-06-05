@@ -27,22 +27,26 @@ class RecommendationTransitionService
     private RecommendationGroupingService $groupingService;
     private RecommendationStateLogService $stateLogService;
     private RecommendationBestowalStatePolicyService $statePolicyService;
+    private BestowalCreationService $bestowalCreationService;
 
     /**
      * @param \Awards\Services\RecommendationGroupingService|null $groupingService Optional grouping service.
      * @param \Awards\Services\RecommendationStateLogService|null $stateLogService Optional state-log service.
      * @param \Awards\Services\RecommendationBestowalStatePolicyService|null $statePolicyService Optional state policy.
+     * @param \Awards\Services\BestowalCreationService|null $bestowalCreationService Optional bestowal creation service.
      */
     public function __construct(
         ?RecommendationGroupingService $groupingService = null,
         ?RecommendationStateLogService $stateLogService = null,
         ?RecommendationBestowalStatePolicyService $statePolicyService = null,
+        ?BestowalCreationService $bestowalCreationService = null,
     ) {
         $this->stateLogService = $stateLogService ?? new RecommendationStateLogService();
         $this->groupingService = $groupingService ?? new RecommendationGroupingService(
             stateLogService: $this->stateLogService,
         );
         $this->statePolicyService = $statePolicyService ?? new RecommendationBestowalStatePolicyService();
+        $this->bestowalCreationService = $bestowalCreationService ?? new BestowalCreationService();
     }
 
     /**
@@ -221,6 +225,9 @@ class RecommendationTransitionService
                         );
 
                         $results[] = $result;
+                        if (!empty($result['bestowalId'])) {
+                            $bestowalIds[] = (int)$result['bestowalId'];
+                        }
                     }
 
                     $bestowalIds = array_values(array_unique($bestowalIds));
@@ -380,6 +387,22 @@ class RecommendationTransitionService
             $this->groupingService->syncLinkedChildrenState($saved, $actorId);
         }
 
+        $bestowalId = null;
+        if ($this->statePolicyService->isHandoffState((string)$saved->state)) {
+            $bestowalResult = $this->bestowalCreationService->createFromRecommendationInCallerTransaction(
+                (int)$saved->id,
+                $actorId,
+            );
+            if (!($bestowalResult['success'] ?? false)) {
+                throw new RuntimeException((string)($bestowalResult['error'] ?? 'Bestowal creation failed.'));
+            }
+            $bestowalId = $bestowalResult['data']['bestowalId'] ?? null;
+        }
+
+        if ($saved->recommendation_group_id === null) {
+            $this->groupingService->syncLinkedChildrenState($saved, $actorId);
+        }
+
         $noteId = null;
         $noteCreated = false;
 
@@ -407,6 +430,7 @@ class RecommendationTransitionService
             'gatheringId' => $saved->gathering_id === null ? null : (int)$saved->gathering_id,
             'given' => $this->serializeValue($saved->given),
             'closeReason' => $saved->close_reason,
+            'bestowalId' => $bestowalId === null ? null : (int)$bestowalId,
             'appliedSetRules' => $appliedSetRules,
             'noteCreated' => $noteCreated,
             'noteId' => $noteId,

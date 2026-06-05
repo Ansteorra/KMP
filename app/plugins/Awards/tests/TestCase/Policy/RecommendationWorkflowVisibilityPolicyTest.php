@@ -18,8 +18,8 @@ use Cake\I18n\DateTime;
 
 class RecommendationWorkflowVisibilityPolicyTest extends BaseTestCase
 {
-    private const WORKFLOW_APPROVER_ID = 900001;
-    private const FUTURE_APPROVER_ID = 900002;
+    private const WORKFLOW_APPROVER_ID = self::TEST_MEMBER_AGATHA_ID;
+    private const FUTURE_APPROVER_ID = self::TEST_MEMBER_BRYCE_ID;
 
     public function testCurrentWorkflowApproverCanViewRecommendation(): void
     {
@@ -37,15 +37,17 @@ class RecommendationWorkflowVisibilityPolicyTest extends BaseTestCase
     public function testRetainedPriorApproverCanViewRecommendationReadOnly(): void
     {
         [$recommendation, $instanceId] = $this->createRecommendationWithApprovalRun();
-        $this->createWorkflowApproval($instanceId, WorkflowApproval::STATUS_APPROVED, [
-            'eligible_member_ids' => [self::WORKFLOW_APPROVER_ID],
+        $approvalId = $this->createWorkflowApproval($instanceId, WorkflowApproval::STATUS_APPROVED, [
+            'member_id' => self::WORKFLOW_APPROVER_ID,
             'retain_read_visibility' => true,
         ]);
+        $this->createWorkflowApprovalResponse($approvalId, self::WORKFLOW_APPROVER_ID);
 
         $policy = new RecommendationPolicy();
         $approver = $this->syntheticMember(self::WORKFLOW_APPROVER_ID);
 
         $this->assertTrue($policy->canView($approver, $recommendation));
+        $this->assertFalse($policy->canView($this->syntheticMember(self::FUTURE_APPROVER_ID), $recommendation));
         $this->assertFalse($policy->canEdit($approver, $recommendation));
     }
 
@@ -197,7 +199,7 @@ class RecommendationWorkflowVisibilityPolicyTest extends BaseTestCase
         return (int)$instance->id;
     }
 
-    private function createWorkflowApproval(int $instanceId, string $status, array $approverConfig): void
+    private function createWorkflowApproval(int $instanceId, string $status, array $approverConfig): int
     {
         $logs = $this->getTableLocator()->get('WorkflowExecutionLogs');
         $log = $logs->saveOrFail($logs->newEntity([
@@ -209,7 +211,7 @@ class RecommendationWorkflowVisibilityPolicyTest extends BaseTestCase
         ]));
 
         $approvals = $this->getTableLocator()->get('WorkflowApprovals');
-        $approvals->saveOrFail($approvals->newEntity([
+        $approval = $approvals->saveOrFail($approvals->newEntity([
             'workflow_instance_id' => $instanceId,
             'node_id' => 'approval',
             'execution_log_id' => $log->id,
@@ -221,6 +223,19 @@ class RecommendationWorkflowVisibilityPolicyTest extends BaseTestCase
             'status' => $status,
             'allow_parallel' => false,
             'version' => 1,
+        ]));
+
+        return (int)$approval->id;
+    }
+
+    private function createWorkflowApprovalResponse(int $approvalId, int $memberId): void
+    {
+        $responses = $this->getTableLocator()->get('WorkflowApprovalResponses');
+        $responses->saveOrFail($responses->newEntity([
+            'workflow_approval_id' => $approvalId,
+            'member_id' => $memberId,
+            'decision' => 'approved',
+            'responded_at' => DateTime::now(),
         ]));
     }
 

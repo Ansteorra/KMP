@@ -8,6 +8,7 @@ use App\Services\CsvExportService;
 use Awards\KMP\GridColumns\BestowalStatesGridColumns;
 use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\BestowalStateFieldRule;
+use Awards\Model\Entity\Recommendation;
 use Cake\Http\Exception\NotFoundException;
 
 /**
@@ -49,8 +50,6 @@ class BestowalStatesController extends AppController
         $baseQuery = $this->BestowalStates->find()
             ->contain([
                 'BestowalStatuses',
-                'SyncRecommendationState',
-                'UnwindRecommendationState',
             ]);
 
         $result = $this->processDataverseGrid([
@@ -115,8 +114,6 @@ class BestowalStatesController extends AppController
     {
         $state = $this->BestowalStates->get($id, contain: [
             'BestowalStatuses',
-            'SyncRecommendationState',
-            'UnwindRecommendationState',
             'BestowalStateFieldRules',
             'OutgoingTransitions' => ['ToStates'],
         ]);
@@ -386,21 +383,17 @@ class BestowalStatesController extends AppController
     }
 
     /**
-     * Recommendation states for sync/unwind dropdowns (id => label).
+     * Recommendation states for sync/unwind dropdowns (state name => label).
      *
-     * @return array<int, string>
+     * @return array<string, string>
      */
     private function getRecommendationStateOptions(): array
     {
-        $recStatesTable = $this->fetchTable('Awards.RecommendationStates');
-        $states = $recStatesTable->find()
-            ->contain(['RecommendationStatuses'])
-            ->orderBy(['RecommendationStatuses.sort_order' => 'ASC', 'RecommendationStates.sort_order' => 'ASC'])
-            ->all();
-
         $options = [];
-        foreach ($states as $recState) {
-            $options[$recState->id] = $recState->name . ' (' . $recState->recommendation_status->name . ')';
+        foreach (Recommendation::getStatuses() as $statusName => $stateNames) {
+            foreach ($stateNames as $stateName) {
+                $options[$stateName] = $stateName . ' (' . $statusName . ')';
+            }
         }
 
         return $options;

@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Awards\Model\Table;
 
 use App\Model\Table\BaseTable;
+use Awards\Model\Entity\Recommendation;
 use Cake\ORM\RulesChecker;
 use Cake\Validation\Validator;
 
@@ -11,8 +12,6 @@ use Cake\Validation\Validator;
  * BestowalStates Table - Manages bestowal workflow states.
  *
  * @property \Awards\Model\Table\BestowalStatusesTable&\Cake\ORM\Association\BelongsTo $BestowalStatuses
- * @property \Awards\Model\Table\RecommendationStatesTable&\Cake\ORM\Association\BelongsTo $SyncRecommendationState
- * @property \Awards\Model\Table\RecommendationStatesTable&\Cake\ORM\Association\BelongsTo $UnwindRecommendationState
  * @property \Awards\Model\Table\BestowalStateFieldRulesTable&\Cake\ORM\Association\HasMany $BestowalStateFieldRules
  * @property \Awards\Model\Table\BestowalStateTransitionsTable&\Cake\ORM\Association\HasMany $OutgoingTransitions
  * @property \Awards\Model\Table\BestowalStateTransitionsTable&\Cake\ORM\Association\HasMany $IncomingTransitions
@@ -44,18 +43,6 @@ class BestowalStatesTable extends BaseTable
             'foreignKey' => 'status_id',
             'joinType' => 'INNER',
             'className' => 'Awards.BestowalStatuses',
-        ]);
-
-        $this->belongsTo('SyncRecommendationState', [
-            'foreignKey' => 'sync_recommendation_state_id',
-            'joinType' => 'LEFT',
-            'className' => 'Awards.RecommendationStates',
-        ]);
-
-        $this->belongsTo('UnwindRecommendationState', [
-            'foreignKey' => 'unwind_recommendation_state_id',
-            'joinType' => 'LEFT',
-            'className' => 'Awards.RecommendationStates',
         ]);
 
         $this->hasMany('BestowalStateFieldRules', [
@@ -110,12 +97,14 @@ class BestowalStatesTable extends BaseTable
             ->notEmptyString('sort_order');
 
         $validator
-            ->integer('sync_recommendation_state_id')
-            ->allowEmptyString('sync_recommendation_state_id');
+            ->scalar('sync_recommendation_state')
+            ->maxLength('sync_recommendation_state', 255)
+            ->allowEmptyString('sync_recommendation_state');
 
         $validator
-            ->integer('unwind_recommendation_state_id')
-            ->allowEmptyString('unwind_recommendation_state_id');
+            ->scalar('unwind_recommendation_state')
+            ->maxLength('unwind_recommendation_state', 255)
+            ->allowEmptyString('unwind_recommendation_state');
 
         $validator
             ->boolean('locks_recommendations')
@@ -159,14 +148,35 @@ class BestowalStatesTable extends BaseTable
             'errorField' => 'status_id',
             'message' => 'Invalid status.',
         ]);
-        $rules->add($rules->existsIn(['sync_recommendation_state_id'], 'SyncRecommendationState'), [
-            'errorField' => 'sync_recommendation_state_id',
-            'message' => 'Invalid sync recommendation state.',
-        ]);
-        $rules->add($rules->existsIn(['unwind_recommendation_state_id'], 'UnwindRecommendationState'), [
-            'errorField' => 'unwind_recommendation_state_id',
-            'message' => 'Invalid unwind recommendation state.',
-        ]);
+
+        // Recommendation state mappings are YAML state-name strings (not DB FKs).
+        // Replace the dropped foreign-key integrity with an in-list domain rule so
+        // a non-empty mapping must be a valid Recommendation state.
+        $validStates = Recommendation::getStates();
+        $rules->add(
+            function ($entity) use ($validStates): bool {
+                $sync = $entity->sync_recommendation_state;
+
+                return $sync === null || $sync === '' || in_array($sync, $validStates, true);
+            },
+            'validSyncRecommendationState',
+            [
+                'errorField' => 'sync_recommendation_state',
+                'message' => 'Invalid recommendation state for sync mapping.',
+            ],
+        );
+        $rules->add(
+            function ($entity) use ($validStates): bool {
+                $unwind = $entity->unwind_recommendation_state;
+
+                return $unwind === null || $unwind === '' || in_array($unwind, $validStates, true);
+            },
+            'validUnwindRecommendationState',
+            [
+                'errorField' => 'unwind_recommendation_state',
+                'message' => 'Invalid recommendation state for unwind mapping.',
+            ],
+        );
 
         // Prevent editing system states
         $rules->addUpdate(function ($entity) {

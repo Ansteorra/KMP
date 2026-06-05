@@ -513,6 +513,19 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'description' => 'Current approval process queue, when this recommendation is in workflow approval',
             ],
 
+            'approval_queue_present' => [
+                'key' => 'approval_queue_present',
+                'label' => 'Has Approval Queue',
+                'type' => 'number',
+                'sortable' => false,
+                'filterable' => true,
+                'filterType' => 'is-populated',
+                'defaultVisible' => false,
+                'exportable' => false,
+                'queryField' => 'CurrentApprovalRun.id',
+                'description' => 'Whether this recommendation has an active approval queue',
+            ],
+
             'close_reason' => [
                 'key' => 'close_reason',
                 'label' => 'Close Reason',
@@ -708,6 +721,30 @@ class RecommendationsGridColumns extends BaseGridColumns
                         'approval_queue',
                         'close_reason',
                         'assigned_gathering',
+                    ],
+                ],
+            ],
+            'sys-recs-in-approval' => [
+                'id' => 'sys-recs-in-approval',
+                'name' => __('In Approval'),
+                'description' => __('Recommendations currently routed through an approval queue'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'approval_queue_present', 'operator' => 'is-populated', 'value' => 'yes'],
+                    ],
+                    'columns' => [
+                        'group_children_count',
+                        'created',
+                        'member_sca_name',
+                        'op_links',
+                        'branch_id',
+                        'domain_name',
+                        'award_name',
+                        'reason',
+                        'notes',
+                        'approval_queue',
+                        'state',
                     ],
                 ],
             ],
