@@ -47,6 +47,7 @@ class AwardsWorkflowActions
     private BestowalCancellationService $bestowalCancellationService;
     private BestowalUpdateService $bestowalUpdateService;
     private AdHocBestowalService $adHocBestowalService;
+    private RecommendationApprovalProcessService $approvalProcessService;
 
     /**
      * @param \App\Services\WorkflowEngine\StateMachine\StateMachineHandler|null $stateMachineHandler State machine helper.
@@ -62,6 +63,7 @@ class AwardsWorkflowActions
      * @param \Awards\Services\BestowalCancellationService|null $bestowalCancellationService Bestowal cancellation service.
      * @param \Awards\Services\BestowalUpdateService|null $bestowalUpdateService Bestowal update service.
      * @param \Awards\Services\AdHocBestowalService|null $adHocBestowalService Ad-hoc bestowal service.
+     * @param \Awards\Services\RecommendationApprovalProcessService|null $approvalProcessService Approval process service.
      */
     public function __construct(
         ?StateMachineHandler $stateMachineHandler = null,
@@ -77,6 +79,7 @@ class AwardsWorkflowActions
         ?BestowalCancellationService $bestowalCancellationService = null,
         ?BestowalUpdateService $bestowalUpdateService = null,
         ?AdHocBestowalService $adHocBestowalService = null,
+        ?RecommendationApprovalProcessService $approvalProcessService = null,
     ) {
         $this->recommendationsTable = $this->fetchTable('Awards.Recommendations');
         $this->bestowalsTable = $this->fetchTable('Awards.Bestowals');
@@ -109,6 +112,73 @@ class AwardsWorkflowActions
             syncService: $this->bestowalRecommendationSyncService,
         );
         $this->adHocBestowalService = $adHocBestowalService ?? new AdHocBestowalService();
+        $this->approvalProcessService = $approvalProcessService ?? new RecommendationApprovalProcessService();
+    }
+
+    /**
+     * Start the configured recommendation approval process projection.
+     *
+     * @param array $context Current workflow context.
+     * @param array $config Node config with recommendationId and optional actorId.
+     * @return array<string, mixed>
+     */
+    public function startApprovalProcess(array $context, array $config): array
+    {
+        $result = $this->approvalProcessService->startProcess($context, $config);
+        $data = $result->getData() ?? [];
+
+        return [
+            'success' => $result->isSuccess(),
+            'error' => $result->getError(),
+        ] + $data + $this->currentApprovalStepContextUpdate($result->isSuccess(), $data);
+    }
+
+    /**
+     * Advance the recommendation approval process projection after an approval response.
+     *
+     * @param array $context Current workflow context.
+     * @param array $config Node config.
+     * @return array<string, mixed>
+     */
+    public function advanceApprovalProcess(array $context, array $config): array
+    {
+        $result = $this->approvalProcessService->advanceProcess($context, $config);
+        $data = $result->getData() ?? [];
+
+        return [
+            'success' => $result->isSuccess(),
+            'error' => $result->getError(),
+        ] + $data + $this->currentApprovalStepContextUpdate($result->isSuccess(), $data);
+    }
+
+    /**
+     * Publish the active approval-step output at a stable workflow context path for reusable approval gates.
+     *
+     * @param bool $success Whether the workflow action succeeded.
+     * @param array<string, mixed> $data Action data payload.
+     * @return array<string, mixed>
+     */
+    private function currentApprovalStepContextUpdate(bool $success, array $data): array
+    {
+        if (
+            !$success
+            || !empty($data['completed'])
+            || empty($data['approvalApproverConfig'])
+            || empty($data['requiredCount'])
+        ) {
+            return [];
+        }
+
+        return [
+            '_contextUpdates' => [
+                'awardApprovalCurrentStep' => [
+                    'approvalApproverConfig' => $data['approvalApproverConfig'],
+                    'requiredCount' => $data['requiredCount'],
+                    'currentStepKey' => $data['currentStepKey'] ?? null,
+                    'currentStepLabel' => $data['currentStepLabel'] ?? null,
+                ],
+            ],
+        ];
     }
 
     /**
@@ -180,7 +250,8 @@ class AwardsWorkflowActions
 
         if ($instanceId <= 0 || $recipientMemberId <= 0 || $recipientRowId <= 0) {
             throw new RuntimeException(sprintf(
-                'CreateFeedbackApproval missing required context (instanceId=%d, recipientId=%d, feedbackRequestRecipientId=%d).',
+                'CreateFeedbackApproval missing required context '
+                    . '(instanceId=%d, recipientId=%d, feedbackRequestRecipientId=%d).',
                 $instanceId,
                 $recipientMemberId,
                 $recipientRowId,
@@ -239,7 +310,8 @@ class AwardsWorkflowActions
             }
             if ($recipient->status !== RecommendationFeedbackRequestRecipient::STATUS_PENDING) {
                 throw new RuntimeException(
-                    "CreateFeedbackApproval: recipient row #{$recipientRowId} is not pending (status={$recipient->status}).",
+                    "CreateFeedbackApproval: recipient row #{$recipientRowId} is not pending "
+                        . "(status={$recipient->status}).",
                 );
             }
 
@@ -282,7 +354,8 @@ class AwardsWorkflowActions
             );
             if ($affected !== 1) {
                 throw new RuntimeException(
-                    "CreateFeedbackApproval: failed to link approval to recipient row #{$recipientRowId} (affected={$affected}).",
+                    "CreateFeedbackApproval: failed to link approval to recipient row #{$recipientRowId} "
+                        . "(affected={$affected}).",
                 );
             }
 
@@ -1155,9 +1228,15 @@ class AwardsWorkflowActions
             $data['eventName'] = (string)$result['eventName'];
         }
 
-        return [
+        $workflowResult = [
             'success' => true,
             'data' => $data,
+        ];
+
+        return $workflowResult + [
+            '_contextUpdates' => [
+                'workflowResult' => $workflowResult,
+            ],
         ];
     }
 

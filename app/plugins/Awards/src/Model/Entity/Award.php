@@ -1,10 +1,8 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Awards\Model\Entity;
 
-use Cake\ORM\Entity;
 use App\Model\Entity\BaseEntity;
 
 /**
@@ -23,6 +21,7 @@ use App\Model\Entity\BaseEntity;
  * @property int $domain_id
  * @property int $level_id
  * @property int $branch_id
+ * @property int|null $approval_process_id
  * @property bool $is_active
  * @property bool $disabled
  * @property string $disabled_label
@@ -37,6 +36,7 @@ use App\Model\Entity\BaseEntity;
  * @property \Awards\Model\Entity\Domain $awards_domain
  * @property \Awards\Model\Entity\Level $awards_level
  * @property \App\Model\Entity\Branch $branch
+ * @property \Awards\Model\Entity\ApprovalProcess|null $approval_process
  * @property \App\Model\Entity\GatheringActivity[] $gathering_activities
  */
 class Award extends BaseEntity
@@ -55,6 +55,7 @@ class Award extends BaseEntity
         'domain_id' => true,
         'level_id' => true,
         'branch_id' => true,
+        'approval_process_id' => true,
         'is_active' => true,
         'modified' => true,
         'created' => true,
@@ -64,6 +65,7 @@ class Award extends BaseEntity
         'awards_domain' => true,
         'awards_level' => true,
         'branch' => true,
+        'approval_process' => true,
         'gathering_activities' => true,
     ];
 
@@ -104,7 +106,7 @@ class Award extends BaseEntity
      */
     protected function _getDisabled(): bool
     {
-        return !((bool)($this->is_active ?? true));
+        return !(bool)($this->is_active ?? true);
     }
 
     /**

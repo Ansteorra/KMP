@@ -1,14 +1,18 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Awards\Policy;
 
-use App\Model\Entity\BaseEntity;
-use App\Policy\BasePolicy;
 use App\KMP\KmpIdentityInterface;
-use Cake\ORM\TableRegistry;
+use App\Model\Entity\BaseEntity;
+use App\Model\Entity\Member;
+use App\Model\Entity\WorkflowApproval;
+use App\Policy\BasePolicy;
+use App\Services\WorkflowEngine\DefaultWorkflowApprovalManager;
+use Awards\Model\Entity\Recommendation;
+use BadMethodCallException;
 use Cake\ORM\Table;
+use Cake\ORM\TableRegistry;
 
 /**
  * Authorization policy for Recommendation entities in the Awards plugin.
@@ -25,6 +29,25 @@ use Cake\ORM\Table;
  */
 class RecommendationPolicy extends BasePolicy
 {
+    /**
+     * Check if user can view a recommendation.
+     *
+     * Current workflow approvers and retained prior approvers receive read-only access.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The authenticated user
+     * @param \App\Model\Entity\BaseEntity|\Cake\ORM\Table $entity The recommendation entity
+     * @param mixed ...$optionalArgs Additional authorization context
+     * @return bool True if authorized
+     */
+    public function canView(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    {
+        if ($entity instanceof Recommendation && $this->canViewViaApprovalWorkflow($user, $entity)) {
+            return true;
+        }
+
+        return parent::canView($user, $entity, ...$optionalArgs);
+    }
+
     /**
      * Check if user can edit a recommendation.
      *
@@ -45,7 +68,7 @@ class RecommendationPolicy extends BasePolicy
     }
 
     /**
-     * @inheritdoc
+     * @inheritDoc
      */
     public function canDelete(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
@@ -57,7 +80,7 @@ class RecommendationPolicy extends BasePolicy
     }
 
     /**
-     * @inheritdoc
+     * @inheritDoc
      */
     public function canUpdateStates(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
@@ -66,6 +89,7 @@ class RecommendationPolicy extends BasePolicy
         }
 
         $method = __FUNCTION__;
+
         return $this->_hasPolicy($user, $method, $entity);
     }
 
@@ -77,7 +101,7 @@ class RecommendationPolicy extends BasePolicy
      */
     protected function isLockedByBestowal(BaseEntity $entity): bool
     {
-        if (!$entity instanceof \Awards\Model\Entity\Recommendation) {
+        if (!$entity instanceof Recommendation) {
             return false;
         }
 
@@ -100,6 +124,7 @@ class RecommendationPolicy extends BasePolicy
             return true;
         }
         $method = __FUNCTION__;
+
         return $this->_hasPolicy($user, $method, $entity);
     }
 
@@ -118,9 +143,10 @@ class RecommendationPolicy extends BasePolicy
             return false;
         }
 
-        if ($user instanceof \App\Model\Entity\Member) {
-            $target = new \App\Model\Entity\Member();
+        if ($user instanceof Member) {
+            $target = new Member();
             $target->id = $memberId;
+
             return $user->canManageMember($target);
         }
 
@@ -138,6 +164,7 @@ class RecommendationPolicy extends BasePolicy
     public function canViewSubmittedForMember(KmpIdentityInterface $user, BaseEntity $entity, ...$args): bool
     {
         $method = __FUNCTION__;
+
         return $this->_hasPolicy($user, $method, $entity);
     }
 
@@ -152,6 +179,7 @@ class RecommendationPolicy extends BasePolicy
     public function canViewEventRecommendations(KmpIdentityInterface $user, BaseEntity $entity, ...$args): bool
     {
         $method = __FUNCTION__;
+
         return $this->_hasPolicy($user, $method, $entity);
     }
 
@@ -166,6 +194,7 @@ class RecommendationPolicy extends BasePolicy
     public function canViewGatheringRecommendations(KmpIdentityInterface $user, BaseEntity $entity, ...$args): bool
     {
         $method = __FUNCTION__;
+
         return $this->_hasPolicy($user, $method, $entity);
     }
 
@@ -180,6 +209,7 @@ class RecommendationPolicy extends BasePolicy
     public function canExport(KmpIdentityInterface $user, BaseEntity $entity, ...$args): bool
     {
         $method = __FUNCTION__;
+
         return $this->_hasPolicy($user, $method, $entity);
     }
 
@@ -194,6 +224,7 @@ class RecommendationPolicy extends BasePolicy
     public function canViewHidden(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
+
         return $this->_hasPolicy($user, $method, $entity);
     }
 
@@ -205,9 +236,10 @@ class RecommendationPolicy extends BasePolicy
      * @param mixed ...$optionalArgs Additional authorization context
      * @return bool True if authorized
      */
-    public function canViewPrivateNotes(KmpIdentityInterface $user, BaseEntity  $entity, ...$optionalArgs): bool
+    public function canViewPrivateNotes(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
+
         return $this->_hasPolicy($user, $method, $entity);
     }
 
@@ -226,9 +258,18 @@ class RecommendationPolicy extends BasePolicy
         }
 
         $method = __FUNCTION__;
+
         return $this->_hasPolicy($user, $method, $entity);
     }
 
+    /**
+     * Check if user can request recommendation feedback.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The authenticated user
+     * @param \App\Model\Entity\BaseEntity|\Cake\ORM\Table $entity The recommendation context
+     * @param mixed ...$optionalArgs Additional authorization context
+     * @return bool True if authorized
+     */
     public function canRequestFeedback(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
     {
         if ($entity instanceof BaseEntity) {
@@ -238,11 +279,27 @@ class RecommendationPolicy extends BasePolicy
         return $this->_hasPolicy($user, __FUNCTION__, $entity);
     }
 
+    /**
+     * Check if user can retract recommendation feedback requests.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The authenticated user
+     * @param \App\Model\Entity\BaseEntity|\Cake\ORM\Table $entity The recommendation context
+     * @param mixed ...$optionalArgs Additional authorization context
+     * @return bool True if authorized
+     */
     public function canRetractFeedback(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
     {
         return $this->canRequestFeedback($user, $entity, ...$optionalArgs);
     }
 
+    /**
+     * Check if user can administer recommendation feedback requests.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The authenticated user
+     * @param \App\Model\Entity\BaseEntity|\Cake\ORM\Table $entity The recommendation context
+     * @param mixed ...$optionalArgs Additional authorization context
+     * @return bool True if authorized
+     */
     public function canAdministerFeedback(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
     {
         return $this->_hasPolicy($user, __FUNCTION__, $entity) || $user->isSuperUser();
@@ -292,15 +349,16 @@ class RecommendationPolicy extends BasePolicy
      * @return bool True if user has approval authority for the level
      * @throws \BadMethodCallException When method is not a recognized dynamic method
      */
-    public function __call($name, $arguments)
+    public function __call($name, $arguments): bool
     {
         if (strpos($name, 'canApproveLevel') === 0) {
             $user = $arguments[0] ?? null;
             $entity = $arguments[1] ?? null;
+
             return $this->_hasPolicy($user, $name, $entity);
         }
 
-        throw new \BadMethodCallException("Method {$name} does not exist");
+        throw new BadMethodCallException("Method {$name} does not exist");
     }
 
     /**
@@ -323,5 +381,72 @@ class RecommendationPolicy extends BasePolicy
         }
 
         return $dynamicMethods;
+    }
+
+    /**
+     * Determine workflow-backed read access for current and retained prior approvers.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The authenticated user
+     * @param \Awards\Model\Entity\Recommendation $recommendation Recommendation entity
+     * @return bool
+     */
+    private function canViewViaApprovalWorkflow(
+        KmpIdentityInterface $user,
+        Recommendation $recommendation,
+    ): bool {
+        $memberId = (int)$user->getAsMember()->id;
+        if ($memberId <= 0 || empty($recommendation->id)) {
+            return false;
+        }
+
+        $headRecommendationId = (int)($recommendation->recommendation_group_id ?? $recommendation->id);
+        $runsTable = TableRegistry::getTableLocator()->get('Awards.RecommendationApprovalRuns');
+        $runs = $runsTable->find()
+            ->select(['id', 'workflow_instance_id'])
+            ->where(['RecommendationApprovalRuns.recommendation_id' => $headRecommendationId])
+            ->all();
+
+        $workflowInstanceIds = [];
+        foreach ($runs as $run) {
+            $workflowInstanceIds[] = (int)$run->workflow_instance_id;
+        }
+        $workflowInstanceIds = array_values(array_unique(array_filter($workflowInstanceIds)));
+        if ($workflowInstanceIds === []) {
+            return false;
+        }
+
+        $approvalManager = new DefaultWorkflowApprovalManager();
+        foreach ($approvalManager->getPendingApprovalsForMember($memberId) as $approval) {
+            if (in_array((int)$approval->workflow_instance_id, $workflowInstanceIds, true)) {
+                return true;
+            }
+        }
+
+        $workflowApprovals = TableRegistry::getTableLocator()->get('WorkflowApprovals');
+        $retainedApprovals = $workflowApprovals->find()
+            ->select(['id', 'workflow_instance_id', 'approver_config'])
+            ->where([
+                'WorkflowApprovals.workflow_instance_id IN' => $workflowInstanceIds,
+                'WorkflowApprovals.status IN' => [
+                    WorkflowApproval::STATUS_APPROVED,
+                    WorkflowApproval::STATUS_REJECTED,
+                    WorkflowApproval::STATUS_EXPIRED,
+                    WorkflowApproval::STATUS_CANCELLED,
+                ],
+            ])
+            ->all();
+
+        foreach ($retainedApprovals as $approval) {
+            $approverConfig = is_array($approval->approver_config) ? $approval->approver_config : [];
+            if (empty($approverConfig['retain_read_visibility'])) {
+                continue;
+            }
+            $eligibleIds = array_map('intval', $approverConfig['eligible_member_ids'] ?? []);
+            if (in_array($memberId, $eligibleIds, true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

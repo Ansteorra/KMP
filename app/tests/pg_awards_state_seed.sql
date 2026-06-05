@@ -45,6 +45,8 @@ INSERT INTO public.awards_recommendation_states (id, status_id, name, sort_order
 INSERT INTO public.awards_recommendation_states (id, status_id, name, sort_order, supports_gathering, is_hidden, created, modified, created_by, modified_by, deleted, is_system) VALUES (11, 4, 'No Action', 2, false, true, '2026-05-16 00:30:09', NULL, NULL, NULL, NULL, false);
 INSERT INTO public.awards_recommendation_states (id, status_id, name, sort_order, supports_gathering, is_hidden, created, modified, created_by, modified_by, deleted, is_system) VALUES (12, 1, 'Linked', 99, false, true, '2026-05-16 00:30:09', NULL, NULL, NULL, NULL, true);
 INSERT INTO public.awards_recommendation_states (id, status_id, name, sort_order, supports_gathering, is_hidden, created, modified, created_by, modified_by, deleted, is_system) VALUES (13, 4, 'Linked - Closed', 99, false, true, '2026-05-16 00:30:09', NULL, NULL, NULL, NULL, true);
+INSERT INTO public.awards_recommendation_states (id, status_id, name, sort_order, supports_gathering, is_hidden, created, modified, created_by, modified_by, deleted, is_system) VALUES (14, 1, 'In Approval', 7, false, false, '2026-05-16 00:30:09', NULL, NULL, NULL, NULL, false);
+INSERT INTO public.awards_recommendation_states (id, status_id, name, sort_order, supports_gathering, is_hidden, created, modified, created_by, modified_by, deleted, is_system) VALUES (15, 1, 'Changes Requested', 8, false, false, '2026-05-16 00:30:09', NULL, NULL, NULL, NULL, false);
 
 
 --
@@ -268,6 +270,60 @@ INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, t
 INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (154, 13, 11, '2026-05-16 00:30:09', NULL, NULL, NULL);
 INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (155, 12, 13, '2026-05-16 00:30:09', NULL, NULL, NULL);
 INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (156, 13, 12, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (157, 1, 14, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (158, 1, 15, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (159, 2, 14, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (160, 2, 15, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (161, 3, 14, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (162, 3, 15, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (163, 4, 14, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (164, 4, 15, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (165, 5, 14, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (166, 5, 15, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (167, 6, 14, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (168, 6, 15, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (169, 7, 14, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (170, 7, 15, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (171, 8, 14, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (172, 8, 15, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (173, 9, 14, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (174, 9, 15, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (175, 10, 14, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (176, 10, 15, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (177, 11, 14, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (178, 11, 15, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (179, 12, 14, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (180, 12, 15, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (181, 13, 14, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (182, 13, 15, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (183, 14, 1, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (184, 14, 2, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (185, 14, 3, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (186, 14, 4, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (187, 14, 5, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (188, 14, 6, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (189, 14, 7, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (190, 14, 8, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (191, 14, 9, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (192, 14, 10, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (193, 14, 11, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (194, 14, 12, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (195, 14, 13, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (196, 14, 15, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (197, 15, 1, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (198, 15, 2, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (199, 15, 3, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (200, 15, 4, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (201, 15, 5, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (202, 15, 6, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (203, 15, 7, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (204, 15, 8, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (205, 15, 9, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (206, 15, 10, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (207, 15, 11, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (208, 15, 12, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (209, 15, 13, '2026-05-16 00:30:09', NULL, NULL, NULL);
+INSERT INTO public.awards_recommendation_state_transitions (id, from_state_id, to_state_id, created, modified, created_by, modified_by) VALUES (210, 15, 14, '2026-05-16 00:30:09', NULL, NULL, NULL);
 
 
 --
@@ -281,14 +337,14 @@ SELECT pg_catalog.setval('public.awards_recommendation_state_field_rules_id_seq'
 -- Name: awards_recommendation_state_transitions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.awards_recommendation_state_transitions_id_seq', 156, true);
+SELECT pg_catalog.setval('public.awards_recommendation_state_transitions_id_seq', 210, true);
 
 
 --
 -- Name: awards_recommendation_states_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.awards_recommendation_states_id_seq', 13, true);
+SELECT pg_catalog.setval('public.awards_recommendation_states_id_seq', 15, true);
 
 
 --
@@ -303,4 +359,3 @@ SELECT pg_catalog.setval('public.awards_recommendation_statuses_id_seq', 4, true
 --
 
 \unrestrict H160G12AGVsF07zfEBbJD8gb9HzrG9PzxnrURpp9PkeX7X4gCvd3INstbsTSeT4
-

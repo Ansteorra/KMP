@@ -38,6 +38,7 @@ class RecommendationQueryService
     ): array {
         $includeGatherings = $this->shouldLoadDisplayColumn('gatherings', $visibleColumns);
         $includeAssignedGathering = $this->shouldLoadDisplayColumn('assigned_gathering', $visibleColumns);
+        $includeApprovalQueue = $this->shouldLoadDisplayColumn('approval_queue', $visibleColumns);
         $selectFields = $this->recommendationSelectFields($visibleColumns);
 
         $contain = [
@@ -73,6 +74,17 @@ class RecommendationQueryService
                 return $q->select(['id', 'name', 'cancelled_at']);
             };
         }
+        if ($includeApprovalQueue) {
+            $contain['CurrentApprovalRun'] = function ($q) {
+                return $q->select([
+                    'id',
+                    'recommendation_id',
+                    'status',
+                    'current_step_key',
+                    'current_step_label',
+                ]);
+            };
+        }
         if ($includeNotes) {
             $contain['Notes'] = function ($q) {
                 return $q->select(['id', 'entity_id', 'subject', 'body', 'created']);
@@ -86,6 +98,7 @@ class RecommendationQueryService
             ->innerJoinWith('Awards.AwardBranch')
             ->where(['Recommendations.recommendation_group_id IS' => null])
             ->leftJoinWith('Awards.Domains')
+            ->leftJoinWith('CurrentApprovalRun')
             ->innerJoinWith('Awards.Levels');
         if ($selectFields !== null) {
             $baseQuery->select($selectFields);
@@ -152,6 +165,7 @@ class RecommendationQueryService
         ?array $visibleColumns = null,
     ): array {
         $includeGatherings = $this->shouldLoadDisplayColumn('gatherings', $visibleColumns);
+        $includeApprovalQueue = $this->shouldLoadDisplayColumn('approval_queue', $visibleColumns);
         $selectFields = $this->recommendationSelectFields($visibleColumns);
 
         $contain = [
@@ -173,11 +187,23 @@ class RecommendationQueryService
                 return $q->select(['id', 'name', 'start_date', 'end_date']);
             };
         }
+        if ($includeApprovalQueue) {
+            $contain['CurrentApprovalRun'] = function ($q) {
+                return $q->select([
+                    'id',
+                    'recommendation_id',
+                    'status',
+                    'current_step_key',
+                    'current_step_label',
+                ]);
+            };
+        }
 
         $baseQuery = $recommendationsTable->find()
             ->where(['Recommendations.requester_id' => $memberId])
             ->innerJoinWith('Awards.AwardBranch')
             ->leftJoinWith('Awards.Domains')
+            ->leftJoinWith('CurrentApprovalRun')
             ->innerJoinWith('Awards.Levels');
         if ($selectFields !== null) {
             $baseQuery->select($selectFields);
@@ -219,6 +245,7 @@ class RecommendationQueryService
     ): array {
         $includeGatherings = $this->shouldLoadDisplayColumn('gatherings', $visibleColumns);
         $includeAssignedGathering = $this->shouldLoadDisplayColumn('assigned_gathering', $visibleColumns);
+        $includeApprovalQueue = $this->shouldLoadDisplayColumn('approval_queue', $visibleColumns);
         $selectFields = $this->recommendationSelectFields($visibleColumns);
 
         $contain = [
@@ -245,11 +272,23 @@ class RecommendationQueryService
                 return $q->select(['id', 'name', 'cancelled_at']);
             };
         }
+        if ($includeApprovalQueue) {
+            $contain['CurrentApprovalRun'] = function ($q) {
+                return $q->select([
+                    'id',
+                    'recommendation_id',
+                    'status',
+                    'current_step_key',
+                    'current_step_label',
+                ]);
+            };
+        }
 
         $baseQuery = $recommendationsTable->find()
             ->where(['Recommendations.member_id' => $memberId])
             ->innerJoinWith('Awards.AwardBranch')
             ->leftJoinWith('Awards.Domains')
+            ->leftJoinWith('CurrentApprovalRun')
             ->innerJoinWith('Awards.Levels');
         if ($selectFields !== null) {
             $baseQuery->select($selectFields);
@@ -294,6 +333,7 @@ class RecommendationQueryService
         $includeNotes = $this->shouldLoadDisplayColumn('notes', $visibleColumns);
         $includeGatherings = $this->shouldLoadDisplayColumn('gatherings', $visibleColumns);
         $includeAssignedGathering = $this->shouldLoadDisplayColumn('assigned_gathering', $visibleColumns);
+        $includeApprovalQueue = $this->shouldLoadDisplayColumn('approval_queue', $visibleColumns);
         $selectFields = $this->recommendationSelectFields($visibleColumns);
 
         $contain = [
@@ -337,11 +377,23 @@ class RecommendationQueryService
                 return $q->select(['id', 'name', 'cancelled_at']);
             };
         }
+        if ($includeApprovalQueue) {
+            $contain['CurrentApprovalRun'] = function ($q) {
+                return $q->select([
+                    'id',
+                    'recommendation_id',
+                    'status',
+                    'current_step_key',
+                    'current_step_label',
+                ]);
+            };
+        }
 
         $baseQuery = $recommendationsTable->find()
             ->where(['Recommendations.gathering_id' => $gatheringId])
             ->innerJoinWith('Awards.AwardBranch')
             ->leftJoinWith('Awards.Domains')
+            ->leftJoinWith('CurrentApprovalRun')
             ->innerJoinWith('Awards.Levels');
         if ($selectFields !== null) {
             $baseQuery->select($selectFields);

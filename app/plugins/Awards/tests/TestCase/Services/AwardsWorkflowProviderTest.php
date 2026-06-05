@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Awards\Test\TestCase\Services;
 
 use App\Services\WorkflowRegistry\WorkflowActionRegistry;
+use App\Services\WorkflowRegistry\WorkflowApproverResolverRegistry;
 use App\Services\WorkflowRegistry\WorkflowConditionRegistry;
 use App\Services\WorkflowRegistry\WorkflowEntityRegistry;
 use App\Services\WorkflowRegistry\WorkflowTriggerRegistry;
@@ -19,6 +20,7 @@ class AwardsWorkflowProviderTest extends TestCase
 
         WorkflowTriggerRegistry::clear();
         WorkflowActionRegistry::clear();
+        WorkflowApproverResolverRegistry::clear();
         WorkflowConditionRegistry::clear();
         WorkflowEntityRegistry::clear();
     }
@@ -27,6 +29,7 @@ class AwardsWorkflowProviderTest extends TestCase
     {
         WorkflowTriggerRegistry::clear();
         WorkflowActionRegistry::clear();
+        WorkflowApproverResolverRegistry::clear();
         WorkflowConditionRegistry::clear();
         WorkflowEntityRegistry::clear();
 
@@ -50,6 +53,25 @@ class AwardsWorkflowProviderTest extends TestCase
             $this->assertArrayHasKey('expiresOn', $triggersByEvent[$eventName]['payloadSchema']);
             $this->assertArrayHasKey('recommendations', $triggersByEvent[$eventName]['payloadSchema']);
         }
+    }
+
+    public function testApprovalProcessActionsAndApproverResolverAreRegistered(): void
+    {
+        AwardsWorkflowProvider::register();
+
+        $startAction = WorkflowActionRegistry::getAction('Awards.StartApprovalProcess');
+        $this->assertNotNull($startAction);
+        $this->assertSame('startApprovalProcess', $startAction['serviceMethod']);
+        $this->assertArrayHasKey('approvalApproverConfig', $startAction['outputSchema']);
+
+        $advanceAction = WorkflowActionRegistry::getAction('Awards.AdvanceApprovalProcess');
+        $this->assertNotNull($advanceAction);
+        $this->assertSame('advanceApprovalProcess', $advanceAction['serviceMethod']);
+
+        $resolver = WorkflowApproverResolverRegistry::getResolver('Awards.ResolveApprovalStepApprovers');
+        $this->assertNotNull($resolver);
+        $this->assertSame('resolveConfiguredApproverIds', $resolver['serviceMethod']);
+        $this->assertArrayHasKey('eligible_member_ids', $resolver['configSchema']);
     }
 
     /**

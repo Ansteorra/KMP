@@ -3,12 +3,13 @@
 /**
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\ActivityGroup $authorizationGroup
+ * @var \Cake\Collection\CollectionInterface|array $approvalProcesses
  */
 ?>
-<?php $this->extend("/layout/TwitterBootstrap/dashboard");
+<?php $this->extend('/layout/TwitterBootstrap/dashboard');
 
-echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Add Award';
+echo $this->KMP->startBlock('title');
+echo $this->KMP->getAppSetting('KMP.ShortSiteTitle') . ': Add Award';
 $this->KMP->endBlock(); ?>
 
 <div class="activityGroup form content">
@@ -16,14 +17,17 @@ $this->KMP->endBlock(); ?>
         $award,
         [
             'data-controller' => 'awards-award-form',
-        ]
+        ],
     ) ?>
     <fieldset>
         <legend><?= $this->element('backButton') ?> <?= __('Add Award') ?></legend>
         <?php
         echo $this->Form->control('name');
         echo $this->Form->control('abbreviation');
-        echo $this->Form->hidden('specialties', ['id' => 'specialties', 'data-awards-award-form-target' => 'formValue']); ?>
+        echo $this->Form->hidden('specialties', [
+            'id' => 'specialties',
+            'data-awards-award-form-target' => 'formValue',
+        ]); ?>
 
         <div class="mb-3 form-group specialties">
             <label class="form-label" for="specialtyInput">Specialties</label>
@@ -49,6 +53,12 @@ $this->KMP->endBlock(); ?>
         echo $this->Form->control('domain_id', ['options' => $awardsDomains]);
         echo $this->Form->control('level_id', ['options' => $awardsLevels]);
         echo $this->Form->control('branch_id', ['options' => $branches]);
+        echo $this->Form->control('approval_process_id', [
+            'options' => $approvalProcesses,
+            'empty' => __('Use legacy recommendation state process'),
+            'label' => __('Approval Process'),
+            'help' => __('Choose the configured approval queue process for new recommendations for this award.'),
+        ]);
         ?>
     </fieldset>
     <?= $this->Form->button(__('Submit')) ?>

@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Awards\Services;
 
 use App\Services\WorkflowRegistry\WorkflowActionRegistry;
+use App\Services\WorkflowRegistry\WorkflowApproverResolverRegistry;
 use App\Services\WorkflowRegistry\WorkflowConditionRegistry;
 use App\Services\WorkflowRegistry\WorkflowEntityRegistry;
 use App\Services\WorkflowRegistry\WorkflowTriggerRegistry;
@@ -28,7 +29,31 @@ class AwardsWorkflowProvider
         self::registerTriggers();
         self::registerActions();
         self::registerConditions();
+        self::registerApproverResolvers();
         self::registerEntities();
+    }
+
+    /**
+     * Register dynamic approver resolvers supplied by Awards.
+     *
+     * @return void
+     */
+    private static function registerApproverResolvers(): void
+    {
+        WorkflowApproverResolverRegistry::register(self::SOURCE, [
+            [
+                'resolver' => 'Awards.ResolveApprovalStepApprovers',
+                'label' => 'Award approval step approvers',
+                'description' => 'Resolve eligible approvers for the current configured award approval process step.',
+                'serviceClass' => RecommendationApprovalProcessService::class,
+                'serviceMethod' => 'resolveConfiguredApproverIds',
+                'configSchema' => [
+                    'award_approval_run_id' => ['type' => 'integer', 'label' => 'Approval Run ID'],
+                    'award_approval_step_key' => ['type' => 'string', 'label' => 'Approval Step Key'],
+                    'eligible_member_ids' => ['type' => 'array', 'label' => 'Snapshot Eligible Member IDs'],
+                ],
+            ],
+        ]);
     }
 
     /**
@@ -329,6 +354,54 @@ class AwardsWorkflowProvider
         $actionsClass = AwardsWorkflowActions::class;
 
         WorkflowActionRegistry::register(self::SOURCE, [
+            [
+                'action' => 'Awards.StartApprovalProcess',
+                'label' => 'Start Award Approval Process',
+                'description' => 'Create or reuse the award approval run projection for a recommendation.',
+                'inputSchema' => [
+                    'recommendationId' => ['type' => 'integer', 'label' => 'Recommendation ID', 'required' => true],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Started'],
+                    'runId' => ['type' => 'integer', 'label' => 'Approval Run ID'],
+                    'currentStepKey' => ['type' => 'string', 'label' => 'Current Step Key'],
+                    'currentStepLabel' => ['type' => 'string', 'label' => 'Current Step Label'],
+                    'approverIds' => ['type' => 'array', 'label' => 'Eligible Approver IDs'],
+                    'requiredCount' => ['type' => 'integer', 'label' => 'Required Approval Count'],
+                    'approvalApproverConfig' => ['type' => 'object', 'label' => 'Approval Approver Config'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'startApprovalProcess',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Awards.AdvanceApprovalProcess',
+                'label' => 'Advance Award Approval Process',
+                'description' => 'Update the approval run projection after the current approval step resolves.',
+                'inputSchema' => [
+                    'approvalNodeId' => [
+                        'type' => 'string',
+                        'label' => 'Approval Node ID',
+                        'description' => 'Approval node whose decision/status should advance this configured step.',
+                    ],
+                    'approvalStatus' => ['type' => 'string', 'label' => 'Approval Status'],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Advanced'],
+                    'runId' => ['type' => 'integer', 'label' => 'Approval Run ID'],
+                    'status' => ['type' => 'string', 'label' => 'Run Status'],
+                    'currentStepKey' => ['type' => 'string', 'label' => 'Current Step Key'],
+                    'currentStepLabel' => ['type' => 'string', 'label' => 'Current Step Label'],
+                    'approverIds' => ['type' => 'array', 'label' => 'Eligible Approver IDs'],
+                    'requiredCount' => ['type' => 'integer', 'label' => 'Required Approval Count'],
+                    'completed' => ['type' => 'boolean', 'label' => 'Process Completed'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'advanceApprovalProcess',
+                'isAsync' => false,
+            ],
             [
                 'action' => 'Awards.CreateRecommendation',
                 'label' => 'Create Recommendation',
@@ -733,22 +806,29 @@ class AwardsWorkflowProvider
             [
                 'action' => 'Awards.CreateFeedbackApproval',
                 'label' => 'Create Feedback Approval',
-                'description' => 'Create a workflow approval for a recommendation feedback recipient and link it back to the recipient row',
+                'description' => 'Create a workflow approval for a recommendation feedback recipient and link it '
+                    . 'back to the recipient row',
                 'inputSchema' => [
                     'recipientId' => ['type' => 'integer', 'label' => 'Recipient Member ID', 'required' => true],
-                    'feedbackRequestRecipientId' => ['type' => 'integer', 'label' => 'Feedback Request Recipient Row ID', 'required' => true],
+                    'feedbackRequestRecipientId' => [
+                        'type' => 'integer',
+                        'label' => 'Feedback Request Recipient Row ID',
+                        'required' => true,
+                    ],
                     'deadline' => ['type' => 'string', 'label' => 'Response Deadline (ATOM)'],
                     'nodeId' => ['type' => 'string', 'label' => 'Action Node ID', 'hidden' => true],
                     'decisionPromptLabel' => [
                         'type' => 'string',
                         'label' => 'Decision Prompt Label',
-                        'description' => 'Optional label shown above the response choices, such as Your View or Polling Response.',
+                        'description' => 'Optional label shown above the response choices, such as Your View '
+                            . 'or Polling Response.',
                     ],
                     'decisionOptions' => [
                         'type' => 'array',
                         'label' => 'Decision Options',
                         'editor' => 'options',
-                        'description' => 'Choices shown to feedback recipients, such as Support, Oppose, or Indifferent.',
+                        'description' => 'Choices shown to feedback recipients, such as Support, Oppose, '
+                            . 'or Indifferent.',
                     ],
                     'requiresComment' => ['type' => 'boolean', 'label' => 'Require Comment'],
                 ],

@@ -1,20 +1,25 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Awards\Controller;
 
 use App\Controller\DataverseGridTrait;
-use Awards\Controller\AppController;
+use App\Services\CsvExportService;
+use Awards\KMP\GridColumns\AwardsGridColumns;
+use Cake\Http\Exception\BadRequestException;
+use Cake\Http\Exception\NotFoundException;
+use Cake\Log\Log;
+use Cake\ORM\Query\SelectQuery;
+use Cake\Routing\Router;
 
 /**
  * Awards Controller - Award Management and Hierarchical Organization
- * 
+ *
  * Provides CRUD operations for award configuration within the Domain/Level/Branch
  * hierarchy. Includes API endpoints for award discovery and recommendation integration.
- * 
+ *
  * Uses DataverseGridTrait for table-based data display.
- * 
+ *
  * @property \Awards\Model\Table\AwardsTable $Awards
  * @package Awards\Controller
  */
@@ -40,25 +45,25 @@ class AwardsController extends AppController
 
     /**
      * Initialize Awards Controller.
-     * 
+     *
      * Configures authorization for index/add/gridData and allows
      * unauthenticated access to awardsByDomain endpoint.
-     * 
+     *
      * @return void
      */
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel("index", "add", "gridData");
+        $this->Authorization->authorizeModel('index', 'add', 'gridData');
 
         $this->Authentication->allowUnauthenticated([
-            "awardsByDomain"
+            'awardsByDomain',
         ]);
     }
 
     /**
      * Award Index - Administrative award listing.
-     * 
+     *
      * @return \Cake\Http\Response|null|void
      */
     public function index(): void
@@ -75,7 +80,7 @@ class AwardsController extends AppController
      * @param \App\Services\CsvExportService $csvExportService Injected CSV export service
      * @return \Cake\Http\Response|null|void Renders view or returns CSV response
      */
-    public function gridData(\App\Services\CsvExportService $csvExportService)
+    public function gridData(CsvExportService $csvExportService)
     {
         // Build base query with domain, level, and branch info
         $baseQuery = $this->buildAwardsGridBaseQuery();
@@ -83,7 +88,7 @@ class AwardsController extends AppController
         // Use unified trait for grid processing
         $result = $this->processDataverseGrid([
             'gridKey' => 'Awards.Awards.index.main',
-            'gridColumnsClass' => \Awards\KMP\GridColumns\AwardsGridColumns::class,
+            'gridColumnsClass' => AwardsGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'Awards',
             'defaultSort' => ['Awards.name' => 'asc'],
@@ -105,7 +110,7 @@ class AwardsController extends AppController
             'gridState' => $result['gridState'],
             'columns' => $result['columnsMetadata'],
             'visibleColumns' => $result['visibleColumns'],
-            'searchableColumns' => \Awards\KMP\GridColumns\AwardsGridColumns::getSearchableColumns(),
+            'searchableColumns' => AwardsGridColumns::getSearchableColumns(),
             'dropdownFilterColumns' => $result['dropdownFilterColumns'],
             'filterOptions' => $result['filterOptions'],
             'currentFilters' => $result['currentFilters'],
@@ -151,7 +156,7 @@ class AwardsController extends AppController
     public function activityAwardsGridData(?int $activityId = null)
     {
         if ($activityId === null) {
-            throw new \Cake\Http\Exception\BadRequestException(__('Activity ID is required.'));
+            throw new BadRequestException(__('Activity ID is required.'));
         }
 
         $gatheringActivity = $this->fetchTable('GatheringActivities')->get($activityId);
@@ -166,7 +171,7 @@ class AwardsController extends AppController
 
         $result = $this->processDataverseGrid([
             'gridKey' => 'Awards.Awards.activity.' . $activityId,
-            'gridColumnsClass' => \Awards\KMP\GridColumns\AwardsGridColumns::class,
+            'gridColumnsClass' => AwardsGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'Awards',
             'defaultSort' => ['Awards.name' => 'asc'],
@@ -180,11 +185,11 @@ class AwardsController extends AppController
         $this->set([
             'awards' => $result['data'],
             'data' => $result['data'],
-            'rowActions' => $canEdit ? \Awards\KMP\GridColumns\AwardsGridColumns::getActivityRowActions($activityId) : [],
+            'rowActions' => $canEdit ? AwardsGridColumns::getActivityRowActions($activityId) : [],
             'gridState' => $result['gridState'],
             'columns' => $result['columnsMetadata'],
             'visibleColumns' => $result['visibleColumns'],
-            'searchableColumns' => \Awards\KMP\GridColumns\AwardsGridColumns::getSearchableColumns(),
+            'searchableColumns' => AwardsGridColumns::getSearchableColumns(),
             'dropdownFilterColumns' => $result['dropdownFilterColumns'],
             'filterOptions' => $result['filterOptions'],
             'currentFilters' => $result['currentFilters'],
@@ -198,7 +203,7 @@ class AwardsController extends AppController
 
         $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
         $frameId = 'activity-awards-grid-' . $activityId;
-        $dataUrl = \Cake\Routing\Router::url([
+        $dataUrl = Router::url([
             'plugin' => 'Awards',
             'controller' => 'Awards',
             'action' => 'activity-awards-grid-data',
@@ -217,6 +222,7 @@ class AwardsController extends AppController
         if ($turboFrame === $frameId . '-table') {
             $this->set('tableFrameId', $frameId . '-table');
             $this->viewBuilder()->setTemplate('dv_grid_table');
+
             return;
         }
 
@@ -231,7 +237,7 @@ class AwardsController extends AppController
      *
      * @return \Cake\ORM\Query\SelectQuery
      */
-    protected function buildAwardsGridBaseQuery(): \Cake\ORM\Query\SelectQuery
+    protected function buildAwardsGridBaseQuery(): SelectQuery
     {
         return $this->Awards->find()
             ->contain([
@@ -242,6 +248,9 @@ class AwardsController extends AppController
                     return $q->select(['id', 'name']);
                 },
                 'Branches' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'ApprovalProcesses' => function ($q) {
                     return $q->select(['id', 'name']);
                 },
             ]);
@@ -271,25 +280,32 @@ class AwardsController extends AppController
                 'Branches' => function ($q) {
                     return $q->select(['id', 'name']);
                 },
+                'ApprovalProcesses' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
                 'GatheringActivities' => function ($q) {
                     return $q->select(['id', 'name', 'description']);
-                }
+                },
             ])
             ->first();
 
         if (!$award) {
-            throw new \Cake\Http\Exception\NotFoundException();
+            throw new NotFoundException();
         }
 
         $this->Authorization->authorize($award);
 
         $awardsDomains = $this->Awards->Domains->find('list', limit: 200)->all();
-        $awardsLevels = $this->Awards->Levels->find('list', limit: 200, orderBy: ["progression_order"])->all();
+        $awardsLevels = $this->Awards->Levels->find('list', limit: 200, orderBy: ['progression_order'])->all();
+        $approvalProcesses = $this->Awards->ApprovalProcesses->find('list', limit: 200)
+            ->where(['ApprovalProcesses.is_active' => true])
+            ->orderBy(['ApprovalProcesses.name' => 'ASC'])
+            ->all();
         $branches = $this->Awards->Branches
-            ->find("treeList", spacer: "--", keyPath: function ($entity) {
+            ->find('treeList', spacer: '--', keyPath: function ($entity) {
                 return $entity->id;
             })
-            ->orderBy(["name" => "ASC"])->toArray();
+            ->orderBy(['name' => 'ASC'])->toArray();
 
         // Get available activities for the add modal
         $gatheringActivitiesTable = $this->fetchTable('GatheringActivities');
@@ -302,17 +318,25 @@ class AwardsController extends AppController
                 if (!empty($existingActivityIds)) {
                     return $exp->notIn('id', $existingActivityIds);
                 }
+
                 return $exp;
             })
             ->orderBy(['name' => 'ASC'])
             ->toArray();
 
-        $this->set(compact('award', 'awardsDomains', 'awardsLevels', 'branches', 'availableActivities'));
+        $this->set(compact(
+            'award',
+            'awardsDomains',
+            'awardsLevels',
+            'approvalProcesses',
+            'branches',
+            'availableActivities',
+        ));
     }
 
     /**
      * Award Add - Create new award.
-     * 
+     *
      * @return \Cake\Http\Response|null|void Redirects on success, renders form otherwise
      */
     public function add()
@@ -330,17 +354,21 @@ class AwardsController extends AppController
         }
         $awardsDomains = $this->Awards->Domains->find('list', limit: 200)->all();
         $awardsLevels = $this->Awards->Levels->find('list', limit: 200)->all();
+        $approvalProcesses = $this->Awards->ApprovalProcesses->find('list', limit: 200)
+            ->where(['ApprovalProcesses.is_active' => true])
+            ->orderBy(['ApprovalProcesses.name' => 'ASC'])
+            ->all();
         $branches = $this->Awards->Branches
-            ->find("treeList", spacer: "--", keyPath: function ($entity) {
+            ->find('treeList', spacer: '--', keyPath: function ($entity) {
                 return $entity->id;
             })
-            ->orderBy(["name" => "ASC"])->toArray();
-        $this->set(compact('award', 'awardsDomains', 'awardsLevels', 'branches'));
+            ->orderBy(['name' => 'ASC'])->toArray();
+        $this->set(compact('award', 'awardsDomains', 'awardsLevels', 'approvalProcesses', 'branches'));
     }
 
     /**
      * Award Edit - Modify existing award with specialty JSON handling.
-     * 
+     *
      * @param string|null $id Award identifier
      * @return \Cake\Http\Response|null|void Redirects to award view after processing
      * @throws \Cake\Http\Exception\NotFoundException When award not found
@@ -349,7 +377,7 @@ class AwardsController extends AppController
     {
         $award = $this->Awards->get($id, contain: []);
         if (!$award) {
-            throw new \Cake\Http\Exception\NotFoundException();
+            throw new NotFoundException();
         }
 
         $this->Authorization->authorize($award);
@@ -365,14 +393,15 @@ class AwardsController extends AppController
             }
             $this->Flash->error(__('The award could not be saved. Please, try again.'));
         }
+
         return $this->redirect(['action' => 'view', $award->id]);
     }
 
     /**
      * Award Delete - Soft deletion with referential integrity check.
-     * 
+     *
      * Prevents deletion if recommendations exist. Prefixes name with "Deleted:".
-     * 
+     *
      * @param string|null $id Award identifier
      * @return \Cake\Http\Response|null Redirects to index or view based on outcome
      * @throws \Cake\Http\Exception\NotFoundException When award not found
@@ -382,7 +411,7 @@ class AwardsController extends AppController
         $this->request->allowMethod(['post', 'delete']);
         $award = $this->Awards->get($id);
         if (!$award) {
-            throw new \Cake\Http\Exception\NotFoundException();
+            throw new NotFoundException();
         }
 
         $this->Authorization->authorize($award);
@@ -392,15 +421,17 @@ class AwardsController extends AppController
             ->count();
         if ($countRecommendations > 0) {
             $this->Flash->error(
-                __('The award could not be deleted because it has {0} recommendations.', $countRecommendations)
+                __('The award could not be deleted because it has {0} recommendations.', $countRecommendations),
             );
+
             return $this->redirect(['action' => 'view', $award->id]);
         }
-        $award->name = "Deleted: " . $award->name;
+        $award->name = 'Deleted: ' . $award->name;
         if ($this->Awards->delete($award)) {
             $this->Flash->success(__('The award has been deleted.'));
         } else {
             $this->Flash->error(__('The award could not be deleted. Please, try again.'));
+
             return $this->redirect(['action' => 'view', $award->id]);
         }
 
@@ -431,13 +462,14 @@ class AwardsController extends AppController
                 },
                 'Branches' => function ($q) {
                     return $q->select(['id', 'name']);
-                }
+                },
             ])
-            ->orderBy(["Levels.progression_order" => "ASC", "Awards.name" => "ASC"])
+            ->orderBy(['Levels.progression_order' => 'ASC', 'Awards.name' => 'ASC'])
             ->all();
         $this->response = $this->response
-            ->withType("application/json")
+            ->withType('application/json')
             ->withStringBody(json_encode($awards));
+
         return $this->response;
     }
 
@@ -489,6 +521,7 @@ class AwardsController extends AppController
 
             if (!$gatheringActivityId) {
                 $this->Flash->error(__('Please select an activity.'));
+
                 return $this->redirect(['action' => 'view', $id]);
             }
 
@@ -505,7 +538,7 @@ class AwardsController extends AppController
                 // Log validation errors for debugging
                 $errors = $awardGatheringActivity->getErrors();
                 if (!empty($errors)) {
-                    \Cake\Log\Log::error('Failed to add activity to award: ' . json_encode($errors));
+                    Log::error('Failed to add activity to award: ' . json_encode($errors));
                     $errorMessages = [];
                     foreach ($errors as $field => $fieldErrors) {
                         foreach ($fieldErrors as $error) {
@@ -514,7 +547,7 @@ class AwardsController extends AppController
                     }
                     $this->Flash->error(__('The activity could not be added: {0}', implode(', ', $errorMessages)));
                 } else {
-                    \Cake\Log\Log::error('Failed to add activity to award with no validation errors');
+                    Log::error('Failed to add activity to award with no validation errors');
                     $this->Flash->error(__('The activity could not be added. Please try again.'));
                 }
             }
@@ -578,6 +611,7 @@ class AwardsController extends AppController
             $this->response = $this->response
                 ->withType('text/vnd.turbo-stream.html')
                 ->withStringBody($turboStream);
+
             return $this->response;
         }
 
@@ -629,9 +663,16 @@ class AwardsController extends AppController
                     $this->response = $this->response
                         ->withType('text/vnd.turbo-stream.html')
                         ->withStringBody($turboStream);
+
                     return $this->response;
                 }
-                return $this->redirect(['plugin' => null, 'controller' => 'GatheringActivities', 'action' => 'view', $activityId]);
+
+                return $this->redirect([
+                    'plugin' => null,
+                    'controller' => 'GatheringActivities',
+                    'action' => 'view',
+                    $activityId,
+                ]);
             }
 
             // Create the association
@@ -647,7 +688,7 @@ class AwardsController extends AppController
                 // Log validation errors for debugging
                 $errors = $awardGatheringActivity->getErrors();
                 if (!empty($errors)) {
-                    \Cake\Log\Log::error('Failed to add award to activity: ' . json_encode($errors));
+                    Log::error('Failed to add award to activity: ' . json_encode($errors));
                     $errorMessages = [];
                     foreach ($errors as $field => $fieldErrors) {
                         foreach ($fieldErrors as $error) {
@@ -656,7 +697,7 @@ class AwardsController extends AppController
                     }
                     $this->Flash->error(__('The award could not be added: {0}', implode(', ', $errorMessages)));
                 } else {
-                    \Cake\Log\Log::error('Failed to add award to activity with no validation errors');
+                    Log::error('Failed to add award to activity with no validation errors');
                     $this->Flash->error(__('The award could not be added. Please try again.'));
                 }
             }
@@ -677,10 +718,16 @@ class AwardsController extends AppController
             $this->response = $this->response
                 ->withType('text/vnd.turbo-stream.html')
                 ->withStringBody($turboStream);
+
             return $this->response;
         }
 
-        return $this->redirect(['plugin' => null, 'controller' => 'GatheringActivities', 'action' => 'view', $activityId]);
+        return $this->redirect([
+            'plugin' => null,
+            'controller' => 'GatheringActivities',
+            'action' => 'view',
+            $activityId,
+        ]);
     }
 
     /**
@@ -708,7 +755,7 @@ class AwardsController extends AppController
 
         // Render flash messages if any
         if (!empty($flashMessages)) {
-            foreach ($flashMessages as $key => $messages) {
+            foreach ($flashMessages as $messages) {
                 foreach ($messages as $message) {
                     $text = $message['message'] ?? '';
 
@@ -730,14 +777,15 @@ class AwardsController extends AppController
                     };
 
                     $streams[] = sprintf(
-                        '<div class="alert alert-%s alert-dismissible fade show" role="alert">%s<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>',
+                        '<div class="alert alert-%s alert-dismissible fade show" role="alert">%s' .
+                            '<button type="button" class="btn-close" data-bs-dismiss="alert" ' .
+                            'aria-label="Close"></button></div>',
                         h($alertType),
-                        h($text)
+                        h($text),
                     );
                 }
             }
         }
-
 
         $streams[] = '</template>';
         $streams[] = '</turbo-stream>';

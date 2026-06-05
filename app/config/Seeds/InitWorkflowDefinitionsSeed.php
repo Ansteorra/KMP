@@ -64,7 +64,7 @@ class InitWorkflowDefinitionsSeed extends BaseSeed
                 'trigger_config' => ['event' => 'Awards.RecommendationCreateRequested'],
                 'entity_type' => 'Awards',
                 'json_file' => 'awards-recommendation-submitted.json',
-                'execution_mode' => 'ephemeral',
+                'execution_mode' => 'durable',
                 'is_active' => true,
             ],
             [

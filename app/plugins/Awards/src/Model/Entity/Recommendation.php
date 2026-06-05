@@ -1,13 +1,13 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Awards\Model\Entity;
 
-use Cake\ORM\Entity;
-use Cake\I18n\DateTime;
 use App\Model\Entity\BaseEntity;
+use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
+use DateTime as NativeDateTime;
+use InvalidArgumentException;
 
 /**
  * Recommendation Entity - Award recommendation workflow with state machine.
@@ -56,19 +56,28 @@ use Cake\ORM\TableRegistry;
  * @property \Awards\Model\Entity\Recommendation|null $group_head
  * @property \Awards\Model\Entity\Recommendation[] $group_children
  * @property \Awards\Model\Entity\Bestowal|null $bestowal
+ * @property \Awards\Model\Entity\RecommendationApprovalRun|null $current_approval_run
  */
 class Recommendation extends BaseEntity
 {
-    /** Per-request cache for status→state hierarchy. */
+    /**
+     * Per-request cache for status→state hierarchy.
+     */
     private static ?array $cachedStatuses = null;
 
-    /** Per-request cache for all state names. */
+    /**
+     * Per-request cache for all state names.
+     */
     private static ?array $cachedStates = null;
 
-    /** Per-request cache for state rules (state name → rule arrays). */
+    /**
+     * Per-request cache for state rules (state name → rule arrays).
+     */
     private static ?array $cachedStateRules = null;
 
-    /** Per-request cache for gathering-assignable state names. */
+    /**
+     * Per-request cache for gathering-assignable state names.
+     */
     private static ?array $cachedGatheringStates = null;
 
     /**
@@ -83,7 +92,7 @@ class Recommendation extends BaseEntity
         'member_id' => true,
         'branch_id' => true,
         'award_id' => true,
-        'event_id' => true,  // Deprecated - kept for migration compatibility, use gathering_id instead
+        'event_id' => true, // Deprecated - kept for migration compatibility, use gathering_id instead
         'gathering_id' => true,
         'bestowal_id' => true,
         'given' => true,
@@ -117,11 +126,12 @@ class Recommendation extends BaseEntity
      * @param mixed $value Date value
      * @return \DateTime
      */
-    protected function _setGiven($value)
+    protected function _setGiven($value): NativeDateTime
     {
         if (is_string($value)) {
-            $value = new \DateTime($value);
+            $value = new NativeDateTime($value);
         }
+
         return $value;
     }
 
@@ -134,14 +144,14 @@ class Recommendation extends BaseEntity
      * @return string Validated state value
      * @throws \InvalidArgumentException When state is invalid
      */
-    protected function _setState($value)
+    protected function _setState($value): string
     {
         $this->beforeState = $this->state;
         $this->beforeStatus = $this->status;
 
         $states = self::getStates();
         if (!in_array($value, $states)) {
-            throw new \InvalidArgumentException("Invalid State");
+            throw new InvalidArgumentException('Invalid State');
         }
         $statuses = self::getStatuses();
         $nextStatus = $this->status;
@@ -167,6 +177,7 @@ class Recommendation extends BaseEntity
         if (!self::supportsGatheringAssignmentForState((string)$value)) {
             $this->gathering_id = null;
         }
+
         return $value;
     }
 
@@ -198,6 +209,7 @@ class Recommendation extends BaseEntity
         }
 
         self::$cachedStatuses = $result;
+
         return $result;
     }
 
@@ -211,6 +223,7 @@ class Recommendation extends BaseEntity
     {
         if ($status) {
             $statusList = self::getStatuses();
+
             return $statusList[$status] ?? [];
         }
 
@@ -227,6 +240,7 @@ class Recommendation extends BaseEntity
         }
 
         self::$cachedStates = $states;
+
         return $states;
     }
 
@@ -266,6 +280,7 @@ class Recommendation extends BaseEntity
         }
 
         self::$cachedStateRules = $rules;
+
         return $rules;
     }
 
@@ -285,6 +300,7 @@ class Recommendation extends BaseEntity
         foreach ($hidden as $state) {
             $result[] = $state->name;
         }
+
         return $result;
     }
 
@@ -338,6 +354,7 @@ class Recommendation extends BaseEntity
         foreach ($transitions as $transition) {
             $result[] = $transition->to_state->name;
         }
+
         return $result;
     }
 
@@ -361,8 +378,9 @@ class Recommendation extends BaseEntity
      */
     public function getBranchId(): ?int
     {
-        if ($this->award)
+        if ($this->award) {
             return $this->award->branch_id;
+        }
 
         if ($this->award_id == null) {
             return null;
@@ -375,6 +393,7 @@ class Recommendation extends BaseEntity
         if ($award) {
             return $award->branch_id;
         }
+
         return null;
     }
 

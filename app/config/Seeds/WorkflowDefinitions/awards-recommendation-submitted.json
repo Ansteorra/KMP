@@ -54,13 +54,139 @@
             "outputs": [
                 {
                     "port": "true",
-                    "target": "notify-crown",
+                    "target": "start-approval-process",
                     "label": "Created"
                 },
                 {
                     "port": "false",
                     "target": "end-failed",
                     "label": "Failed"
+                }
+            ]
+        },
+        "start-approval-process": {
+            "type": "action",
+            "label": "Start Approval Process",
+            "config": {
+                "action": "Awards.StartApprovalProcess",
+                "params": {
+                    "recommendationId": "$.nodes.create-recommendation.result.data.recommendationId",
+                    "actorId": "$.trigger.actorId"
+                }
+            },
+            "position": {
+                "x": 950,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "start-approval-succeeded"
+                }
+            ]
+        },
+        "start-approval-succeeded": {
+            "type": "condition",
+            "label": "Approval Process Started?",
+            "config": {
+                "condition": "Core.FieldEquals",
+                "field": "$.nodes.start-approval-process.result.success",
+                "value": true
+            },
+            "position": {
+                "x": 1250,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "true",
+                    "target": "award-approval-gate",
+                    "label": "Started"
+                },
+                {
+                    "port": "false",
+                    "target": "notify-crown",
+                    "label": "Fallback"
+                }
+            ]
+        },
+        "award-approval-gate": {
+            "type": "approval",
+            "label": "Award Approval",
+            "config": {
+                "approverType": "dynamic",
+                "approverConfig": {
+                    "service": "$.awardApprovalCurrentStep.approvalApproverConfig.service",
+                    "method": "$.awardApprovalCurrentStep.approvalApproverConfig.method",
+                    "award_approval_run_id": "$.awardApprovalCurrentStep.approvalApproverConfig.award_approval_run_id",
+                    "award_approval_step_key": "$.awardApprovalCurrentStep.approvalApproverConfig.award_approval_step_key",
+                    "eligible_member_ids": "$.awardApprovalCurrentStep.approvalApproverConfig.eligible_member_ids",
+                    "retain_read_visibility": "$.awardApprovalCurrentStep.approvalApproverConfig.retain_read_visibility",
+                    "on_reject": "$.awardApprovalCurrentStep.approvalApproverConfig.on_reject",
+                    "on_request_changes": "$.awardApprovalCurrentStep.approvalApproverConfig.on_request_changes"
+                },
+                "requiredCount": "$.awardApprovalCurrentStep.requiredCount"
+            },
+            "position": {
+                "x": 1550,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "approved",
+                    "target": "advance-approval-process",
+                    "label": "Approved"
+                },
+                {
+                    "port": "rejected",
+                    "target": "advance-approval-process",
+                    "label": "Rejected"
+                }
+            ]
+        },
+        "advance-approval-process": {
+            "type": "action",
+            "label": "Advance Approval Process",
+            "config": {
+                "action": "Awards.AdvanceApprovalProcess",
+                "params": {
+                    "approvalNodeId": "award-approval-gate",
+                    "actorId": "$.nodes.award-approval-gate.approverId"
+                }
+            },
+            "position": {
+                "x": 1850,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "approval-process-complete"
+                }
+            ]
+        },
+        "approval-process-complete": {
+            "type": "condition",
+            "label": "Approval Process Complete?",
+            "config": {
+                "condition": "Core.FieldEquals",
+                "field": "$.nodes.advance-approval-process.result.completed",
+                "value": true
+            },
+            "position": {
+                "x": 2150,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "true",
+                    "target": "end-created",
+                    "label": "Complete"
+                },
+                {
+                    "port": "false",
+                    "target": "award-approval-gate",
+                    "label": "Next Step"
                 }
             ]
         },
@@ -81,8 +207,8 @@
                 }
             },
             "position": {
-                "x": 950,
-                "y": 250
+                "x": 1550,
+                "y": 400
             },
             "outputs": [
                 {
@@ -98,7 +224,7 @@
                 "result": "$.nodes.create-recommendation.result"
             },
             "position": {
-                "x": 1250,
+                "x": 2450,
                 "y": 250
             },
             "outputs": []

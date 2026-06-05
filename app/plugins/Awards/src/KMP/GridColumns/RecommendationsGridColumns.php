@@ -1,11 +1,13 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Awards\KMP\GridColumns;
 
 use App\KMP\GridColumns\BaseGridColumns;
 use Awards\Model\Entity\Recommendation;
+use Cake\I18n\DateTime;
+use Cake\ORM\Query\SelectQuery;
+use Cake\ORM\TableRegistry;
 
 /**
  * Recommendations Grid Column Metadata
@@ -122,6 +124,7 @@ class RecommendationsGridColumns extends BaseGridColumns
                     if ($count === 0) {
                         return '';
                     }
+
                     return '<span class="badge bg-info">' . $count . '</span>';
                 },
             ],
@@ -494,6 +497,22 @@ class RecommendationsGridColumns extends BaseGridColumns
                 // Filter options are generated dynamically based on permissions
             ],
 
+            'approval_queue' => [
+                'key' => 'approval_queue',
+                'label' => 'Approval Queue',
+                'type' => 'relation',
+                'sortable' => true,
+                'searchable' => false,
+                'filterable' => true,
+                'filterType' => 'text',
+                'defaultVisible' => true,
+                'width' => '160px',
+                'alignment' => 'left',
+                'renderField' => 'current_approval_run.current_step_label',
+                'queryField' => 'CurrentApprovalRun.current_step_label',
+                'description' => 'Current approval process queue, when this recommendation is in workflow approval',
+            ],
+
             'close_reason' => [
                 'key' => 'close_reason',
                 'label' => 'Close Reason',
@@ -686,6 +705,7 @@ class RecommendationsGridColumns extends BaseGridColumns
                         'notes',
                         'status',
                         'state',
+                        'approval_queue',
                         'close_reason',
                         'assigned_gathering',
                     ],
@@ -711,6 +731,7 @@ class RecommendationsGridColumns extends BaseGridColumns
                         'reason',
                         'notes',
                         'state',
+                        'approval_queue',
                     ],
                 ],
             ],
@@ -808,7 +829,7 @@ class RecommendationsGridColumns extends BaseGridColumns
         $hiddenStates = $canViewHidden ? [] : Recommendation::getHiddenStates();
 
         $options = [];
-        foreach ($statuses as $status => $states) {
+        foreach ($statuses as $states) {
             foreach ($states as $state) {
                 if (!in_array($state, $hiddenStates)) {
                     $options[] = ['value' => $state, 'label' => $state];
@@ -845,6 +866,7 @@ class RecommendationsGridColumns extends BaseGridColumns
                 $exportable[] = $key;
             }
         }
+
         return $exportable;
     }
 
@@ -860,19 +882,22 @@ class RecommendationsGridColumns extends BaseGridColumns
      */
     public static function getGatheringsFilterOptions(): array
     {
-        $gatheringsTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Gatherings');
-        $now = new \Cake\I18n\DateTime();
+        $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
+        $now = new DateTime();
 
         // Query 1: Future gatherings with at least one award-capable activity.
         $futureGatherings = $gatheringsTable->find()
             ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date', 'Gatherings.cancelled_at'])
             ->innerJoin(
                 ['GatheringsGatheringActivities' => 'gatherings_gathering_activities'],
-                ['GatheringsGatheringActivities.gathering_id = Gatherings.id']
+                ['GatheringsGatheringActivities.gathering_id = Gatherings.id'],
             )
             ->innerJoin(
                 ['AwardGatheringActivities' => 'award_gathering_activities'],
-                ['AwardGatheringActivities.gathering_activity_id = GatheringsGatheringActivities.gathering_activity_id']
+                [
+                    'AwardGatheringActivities.gathering_activity_id = '
+                    . 'GatheringsGatheringActivities.gathering_activity_id',
+                ],
             )
             ->where(['Gatherings.start_date >=' => $now])
             ->orderBy(['Gatherings.start_date' => 'ASC'])
@@ -886,7 +911,7 @@ class RecommendationsGridColumns extends BaseGridColumns
             ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date', 'Gatherings.cancelled_at'])
             ->innerJoin(
                 ['Recommendations' => 'awards_recommendations'],
-                ['Recommendations.gathering_id = Gatherings.id']
+                ['Recommendations.gathering_id = Gatherings.id'],
             )
             ->where([
                 'Gatherings.start_date <' => $now,
@@ -906,11 +931,11 @@ class RecommendationsGridColumns extends BaseGridColumns
             ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date', 'Gatherings.cancelled_at'])
             ->innerJoin(
                 ['RecommendationEvents' => 'awards_recommendations_events'],
-                ['RecommendationEvents.event_id = Gatherings.id']
+                ['RecommendationEvents.event_id = Gatherings.id'],
             )
             ->innerJoin(
                 ['Recommendations' => 'awards_recommendations'],
-                ['Recommendations.id = RecommendationEvents.recommendation_id']
+                ['Recommendations.id = RecommendationEvents.recommendation_id'],
             )
             ->where([
                 'Gatherings.start_date <' => $now,
@@ -1001,11 +1026,11 @@ class RecommendationsGridColumns extends BaseGridColumns
      * filter is applied (either from query params or saved view config).
      *
      * @param \Cake\ORM\Query\SelectQuery $query The query to filter
-     * @param string|array $filterValue One or more gathering IDs to filter by
+     * @param array|string $filterValue One or more gathering IDs to filter by
      * @param array $context Additional context (tableName, columnKey, columnMeta)
      * @return \Cake\ORM\Query\SelectQuery The filtered query
      */
-    public static function applyGatheringsFilter($query, $filterValue, array $context = [])
+    public static function applyGatheringsFilter($query, $filterValue, array $context = []): SelectQuery
     {
         // Normalize to array
         if (!is_array($filterValue)) {
@@ -1021,7 +1046,7 @@ class RecommendationsGridColumns extends BaseGridColumns
             return $query;
         }
 
-        $tableLocator = \Cake\ORM\TableRegistry::getTableLocator();
+        $tableLocator = TableRegistry::getTableLocator();
         $recommendationsTable = $tableLocator->get('Awards.Recommendations');
         $attendanceTable = $tableLocator->get('GatheringAttendances');
 

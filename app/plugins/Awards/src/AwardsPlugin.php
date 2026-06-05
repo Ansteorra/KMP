@@ -1,47 +1,49 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Awards;
 
-use Cake\Console\CommandCollection;
-use Cake\Core\BasePlugin;
-use Cake\Core\ContainerInterface;
-use Cake\Core\PluginApplicationInterface;
-use Cake\Http\MiddlewareQueue;
-use Cake\Routing\RouteBuilder;
 use App\KMP\KMPPluginInterface;
-use Cake\Event\EventManager;
-use Awards\Event\CallForCellsHandler;
-use Awards\Event\RecommendationFeedbackApprovalListener;
+use App\KMP\StaticHelpers;
+use App\Services\ApprovalContext\ApprovalContextRendererRegistry;
 use App\Services\NavigationRegistry;
 use App\Services\ViewCellRegistry;
+use App\Services\WorkflowEngine\TriggerDispatcher;
+use Awards\Event\RecommendationFeedbackApprovalListener;
+use Awards\Services\AdHocBestowalService;
+use Awards\Services\AwardApprovalResolverService;
 use Awards\Services\AwardsNavigationProvider;
 use Awards\Services\AwardsViewCellProvider;
-use Awards\Services\RecommendationFormService;
-use Awards\Services\RecommendationFeedbackContextRenderer;
-use Awards\Services\RecommendationFeedbackService;
-use Awards\Services\RecommendationGroupingService;
-use Awards\Services\RecommendationQueryService;
-use Awards\Services\RecommendationStateLogService;
-use Awards\Services\RecommendationSubmissionService;
-use Awards\Services\RecommendationTransitionService;
-use Awards\Services\RecommendationUpdateService;
-use Awards\Services\AdHocBestowalService;
+use Awards\Services\AwardsWorkflowActions;
+use Awards\Services\AwardsWorkflowConditions;
 use Awards\Services\BestowalCancellationService;
 use Awards\Services\BestowalCreationService;
-use Awards\Services\BestowalNotificationVarsService;
 use Awards\Services\BestowalFormService;
 use Awards\Services\BestowalGatheringLookupService;
+use Awards\Services\BestowalNotificationVarsService;
 use Awards\Services\BestowalQueryService;
 use Awards\Services\BestowalRecommendationLinkService;
 use Awards\Services\BestowalRecommendationSyncService;
 use Awards\Services\BestowalStateLogService;
 use Awards\Services\BestowalTransitionService;
 use Awards\Services\BestowalUpdateService;
-use App\KMP\StaticHelpers;
-use App\Services\ApprovalContext\ApprovalContextRendererRegistry;
-use App\Services\WorkflowEngine\TriggerDispatcher;
+use Awards\Services\RecommendationApprovalProcessService;
+use Awards\Services\RecommendationFeedbackContextRenderer;
+use Awards\Services\RecommendationFeedbackService;
+use Awards\Services\RecommendationFormService;
+use Awards\Services\RecommendationGroupingService;
+use Awards\Services\RecommendationQueryService;
+use Awards\Services\RecommendationStateLogService;
+use Awards\Services\RecommendationSubmissionService;
+use Awards\Services\RecommendationTransitionService;
+use Awards\Services\RecommendationUpdateService;
+use Cake\Console\CommandCollection;
+use Cake\Core\BasePlugin;
+use Cake\Core\ContainerInterface;
+use Cake\Core\PluginApplicationInterface;
+use Cake\Event\EventManager;
+use Cake\Http\MiddlewareQueue;
+use Cake\Routing\RouteBuilder;
 
 /**
  * Awards Plugin - Award recommendation management with state machine workflow.
@@ -51,7 +53,9 @@ use App\Services\WorkflowEngine\TriggerDispatcher;
  */
 class AwardsPlugin extends BasePlugin implements KMPPluginInterface
 {
-    /** @var int Migration order priority for database setup */
+    /**
+     * @var int Migration order priority for database setup
+     */
     protected int $_migrationOrder = 0;
 
     /**
@@ -87,7 +91,7 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
             [], // Static items (none for Awards)
             function ($user, $params) {
                 return AwardsNavigationProvider::getNavigationItems($user, $params);
-            }
+            },
         );
 
         // Register view cells with ViewCellRegistry
@@ -96,33 +100,43 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
             [], // Static cells (none for Awards)
             function ($urlParams, $user) {
                 return AwardsViewCellProvider::getViewCells($urlParams, $user);
-            }
+            },
         );
 
         ApprovalContextRendererRegistry::register(
             'AwardsFeedback',
-            new RecommendationFeedbackContextRenderer()
+            new RecommendationFeedbackContextRenderer(),
         );
 
         EventManager::instance()->on(new RecommendationFeedbackApprovalListener());
 
-        $currentConfigVersion = "26.02.22.a"; // Removed Awards.ViewConfig.* settings (unused)
+        $currentConfigVersion = '26.02.22.a'; // Removed Awards.ViewConfig.* settings (unused)
 
-        $configVersion = StaticHelpers::getAppSetting("Awards.configVersion", "0.0.0", null, true);
+        $configVersion = StaticHelpers::getAppSetting('Awards.configVersion', '0.0.0', null, true);
         if ($configVersion != $currentConfigVersion) {
-            StaticHelpers::setAppSetting("Awards.configVersion", $currentConfigVersion, null, true);
+            StaticHelpers::setAppSetting('Awards.configVersion', $currentConfigVersion, null, true);
         } // end if ($configVersion != $currentConfigVersion)
 
         // Always ensure default settings exist (idempotent — only creates if missing).
-        StaticHelpers::getAppSetting("Awards.RecButtonClass", "btn-warning", null, true);
-            StaticHelpers::getAppSetting("Member.AdditionalInfo.CallIntoCourt", "select:Never,With Notice,Without Notice|user|public", null, true);
-            StaticHelpers::getAppSetting("Member.AdditionalInfo.CourtAvailability", "select:None,Morning,Evening,Any|user|public", null, true);
-            StaticHelpers::getAppSetting("Member.AdditionalInfo.PersonToGiveNoticeTo", "text|user|public", null, true);
-            StaticHelpers::getAppSetting("Plugin.Awards.Active", "yes", null, true);
-            // Note: RecommendationStatuses, RecommendationStateRules, and
-            // RecommendationStatesRequireCanViewHidden are now managed via
-            // database tables (awards_recommendation_statuses, awards_recommendation_states,
-            // awards_recommendation_state_field_rules) instead of app_settings YAML.
+        StaticHelpers::getAppSetting('Awards.RecButtonClass', 'btn-warning', null, true);
+        StaticHelpers::getAppSetting(
+            'Member.AdditionalInfo.CallIntoCourt',
+            'select:Never,With Notice,Without Notice|user|public',
+            null,
+            true,
+        );
+        StaticHelpers::getAppSetting(
+            'Member.AdditionalInfo.CourtAvailability',
+            'select:None,Morning,Evening,Any|user|public',
+            null,
+            true,
+        );
+        StaticHelpers::getAppSetting('Member.AdditionalInfo.PersonToGiveNoticeTo', 'text|user|public', null, true);
+        StaticHelpers::getAppSetting('Plugin.Awards.Active', 'yes', null, true);
+        // Note: RecommendationStatuses, RecommendationStateRules, and
+        // RecommendationStatesRequireCanViewHidden are now managed via
+        // database tables (awards_recommendation_statuses, awards_recommendation_states,
+        // awards_recommendation_state_field_rules) instead of app_settings YAML.
     }
 
     /**
@@ -136,10 +150,10 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
         $routes->plugin(
             'Awards',
             ['path' => '/awards'],
-            function (RouteBuilder $builder) {
-                $builder->setExtensions(["json", "pdf", "csv"]);
+            function (RouteBuilder $builder): void {
+                $builder->setExtensions(['json', 'pdf', 'csv']);
                 $builder->fallbacks();
-            }
+            },
         );
         parent::routes($routes);
     }
@@ -160,6 +174,7 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
     public function console(CommandCollection $commands): CommandCollection
     {
         $commands = parent::console($commands);
+
         return $commands;
     }
 
@@ -170,6 +185,8 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
     public function services(ContainerInterface $container): void
     {
         $container->add(RecommendationFormService::class);
+        $container->add(AwardApprovalResolverService::class);
+        $container->add(RecommendationApprovalProcessService::class);
         $container->add(RecommendationFeedbackService::class)
             ->addArgument(TriggerDispatcher::class);
         $container->add(RecommendationFeedbackContextRenderer::class);
@@ -193,7 +210,7 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
         $container->add(BestowalUpdateService::class);
 
         // Register workflow actions and conditions for Awards plugin
-        $container->add(\Awards\Services\AwardsWorkflowActions::class);
-        $container->add(\Awards\Services\AwardsWorkflowConditions::class);
+        $container->add(AwardsWorkflowActions::class);
+        $container->add(AwardsWorkflowConditions::class);
     }
 }
