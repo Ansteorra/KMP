@@ -1633,15 +1633,13 @@ class GatheringsController extends AppController
         // Group scheduled activities by date
         $scheduleByDate = [];
         foreach ($gathering->gathering_scheduled_activities as $scheduledActivity) {
-            $date = \App\KMP\TimezoneHelper::toUserTimezone(
+            $localStart = \App\KMP\TimezoneHelper::toUserTimezone(
                 $scheduledActivity->start_datetime,
                 null,
                 null,
                 $gathering,
-            )?->format('Y-m-d');
-            if ($date === null) {
-                continue;
-            }
+            );
+            $date = $localStart->format('Y-m-d');
             if (!isset($scheduleByDate[$date])) {
                 $scheduleByDate[$date] = [];
             }

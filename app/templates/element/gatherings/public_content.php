@@ -339,6 +339,7 @@ if (!isset($scheduleByDate)) {
                 <div class="schedule-day-medieval">
                     <div class="schedule-day-header">
                         <?php
+                        // Dates are pre-grouped in gathering timezone by controller.
                         $dateObj = \Cake\I18n\Date::parse($date);
                         echo $dateObj->format('l, F j, Y');
                         ?>
