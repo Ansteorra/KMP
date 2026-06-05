@@ -9,6 +9,7 @@ use App\Model\Entity\Member;
 use App\Services\GridViewService;
 use Cake\Http\Response;
 use Cake\Log\Log;
+use Cake\Utility\Inflector;
 use DateTimeInterface;
 
 /**
@@ -270,16 +271,18 @@ trait DataverseGridTrait
 
                 if ($columnMeta) {
                     if ($columnMeta['type'] === 'relation' && !empty($columnMeta['renderField'])) {
-                        $relationParts = explode('.', $columnMeta['renderField']);
-                        if (count($relationParts) === 2) {
-                            $associationName = ucfirst($relationParts[0]) . 's';
-                            $fieldName = $relationParts[1];
-                            $searchConditions['OR'][$associationName . '.' . $fieldName . ' LIKE'] = '%'
-                                . $searchTerm . '%';
-                        } elseif (!empty($columnMeta['queryField'])) {
-                            // For deeper relation paths (3+ parts), use queryField directly
+                        if (!empty($columnMeta['queryField'])) {
+                            // Prefer explicit queryField when provided by grid metadata
                             $searchConditions['OR'][$columnMeta['queryField'] . ' LIKE'] = '%'
                                 . $searchTerm . '%';
+                        } else {
+                            $relationParts = explode('.', $columnMeta['renderField']);
+                            if (count($relationParts) === 2) {
+                                $associationName = Inflector::pluralize(Inflector::camelize($relationParts[0]));
+                                $fieldName = $relationParts[1];
+                                $searchConditions['OR'][$associationName . '.' . $fieldName . ' LIKE'] = '%'
+                                    . $searchTerm . '%';
+                            }
                         }
                     } else {
                         $searchConditions['OR'][$tableName . '.' . $columnKey . ' LIKE'] = '%' . $searchTerm . '%';
