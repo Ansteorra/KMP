@@ -808,6 +808,7 @@ class GatheringsController extends AppController
                     'GatheringActivities',
                     'Creators' => ['fields' => ['id', 'sca_name']],
                     'Modifiers' => ['fields' => ['id', 'sca_name']],
+                    'sort' => ['GatheringScheduledActivities.start_datetime' => 'ASC'],
                 ],
                 'GatheringStaff' => [
                     'Members' => ['fields' => ['id', 'sca_name']],
@@ -886,6 +887,43 @@ class GatheringsController extends AppController
                 ->toArray();
         }
 
+        // Build schedule data for public view (used by view_public template)
+        // Enrich scheduled activities with custom descriptions from junction table
+        $customDescriptions = [];
+        foreach ($gathering->gathering_activities as $gatheringActivity) {
+            if (!empty($gatheringActivity->custom_description)) {
+                $customDescriptions[$gatheringActivity->id] = $gatheringActivity->custom_description;
+            }
+        }
+        foreach ($gathering->gathering_scheduled_activities as $scheduledActivity) {
+            if (
+                $scheduledActivity->gathering_activity_id
+                && isset($customDescriptions[$scheduledActivity->gathering_activity_id])
+            ) {
+                $scheduledActivity->gathering_activity
+                    ->custom_description = $customDescriptions[$scheduledActivity->gathering_activity_id];
+            }
+        }
+
+        // Group scheduled activities by date
+        $scheduleByDate = [];
+        foreach ($gathering->gathering_scheduled_activities as $scheduledActivity) {
+            $localStart = \App\KMP\TimezoneHelper::toUserTimezone(
+                $scheduledActivity->start_datetime,
+                null,
+                null,
+                $gathering,
+            );
+            $date = $localStart->format('Y-m-d');
+            if (!isset($scheduleByDate[$date])) {
+                $scheduleByDate[$date] = [];
+            }
+            $scheduleByDate[$date][] = $scheduledActivity;
+        }
+
+        // Calculate event duration
+        $durationDays = $gathering->start_date->diffInDays($gathering->end_date) + 1;
+
         $this->set(compact(
             'gathering',
             'hasWaivers',
@@ -894,6 +932,8 @@ class GatheringsController extends AppController
             'totalAttendanceCount',
             'userAttendance',
             'kingdomAttendances',
+            'scheduleByDate',
+            'durationDays',
         ));
 
         // Override recordId to use integer ID for plugin cells that expect it
