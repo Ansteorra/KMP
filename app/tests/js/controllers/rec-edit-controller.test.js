@@ -75,7 +75,17 @@ describe('AwardsRecommendationEditForm', () => {
         // Wire up has* checks
         controller.hasScaMemberTarget = true;
         controller.hasStateTarget = true;
+        controller.hasStateRulesBlockTarget = true;
         controller.hasPlanToGiveGatheringTarget = true;
+        controller.hasPlanToGiveBlockTarget = true;
+        controller.hasGivenBlockTarget = true;
+        controller.hasGivenDateTarget = true;
+        controller.hasCloseReasonBlockTarget = true;
+        controller.hasCloseReasonTarget = true;
+        controller.hasSpecialtyTarget = true;
+        controller.hasDomainTarget = true;
+        controller.hasNotFoundTarget = true;
+        controller.hasBranchTarget = true;
         controller.hasGatheringsLookupUrlValue = true;
         controller.hasRecIdTarget = true;
         controller.hasAwardTarget = true;
@@ -421,6 +431,9 @@ describe('AwardsRecommendationEditForm', () => {
 
     test('setFieldRules hides blocks for Submitted state', () => {
         jest.spyOn(controller, 'updateGatherings').mockImplementation(() => {});
+        const closeReasonInput = document.createElement('textarea');
+        closeReasonInput.required = true;
+        controller.closeReasonBlockTarget.appendChild(closeReasonInput);
         controller.stateTarget.value = 'Submitted';
         controller.awardTarget.value = '5';
         controller.setFieldRules();
@@ -428,6 +441,9 @@ describe('AwardsRecommendationEditForm', () => {
         expect(controller.planToGiveBlockTarget.style.display).toBe('none');
         expect(controller.givenBlockTarget.style.display).toBe('none');
         expect(controller.closeReasonBlockTarget.style.display).toBe('none');
+        expect(controller.closeReasonBlockTarget.hidden).toBe(true);
+        expect(closeReasonInput.disabled).toBe(true);
+        expect(closeReasonInput.required).toBe(false);
     });
 
     // --- connect ---

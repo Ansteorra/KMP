@@ -245,6 +245,18 @@ class AwardsRecommendationEditForm extends Controller {
         }
     }
 
+    /** Show or hide a field group without leaving hidden controls focusable or required. */
+    setFieldGroupVisible(group, visible) {
+        group.hidden = !visible;
+        group.style.display = visible ? "block" : "none";
+        group.querySelectorAll("input, select, textarea, button").forEach((control) => {
+            control.disabled = !visible;
+            if (!visible) {
+                control.required = false;
+            }
+        });
+    }
+
     /** Fetch awards for domain and populate award selection with autocomplete. */
     populateAwardDescriptions(event) {
         let url = this.awardListUrlValue + "/" + event.target.value;
@@ -410,10 +422,10 @@ class AwardsRecommendationEditForm extends Controller {
         }
 
         if (this.hasPlanToGiveBlockTarget) {
-            this.planToGiveBlockTarget.style.display = "none";
+            this.setFieldGroupVisible(this.planToGiveBlockTarget, false);
         }
         if (this.hasGivenBlockTarget) {
-            this.givenBlockTarget.style.display = "none";
+            this.setFieldGroupVisible(this.givenBlockTarget, false);
         }
 
         if (this.hasGivenDateTarget) {
@@ -445,7 +457,7 @@ class AwardsRecommendationEditForm extends Controller {
             this.givenDateTarget.required = false;
         }
         if (this.hasCloseReasonBlockTarget) {
-            this.closeReasonBlockTarget.style.display = "none";
+            this.setFieldGroupVisible(this.closeReasonBlockTarget, false);
         }
         if (this.hasCloseReasonTarget) {
             this.closeReasonTarget.required = false;
@@ -466,7 +478,11 @@ class AwardsRecommendationEditForm extends Controller {
             const visibleFields = (statusRules.Visible || []).concat(statusRules.Optional || []);
             visibleFields.forEach((field) => {
                 if (this[field]) {
-                    this[field].style.display = "block";
+                    if (this[field] instanceof HTMLElement && this[field].querySelectorAll) {
+                        this.setFieldGroupVisible(this[field], true);
+                    } else {
+                        this[field].style.display = "block";
+                    }
                 }
             });
             if (statusRules.Disabled) {

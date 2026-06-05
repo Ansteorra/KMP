@@ -269,12 +269,18 @@ describe('AwardsRecommendationBulkEditForm', () => {
 
     test('setFieldRules hides all blocks for Submitted state', () => {
         jest.spyOn(controller, 'updateGatherings').mockImplementation(() => {});
+        const closeReasonInput = document.createElement('textarea');
+        closeReasonInput.required = true;
+        controller.closeReasonBlockTarget.appendChild(closeReasonInput);
         controller.stateTarget.value = 'Submitted';
         controller.setFieldRules();
 
         expect(controller.planToGiveBlockTarget.style.display).toBe('none');
         expect(controller.givenBlockTarget.style.display).toBe('none');
         expect(controller.closeReasonBlockTarget.style.display).toBe('none');
+        expect(controller.closeReasonBlockTarget.hidden).toBe(true);
+        expect(closeReasonInput.disabled).toBe(true);
+        expect(closeReasonInput.required).toBe(false);
     });
 
     // --- connect / disconnect ---

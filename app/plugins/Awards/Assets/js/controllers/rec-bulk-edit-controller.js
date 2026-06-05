@@ -162,6 +162,18 @@ class AwardsRecommendationBulkEditForm extends Controller {
         }
     }
 
+    /** Show or hide a field group without leaving hidden controls focusable or required. */
+    setFieldGroupVisible(group, visible) {
+        group.hidden = !visible;
+        group.style.display = visible ? "block" : "none";
+        group.querySelectorAll("input, select, textarea, button").forEach((control) => {
+            control.disabled = !visible;
+            if (!visible) {
+                control.required = false;
+            }
+        });
+    }
+
     /** Register listener when outlet-btn connects. */
     outletBtnOutletConnected(outlet, element) {
         outlet.addListener(this.setId.bind(this));
@@ -186,11 +198,11 @@ class AwardsRecommendationBulkEditForm extends Controller {
     setFieldRules() {
         var rulesstring = this.stateRulesBlockTarget.textContent;
         var rules = JSON.parse(rulesstring);
-        this.planToGiveBlockTarget.style.display = "none";
-        this.givenBlockTarget.style.display = "none";
+        this.setFieldGroupVisible(this.planToGiveBlockTarget, false);
+        this.setFieldGroupVisible(this.givenBlockTarget, false);
         this.setPlanToGiveRequired(false);
         this.givenDateTarget.required = false;
-        this.closeReasonBlockTarget.style.display = "none";
+        this.setFieldGroupVisible(this.closeReasonBlockTarget, false);
         this.closeReasonTarget.required = false;
         var state = this.stateTarget.value;
 
@@ -203,7 +215,11 @@ class AwardsRecommendationBulkEditForm extends Controller {
             );
             visibleFields.forEach(function (field) {
                 if (controller[field]) {
-                    controller[field].style.display = "block";
+                    if (controller[field] instanceof HTMLElement && controller[field].querySelectorAll) {
+                        controller.setFieldGroupVisible(controller[field], true);
+                    } else {
+                        controller[field].style.display = "block";
+                    }
                 }
             });
             if (statusRules["Disabled"]) {

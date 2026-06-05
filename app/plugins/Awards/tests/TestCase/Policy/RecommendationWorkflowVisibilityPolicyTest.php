@@ -149,7 +149,7 @@ class RecommendationWorkflowVisibilityPolicyTest extends BaseTestCase
             'branch_id' => self::KINGDOM_BRANCH_ID,
             'award_id' => $awardId,
             'status' => 'In Progress',
-            'state' => 'In Approval',
+            'state' => 'Submitted',
             'state_date' => DateTime::now(),
             'requester_sca_name' => 'Admin von Admin',
             'member_sca_name' => 'Admin von Admin',

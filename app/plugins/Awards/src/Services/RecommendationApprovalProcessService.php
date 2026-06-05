@@ -21,9 +21,6 @@ class RecommendationApprovalProcessService
 {
     use LocatorAwareTrait;
 
-    public const IN_APPROVAL_STATE = 'In Approval';
-    public const CHANGES_REQUESTED_STATE = 'Changes Requested';
-
     private AwardApprovalResolverService $resolver;
     private RecommendationTransitionService $transitionService;
 
@@ -91,7 +88,6 @@ class RecommendationApprovalProcessService
                     return new ServiceResult(false, 'The recommendation approval run could not be saved.');
                 }
             }
-            $this->transitionRecommendation($recommendation, self::IN_APPROVAL_STATE, $actorId);
 
             return new ServiceResult(true, null, $this->stepOutput($run, $recommendation, $firstStep));
         } catch (Throwable $e) {
@@ -153,7 +149,6 @@ class RecommendationApprovalProcessService
             $nextStep = $steps[$currentIndex + 1] ?? null;
             if ($nextStep) {
                 $this->updateRunStep($run, $nextStep, RecommendationApprovalRun::STATUS_IN_PROGRESS, $actorId);
-                $this->transitionRecommendation($recommendation, self::IN_APPROVAL_STATE, $actorId);
 
                 return new ServiceResult(true, null, $this->stepOutput($run, $recommendation, $nextStep));
             }
@@ -164,17 +159,12 @@ class RecommendationApprovalProcessService
             $run->completed = DateTime::now();
             $run->modified_by = $actorId;
             $runsTable->saveOrFail($run);
-            $this->transitionRecommendation(
-                $recommendation,
-                RecommendationBestowalStatePolicyService::HANDOFF_STATE,
-                $actorId,
-            );
 
             return new ServiceResult(true, null, [
                 'runId' => (int)$run->id,
                 'status' => $run->status,
                 'completed' => true,
-                'targetState' => RecommendationBestowalStatePolicyService::HANDOFF_STATE,
+                'recommendationId' => (int)$recommendation->id,
             ]);
         } catch (Throwable $e) {
             Log::error('Award approval process advance failed: ' . $e->getMessage());
@@ -362,7 +352,6 @@ class RecommendationApprovalProcessService
 
         $targetStep = $this->resolveKickbackStep($steps, $currentIndex, (string)$currentStep->on_reject);
         $this->updateRunStep($run, $targetStep, RecommendationApprovalRun::STATUS_CHANGES_REQUESTED, $actorId);
-        $this->transitionRecommendation($recommendation, self::CHANGES_REQUESTED_STATE, $actorId);
 
         return new ServiceResult(true, null, $this->stepOutput($run, $recommendation, $targetStep));
     }
@@ -411,7 +400,7 @@ class RecommendationApprovalProcessService
     }
 
     /**
-     * Transition recommendation state after terminal approval process outcomes.
+     * Transition recommendation state for terminal outcomes that still use legacy recommendation state.
      *
      * @param \Awards\Model\Entity\Recommendation $recommendation Recommendation.
      * @param string $targetState Target state.

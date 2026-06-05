@@ -61,13 +61,10 @@ class RecommendationApprovalProcessServiceTest extends BaseTestCase
             'Awards.ResolveApprovalStepApprovers',
             $result->data['approvalApproverConfig']['service'],
         );
-        $this->assertSame(
-            RecommendationApprovalProcessService::IN_APPROVAL_STATE,
-            $this->freshRecommendationState((int)$recommendation->id),
-        );
+        $this->assertSame('Submitted', $this->freshRecommendationState((int)$recommendation->id));
     }
 
-    public function testAdvanceProcessMovesToNextStepAndFinalApprovalHandsOffToScheduling(): void
+    public function testAdvanceProcessMovesToNextStepAndFinalApprovalCompletesRun(): void
     {
         [$recommendation, $instanceId] = $this->buildApprovalScenario([
             $this->stepData('local', 'Local approval', 1),
@@ -91,7 +88,8 @@ class RecommendationApprovalProcessServiceTest extends BaseTestCase
         $this->assertTrue($completed->isSuccess(), $completed->getError() ?? '');
         $this->assertTrue($completed->data['completed']);
         $this->assertSame(RecommendationApprovalRun::STATUS_APPROVED, $completed->data['status']);
-        $this->assertSame('Need to Schedule', $this->freshRecommendationState((int)$recommendation->id));
+        $this->assertSame((int)$recommendation->id, $completed->data['recommendationId']);
+        $this->assertSame('Submitted', $this->freshRecommendationState((int)$recommendation->id));
     }
 
     public function testRejectedLaterStepKicksBackToPreviousStepAndMarksChangesRequested(): void
@@ -114,10 +112,7 @@ class RecommendationApprovalProcessServiceTest extends BaseTestCase
         $this->assertTrue($returned->isSuccess(), $returned->getError() ?? '');
         $this->assertSame('local', $returned->data['currentStepKey']);
         $this->assertSame(RecommendationApprovalRun::STATUS_CHANGES_REQUESTED, $returned->data['status']);
-        $this->assertSame(
-            RecommendationApprovalProcessService::CHANGES_REQUESTED_STATE,
-            $this->freshRecommendationState((int)$recommendation->id),
-        );
+        $this->assertSame('Submitted', $this->freshRecommendationState((int)$recommendation->id));
     }
 
     public function testDynamicResolverUsesSnapshotEligibleIds(): void
@@ -230,6 +225,13 @@ class RecommendationApprovalProcessServiceTest extends BaseTestCase
         $this->assertSame(RecommendationApprovalRun::STATUS_APPROVED, $run->status);
         $instance = $this->getTableLocator()->get('WorkflowInstances')->get((int)$instance->id);
         $this->assertSame(WorkflowInstance::STATUS_COMPLETED, $instance->status);
+
+        $recommendationId = (int)$workflowResult['data']['recommendationId'];
+        $bestowal = $this->getTableLocator()->get('Awards.Bestowals')->find()
+            ->where(['primary_recommendation_id' => $recommendationId])
+            ->firstOrFail();
+        $this->assertSame((int)$award->id, (int)$bestowal->award_id);
+        $this->assertSame('Submitted', $this->freshRecommendationState($recommendationId));
     }
 
     /**

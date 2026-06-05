@@ -28,6 +28,7 @@ use App\Services\CsvExportService;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use Awards\Services\RecommendationFormService;
 use Awards\Services\RecommendationFeedbackService;
+use Awards\Services\RecommendationUiModeService;
 use Awards\Services\RecommendationSubmissionService;
 use Awards\Services\RecommendationTransitionService;
 use Awards\Services\RecommendationQueryService;
@@ -96,8 +97,8 @@ class RecommendationsController extends AppController
                 }
             }
 
-            // Get state transition rules for form field visibility
-            $rules = Recommendation::getStateRules();
+            // Get explicit UI mode rules for form field visibility
+            $rules = (new RecommendationUiModeService())->buildStateRules();
 
             // Empty gathering list initially - will be populated via AJAX
             $gatheringList = [];
@@ -1250,6 +1251,7 @@ class RecommendationsController extends AppController
             }
 
             $this->set(compact('recommendation', 'memberAttendanceGatherings'));
+
             return null;
         } catch (\Cake\Datasource\Exception\RecordNotFoundException $e) {
             throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));

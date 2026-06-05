@@ -23,12 +23,18 @@ class RecommendationFormService
 {
     private RecommendationBestowalStatePolicyService $statePolicyService;
 
+    private RecommendationUiModeService $uiModeService;
+
     /**
      * @param \Awards\Services\RecommendationBestowalStatePolicyService|null $statePolicyService Optional state policy.
+     * @param \Awards\Services\RecommendationUiModeService|null $uiModeService Optional UI mode service.
      */
-    public function __construct(?RecommendationBestowalStatePolicyService $statePolicyService = null)
-    {
+    public function __construct(
+        ?RecommendationBestowalStatePolicyService $statePolicyService = null,
+        ?RecommendationUiModeService $uiModeService = null,
+    ) {
         $this->statePolicyService = $statePolicyService ?? new RecommendationBestowalStatePolicyService();
+        $this->uiModeService = $uiModeService ?? new RecommendationUiModeService();
     }
 
     /**
@@ -128,7 +134,7 @@ class RecommendationFormService
         }
 
         $statusList = $this->buildStatusList((string)$recommendation->state);
-        $rules = Recommendation::getStateRules();
+        $rules = $this->uiModeService->buildStateRules();
 
         return compact(
             'rules',
@@ -183,7 +189,7 @@ class RecommendationFormService
             $gatheringList[$gathering->id] = $label;
         }
 
-        $rules = Recommendation::getStateRules();
+        $rules = $this->uiModeService->buildStateRules();
 
         return compact('rules', 'branches', 'gatheringList', 'statusList', 'cancelledGatheringIds');
     }

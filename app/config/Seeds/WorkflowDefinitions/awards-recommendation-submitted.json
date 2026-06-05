@@ -180,13 +180,59 @@
             "outputs": [
                 {
                     "port": "true",
-                    "target": "end-created",
+                    "target": "create-bestowal",
                     "label": "Complete"
                 },
                 {
                     "port": "false",
                     "target": "award-approval-gate",
                     "label": "Next Step"
+                }
+            ]
+        },
+        "create-bestowal": {
+            "type": "action",
+            "label": "Create Bestowal",
+            "config": {
+                "action": "Awards.CreateBestowal",
+                "params": {
+                    "recommendationId": "$.nodes.advance-approval-process.result.recommendationId",
+                    "actorId": "$.nodes.award-approval-gate.approverId"
+                }
+            },
+            "position": {
+                "x": 2450,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "bestowal-created"
+                }
+            ]
+        },
+        "bestowal-created": {
+            "type": "condition",
+            "label": "Bestowal Created?",
+            "config": {
+                "condition": "Core.FieldEquals",
+                "field": "$.nodes.create-bestowal.result.success",
+                "value": true
+            },
+            "position": {
+                "x": 2750,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "true",
+                    "target": "end-created",
+                    "label": "Created"
+                },
+                {
+                    "port": "false",
+                    "target": "end-bestowal-failed",
+                    "label": "Failed"
                 }
             ]
         },
@@ -224,8 +270,20 @@
                 "result": "$.nodes.create-recommendation.result"
             },
             "position": {
-                "x": 2450,
+                "x": 3050,
                 "y": 250
+            },
+            "outputs": []
+        },
+        "end-bestowal-failed": {
+            "type": "end",
+            "label": "Bestowal Creation Failed",
+            "config": {
+                "result": "$.nodes.create-bestowal.result"
+            },
+            "position": {
+                "x": 3050,
+                "y": 375
             },
             "outputs": []
         },
