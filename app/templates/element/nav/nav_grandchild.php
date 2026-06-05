@@ -40,4 +40,8 @@ $linkBody = $this->Html->tag('span', $linkLabel, [
 $linkOptions['class'] = 'sublink ' . $linkTypeClass . ' ms-4 fs-7 mb-2 ' . $otherClasses;
 $linkOptions['escape'] = false;
 
-echo $this->Html->link($linkBody, $suburl, $linkOptions);
+try {
+    echo $this->Html->link($linkBody, $suburl, $linkOptions);
+} catch (\Cake\Routing\Exception\MissingRouteException) {
+    return;
+}

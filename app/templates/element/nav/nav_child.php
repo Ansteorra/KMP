@@ -43,4 +43,8 @@ $linkOptions = [
     'escape' => false
 ];
 
-echo $this->Html->link($linkBody, $url, $linkOptions);
+try {
+    echo $this->Html->link($linkBody, $url, $linkOptions);
+} catch (\Cake\Routing\Exception\MissingRouteException) {
+    return;
+}
