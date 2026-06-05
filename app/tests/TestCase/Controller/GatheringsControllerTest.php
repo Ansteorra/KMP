@@ -512,7 +512,7 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
             'gathering_type_id' => 1,
             'name' => 'Timezone Grouping Public Test Event',
             'description' => 'Verifies public schedule date grouping.',
-            'start_date' => '2099-12-02 12:00:00',
+            'start_date' => '2099-12-01 00:00:00',
             'end_date' => '2099-12-03 12:00:00',
             'location' => 'Timezone Test Site',
             'timezone' => 'America/Los_Angeles',
