@@ -501,6 +501,48 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains('Pagination Off Calendar Event 205');
     }
 
+    public function testPublicLandingGroupsScheduleByGatheringTimezoneDate(): void
+    {
+        $gatherings = $this->getTableLocator()->get('Gatherings');
+        $scheduledActivities = $this->getTableLocator()->get('GatheringScheduledActivities');
+
+        $gathering = $gatherings->newEntity([
+            'public_id' => 'tzpub001',
+            'branch_id' => 2,
+            'gathering_type_id' => 1,
+            'name' => 'Timezone Grouping Public Test Event',
+            'description' => 'Verifies public schedule date grouping.',
+            'start_date' => '2099-12-02 12:00:00',
+            'end_date' => '2099-12-03 12:00:00',
+            'location' => 'Timezone Test Site',
+            'timezone' => 'America/Los_Angeles',
+            'public_page_enabled' => true,
+            'created_by' => self::ADMIN_MEMBER_ID,
+        ]);
+        $savedGathering = $gatherings->save($gathering);
+        $this->assertNotFalse($savedGathering);
+
+        $scheduled = $scheduledActivities->newEntity([
+            'gathering_id' => $savedGathering->id,
+            'start_datetime' => '2099-12-02 01:30:00',
+            'end_datetime' => '2099-12-02 02:00:00',
+            'has_end_time' => true,
+            'display_title' => 'Late Night Activity',
+            'description' => 'Crosses local day boundary from UTC.',
+            'pre_register' => false,
+            'is_other' => true,
+            'created_by' => self::ADMIN_MEMBER_ID,
+        ]);
+        $savedScheduled = $scheduledActivities->save($scheduled);
+        $this->assertNotFalse($savedScheduled);
+
+        $this->get('/gatherings/public-landing/' . $savedGathering->public_id);
+        $this->assertResponseOk();
+        $this->assertResponseContains('Tuesday, December 1, 2099');
+        $this->assertResponseNotContains('Wednesday, December 2, 2099');
+        $this->assertResponseContains('5:30 PM');
+    }
+
     /**
      * Test activity management remains available when waivers are uploaded.
      *
