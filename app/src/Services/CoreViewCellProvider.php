@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Model\Table\WorkflowApprovalsTable;
 use Cake\ORM\TableRegistry;
 use Exception;
 
@@ -79,9 +80,8 @@ class CoreViewCellProvider
             'color' => 'approvals',
             'badge' => (function () use ($user) {
                 try {
-                    $manager = new \App\Services\WorkflowEngine\DefaultWorkflowApprovalManager();
-                    $pending = $manager->getPendingApprovalsForMember($user->id);
-                    $count = count($pending);
+                    $count = WorkflowApprovalsTable::getPendingApprovalCountForMember($user->id);
+
                     return $count > 0 ? $count : null;
                 } catch (Exception $e) {
                     return null;

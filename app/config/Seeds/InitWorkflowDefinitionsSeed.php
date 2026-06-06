@@ -68,6 +68,17 @@ class InitWorkflowDefinitionsSeed extends BaseSeed
                 'is_active' => true,
             ],
             [
+                'name' => 'Existing Award Recommendation Approval',
+                'slug' => 'awards-existing-recommendation-approval',
+                'description' => 'Starts the configured award approval process for an existing recommendation.',
+                'trigger_type' => 'event',
+                'trigger_config' => ['event' => 'Awards.ExistingRecommendationApprovalRequested'],
+                'entity_type' => 'Awards.Recommendations',
+                'json_file' => 'awards-existing-recommendation-approval.json',
+                'execution_mode' => 'durable',
+                'is_active' => true,
+            ],
+            [
                 'name' => 'Award Recommendation Updated',
                 'slug' => 'awards-recommendation-updated',
                 'description' => 'Updates an existing recommendation from edit form data using ' .

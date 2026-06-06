@@ -7,8 +7,8 @@ use App\KMP\KmpIdentityInterface;
 use App\Model\Entity\BaseEntity;
 use App\Model\Entity\Member;
 use App\Model\Entity\WorkflowApproval;
+use App\Model\Table\WorkflowApprovalsTable;
 use App\Policy\BasePolicy;
-use App\Services\WorkflowEngine\DefaultWorkflowApprovalManager;
 use Awards\Model\Entity\Recommendation;
 use BadMethodCallException;
 use Cake\ORM\Table;
@@ -29,6 +29,13 @@ use Cake\ORM\TableRegistry;
  */
 class RecommendationPolicy extends BasePolicy
 {
+    /**
+     * Pending approval workflow instance IDs keyed by member ID for this policy instance.
+     *
+     * @var array<int, array<int>>
+     */
+    private array $pendingWorkflowInstanceIdsByMemberId = [];
+
     /**
      * Check if user can view a recommendation.
      *
@@ -415,47 +422,60 @@ class RecommendationPolicy extends BasePolicy
             return false;
         }
 
-        $approvalManager = new DefaultWorkflowApprovalManager();
-        foreach ($approvalManager->getPendingApprovalsForMember($memberId) as $approval) {
-            if (in_array((int)$approval->workflow_instance_id, $workflowInstanceIds, true)) {
-                return true;
-            }
-        }
-
-        $workflowApprovals = TableRegistry::getTableLocator()->get('WorkflowApprovals');
-        $retainedApprovals = $workflowApprovals->find()
-            ->select(['id', 'workflow_instance_id', 'approver_config'])
-            ->where([
-                'WorkflowApprovals.workflow_instance_id IN' => $workflowInstanceIds,
-                'WorkflowApprovals.status IN' => [
-                    WorkflowApproval::STATUS_APPROVED,
-                    WorkflowApproval::STATUS_REJECTED,
-                    WorkflowApproval::STATUS_EXPIRED,
-                    WorkflowApproval::STATUS_CANCELLED,
-                ],
-            ])
-            ->all();
-
-        $retainedApprovalIds = [];
-        foreach ($retainedApprovals as $approval) {
-            $approverConfig = is_array($approval->approver_config) ? $approval->approver_config : [];
-            if (empty($approverConfig['retain_read_visibility'])) {
-                continue;
-            }
-            $retainedApprovalIds[] = (int)$approval->id;
-        }
-
-        if ($retainedApprovalIds === []) {
-            return false;
+        $pendingInstanceIds = $this->pendingWorkflowInstanceIdsForMember($memberId);
+        if (array_intersect($workflowInstanceIds, $pendingInstanceIds) !== []) {
+            return true;
         }
 
         $responses = TableRegistry::getTableLocator()->get('WorkflowApprovalResponses');
-
-        return $responses->find()
-            ->where([
-                'workflow_approval_id IN' => $retainedApprovalIds,
-                'member_id' => $memberId,
+        $retainedResponses = $responses->find()
+            ->select([
+                'workflow_approval_id',
+                'approval_config' => 'WorkflowApprovals.approver_config',
             ])
-            ->count() > 0;
+            ->innerJoinWith('WorkflowApprovals', function ($q) use ($workflowInstanceIds) {
+                return $q->where([
+                    'WorkflowApprovals.workflow_instance_id IN' => $workflowInstanceIds,
+                    'WorkflowApprovals.status IN' => [
+                        WorkflowApproval::STATUS_APPROVED,
+                        WorkflowApproval::STATUS_REJECTED,
+                        WorkflowApproval::STATUS_EXPIRED,
+                        WorkflowApproval::STATUS_CANCELLED,
+                    ],
+                ]);
+            })
+            ->where(['WorkflowApprovalResponses.member_id' => $memberId])
+            ->enableHydration(false)
+            ->all();
+
+        foreach ($retainedResponses as $response) {
+            $approverConfig = $response['approval_config'] ?? null;
+            if (is_string($approverConfig)) {
+                $approverConfig = json_decode($approverConfig, true);
+            }
+            if (empty($approverConfig['retain_read_visibility'])) {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Get pending approval workflow instance IDs for a member once per policy instance.
+     *
+     * @param int $memberId Member ID.
+     * @return array<int>
+     */
+    private function pendingWorkflowInstanceIdsForMember(int $memberId): array
+    {
+        if (!array_key_exists($memberId, $this->pendingWorkflowInstanceIdsByMemberId)) {
+            $this->pendingWorkflowInstanceIdsByMemberId[$memberId] =
+                WorkflowApprovalsTable::getPendingApprovalWorkflowInstanceIdsForMember($memberId);
+        }
+
+        return $this->pendingWorkflowInstanceIdsByMemberId[$memberId];
     }
 }

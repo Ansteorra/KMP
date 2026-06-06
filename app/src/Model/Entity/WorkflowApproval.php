@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -32,6 +31,7 @@ namespace App\Model\Entity;
  * @property \App\Model\Entity\WorkflowInstance $workflow_instance
  * @property \App\Model\Entity\WorkflowExecutionLog $workflow_execution_log
  * @property \App\Model\Entity\WorkflowApprovalResponse[] $workflow_approval_responses
+ * @property \App\Model\Entity\WorkflowApprovalTriageState[] $workflow_approval_triage_states
  */
 class WorkflowApproval extends BaseEntity
 {
@@ -68,6 +68,7 @@ class WorkflowApproval extends BaseEntity
         'escalation_config' => true,
         'version' => true,
         'approval_token' => true,
+        'workflow_approval_triage_states' => true,
     ];
 
     /**

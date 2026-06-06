@@ -9,15 +9,21 @@
  *
  * @var \App\View\AppView $this
  */
+$mobileApprovalsDataUrl = $this->Url->build(['controller' => 'Approvals', 'action' => 'mobileApprovalsData']);
+$recordApprovalUrl = $this->Url->build(['controller' => 'Approvals', 'action' => 'recordApproval']);
+$triageUrl = $this->Url->build(['controller' => 'Approvals', 'action' => 'updateTriage']);
+$eligibleApproversUrl = $this->Url->build(['controller' => 'Approvals', 'action' => 'eligibleApprovers']);
+$approvalDetailUrl = $this->Url->build(['controller' => 'Approvals', 'action' => 'approvalDetail']);
 ?>
 
 <div class="mobile-approvals-container mx-3 mt-3"
      data-controller="mobile-approvals"
      data-section="approvals"
-     data-mobile-approvals-data-url-value="<?= $this->Url->build(['controller' => 'Approvals', 'action' => 'mobileApprovalsData']) ?>"
-     data-mobile-approvals-record-url-value="<?= $this->Url->build(['controller' => 'Approvals', 'action' => 'recordApproval']) ?>"
-     data-mobile-approvals-eligible-url-value="<?= $this->Url->build(['controller' => 'Approvals', 'action' => 'eligibleApprovers']) ?>"
-     data-mobile-approvals-detail-url-value="<?= $this->Url->build(['controller' => 'Approvals', 'action' => 'approvalDetail']) ?>">
+     data-mobile-approvals-data-url-value="<?= h($mobileApprovalsDataUrl) ?>"
+     data-mobile-approvals-record-url-value="<?= h($recordApprovalUrl) ?>"
+     data-mobile-approvals-triage-url-value="<?= h($triageUrl) ?>"
+     data-mobile-approvals-eligible-url-value="<?= h($eligibleApproversUrl) ?>"
+     data-mobile-approvals-detail-url-value="<?= h($approvalDetailUrl) ?>">
 
     <!-- Header with refresh -->
     <div class="d-flex justify-content-between align-items-center mb-3">

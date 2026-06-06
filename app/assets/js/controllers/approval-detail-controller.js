@@ -10,6 +10,7 @@ import { Controller } from "@hotwired/stimulus"
 class ApprovalDetailController extends Controller {
     static values = {
         url: String,
+        triageUrl: String,
     }
 
     connect() {
@@ -123,12 +124,67 @@ class ApprovalDetailController extends Controller {
         return div.innerHTML
     }
 
+    async updateTriage(event) {
+        event.preventDefault()
+        const form = event.currentTarget.closest("[data-approval-triage-form]")
+        if (!form || !this.hasTriageUrlValue) return
+
+        const approvalId = form.dataset.approvalTriageForm
+        const state = form.querySelector("[data-approval-triage-state]")?.value || "new"
+        const note = form.querySelector("[data-approval-triage-note]")?.value || ""
+        const status = form.querySelector("[data-approval-triage-status]")
+        const submit = event.currentTarget
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || ""
+
+        submit.disabled = true
+        if (status) {
+            status.textContent = "Saving triage state..."
+        }
+
+        try {
+            const body = new FormData()
+            body.append("approvalId", approvalId)
+            body.append("state", state)
+            body.append("note", note)
+            body.append("_csrfToken", csrfToken)
+
+            const response = await fetch(this.triageUrlValue, {
+                method: "POST",
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest",
+                    "X-CSRF-Token": csrfToken,
+                },
+                body,
+            })
+            const result = await response.json()
+            if (!response.ok || result.success === false) {
+                throw new Error(result.error || `HTTP ${response.status}`)
+            }
+            if (status) {
+                status.textContent = "Private triage state saved."
+            }
+            if (window.KMP_accessibility?.announce) {
+                window.KMP_accessibility.announce("Private triage state saved.")
+            }
+        } catch (error) {
+            if (status) {
+                status.textContent = error.message || "Unable to save triage state."
+            }
+            if (window.KMP_accessibility?.announce) {
+                window.KMP_accessibility.announce(status?.textContent || "Unable to save triage state.", "assertive")
+            }
+        } finally {
+            submit.disabled = false
+        }
+    }
+
     _renderDetail(data) {
         const h = (v) => this._escapeHtml(v)
         const ctx = data.context || {}
         const prog = data.progress || {}
         const responses = data.responses || []
         const ui = data.ui || {}
+        const triage = data.triage || {}
         const hideProgress = ui.hideProgress === true || ui.feedbackResponse === true
 
         let html = '<div class="p-3 bg-light">'
@@ -147,6 +203,9 @@ class ApprovalDetailController extends Controller {
         }
         if (ctx.entityUrl) {
             html += `<a href="${h(ctx.entityUrl)}" class="btn btn-sm btn-outline-primary mt-2" data-turbo-frame="_top"><i class="bi bi-box-arrow-up-right me-1"></i>View Entity</a>`
+        }
+        if (ui.canTriage === true) {
+            html += this._renderTriageForm(data, triage)
         }
         html += "</div>"
 
@@ -197,6 +256,41 @@ class ApprovalDetailController extends Controller {
         }
         html += "</div></div>"
         return html
+    }
+
+    _renderTriageForm(data, triage) {
+        const h = (v) => this._escapeHtml(v)
+        const approvalId = data.progress?.approvalId || data.approvalId || ""
+        const selectId = `approval-triage-state-${h(approvalId)}`
+        const noteId = `approval-triage-note-${h(approvalId)}`
+        const helpId = `approval-triage-help-${h(approvalId)}`
+        const statusId = `approval-triage-status-${h(approvalId)}`
+        const states = triage.states || {}
+        let options = ""
+        Object.keys(states).forEach((state) => {
+            options += `<option value="${h(state)}"${state === triage.state ? " selected" : ""}>${h(states[state])}</option>`
+        })
+
+        return `<form class="border rounded bg-white p-2 mt-3"
+                    data-approval-triage-form="${h(approvalId)}">
+            <div class="mb-2">
+                <label class="form-label small fw-semibold" for="${selectId}">Private triage state</label>
+                <select class="form-select form-select-sm" id="${selectId}" data-approval-triage-state aria-describedby="${helpId}">
+                    ${options}
+                </select>
+            </div>
+            <div class="mb-2">
+                <label class="form-label small fw-semibold" for="${noteId}">Private note</label>
+                <textarea class="form-control form-control-sm" id="${noteId}" data-approval-triage-note rows="2" aria-describedby="${helpId}">${h(triage.note || "")}</textarea>
+                <div class="form-text" id="${helpId}">Only you can see this triage note. It does not submit an approval decision.</div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-outline-primary" data-action="click->approval-detail#updateTriage">
+                    Save private triage
+                </button>
+                <span class="small text-muted" id="${statusId}" data-approval-triage-status role="status" aria-live="polite"></span>
+            </div>
+        </form>`
     }
 }
 

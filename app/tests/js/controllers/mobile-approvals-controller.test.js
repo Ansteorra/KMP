@@ -68,4 +68,46 @@ describe('MobileApprovalsController', () => {
         expect(document.querySelector('[data-approval-form-id="44"]')).not.toHaveAttribute('data-selected-decision');
         expect(document.querySelector('[data-submit-btn="44"]')).toBeDisabled();
     });
+
+    test('renders private triage controls with labels and help text', () => {
+        const html = controller._renderTriageForm({
+            id: 45,
+            triage: {
+                state: 'ready_to_decide',
+                note: 'Ready after checking notes',
+                states: {
+                    new: 'New',
+                    ready_to_decide: 'Ready to Decide',
+                },
+            },
+        });
+
+        document.body.innerHTML = html;
+
+        expect(document.querySelector('[data-mobile-triage-form="45"]')).not.toBeNull();
+        expect(document.querySelector('[data-mobile-triage-state]')).toHaveValue('ready_to_decide');
+        expect(document.querySelector('[data-mobile-triage-note]')).toHaveValue('Ready after checking notes');
+        expect(document.body.textContent).toContain('Only you can see this triage note');
+    });
+
+    test('mobile cards expose keyboard-operable expansion state', () => {
+        const html = controller._renderCard({
+            id: 46,
+            title: 'Keyboard approval',
+            requester: 'Requester',
+            icon: 'bi-check2-square',
+            progress: { required: 1, approved: 0 },
+            approverConfig: {},
+            triage: { stateLabel: 'Reviewing' },
+        });
+
+        document.body.innerHTML = html;
+        const summary = document.querySelector('.approval-card-summary');
+
+        expect(summary).toHaveAttribute('role', 'button');
+        expect(summary).toHaveAttribute('tabindex', '0');
+        expect(summary).toHaveAttribute('aria-expanded', 'false');
+        expect(summary.getAttribute('data-action')).toContain('keydown->mobile-approvals#toggleCardWithKeyboard');
+        expect(document.body.textContent).toContain('Reviewing');
+    });
 });

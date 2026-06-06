@@ -215,6 +215,35 @@ class AppSettingsTableTest extends BaseTestCase
     }
 
     /**
+     * Test getSetting caches all non-sensitive settings in one payload.
+     *
+     * @return void
+     * @uses \App\Model\Table\AppSettingsTable::getSetting()
+     */
+    public function testGetSettingUsesCachedSettingsPayload(): void
+    {
+        $prefix = 'test.cached.payload.' . uniqid();
+        $firstName = $prefix . '.first';
+        $secondName = $prefix . '.second';
+        $this->AppSettings->updateSetting($firstName, 'string', 'first-value', false);
+        $this->AppSettings->updateSetting($secondName, 'string', 'second-value', false);
+        Cache::clear();
+
+        $this->assertSame('first-value', $this->AppSettings->getSetting($firstName));
+
+        $this->AppSettings->getConnection()->update(
+            'app_settings',
+            ['value' => 'updated-second-value'],
+            ['name' => $secondName],
+        );
+
+        $this->assertSame('second-value', $this->AppSettings->getSetting($secondName));
+
+        Cache::clear();
+        $this->assertSame('updated-second-value', $this->AppSettings->getSetting($secondName));
+    }
+
+    /**
      * Test updateSetting method
      *
      * @return void
@@ -599,5 +628,48 @@ class AppSettingsTableTest extends BaseTestCase
         $settings = $this->AppSettings->getAllAppSettingsStartWith('nonexistent');
         $this->assertIsArray($settings);
         $this->assertEmpty($settings);
+    }
+
+    /**
+     * Test prefixed app setting reads use the shared settings cache.
+     *
+     * @return void
+     * @uses \App\Model\Table\AppSettingsTable::getAllAppSettingsStartWith()
+     */
+    public function testGetAllAppSettingsStartWithUsesCache(): void
+    {
+        $prefix = 'test.cached.prefix.' . uniqid() . '.';
+        $firstName = $prefix . 'first';
+        $secondName = $prefix . 'second';
+        $this->AppSettings->updateSetting($firstName, 'string', 'first-value', false);
+        $this->AppSettings->updateSetting($secondName, 'string', 'second-value', false);
+        Cache::clear();
+
+        $settings = $this->AppSettings->getAllAppSettingsStartWith($prefix);
+        $this->assertSame('first-value', $settings[$firstName]);
+        $this->assertSame('second-value', $settings[$secondName]);
+
+        $this->AppSettings->getConnection()->update(
+            'app_settings',
+            ['value' => 'updated-first-value'],
+            ['name' => $firstName],
+        );
+        $this->AppSettings->getConnection()->insert('app_settings', [
+            'name' => $prefix . 'third',
+            'value' => 'third-value',
+            'type' => 'string',
+            'required' => 0,
+            'created' => date('Y-m-d H:i:s'),
+            'modified' => date('Y-m-d H:i:s'),
+        ]);
+
+        $cachedSettings = $this->AppSettings->getAllAppSettingsStartWith($prefix);
+        $this->assertSame('first-value', $cachedSettings[$firstName]);
+        $this->assertArrayNotHasKey($prefix . 'third', $cachedSettings);
+
+        Cache::clear();
+        $freshSettings = $this->AppSettings->getAllAppSettingsStartWith($prefix);
+        $this->assertSame('updated-first-value', $freshSettings[$firstName]);
+        $this->assertSame('third-value', $freshSettings[$prefix . 'third']);
     }
 }

@@ -282,7 +282,7 @@ class RecommendationApprovalProcessService
     }
 
     /**
-     * Build the dynamic approver resolver config without snapshotting resolved users.
+     * Build the dynamic approver resolver config.
      *
      * @param \Awards\Model\Entity\RecommendationApprovalRun $run Approval run.
      * @param \Awards\Model\Entity\ApprovalProcessStep $step Approval step.

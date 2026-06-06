@@ -1,14 +1,15 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
 
 use App\Model\Entity\WorkflowApproval;
-use App\Services\WorkflowEngine\DefaultWorkflowApprovalManager;
+use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\ORM\RulesChecker;
+use Cake\ORM\TableRegistry;
 use Cake\Validation\Validator;
+use Exception;
 
 /**
  * WorkflowApprovals Model
@@ -16,13 +17,20 @@ use Cake\Validation\Validator;
  * @property \App\Model\Table\WorkflowInstancesTable&\Cake\ORM\Association\BelongsTo $WorkflowInstances
  * @property \App\Model\Table\WorkflowExecutionLogsTable&\Cake\ORM\Association\BelongsTo $WorkflowExecutionLogs
  * @property \App\Model\Table\WorkflowApprovalResponsesTable&\Cake\ORM\Association\HasMany $WorkflowApprovalResponses
- *
+ * @property \App\Model\Table\WorkflowApprovalTriageStatesTable&\Cake\ORM\Association\HasMany $WorkflowApprovalTriageStates
  * @method \App\Model\Entity\WorkflowApproval newEmptyEntity()
  * @method \App\Model\Entity\WorkflowApproval newEntity(array $data, array $options = [])
  * @method \App\Model\Entity\WorkflowApproval patchEntity(\Cake\Datasource\EntityInterface $entity, array $data, array $options = [])
  */
 class WorkflowApprovalsTable extends BaseTable
 {
+    /**
+     * Request-local member approval scope cache.
+     *
+     * @var array<int, array<string, mixed>>
+     */
+    private static array $memberApprovalScopeCache = [];
+
     /**
      * Initialize method.
      */
@@ -43,6 +51,10 @@ class WorkflowApprovalsTable extends BaseTable
             'joinType' => 'INNER',
         ]);
         $this->hasMany('WorkflowApprovalResponses', [
+            'foreignKey' => 'workflow_approval_id',
+            'dependent' => true,
+        ]);
+        $this->hasMany('WorkflowApprovalTriageStates', [
             'foreignKey' => 'workflow_approval_id',
             'dependent' => true,
         ]);
@@ -154,12 +166,499 @@ class WorkflowApprovalsTable extends BaseTable
      */
     public static function getPendingApprovalCountForMember(int $memberId): int
     {
-        try {
-            $manager = new DefaultWorkflowApprovalManager();
-            return count($manager->getPendingApprovalsForMember($memberId));
-        } catch (\Exception $e) {
-            Log::error("Error counting pending approvals for member {$memberId}: {$e->getMessage()}");
-            return 0;
+        return count(self::getPendingApprovalIdsForMember($memberId));
+    }
+
+    /**
+     * Get pending approvals for a member without invoking dynamic resolver services.
+     *
+     * This performs a cheap ID pass first, then loads only eligible rows with the
+     * caller's requested associations for rich UI rendering.
+     *
+     * @param int $memberId The member ID to check.
+     * @param array<string, mixed> $contain Associations to contain on the rich fetch.
+     * @return array<\App\Model\Entity\WorkflowApproval>
+     */
+    public static function getPendingApprovalsForMember(int $memberId, array $contain = []): array
+    {
+        $approvalIds = self::getPendingApprovalIdsForMember($memberId);
+        if ($approvalIds === []) {
+            return [];
         }
+
+        return TableRegistry::getTableLocator()->get('WorkflowApprovals')->find()
+            ->contain($contain)
+            ->where(['WorkflowApprovals.id IN' => $approvalIds])
+            ->orderBy(['WorkflowApprovals.modified' => 'DESC'])
+            ->all()
+            ->toArray();
+    }
+
+    /**
+     * Get pending approval IDs for a member without invoking dynamic resolver services.
+     *
+     * @param int $memberId The member ID to check.
+     * @return array<int>
+     */
+    public static function getPendingApprovalIdsForMember(int $memberId): array
+    {
+        $approvalIds = [];
+        foreach (self::getPendingApprovalsMatchingMember($memberId) as $approval) {
+            $approvalIds[] = (int)$approval->id;
+        }
+
+        return $approvalIds;
+    }
+
+    /**
+     * Get pending workflow instance IDs for a member without invoking dynamic resolver services.
+     *
+     * @param int $memberId The member ID to check.
+     * @return array<int>
+     */
+    public static function getPendingApprovalWorkflowInstanceIdsForMember(int $memberId): array
+    {
+        $instanceIds = [];
+        foreach (self::getPendingApprovalsMatchingMember($memberId) as $approval) {
+            $instanceId = (int)($approval->workflow_instance_id ?? 0);
+            if ($instanceId > 0) {
+                $instanceIds[] = $instanceId;
+            }
+        }
+
+        return array_values(array_unique($instanceIds));
+    }
+
+    /**
+     * Check whether one pending approval is currently actionable for a member.
+     *
+     * @param int $approvalId Workflow approval ID.
+     * @param int $memberId Member ID.
+     * @return bool
+     */
+    public static function isPendingApprovalForMember(int $approvalId, int $memberId): bool
+    {
+        try {
+            $responsesTable = TableRegistry::getTableLocator()->get('WorkflowApprovalResponses');
+            $hasResponse = $responsesTable->find()
+                ->where([
+                    'workflow_approval_id' => $approvalId,
+                    'member_id' => $memberId,
+                ])
+                ->count() > 0;
+            if ($hasResponse) {
+                return false;
+            }
+
+            $approval = TableRegistry::getTableLocator()->get('WorkflowApprovals')->find()
+                ->select(['id', 'workflow_instance_id', 'approver_type', 'approver_config', 'current_approver_id'])
+                ->where([
+                    'WorkflowApprovals.id' => $approvalId,
+                    'WorkflowApprovals.status' => WorkflowApproval::STATUS_PENDING,
+                ])
+                ->first();
+            if (!$approval instanceof WorkflowApproval) {
+                return false;
+            }
+
+            $approvals = [$approval];
+            $memberScope = self::getMemberApprovalScope($memberId);
+            $awardBranchIdsByRun = self::getAwardBranchIdsByApprovalRun($approvals);
+            $branchIndex = self::getBranchIndex($awardBranchIdsByRun);
+
+            return self::isApprovalPendingForMember(
+                $approval,
+                $memberId,
+                $memberScope,
+                $awardBranchIdsByRun,
+                $branchIndex,
+            );
+        } catch (Exception $e) {
+            Log::error("Error checking pending approval {$approvalId} for member {$memberId}: {$e->getMessage()}");
+
+            return false;
+        }
+    }
+
+    /**
+     * Get pending approval rows matching the member's current approval scope.
+     *
+     * @param int $memberId The member ID to check.
+     * @return array<\App\Model\Entity\WorkflowApproval>
+     */
+    private static function getPendingApprovalsMatchingMember(int $memberId): array
+    {
+        try {
+            $approvalsTable = TableRegistry::getTableLocator()->get('WorkflowApprovals');
+            $memberScope = self::getMemberApprovalScope($memberId);
+
+            $query = $approvalsTable->find()
+                ->select(['id', 'workflow_instance_id', 'approver_type', 'approver_config', 'current_approver_id'])
+                ->where(['WorkflowApprovals.status' => WorkflowApproval::STATUS_PENDING])
+                ->where([
+                    sprintf(
+                        'NOT EXISTS (
+                            SELECT 1
+                            FROM workflow_approval_responses member_responses
+                            WHERE member_responses.workflow_approval_id = WorkflowApprovals.id
+                              AND member_responses.member_id = %d
+                        )',
+                        $memberId,
+                    ),
+                ]);
+
+            $candidateTypes = [
+                WorkflowApproval::APPROVER_TYPE_MEMBER,
+                WorkflowApproval::APPROVER_TYPE_DYNAMIC,
+            ];
+            if ($memberScope['roleNames'] !== []) {
+                $candidateTypes[] = WorkflowApproval::APPROVER_TYPE_ROLE;
+            }
+            if ($memberScope['permissionNames'] !== []) {
+                $candidateTypes[] = WorkflowApproval::APPROVER_TYPE_PERMISSION;
+            }
+
+            $query->where([
+                'OR' => [
+                    ['WorkflowApprovals.current_approver_id' => $memberId],
+                    ['WorkflowApprovals.approver_type IN' => $candidateTypes],
+                ],
+            ]);
+
+            $approvals = $query->all()->toArray();
+            $awardBranchIdsByRun = self::getAwardBranchIdsByApprovalRun($approvals);
+            $branchIndex = self::getBranchIndex($awardBranchIdsByRun);
+
+            $eligible = [];
+            foreach ($approvals as $approval) {
+                if (
+                    self::isApprovalPendingForMember(
+                        $approval,
+                        $memberId,
+                        $memberScope,
+                        $awardBranchIdsByRun,
+                        $branchIndex,
+                    )
+                ) {
+                    $eligible[] = $approval;
+                }
+            }
+
+            return $eligible;
+        } catch (Exception $e) {
+            Log::error("Error fetching pending approvals for member {$memberId}: {$e->getMessage()}");
+
+            return [];
+        }
+    }
+
+    /**
+     * Check badge-count eligibility without invoking dynamic resolver services.
+     *
+     * @param \App\Model\Entity\WorkflowApproval $approval Pending approval row.
+     * @param int $memberId Current member ID.
+     * @param array<string, mixed> $memberScope Current member approval scope.
+     * @param array<int, int> $awardBranchIdsByRun Award branch IDs keyed by recommendation approval run ID.
+     * @param array<int, array{parent_id:int|null,type:string|null}> $branchIndex Branch hierarchy keyed by branch ID.
+     * @return bool
+     */
+    private static function isApprovalPendingForMember(
+        WorkflowApproval $approval,
+        int $memberId,
+        array $memberScope,
+        array $awardBranchIdsByRun,
+        array $branchIndex,
+    ): bool {
+        $config = $approval->approver_config ?? [];
+        $currentApproverId = (int)($approval->current_approver_id ?? $config['current_approver_id'] ?? 0);
+        if ($currentApproverId > 0) {
+            return $memberId === $currentApproverId;
+        }
+
+        return match ($approval->approver_type) {
+            WorkflowApproval::APPROVER_TYPE_PERMISSION => in_array(
+                (string)($config['permission'] ?? ''),
+                $memberScope['permissionNames'],
+                true,
+            ),
+            WorkflowApproval::APPROVER_TYPE_ROLE => in_array(
+                (string)($config['role'] ?? ''),
+                $memberScope['roleNames'],
+                true,
+            ),
+            WorkflowApproval::APPROVER_TYPE_MEMBER => $memberId === (int)($config['member_id'] ?? 0),
+            WorkflowApproval::APPROVER_TYPE_DYNAMIC => self::dynamicConfigIncludesMember(
+                $config,
+                $memberId,
+                $memberScope,
+                $awardBranchIdsByRun,
+                $branchIndex,
+            ),
+            default => false,
+        };
+    }
+
+    /**
+     * Check dynamic approver config against the member's current branch-scoped roles, permissions, and offices.
+     *
+     * @param array<string, mixed> $config Approval config.
+     * @param int $memberId Current member ID.
+     * @param array<string, mixed> $memberScope Current member approval scope.
+     * @param array<int, int> $awardBranchIdsByRun Award branch IDs keyed by recommendation approval run ID.
+     * @param array<int, array{parent_id:int|null,type:string|null}> $branchIndex Branch hierarchy keyed by branch ID.
+     * @return bool
+     */
+    private static function dynamicConfigIncludesMember(
+        array $config,
+        int $memberId,
+        array $memberScope,
+        array $awardBranchIdsByRun,
+        array $branchIndex,
+    ): bool {
+        $approverType = (string)($config['award_approval_approver_type'] ?? '');
+        if ($approverType === 'member') {
+            return $memberId === (int)($config['award_approval_approver_source_id'] ?? $config['member_id'] ?? 0);
+        }
+
+        $sourceId = (int)($config['award_approval_approver_source_id'] ?? 0);
+        if ($sourceId <= 0) {
+            return false;
+        }
+
+        $branchId = self::approvalBranchId($config, $awardBranchIdsByRun, $branchIndex);
+        if ($branchId === null) {
+            return false;
+        }
+
+        return match ($approverType) {
+            'role' => isset($memberScope['roleIdsByBranch'][$branchId][$sourceId]),
+            'permission' => isset($memberScope['permissionIdsByBranch'][$branchId][$sourceId]),
+            'office' => isset($memberScope['officeIdsByBranch'][$branchId][$sourceId]),
+            default => false,
+        };
+    }
+
+    /**
+     * Resolve the branch scope encoded by an award approval config.
+     *
+     * @param array<string, mixed> $config Approval config.
+     * @param array<int, int> $awardBranchIdsByRun Award branch IDs keyed by recommendation approval run ID.
+     * @param array<int, array{parent_id:int|null,type:string|null}> $branchIndex Branch hierarchy keyed by branch ID.
+     * @return int|null
+     */
+    private static function approvalBranchId(array $config, array $awardBranchIdsByRun, array $branchIndex): ?int
+    {
+        if (!empty($config['award_approval_branch_id'])) {
+            return (int)$config['award_approval_branch_id'];
+        }
+
+        $runId = (int)($config['award_approval_run_id'] ?? 0);
+        $awardBranchId = $awardBranchIdsByRun[$runId] ?? null;
+        if ($awardBranchId === null) {
+            return null;
+        }
+
+        if (($config['award_approval_branch_mode'] ?? 'award_branch') !== 'ancestor_branch_type') {
+            return $awardBranchId;
+        }
+
+        $targetType = (string)($config['award_approval_branch_type'] ?? '');
+        if ($targetType === '') {
+            return null;
+        }
+
+        $branchId = $awardBranchId;
+        while (isset($branchIndex[$branchId])) {
+            if ((string)$branchIndex[$branchId]['type'] === $targetType) {
+                return $branchId;
+            }
+            $parentId = $branchIndex[$branchId]['parent_id'];
+            if ($parentId === null) {
+                break;
+            }
+            $branchId = $parentId;
+        }
+
+        return null;
+    }
+
+    /**
+     * Build the current member scope needed for fast approval badge counts.
+     *
+     * @param int $memberId Member ID.
+     * @return array<string, mixed>
+     */
+    private static function getMemberApprovalScope(int $memberId): array
+    {
+        if (isset(self::$memberApprovalScopeCache[$memberId])) {
+            return self::$memberApprovalScopeCache[$memberId];
+        }
+
+        $memberRolesTable = TableRegistry::getTableLocator()->get('MemberRoles');
+        $now = DateTime::now();
+
+        $roleNamesByName = [];
+        $roleIdsByBranch = [];
+        $roleRows = $memberRolesTable->find('current')
+            ->innerJoinWith('Roles')
+            ->select([
+                'role_id' => 'MemberRoles.role_id',
+                'branch_id' => 'MemberRoles.branch_id',
+                'role_name' => 'Roles.name',
+            ])
+            ->where(['MemberRoles.member_id' => $memberId])
+            ->enableHydration(false)
+            ->all()
+            ->toList();
+        foreach ($roleRows as $row) {
+            $roleName = (string)($row['role_name'] ?? '');
+            if ($roleName !== '') {
+                $roleNamesByName[$roleName] = true;
+            }
+            $branchId = (int)($row['branch_id'] ?? 0);
+            $roleId = (int)($row['role_id'] ?? 0);
+            if ($branchId > 0 && $roleId > 0) {
+                $roleIdsByBranch[$branchId][$roleId] = true;
+            }
+        }
+
+        $permissionNamesByName = [];
+        $permissionIdsByBranch = [];
+        $permissionRows = $memberRolesTable->find('current')
+            ->select([
+                'branch_id' => 'MemberRoles.branch_id',
+                'permission_id' => 'Permissions.id',
+                'permission_name' => 'Permissions.name',
+            ])
+            ->matching('Roles.Permissions')
+            ->where(['MemberRoles.member_id' => $memberId])
+            ->enableHydration(false)
+            ->all()
+            ->toList();
+        foreach ($permissionRows as $row) {
+            $permissionName = (string)($row['permission_name'] ?? '');
+            if ($permissionName !== '') {
+                $permissionNamesByName[$permissionName] = true;
+            }
+            $branchId = (int)($row['branch_id'] ?? 0);
+            $permissionId = (int)($row['permission_id'] ?? 0);
+            if ($branchId > 0 && $permissionId > 0) {
+                $permissionIdsByBranch[$branchId][$permissionId] = true;
+            }
+        }
+
+        $officeIdsByBranch = [];
+        $officerRows = TableRegistry::getTableLocator()->get('Officers.Officers')->find()
+            ->select(['office_id', 'branch_id'])
+            ->where([
+                'Officers.member_id' => $memberId,
+                'Officers.status' => 'Current',
+                'Officers.start_on <=' => $now,
+                'OR' => [
+                    'Officers.expires_on IS' => null,
+                    'Officers.expires_on >=' => $now,
+                ],
+            ])
+            ->enableHydration(false)
+            ->all();
+        foreach ($officerRows as $row) {
+            $branchId = (int)($row['branch_id'] ?? 0);
+            $officeId = (int)($row['office_id'] ?? 0);
+            if ($branchId > 0 && $officeId > 0) {
+                $officeIdsByBranch[$branchId][$officeId] = true;
+            }
+        }
+
+        return self::$memberApprovalScopeCache[$memberId] = [
+            'permissionNames' => array_keys($permissionNamesByName),
+            'roleNames' => array_keys($roleNamesByName),
+            'roleIdsByBranch' => $roleIdsByBranch,
+            'permissionIdsByBranch' => $permissionIdsByBranch,
+            'officeIdsByBranch' => $officeIdsByBranch,
+        ];
+    }
+
+    /**
+     * Clear request-local approval scope cache.
+     *
+     * Primarily useful for tests or long-running CLI workers that mutate member
+     * role/office state and then need fresh approval-scope reads.
+     *
+     * @return void
+     */
+    public static function clearApprovalScopeCache(): void
+    {
+        self::$memberApprovalScopeCache = [];
+    }
+
+    /**
+     * Batch-load award branch IDs for pending award approval runs.
+     *
+     * @param array<\App\Model\Entity\WorkflowApproval> $approvals Pending approvals.
+     * @return array<int, int>
+     */
+    private static function getAwardBranchIdsByApprovalRun(array $approvals): array
+    {
+        $runIds = [];
+        foreach ($approvals as $approval) {
+            $config = $approval->approver_config ?? [];
+            if (($config['service'] ?? null) !== 'Awards.ResolveApprovalStepApprovers') {
+                continue;
+            }
+            $runId = (int)($config['award_approval_run_id'] ?? 0);
+            if ($runId > 0) {
+                $runIds[] = $runId;
+            }
+        }
+        $runIds = array_values(array_unique($runIds));
+        if ($runIds === []) {
+            return [];
+        }
+
+        $runsTable = TableRegistry::getTableLocator()->get('Awards.RecommendationApprovalRuns');
+        $rows = $runsTable->find()
+            ->select([
+                'id' => 'RecommendationApprovalRuns.id',
+                'award_branch_id' => 'Awards.branch_id',
+            ])
+            ->innerJoinWith('Recommendations.Awards')
+            ->where(['RecommendationApprovalRuns.id IN' => $runIds])
+            ->enableHydration(false)
+            ->all();
+
+        $branchIds = [];
+        foreach ($rows as $row) {
+            $branchIds[(int)$row['id']] = (int)$row['award_branch_id'];
+        }
+
+        return $branchIds;
+    }
+
+    /**
+     * Load branch hierarchy data only when award approvals may need it.
+     *
+     * @param array<int, int> $awardBranchIdsByRun Award branch IDs keyed by recommendation approval run ID.
+     * @return array<int, array{parent_id:int|null,type:string|null}>
+     */
+    private static function getBranchIndex(array $awardBranchIdsByRun): array
+    {
+        if ($awardBranchIdsByRun === []) {
+            return [];
+        }
+
+        $branches = TableRegistry::getTableLocator()->get('Branches')->find()
+            ->select(['id', 'parent_id', 'type'])
+            ->enableHydration(false)
+            ->all();
+
+        $index = [];
+        foreach ($branches as $branch) {
+            $index[(int)$branch['id']] = [
+                'parent_id' => $branch['parent_id'] !== null ? (int)$branch['parent_id'] : null,
+                'type' => $branch['type'] !== null ? (string)$branch['type'] : null,
+            ];
+        }
+
+        return $index;
     }
 }

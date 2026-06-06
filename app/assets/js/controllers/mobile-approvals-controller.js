@@ -16,6 +16,7 @@ class MobileApprovalsController extends MobileControllerBase {
     static values = {
         dataUrl: String,
         recordUrl: String,
+        triageUrl: String,
         eligibleUrl: String,
         detailUrl: String,
     }
@@ -95,7 +96,10 @@ class MobileApprovalsController extends MobileControllerBase {
         return `
         <div class="card approval-card" data-approval-id="${approval.id}">
             <div class="approval-card-summary"
-                 data-action="click->mobile-approvals#toggleCard"
+                 data-action="click->mobile-approvals#toggleCard keydown->mobile-approvals#toggleCardWithKeyboard"
+                 role="button"
+                 tabindex="0"
+                 aria-expanded="false"
                  data-id="${approval.id}">
                 <div class="approval-card-icon">
                     <i class="bi ${this._escHtml(approval.icon)}"></i>
@@ -104,6 +108,7 @@ class MobileApprovalsController extends MobileControllerBase {
                     <div class="approval-card-title">${this._escHtml(approval.title)}</div>
                     <div class="approval-card-meta">
                         <span><i class="bi bi-person me-1"></i>${this._escHtml(approval.requester)}</span>
+                        ${approval.triage?.stateLabel ? `<span><i class="bi bi-journal-text me-1"></i>${this._escHtml(approval.triage.stateLabel)}</span>` : ''}
                         ${progressHtml}
                         <span><i class="bi bi-clock me-1"></i>${age}</span>
                     </div>
@@ -129,12 +134,21 @@ class MobileApprovalsController extends MobileControllerBase {
                 const prev = this.listTarget.querySelector(`[data-approval-id="${this._expandedId}"]`)
                 if (prev) this._collapseCard(prev, this._expandedId)
             }
+
             this._expandCard(card, id)
         }
     }
 
+    toggleCardWithKeyboard(event) {
+        if (event.key !== 'Enter' && event.key !== ' ') {
+            return
+        }
+        this.toggleCard(event)
+    }
+
     _collapseCard(card, id) {
         card.classList.remove('expanded')
+        card.querySelector('.approval-card-summary')?.setAttribute('aria-expanded', 'false')
         const detail = card.querySelector('.approval-card-detail')
         if (detail) detail.remove()
         this._expandedId = null
@@ -142,6 +156,7 @@ class MobileApprovalsController extends MobileControllerBase {
 
     async _expandCard(card, id) {
         card.classList.add('expanded')
+        card.querySelector('.approval-card-summary')?.setAttribute('aria-expanded', 'true')
         this._expandedId = id
 
         const approval = this._approvals.find(a => a.id === id)
@@ -221,10 +236,43 @@ class MobileApprovalsController extends MobileControllerBase {
         }
 
         // Response form
+        html += this._renderTriageForm(approval)
         html += this._renderResponseForm(approval)
 
         html += '</div>'
         return html
+    }
+
+    _renderTriageForm(approval) {
+        const triage = approval.triage || { state: "new", note: "", states: { new: "New" } }
+        const stateId = `mobile-approval-triage-state-${approval.id}`
+        const noteId = `mobile-approval-triage-note-${approval.id}`
+        const helpId = `mobile-approval-triage-help-${approval.id}`
+        const statusId = `mobile-approval-triage-status-${approval.id}`
+        const options = Object.entries(triage.states || {}).map(([value, label]) => {
+            return `<option value="${this._escHtml(value)}"${value === triage.state ? " selected" : ""}>${this._escHtml(label)}</option>`
+        }).join("")
+
+        return `<form class="approval-triage-form mb-3"
+                    data-mobile-triage-form="${approval.id}">
+            <div class="mb-2">
+                <label class="form-label fw-semibold" style="font-size: 0.85rem;" for="${stateId}">Private triage state</label>
+                <select class="form-select form-select-sm" id="${stateId}" data-mobile-triage-state aria-describedby="${helpId}">
+                    ${options}
+                </select>
+            </div>
+            <div class="mb-2">
+                <label class="form-label fw-semibold" style="font-size: 0.85rem;" for="${noteId}">Private note</label>
+                <textarea class="form-control form-control-sm" id="${noteId}" data-mobile-triage-note rows="2" aria-describedby="${helpId}">${this._escHtml(triage.note || "")}</textarea>
+                <div class="form-text" id="${helpId}">Only you can see this triage note. It does not submit an approval decision.</div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-action="click->mobile-approvals#saveTriage">
+                    Save private triage
+                </button>
+                <span class="small text-muted" id="${statusId}" data-mobile-triage-status role="status" aria-live="polite"></span>
+            </div>
+        </form>`
     }
 
     _renderResponseForm(approval) {
@@ -387,6 +435,56 @@ class MobileApprovalsController extends MobileControllerBase {
     }
 
     // --- Submit Response ---
+
+    async saveTriage(event) {
+        event.preventDefault()
+        const form = event.currentTarget.closest("[data-mobile-triage-form]")
+        if (!form || !this.hasTriageUrlValue) return
+
+        const approvalId = parseInt(form.dataset.mobileTriageForm)
+        const state = form.querySelector("[data-mobile-triage-state]")?.value || "new"
+        const note = form.querySelector("[data-mobile-triage-note]")?.value || ""
+        const status = form.querySelector("[data-mobile-triage-status]")
+        const button = event.currentTarget
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || ''
+
+        button.disabled = true
+        if (status) status.textContent = "Saving triage state..."
+
+        try {
+            const body = new FormData()
+            body.append('approvalId', approvalId)
+            body.append('state', state)
+            body.append('note', note)
+            body.append('_csrfToken', csrfToken)
+
+            const response = await fetch(this.triageUrlValue, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-Token': csrfToken,
+                },
+                body,
+            })
+            const result = await response.json()
+            if (!response.ok || result.success === false) {
+                throw new Error(result.error || `HTTP ${response.status}`)
+            }
+
+            const approval = this._approvals.find(a => a.id === approvalId)
+            if (approval) {
+                approval.triage = result.triage
+            }
+            if (status) status.textContent = "Private triage state saved."
+            this._showToast("Private triage state saved.", "success")
+        } catch (error) {
+            const message = error.message || "Unable to save triage state."
+            if (status) status.textContent = message
+            this._showToast(message, "danger")
+        } finally {
+            button.disabled = false
+        }
+    }
 
     async submitResponse(event) {
         event.preventDefault()

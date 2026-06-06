@@ -10,17 +10,19 @@
 
 $focusedApprovalId = $focusedApprovalId ?? null;
 $approvalToken = $approvalToken ?? null;
+$triageUrl = $this->Url->build(['controller' => 'Approvals', 'action' => 'updateTriage']);
 ?>
 <?php $this->extend('/layout/TwitterBootstrap/dashboard');
 
-echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': My Approvals';
+echo $this->KMP->startBlock('title');
+echo $this->KMP->getAppSetting('KMP.ShortSiteTitle') . ': My Approvals';
 $this->KMP->endBlock(); ?>
 
 <h3><i class="bi bi-check2-square me-2"></i><?= __('My Approvals') ?></h3>
 
 <div data-controller="approval-detail"
-     data-approval-detail-url-value="/approvals/detail/">
+     data-approval-detail-url-value="/approvals/detail/"
+     data-approval-detail-triage-url-value="<?= h($triageUrl) ?>">
 <?= $this->element('dv_grid', [
     'frameId' => 'approvals-grid',
     'dataUrl' => $this->Url->build(['controller' => 'Approvals', 'action' => 'approvalsGridData']),
@@ -223,9 +225,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    <?php if ($focusedApprovalId): ?>
+    <?php if ($focusedApprovalId) : ?>
     // Auto-open response modal for token deep-link approval
-    setTimeout(function() {
+    setTimeout(function () {
         const focusedId = <?= json_encode($focusedApprovalId) ?>;
         const respondBtn = document.querySelector('[data-outlet-btn-btn-data-value*="\"id\":' + focusedId + '"]');
         if (respondBtn) {

@@ -6,8 +6,8 @@ namespace Awards\Policy;
 use App\KMP\KmpIdentityInterface;
 use App\Model\Entity\BaseEntity;
 use App\Model\Entity\WorkflowApproval;
+use App\Model\Table\WorkflowApprovalsTable;
 use App\Policy\BasePolicy;
-use App\Services\WorkflowEngine\DefaultWorkflowApprovalManager;
 use Cake\ORM\Query;
 use Cake\ORM\Table;
 use Cake\ORM\TableRegistry;
@@ -98,49 +98,38 @@ class RecommendationsTablePolicy extends BasePolicy
             return [];
         }
 
-        $instanceIds = [];
-        $approvalManager = new DefaultWorkflowApprovalManager();
-        foreach ($approvalManager->getPendingApprovalsForMember($memberId) as $approval) {
-            $instanceIds[] = (int)$approval->workflow_instance_id;
-        }
+        $instanceIds = WorkflowApprovalsTable::getPendingApprovalWorkflowInstanceIdsForMember($memberId);
 
-        $workflowApprovals = TableRegistry::getTableLocator()->get('WorkflowApprovals');
-        $retainedApprovals = $workflowApprovals->find()
-            ->select(['id', 'workflow_instance_id', 'approver_config'])
-            ->where([
-                'WorkflowApprovals.status IN' => [
-                    WorkflowApproval::STATUS_APPROVED,
-                    WorkflowApproval::STATUS_REJECTED,
-                    WorkflowApproval::STATUS_EXPIRED,
-                    WorkflowApproval::STATUS_CANCELLED,
-                ],
+        $responses = TableRegistry::getTableLocator()->get('WorkflowApprovalResponses');
+        $retainedResponses = $responses->find()
+            ->select([
+                'workflow_approval_id',
+                'approval_instance_id' => 'WorkflowApprovals.workflow_instance_id',
+                'approval_config' => 'WorkflowApprovals.approver_config',
             ])
+            ->innerJoinWith('WorkflowApprovals', function ($q) {
+                return $q->where([
+                    'WorkflowApprovals.status IN' => [
+                        WorkflowApproval::STATUS_APPROVED,
+                        WorkflowApproval::STATUS_REJECTED,
+                        WorkflowApproval::STATUS_EXPIRED,
+                        WorkflowApproval::STATUS_CANCELLED,
+                    ],
+                ]);
+            })
+            ->where(['WorkflowApprovalResponses.member_id' => $memberId])
+            ->enableHydration(false)
             ->all();
 
-        $retainedApprovalIdsByInstanceId = [];
-        foreach ($retainedApprovals as $approval) {
-            $approverConfig = is_array($approval->approver_config) ? $approval->approver_config : [];
+        foreach ($retainedResponses as $response) {
+            $approverConfig = $response['approval_config'] ?? null;
+            if (is_string($approverConfig)) {
+                $approverConfig = json_decode($approverConfig, true);
+            }
             if (empty($approverConfig['retain_read_visibility'])) {
                 continue;
             }
-            $retainedApprovalIdsByInstanceId[(int)$approval->id] = (int)$approval->workflow_instance_id;
-        }
-
-        if ($retainedApprovalIdsByInstanceId !== []) {
-            $responses = TableRegistry::getTableLocator()->get('WorkflowApprovalResponses');
-            $respondedApprovalIds = $responses->find()
-                ->select(['workflow_approval_id'])
-                ->where([
-                    'workflow_approval_id IN' => array_keys($retainedApprovalIdsByInstanceId),
-                    'member_id' => $memberId,
-                ])
-                ->all()
-                ->extract('workflow_approval_id')
-                ->toList();
-
-            foreach ($respondedApprovalIds as $approvalId) {
-                $instanceIds[] = $retainedApprovalIdsByInstanceId[(int)$approvalId];
-            }
+            $instanceIds[] = (int)($response['approval_instance_id'] ?? 0);
         }
 
         $instanceIds = array_values(array_unique(array_filter($instanceIds)));

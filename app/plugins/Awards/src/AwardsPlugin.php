@@ -9,6 +9,7 @@ use App\Services\ApprovalContext\ApprovalContextRendererRegistry;
 use App\Services\NavigationRegistry;
 use App\Services\ViewCellRegistry;
 use App\Services\WorkflowEngine\TriggerDispatcher;
+use Awards\Command\MigrateAwardRecommendationsCommand;
 use Awards\Event\RecommendationFeedbackApprovalListener;
 use Awards\Services\AdHocBestowalService;
 use Awards\Services\AwardApprovalResolverService;
@@ -299,6 +300,7 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
     public function console(CommandCollection $commands): CommandCollection
     {
         $commands = parent::console($commands);
+        $commands->add('awards migrate_award_recommendations', MigrateAwardRecommendationsCommand::class);
 
         return $commands;
     }
@@ -309,6 +311,8 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
      */
     public function services(ContainerInterface $container): void
     {
+        $container->add(MigrateAwardRecommendationsCommand::class)
+            ->addArgument(TriggerDispatcher::class);
         $container->add(RecommendationFormService::class);
         $container->add(AwardApprovalResolverService::class);
         $container->add(RecommendationApprovalProcessService::class);

@@ -79,18 +79,70 @@ class RecommendationWorkflowVisibilityPolicyTest extends BaseTestCase
         $this->assertNotContains((int)$hiddenRecommendation->id, array_map('intval', $ids));
     }
 
+    public function testRecommendationScopeIncludesDynamicRoleScopedWorkflowVisibleRecommendation(): void
+    {
+        $scope = $this->findCurrentBranchRoleScope();
+        [$visibleRecommendation, $instanceId, , $runId] = $this->createRecommendationWithApprovalRun($scope['branch_id']);
+        [$hiddenRecommendation] = $this->createRecommendationWithApprovalRun($scope['branch_id']);
+        $this->createWorkflowApproval($instanceId, WorkflowApproval::STATUS_PENDING, [
+            'service' => 'Awards.ResolveApprovalStepApprovers',
+            'method' => 'resolveConfiguredApproverIds',
+            'award_approval_run_id' => $runId,
+            'award_approval_approver_type' => 'role',
+            'award_approval_approver_source_id' => $scope['role_id'],
+            'award_approval_branch_mode' => 'award_branch',
+        ], WorkflowApproval::APPROVER_TYPE_DYNAMIC);
+
+        $this->assertWorkflowVisibleScopeForMember($scope['member_id'], $visibleRecommendation, $hiddenRecommendation);
+    }
+
+    public function testRecommendationScopeIncludesDynamicPermissionScopedWorkflowVisibleRecommendation(): void
+    {
+        $scope = $this->findCurrentBranchPermissionScope();
+        [$visibleRecommendation, $instanceId, , $runId] = $this->createRecommendationWithApprovalRun($scope['branch_id']);
+        [$hiddenRecommendation] = $this->createRecommendationWithApprovalRun($scope['branch_id']);
+        $this->createWorkflowApproval($instanceId, WorkflowApproval::STATUS_PENDING, [
+            'service' => 'Awards.ResolveApprovalStepApprovers',
+            'method' => 'resolveConfiguredApproverIds',
+            'award_approval_run_id' => $runId,
+            'award_approval_approver_type' => 'permission',
+            'award_approval_approver_source_id' => $scope['permission_id'],
+            'award_approval_branch_mode' => 'award_branch',
+        ], WorkflowApproval::APPROVER_TYPE_DYNAMIC);
+
+        $this->assertWorkflowVisibleScopeForMember($scope['member_id'], $visibleRecommendation, $hiddenRecommendation);
+    }
+
+    public function testRecommendationScopeIncludesDynamicOfficeScopedWorkflowVisibleRecommendation(): void
+    {
+        $scope = $this->findCurrentBranchOfficeScope();
+        [$visibleRecommendation, $instanceId, , $runId] = $this->createRecommendationWithApprovalRun($scope['branch_id']);
+        [$hiddenRecommendation] = $this->createRecommendationWithApprovalRun($scope['branch_id']);
+        $this->createWorkflowApproval($instanceId, WorkflowApproval::STATUS_PENDING, [
+            'service' => 'Awards.ResolveApprovalStepApprovers',
+            'method' => 'resolveConfiguredApproverIds',
+            'award_approval_run_id' => $runId,
+            'award_approval_approver_type' => 'office',
+            'award_approval_approver_source_id' => $scope['office_id'],
+            'award_approval_branch_mode' => 'ancestor_branch_type',
+            'award_approval_branch_type' => $this->branchType($scope['branch_id']),
+        ], WorkflowApproval::APPROVER_TYPE_DYNAMIC);
+
+        $this->assertWorkflowVisibleScopeForMember($scope['member_id'], $visibleRecommendation, $hiddenRecommendation);
+    }
+
     /**
-     * @return array{0: \Awards\Model\Entity\Recommendation, 1: int, 2: int}
+     * @return array{0: \Awards\Model\Entity\Recommendation, 1: int, 2: int, 3: int}
      */
-    private function createRecommendationWithApprovalRun(): array
+    private function createRecommendationWithApprovalRun(?int $branchId = null): array
     {
         $process = $this->createApprovalProcess();
-        $award = $this->createAward((int)$process->id);
-        $recommendation = $this->createRecommendation((int)$award->id);
+        $award = $this->createAward((int)$process->id, $branchId);
+        $recommendation = $this->createRecommendation((int)$award->id, $branchId);
         $instanceId = $this->createWorkflowInstance();
 
         $runs = $this->getTableLocator()->get('Awards.RecommendationApprovalRuns');
-        $runs->saveOrFail($runs->newEntity([
+        $run = $runs->saveOrFail($runs->newEntity([
             'recommendation_id' => $recommendation->id,
             'approval_process_id' => $process->id,
             'workflow_instance_id' => $instanceId,
@@ -100,7 +152,7 @@ class RecommendationWorkflowVisibilityPolicyTest extends BaseTestCase
             'started' => DateTime::now(),
         ]));
 
-        return [$recommendation, $instanceId, (int)$process->id];
+        return [$recommendation, $instanceId, (int)$process->id, (int)$run->id];
     }
 
     private function createApprovalProcess()
@@ -126,7 +178,7 @@ class RecommendationWorkflowVisibilityPolicyTest extends BaseTestCase
         ], ['associated' => ['ApprovalProcessSteps']]));
     }
 
-    private function createAward(int $processId)
+    private function createAward(int $processId, ?int $branchId = null)
     {
         $awards = $this->getTableLocator()->get('Awards.Awards');
 
@@ -135,20 +187,20 @@ class RecommendationWorkflowVisibilityPolicyTest extends BaseTestCase
             'abbreviation' => strtoupper(substr(md5(uniqid('', true)), 0, 8)),
             'domain_id' => 2,
             'level_id' => 1,
-            'branch_id' => self::KINGDOM_BRANCH_ID,
+            'branch_id' => $branchId ?? self::KINGDOM_BRANCH_ID,
             'approval_process_id' => $processId,
             'is_active' => true,
         ]));
     }
 
-    private function createRecommendation(int $awardId): Recommendation
+    private function createRecommendation(int $awardId, ?int $branchId = null): Recommendation
     {
         $recommendations = $this->getTableLocator()->get('Awards.Recommendations');
 
         return $recommendations->saveOrFail($recommendations->newEntity([
             'requester_id' => self::ADMIN_MEMBER_ID,
             'member_id' => self::ADMIN_MEMBER_ID,
-            'branch_id' => self::KINGDOM_BRANCH_ID,
+            'branch_id' => $branchId ?? self::KINGDOM_BRANCH_ID,
             'award_id' => $awardId,
             'status' => 'In Progress',
             'state' => 'Submitted',
@@ -199,8 +251,12 @@ class RecommendationWorkflowVisibilityPolicyTest extends BaseTestCase
         return (int)$instance->id;
     }
 
-    private function createWorkflowApproval(int $instanceId, string $status, array $approverConfig): int
-    {
+    private function createWorkflowApproval(
+        int $instanceId,
+        string $status,
+        array $approverConfig,
+        string $approverType = WorkflowApproval::APPROVER_TYPE_MEMBER,
+    ): int {
         $logs = $this->getTableLocator()->get('WorkflowExecutionLogs');
         $log = $logs->saveOrFail($logs->newEntity([
             'workflow_instance_id' => $instanceId,
@@ -215,7 +271,7 @@ class RecommendationWorkflowVisibilityPolicyTest extends BaseTestCase
             'workflow_instance_id' => $instanceId,
             'node_id' => 'approval',
             'execution_log_id' => $log->id,
-            'approver_type' => WorkflowApproval::APPROVER_TYPE_MEMBER,
+            'approver_type' => $approverType,
             'approver_config' => $approverConfig,
             'required_count' => 1,
             'approved_count' => $status === WorkflowApproval::STATUS_APPROVED ? 1 : 0,
@@ -226,6 +282,36 @@ class RecommendationWorkflowVisibilityPolicyTest extends BaseTestCase
         ]));
 
         return (int)$approval->id;
+    }
+
+    private function assertWorkflowVisibleScopeForMember(
+        int $memberId,
+        Recommendation $visibleRecommendation,
+        Recommendation $hiddenRecommendation,
+    ): void {
+        $recommendations = $this->getTableLocator()->get('Awards.Recommendations');
+        $query = $recommendations->find()
+            ->select(['id'])
+            ->where([
+                'Recommendations.id IN' => [
+                    $visibleRecommendation->id,
+                    $hiddenRecommendation->id,
+                ],
+            ]);
+
+        $tablePolicy = new RecommendationsTablePolicy();
+        $ids = $tablePolicy->scopeIndex($this->syntheticMember($memberId), $query)
+            ->all()
+            ->extract('id')
+            ->map(static fn($id): int => (int)$id)
+            ->toList();
+
+        $entityPolicy = new RecommendationPolicy();
+        $member = $this->syntheticMember($memberId);
+
+        $this->assertContains((int)$visibleRecommendation->id, $ids);
+        $this->assertNotContains((int)$hiddenRecommendation->id, $ids);
+        $this->assertTrue($entityPolicy->canView($member, $visibleRecommendation));
     }
 
     private function createWorkflowApprovalResponse(int $approvalId, int $memberId): void
@@ -247,5 +333,73 @@ class RecommendationWorkflowVisibilityPolicyTest extends BaseTestCase
         $member->status = Member::STATUS_ACTIVE;
 
         return $member;
+    }
+
+    /**
+     * @return array{member_id:int,role_id:int,branch_id:int}
+     */
+    private function findCurrentBranchRoleScope(): array
+    {
+        $memberRole = $this->getTableLocator()->get('MemberRoles')->find('current')
+            ->select(['member_id', 'role_id', 'branch_id'])
+            ->where(['MemberRoles.branch_id IS NOT' => null])
+            ->firstOrFail();
+
+        return [
+            'member_id' => (int)$memberRole->member_id,
+            'role_id' => (int)$memberRole->role_id,
+            'branch_id' => (int)$memberRole->branch_id,
+        ];
+    }
+
+    /**
+     * @return array{member_id:int,permission_id:int,branch_id:int}
+     */
+    private function findCurrentBranchPermissionScope(): array
+    {
+        $memberRole = $this->getTableLocator()->get('MemberRoles')->find('current')
+            ->select([
+                'member_id' => 'MemberRoles.member_id',
+                'branch_id' => 'MemberRoles.branch_id',
+                'permission_id' => 'Permissions.id',
+            ])
+            ->matching('Roles.Permissions')
+            ->where(['MemberRoles.branch_id IS NOT' => null])
+            ->enableHydration(false)
+            ->firstOrFail();
+
+        return [
+            'member_id' => (int)$memberRole['member_id'],
+            'permission_id' => (int)$memberRole['permission_id'],
+            'branch_id' => (int)$memberRole['branch_id'],
+        ];
+    }
+
+    /**
+     * @return array{member_id:int,office_id:int,branch_id:int}
+     */
+    private function findCurrentBranchOfficeScope(): array
+    {
+        $officer = $this->getTableLocator()->get('Officers.Officers')->find()
+            ->select(['member_id', 'office_id', 'branch_id'])
+            ->where([
+                'Officers.status' => 'Current',
+                'Officers.branch_id IS NOT' => null,
+                'Officers.member_id IS NOT' => null,
+            ])
+            ->firstOrFail();
+
+        return [
+            'member_id' => (int)$officer->member_id,
+            'office_id' => (int)$officer->office_id,
+            'branch_id' => (int)$officer->branch_id,
+        ];
+    }
+
+    private function branchType(int $branchId): string
+    {
+        $branch = $this->getTableLocator()->get('Branches')->get($branchId);
+
+        return (string)$branch->type;
     }
 }

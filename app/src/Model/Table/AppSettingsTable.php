@@ -38,12 +38,14 @@ class AppSettingsTable extends BaseTable
 {
     private const PASSWORD_VALUE_PREFIX = 'enc:v1:';
     private const MAX_ASSET_BYTES = 2097152;
+    private const ALL_SETTINGS_CACHE_KEY = 'app_settings_all';
     private const IMAGE_MIME_TYPES = [
         'image/gif' => 'gif',
         'image/jpeg' => 'jpg',
         'image/png' => 'png',
         'image/webp' => 'webp',
     ];
+
     private const FILE_MIME_TYPES = [
         'application/pdf' => 'pdf',
         'image/gif' => 'gif',
@@ -52,6 +54,13 @@ class AppSettingsTable extends BaseTable
         'image/webp' => 'webp',
         'text/plain' => 'txt',
     ];
+
+    /**
+     * Request-local sensitive settings keyed by tenant-aware cache key.
+     *
+     * @var array<string, mixed>
+     */
+    private static array $sensitiveSettingRequestCache = [];
 
     /**
      * Initialize method
@@ -144,6 +153,34 @@ class AppSettingsTable extends BaseTable
     }
 
     /**
+     * Clear app setting caches after direct saves.
+     *
+     * @param mixed $event Event
+     * @param \Cake\Datasource\EntityInterface $entity Saved setting
+     * @param mixed $options Save options
+     * @return void
+     */
+    public function afterSave($event, $entity, $options): void
+    {
+        parent::afterSave($event, $entity, $options);
+        $this->clearSettingCaches((string)$entity->name);
+    }
+
+    /**
+     * Clear app setting caches after direct deletes.
+     *
+     * @param mixed $event Event
+     * @param \Cake\Datasource\EntityInterface $entity Deleted setting
+     * @param mixed $options Delete options
+     * @return void
+     */
+    public function afterDelete($event, $entity, $options): void
+    {
+        parent::afterDelete($event, $entity, $options);
+        $this->clearSettingCaches((string)$entity->name);
+    }
+
+    /**
      * Get an app setting by name, using cache.
      *
      * @param string $name The name of the setting.
@@ -152,40 +189,49 @@ class AppSettingsTable extends BaseTable
     public function getSetting(string $name): mixed
     {
         $isSensitive = $this->isSensitiveSetting($name);
-        $cacheKey = $this->cacheKey($name);
-        $setting = $isSensitive ? null : Cache::read($cacheKey, 'default');
+        if (!$isSensitive) {
+            $settings = $this->getCachedSettingsPayload();
 
-        if ($setting === null) {
-            $settingEntity = $this->find()
-                ->where(['name' => $name])
-                ->first();
-
-            if ($settingEntity) {
-                $resolvedValue = $this->resolveValueForRead(
-                    $settingEntity->type ?? 'string',
-                    $settingEntity->value,
-                    $name,
-                );
-                if (!$isSensitive) {
-                    Cache::write($cacheKey, $resolvedValue, 'default');
-                }
-
-                if (
-                    $name === 'Backup.encryptionKey'
-                    && ($settingEntity->type ?? 'string') !== 'password'
-                    && is_string($resolvedValue)
-                    && $resolvedValue !== ''
-                ) {
-                    $this->updateSetting($name, 'password', $resolvedValue, false);
-                }
-
-                return $resolvedValue;
+            if (array_key_exists($name, $settings['values'])) {
+                return $settings['values'][$name];
             }
 
             return null;
         }
 
-        return $setting;
+        $cacheKey = $this->cacheKey($name);
+        if (array_key_exists($cacheKey, self::$sensitiveSettingRequestCache)) {
+            return self::$sensitiveSettingRequestCache[$cacheKey];
+        }
+
+        $settingEntity = $this->find()
+            ->where(['name' => $name])
+            ->first();
+
+        if (!$settingEntity) {
+            self::$sensitiveSettingRequestCache[$cacheKey] = null;
+
+            return null;
+        }
+
+        $resolvedValue = $this->resolveValueForRead(
+            $settingEntity->type ?? 'string',
+            $settingEntity->value,
+            $name,
+        );
+
+        if (
+            $name === 'Backup.encryptionKey'
+            && ($settingEntity->type ?? 'string') !== 'password'
+            && is_string($resolvedValue)
+            && $resolvedValue !== ''
+        ) {
+            $this->updateSetting($name, 'password', $resolvedValue, false);
+        }
+
+        self::$sensitiveSettingRequestCache[$cacheKey] = $resolvedValue;
+
+        return $resolvedValue;
     }
 
     /**
@@ -304,9 +350,7 @@ class AppSettingsTable extends BaseTable
             }
             if ($this->delete($setting)) {
                 if (!$this->isSensitiveSetting($name)) {
-                    $cacheKey = $this->cacheKey($name);
-                    Cache::delete($cacheKey, 'default');
-                    Cache::delete($this->assetCacheKey($name), 'default');
+                    $this->clearSettingCaches($name);
                 }
 
                 return true;
@@ -448,8 +492,6 @@ class AppSettingsTable extends BaseTable
         return $this->deleteSetting($key, $forceDelete);
     }
 
-    //TODO: Create a caching strategy for this
-
     /**
      * Get all app settings start with.
      *
@@ -458,12 +500,12 @@ class AppSettingsTable extends BaseTable
      */
     public function getAllAppSettingsStartWith($key): array
     {
-        $settings = $this->find()
-            ->where(['name LIKE' => $key . '%'])
-            ->all();
+        $settings = $this->getCachedSettingsPayload()['raw'];
         $return = [];
-        foreach ($settings as $setting) {
-            $return[$setting->name] = $setting->value;
+        foreach ($settings as $name => $value) {
+            if (str_starts_with($name, (string)$key)) {
+                $return[$name] = $value;
+            }
         }
 
         return $return;
@@ -481,11 +523,66 @@ class AppSettingsTable extends BaseTable
     }
 
     /**
+     * Read all non-sensitive settings from cache or database.
+     *
+     * @return array{values: array<string, mixed>, raw: array<string, mixed>}
+     */
+    private function getCachedSettingsPayload(): array
+    {
+        $cacheKey = $this->allSettingsCacheKey();
+        $payload = Cache::read($cacheKey, 'default');
+        if (is_array($payload) && isset($payload['values'], $payload['raw'])) {
+            return $payload;
+        }
+
+        $payload = ['values' => [], 'raw' => []];
+        $settings = $this->find()
+            ->select(['name', 'type', 'value'])
+            ->all();
+        foreach ($settings as $setting) {
+            $name = (string)$setting->name;
+            if ($this->isSensitiveSetting($name)) {
+                continue;
+            }
+            $payload['raw'][$name] = $setting->value;
+            $payload['values'][$name] = $this->resolveValueForRead(
+                $setting->type ?? 'string',
+                $setting->value,
+                $name,
+            );
+        }
+        Cache::write($cacheKey, $payload, 'default');
+
+        return $payload;
+    }
+
+    /**
+     * Clear tenant-scoped caches affected by setting mutation.
+     */
+    private function clearSettingCaches(?string $name = null): void
+    {
+        Cache::delete($this->allSettingsCacheKey(), 'default');
+        if ($name !== null) {
+            Cache::delete($this->cacheKey($name), 'default');
+            Cache::delete($this->assetCacheKey($name), 'default');
+            unset(self::$sensitiveSettingRequestCache[$this->cacheKey($name)]);
+        }
+    }
+
+    /**
      * Build a tenant-safe cache key for a setting name.
      */
     private function cacheKey(string $name): string
     {
         return TenantAwareCache::tenantScopedKey('app_setting_' . $name);
+    }
+
+    /**
+     * Build a tenant-safe cache key for all non-sensitive settings.
+     */
+    private function allSettingsCacheKey(): string
+    {
+        return TenantAwareCache::tenantScopedKey(self::ALL_SETTINGS_CACHE_KEY);
     }
 
     /**

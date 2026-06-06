@@ -215,6 +215,9 @@ if [ "$LOAD_SEED" != true ] || { [ "$DB_DRIVER" != "postgres" ] && [ "$DB_DRIVER
     "${COMPOSE[@]}" exec -T app bin/cake updateDatabase || echo "  (updateDatabase command may not exist yet)"
 fi
 
+echo "[post] Migrating award recommendations into lifecycle ownership..."
+"${COMPOSE[@]}" exec -T app bin/cake awards migrate_award_recommendations --apply
+
 if [ "$DB_DRIVER" = "postgres" ] || [ "$DB_DRIVER" = "pgsql" ]; then
     echo "[5/7] Running platform migrations and registering local tenants..."
     "${COMPOSE[@]}" exec -T app bin/cake platform_migrate migrate
@@ -645,7 +648,6 @@ if (!empty($failed)) {
     fwrite(STDERR, "Warning: Failed to clear cache configs: " . implode(", ", $failed) . "\n");
 }
 '
-
 echo ""
 echo "✅ Database reset complete!"
 echo ""

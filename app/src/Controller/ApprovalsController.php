@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
@@ -9,7 +8,9 @@ use App\KMP\TimezoneHelper;
 use App\KMP\WorkflowApprovalDecisionOptions;
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowApprovalResponse;
+use App\Model\Entity\WorkflowApprovalTriageState;
 use App\Model\Entity\WorkflowInstance;
+use App\Model\Table\WorkflowApprovalsTable;
 use App\Services\ApprovalContext\ApprovalContextRendererRegistry;
 use App\Services\WorkflowEngine\WorkflowApprovalManagerInterface;
 use App\Services\WorkflowEngine\WorkflowEngineInterface;
@@ -17,6 +18,8 @@ use Awards\Services\RecommendationFeedbackService;
 use Cake\Controller\ComponentRegistry;
 use Cake\Http\Response;
 use Cake\Http\ServerRequest;
+use Cake\ORM\TableRegistry;
+use Exception;
 
 /**
  * Approvals Controller
@@ -34,6 +37,14 @@ class ApprovalsController extends AppController
     private WorkflowEngineInterface $engine;
     private WorkflowApprovalManagerInterface $approvalManager;
 
+    /**
+     * Constructor.
+     *
+     * @param \Cake\Http\ServerRequest $request Request
+     * @param \App\Services\WorkflowEngine\WorkflowEngineInterface $engine Workflow engine
+     * @param \App\Services\WorkflowEngine\WorkflowApprovalManagerInterface $approvalManager Approval manager
+     * @param \Cake\Controller\ComponentRegistry|null $components Component registry
+     */
     public function __construct(
         ServerRequest $request,
         WorkflowEngineInterface $engine,
@@ -45,6 +56,11 @@ class ApprovalsController extends AppController
         $this->approvalManager = $approvalManager;
     }
 
+    /**
+     * Initialize controller authorization.
+     *
+     * @return void
+     */
     public function initialize(): void
     {
         parent::initialize();
@@ -54,6 +70,7 @@ class ApprovalsController extends AppController
             'allApprovals',
             'allApprovalsGridData',
             'reassignApproval',
+            'updateTriage',
             'mobileApprovals',
             'mobileApprovalsData',
         );
@@ -94,11 +111,17 @@ class ApprovalsController extends AppController
         $this->Authorization->skipAuthorization();
 
         $currentUser = $this->request->getAttribute('identity');
-        $approvalManager = $this->getApprovalManager();
-        $eligible = $approvalManager->getPendingApprovalsForMember($currentUser->id);
+        $eligible = WorkflowApprovalsTable::getPendingApprovalsForMember((int)$currentUser->id, [
+            'WorkflowInstances' => ['WorkflowDefinitions'],
+        ]);
+        $triageByApprovalId = $this->getTriagePayloads(
+            array_map(static fn($approval): int => (int)$approval->id, $eligible),
+            (int)$currentUser->id,
+        );
 
         $approvals = [];
         foreach ($eligible as $approval) {
+            $triage = $triageByApprovalId[(int)$approval->id] ?? $this->defaultTriagePayload();
             $instance = $approval->workflow_instance;
             $ctx = $instance
                 ? ApprovalContextRendererRegistry::render($instance)
@@ -133,6 +156,7 @@ class ApprovalsController extends AppController
                     'rejected' => $approval->rejected_count,
                 ],
                 'statusLabel' => __('Pending ({0}/{1})', $approval->approved_count, $approval->required_count),
+                'triage' => $triage,
                 'approverConfig' => [
                     'serialPickNext' => $approverConfig['serial_pick_next'] ?? false,
                     'feedbackResponse' => $isFeedbackResponse,
@@ -151,6 +175,58 @@ class ApprovalsController extends AppController
             ->withStringBody(json_encode(['approvals' => $approvals]));
 
         return $this->response;
+    }
+
+    /**
+     * API: create or update the current member's private approval triage state.
+     *
+     * @return \Cake\Http\Response|null|void
+     */
+    public function updateTriage()
+    {
+        $this->request->allowMethod(['post']);
+        $this->Authorization->skipAuthorization();
+
+        $currentUser = $this->request->getAttribute('identity');
+        $approvalId = (int)$this->request->getData('approvalId');
+        $state = (string)$this->request->getData('state', WorkflowApprovalTriageState::STATE_NEW);
+        $note = (string)$this->request->getData('note', '');
+
+        if ($approvalId <= 0) {
+            return $this->jsonResponse(['success' => false, 'error' => __('Approval ID is required.')], 422);
+        }
+        if (!in_array($state, WorkflowApprovalTriageState::states(), true)) {
+            return $this->jsonResponse(['success' => false, 'error' => __('Invalid triage state.')], 422);
+        }
+        if (!$this->isApprovalPendingForMember($approvalId, (int)$currentUser->id)) {
+            return $this->jsonResponse(['success' => false, 'error' => __('Approval is not pending for you.')], 403);
+        }
+
+        $triageTable = $this->fetchTable('WorkflowApprovalTriageStates');
+        $triage = $triageTable->find()
+            ->where([
+                'workflow_approval_id' => $approvalId,
+                'member_id' => (int)$currentUser->id,
+            ])
+            ->first();
+        if (!$triage) {
+            $triage = $triageTable->newEntity([
+                'workflow_approval_id' => $approvalId,
+                'member_id' => (int)$currentUser->id,
+            ]);
+        }
+        $triage = $triageTable->patchEntity($triage, [
+            'state' => $state,
+            'note' => trim($note) === '' ? null : $note,
+        ]);
+        if (!$triageTable->save($triage)) {
+            return $this->jsonResponse(['success' => false, 'error' => __('Unable to save triage state.')], 422);
+        }
+
+        return $this->jsonResponse([
+            'success' => true,
+            'triage' => $this->formatTriagePayload($triage),
+        ]);
     }
 
     /**
@@ -191,7 +267,6 @@ class ApprovalsController extends AppController
         $this->Authorization->skipAuthorization();
 
         $currentUser = $this->request->getAttribute('identity');
-        $approvalManager = $this->getApprovalManager();
         $approvalsTable = $this->fetchTable('WorkflowApprovals');
         $systemViews = ApprovalsGridColumns::getSystemViews();
         $queryContext = $this->resolveDataverseGridQueryContext([
@@ -216,15 +291,15 @@ class ApprovalsController extends AppController
             $baseQuery->leftJoinWith('CurrentApprover');
         }
 
-        $queryCallback = function ($query, $systemView) use ($currentUser, $approvalManager) {
+        $queryCallback = function ($query, $systemView) use ($currentUser) {
             if ($systemView === null) {
                 $query->where(['WorkflowApprovals.id' => -1]);
+
                 return $query;
             }
 
             if ($systemView['id'] === 'sys-approvals-pending') {
-                $eligible = $approvalManager->getPendingApprovalsForMember($currentUser->id);
-                $eligibleIds = array_map(fn($a) => $a->id, $eligible);
+                $eligibleIds = WorkflowApprovalsTable::getPendingApprovalIdsForMember((int)$currentUser->id);
 
                 if (empty($eligibleIds)) {
                     $query->where(['WorkflowApprovals.id' => -1]);
@@ -341,6 +416,7 @@ class ApprovalsController extends AppController
         $queryCallback = function ($query, $systemView) {
             if ($systemView === null) {
                 $query->where(['WorkflowApprovals.id' => -1]);
+
                 return $query;
             }
 
@@ -552,7 +628,7 @@ class ApprovalsController extends AppController
                         'approverId' => $currentUser->id,
                         'decision' => $decision,
                         'comment' => $comment,
-                    ]
+                    ],
                 );
             }
 
@@ -566,7 +642,7 @@ class ApprovalsController extends AppController
                         'decision' => $decision,
                         'comment' => $comment ?? null,
                         'nextApproverId' => $data['nextApproverId'] ?? null,
-                    ]
+                    ],
                 );
             }
         }
@@ -638,6 +714,7 @@ class ApprovalsController extends AppController
         ];
 
         $progress = [
+            'approvalId' => (int)$approval->id,
             'required' => $approval->required_count,
             'approved' => $approval->approved_count,
             'rejected' => $approval->rejected_count,
@@ -646,6 +723,10 @@ class ApprovalsController extends AppController
         $approverConfig = ApprovalsGridColumns::normalizeApproverConfig($approval->approver_config);
         $isFeedbackResponse = !empty($approverConfig['feedback_response']);
         $decisionOptions = WorkflowApprovalDecisionOptions::normalizeOptions($approverConfig);
+        $currentUser = $this->request->getAttribute('identity');
+        $canTriage = $currentUser
+            && $approval->status === WorkflowApproval::STATUS_PENDING
+            && $this->isApprovalPendingForMember((int)$approval->id, (int)$currentUser->id);
 
         $responses = [];
         if (!empty($approval->workflow_approval_responses)) {
@@ -667,6 +748,7 @@ class ApprovalsController extends AppController
         }
 
         $payload = [
+            'approvalId' => (int)$approval->id,
             'context' => $context,
             'progress' => $progress,
             'responses' => $responses,
@@ -674,7 +756,11 @@ class ApprovalsController extends AppController
                 'feedbackResponse' => $isFeedbackResponse,
                 'hideProgress' => $isFeedbackResponse,
                 'decisionOptions' => $decisionOptions,
+                'canTriage' => $canTriage,
             ],
+            'triage' => $canTriage
+                ? $this->getTriagePayload((int)$approval->id, (int)$currentUser->id)
+                : null,
         ];
 
         $this->response = $this->response
@@ -682,6 +768,110 @@ class ApprovalsController extends AppController
             ->withStringBody(json_encode($payload));
 
         return $this->response;
+    }
+
+    /**
+     * @param int $approvalId Workflow approval ID
+     * @param int $memberId Member ID
+     * @return bool
+     */
+    private function isApprovalPendingForMember(int $approvalId, int $memberId): bool
+    {
+        return WorkflowApprovalsTable::isPendingApprovalForMember($approvalId, $memberId);
+    }
+
+    /**
+     * @param int $approvalId Workflow approval ID
+     * @param int $memberId Member ID
+     * @return array<string, mixed>
+     */
+    private function getTriagePayload(int $approvalId, int $memberId): array
+    {
+        $triage = $this->fetchTable('WorkflowApprovalTriageStates')->find()
+            ->where([
+                'workflow_approval_id' => $approvalId,
+                'member_id' => $memberId,
+            ])
+            ->first();
+
+        if (!$triage) {
+            return $this->defaultTriagePayload();
+        }
+
+        return $this->formatTriagePayload($triage);
+    }
+
+    /**
+     * @param array<int> $approvalIds Workflow approval IDs
+     * @param int $memberId Member ID
+     * @return array<int, array<string, mixed>>
+     */
+    private function getTriagePayloads(array $approvalIds, int $memberId): array
+    {
+        $approvalIds = array_values(array_unique(array_filter(array_map('intval', $approvalIds))));
+        if ($approvalIds === []) {
+            return [];
+        }
+
+        $triageRows = $this->fetchTable('WorkflowApprovalTriageStates')->find()
+            ->where([
+                'workflow_approval_id IN' => $approvalIds,
+                'member_id' => $memberId,
+            ])
+            ->all();
+
+        $payloads = [];
+        foreach ($triageRows as $triage) {
+            $payloads[(int)$triage->get('workflow_approval_id')] = $this->formatTriagePayload($triage);
+        }
+
+        return $payloads;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function defaultTriagePayload(): array
+    {
+        $labels = WorkflowApprovalTriageState::labels();
+
+        return [
+            'state' => WorkflowApprovalTriageState::STATE_NEW,
+            'stateLabel' => $labels[WorkflowApprovalTriageState::STATE_NEW],
+            'note' => '',
+            'states' => $labels,
+        ];
+    }
+
+    /**
+     * @param \Cake\Datasource\EntityInterface $triage Triage entity
+     * @return array<string, mixed>
+     */
+    private function formatTriagePayload($triage): array
+    {
+        $labels = WorkflowApprovalTriageState::labels();
+        $state = (string)$triage->get('state');
+
+        return [
+            'state' => $state,
+            'stateLabel' => $labels[$state] ?? $state,
+            'note' => (string)($triage->get('note') ?? ''),
+            'states' => $labels,
+            'modified' => $triage->get('modified')?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $payload JSON payload
+     * @param int $status HTTP status
+     * @return \Cake\Http\Response
+     */
+    private function jsonResponse(array $payload, int $status = 200): Response
+    {
+        return $this->response
+            ->withType('application/json')
+            ->withStatus($status)
+            ->withStringBody(json_encode($payload));
     }
 
     /**
@@ -723,10 +913,16 @@ class ApprovalsController extends AppController
             foreach ($query->all() as $member) {
                 $branchName = $member->branch->name ?? '';
                 $displayName = $branchName ? $branchName . ': ' . $member->sca_name : $member->sca_name;
-                $highlighted = $q !== '' ?
-                    preg_replace('/(' . preg_quote($q, '/') . ')/i', '<span class="text-primary">$1</span>', h($displayName)) :
-                    h($displayName);
-                $html .= '<li class="list-group-item" role="option" data-ac-value="' . h($member->id) . '">' . $highlighted . '</li>';
+                $highlighted = $q !== ''
+                    ? preg_replace(
+                        '/(' . preg_quote($q, '/') . ')/i',
+                        '<span class="text-primary">$1</span>',
+                        h($displayName),
+                    )
+                    : h($displayName);
+                $html .= '<li class="list-group-item" role="option" data-ac-value="' . h($member->id) . '">'
+                    . $highlighted
+                    . '</li>';
             }
         }
 
@@ -780,7 +976,7 @@ class ApprovalsController extends AppController
                     'reassignedBy' => $currentUser->id,
                     'reason' => $reason,
                 ],
-                'on_reassigned'
+                'on_reassigned',
             );
         }
 
@@ -823,12 +1019,12 @@ class ApprovalsController extends AppController
 
         if ($instance->entity_type && $instance->entity_id) {
             try {
-                $table = \Cake\ORM\TableRegistry::getTableLocator()->get($instance->entity_type);
+                $table = TableRegistry::getTableLocator()->get($instance->entity_type);
                 $entity = $table->find()->where(['id' => $instance->entity_id])->first();
                 if ($entity) {
                     $details['entityName'] = $entity->name ?? $entity->sca_name ?? "#{$instance->entity_id}";
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Table doesn't exist or other error — skip
             }
         }
@@ -836,11 +1032,21 @@ class ApprovalsController extends AppController
         return $details;
     }
 
+    /**
+     * Get the injected workflow engine.
+     *
+     * @return \App\Services\WorkflowEngine\WorkflowEngineInterface
+     */
     private function getWorkflowEngine(): WorkflowEngineInterface
     {
         return $this->engine;
     }
 
+    /**
+     * Get the injected approval manager.
+     *
+     * @return \App\Services\WorkflowEngine\WorkflowApprovalManagerInterface
+     */
     private function getApprovalManager(): WorkflowApprovalManagerInterface
     {
         return $this->approvalManager;

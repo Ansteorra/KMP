@@ -276,6 +276,7 @@ return function (RouteBuilder $routes): void {
             $builder->connect('/detail/{approvalId}', ['controller' => 'Approvals', 'action' => 'approvalDetail'])
                 ->setPatterns(['approvalId' => '\d+'])
                 ->setPass(['approvalId']);
+            $builder->connect('/triage', ['controller' => 'Approvals', 'action' => 'updateTriage']);
             $builder->connect('/reassign', ['controller' => 'Approvals', 'action' => 'reassignApproval']);
             $builder->connect('/mobile', ['controller' => 'Approvals', 'action' => 'mobileApprovals']);
             $builder->connect('/mobile-data', ['controller' => 'Approvals', 'action' => 'mobileApprovalsData']);
