@@ -351,7 +351,10 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
             // Filter using cached permission/role sets — no per-approval DB queries
             $eligible = [];
             foreach ($pendingApprovals as $approval) {
-                if ($this->isMemberEligibleCached($approval, $memberId, $memberPermissions, $memberRoles)) {
+                if (
+                    !$this->hasPriorDynamicWorkflowResponse($approval, $memberId)
+                    && $this->isMemberEligibleCached($approval, $memberId, $memberPermissions, $memberRoles)
+                ) {
                     $eligible[] = $approval;
                 }
             }
@@ -594,9 +597,15 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
                 default => [],
             };
             $candidateIds = array_map('intval', $candidates);
+            if ($approval->approver_type === WorkflowApproval::APPROVER_TYPE_DYNAMIC) {
+                $excludeIds = array_merge(
+                    $excludeIds,
+                    $this->getWorkflowInstanceResponderIds((int)$approval->workflow_instance_id),
+                );
+            }
 
             // Remove excluded IDs
-            return array_values(array_diff($candidateIds, $excludeIds));
+            return array_values(array_unique(array_diff($candidateIds, $excludeIds)));
         } catch (\Exception $e) {
             Log::error("Error fetching next approver candidates for {$approvalId}: {$e->getMessage()}");
             return [];
@@ -645,6 +654,9 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
                 return $memberId === $targetMemberId;
 
             case WorkflowApproval::APPROVER_TYPE_DYNAMIC:
+                if ($this->hasPriorDynamicWorkflowResponse($approval, $memberId)) {
+                    return false;
+                }
                 return $this->resolveDynamicEligibility($approval, $memberId);
 
             case WorkflowApproval::APPROVER_TYPE_POLICY:
@@ -691,7 +703,10 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
                 return $member ? [$member] : [];
 
             case WorkflowApproval::APPROVER_TYPE_DYNAMIC:
-                return $this->findDynamicApprovers($approval);
+                return array_values(array_filter(
+                    $this->findDynamicApprovers($approval),
+                    fn($member): bool => !$this->hasPriorDynamicWorkflowResponse($approval, (int)$member->id),
+                ));
 
             case WorkflowApproval::APPROVER_TYPE_POLICY:
                 // Fall back to permission-based list, then filter by policy
@@ -932,6 +947,9 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
                 return $memberId === $targetMemberId;
 
             case WorkflowApproval::APPROVER_TYPE_DYNAMIC:
+                if ($this->hasPriorDynamicWorkflowResponse($approval, $memberId)) {
+                    return false;
+                }
                 return $this->resolveDynamicEligibility($approval, $memberId);
 
             case WorkflowApproval::APPROVER_TYPE_POLICY:
@@ -1003,7 +1021,46 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
             return [];
         }
 
-        return array_map('intval', $result);
+        return array_values(array_unique(array_map('intval', $result)));
+    }
+
+    /**
+     * Dynamic approvers may qualify through multiple routes, but each member can only respond once per workflow.
+     */
+    private function hasPriorDynamicWorkflowResponse(WorkflowApproval $approval, int $memberId): bool
+    {
+        if ($approval->approver_type !== WorkflowApproval::APPROVER_TYPE_DYNAMIC) {
+            return false;
+        }
+
+        $workflowInstanceId = (int)$approval->workflow_instance_id;
+        if ($workflowInstanceId <= 0 || $memberId <= 0) {
+            return false;
+        }
+
+        return in_array($memberId, $this->getWorkflowInstanceResponderIds($workflowInstanceId), true);
+    }
+
+    /**
+     * @return array<int>
+     */
+    private function getWorkflowInstanceResponderIds(int $workflowInstanceId): array
+    {
+        if ($workflowInstanceId <= 0) {
+            return [];
+        }
+
+        $responsesTable = TableRegistry::getTableLocator()->get('WorkflowApprovalResponses');
+
+        return $responsesTable->find()
+            ->select(['member_id'])
+            ->innerJoinWith('WorkflowApprovals', function ($q) use ($workflowInstanceId) {
+                return $q->where(['WorkflowApprovals.workflow_instance_id' => $workflowInstanceId]);
+            })
+            ->all()
+            ->extract('member_id')
+            ->map(static fn($memberId): int => (int)$memberId)
+            ->toList();
     }
 
     /**

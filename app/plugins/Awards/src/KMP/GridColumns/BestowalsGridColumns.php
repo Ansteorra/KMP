@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Awards\KMP\GridColumns;
@@ -157,6 +156,7 @@ class BestowalsGridColumns extends BaseGridColumns
                 'defaultVisible' => true,
                 'width' => '220px',
                 'alignment' => 'left',
+                'queryField' => 'Bestowals.herald_notes',
                 'description' => __('Preview of herald notes'),
             ],
             'gathering_name' => [
@@ -226,10 +226,24 @@ class BestowalsGridColumns extends BaseGridColumns
         }
 
         $views = [
+            'sys-bestowals-active' => [
+                'id' => 'sys-bestowals-active',
+                'name' => __('Active Bestowals'),
+                'description' => __(
+                    'Bestowals still moving through planning, preparation, scheduling, or court readiness',
+                ),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'status', 'operator' => 'in', 'value' => self::activeStatusNames()],
+                    ],
+                    'columns' => array_merge($gatheringColumns, ['gathering_name', 'source']),
+                ],
+            ],
             'sys-bestowals-all' => [
                 'id' => 'sys-bestowals-all',
-                'name' => __('All'),
-                'description' => __('All bestowals'),
+                'name' => __('All / Audit'),
+                'description' => __('All bestowals, including archival state and status data'),
                 'canManage' => false,
                 'config' => [
                     'filters' => [],
@@ -243,7 +257,7 @@ class BestowalsGridColumns extends BaseGridColumns
             $views[$key] = [
                 'id' => $key,
                 'name' => __($statusName),
-                'description' => __('Bestowals in {0} status', $statusName),
+                'description' => __('Bestowals in the {0} workflow queue', $statusName),
                 'canManage' => false,
                 'config' => [
                     'filters' => [
@@ -254,7 +268,64 @@ class BestowalsGridColumns extends BaseGridColumns
             ];
         }
 
+        $views['sys-bestowals-completed'] = [
+            'id' => 'sys-bestowals-completed',
+            'name' => __('Completed'),
+            'description' => __('Bestowals marked as given'),
+            'canManage' => false,
+            'config' => [
+                'filters' => [
+                    ['field' => 'state', 'operator' => 'in', 'value' => self::configuredStates(['Given'])],
+                ],
+                'columns' => array_merge($gatheringColumns, ['status', 'gathering_name', 'source', 'created']),
+            ],
+        ];
+
+        $views['sys-bestowals-cancelled'] = [
+            'id' => 'sys-bestowals-cancelled',
+            'name' => __('Cancelled / Not Given'),
+            'description' => __('Bestowals that were cancelled or announced as not given'),
+            'canManage' => false,
+            'config' => [
+                'filters' => [
+                    ['field' => 'state', 'operator' => 'in', 'value' => self::configuredStates([
+                        'Cancelled',
+                        'Announced Not Given',
+                    ])],
+                ],
+                'columns' => array_merge($gatheringColumns, ['status', 'gathering_name', 'source', 'created']),
+            ],
+        ];
+
         return $views;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function activeStatusNames(): array
+    {
+        return array_values(array_filter(
+            array_keys(Bestowal::getStatuses()),
+            static fn(string $status): bool => $status !== 'Closed',
+        ));
+    }
+
+    /**
+     * @param array<int, string> $preferredStates
+     * @return array<int, string>
+     */
+    private static function configuredStates(array $preferredStates): array
+    {
+        $availableStates = array_flip(Bestowal::getStates());
+        $states = [];
+        foreach ($preferredStates as $state) {
+            if (isset($availableStates[$state])) {
+                $states[] = $state;
+            }
+        }
+
+        return $states !== [] ? $states : $preferredStates;
     }
 
     /**

@@ -15,10 +15,19 @@ use Throwable;
 class RecommendationDeletionService
 {
     private RecommendationGroupingService $groupingService;
+    private RecommendationApprovalWorkflowLifecycleService $approvalLifecycleService;
 
-    public function __construct(?RecommendationGroupingService $groupingService = null)
-    {
+    /**
+     * @param \Awards\Services\RecommendationGroupingService|null $groupingService Optional grouping service.
+     * @param \Awards\Services\RecommendationApprovalWorkflowLifecycleService|null $approvalLifecycleService Optional lifecycle service.
+     */
+    public function __construct(
+        ?RecommendationGroupingService $groupingService = null,
+        ?RecommendationApprovalWorkflowLifecycleService $approvalLifecycleService = null,
+    ) {
         $this->groupingService = $groupingService ?? new RecommendationGroupingService();
+        $this->approvalLifecycleService = $approvalLifecycleService
+            ?? new RecommendationApprovalWorkflowLifecycleService();
     }
 
     /**
@@ -37,6 +46,22 @@ class RecommendationDeletionService
         try {
             $output = $recommendationsTable->getConnection()->transactional(
                 function () use ($recommendationsTable, $recommendation, $actorId): array {
+                    $recommendationIds = [(int)$recommendation->id];
+                    if ($recommendation->recommendation_group_id === null) {
+                        $childIds = $recommendationsTable->find()
+                            ->select(['id'])
+                            ->where(['recommendation_group_id' => (int)$recommendation->id])
+                            ->all()
+                            ->extract('id')
+                            ->map(static fn($id): int => (int)$id)
+                            ->toList();
+                        $recommendationIds = array_values(array_unique(array_merge($recommendationIds, $childIds)));
+                    }
+                    $this->approvalLifecycleService->cancelActiveRunsForRecommendationDeletion(
+                        $recommendationIds,
+                        $actorId,
+                    );
+
                     $restoredChildren = [];
                     if ($recommendation->recommendation_group_id === null) {
                         $restoredChildren = $this->groupingService->restoreChildrenForDeletedHead(

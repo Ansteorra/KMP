@@ -23,6 +23,7 @@ use Cake\Validation\Validator;
  * @property \Awards\Model\Table\RecommendationsTable&\Cake\ORM\Association\BelongsToMany $Recommendations
  * @property \Awards\Model\Table\BestowalRecommendationsTable&\Cake\ORM\Association\HasMany $BestowalRecommendations
  * @property \Awards\Model\Table\BestowalsStatesLogsTable&\Cake\ORM\Association\HasMany $BestowalStateLogs
+ * @property \Awards\Model\Table\RecommendationApprovalRunsTable&\Cake\ORM\Association\BelongsTo $SourceApprovalRun
  * @method \Awards\Model\Entity\Bestowal newEmptyEntity()
  * @method \Awards\Model\Entity\Bestowal newEntity(array $data, array $options = [])
  * @method \Awards\Model\Entity\Bestowal get(mixed $primaryKey, array|string $finder = 'all', \Psr\SimpleCache\CacheInterface|string|null $cache = null, \Closure|string|null $cacheKey = null, mixed ...$args)
@@ -91,6 +92,10 @@ class BestowalsTable extends BaseTable
         $this->hasMany('BestowalStateLogs', [
             'foreignKey' => 'bestowal_id',
             'className' => 'Awards.BestowalsStatesLogs',
+        ]);
+        $this->belongsTo('SourceApprovalRun', [
+            'foreignKey' => 'source_approval_run_id',
+            'className' => 'Awards.RecommendationApprovalRuns',
         ]);
     }
 

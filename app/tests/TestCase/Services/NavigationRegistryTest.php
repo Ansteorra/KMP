@@ -203,6 +203,45 @@ class NavigationRegistryTest extends BaseTestCase
     }
 
     /**
+     * Stale cached navigation from an earlier source set must not hide plugin menus.
+     *
+     * @return void
+     */
+    public function testIgnoresCachedNavigationWhenRegisteredSourcesChange(): void
+    {
+        $_SESSION['navigation_items'] = [
+            'user_id' => 1,
+            'items' => [[
+                'type' => 'link',
+                'label' => 'Core Only',
+                'url' => ['controller' => 'Members', 'action' => 'index'],
+            ]],
+            'nav_version' => 5,
+            'registered_sources' => ['core'],
+            'generated_at' => (new DateTimeImmutable('now'))->format(DateTimeInterface::ATOM),
+        ];
+
+        NavigationRegistry::register('core', [[
+            'type' => 'link',
+            'label' => 'Core Link',
+            'url' => ['controller' => 'Members', 'action' => 'index'],
+        ]]);
+        NavigationRegistry::register('Awards', [[
+            'type' => 'link',
+            'label' => 'Recommendations',
+            'url' => ['controller' => 'Recommendations', 'plugin' => 'Awards', 'action' => 'index'],
+        ]]);
+
+        $user = new Member(['id' => 1, 'sca_name' => 'Test User']);
+        $items = NavigationRegistry::getNavigationItems($user);
+        $labels = array_column($items, 'label');
+
+        $this->assertContains('Core Link', $labels);
+        $this->assertContains('Recommendations', $labels);
+        $this->assertNotContains('Core Only', $labels);
+    }
+
+    /**
      * Tenant navigation session cache entries are isolated by tenant context.
      *
      * @return void
@@ -245,7 +284,8 @@ class NavigationRegistryTest extends BaseTestCase
                 'label' => $label,
                 'url' => ['controller' => 'Members', 'action' => 'index'],
             ]],
-            'nav_version' => 2,
+            'nav_version' => 5,
+            'registered_sources' => [],
             'generated_at' => (new DateTimeImmutable('now'))->format(DateTimeInterface::ATOM),
         ];
     }

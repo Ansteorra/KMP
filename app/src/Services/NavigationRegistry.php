@@ -23,7 +23,7 @@ class NavigationRegistry
 {
     use StaticConfigTrait;
 
-    private const NAVIGATION_CACHE_VERSION = 4;
+    private const NAVIGATION_CACHE_VERSION = 5;
 
     /**
      * @var array [source => ['items' => [...], 'callback' => callable|null]]
@@ -103,12 +103,14 @@ class NavigationRegistry
         if ($cached === null && isset($_SESSION[$cacheKey]) && is_array($_SESSION[$cacheKey])) {
             $cached = $_SESSION[$cacheKey];
         }
+        $registeredSources = self::registeredSourceKeys();
         if (is_array($cached)) {
             if (
                 isset($cached['user_id'], $cached['items'])
                 && (int)$cached['user_id'] === (int)$user->id
                 && is_array($cached['items'])
                 && (int)($cached['nav_version'] ?? 0) === self::NAVIGATION_CACHE_VERSION
+                && ($cached['registered_sources'] ?? []) === $registeredSources
                 && !self::isCachedNavigationStaleForRestore($cached, $latestRestoreCompletion)
                 && (!$hasRegisteredSources || $cached['items'] !== [])
             ) {
@@ -136,6 +138,7 @@ class NavigationRegistry
                 'user_id' => (int)$user->id,
                 'items' => $allItems,
                 'nav_version' => self::NAVIGATION_CACHE_VERSION,
+                'registered_sources' => $registeredSources,
                 'generated_at' => (new DateTimeImmutable('now'))->format(DateTimeInterface::ATOM),
             ];
             if ($session !== null) {
@@ -255,6 +258,19 @@ class NavigationRegistry
     private static function navigationCacheKey(): string
     {
         return TenantAwareCache::tenantScopedKey('navigation_items');
+    }
+
+    /**
+     * Current registered navigation source keys in a stable order.
+     *
+     * @return array<string>
+     */
+    private static function registeredSourceKeys(): array
+    {
+        $sources = array_keys(self::$navigationItems);
+        sort($sources, SORT_STRING);
+
+        return $sources;
     }
 
     /**

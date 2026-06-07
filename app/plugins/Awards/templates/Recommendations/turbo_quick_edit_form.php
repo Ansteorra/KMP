@@ -14,6 +14,7 @@ $formUrl = $this->Url->build([
     $recommendation->id,
 ]);
 $submitAction = implode(' ', [
+    'submit->awards-rec-quick-edit#submit',
     'submit->turbo-modal#submitAsTurboStream',
     'turbo:submit-start->turbo-modal#closeModalBeforeSubmit',
 ]);
@@ -29,10 +30,23 @@ $submitAction = implode(' ', [
     <?= $this->Form->hidden('page_context_url', [
         'value' => '',
     ]) ?>
-    <script type="application/json" data-awards-rec-quick-edit-target="stateRulesBlock" class="d-none">
-        <?= json_encode($rules) ?>
-    </script>
     <?= $this->element('recommendation_bestowal_lock_notice', ['recommendation' => $recommendation]) ?>
+    <?php if (!empty($recommendation->current_approval_run)) : ?>
+    <div class="alert alert-primary" role="status">
+        <div class="fw-semibold">
+            <i class="bi bi-diagram-3" aria-hidden="true"></i>
+            <?= __('Approval workflow in progress') ?>
+        </div>
+        <div>
+            <?= __('Current step: {0}', h($recommendation->current_approval_run->current_step_label ?? __('Approval'))) ?>
+            <?= $this->Html->link(
+                __('View approval history and decisions'),
+                ['action' => 'view', $recommendation->id, '#' => 'nav-approval'],
+                ['class' => 'alert-link', 'data-turbo-frame' => '_top'],
+            ) ?>
+        </div>
+    </div>
+    <?php endif; ?>
     <fieldset<?= $recommendation->isLockedByBestowal() ? ' disabled' : '' ?>>
 
         <?php
@@ -72,9 +86,23 @@ $submitAction = implode(' ', [
             'value' => $recommendation->award_id,
             'data-awards-rec-quick-edit-target' => 'currentAwardId',
         ]);
+        echo $this->Form->control('current_approval_process_id', [
+            'type' => 'hidden',
+            'value' => $currentApprovalProcessId ?? '',
+            'data-awards-rec-quick-edit-target' => 'currentApprovalProcessId',
+        ]);
+        echo $this->Form->control('approval_workflow_restart_confirmed', [
+            'type' => 'hidden',
+            'value' => '0',
+            'data-awards-rec-quick-edit-target' => 'approvalWorkflowRestartConfirmed',
+        ]);
         $awardsList = [];
         foreach ($awards as $award) {
-            $awardsList[$award->id] = ['text' => $award->name, 'specialties' => $award->specialties];
+            $awardsList[$award->id] = [
+                'text' => $award->name,
+                'specialties' => $award->specialties,
+                'approval_process_id' => $award->approval_process_id,
+            ];
         }
         echo $this->KMP->comboBoxControl(
             $this->Form,
@@ -123,123 +151,6 @@ $submitAction = implode(' ', [
             'disabled' => 'disabled',
         ]);
 
-        if (!empty($recommendation->gatherings)) {
-            echo '<div class="mb-3">';
-            echo '<label class="form-label">' . __('Gatherings/Events They May Attend:') . '</label>';
-            echo '<ul>';
-            foreach ($recommendation->gatherings as $gathering) {
-                $displayName = h($gathering->name);
-                if (isset($gathering->branch)) {
-                    $displayName .= ' in ' . h($gathering->branch->name);
-                }
-                if (isset($gathering->start_date)) {
-                    $displayName .= ' on ' . $this->Timezone->format($gathering->start_date, $gathering, 'Y-m-d');
-                    if (isset($gathering->end_date)) {
-                        $displayName .= ' - ' . $this->Timezone->format($gathering->end_date, $gathering, 'Y-m-d');
-                    }
-                }
-                $hasAttendanceMarker = false;
-                if (isset($gatheringList[$gathering->id])) {
-                    $hasAttendanceMarker = str_ends_with($gatheringList[$gathering->id], ' *');
-                }
-                if ($hasAttendanceMarker) {
-                    $displayName .= ' <strong>*</strong>';
-                }
-                echo '<li>' . $displayName . '</li>';
-            }
-            echo '</ul>';
-            echo '</div>';
-        }
-
-        echo $this->Form->control(
-            'state',
-            [
-                'options' => $statusList,
-                'value' => $recommendation->state,
-                'data-awards-rec-quick-edit-target' => 'state',
-                'data-action' => 'change->awards-rec-quick-edit#setFieldRules',
-            ],
-        );
-        echo $this->Form->control(
-            'close_reason',
-            [
-                'label' => 'Reason for No Action',
-                'value' => $recommendation->close_reason,
-                'data-awards-rec-quick-edit-target' => 'closeReason',
-                'container' => [
-                    'data-awards-rec-quick-edit-target' => 'closeReasonBlock',
-                ],
-            ],
-        );
-
-        $assignedGatheringCancelled = $assignedGatheringCancelled ?? false;
-        $cancelledGatheringWarning = __(
-            'This recommendation is scheduled for a cancelled gathering. Please reschedule to a different gathering.',
-        );
-        if ($assignedGatheringCancelled) : ?>
-        <div class="alert alert-danger mb-2" role="alert">
-            <i class="bi bi-exclamation-triangle-fill"></i>
-            <strong><?= __('Warning:') ?></strong>
-            <?= h($cancelledGatheringWarning) ?>
-        </div>
-        <?php endif;
-
-        $selectedGatheringText = '';
-        if (!empty($recommendation->gathering_id) && isset($gatheringList[$recommendation->gathering_id])) {
-            $selectedGatheringText = $gatheringList[$recommendation->gathering_id];
-        }
-        $gatheringLookupQuery = array_filter([
-            'member_id' => $recommendation->member->public_id ?? null,
-            'status' => $recommendation->state,
-            'selected_id' => $recommendation->gathering_id,
-            'recommendation_id' => $recommendation->id,
-        ], fn($value) => $value !== null && $value !== '');
-        $gatheringLookupUrl = $this->URL->build([
-            'plugin' => 'Awards',
-            'controller' => 'Recommendations',
-            'action' => 'gatheringsAutoComplete',
-            $recommendation->award_id,
-            '?' => $gatheringLookupQuery,
-        ]);
-        ?>
-        <div data-awards-rec-quick-edit-target="planToGiveBlock">
-            <?= $this->KMP->autoCompleteControl(
-                $this->Form,
-                'gathering_name',
-                'gathering_id',
-                $gatheringLookupUrl,
-                'Plan to Give At',
-                false,
-                false,
-                2,
-                [
-                    'data-awards-rec-quick-edit-target' => 'planToGiveGathering',
-                    'data-ac-show-on-focus-value' => 'true',
-                    'data-ac-init-selection-value' => json_encode([
-                        'value' => $recommendation->gathering_id,
-                        'text' => $selectedGatheringText,
-                    ]),
-                ],
-            ) ?>
-        </div>
-        <?php
-        $givenValue = null;
-        if ($recommendation->given) {
-            $givenValue = $recommendation->given->format('Y-m-d');
-        }
-
-        echo $this->Form->control(
-            'given',
-            [
-                'type' => 'date',
-                'label' => 'Given On',
-                'value' => $givenValue,
-                'data-awards-rec-quick-edit-target' => 'givenDate',
-                'container' => [
-                    'data-awards-rec-quick-edit-target' => 'givenBlock',
-                ],
-            ],
-        );
         echo $this->Form->control('note', [
             'type' => 'textarea',
             'label' => 'Note',

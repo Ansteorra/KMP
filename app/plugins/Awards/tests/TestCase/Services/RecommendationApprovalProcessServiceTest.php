@@ -199,6 +199,42 @@ class RecommendationApprovalProcessServiceTest extends BaseTestCase
         $this->assertSame(WorkflowApproval::STATUS_PENDING, $approval->status);
     }
 
+    public function testLaterApprovalStepExcludesPriorResponderEvenWhenTheyStillQualify(): void
+    {
+        $role = $this->createRole();
+        $this->createMemberRole(self::ADMIN_MEMBER_ID, (int)$role->id);
+        $this->createMemberRole(self::TEST_MEMBER_BRYCE_ID, (int)$role->id);
+        [$recommendation, $instanceId] = $this->buildApprovalScenario([
+            $this->roleStepData('local', 'Local approval', 1, (int)$role->id),
+            $this->roleStepData('crown', 'Crown approval', 2, (int)$role->id),
+        ]);
+
+        $started = $this->service->startProcess(
+            ['instanceId' => $instanceId],
+            ['recommendationId' => (int)$recommendation->id],
+        );
+        $this->assertTrue($started->isSuccess(), $started->getError() ?? '');
+        $this->assertContains(self::ADMIN_MEMBER_ID, $started->data['approverIds']);
+        $this->assertContains(self::TEST_MEMBER_BRYCE_ID, $started->data['approverIds']);
+
+        $approvalId = $this->createWorkflowApproval(
+            $instanceId,
+            $started->data['approvalApproverConfig'],
+            $started->data['requiredCount'],
+        );
+        $this->createWorkflowApprovalResponse($approvalId, self::ADMIN_MEMBER_ID);
+
+        $advanced = $this->service->advanceProcess(
+            ['instanceId' => $instanceId, 'approval' => ['approvalStatus' => 'approved']],
+            [],
+        );
+
+        $this->assertTrue($advanced->isSuccess(), $advanced->getError() ?? '');
+        $this->assertSame('crown', $advanced->data['currentStepKey']);
+        $this->assertSame([self::TEST_MEMBER_BRYCE_ID], $advanced->data['approverIds']);
+        $this->assertSame(1, $advanced->data['requiredCount']);
+    }
+
     public function testSubmittedWorkflowStartsAndAdvancesConfiguredApprovalProcess(): void
     {
         $this->registerWorkflowRuntime();
@@ -301,8 +337,6 @@ class RecommendationApprovalProcessServiceTest extends BaseTestCase
         ]);
         $this->assertTrue($secondResume->isSuccess(), $secondResume->getError() ?? '');
 
-        $run = $this->getTableLocator()->get('Awards.RecommendationApprovalRuns')->get((int)$run->id);
-        $this->assertSame(RecommendationApprovalRun::STATUS_APPROVED, $run->status);
         $instance = $this->getTableLocator()->get('WorkflowInstances')->get((int)$instance->id);
         $this->assertSame(WorkflowInstance::STATUS_COMPLETED, $instance->status);
 
@@ -310,6 +344,10 @@ class RecommendationApprovalProcessServiceTest extends BaseTestCase
         $bestowal = $this->getTableLocator()->get('Awards.Bestowals')->find()
             ->where(['primary_recommendation_id' => $recommendationId])
             ->firstOrFail();
+        $run = $this->getTableLocator()->get('Awards.RecommendationApprovalRuns')->get((int)$run->id);
+        $this->assertSame(RecommendationApprovalRun::STATUS_CONSUMED, $run->status);
+        $this->assertSame(RecommendationApprovalRun::TERMINAL_REASON_CONSUMED_BY_BESTOWAL, $run->terminal_reason);
+        $this->assertSame((int)$bestowal->id, (int)$run->consumed_by_bestowal_id);
         $this->assertSame((int)$award->id, (int)$bestowal->award_id);
         $this->assertSame('Submitted', $this->freshRecommendationState($recommendationId));
     }
@@ -406,6 +444,17 @@ class RecommendationApprovalProcessServiceTest extends BaseTestCase
         ]));
 
         return (int)$approval->id;
+    }
+
+    private function createWorkflowApprovalResponse(int $approvalId, int $memberId): void
+    {
+        $responses = $this->getTableLocator()->get('WorkflowApprovalResponses');
+        $responses->saveOrFail($responses->newEntity([
+            'workflow_approval_id' => $approvalId,
+            'member_id' => $memberId,
+            'decision' => 'approved',
+            'responded_at' => DateTime::now(),
+        ]));
     }
 
     private function createRole()

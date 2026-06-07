@@ -4,12 +4,14 @@ declare(strict_types=1);
 namespace Awards\Test\TestCase\Services;
 
 use App\Model\Entity\Member;
+use App\Model\Entity\WorkflowInstance;
 use App\Test\TestCase\BaseTestCase;
 use Awards\Model\Entity\ApprovalProcess;
 use Awards\Model\Entity\ApprovalProcessStep;
 use Awards\Model\Entity\Award;
 use Awards\Model\Entity\Recommendation;
 use Awards\Model\Entity\RecommendationMigrationResult;
+use Awards\Model\Entity\RecommendationMigrationRun;
 use Awards\Services\AwardApprovalResolverService;
 use Awards\Services\RecommendationBestowalStatePolicyService;
 use Awards\Services\RecommendationMigrationService;
@@ -150,6 +152,60 @@ class RecommendationMigrationServiceTest extends BaseTestCase
         $this->assertStringContainsString('has no eligible approvers', $classification['reason']);
     }
 
+    public function testAuditsOpenRecommendationsWithoutWorkflow(): void
+    {
+        $recommendationId = $this->createLegacyOpenRecommendation();
+
+        $audit = $this->service->auditOpenRecommendationsWithoutWorkflow([
+            'recommendation_id' => $recommendationId,
+        ]);
+
+        $this->assertSame(1, $audit['count']);
+        $this->assertSame($recommendationId, $audit['recommendations'][0]['id']);
+        $this->assertSame('In Progress', $audit['recommendations'][0]['status']);
+        $this->assertSame('Legacy Open State', $audit['recommendations'][0]['state']);
+    }
+
+    public function testAuditIgnoresOpenRecommendationsWithActiveMigrationWorkflow(): void
+    {
+        $recommendationId = $this->createLegacyOpenRecommendation();
+        $this->createMigrationWorkflowInstance($recommendationId);
+
+        $audit = $this->service->auditOpenRecommendationsWithoutWorkflow([
+            'recommendation_id' => $recommendationId,
+        ]);
+
+        $this->assertSame(0, $audit['count']);
+        $this->assertSame([], $audit['recommendations']);
+    }
+
+    public function testApplyRunFailsWhenOpenRecommendationStillLacksWorkflow(): void
+    {
+        $recommendationId = $this->createLegacyOpenRecommendation();
+
+        $result = $this->service->run(
+            RecommendationMigrationRun::MODE_APPLY,
+            ['recommendation_id' => $recommendationId],
+            self::ADMIN_MEMBER_ID,
+        );
+
+        $this->assertFalse($result->isSuccess());
+        $this->assertStringContainsString('open recommendations still lack workflow', (string)$result->getError());
+
+        $runId = (int)$result->getData()['runId'];
+        $run = $this->getTableLocator()->get('Awards.RecommendationMigrationRuns')->get($runId);
+        $this->assertSame(RecommendationMigrationRun::STATUS_FAILED, $run->status);
+
+        $migrationResult = $this->getTableLocator()->get('Awards.RecommendationMigrationResults')->find()
+            ->where([
+                'migration_run_id' => $runId,
+                'recommendation_id' => $recommendationId,
+            ])
+            ->firstOrFail();
+        $this->assertSame(RecommendationMigrationResult::TARGET_MANUAL_REVIEW, $migrationResult->target_action);
+        $this->assertSame(RecommendationMigrationResult::STATUS_SKIPPED, $migrationResult->result_status);
+    }
+
     /**
      * @param array<string, mixed> $overrides Field overrides
      */
@@ -179,6 +235,54 @@ class RecommendationMigrationServiceTest extends BaseTestCase
         $saved = $this->recommendationsTable->saveOrFail($entity);
 
         return (int)$saved->id;
+    }
+
+    private function createLegacyOpenRecommendation(): int
+    {
+        $recommendationId = $this->createRecommendation('Submitted');
+        $this->recommendationsTable->updateAll(
+            [
+                'state' => 'Legacy Open State',
+                'status' => 'In Progress',
+            ],
+            ['id' => $recommendationId],
+        );
+
+        return $recommendationId;
+    }
+
+    private function createMigrationWorkflowInstance(int $recommendationId): void
+    {
+        $workflowDefinitions = $this->getTableLocator()->get('WorkflowDefinitions');
+        $workflowDefinition = $workflowDefinitions->find()
+            ->where(['slug' => RecommendationMigrationService::WORKFLOW_SLUG])
+            ->firstOrFail();
+
+        $workflowVersionId = (int)$workflowDefinition->current_version_id;
+        if ($workflowVersionId === 0) {
+            $workflowVersions = $this->getTableLocator()->get('WorkflowVersions');
+            $workflowVersion = $workflowVersions->newEntity([
+                'workflow_definition_id' => $workflowDefinition->id,
+                'version_number' => 1,
+                'definition' => ['nodes' => [], 'connections' => []],
+                'status' => 'published',
+                'published_by' => self::ADMIN_MEMBER_ID,
+            ]);
+            $workflowVersion = $workflowVersions->saveOrFail($workflowVersion);
+            $workflowVersionId = (int)$workflowVersion->id;
+            $workflowDefinition->current_version_id = $workflowVersionId;
+            $workflowDefinitions->saveOrFail($workflowDefinition);
+        }
+
+        $workflowInstances = $this->getTableLocator()->get('WorkflowInstances');
+        $workflowInstances->saveOrFail($workflowInstances->newEntity([
+            'workflow_definition_id' => $workflowDefinition->id,
+            'workflow_version_id' => $workflowVersionId,
+            'entity_type' => 'Awards.Recommendations',
+            'entity_id' => $recommendationId,
+            'status' => WorkflowInstance::STATUS_WAITING,
+            'started_by' => self::ADMIN_MEMBER_ID,
+        ]));
     }
 
     private function getFirstAwardId(): int

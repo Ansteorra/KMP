@@ -53,6 +53,16 @@ class TriggerDispatcher implements EventListenerInterface
     }
 
     /**
+     * Return the engine backing this dispatcher for follow-up workflow operations.
+     *
+     * @return \App\Services\WorkflowEngine\WorkflowEngineInterface
+     */
+    public function getEngine(): WorkflowEngineInterface
+    {
+        return $this->engine;
+    }
+
+    /**
      * Register this dispatcher as a CakePHP event listener.
      *
      * Call during Application::bootstrap() or plugin bootstrap to enable

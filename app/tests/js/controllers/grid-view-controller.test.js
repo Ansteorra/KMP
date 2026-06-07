@@ -212,4 +212,83 @@ describe('GridViewController', () => {
         pushStateSpy.mockRestore();
         navigateSpy.mockRestore();
     });
+
+    test('eligible-only bulk action is hidden when no rows match required field', () => {
+        document.body.innerHTML = `
+            <div data-controller="grid-view">
+                <button data-grid-view-target="bulkActionBtn"
+                    data-bulk-action-requires-selection-field="canWorkflowDecide"></button>
+                <input type="checkbox" data-grid-view-target="rowCheckbox" value="1"
+                    data-can-workflow-decide="false">
+            </div>
+        `;
+        controller.element = document.querySelector('[data-controller="grid-view"]');
+        controller.hasRowCheckboxTarget = true;
+        controller.rowCheckboxTargets = [...document.querySelectorAll('[data-grid-view-target="rowCheckbox"]')];
+        controller.hasSelectAllCheckboxTarget = false;
+        controller.hasBulkActionBtnTarget = true;
+        controller.bulkActionBtnTargets = [...document.querySelectorAll('[data-grid-view-target="bulkActionBtn"]')];
+        controller.hasSelectionCountTarget = false;
+        controller.selectedIds = [];
+
+        controller.updateBulkSelectionUI();
+
+        expect(controller.bulkActionBtnTargets[0].hidden).toBe(true);
+        expect(controller.bulkActionBtnTargets[0].classList.contains('d-none')).toBe(true);
+        expect(controller.bulkActionBtnTargets[0].disabled).toBe(true);
+    });
+
+    test('eligible-only bulk action disables mixed selections', () => {
+        document.body.innerHTML = `
+            <div data-controller="grid-view">
+                <button data-grid-view-target="bulkActionBtn"
+                    data-bulk-action-requires-selection-field="canWorkflowDecide"></button>
+                <input type="checkbox" data-grid-view-target="rowCheckbox" value="1"
+                    data-can-workflow-decide="true" checked>
+                <input type="checkbox" data-grid-view-target="rowCheckbox" value="2"
+                    data-can-workflow-decide="false" checked>
+            </div>
+        `;
+        controller.element = document.querySelector('[data-controller="grid-view"]');
+        controller.hasRowCheckboxTarget = true;
+        controller.rowCheckboxTargets = [...document.querySelectorAll('[data-grid-view-target="rowCheckbox"]')];
+        controller.hasSelectAllCheckboxTarget = false;
+        controller.hasBulkActionBtnTarget = true;
+        controller.bulkActionBtnTargets = [...document.querySelectorAll('[data-grid-view-target="bulkActionBtn"]')];
+        controller.hasSelectionCountTarget = false;
+        controller.selectedIds = ['1', '2'];
+
+        controller.updateBulkSelectionUI();
+
+        expect(controller.bulkActionBtnTargets[0].hidden).toBe(false);
+        expect(controller.bulkActionBtnTargets[0].classList.contains('d-none')).toBe(false);
+        expect(controller.bulkActionBtnTargets[0].disabled).toBe(true);
+    });
+
+    test('eligible-only bulk action enables when all selected rows match required field', () => {
+        document.body.innerHTML = `
+            <div data-controller="grid-view">
+                <button data-grid-view-target="bulkActionBtn"
+                    data-bulk-action-requires-selection-field="canWorkflowDecide"></button>
+                <input type="checkbox" data-grid-view-target="rowCheckbox" value="1"
+                    data-can-workflow-decide="true" checked>
+                <input type="checkbox" data-grid-view-target="rowCheckbox" value="2"
+                    data-can-workflow-decide="true" checked>
+            </div>
+        `;
+        controller.element = document.querySelector('[data-controller="grid-view"]');
+        controller.hasRowCheckboxTarget = true;
+        controller.rowCheckboxTargets = [...document.querySelectorAll('[data-grid-view-target="rowCheckbox"]')];
+        controller.hasSelectAllCheckboxTarget = false;
+        controller.hasBulkActionBtnTarget = true;
+        controller.bulkActionBtnTargets = [...document.querySelectorAll('[data-grid-view-target="bulkActionBtn"]')];
+        controller.hasSelectionCountTarget = false;
+        controller.selectedIds = ['1', '2'];
+
+        controller.updateBulkSelectionUI();
+
+        expect(controller.bulkActionBtnTargets[0].hidden).toBe(false);
+        expect(controller.bulkActionBtnTargets[0].classList.contains('d-none')).toBe(false);
+        expect(controller.bulkActionBtnTargets[0].disabled).toBe(false);
+    });
 });

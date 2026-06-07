@@ -3,10 +3,12 @@ declare(strict_types=1);
 
 namespace Awards\Test\TestCase\Controller;
 
+use App\Model\Entity\WorkflowInstance;
 use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Model\Entity\Recommendation;
+use Awards\Model\Entity\RecommendationApprovalRun;
 use Awards\Services\RecommendationGroupingService;
 use Awards\Services\RecommendationSubmissionService;
 use Awards\Services\RecommendationTransitionService;
@@ -255,10 +257,66 @@ class RecommendationsControllerWorkflowDispatchTest extends HttpIntegrationTestC
         $this->assertRedirectContains('/awards/recommendations/view/' . $savedRecommendation->id);
     }
 
+    public function testEditDispatchesReturnedFollowUpWorkflowWhenActive(): void
+    {
+        $this->ensureActiveWorkflow('awards-recommendation-updated');
+        $savedRecommendation = $this->createExistingRecommendation();
+
+        $events = [];
+        $this->mockServiceClean(TriggerDispatcher::class, function () use (&$events, $savedRecommendation) {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->exactly(2))
+                ->method('dispatch')
+                ->willReturnCallback(function (string $event, array $context) use (&$events, $savedRecommendation): array {
+                    $events[] = $event;
+                    if ($event === 'Awards.RecommendationUpdateRequested') {
+                        $this->assertSame((int)$savedRecommendation->id, $context['recommendationId']);
+
+                        return [$this->successfulWorkflowDispatchResult([
+                            'recommendationId' => (int)$savedRecommendation->id,
+                            'eventName' => 'Awards.ExistingRecommendationApprovalRequested',
+                            'eventPayload' => [
+                                'recommendationId' => (int)$savedRecommendation->id,
+                                'restartReason' => 'award_changed',
+                                'cancelledRunIds' => [42],
+                            ],
+                        ])];
+                    }
+
+                    $this->assertSame('Awards.ExistingRecommendationApprovalRequested', $event);
+                    $this->assertSame((int)$savedRecommendation->id, $context['recommendationId']);
+                    $this->assertSame('award_changed', $context['restartReason']);
+                    $this->assertSame([42], $context['cancelledRunIds']);
+                    $this->assertArrayHasKey('actorId', $context);
+
+                    return [];
+                });
+
+            return $mock;
+        });
+        $this->mockServiceClean(RecommendationUpdateService::class, function () {
+            $mock = $this->createMock(RecommendationUpdateService::class);
+            $mock->expects($this->never())->method('update');
+
+            return $mock;
+        });
+
+        $this->post($this->recommendationsUrl('edit', [(string)$savedRecommendation->id]), [
+            'reason' => 'Updated through workflow',
+        ]);
+
+        $this->assertSame(
+            ['Awards.RecommendationUpdateRequested', 'Awards.ExistingRecommendationApprovalRequested'],
+            $events,
+        );
+        $this->assertRedirectContains('/awards/recommendations/view/' . $savedRecommendation->id);
+    }
+
     public function testEditFromGridReturnsRenderedTurboStreamWhenActive(): void
     {
         $this->ensureActiveWorkflow('awards-recommendation-updated');
         $savedRecommendation = $this->createExistingRecommendation();
+        $this->createActiveApprovalRun((int)$savedRecommendation->id);
 
         $this->mockServiceClean(TriggerDispatcher::class, function () use ($savedRecommendation) {
             $mock = $this->createMock(TriggerDispatcher::class);
@@ -764,6 +822,57 @@ class RecommendationsControllerWorkflowDispatchTest extends HttpIntegrationTestC
         ]);
 
         return $this->recommendations->saveOrFail($recommendation);
+    }
+
+    private function createActiveApprovalRun(int $recommendationId): RecommendationApprovalRun
+    {
+        $approvalProcess = $this->getTableLocator()
+            ->get('Awards.ApprovalProcesses')
+            ->find()
+            ->select(['id'])
+            ->firstOrFail();
+        $runs = $this->getTableLocator()->get('Awards.RecommendationApprovalRuns');
+
+        return $runs->saveOrFail($runs->newEntity([
+            'recommendation_id' => $recommendationId,
+            'approval_process_id' => (int)$approvalProcess->id,
+            'workflow_instance_id' => $this->createWorkflowInstance(),
+            'status' => RecommendationApprovalRun::STATUS_IN_PROGRESS,
+            'current_step_key' => 'approval',
+            'current_step_label' => 'Approval',
+            'started' => DateTime::now(),
+        ]));
+    }
+
+    private function createWorkflowInstance(): int
+    {
+        $definition = $this->workflowDefinitions->saveOrFail($this->workflowDefinitions->newEntity([
+            'name' => 'Recommendation Grid Sync Workflow ' . uniqid('', true),
+            'slug' => 'recommendation-grid-sync-workflow-' . uniqid(),
+            'trigger_type' => 'manual',
+            'is_active' => true,
+        ]));
+        $version = $this->workflowVersions->saveOrFail($this->workflowVersions->newEntity([
+            'workflow_definition_id' => $definition->id,
+            'version_number' => 1,
+            'definition' => [
+                'nodes' => [
+                    'trigger' => ['type' => 'trigger', 'outputs' => [['target' => 'end']]],
+                    'end' => ['type' => 'end', 'outputs' => []],
+                ],
+            ],
+            'status' => 'published',
+        ]));
+        $instances = $this->getTableLocator()->get('WorkflowInstances');
+        $instance = $instances->saveOrFail($instances->newEntity([
+            'workflow_definition_id' => $definition->id,
+            'workflow_version_id' => $version->id,
+            'status' => WorkflowInstance::STATUS_RUNNING,
+            'context' => [],
+            'started' => DateTime::now(),
+        ]));
+
+        return (int)$instance->id;
     }
 
     /**

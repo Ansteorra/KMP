@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Awards\Test\TestCase\Controller;
 
+use App\Model\Entity\Member;
 use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
@@ -191,6 +192,52 @@ class BestowalsControllerGridTurboTest extends HttpIntegrationTestCase
         );
     }
 
+    public function testActiveSystemViewExcludesClosedBestowals(): void
+    {
+        $activeMemberName = 'bestowal-active-filter-active-' . uniqid();
+        $closedMemberName = 'bestowal-active-filter-closed-' . uniqid();
+        $activeMember = $this->createGridMember($activeMemberName);
+        $closedMember = $this->createGridMember($closedMemberName);
+
+        $this->createBestowalForMember((int)$activeMember->id, 'Created', 'Planning');
+        $this->createBestowalForMember((int)$closedMember->id, 'Given', 'Closed');
+
+        $url = '/awards/bestowals/grid-data?' . http_build_query([
+            'view_id' => 'sys-bestowals-active',
+            'search' => 'bestowal-active-filter-',
+        ]);
+
+        $this->get($url);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Active Bestowals');
+        $this->assertResponseContains($activeMemberName);
+        $this->assertResponseNotContains($closedMemberName);
+    }
+
+    public function testCompletedSystemViewShowsGivenBestowalsOnly(): void
+    {
+        $givenMemberName = 'bestowal-completed-filter-given-' . uniqid();
+        $activeMemberName = 'bestowal-completed-filter-active-' . uniqid();
+        $givenMember = $this->createGridMember($givenMemberName);
+        $activeMember = $this->createGridMember($activeMemberName);
+
+        $this->createBestowalForMember((int)$givenMember->id, 'Given', 'Closed');
+        $this->createBestowalForMember((int)$activeMember->id, 'Created', 'Planning');
+
+        $url = '/awards/bestowals/grid-data?' . http_build_query([
+            'view_id' => 'sys-bestowals-completed',
+            'search' => 'bestowal-completed-filter-',
+        ]);
+
+        $this->get($url);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Completed');
+        $this->assertResponseContains($givenMemberName);
+        $this->assertResponseNotContains($activeMemberName);
+    }
+
     private function createExistingBestowal(): Bestowal
     {
         $gathering = $this->getTableLocator()->get('Gatherings')
@@ -208,7 +255,52 @@ class BestowalsControllerGridTurboTest extends HttpIntegrationTestCase
             'award_id' => $award->id,
             'gathering_id' => $gathering->id,
             'state' => 'Created',
-            'status' => 'Pending',
+            'status' => 'Planning',
+            'source' => Bestowal::SOURCE_AD_HOC,
+            'stack_rank' => 0,
+        ]);
+        $bestowals->saveOrFail($bestowal);
+
+        return $bestowal;
+    }
+
+    private function createGridMember(string $scaName): Member
+    {
+        $members = $this->getTableLocator()->get('Members');
+        $member = $members->newEntity([
+            'password' => 'VeryStrongPassword123!',
+            'sca_name' => $scaName,
+            'first_name' => 'Grid',
+            'last_name' => 'Tester',
+            'street_address' => '',
+            'city' => '',
+            'state' => '',
+            'zip' => '',
+            'phone_number' => '',
+            'email_address' => 'grid-' . uniqid() . '@example.test',
+            'birth_month' => 1,
+            'birth_year' => 1990,
+        ]);
+
+        $savedMember = $members->saveOrFail($member);
+        $this->assertInstanceOf(Member::class, $savedMember);
+
+        return $savedMember;
+    }
+
+    private function createBestowalForMember(int $memberId, string $state, string $status): Bestowal
+    {
+        $award = $this->getTableLocator()->get('Awards.Awards')
+            ->find()
+            ->select(['id'])
+            ->firstOrFail();
+
+        $bestowals = $this->getTableLocator()->get('Awards.Bestowals');
+        $bestowal = $bestowals->newEntity([
+            'member_id' => $memberId,
+            'award_id' => $award->id,
+            'state' => $state,
+            'status' => $status,
             'source' => Bestowal::SOURCE_AD_HOC,
             'stack_rank' => 0,
         ]);

@@ -23,8 +23,16 @@ class RecommendationApprovalRun extends BaseEntity
     public const STATUS_IN_PROGRESS = 'in_progress';
     public const STATUS_CHANGES_REQUESTED = 'changes_requested';
     public const STATUS_APPROVED = 'approved';
+    public const STATUS_CONSUMED = 'consumed';
     public const STATUS_CLOSED = 'closed';
     public const STATUS_CANCELLED = 'cancelled';
+
+    public const TERMINAL_REASON_REJECTED = 'rejected';
+    public const TERMINAL_REASON_CONSUMED_BY_BESTOWAL = 'consumed_by_bestowal';
+    public const TERMINAL_REASON_SUPERSEDED_BY_BESTOWAL_LINK = 'superseded_by_bestowal_link';
+    public const TERMINAL_REASON_BESTOWAL_CANCELLED = 'bestowal_cancelled';
+    public const TERMINAL_REASON_RECOMMENDATION_DELETED = 'recommendation_deleted';
+    public const TERMINAL_REASON_AWARD_CHANGED = 'award_changed';
 
     protected array $_accessible = [
         'recommendation_id' => true,
@@ -35,6 +43,10 @@ class RecommendationApprovalRun extends BaseEntity
         'current_step_label' => true,
         'started' => true,
         'completed' => true,
+        'terminal_reason' => true,
+        'consumed_by_bestowal_id' => true,
+        'superseded_by_bestowal_id' => true,
+        'rehydrated_from_run_id' => true,
         'created' => true,
         'modified' => true,
         'created_by' => true,

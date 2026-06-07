@@ -2514,10 +2514,30 @@ class GridViewController extends Controller {
      */
     updateBulkSelectionUI() {
         const hasSelection = this.selectedIds.length > 0
+        const selectedCheckboxes = this.selectedRowCheckboxTargets()
 
         // Enable/disable bulk action buttons
         if (this.hasBulkActionBtnTarget) {
             this.bulkActionBtnTargets.forEach(btn => {
+                const requiredField = btn.dataset.bulkActionRequiresSelectionField || ''
+                if (requiredField) {
+                    const eligibleRowsOnPage = this.selectableRowCheckboxTargets()
+                        .filter((checkbox) => this.isTruthyDatasetValue(checkbox.dataset[requiredField]))
+                    const hideButton = eligibleRowsOnPage.length === 0
+
+                    btn.hidden = hideButton
+                    btn.classList.toggle('d-none', hideButton)
+                    btn.disabled = !hasSelection
+                        || selectedCheckboxes.length === 0
+                        || selectedCheckboxes.some(
+                            (checkbox) => !this.isTruthyDatasetValue(checkbox.dataset[requiredField]),
+                        )
+
+                    return
+                }
+
+                btn.hidden = false
+                btn.classList.remove('d-none')
                 btn.disabled = !hasSelection
             })
         }
@@ -2559,6 +2579,24 @@ class GridViewController extends Controller {
             bubbles: true,
             detail: { ids: [...this.selectedIds], checkboxes: this.getSelectedCheckboxData() }
         }))
+    }
+
+    /**
+     * Selected row checkboxes on the current page.
+     */
+    selectedRowCheckboxTargets() {
+        if (!this.hasRowCheckboxTarget) return []
+
+        return this.rowCheckboxTargets.filter((checkbox) => checkbox.checked)
+    }
+
+    /**
+     * Interpret HTML data attribute values as booleans for conditional bulk actions.
+     */
+    isTruthyDatasetValue(value) {
+        if (typeof value !== 'string') return Boolean(value)
+
+        return value !== '' && value !== '0' && value !== 'false'
     }
 
     /**

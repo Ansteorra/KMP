@@ -142,6 +142,10 @@ class BestowalCreationService
         if ($memberId === null) {
             return $this->failureResult('Recommendations must have a member before creating a bestowal.');
         }
+        $awardId = (int)$head->award_id;
+        if ($awardId <= 0) {
+            return $this->failureResult('Recommendations must have a valid award before creating a bestowal.');
+        }
 
         $bestowal = $this->bestowalsTable->newEmptyEntity();
         if (!$bestowal instanceof Bestowal) {
@@ -149,7 +153,6 @@ class BestowalCreationService
         }
         $bestowal->member_id = (int)$memberId;
         $bestowal->primary_recommendation_id = (int)$head->id;
-        $bestowal->award_id = (int)$head->award_id;
         $bestowal->source = Bestowal::SOURCE_RECOMMENDATION;
         $this->applyInitialBestowalState($bestowal, 'Created');
         $bestowal->gathering_id = $head->gathering_id;
@@ -163,6 +166,8 @@ class BestowalCreationService
         );
         $bestowal->created_by = $actorId;
         $bestowal->modified_by = $actorId;
+        $bestowal->set('award_id', $awardId, ['guard' => false]);
+        $bestowal->setDirty('award_id', true);
 
         $savedBestowal = $this->bestowalsTable->saveOrFail($bestowal);
         if (!$savedBestowal instanceof Bestowal) {

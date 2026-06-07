@@ -98,7 +98,7 @@ class BestowalsController extends AppController
             'gridKey' => 'Awards.Bestowals.index.main',
             'gridColumnsClass' => BestowalsGridColumns::class,
             'systemViews' => $systemViews,
-            'defaultSystemView' => 'sys-bestowals-all',
+            'defaultSystemView' => 'sys-bestowals-active',
             'defaultSort' => ['Bestowals.created' => 'desc'],
         ]);
         $built = $queryService->buildIndexQuery(
@@ -1266,7 +1266,7 @@ class BestowalsController extends AppController
                     'gridKey' => 'Awards.Bestowals.index.main',
                     'gridColumnsClass' => BestowalsGridColumns::class,
                     'systemViews' => $systemViews,
-                    'defaultSystemView' => 'sys-bestowals-all',
+                    'defaultSystemView' => 'sys-bestowals-active',
                     'defaultSort' => ['Bestowals.created' => 'desc'],
                 ]);
                 $built = $queryService->buildIndexQuery(

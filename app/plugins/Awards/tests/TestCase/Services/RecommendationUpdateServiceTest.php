@@ -3,13 +3,14 @@ declare(strict_types=1);
 
 namespace Awards\Test\TestCase\Services;
 
+use App\Model\Entity\WorkflowInstance;
 use App\Test\TestCase\BaseTestCase;
+use Awards\Model\Entity\ApprovalProcessStep;
 use Awards\Model\Entity\Recommendation;
-use Awards\Services\RecommendationGroupingService;
+use Awards\Model\Entity\RecommendationApprovalRun;
 use Awards\Services\RecommendationUpdateService;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
-use DateTimeZone;
 
 class RecommendationUpdateServiceTest extends BaseTestCase
 {
@@ -36,9 +37,10 @@ class RecommendationUpdateServiceTest extends BaseTestCase
         $this->service = new RecommendationUpdateService();
     }
 
-    public function testUpdateHydratesChangedMemberNormalizesGivenCreatesNoteAndSyncsGatherings(): void
+    public function testUpdateHydratesChangedMemberCreatesNoteAndIgnoresLegacyEditFields(): void
     {
-        $existing = $this->createRecommendation(self::TEST_MEMBER_BRYCE_ID, array_slice($this->getGatheringIds(), 0, 2));
+        $originalGatheringIds = array_slice($this->getGatheringIds(), 0, 2);
+        $existing = $this->createRecommendation(self::TEST_MEMBER_BRYCE_ID, $originalGatheringIds);
         $member = $this->Members->get(
             self::TEST_MEMBER_AGATHA_ID,
             select: ['id', 'sca_name', 'branch_id', 'public_id'],
@@ -54,6 +56,9 @@ class RecommendationUpdateServiceTest extends BaseTestCase
                 'specialty' => 'No specialties available',
                 'gatherings' => ['_ids' => array_slice($gatheringIds, 2, 2)],
                 'given' => '2026-02-03',
+                'state' => 'No Action',
+                'status' => 'Closed',
+                'close_reason' => 'Legacy close reason should be ignored',
                 'note' => 'Updated through service',
             ],
             self::ADMIN_MEMBER_ID,
@@ -68,15 +73,14 @@ class RecommendationUpdateServiceTest extends BaseTestCase
         $this->assertSame('Evening', $saved->court_availability);
         $this->assertSame('Bryce Demoer', $saved->person_to_notify);
         $this->assertNull($saved->specialty);
-        $this->assertNotNull($saved->given);
-        $this->assertSame(
-            '2026-02-03 00:00:00',
-            $saved->given->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
-        );
-        $this->assertSame(array_slice($gatheringIds, 2, 2), $result['output']['gatheringIds']);
+        $this->assertNull($saved->given);
+        $this->assertSame($originalGatheringIds, $result['output']['gatheringIds']);
+        $this->assertNotSame('No Action', $saved->state);
+        $this->assertNotSame('Closed', $saved->status);
+        $this->assertNull($saved->close_reason);
         $this->assertSame(self::TEST_MEMBER_BRYCE_ID, $result['output']['previousMemberId']);
         $this->assertTrue($result['output']['memberChanged']);
-        $this->assertSame('2026-02-03', $result['output']['given']);
+        $this->assertNull($result['output']['given']);
 
         $note = $this->Notes->find()
             ->where([
@@ -102,8 +106,6 @@ class RecommendationUpdateServiceTest extends BaseTestCase
                 'member_id' => 0,
                 'member_sca_name' => 'Unknown Candidate',
                 'branch_id' => self::TEST_BRANCH_STARGATE_ID,
-                'gatherings' => ['_ids' => []],
-                'given' => '',
             ],
             self::ADMIN_MEMBER_ID,
         );
@@ -117,161 +119,105 @@ class RecommendationUpdateServiceTest extends BaseTestCase
         $this->assertSame('Not Set', $saved->court_availability);
         $this->assertSame('', $saved->person_to_notify);
         $this->assertNull($saved->given);
-        $this->assertSame([], $result['output']['gatheringIds']);
+        $this->assertSame(array_slice($this->getGatheringIds(), 0, 2), $result['output']['gatheringIds']);
         $this->assertFalse($result['output']['notFound']);
     }
 
-    public function testUpdateSyncsLinkedChildrenWhenHeadTransitionsToClosedStatus(): void
+    public function testAwardChangeWithDifferentActiveApprovalProcessRequiresConfirmation(): void
     {
-        $headState = $this->stateForStatus('In Progress', ['Linked']);
-        $childOriginState = $this->differentNonLinkedState($headState);
-        $head = $this->createRecommendation(self::TEST_MEMBER_AGATHA_ID, [], ['state' => $headState]);
-        $child = $this->createRecommendation(self::TEST_MEMBER_AGATHA_ID, [], ['state' => $childOriginState]);
-
-        $groupingService = new RecommendationGroupingService($this->Recommendations);
-        $groupingService->groupRecommendations([(int)$head->id, (int)$child->id], self::ADMIN_MEMBER_ID);
-
-        $closedState = $this->stateForStatus('Closed', ['Linked - Closed', 'Given']);
-        $head = $this->Recommendations->get((int)$head->id, contain: ['Gatherings']);
-        $result = $this->service->update(
-            $this->Recommendations,
-            $head,
-            ['state' => $closedState],
-            self::ADMIN_MEMBER_ID,
-        );
-
-        $this->assertTrue($result['success']);
-
-        $freshChild = $this->Recommendations->get((int)$child->id);
-        $this->assertSame('Linked - Closed', $freshChild->state);
-        $this->assertSame('Closed', $freshChild->status);
-
-        $childLog = $this->getTableLocator()
-            ->get('Awards.RecommendationsStatesLogs')
-            ->find()
-            ->where(['recommendation_id' => (int)$child->id])
-            ->orderBy(['id' => 'DESC'])
-            ->first();
-        $this->assertNotNull($childLog);
-        $this->assertSame('Linked', $childLog->from_state);
-        $this->assertSame('Linked - Closed', $childLog->to_state);
-    }
-
-    public function testUpdateToNeedToScheduleCreatesHandoffBestowal(): void
-    {
+        $currentProcess = $this->createApprovalProcess('Current Process');
+        $newProcess = $this->createApprovalProcess('New Process');
+        $currentAward = $this->createAwardWithApprovalProcess((int)$currentProcess->id);
+        $newAward = $this->createAwardWithApprovalProcess((int)$newProcess->id);
         $existing = $this->createRecommendation(
             self::TEST_MEMBER_AGATHA_ID,
             [],
-            ['state' => 'King Approved'],
+            ['award_id' => (int)$currentAward->id],
         );
+        $run = $this->createActiveApprovalRun((int)$existing->id, (int)$currentProcess->id);
 
         $result = $this->service->update(
             $this->Recommendations,
             $existing,
-            ['state' => 'Need to Schedule'],
-            self::ADMIN_MEMBER_ID,
-        );
-
-        $this->assertTrue($result['success'], $result['message'] ?? json_encode($result));
-        $this->assertNotEmpty($result['output']['bestowalId']);
-
-        $saved = $this->Recommendations->get((int)$existing->id);
-        $this->assertSame('Need to Schedule', $saved->state);
-        $this->assertSame('Scheduling', $saved->status);
-        $this->assertSame((int)$result['output']['bestowalId'], (int)$saved->bestowal_id);
-    }
-
-    public function testUpdateRejectsDirectBestowalManagedState(): void
-    {
-        $existing = $this->createRecommendation(
-            self::TEST_MEMBER_AGATHA_ID,
-            [],
-            ['state' => 'King Approved'],
-        );
-
-        $result = $this->service->update(
-            $this->Recommendations,
-            $existing,
-            ['state' => 'Given'],
+            ['award_id' => (int)$newAward->id],
             self::ADMIN_MEMBER_ID,
         );
 
         $this->assertFalse($result['success']);
-        $this->assertSame('invalid_state_transition', $result['errorCode']);
-        $this->assertStringContainsString('managed by the bestowal workflow', $result['message']);
-
-        $saved = $this->Recommendations->get((int)$existing->id);
-        $this->assertSame('King Approved', $saved->state);
-        $this->assertNull($saved->bestowal_id);
+        $this->assertSame('approval_workflow_restart_confirmation_required', $result['errorCode']);
+        $freshRun = $this->getTableLocator()
+            ->get('Awards.RecommendationApprovalRuns')
+            ->get((int)$run->id);
+        $this->assertSame(RecommendationApprovalRun::STATUS_IN_PROGRESS, $freshRun->status);
+        $this->assertSame((int)$currentAward->id, (int)$this->Recommendations->get((int)$existing->id)->award_id);
     }
 
-    public function testUpdateRejectsExistingUnlinkedBestowalManagedState(): void
+    public function testConfirmedAwardChangeCancelsActiveRunAndReturnsRestartEvent(): void
     {
+        $currentProcess = $this->createApprovalProcess('Current Process');
+        $newProcess = $this->createApprovalProcess('New Process');
+        $currentAward = $this->createAwardWithApprovalProcess((int)$currentProcess->id);
+        $newAward = $this->createAwardWithApprovalProcess((int)$newProcess->id);
         $existing = $this->createRecommendation(
             self::TEST_MEMBER_AGATHA_ID,
             [],
-            [
-                'status' => 'Closed',
-                'state' => 'Given',
-                'reason' => 'Managed state should not be user editable',
-            ],
+            ['award_id' => (int)$currentAward->id],
         );
+        $run = $this->createActiveApprovalRun((int)$existing->id, (int)$currentProcess->id);
 
         $result = $this->service->update(
             $this->Recommendations,
             $existing,
             [
-                'reason' => 'Attempted manual edit',
-                'note' => 'This should not save',
-            ],
-            self::ADMIN_MEMBER_ID,
-        );
-
-        $this->assertFalse($result['success']);
-        $this->assertSame('invalid_state_transition', $result['errorCode']);
-        $this->assertStringContainsString('managed by the bestowal workflow', $result['message']);
-
-        $saved = $this->Recommendations->get((int)$existing->id);
-        $this->assertSame('Given', $saved->state);
-        $this->assertSame('Managed state should not be user editable', $saved->reason);
-
-        $moveOutResult = $this->service->update(
-            $this->Recommendations,
-            $saved,
-            ['state' => 'King Approved'],
-            self::ADMIN_MEMBER_ID,
-        );
-
-        $this->assertFalse($moveOutResult['success']);
-        $this->assertSame('invalid_state_transition', $moveOutResult['errorCode']);
-        $this->assertSame('Given', $this->Recommendations->get((int)$existing->id)->state);
-    }
-
-    public function testUpdateAllowsNoActionWithoutBestowal(): void
-    {
-        $existing = $this->createRecommendation(
-            self::TEST_MEMBER_AGATHA_ID,
-            [],
-            ['state' => 'King Approved'],
-        );
-
-        $result = $this->service->update(
-            $this->Recommendations,
-            $existing,
-            [
-                'state' => 'No Action',
-                'close_reason' => 'Not selected by Crown',
+                'award_id' => (int)$newAward->id,
+                'approval_workflow_restart_confirmed' => '1',
             ],
             self::ADMIN_MEMBER_ID,
         );
 
         $this->assertTrue($result['success'], $result['message'] ?? json_encode($result));
+        $this->assertSame('Awards.ExistingRecommendationApprovalRequested', $result['eventName']);
+        $this->assertSame((int)$existing->id, $result['eventPayload']['recommendationId']);
+        $this->assertSame([0 => (int)$run->id], $result['eventPayload']['cancelledRunIds']);
+        $this->assertSame(
+            RecommendationApprovalRun::TERMINAL_REASON_AWARD_CHANGED,
+            $result['eventPayload']['restartReason'],
+        );
 
-        $saved = $this->Recommendations->get((int)$existing->id);
-        $this->assertSame('No Action', $saved->state);
-        $this->assertSame('Closed', $saved->status);
-        $this->assertSame('Not selected by Crown', $saved->close_reason);
-        $this->assertNull($saved->bestowal_id);
+        $savedRun = $this->getTableLocator()
+            ->get('Awards.RecommendationApprovalRuns')
+            ->get((int)$run->id);
+        $this->assertSame(RecommendationApprovalRun::STATUS_CANCELLED, $savedRun->status);
+        $this->assertSame(RecommendationApprovalRun::TERMINAL_REASON_AWARD_CHANGED, $savedRun->terminal_reason);
+        $this->assertSame((int)$newAward->id, (int)$this->Recommendations->get((int)$existing->id)->award_id);
+    }
+
+    public function testAwardChangeWithSameActiveApprovalProcessLeavesRunAlone(): void
+    {
+        $process = $this->createApprovalProcess('Shared Process');
+        $currentAward = $this->createAwardWithApprovalProcess((int)$process->id);
+        $newAward = $this->createAwardWithApprovalProcess((int)$process->id);
+        $existing = $this->createRecommendation(
+            self::TEST_MEMBER_AGATHA_ID,
+            [],
+            ['award_id' => (int)$currentAward->id],
+        );
+        $run = $this->createActiveApprovalRun((int)$existing->id, (int)$process->id);
+
+        $result = $this->service->update(
+            $this->Recommendations,
+            $existing,
+            ['award_id' => (int)$newAward->id],
+            self::ADMIN_MEMBER_ID,
+        );
+
+        $this->assertTrue($result['success'], $result['message'] ?? json_encode($result));
+        $this->assertNull($result['eventName']);
+        $freshRun = $this->getTableLocator()
+            ->get('Awards.RecommendationApprovalRuns')
+            ->get((int)$run->id);
+        $this->assertSame(RecommendationApprovalRun::STATUS_IN_PROGRESS, $freshRun->status);
+        $this->assertSame((int)$newAward->id, (int)$this->Recommendations->get((int)$existing->id)->award_id);
     }
 
     /**
@@ -316,6 +262,93 @@ class RecommendationUpdateServiceTest extends BaseTestCase
             $recommendation,
             ['associated' => ['Gatherings']],
         );
+    }
+
+    private function createApprovalProcess(string $name)
+    {
+        $processes = $this->getTableLocator()->get('Awards.ApprovalProcesses');
+
+        return $processes->saveOrFail($processes->newEntity([
+            'name' => $name . ' ' . uniqid('', true),
+            'is_active' => true,
+            'approval_process_steps' => [[
+                'step_key' => 'approval',
+                'label' => 'Approval',
+                'sequence' => 1,
+                'step_type' => ApprovalProcessStep::STEP_TYPE_APPROVAL,
+                'approver_type' => ApprovalProcessStep::APPROVER_TYPE_MEMBER,
+                'approver_source_id' => self::ADMIN_MEMBER_ID,
+                'branch_mode' => ApprovalProcessStep::BRANCH_MODE_AWARD,
+                'threshold_mode' => ApprovalProcessStep::THRESHOLD_ANY,
+                'on_reject' => ApprovalProcessStep::ACTION_RETURN_PREVIOUS,
+                'on_request_changes' => ApprovalProcessStep::ACTION_RETURN_PREVIOUS,
+                'retain_read_visibility' => true,
+            ]],
+        ], ['associated' => ['ApprovalProcessSteps']]));
+    }
+
+    private function createAwardWithApprovalProcess(int $approvalProcessId)
+    {
+        return $this->Awards->saveOrFail($this->Awards->newEntity([
+            'name' => 'Workflow Change Award ' . uniqid('', true),
+            'abbreviation' => strtoupper(substr(md5(uniqid('', true)), 0, 8)),
+            'domain_id' => 2,
+            'level_id' => 1,
+            'branch_id' => self::KINGDOM_BRANCH_ID,
+            'approval_process_id' => $approvalProcessId,
+            'is_active' => true,
+        ]));
+    }
+
+    private function createActiveApprovalRun(int $recommendationId, int $approvalProcessId)
+    {
+        $runs = $this->getTableLocator()->get('Awards.RecommendationApprovalRuns');
+
+        return $runs->saveOrFail($runs->newEntity([
+            'recommendation_id' => $recommendationId,
+            'approval_process_id' => $approvalProcessId,
+            'workflow_instance_id' => $this->createWorkflowInstance(),
+            'status' => RecommendationApprovalRun::STATUS_IN_PROGRESS,
+            'current_step_key' => 'approval',
+            'current_step_label' => 'Approval',
+            'started' => DateTime::now(),
+        ]));
+    }
+
+    private function createWorkflowInstance(): int
+    {
+        $definitions = $this->getTableLocator()->get('WorkflowDefinitions');
+        $versions = $this->getTableLocator()->get('WorkflowVersions');
+        $instances = $this->getTableLocator()->get('WorkflowInstances');
+
+        $definition = $definitions->saveOrFail($definitions->newEntity([
+            'name' => 'Recommendation Update Workflow ' . uniqid('', true),
+            'slug' => 'recommendation-update-workflow-' . uniqid(),
+            'trigger_type' => 'manual',
+            'is_active' => true,
+        ]));
+        $version = $versions->saveOrFail($versions->newEntity([
+            'workflow_definition_id' => $definition->id,
+            'version_number' => 1,
+            'definition' => [
+                'nodes' => [
+                    'trigger' => ['type' => 'trigger', 'outputs' => [['target' => 'end']]],
+                    'end' => ['type' => 'end', 'outputs' => []],
+                ],
+            ],
+            'status' => 'published',
+        ]));
+
+        $definition->current_version_id = $version->id;
+        $definitions->saveOrFail($definition);
+
+        $instance = $instances->saveOrFail($instances->newEntity([
+            'workflow_definition_id' => $definition->id,
+            'workflow_version_id' => $version->id,
+            'status' => WorkflowInstance::STATUS_WAITING,
+        ]));
+
+        return (int)$instance->id;
     }
 
     /**

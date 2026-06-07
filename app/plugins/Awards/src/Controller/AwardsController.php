@@ -464,6 +464,15 @@ class AwardsController extends AppController
                     return $q->select(['id', 'name']);
                 },
             ])
+            ->select([
+                'Awards.id',
+                'Awards.name',
+                'Awards.specialties',
+                'Awards.approval_process_id',
+                'Awards.domain_id',
+                'Awards.level_id',
+                'Awards.branch_id',
+            ])
             ->orderBy(['Levels.progression_order' => 'ASC', 'Awards.name' => 'ASC'])
             ->all();
         $this->response = $this->response

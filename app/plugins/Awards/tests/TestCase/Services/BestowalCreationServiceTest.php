@@ -52,7 +52,15 @@ class BestowalCreationServiceTest extends BaseTestCase
         $this->assertSame($recommendationId, (int)$bestowal->primary_recommendation_id);
 
         $recommendation = $this->recommendationsTable->get($recommendationId);
-        $this->assertSame((int)$recommendation->award_id, (int)$bestowal->award_id);
+        $this->assertSame(
+            (int)$recommendation->award_id,
+            (int)$bestowal->award_id,
+            sprintf(
+                'Expected bestowal award %d to match recommendation award %d.',
+                (int)$bestowal->award_id,
+                (int)$recommendation->award_id,
+            ),
+        );
 
         $updated = $this->recommendationsTable->get($recommendationId);
         $this->assertSame($bestowalId, (int)$updated->bestowal_id);

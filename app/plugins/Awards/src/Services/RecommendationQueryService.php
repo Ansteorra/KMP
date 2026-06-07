@@ -3,7 +3,10 @@ declare(strict_types=1);
 
 namespace Awards\Services;
 
+use App\Model\Entity\WorkflowApprovalResponse;
+use App\Model\Table\WorkflowApprovalsTable;
 use Awards\KMP\GridColumns\RecommendationsGridColumns;
+use Awards\Model\Entity\RecommendationApprovalRun;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\Table;
 
@@ -28,6 +31,7 @@ class RecommendationQueryService
      * @param bool $canEdit Whether the current user can edit recommendations (enables bulk actions).
      * @param bool $includeNotes Whether notes relations should be loaded for list rendering.
      * @param array<int,string>|null $visibleColumns Resolved visible columns, or null when all display data is required.
+     * @param int|null $currentMemberId Current member ID for member-specific system views.
      * @return array{query: \Cake\ORM\Query\SelectQuery, gridOptions: array} Base query and processDataverseGrid options.
      */
     public function buildMainGridQuery(
@@ -35,10 +39,10 @@ class RecommendationQueryService
         bool $canEdit,
         bool $includeNotes = true,
         ?array $visibleColumns = null,
+        ?int $currentMemberId = null,
     ): array {
         $includeGatherings = $this->shouldLoadDisplayColumn('gatherings', $visibleColumns);
         $includeAssignedGathering = $this->shouldLoadDisplayColumn('assigned_gathering', $visibleColumns);
-        $includeApprovalQueue = $this->shouldLoadDisplayColumn('approval_queue', $visibleColumns);
         $selectFields = $this->recommendationSelectFields($visibleColumns);
 
         $contain = [
@@ -63,6 +67,9 @@ class RecommendationQueryService
             'Awards.AwardBranch' => function ($q) {
                 return $q->select(['id', 'name', 'type']);
             },
+            'Bestowals' => function ($q) {
+                return $q->select(['id', 'state']);
+            },
         ];
         if ($includeGatherings) {
             $contain['Gatherings'] = function ($q) {
@@ -74,17 +81,16 @@ class RecommendationQueryService
                 return $q->select(['id', 'name', 'cancelled_at']);
             };
         }
-        if ($includeApprovalQueue) {
-            $contain['CurrentApprovalRun'] = function ($q) {
-                return $q->select([
-                    'id',
-                    'recommendation_id',
-                    'status',
-                    'current_step_key',
-                    'current_step_label',
-                ]);
-            };
-        }
+        $contain['CurrentApprovalRun'] = function ($q) {
+            return $q->select([
+                'id',
+                'recommendation_id',
+                'workflow_instance_id',
+                'status',
+                'current_step_key',
+                'current_step_label',
+            ]);
+        };
         if ($includeNotes) {
             $contain['Notes'] = function ($q) {
                 return $q->select(['id', 'entity_id', 'subject', 'body', 'created']);
@@ -98,6 +104,7 @@ class RecommendationQueryService
             ->innerJoinWith('Awards.AwardBranch')
             ->where(['Recommendations.recommendation_group_id IS' => null])
             ->leftJoinWith('Awards.Domains')
+            ->leftJoinWith('Bestowals')
             ->leftJoinWith('CurrentApprovalRun')
             ->innerJoinWith('Awards.Levels');
         if ($selectFields !== null) {
@@ -107,33 +114,17 @@ class RecommendationQueryService
 
         $systemViews = RecommendationsGridColumns::getSystemViews([]);
 
-        $gridOptions = [
-            'gridKey' => 'Awards.Recommendations.index.main',
-            'gridColumnsClass' => RecommendationsGridColumns::class,
-            'baseQuery' => $baseQuery,
-            'tableName' => 'Recommendations',
-            'defaultSort' => ['Recommendations.created' => 'desc'],
-            'defaultPageSize' => 25,
-            'systemViews' => $systemViews,
-            'defaultSystemView' => 'sys-recs-all',
-            'showAllTab' => false,
-            'canAddViews' => true,
-            'canFilter' => true,
-            'canExportCsv' => true,
-            'enableBulkSelection' => $canEdit,
-            'bulkSelectionDataFields' => [
-                'member-id' => 'member_id',
-                'bestowal-id' => 'bestowal_id',
+        $bulkActions = [
+            [
+                'key' => 'workflow-decision',
+                'label' => 'Approval Decision',
+                'icon' => 'bi-check2-circle',
+                'modalTarget' => '#recommendationWorkflowDecisionModal',
+                'requiresSelectionField' => 'canWorkflowDecide',
             ],
-            'bulkSelectionDisabledField' => 'bestowal_id',
-            'bulkSelection' => $this->recommendationBulkSelectionConfig(),
-            'bulkActions' => [
-                [
-                    'key' => 'bulk-edit',
-                    'label' => 'Bulk Edit',
-                    'icon' => 'bi-pencil-square',
-                    'modalTarget' => '#bulkEditRecommendationModal',
-                ],
+        ];
+        if ($canEdit) {
+            $bulkActions = array_merge($bulkActions, [
                 [
                     'key' => 'group-recs',
                     'label' => 'Group',
@@ -146,10 +137,125 @@ class RecommendationQueryService
                     'icon' => 'bi-chat-left-text',
                     'modalTarget' => '#requestRecommendationFeedbackModal',
                 ],
+            ]);
+        }
+
+        $gridOptions = [
+            'gridKey' => 'Awards.Recommendations.index.main',
+            'gridColumnsClass' => RecommendationsGridColumns::class,
+            'baseQuery' => $baseQuery,
+            'tableName' => 'Recommendations',
+            'defaultSort' => ['Recommendations.created' => 'desc'],
+            'defaultPageSize' => 25,
+            'systemViews' => $systemViews,
+            'queryCallback' => $this->buildRecommendationSystemViewCallback($currentMemberId),
+            'defaultSystemView' => 'sys-recs-in-approval',
+            'showAllTab' => false,
+            'canAddViews' => true,
+            'canFilter' => true,
+            'canExportCsv' => true,
+            'enableBulkSelection' => true,
+            'bulkSelectionDataFields' => [
+                'member-id' => 'member_id',
+                'bestowal-id' => 'bestowal_id',
+                'pending-approval-id' => 'pending_approval_id',
+                'can-workflow-decide' => 'can_workflow_decide',
             ],
+            'bulkSelection' => $this->recommendationBulkSelectionConfig(),
+            'bulkActions' => $bulkActions,
         ];
 
         return ['query' => $baseQuery, 'gridOptions' => $gridOptions];
+    }
+
+    /**
+     * Build system-view-specific recommendation grid filters that require conditions
+     * beyond the flat saved-view expression format.
+     *
+     * @return callable(\Cake\ORM\Query\SelectQuery, array<string, mixed>|null): \Cake\ORM\Query\SelectQuery
+     */
+    private function buildRecommendationSystemViewCallback(?int $currentMemberId = null): callable
+    {
+        return function (SelectQuery $query, ?array $selectedSystemView) use ($currentMemberId): SelectQuery {
+            $viewId = $selectedSystemView['id'] ?? null;
+
+            if ($viewId === 'sys-recs-in-approval') {
+                return $query->where([
+                    'CurrentApprovalRun.status IN' => [
+                        RecommendationApprovalRun::STATUS_IN_PROGRESS,
+                        RecommendationApprovalRun::STATUS_CHANGES_REQUESTED,
+                    ],
+                ]);
+            }
+
+            if ($viewId === 'sys-recs-needs-my-approval') {
+                if ($currentMemberId === null || $currentMemberId <= 0) {
+                    return $query->where(['1 = 0']);
+                }
+
+                $pendingWorkflowInstanceIds = WorkflowApprovalsTable::getPendingApprovalWorkflowInstanceIdsForMember(
+                    $currentMemberId,
+                );
+                if ($pendingWorkflowInstanceIds === []) {
+                    return $query->where(['1 = 0']);
+                }
+
+                return $query->where([
+                    'CurrentApprovalRun.workflow_instance_id IN' => $pendingWorkflowInstanceIds,
+                    'CurrentApprovalRun.status IN' => [
+                        RecommendationApprovalRun::STATUS_IN_PROGRESS,
+                        RecommendationApprovalRun::STATUS_CHANGES_REQUESTED,
+                    ],
+                ]);
+            }
+
+            if ($viewId === 'sys-recs-approved-by-me') {
+                if ($currentMemberId === null || $currentMemberId <= 0) {
+                    return $query->where(['1 = 0']);
+                }
+
+                return $query
+                    ->where(['CurrentApprovalRun.id IS NOT' => null])
+                    ->where([
+                        sprintf(
+                            "EXISTS (
+                                SELECT 1
+                                FROM workflow_approvals abm_approvals
+                                INNER JOIN workflow_approval_responses abm_responses
+                                    ON abm_responses.workflow_approval_id = abm_approvals.id
+                                WHERE abm_approvals.workflow_instance_id = CurrentApprovalRun.workflow_instance_id
+                                  AND abm_responses.member_id = %d
+                                  AND abm_responses.decision = '%s'
+                            )",
+                            $currentMemberId,
+                            WorkflowApprovalResponse::DECISION_APPROVE,
+                        ),
+                    ]);
+            }
+
+            if ($viewId === 'sys-recs-converted') {
+                return $query->where([
+                    'Recommendations.bestowal_id IS NOT' => null,
+                    'Bestowals.state !=' => 'Given',
+                ]);
+            }
+
+            if ($viewId === 'sys-recs-archived') {
+                $archivedStates = RecommendationsGridColumns::getArchivedStates();
+
+                return $query->where([
+                    'OR' => [
+                        [
+                            'Recommendations.state IN' => $archivedStates,
+                            'Recommendations.bestowal_id IS' => null,
+                        ],
+                        'Bestowals.state' => 'Given',
+                    ],
+                ]);
+            }
+
+            return $query;
+        };
     }
 
     /**
@@ -165,7 +271,6 @@ class RecommendationQueryService
         ?array $visibleColumns = null,
     ): array {
         $includeGatherings = $this->shouldLoadDisplayColumn('gatherings', $visibleColumns);
-        $includeApprovalQueue = $this->shouldLoadDisplayColumn('approval_queue', $visibleColumns);
         $selectFields = $this->recommendationSelectFields($visibleColumns);
 
         $contain = [
@@ -181,23 +286,25 @@ class RecommendationQueryService
             'Awards.AwardBranch' => function ($q) {
                 return $q->select(['id', 'name', 'type']);
             },
+            'Bestowals' => function ($q) {
+                return $q->select(['id', 'state']);
+            },
         ];
         if ($includeGatherings) {
             $contain['Gatherings'] = function ($q) {
                 return $q->select(['id', 'name', 'start_date', 'end_date']);
             };
         }
-        if ($includeApprovalQueue) {
-            $contain['CurrentApprovalRun'] = function ($q) {
-                return $q->select([
-                    'id',
-                    'recommendation_id',
-                    'status',
-                    'current_step_key',
-                    'current_step_label',
-                ]);
-            };
-        }
+        $contain['CurrentApprovalRun'] = function ($q) {
+            return $q->select([
+                'id',
+                'recommendation_id',
+                'workflow_instance_id',
+                'status',
+                'current_step_key',
+                'current_step_label',
+            ]);
+        };
 
         $baseQuery = $recommendationsTable->find()
             ->where(['Recommendations.requester_id' => $memberId])
@@ -245,7 +352,6 @@ class RecommendationQueryService
     ): array {
         $includeGatherings = $this->shouldLoadDisplayColumn('gatherings', $visibleColumns);
         $includeAssignedGathering = $this->shouldLoadDisplayColumn('assigned_gathering', $visibleColumns);
-        $includeApprovalQueue = $this->shouldLoadDisplayColumn('approval_queue', $visibleColumns);
         $selectFields = $this->recommendationSelectFields($visibleColumns);
 
         $contain = [
@@ -272,17 +378,16 @@ class RecommendationQueryService
                 return $q->select(['id', 'name', 'cancelled_at']);
             };
         }
-        if ($includeApprovalQueue) {
-            $contain['CurrentApprovalRun'] = function ($q) {
-                return $q->select([
-                    'id',
-                    'recommendation_id',
-                    'status',
-                    'current_step_key',
-                    'current_step_label',
-                ]);
-            };
-        }
+        $contain['CurrentApprovalRun'] = function ($q) {
+            return $q->select([
+                'id',
+                'recommendation_id',
+                'workflow_instance_id',
+                'status',
+                'current_step_key',
+                'current_step_label',
+            ]);
+        };
 
         $baseQuery = $recommendationsTable->find()
             ->where(['Recommendations.member_id' => $memberId])
@@ -333,7 +438,6 @@ class RecommendationQueryService
         $includeNotes = $this->shouldLoadDisplayColumn('notes', $visibleColumns);
         $includeGatherings = $this->shouldLoadDisplayColumn('gatherings', $visibleColumns);
         $includeAssignedGathering = $this->shouldLoadDisplayColumn('assigned_gathering', $visibleColumns);
-        $includeApprovalQueue = $this->shouldLoadDisplayColumn('approval_queue', $visibleColumns);
         $selectFields = $this->recommendationSelectFields($visibleColumns);
 
         $contain = [
@@ -377,17 +481,16 @@ class RecommendationQueryService
                 return $q->select(['id', 'name', 'cancelled_at']);
             };
         }
-        if ($includeApprovalQueue) {
-            $contain['CurrentApprovalRun'] = function ($q) {
-                return $q->select([
-                    'id',
-                    'recommendation_id',
-                    'status',
-                    'current_step_key',
-                    'current_step_label',
-                ]);
-            };
-        }
+        $contain['CurrentApprovalRun'] = function ($q) {
+            return $q->select([
+                'id',
+                'recommendation_id',
+                'workflow_instance_id',
+                'status',
+                'current_step_key',
+                'current_step_label',
+            ]);
+        };
 
         $baseQuery = $recommendationsTable->find()
             ->where(['Recommendations.gathering_id' => $gatheringId])
@@ -416,19 +519,21 @@ class RecommendationQueryService
             'canAddViews' => true,
             'canFilter' => true,
             'canExportCsv' => true,
-            'enableBulkSelection' => $canEdit,
+            'enableBulkSelection' => true,
             'bulkSelectionDataFields' => [
                 'member-id' => 'member_id',
                 'bestowal-id' => 'bestowal_id',
+                'pending-approval-id' => 'pending_approval_id',
+                'can-workflow-decide' => 'can_workflow_decide',
             ],
-            'bulkSelectionDisabledField' => 'bestowal_id',
             'bulkSelection' => $this->recommendationBulkSelectionConfig(),
             'bulkActions' => [
                 [
-                    'key' => 'bulk-edit',
-                    'label' => 'Bulk Edit',
-                    'icon' => 'bi-pencil-square',
-                    'modalTarget' => '#bulkEditRecommendationModal',
+                    'key' => 'workflow-decision',
+                    'label' => 'Approval Decision',
+                    'icon' => 'bi-check2-circle',
+                    'modalTarget' => '#recommendationWorkflowDecisionModal',
+                    'requiresSelectionField' => 'canWorkflowDecide',
                 ],
                 [
                     'key' => 'request-feedback',

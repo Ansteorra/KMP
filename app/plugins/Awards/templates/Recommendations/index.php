@@ -18,6 +18,9 @@ $this->KMP->endBlock();
 <div class="row align-items-start mb-3">
     <div class="col">
         <h3>Award Recommendations</h3>
+        <p class="text-muted mb-0">
+            <?= __('Track recommendations through intake, approval, and conversion into bestowals.') ?>
+        </p>
     </div>
     <div class="col text-end">
         <?php if ($user->checkCan("add", "Awards.Recommendations")): ?>
@@ -47,11 +50,6 @@ echo $this->KMP->startBlock("modals");
 
 // Edit Recommendation Modal - uses existing element with proper Stimulus controller
 echo $this->element('recommendationQuickEditModal', ['modalId' => 'editRecommendationModal']);
-
-// Bulk Edit Modal - only render if user has edit permission
-if ($user->checkCan("edit", "Awards.Recommendations") && isset($rules) && isset($statusList)):
-    echo $this->element('recommendationsBulkEditModal', ['modalId' => 'bulkEditRecommendationModal']);
-endif;
 
 // Group Recommendations Modal - confirmation dialog for grouping
 if ($user->checkCan("edit", "Awards.Recommendations")):
@@ -92,6 +90,8 @@ endif;
 if ($user->checkCan("requestFeedback", "Awards.Recommendations")):
     echo $this->element('recommendationFeedbackModal', ['modalId' => 'requestRecommendationFeedbackModal']);
 endif;
+
+echo $this->element('recommendationWorkflowDecisionModals');
 
 $this->KMP->endBlock();
 ?>

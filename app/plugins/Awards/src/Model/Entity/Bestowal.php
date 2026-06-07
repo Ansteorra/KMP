@@ -28,6 +28,7 @@ use InvalidArgumentException;
  * @property int $stack_rank
  * @property \Cake\I18n\DateTime|null $bestowed_at
  * @property string $source
+ * @property int|null $source_approval_run_id
  * @property string|null $noble_notes
  * @property string|null $herald_notes
  * @property string|null $call_into_court
@@ -94,6 +95,7 @@ class Bestowal extends BaseEntity
         'stack_rank' => true,
         'bestowed_at' => true,
         'source' => true,
+        'source_approval_run_id' => true,
         'noble_notes' => true,
         'herald_notes' => true,
         'call_into_court' => true,

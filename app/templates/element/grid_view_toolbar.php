@@ -94,12 +94,15 @@ $searchDescription = !empty($searchableLabels)
                 <?php if ($enableBulkSelection && !empty($bulkActions)): ?>
                     <?php foreach ($bulkActions as $action): ?>
                         <button type="button" 
-                            class="btn btn-primary d-flex align-items-center gap-2"
+                            class="btn btn-primary d-flex align-items-center gap-2<?= !empty($action['requiresSelectionField']) ? ' d-none' : '' ?>"
                             data-bs-toggle="modal"
                             data-bs-target="<?= h($action['modalTarget'] ?? '') ?>"
                             data-<?= h($controllerName) ?>-target="bulkActionBtn"
                             data-action="click-><?= h($controllerName) ?>#triggerBulkAction"
                             data-bulk-action-key="<?= h($action['key'] ?? 'default') ?>"
+                            <?php if (!empty($action['requiresSelectionField'])) : ?>
+                            data-bulk-action-requires-selection-field="<?= h($action['requiresSelectionField']) ?>"
+                            <?php endif; ?>
                             disabled
                             title="<?= h($action['label'] ?? 'Bulk Action') ?>">
                             <?php if (!empty($action['icon'])): ?>

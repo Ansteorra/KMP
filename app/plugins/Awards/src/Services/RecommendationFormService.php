@@ -10,10 +10,7 @@ use Cake\ORM\TableRegistry;
 /**
  * Prepares lookup data for recommendation edit forms (full, quick, and bulk).
  *
- * Centralises the dropdown, gathering-list, and status-list preparation that is
- * shared by turboEditForm, turboQuickEditForm, and turboBulkEditForm. Keeps the
- * controller methods thin while preserving the exact same data contracts expected
- * by the Turbo Frame templates.
+ * Centralises dropdown preparation used by the Turbo Frame templates.
  *
  * @see \Awards\Controller\RecommendationsController::turboEditForm()
  * @see \Awards\Controller\RecommendationsController::turboQuickEditForm()
@@ -79,19 +76,15 @@ class RecommendationFormService
     /**
      * Prepare all view variables for a single-recommendation edit form (full or quick).
      *
-     * Loads awards-by-domain, domains, levels, branches, gatherings, cancelled-gathering
-     * indicators, and state rules. Returns an associative array matching the set of
-     * compact() variables expected by the Turbo Frame edit templates.
+     * Loads the lookup data needed by workflow-centric recommendation edit forms.
      *
      * @param \Cake\ORM\Table $recommendationsTable The Recommendations ORM table.
      * @param \Awards\Model\Entity\Recommendation $recommendation The loaded recommendation entity (with contains).
-     * @param callable $getFilteredGatherings A callback(awardId, memberId, futureOnly, gatheringId, selectedIds) returning filtered gatherings.
-     * @return array<string, mixed> View variables: rules, recommendation, branches, awards, gatheringList, cancelledGatheringIds, awardsDomains, awardsLevels, statusList, assignedGatheringCancelled.
+     * @return array<string, mixed> View variables expected by the edit templates.
      */
     public function prepareEditFormData(
         Table $recommendationsTable,
         Recommendation $recommendation,
-        callable $getFilteredGatherings,
     ): array {
         $recommendation->domain_id = $recommendation->award->domain_id;
 
@@ -106,47 +99,20 @@ class RecommendationFormService
                 'domain_id' => $recommendation->domain_id,
                 'current_award_id' => $recommendation->award_id,
             ])
-            ->select(['id', 'name', 'specialties'])
+            ->select(['id', 'name', 'specialties', 'approval_process_id'])
             ->limit(200)
             ->all();
-
-        // Get filtered gatherings for this award
-        // If status is "Given", show all gatherings (past and future) for retroactive entry
-        $futureOnly = ($recommendation->status !== 'Given');
-        $selectedRecommendationGatheringIds = [];
-        foreach (($recommendation->gatherings ?? []) as $selectedGathering) {
-            $selectedRecommendationGatheringIds[] = (int)$selectedGathering->id;
-        }
-        $gatheringData = $getFilteredGatherings(
-            $recommendation->award_id,
-            $recommendation->member_id,
-            $futureOnly,
-            $recommendation->gathering_id,
-            $selectedRecommendationGatheringIds,
-        );
-        $gatheringList = $gatheringData['gatherings'];
-        $cancelledGatheringIds = $gatheringData['cancelledGatheringIds'];
-
-        // Check if the assigned gathering is cancelled
-        $assignedGatheringCancelled = false;
-        if ($recommendation->assigned_gathering && $recommendation->assigned_gathering->cancelled_at !== null) {
-            $assignedGatheringCancelled = true;
-        }
-
-        $statusList = $this->buildStatusList((string)$recommendation->state);
-        $rules = $this->uiModeService->buildStateRules();
+        $currentApprovalProcessId = $recommendation->current_approval_run?->approval_process_id !== null
+            ? (int)$recommendation->current_approval_run->approval_process_id
+            : null;
 
         return compact(
-            'rules',
             'recommendation',
             'branches',
             'awards',
-            'gatheringList',
-            'cancelledGatheringIds',
             'awardsDomains',
             'awardsLevels',
-            'statusList',
-            'assignedGatheringCancelled',
+            'currentApprovalProcessId',
         );
     }
 

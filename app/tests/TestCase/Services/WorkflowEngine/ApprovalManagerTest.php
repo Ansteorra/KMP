@@ -175,6 +175,60 @@ class ApprovalManagerTest extends BaseTestCase
         $this->assertFalse($result->isSuccess());
     }
 
+    public function testDynamicApproverCanOnlyCountOncePerWorkflowInstance(): void
+    {
+        [, $instanceId, $logId] = $this->createWorkflowContext();
+        $approverConfig = [
+            'service' => DuplicateDynamicApproverResolver::class,
+            'method' => 'resolveApprovers',
+        ];
+        $firstApprovalId = $this->createApproval($instanceId, $logId, [
+            'approverType' => WorkflowApproval::APPROVER_TYPE_DYNAMIC,
+            'approverConfig' => $approverConfig,
+            'requiredCount' => 1,
+        ]);
+
+        $firstResponse = $this->manager->recordResponse(
+            $firstApprovalId,
+            self::ADMIN_MEMBER_ID,
+            WorkflowApprovalResponse::DECISION_APPROVE,
+        );
+        $this->assertTrue($firstResponse->isSuccess(), $firstResponse->getError() ?? '');
+
+        $secondApprovalId = $this->createApproval($instanceId, $logId, [
+            'approverType' => WorkflowApproval::APPROVER_TYPE_DYNAMIC,
+            'approverConfig' => $approverConfig,
+            'requiredCount' => 1,
+        ]);
+
+        $adminPendingApprovalIds = array_map(
+            static fn($approval): int => (int)$approval->id,
+            $this->manager->getPendingApprovalsForMember(self::ADMIN_MEMBER_ID),
+        );
+        $this->assertNotContains($secondApprovalId, $adminPendingApprovalIds);
+
+        $agathaPendingApprovalIds = array_map(
+            static fn($approval): int => (int)$approval->id,
+            $this->manager->getPendingApprovalsForMember(self::TEST_MEMBER_AGATHA_ID),
+        );
+        $this->assertContains($secondApprovalId, $agathaPendingApprovalIds);
+
+        $duplicateResponse = $this->manager->recordResponse(
+            $secondApprovalId,
+            self::ADMIN_MEMBER_ID,
+            WorkflowApprovalResponse::DECISION_APPROVE,
+        );
+        $this->assertFalse($duplicateResponse->isSuccess());
+        $this->assertStringContainsString('not eligible', strtolower($duplicateResponse->getError()));
+
+        $alternateResponse = $this->manager->recordResponse(
+            $secondApprovalId,
+            self::TEST_MEMBER_AGATHA_ID,
+            WorkflowApprovalResponse::DECISION_APPROVE,
+        );
+        $this->assertTrue($alternateResponse->isSuccess(), $alternateResponse->getError() ?? '');
+    }
+
     // =====================================================
     // Duplicate response rejection
     // =====================================================

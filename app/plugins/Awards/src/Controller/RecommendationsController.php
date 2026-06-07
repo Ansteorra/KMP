@@ -24,7 +24,11 @@ use Cake\ORM\TableRegistry;
 use Exception;
 use PhpParser\Node\Stmt\TryCatch;
 use App\KMP\GridRowDomId;
+use App\KMP\WorkflowApprovalDecisionOptions;
+use App\Model\Entity\WorkflowApproval;
+use App\Model\Entity\WorkflowApprovalResponse;
 use App\Services\CsvExportService;
+use App\Services\WorkflowEngine\DefaultWorkflowApprovalManager;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use Awards\Services\RecommendationFormService;
 use Awards\Services\RecommendationFeedbackService;
@@ -33,6 +37,7 @@ use Awards\Services\RecommendationSubmissionService;
 use Awards\Services\RecommendationTransitionService;
 use Awards\Services\RecommendationQueryService;
 use Awards\Services\RecommendationUpdateService;
+use Awards\Services\RecommendationWorkflowUiService;
 use Cake\Error\Debugger;
 
 
@@ -136,7 +141,7 @@ class RecommendationsController extends AppController
             'gridKey' => 'Awards.Recommendations.index.main',
             'gridColumnsClass' => RecommendationsGridColumns::class,
             'systemViews' => $systemViews,
-            'defaultSystemView' => 'sys-recs-all',
+            'defaultSystemView' => 'sys-recs-in-approval',
             'defaultSort' => ['Recommendations.created' => 'desc'],
         ]);
         $built = $queryService->buildMainGridQuery(
@@ -144,6 +149,7 @@ class RecommendationsController extends AppController
             $user->checkCan('edit', $emptyRecommendation),
             $queryContext->loadsColumn('notes'),
             $queryContext->queryVisibleColumns(),
+            (int)$user->id,
         );
         $baseQuery = $built['query'];
         $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
@@ -1036,8 +1042,7 @@ class RecommendationsController extends AppController
     public function updateStates(
         RecommendationTransitionService $transitionService,
         TriggerDispatcher $triggerDispatcher,
-    ): ?\Cake\Http\Response
-    {
+    ): ?\Cake\Http\Response {
         $view = $this->request->getData('view') ?? 'Index';
         $status = $this->request->getData('status') ?? 'All';
 
@@ -1200,8 +1205,14 @@ class RecommendationsController extends AppController
     public function view(?string $id = null): ?\Cake\Http\Response
     {
         try {
+            $workflowUiService = new RecommendationWorkflowUiService();
             $recommendation = $this->Recommendations->get($id, contain: [
-                'Requesters', 'Members', 'Branches', 'Awards', 'Gatherings', 'AssignedGathering',
+                'Requesters',
+                'Members',
+                'Branches',
+                'Awards',
+                'Gatherings',
+                'AssignedGathering',
                 'Bestowals',
                 'GroupHead' => ['Awards'],
                 'GroupChildren' => ['Awards', 'Requesters'],
@@ -1222,6 +1233,10 @@ class RecommendationsController extends AppController
 
             $this->Authorization->authorize($recommendation, 'view');
             $recommendation->domain_id = $recommendation->award->domain_id;
+            $workflowContext = $workflowUiService->buildContext(
+                $recommendation,
+                $this->request->getAttribute('identity'),
+            );
 
             // Fetch member's self-selected attendance gatherings (where they've shared with crown/kingdom)
             $memberAttendanceGatherings = [];
@@ -1250,12 +1265,362 @@ class RecommendationsController extends AppController
                 }
             }
 
-            $this->set(compact('recommendation', 'memberAttendanceGatherings'));
+            $this->set(compact('recommendation', 'memberAttendanceGatherings', 'workflowContext'));
 
             return null;
         } catch (\Cake\Datasource\Exception\RecordNotFoundException $e) {
             throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
         }
+    }
+
+    /**
+     * Record the current user's approval decision from a recommendation screen.
+     *
+     * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher Trigger dispatcher.
+     * @param string|null $id Recommendation ID.
+     * @return \Cake\Http\Response|null
+     */
+    public function workflowDecision(
+        TriggerDispatcher $triggerDispatcher,
+        ?string $id = null,
+    ): ?\Cake\Http\Response {
+        $this->request->allowMethod(['post']);
+        if ($id === null) {
+            throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
+        }
+
+        $recommendation = $this->Recommendations->get($id, contain: ['Awards']);
+        $this->Authorization->authorize($recommendation, 'decideApproval');
+
+        $identity = $this->request->getAttribute('identity');
+        $workflowUiService = new RecommendationWorkflowUiService();
+        $approval = $workflowUiService->pendingApprovalForRecommendation($recommendation, $identity);
+        if (!$approval instanceof WorkflowApproval) {
+            $this->Flash->error(__('There is no pending approval assigned to you for this recommendation.'));
+
+            return $this->redirect(['action' => 'view', $recommendation->id]);
+        }
+
+        $decision = (string)$this->request->getData('decision');
+        $comment = trim((string)$this->request->getData('comment'));
+        $approverConfig = $approval->approver_config ?? [];
+        $requiresComment = $decision === WorkflowApprovalResponse::DECISION_REJECT
+            || !empty($approverConfig['requires_comment']);
+        if ($requiresComment && $comment === '') {
+            $this->Flash->error(__('A comment is required for this approval decision.'));
+
+            return $this->redirect(['action' => 'view', $recommendation->id]);
+        }
+
+        if (!in_array($decision, WorkflowApprovalDecisionOptions::allowedValues($approverConfig), true)) {
+            $this->Flash->error(__('Invalid approval decision.'));
+
+            return $this->redirect(['action' => 'view', $recommendation->id]);
+        }
+
+        $result = $this->recordWorkflowApprovalDecision(
+            $approval,
+            (int)$identity->getAsMember()->id,
+            $decision,
+            $comment !== '' ? $comment : null,
+            $triggerDispatcher,
+        );
+
+        if ($result->isSuccess()) {
+            $this->Flash->success(__('Approval response recorded.'));
+        } else {
+            $this->Flash->error($result->getError() ?? __('Approval response could not be recorded.'));
+        }
+
+        return $this->redirect(['action' => 'view', $recommendation->id]);
+    }
+
+    /**
+     * Record a grid approval decision for the current user's pending recommendation approval.
+     *
+     * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher Trigger dispatcher.
+     * @return \Cake\Http\Response|null
+     */
+    public function workflowDecisionFromGrid(TriggerDispatcher $triggerDispatcher): ?\Cake\Http\Response
+    {
+        $this->request->allowMethod(['post']);
+        $this->Authorization->authorize($this->Recommendations->newEmptyEntity(), 'index');
+
+        $identity = $this->request->getAttribute('identity');
+        $approvalId = (int)$this->request->getData('approvalId');
+        $decision = (string)$this->request->getData('decision');
+        $comment = trim((string)$this->request->getData('comment'));
+        $memberId = (int)$identity->getAsMember()->id;
+
+        $approval = $this->getPendingApprovalForMember($approvalId, $memberId);
+        if (!$approval instanceof WorkflowApproval) {
+            $this->Flash->error(__('There is no pending approval assigned to you for this recommendation.'));
+
+            return $this->redirect(['action' => 'index']);
+        }
+
+        $validationError = $this->validateWorkflowDecision($approval, $decision, $comment);
+        if ($validationError !== null) {
+            $this->Flash->error($validationError);
+
+            return $this->redirect(['action' => 'index']);
+        }
+
+        $result = $this->recordWorkflowApprovalDecision(
+            $approval,
+            $memberId,
+            $decision,
+            $comment !== '' ? $comment : null,
+            $triggerDispatcher,
+        );
+
+        if ($result->isSuccess()) {
+            $this->Flash->success(__('Approval response recorded.'));
+        } else {
+            $this->Flash->error($result->getError() ?? __('Approval response could not be recorded.'));
+        }
+
+        return $this->redirect(['action' => 'index']);
+    }
+
+    /**
+     * Record one decision against multiple selected recommendation workflow approvals.
+     *
+     * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher Trigger dispatcher.
+     * @return \Cake\Http\Response|null
+     */
+    public function bulkWorkflowDecision(TriggerDispatcher $triggerDispatcher): ?\Cake\Http\Response
+    {
+        $this->request->allowMethod(['post']);
+        $this->Authorization->authorize($this->Recommendations->newEmptyEntity(), 'index');
+
+        $identity = $this->request->getAttribute('identity');
+        $memberId = (int)$identity->getAsMember()->id;
+        $decision = (string)$this->request->getData('decision');
+        $comment = trim((string)$this->request->getData('comment'));
+        $approvalIds = array_values(array_unique(array_map(
+            'intval',
+            (array)$this->request->getData('approval_ids'),
+        )));
+        $approvalIds = array_filter($approvalIds);
+
+        if ($approvalIds === []) {
+            $this->Flash->error(__('Select at least one recommendation that is pending your approval.'));
+
+            return $this->redirect(['action' => 'index']);
+        }
+
+        $eligibleApprovals = $this->getPendingApprovalsForMember($memberId, $approvalIds);
+        if ($eligibleApprovals === []) {
+            $this->Flash->error(__('None of the selected recommendations are pending your approval.'));
+
+            return $this->redirect(['action' => 'index']);
+        }
+
+        $recorded = 0;
+        $failed = 0;
+        foreach ($eligibleApprovals as $approval) {
+            $validationError = $this->validateWorkflowDecision($approval, $decision, $comment);
+            if ($validationError !== null) {
+                $failed++;
+                continue;
+            }
+
+            $result = $this->recordWorkflowApprovalDecision(
+                $approval,
+                $memberId,
+                $decision,
+                $comment !== '' ? $comment : null,
+                $triggerDispatcher,
+            );
+            if ($result->isSuccess()) {
+                $recorded++;
+            } else {
+                $failed++;
+            }
+        }
+
+        $skipped = count($approvalIds) - count($eligibleApprovals);
+        if ($recorded > 0 && ($failed > 0 || $skipped > 0)) {
+            $this->Flash->warning(__(
+                '{0} approval response(s) recorded. {1} selected item(s) could not be processed.',
+                $recorded,
+                $failed + $skipped,
+            ));
+        } elseif ($recorded > 0) {
+            $this->Flash->success(__('{0} approval response(s) recorded.', $recorded));
+        } else {
+            $this->Flash->error(__('No approval responses could be recorded for the selected recommendations.'));
+        }
+
+        return $this->redirect(['action' => 'index']);
+    }
+
+    /**
+     * @param \App\Model\Entity\WorkflowApproval $approval Approval entity.
+     * @param string $decision Decision value.
+     * @param string $comment Comment text.
+     * @return string|null Validation error, if any.
+     */
+    private function validateWorkflowDecision(WorkflowApproval $approval, string $decision, string $comment): ?string
+    {
+        $approverConfig = is_array($approval->approver_config) ? $approval->approver_config : [];
+        $requiresComment = $decision === WorkflowApprovalResponse::DECISION_REJECT
+            || !empty($approverConfig['requires_comment']);
+
+        if ($requiresComment && $comment === '') {
+            return __('A comment is required for this approval decision.');
+        }
+
+        if (!in_array($decision, WorkflowApprovalDecisionOptions::allowedValues($approverConfig), true)) {
+            return __('Invalid approval decision.');
+        }
+
+        return null;
+    }
+
+    /**
+     * @param int $approvalId Approval ID.
+     * @param int $memberId Member ID.
+     * @return \App\Model\Entity\WorkflowApproval|null
+     */
+    private function getPendingApprovalForMember(int $approvalId, int $memberId): ?WorkflowApproval
+    {
+        $approvals = $this->getPendingApprovalsForMember($memberId, [$approvalId]);
+
+        return $approvals[$approvalId] ?? null;
+    }
+
+    /**
+     * @param int $memberId Member ID.
+     * @param array<int> $approvalIds Approval IDs.
+     * @return array<int, \App\Model\Entity\WorkflowApproval>
+     */
+    private function getPendingApprovalsForMember(int $memberId, array $approvalIds): array
+    {
+        if ($approvalIds === []) {
+            return [];
+        }
+
+        $approvalIdSet = array_flip(array_map('intval', $approvalIds));
+        $approvals = [];
+        $workflowApprovalsTable = TableRegistry::getTableLocator()->get('WorkflowApprovals');
+        foreach ($workflowApprovalsTable::getPendingApprovalsForMember($memberId) as $approval) {
+            $approvalId = (int)$approval->id;
+            if (isset($approvalIdSet[$approvalId])) {
+                $approvals[$approvalId] = $approval;
+            }
+        }
+
+        return $approvals;
+    }
+
+    /**
+     * @param \App\Model\Entity\WorkflowApproval $approval Approval entity.
+     * @param int $memberId Approver member ID.
+     * @param string $decision Decision value.
+     * @param string|null $comment Optional comment.
+     * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher Trigger dispatcher.
+     * @return \App\Services\ServiceResult
+     */
+    private function recordWorkflowApprovalDecision(
+        WorkflowApproval $approval,
+        int $memberId,
+        string $decision,
+        ?string $comment,
+        TriggerDispatcher $triggerDispatcher,
+    ): ServiceResult {
+        $approvalManager = new DefaultWorkflowApprovalManager();
+        $result = $approvalManager->recordResponse(
+            (int)$approval->id,
+            $memberId,
+            $decision,
+            $comment,
+        );
+
+        if (!$result->isSuccess() || !$result->getData()) {
+            return $result;
+        }
+
+        $data = $result->getData();
+        $engine = $triggerDispatcher->getEngine();
+        if (
+            in_array($data['approvalStatus'] ?? '', [
+                WorkflowApproval::STATUS_APPROVED,
+                WorkflowApproval::STATUS_REJECTED,
+            ], true)
+        ) {
+            $outputPort = $data['approvalStatus'] === WorkflowApproval::STATUS_APPROVED ? 'approved' : 'rejected';
+            $resume = $engine->resumeWorkflow(
+                (int)$data['instanceId'],
+                (string)$data['nodeId'],
+                $outputPort,
+                [
+                    'approval' => $data,
+                    'approverId' => $memberId,
+                    'decision' => $decision,
+                    'comment' => $comment,
+                ],
+            );
+            if (!$resume->isSuccess()) {
+                return new ServiceResult(
+                    false,
+                    $resume->getError() ?? __('The workflow could not be advanced.'),
+                );
+            }
+        } elseif (!empty($data['needsMore'])) {
+            $engine->fireIntermediateApprovalActions(
+                (int)$data['instanceId'],
+                (string)$data['nodeId'],
+                [
+                    'approverId' => $memberId,
+                    'decision' => $decision,
+                    'comment' => $comment,
+                    'nextApproverId' => $data['nextApproverId'] ?? null,
+                ],
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * Start a fresh approval workflow from a recommendation screen.
+     *
+     * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher Trigger dispatcher.
+     * @param string|null $id Recommendation ID.
+     * @return \Cake\Http\Response|null
+     */
+    public function startApprovalWorkflow(
+        TriggerDispatcher $triggerDispatcher,
+        ?string $id = null,
+    ): ?\Cake\Http\Response {
+        $this->request->allowMethod(['post']);
+        if ($id === null) {
+            throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
+        }
+
+        $recommendation = $this->Recommendations->get($id, contain: ['Awards']);
+        $this->Authorization->authorize($recommendation, 'startApprovalWorkflow');
+
+        try {
+            $this->dispatchWorkflowOrFail(
+                $triggerDispatcher,
+                'awards-existing-recommendation-approval',
+                'Awards.ExistingRecommendationApprovalRequested',
+                [
+                    'recommendationId' => (int)$recommendation->id,
+                    'actorId' => (int)$this->request->getAttribute('identity')->getAsMember()->id,
+                    'restartReason' => (string)$this->request->getData('restart_reason', 'manual_restart'),
+                ],
+            );
+            $this->Flash->success(__('Approval workflow started.'));
+        } catch (Exception $e) {
+            Log::error('Recommendation approval workflow start failed: ' . $e->getMessage());
+            $this->Flash->error(__('The approval workflow could not be started.'));
+        }
+
+        return $this->redirect(['action' => 'view', $recommendation->id]);
     }
 
     /**
@@ -1273,8 +1638,7 @@ class RecommendationsController extends AppController
     public function add(
         RecommendationSubmissionService $submissionService,
         TriggerDispatcher $triggerDispatcher,
-    ): ?\Cake\Http\Response
-    {
+    ): ?\Cake\Http\Response {
         try {
             $user = $this->request->getAttribute('identity');
             $recommendation = $this->Recommendations->newEmptyEntity();
@@ -1369,8 +1733,7 @@ class RecommendationsController extends AppController
     public function submitRecommendation(
         RecommendationSubmissionService $submissionService,
         TriggerDispatcher $triggerDispatcher,
-    ): ?\Cake\Http\Response
-    {
+    ): ?\Cake\Http\Response {
         $this->Authorization->skipAuthorization();
         $user = $this->request->getAttribute('identity');
 
@@ -1458,8 +1821,7 @@ class RecommendationsController extends AppController
         TriggerDispatcher $triggerDispatcher,
         RecommendationQueryService $queryService,
         ?string $id = null,
-    ): ?\Cake\Http\Response
-    {
+    ): ?\Cake\Http\Response {
         $id = $id ?? $this->request->getData('id');
         if (!$id || is_array($id)) {
             throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
@@ -1493,6 +1855,11 @@ class RecommendationsController extends AppController
                         $triggerDispatcher,
                         $result,
                         $recommendation,
+                        (int)$identity->id,
+                    );
+                    $this->dispatchRecommendationFollowUpWorkflow(
+                        $triggerDispatcher,
+                        $result,
                         (int)$identity->id,
                     );
                     $stream = $this->tryRecommendationsGridTurboResponse(
@@ -1592,8 +1959,7 @@ class RecommendationsController extends AppController
     /**
      * Render a populated edit form for a recommendation intended for Turbo Frame partial updates.
      *
-     * Loads the recommendation and related lookup data (awards, domains, branches, gatherings, state rules)
-     * and exposes them to the view so the Turbo Frame can display an in-place edit form.
+     * Loads the recommendation and related lookup data so the Turbo Frame can display an in-place edit form.
      *
      * @param string|null $id Recommendation ID to load for the form
      * @return \Cake\Http\Response|null A Response when the action issues an explicit response, or null after setting view variables for rendering
@@ -1609,9 +1975,8 @@ class RecommendationsController extends AppController
                 'Members',
                 'Branches',
                 'Awards',
-                'Gatherings',
-                'AssignedGathering',
                 'Awards.Domains',
+                'CurrentApprovalRun',
             ]);
 
             if (!$recommendation) {
@@ -1622,7 +1987,6 @@ class RecommendationsController extends AppController
             $viewVars = $formService->prepareEditFormData(
                 $this->Recommendations,
                 $recommendation,
-                [$this, 'getFilteredGatheringsForAward'],
             );
             $this->set($viewVars);
             return null;
@@ -1634,9 +1998,7 @@ class RecommendationsController extends AppController
     /**
      * Render a streamlined Turbo Frame quick-edit form for a recommendation.
      *
-     * Provides a minimal edit form containing the most commonly changed fields,
-     * populated with essential dropdowns (awards, branches, gatherings, status)
-     * and state rules to support rapid in-place edits.
+     * Provides a minimal edit form containing the most commonly changed fields.
      *
      * @param string|null $id Recommendation ID to load for the quick-edit form.
      * @return \Cake\Http\Response|null Renders the quick-edit template or null when rendering within a Turbo Frame.
@@ -1652,9 +2014,8 @@ class RecommendationsController extends AppController
                 'Members',
                 'Branches',
                 'Awards',
-                'Gatherings',
-                'AssignedGathering',
                 'Awards.Domains',
+                'CurrentApprovalRun',
             ]);
 
             if (!$recommendation) {
@@ -1665,7 +2026,6 @@ class RecommendationsController extends AppController
             $viewVars = $formService->prepareEditFormData(
                 $this->Recommendations,
                 $recommendation,
-                [$this, 'getFilteredGatheringsForAward'],
             );
             $this->set($viewVars);
             return null;
@@ -2433,8 +2793,7 @@ class RecommendationsController extends AppController
     public function groupRecommendations(
         RecommendationGroupingService $groupingService,
         TriggerDispatcher $triggerDispatcher,
-    ): ?\Cake\Http\Response
-    {
+    ): ?\Cake\Http\Response {
         $this->request->allowMethod(['post']);
         $emptyRecommendation = $this->Recommendations->newEmptyEntity();
         $this->Authorization->authorize($emptyRecommendation, 'group');
@@ -2476,8 +2835,7 @@ class RecommendationsController extends AppController
     public function ungroupRecommendations(
         RecommendationGroupingService $groupingService,
         TriggerDispatcher $triggerDispatcher,
-    ): ?\Cake\Http\Response
-    {
+    ): ?\Cake\Http\Response {
         $this->request->allowMethod(['post']);
         $emptyRecommendation = $this->Recommendations->newEmptyEntity();
         $this->Authorization->authorize($emptyRecommendation, 'group');
@@ -2513,8 +2871,7 @@ class RecommendationsController extends AppController
     public function removeFromGroup(
         RecommendationGroupingService $groupingService,
         TriggerDispatcher $triggerDispatcher,
-    ): ?\Cake\Http\Response
-    {
+    ): ?\Cake\Http\Response {
         $this->request->allowMethod(['post']);
         $emptyRecommendation = $this->Recommendations->newEmptyEntity();
         $this->Authorization->authorize($emptyRecommendation, 'group');
@@ -2790,6 +3147,33 @@ class RecommendationsController extends AppController
     }
 
     /**
+     * Dispatch a post-commit workflow event returned by the recommendation mutation.
+     *
+     * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher Workflow trigger dispatcher.
+     * @param array<string, mixed> $result Normalized recommendation mutation result.
+     * @param int $actorId Actor ID.
+     * @return void
+     */
+    private function dispatchRecommendationFollowUpWorkflow(
+        TriggerDispatcher $triggerDispatcher,
+        array $result,
+        int $actorId,
+    ): void {
+        $eventName = $result['data']['eventName'] ?? null;
+        if (!is_string($eventName) || $eventName === '') {
+            return;
+        }
+
+        $eventPayload = $result['data']['eventPayload'] ?? $result['data'];
+        if (!is_array($eventPayload)) {
+            $eventPayload = [];
+        }
+        $eventPayload['actorId'] = $actorId;
+
+        $this->dispatchWorkflowEvent($triggerDispatcher, $eventName, $eventPayload);
+    }
+
+    /**
      * Fire a recommendation state-changed reaction event after a successful single update.
      *
      * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher Workflow trigger dispatcher.
@@ -2915,8 +3299,13 @@ class RecommendationsController extends AppController
         $memberAttendanceGatherings = $includeGatherings
             ? $this->getMemberAttendanceGatherings($recommendations)
             : [];
+        $this->decoratePendingWorkflowApprovals($recommendations);
+        $identity = $this->request->getAttribute('identity');
 
         foreach ($recommendations as $recommendation) {
+            $recommendation->bestowal_linked = !empty($recommendation->bestowal_id);
+            $recommendation->bestowal_viewable = $this->canViewLinkedBestowal($recommendation, $identity);
+
             if ($includeGroupCount) {
                 $recommendation->group_children_count = isset($groupCounts[$recommendation->id])
                     ? $groupCounts[$recommendation->id] + 1
@@ -2935,6 +3324,90 @@ class RecommendationsController extends AppController
             if ($includeReason) {
                 $recommendation->reason = $this->buildReasonHtml($recommendation);
             }
+        }
+    }
+
+    /**
+     * Check whether the current identity can view the linked bestowal for a recommendation row.
+     *
+     * @param \Awards\Model\Entity\Recommendation $recommendation Recommendation row.
+     * @param mixed $identity Current identity.
+     * @return bool
+     */
+    private function canViewLinkedBestowal(Recommendation $recommendation, mixed $identity): bool
+    {
+        if (empty($recommendation->bestowal_id) || empty($recommendation->bestowal)) {
+            return false;
+        }
+
+        if ($identity === null || !method_exists($identity, 'checkCan')) {
+            return false;
+        }
+
+        return $identity->checkCan('view', $recommendation->bestowal);
+    }
+
+    /**
+     * Add current-user pending approval metadata for recommendation grid actions.
+     *
+     * @param iterable<\Awards\Model\Entity\Recommendation> $recommendations Recommendations to decorate.
+     * @return void
+     */
+    private function decoratePendingWorkflowApprovals(iterable $recommendations): void
+    {
+        $identity = $this->request->getAttribute('identity');
+        $member = $identity?->getAsMember();
+        if (!$member instanceof Member) {
+            return;
+        }
+
+        $workflowInstanceIds = [];
+        foreach ($recommendations as $recommendation) {
+            $recommendation->pending_approval_id = null;
+            $recommendation->pending_approval_approver_config = [];
+            $recommendation->pending_approval_required_count = 0;
+            $recommendation->pending_approval_approved_count = 0;
+            $recommendation->can_workflow_decide = false;
+
+            $run = $recommendation->current_approval_run ?? null;
+            if ($run && !empty($run->workflow_instance_id)) {
+                $workflowInstanceIds[] = (int)$run->workflow_instance_id;
+            }
+        }
+
+        $workflowInstanceIds = array_values(array_unique($workflowInstanceIds));
+        if ($workflowInstanceIds === []) {
+            return;
+        }
+
+        $approvalsByInstance = [];
+        $workflowApprovalsTable = TableRegistry::getTableLocator()->get('WorkflowApprovals');
+        $approvals = $workflowApprovalsTable::getPendingApprovalsForMember(
+            (int)$member->id,
+            [],
+            $workflowInstanceIds,
+        );
+        foreach ($approvals as $approval) {
+            $approvalsByInstance[(int)$approval->workflow_instance_id] = $approval;
+        }
+
+        foreach ($recommendations as $recommendation) {
+            $run = $recommendation->current_approval_run ?? null;
+            $workflowInstanceId = $run && !empty($run->workflow_instance_id)
+                ? (int)$run->workflow_instance_id
+                : null;
+            if ($workflowInstanceId === null || !isset($approvalsByInstance[$workflowInstanceId])) {
+                continue;
+            }
+
+            $approval = $approvalsByInstance[$workflowInstanceId];
+            $recommendation->pending_approval_id = (int)$approval->id;
+            $recommendation->pending_approval_approver_config = is_array($approval->approver_config)
+                ? $approval->approver_config
+                : [];
+            $recommendation->pending_approval_required_count = (int)($approval->required_count ?? 1);
+            $recommendation->pending_approval_approved_count = (int)($approval->approved_count ?? 0);
+            $recommendation->can_workflow_decide = true;
         }
     }
 
@@ -3273,8 +3746,12 @@ class RecommendationsController extends AppController
                     $groupCounts[(int)$row['recommendation_group_id']] = (int)$row['child_count'];
                 }
             }
+            $this->decoratePendingWorkflowApprovals($recommendations);
+            $identity = $this->request->getAttribute('identity');
 
             foreach ($recommendations as $recommendation) {
+                $recommendation->bestowal_linked = !empty($recommendation->bestowal_id);
+                $recommendation->bestowal_viewable = $this->canViewLinkedBestowal($recommendation, $identity);
                 $recommendation->group_children_count = isset($groupCounts[$recommendation->id])
                     ? $groupCounts[$recommendation->id] + 1
                     : 0;

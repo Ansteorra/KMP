@@ -12,9 +12,7 @@ $turboFrameUrl = $this->URL->build(['plugin' => 'Awards', 'controller' => 'Recom
     data-awards-rec-edit-outlet-btn-outlet=".edit-rec"
     data-awards-rec-edit-award-list-url-value="<?= h($this->URL->build(['controller' => 'Awards', 'action' => 'awardsByDomain', 'plugin' => 'Awards'])) ?>"
     data-awards-rec-edit-form-url-value="<?= h($formUrl) ?>"
-    data-awards-rec-edit-turbo-frame-url-value="<?= h($turboFrameUrl) ?>"
-    data-awards-rec-edit-gatherings-url-value="<?= h($this->URL->build(['controller' => 'Recommendations', 'action' => 'gatheringsForAward', 'plugin' => 'Awards'])) ?>"
-    data-awards-rec-edit-gatherings-lookup-url-value="<?= h($this->URL->build(['controller' => 'Recommendations', 'action' => 'gatheringsAutoComplete', 'plugin' => 'Awards'])) ?>">
+    data-awards-rec-edit-turbo-frame-url-value="<?= h($turboFrameUrl) ?>">
 <?php
 echo $this->Form->create(null, [
     'id' => 'recommendation_form',

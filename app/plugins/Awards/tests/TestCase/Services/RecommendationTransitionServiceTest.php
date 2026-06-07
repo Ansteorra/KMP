@@ -307,6 +307,11 @@ class RecommendationTransitionServiceTest extends BaseTestCase
         );
         $this->assertTrue($firstHandoff['success'], $firstHandoff['error'] ?? json_encode($firstHandoff));
         $firstBestowalId = (int)$firstHandoff['data']['result']['bestowalId'];
+        $bestowalRecommendations = $this->getTableLocator()->get('Awards.BestowalRecommendations');
+        $this->assertSame(1, $bestowalRecommendations->find()->where([
+            'bestowal_id' => $firstBestowalId,
+            'recommendation_id' => $recommendationId,
+        ])->count());
 
         $cancelResult = (new BestowalCancellationService())->cancel(
             $firstBestowalId,
@@ -318,6 +323,10 @@ class RecommendationTransitionServiceTest extends BaseTestCase
         $unwound = $this->recommendationsTable->get($recommendationId);
         $this->assertSame('King Approved', $unwound->state);
         $this->assertNull($unwound->bestowal_id);
+        $this->assertSame(0, $bestowalRecommendations->find()->where([
+            'bestowal_id' => $firstBestowalId,
+            'recommendation_id' => $recommendationId,
+        ])->count());
 
         $secondHandoff = $this->service->transition(
             $this->recommendationsTable,

@@ -16,9 +16,12 @@ $this->KMP->endBlock();
 <div class="row align-items-start mb-3">
     <div class="col">
         <h3><?= __('Award Bestowals') ?></h3>
+        <p class="text-muted mb-0">
+            <?= __('Manage the court and presentation workflow after recommendations become bestowals.') ?>
+        </p>
     </div>
     <div class="col text-end">
-        <?php if ($user->checkCan('edit', 'Awards.Bestowals')): ?>
+        <?php if ($user->checkCan('edit', 'Awards.Bestowals')) : ?>
             <button type="button"
                 class="btn btn-primary bi bi-plus-circle"
                 data-bs-toggle="modal"

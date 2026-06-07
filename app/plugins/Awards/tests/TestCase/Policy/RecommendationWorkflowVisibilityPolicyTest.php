@@ -34,7 +34,56 @@ class RecommendationWorkflowVisibilityPolicyTest extends BaseTestCase
         $this->assertFalse($policy->canView($this->syntheticMember(self::FUTURE_APPROVER_ID), $recommendation));
     }
 
+    public function testCurrentWorkflowApproverCanEditAndRequestFeedback(): void
+    {
+        [$recommendation, $instanceId] = $this->createRecommendationWithApprovalRun();
+        $this->createWorkflowApproval($instanceId, WorkflowApproval::STATUS_PENDING, [
+            'member_id' => self::WORKFLOW_APPROVER_ID,
+        ]);
+
+        $policy = new RecommendationPolicy();
+        $approver = $this->syntheticMember(self::WORKFLOW_APPROVER_ID);
+        $futureApprover = $this->syntheticMember(self::FUTURE_APPROVER_ID);
+
+        $this->assertTrue($policy->canEdit($approver, $recommendation));
+        $this->assertTrue($policy->canRequestFeedback($approver, $recommendation));
+        $this->assertFalse($policy->canEdit($futureApprover, $recommendation));
+        $this->assertFalse($policy->canRequestFeedback($futureApprover, $recommendation));
+    }
+
+    public function testCurrentWorkflowApproverCanAccessRecommendationIndex(): void
+    {
+        [, $instanceId] = $this->createRecommendationWithApprovalRun();
+        $this->createWorkflowApproval($instanceId, WorkflowApproval::STATUS_PENDING, [
+            'member_id' => self::WORKFLOW_APPROVER_ID,
+        ]);
+
+        $policy = new RecommendationPolicy();
+
+        $this->assertTrue($policy->canIndex($this->syntheticMember(self::WORKFLOW_APPROVER_ID), new Recommendation()));
+        $this->assertFalse($policy->canIndex($this->syntheticMember(self::FUTURE_APPROVER_ID), new Recommendation()));
+    }
+
     public function testRetainedPriorApproverCanViewRecommendationReadOnly(): void
+    {
+        [$recommendation, $instanceId, , $runId] = $this->createRecommendationWithApprovalRun();
+        $approvalId = $this->createWorkflowApproval($instanceId, WorkflowApproval::STATUS_APPROVED, [
+            'member_id' => self::WORKFLOW_APPROVER_ID,
+            'retain_read_visibility' => true,
+        ]);
+        $this->createWorkflowApprovalResponse($approvalId, self::WORKFLOW_APPROVER_ID);
+        $this->updateApprovalRunStatus($runId, RecommendationApprovalRun::STATUS_APPROVED);
+
+        $policy = new RecommendationPolicy();
+        $approver = $this->syntheticMember(self::WORKFLOW_APPROVER_ID);
+
+        $this->assertTrue($policy->canView($approver, $recommendation));
+        $this->assertFalse($policy->canView($this->syntheticMember(self::FUTURE_APPROVER_ID), $recommendation));
+        $this->assertFalse($policy->canEdit($approver, $recommendation));
+        $this->assertFalse($policy->canRequestFeedback($approver, $recommendation));
+    }
+
+    public function testActiveApprovalCycleKeepsRetainedPriorApproverReadOnly(): void
     {
         [$recommendation, $instanceId] = $this->createRecommendationWithApprovalRun();
         $approvalId = $this->createWorkflowApproval($instanceId, WorkflowApproval::STATUS_APPROVED, [
@@ -47,8 +96,71 @@ class RecommendationWorkflowVisibilityPolicyTest extends BaseTestCase
         $approver = $this->syntheticMember(self::WORKFLOW_APPROVER_ID);
 
         $this->assertTrue($policy->canView($approver, $recommendation));
-        $this->assertFalse($policy->canView($this->syntheticMember(self::FUTURE_APPROVER_ID), $recommendation));
         $this->assertFalse($policy->canEdit($approver, $recommendation));
+        $this->assertFalse($policy->canRequestFeedback($approver, $recommendation));
+    }
+
+    public function testActiveApprovalCycleKeepsPriorApproverReadOnlyWithoutRetainFlag(): void
+    {
+        [$recommendation, $instanceId] = $this->createRecommendationWithApprovalRun();
+        $approvalId = $this->createWorkflowApproval($instanceId, WorkflowApproval::STATUS_APPROVED, [
+            'member_id' => self::WORKFLOW_APPROVER_ID,
+        ]);
+        $this->createWorkflowApprovalResponse($approvalId, self::WORKFLOW_APPROVER_ID);
+
+        $policy = new RecommendationPolicy();
+        $approver = $this->syntheticMember(self::WORKFLOW_APPROVER_ID);
+
+        $this->assertTrue($policy->canView($approver, $recommendation));
+        $this->assertFalse($policy->canEdit($approver, $recommendation));
+        $this->assertFalse($policy->canRequestFeedback($approver, $recommendation));
+    }
+
+    public function testRecommendationScopeKeepsActiveApprovalCycleVisibleForRetainedPriorApprover(): void
+    {
+        [$recommendation, $instanceId] = $this->createRecommendationWithApprovalRun();
+        $approvalId = $this->createWorkflowApproval($instanceId, WorkflowApproval::STATUS_APPROVED, [
+            'member_id' => self::WORKFLOW_APPROVER_ID,
+            'retain_read_visibility' => true,
+        ]);
+        $this->createWorkflowApprovalResponse($approvalId, self::WORKFLOW_APPROVER_ID);
+
+        $recommendations = $this->getTableLocator()->get('Awards.Recommendations');
+        $query = $recommendations->find()
+            ->select(['id'])
+            ->where(['Recommendations.id' => $recommendation->id]);
+
+        $policy = new RecommendationsTablePolicy();
+        $ids = $policy->scopeIndex($this->syntheticMember(self::WORKFLOW_APPROVER_ID), $query)
+            ->all()
+            ->extract('id')
+            ->map(static fn($id): int => (int)$id)
+            ->toList();
+
+        $this->assertContains((int)$recommendation->id, $ids);
+    }
+
+    public function testRecommendationScopeKeepsActiveApprovalCycleVisibleForPriorApproverWithoutRetainFlag(): void
+    {
+        [$recommendation, $instanceId] = $this->createRecommendationWithApprovalRun();
+        $approvalId = $this->createWorkflowApproval($instanceId, WorkflowApproval::STATUS_APPROVED, [
+            'member_id' => self::WORKFLOW_APPROVER_ID,
+        ]);
+        $this->createWorkflowApprovalResponse($approvalId, self::WORKFLOW_APPROVER_ID);
+
+        $recommendations = $this->getTableLocator()->get('Awards.Recommendations');
+        $query = $recommendations->find()
+            ->select(['id'])
+            ->where(['Recommendations.id' => $recommendation->id]);
+
+        $policy = new RecommendationsTablePolicy();
+        $ids = $policy->scopeIndex($this->syntheticMember(self::WORKFLOW_APPROVER_ID), $query)
+            ->all()
+            ->extract('id')
+            ->map(static fn($id): int => (int)$id)
+            ->toList();
+
+        $this->assertContains((int)$recommendation->id, $ids);
     }
 
     public function testRecommendationScopeIncludesWorkflowVisibleRecommendation(): void
@@ -325,6 +437,15 @@ class RecommendationWorkflowVisibilityPolicyTest extends BaseTestCase
         ]));
     }
 
+    private function updateApprovalRunStatus(int $runId, string $status): void
+    {
+        $runs = $this->getTableLocator()->get('Awards.RecommendationApprovalRuns');
+        $run = $runs->get($runId);
+        $run->status = $status;
+        $run->completed = DateTime::now();
+        $runs->saveOrFail($run);
+    }
+
     private function syntheticMember(int $id): Member
     {
         $member = new Member();
@@ -357,14 +478,29 @@ class RecommendationWorkflowVisibilityPolicyTest extends BaseTestCase
      */
     private function findCurrentBranchPermissionScope(): array
     {
-        $memberRole = $this->getTableLocator()->get('MemberRoles')->find('current')
+        // Build a subquery of all member_ids who have super-user permissions through any role.
+        // Exclude them so the selected member is not a super user, since super users bypass
+        // approval-visibility restrictions and would break the assertion in this test.
+        $memberRolesTable = $this->getTableLocator()->get('MemberRoles');
+        $superUserMemberIds = $memberRolesTable->find('current')
+            ->select(['member_id' => 'MemberRoles.member_id'])
+            ->matching('Roles.Permissions', function ($q) {
+                return $q->where(['Permissions.is_super_user' => true]);
+            })
+            ->distinct(['MemberRoles.member_id'])
+            ->disableHydration();
+
+        $memberRole = $memberRolesTable->find('current')
             ->select([
                 'member_id' => 'MemberRoles.member_id',
                 'branch_id' => 'MemberRoles.branch_id',
                 'permission_id' => 'Permissions.id',
             ])
             ->matching('Roles.Permissions')
-            ->where(['MemberRoles.branch_id IS NOT' => null])
+            ->where([
+                'MemberRoles.branch_id IS NOT' => null,
+                'MemberRoles.member_id NOT IN' => $superUserMemberIds,
+            ])
             ->enableHydration(false)
             ->firstOrFail();
 

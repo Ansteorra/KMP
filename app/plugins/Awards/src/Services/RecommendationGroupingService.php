@@ -21,19 +21,35 @@ class RecommendationGroupingService
     private const LINKED_STATES = ['Linked', 'Linked - Closed'];
 
     private Table $recommendationsTable;
+    private Table $approvalRunsTable;
+    private Table $workflowApprovalsTable;
     private RecommendationStateLogService $stateLogService;
+    private RecommendationApprovalWorkflowLifecycleService $approvalLifecycleService;
 
     /**
      * @param \Cake\ORM\Table|null $recommendationsTable Optional injected recommendations table.
      * @param \Awards\Services\RecommendationStateLogService|null $stateLogService Optional injected state-log service.
+     * @param \Cake\ORM\Table|null $approvalRunsTable Optional injected approval runs table.
+     * @param \Cake\ORM\Table|null $workflowApprovalsTable Optional injected workflow approvals table.
+     * @param \Awards\Services\RecommendationApprovalWorkflowLifecycleService|null $approvalLifecycleService Optional lifecycle service.
      */
     public function __construct(
         ?Table $recommendationsTable = null,
         ?RecommendationStateLogService $stateLogService = null,
-    )
-    {
+        ?Table $approvalRunsTable = null,
+        ?Table $workflowApprovalsTable = null,
+        ?RecommendationApprovalWorkflowLifecycleService $approvalLifecycleService = null,
+    ) {
         $this->recommendationsTable = $recommendationsTable ?? $this->fetchTable('Awards.Recommendations');
         $this->stateLogService = $stateLogService ?? new RecommendationStateLogService();
+        $this->approvalRunsTable = $approvalRunsTable ?? $this->fetchTable('Awards.RecommendationApprovalRuns');
+        $this->workflowApprovalsTable = $workflowApprovalsTable ?? $this->fetchTable('WorkflowApprovals');
+        $this->approvalLifecycleService = $approvalLifecycleService
+            ?? new RecommendationApprovalWorkflowLifecycleService(
+                recommendationsTable: $this->recommendationsTable,
+                approvalRunsTable: $this->approvalRunsTable,
+                workflowApprovalsTable: $this->workflowApprovalsTable,
+            );
     }
 
     /**
@@ -49,6 +65,8 @@ class RecommendationGroupingService
         if (count($ids) < 2) {
             throw new InvalidArgumentException('At least 2 recommendations are required to group.');
         }
+
+        $this->assertGroupingPermitted($ids, $actorId);
 
         return $this->withTransaction(function () use ($ids, $actorId): Recommendation {
             $recommendations = $this->recommendationsTable->find()
@@ -112,6 +130,12 @@ class RecommendationGroupingService
      */
     public function ungroupRecommendations(int $headId, ?int $actorId = null): array
     {
+        $this->assertNoActiveApprovalRuns(
+            [$headId],
+            includeChildren: true,
+            operation: 'ungroup these recommendations',
+        );
+
         return $this->withTransaction(function () use ($headId, $actorId): array {
             $head = $this->recommendationsTable->get($headId, contain: ['GroupChildren']);
             if (empty($head->group_children)) {
@@ -136,6 +160,18 @@ class RecommendationGroupingService
      */
     public function removeFromGroup(int $childId, ?int $actorId = null): int
     {
+        /** @var \Awards\Model\Entity\Recommendation $child */
+        $child = $this->recommendationsTable->get($childId, contain: []);
+        if ($child->recommendation_group_id === null) {
+            throw new InvalidArgumentException('This recommendation is not part of a group.');
+        }
+
+        $this->assertNoActiveApprovalRuns(
+            [(int)$child->recommendation_group_id],
+            includeChildren: true,
+            operation: 'remove a recommendation from a group',
+        );
+
         return $this->withTransaction(function () use ($childId, $actorId): int {
             /** @var \Awards\Model\Entity\Recommendation $child */
             $child = $this->recommendationsTable->get($childId);
@@ -411,6 +447,103 @@ class RecommendationGroupingService
         );
 
         return $recommendations[0];
+    }
+
+    /**
+     * Assert that none of the given recommendations are in an active approval run unless
+     * the actor is a current pending approver for every active run involved.
+     *
+     * @param array<int> $ids Recommendation IDs to check.
+     * @param int|null $actorId Current user ID.
+     * @param bool $includeChildren Also check group children of each supplied ID.
+     * @throws \InvalidArgumentException when grouping is blocked by an active approval run.
+     */
+    private function assertGroupingPermitted(array $ids, ?int $actorId, bool $includeChildren = false): void
+    {
+        $activeRuns = $this->findActiveApprovalRuns($ids, $includeChildren);
+
+        if ($activeRuns === []) {
+            return;
+        }
+
+        if ($actorId === null) {
+            throw new InvalidArgumentException(
+                'Cannot group or ungroup recommendations that are under active approval review.',
+            );
+        }
+
+        $workflowInstanceIds = array_values(array_unique(
+            array_map(static fn($run): int => (int)$run->workflow_instance_id, $activeRuns),
+        ));
+
+        /** @var \App\Model\Table\WorkflowApprovalsTable $workflowApprovalsTable */
+        $workflowApprovalsTable = $this->workflowApprovalsTable;
+        $actorPendingIds = $workflowApprovalsTable->getPendingApprovalWorkflowInstanceIdsForMember(
+            $actorId,
+            $workflowInstanceIds,
+        );
+
+        $blockedIds = array_diff($workflowInstanceIds, $actorPendingIds);
+        if ($blockedIds !== []) {
+            throw new InvalidArgumentException(
+                'Cannot group or ungroup recommendations that are under active approval review '
+                . 'unless you are the current pending approver for each recommendation.',
+            );
+        }
+    }
+
+    /**
+     * Assert that the supplied recommendations (and optionally children) have no active approval runs.
+     *
+     * @param array<int> $ids Recommendation IDs to check.
+     * @param bool $includeChildren Also check group children of each supplied ID.
+     * @param string $operation Human-readable operation description.
+     * @return void
+     */
+    private function assertNoActiveApprovalRuns(
+        array $ids,
+        bool $includeChildren,
+        string $operation,
+    ): void {
+        $activeRuns = $this->findActiveApprovalRuns($ids, $includeChildren);
+        if ($activeRuns !== []) {
+            throw new InvalidArgumentException(
+                sprintf(
+                    'Cannot %s while one or more recommendations in the group are under active approval review.',
+                    $operation,
+                ),
+            );
+        }
+    }
+
+    /**
+     * Find active approval runs for supplied recommendation IDs.
+     *
+     * @param array<int> $ids Recommendation IDs to check.
+     * @param bool $includeChildren Also check group children of each supplied ID.
+     * @return array<\Awards\Model\Entity\RecommendationApprovalRun>
+     */
+    private function findActiveApprovalRuns(array $ids, bool $includeChildren = false): array
+    {
+        $checkIds = $ids;
+
+        if ($includeChildren) {
+            $children = $this->recommendationsTable->find()
+                ->select(['id'])
+                ->where(['recommendation_group_id IN' => $ids])
+                ->all();
+            foreach ($children as $child) {
+                $checkIds[] = (int)$child->id;
+            }
+            $checkIds = array_values(array_unique($checkIds));
+        }
+
+        if ($checkIds === []) {
+            return [];
+        }
+
+        /** @var array<\Awards\Model\Entity\RecommendationApprovalRun> $activeRuns */
+        return $this->approvalLifecycleService->findActiveRuns($checkIds, $includeChildren);
     }
 
     /**

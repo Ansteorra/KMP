@@ -177,11 +177,15 @@ class WorkflowApprovalsTable extends BaseTable
      *
      * @param int $memberId The member ID to check.
      * @param array<string, mixed> $contain Associations to contain on the rich fetch.
+     * @param array<int>|null $workflowInstanceIds Optional workflow instance scope.
      * @return array<\App\Model\Entity\WorkflowApproval>
      */
-    public static function getPendingApprovalsForMember(int $memberId, array $contain = []): array
-    {
-        $approvalIds = self::getPendingApprovalIdsForMember($memberId);
+    public static function getPendingApprovalsForMember(
+        int $memberId,
+        array $contain = [],
+        ?array $workflowInstanceIds = null,
+    ): array {
+        $approvalIds = self::getPendingApprovalIdsForMember($memberId, $workflowInstanceIds);
         if ($approvalIds === []) {
             return [];
         }
@@ -198,12 +202,13 @@ class WorkflowApprovalsTable extends BaseTable
      * Get pending approval IDs for a member without invoking dynamic resolver services.
      *
      * @param int $memberId The member ID to check.
+     * @param array<int>|null $workflowInstanceIds Optional workflow instance scope.
      * @return array<int>
      */
-    public static function getPendingApprovalIdsForMember(int $memberId): array
+    public static function getPendingApprovalIdsForMember(int $memberId, ?array $workflowInstanceIds = null): array
     {
         $approvalIds = [];
-        foreach (self::getPendingApprovalsMatchingMember($memberId) as $approval) {
+        foreach (self::getPendingApprovalsMatchingMember($memberId, $workflowInstanceIds) as $approval) {
             $approvalIds[] = (int)$approval->id;
         }
 
@@ -214,12 +219,15 @@ class WorkflowApprovalsTable extends BaseTable
      * Get pending workflow instance IDs for a member without invoking dynamic resolver services.
      *
      * @param int $memberId The member ID to check.
+     * @param array<int>|null $workflowInstanceIds Optional workflow instance scope.
      * @return array<int>
      */
-    public static function getPendingApprovalWorkflowInstanceIdsForMember(int $memberId): array
-    {
+    public static function getPendingApprovalWorkflowInstanceIdsForMember(
+        int $memberId,
+        ?array $workflowInstanceIds = null,
+    ): array {
         $instanceIds = [];
-        foreach (self::getPendingApprovalsMatchingMember($memberId) as $approval) {
+        foreach (self::getPendingApprovalsMatchingMember($memberId, $workflowInstanceIds) as $approval) {
             $instanceId = (int)($approval->workflow_instance_id ?? 0);
             if ($instanceId > 0) {
                 $instanceIds[] = $instanceId;
@@ -260,6 +268,9 @@ class WorkflowApprovalsTable extends BaseTable
             if (!$approval instanceof WorkflowApproval) {
                 return false;
             }
+            if (self::hasPriorDynamicWorkflowResponse($approval, $memberId)) {
+                return false;
+            }
 
             $approvals = [$approval];
             $memberScope = self::getMemberApprovalScope($memberId);
@@ -284,11 +295,20 @@ class WorkflowApprovalsTable extends BaseTable
      * Get pending approval rows matching the member's current approval scope.
      *
      * @param int $memberId The member ID to check.
+     * @param array<int>|null $workflowInstanceIds Optional workflow instance scope.
      * @return array<\App\Model\Entity\WorkflowApproval>
      */
-    private static function getPendingApprovalsMatchingMember(int $memberId): array
+    private static function getPendingApprovalsMatchingMember(int $memberId, ?array $workflowInstanceIds = null): array
     {
         try {
+            if ($workflowInstanceIds !== null) {
+                $workflowInstanceIds = array_map('intval', $workflowInstanceIds);
+                $workflowInstanceIds = array_values(array_unique(array_filter($workflowInstanceIds)));
+                if ($workflowInstanceIds === []) {
+                    return [];
+                }
+            }
+
             $approvalsTable = TableRegistry::getTableLocator()->get('WorkflowApprovals');
             $memberScope = self::getMemberApprovalScope($memberId);
 
@@ -305,7 +325,22 @@ class WorkflowApprovalsTable extends BaseTable
                         )',
                         $memberId,
                     ),
+                    sprintf(
+                        "(WorkflowApprovals.approver_type != '%s' OR NOT EXISTS (
+                            SELECT 1
+                            FROM workflow_approval_responses prior_member_responses
+                            INNER JOIN workflow_approvals prior_approvals
+                                ON prior_approvals.id = prior_member_responses.workflow_approval_id
+                            WHERE prior_approvals.workflow_instance_id = WorkflowApprovals.workflow_instance_id
+                              AND prior_member_responses.member_id = %d
+                        ))",
+                        WorkflowApproval::APPROVER_TYPE_DYNAMIC,
+                        $memberId,
+                    ),
                 ]);
+            if ($workflowInstanceIds !== null) {
+                $query->where(['WorkflowApprovals.workflow_instance_id IN' => $workflowInstanceIds]);
+            }
 
             $candidateTypes = [
                 WorkflowApproval::APPROVER_TYPE_MEMBER,
@@ -436,6 +471,32 @@ class WorkflowApprovalsTable extends BaseTable
             'office' => isset($memberScope['officeIdsByBranch'][$branchId][$sourceId]),
             default => false,
         };
+    }
+
+    /**
+     * Check whether the member has already responded in this dynamic approval's workflow instance.
+     *
+     * @param \App\Model\Entity\WorkflowApproval $approval Pending approval.
+     * @param int $memberId Member ID.
+     * @return bool
+     */
+    private static function hasPriorDynamicWorkflowResponse(WorkflowApproval $approval, int $memberId): bool
+    {
+        if ($approval->approver_type !== WorkflowApproval::APPROVER_TYPE_DYNAMIC) {
+            return false;
+        }
+
+        $workflowInstanceId = (int)$approval->workflow_instance_id;
+        if ($workflowInstanceId <= 0 || $memberId <= 0) {
+            return false;
+        }
+
+        return TableRegistry::getTableLocator()->get('WorkflowApprovalResponses')->find()
+            ->innerJoinWith('WorkflowApprovals', function ($q) use ($workflowInstanceId) {
+                return $q->where(['WorkflowApprovals.workflow_instance_id' => $workflowInstanceId]);
+            })
+            ->where(['WorkflowApprovalResponses.member_id' => $memberId])
+            ->count() > 0;
     }
 
     /**

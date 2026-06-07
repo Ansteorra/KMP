@@ -33,8 +33,8 @@
             "outputs": [
                 {
                     "port": "true",
-                    "target": "create-bestowal",
-                    "label": "Create bestowal"
+                    "target": "end-noop",
+                    "label": "Legacy handoff disabled"
                 },
                 {
                     "port": "false",
@@ -43,64 +43,6 @@
                 }
             ]
         },
-        "create-bestowal": {
-            "type": "action",
-            "label": "Create Bestowal",
-            "config": {
-                "action": "Awards.CreateBestowal",
-                "params": {
-                    "recommendationId": "$.trigger.recommendationId",
-                    "actorId": "$.trigger.actorId"
-                }
-            },
-            "position": {
-                "x": 650,
-                "y": 250
-            },
-            "outputs": [
-                {
-                    "port": "next",
-                    "target": "create-succeeded"
-                }
-            ]
-        },
-        "create-succeeded": {
-            "type": "condition",
-            "label": "Bestowal Created?",
-            "config": {
-                "condition": "Core.FieldEquals",
-                "field": "$.nodes.create-bestowal.result.success",
-                "value": true
-            },
-            "position": {
-                "x": 950,
-                "y": 250
-            },
-            "outputs": [
-                {
-                    "port": "true",
-                    "target": "end-success",
-                    "label": "Created"
-                },
-                {
-                    "port": "false",
-                    "target": "end-failed",
-                    "label": "Failed"
-                }
-            ]
-        },
-        "end-success": {
-            "type": "end",
-            "label": "State Change Complete",
-            "config": {
-                "result": "$.nodes.create-bestowal.result"
-            },
-            "position": {
-                "x": 1250,
-                "y": 225
-            },
-            "outputs": []
-        },
         "end-noop": {
             "type": "end",
             "label": "State Change Complete",
@@ -108,24 +50,12 @@
                 "result": {
                     "success": true,
                     "skipped": true,
-                    "reason": "No handoff bestowal required."
+                    "reason": "Recommendation state changes no longer create bestowals."
                 }
             },
             "position": {
                 "x": 650,
                 "y": 425
-            },
-            "outputs": []
-        },
-        "end-failed": {
-            "type": "end",
-            "label": "Bestowal Creation Failed",
-            "config": {
-                "result": "$.nodes.create-bestowal.result"
-            },
-            "position": {
-                "x": 1250,
-                "y": 375
             },
             "outputs": []
         }

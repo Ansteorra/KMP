@@ -4,11 +4,10 @@ declare(strict_types=1);
 namespace Awards\Services;
 
 use Awards\Model\Entity\Recommendation;
+use Awards\Model\Entity\RecommendationApprovalRun;
 use Awards\Model\Table\RecommendationsTable;
-use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\ORM\Exception\PersistenceFailedException;
-use DateTimeZone;
 use RuntimeException;
 use Throwable;
 
@@ -16,29 +15,16 @@ class RecommendationUpdateService
 {
     use RecommendationMutationSupportTrait;
 
-    private RecommendationGroupingService $groupingService;
-    private RecommendationStateLogService $stateLogService;
-    private RecommendationBestowalStatePolicyService $statePolicyService;
-    private BestowalCreationService $bestowalCreationService;
+    private RecommendationApprovalWorkflowLifecycleService $approvalLifecycleService;
 
     /**
-     * @param \Awards\Services\RecommendationGroupingService|null $groupingService Optional grouping service.
-     * @param \Awards\Services\RecommendationStateLogService|null $stateLogService Optional state-log service.
-     * @param \Awards\Services\RecommendationBestowalStatePolicyService|null $statePolicyService Optional state policy.
-     * @param \Awards\Services\BestowalCreationService|null $bestowalCreationService Optional bestowal creation service.
+     * @param \Awards\Services\RecommendationApprovalWorkflowLifecycleService|null $approvalLifecycleService Optional lifecycle service.
      */
     public function __construct(
-        ?RecommendationGroupingService $groupingService = null,
-        ?RecommendationStateLogService $stateLogService = null,
-        ?RecommendationBestowalStatePolicyService $statePolicyService = null,
-        ?BestowalCreationService $bestowalCreationService = null,
+        ?RecommendationApprovalWorkflowLifecycleService $approvalLifecycleService = null,
     ) {
-        $this->stateLogService = $stateLogService ?? new RecommendationStateLogService();
-        $this->groupingService = $groupingService ?? new RecommendationGroupingService(
-            stateLogService: $this->stateLogService,
-        );
-        $this->statePolicyService = $statePolicyService ?? new RecommendationBestowalStatePolicyService();
-        $this->bestowalCreationService = $bestowalCreationService ?? new BestowalCreationService();
+        $this->approvalLifecycleService = $approvalLifecycleService
+            ?? new RecommendationApprovalWorkflowLifecycleService();
     }
 
     /**
@@ -79,46 +65,15 @@ class RecommendationUpdateService
         }
 
         $workingData = $resolved['data'];
-        $given = $workingData['given'] ?? null;
+        $restartApprovalWorkflowConfirmed = $this->normalizeCheckboxValue(
+            $workingData['approval_workflow_restart_confirmed'] ?? false,
+        );
+        unset(
+            $workingData['approval_workflow_restart_confirmed'],
+            $workingData['current_approval_process_id'],
+            $workingData['current_award_id'],
+        );
         $note = $workingData['note'] ?? null;
-        $requestedState = $this->normalizeRequestedState($workingData);
-        $currentState = (string)($recommendation->state ?? '');
-        $stateIsChanging = $requestedState !== null
-            && $requestedState !== $currentState;
-        $handoffRequested = $stateIsChanging && $this->statePolicyService->isHandoffState($requestedState);
-
-        if (
-            $stateIsChanging
-            || $this->statePolicyService->isBestowalManagedState($currentState)
-        ) {
-            try {
-                if ($this->statePolicyService->isBestowalManagedState($currentState)) {
-                    $this->statePolicyService->assertUserCanTargetRecommendationState($currentState);
-                }
-                if ($stateIsChanging) {
-                    $this->statePolicyService->assertUserCanTargetRecommendationState($requestedState);
-                }
-                if ($handoffRequested) {
-                    if ($recommendation->recommendation_group_id !== null) {
-                        throw new RuntimeException(
-                            'Grouped child recommendations must be handed off through their group head.',
-                        );
-                    }
-                    $this->statePolicyService->assertBestowalSyncMappingsConfigured();
-                }
-            } catch (RuntimeException $exception) {
-                return [
-                    'success' => false,
-                    'recommendation' => $recommendation,
-                    'output' => null,
-                    'eventName' => null,
-                    'eventPayload' => null,
-                    'errorCode' => 'invalid_state_transition',
-                    'message' => $exception->getMessage(),
-                    'errors' => [],
-                ];
-            }
-        }
 
         $explicitNotFound = array_key_exists('not_found', $data)
             ? $this->normalizeCheckboxValue($data['not_found'])
@@ -133,12 +88,7 @@ class RecommendationUpdateService
                 ? (int)$persistedRecommendation->member_id
                 : null;
         }
-        $beforeState = (string)($recommendation->state ?? 'New');
-        $beforeStatus = (string)($recommendation->status ?? $this->stateLogService->inferStatusForState($beforeState));
         $createdNote = null;
-        $handoffBestowalId = null;
-        $handoffEventName = null;
-        $handoffEventPayload = null;
         $memberIdInputProvided = false;
         if (array_key_exists('member_id', $workingData)) {
             $memberIdValue = $workingData['member_id'];
@@ -152,7 +102,39 @@ class RecommendationUpdateService
             unset($workingData['member_id']);
         }
 
-        unset($workingData['given'], $workingData['note'], $workingData['not_found']);
+        $awardWorkflowChange = $this->detectAwardWorkflowChange($recommendationsTable, $recommendation, $workingData);
+        if (
+            $awardWorkflowChange['requiresConfirmation']
+            && !$restartApprovalWorkflowConfirmed
+        ) {
+            return [
+                'success' => false,
+                'recommendation' => $recommendation,
+                'output' => null,
+                'eventName' => null,
+                'eventPayload' => null,
+                'errorCode' => 'approval_workflow_restart_confirmation_required',
+                'message' => 'Changing the award will cancel the current approval workflow. '
+                    . 'Confirm the change to continue.',
+                'errors' => [],
+            ];
+        }
+
+        unset(
+            $workingData['close_reason'],
+            $workingData['gathering_id'],
+            $workingData['gathering_name'],
+            $workingData['gatherings'],
+            $workingData['given'],
+            $workingData['note'],
+            $workingData['not_found'],
+            $workingData['state'],
+            $workingData['status'],
+        );
+
+        $restartEventName = null;
+        $restartEventPayload = null;
+        $cancelledApprovalRunIds = [];
 
         try {
             $savedId = $recommendationsTable->getConnection()->transactional(
@@ -162,22 +144,18 @@ class RecommendationUpdateService
                     $recommendationsTable,
                     $workingData,
                     $beforeMemberId,
-                    $beforeState,
-                    $beforeStatus,
                     $explicitNotFound,
                     $memberIdInputProvided,
-                    $given,
                     $note,
                     $authorId,
-                    $handoffRequested,
-                    &$handoffBestowalId,
-                    &$handoffEventName,
-                    &$handoffEventPayload,
+                    $awardWorkflowChange,
+                    &$restartEventName,
+                    &$restartEventPayload,
+                    &$cancelledApprovalRunIds,
                 ): int {
                     $recommendation = $recommendationsTable->patchEntity(
                         $recommendation,
                         $workingData,
-                        ['associated' => ['Gatherings']],
                     );
 
                     $this->normalizeSpecialty($recommendation);
@@ -208,28 +186,7 @@ class RecommendationUpdateService
 
                     $this->applyCourtPreferenceDefaults($recommendation);
 
-                    if ($given !== null && $given !== '') {
-                        $recommendation->given = new DateTime(
-                            $given . ' 00:00:00',
-                            new DateTimeZone('UTC'),
-                        );
-                    } else {
-                        $recommendation->given = null;
-                    }
-
-                    $saved = $recommendationsTable->saveOrFail(
-                        $recommendation,
-                        ['associated' => ['Gatherings']],
-                    );
-
-                    $this->stateLogService->logStateTransition(
-                        (int)$saved->id,
-                        $beforeState,
-                        (string)$saved->state,
-                        $beforeStatus,
-                        $saved->status !== null ? (string)$saved->status : null,
-                        $authorId,
-                    );
+                    $saved = $recommendationsTable->saveOrFail($recommendation);
 
                     if ($note) {
                         $createdNote = $recommendationsTable->Notes->newEmptyEntity();
@@ -241,22 +198,20 @@ class RecommendationUpdateService
                         $recommendationsTable->Notes->saveOrFail($createdNote);
                     }
 
-                    if ($handoffRequested) {
-                        $bestowalResult = $this->bestowalCreationService->createFromRecommendationInCallerTransaction(
-                            (int)$saved->id,
+                    if ($awardWorkflowChange['requiresConfirmation']) {
+                        $cancelledApprovalRunIds = $this->approvalLifecycleService->cancelActiveRunsForAwardChange(
+                            [(int)$saved->id],
                             $authorId,
                         );
-                        if (!($bestowalResult['success'] ?? false)) {
-                            $bestowalError = $bestowalResult['error'] ?? 'Bestowal creation failed.';
-                            throw new RuntimeException((string)$bestowalError);
+                        if ($awardWorkflowChange['newApprovalProcessId'] !== null) {
+                            $restartEventName = 'Awards.ExistingRecommendationApprovalRequested';
+                            $restartEventPayload = [
+                                'recommendationId' => (int)$saved->id,
+                                'actorId' => $authorId,
+                                'restartReason' => RecommendationApprovalRun::TERMINAL_REASON_AWARD_CHANGED,
+                                'cancelledRunIds' => $cancelledApprovalRunIds,
+                            ];
                         }
-                        $handoffBestowalId = $bestowalResult['data']['bestowalId'] ?? null;
-                        $handoffEventName = $bestowalResult['data']['eventName'] ?? null;
-                        $handoffEventPayload = $bestowalResult['data']['eventPayload'] ?? null;
-                    }
-
-                    if ($saved->recommendation_group_id === null) {
-                        $this->groupingService->syncLinkedChildrenState($saved, $authorId);
                     }
 
                     return (int)$saved->id;
@@ -289,7 +244,7 @@ class RecommendationUpdateService
                 'output' => null,
                 'eventName' => null,
                 'eventPayload' => null,
-                'errorCode' => 'handoff_failed',
+                'errorCode' => 'update_failed',
                 'message' => $exception->getMessage(),
                 'errors' => $recommendation->getErrors(),
             ];
@@ -316,14 +271,11 @@ class RecommendationUpdateService
         $extraOutput = [
             'previousMemberId' => $beforeMemberId,
             'memberChanged' => $beforeMemberId !== $savedMemberId,
-            'previousState' => $beforeState,
-            'previousStatus' => $beforeStatus,
-            'stateChanged' => $beforeState !== (string)$savedRecommendation->state,
             'noteId' => $createdNote?->id,
             'noteSubject' => $createdNote?->subject,
             'noteBody' => $createdNote?->body,
             'notFound' => $explicitNotFound ?? false,
-            'bestowalId' => $handoffBestowalId === null ? null : (int)$handoffBestowalId,
+            'approvalWorkflowCancelledRunIds' => $cancelledApprovalRunIds,
         ];
         $output = $this->buildOutputData($recommendationsTable, $savedRecommendation, $extraOutput);
 
@@ -331,8 +283,8 @@ class RecommendationUpdateService
             'success' => true,
             'recommendation' => $savedRecommendation,
             'output' => $output,
-            'eventName' => $handoffEventName,
-            'eventPayload' => $handoffEventPayload,
+            'eventName' => $restartEventName,
+            'eventPayload' => $restartEventPayload,
             'errorCode' => null,
             'message' => null,
             'errors' => [],
@@ -340,16 +292,61 @@ class RecommendationUpdateService
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param array<string, mixed> $workingData
+     * @return array{requiresConfirmation: bool, currentApprovalProcessId: ?int, newApprovalProcessId: ?int}
      */
-    private function normalizeRequestedState(array $data): ?string
-    {
-        if (!array_key_exists('state', $data)) {
-            return null;
+    private function detectAwardWorkflowChange(
+        RecommendationsTable $recommendationsTable,
+        Recommendation $recommendation,
+        array $workingData,
+    ): array {
+        $activeRuns = $recommendation->id !== null
+            ? $this->approvalLifecycleService->findActiveRuns([(int)$recommendation->id])
+            : [];
+        $activeRun = $activeRuns[0] ?? null;
+        $currentApprovalProcessId = $activeRun instanceof RecommendationApprovalRun
+            ? (int)$activeRun->approval_process_id
+            : null;
+        $currentAwardId = $recommendation->award_id !== null ? (int)$recommendation->award_id : null;
+        $newAwardId = $this->normalizeOptionalInteger($workingData['award_id'] ?? null);
+
+        if ($currentApprovalProcessId === null || $newAwardId === null || $newAwardId === $currentAwardId) {
+            return [
+                'requiresConfirmation' => false,
+                'currentApprovalProcessId' => $currentApprovalProcessId,
+                'newApprovalProcessId' => null,
+            ];
         }
 
-        $state = trim((string)$data['state']);
+        $newAward = $recommendationsTable->Awards->find()
+            ->select(['id', 'approval_process_id'])
+            ->where(['id' => $newAwardId])
+            ->first();
+        $newApprovalProcessId = $newAward?->approval_process_id !== null
+            ? (int)$newAward->approval_process_id
+            : null;
 
-        return $state === '' ? null : $state;
+        return [
+            'requiresConfirmation' => $newApprovalProcessId !== $currentApprovalProcessId,
+            'currentApprovalProcessId' => $currentApprovalProcessId,
+            'newApprovalProcessId' => $newApprovalProcessId,
+        ];
+    }
+
+    /**
+     * Convert positive numeric form values to integers.
+     */
+    private function normalizeOptionalInteger(mixed $value): ?int
+    {
+        if (is_int($value)) {
+            return $value > 0 ? $value : null;
+        }
+        if (is_string($value) && ctype_digit($value)) {
+            $integer = (int)$value;
+
+            return $integer > 0 ? $integer : null;
+        }
+
+        return null;
     }
 }

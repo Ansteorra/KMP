@@ -10,6 +10,8 @@ use App\Model\Entity\WorkflowApproval;
 use App\Model\Table\WorkflowApprovalsTable;
 use App\Policy\BasePolicy;
 use Awards\Model\Entity\Recommendation;
+use Awards\Model\Entity\RecommendationApprovalRun;
+use Awards\Services\RecommendationWorkflowUiService;
 use BadMethodCallException;
 use Cake\ORM\Table;
 use Cake\ORM\TableRegistry;
@@ -30,11 +32,32 @@ use Cake\ORM\TableRegistry;
 class RecommendationPolicy extends BasePolicy
 {
     /**
-     * Pending approval workflow instance IDs keyed by member ID for this policy instance.
+     * Pending approval workflow instance IDs keyed by member ID and scoped workflow instances.
      *
-     * @var array<int, array<int>>
+     * @var array<string, array<int>>
      */
     private array $pendingWorkflowInstanceIdsByMemberId = [];
+
+    /**
+     * Approval workflow instance IDs keyed by recommendation ID and status filter.
+     *
+     * @var array<string, array<int>>
+     */
+    private array $approvalWorkflowInstanceIdsByRecommendation = [];
+
+    /**
+     * Whether a member has active Awards recommendation approval work.
+     *
+     * @var array<int, bool>
+     */
+    private array $pendingRecommendationApprovalByMemberId = [];
+
+    /**
+     * Active Awards recommendation approval workflow instance IDs for this request.
+     *
+     * @var array<int>|null
+     */
+    private ?array $activeAwardsApprovalWorkflowInstanceIds = null;
 
     /**
      * Check if user can view a recommendation.
@@ -48,11 +71,36 @@ class RecommendationPolicy extends BasePolicy
      */
     public function canView(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
     {
-        if ($entity instanceof Recommendation && $this->canViewViaApprovalWorkflow($user, $entity)) {
-            return true;
+        if ($entity instanceof Recommendation) {
+            if ($this->canViewViaCurrentApproval($user, $entity)) {
+                return true;
+            }
+            if ($this->canViewViaApprovalWorkflow($user, $entity)) {
+                return true;
+            }
         }
 
         return parent::canView($user, $entity, ...$optionalArgs);
+    }
+
+    /**
+     * Check if user can access the recommendation list.
+     *
+     * Current workflow approvers need list access so the grid can show only the
+     * recommendations awaiting their action through the table policy scope.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The authenticated user
+     * @param \App\Model\Entity\BaseEntity|\Cake\ORM\Table $entity The recommendation context
+     * @param mixed ...$optionalArgs Additional authorization context
+     * @return bool True if authorized
+     */
+    public function canIndex(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    {
+        if (parent::canIndex($user, $entity, ...$optionalArgs)) {
+            return true;
+        }
+
+        return $this->hasPendingRecommendationApproval($user);
     }
 
     /**
@@ -69,6 +117,10 @@ class RecommendationPolicy extends BasePolicy
     {
         if ($this->isLockedByBestowal($entity)) {
             return false;
+        }
+
+        if ($entity instanceof Recommendation && $this->canViewViaCurrentApproval($user, $entity)) {
+            return true;
         }
 
         return parent::canEdit($user, $entity, ...$optionalArgs);
@@ -98,6 +150,40 @@ class RecommendationPolicy extends BasePolicy
         $method = __FUNCTION__;
 
         return $this->_hasPolicy($user, $method, $entity);
+    }
+
+    /**
+     * Check if the user can respond to the active approval from the recommendation screen.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The authenticated user.
+     * @param \App\Model\Entity\BaseEntity $entity Recommendation entity.
+     * @param mixed ...$optionalArgs Additional authorization context.
+     * @return bool
+     */
+    public function canDecideApproval(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        if (!$entity instanceof Recommendation || $this->isLockedByBestowal($entity)) {
+            return false;
+        }
+
+        return (new RecommendationWorkflowUiService())->pendingApprovalForRecommendation($entity, $user) !== null;
+    }
+
+    /**
+     * Check if the user can start a new approval workflow from the recommendation screen.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The authenticated user.
+     * @param \App\Model\Entity\BaseEntity $entity Recommendation entity.
+     * @param mixed ...$optionalArgs Additional authorization context.
+     * @return bool
+     */
+    public function canStartApprovalWorkflow(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        if (!$entity instanceof Recommendation || !$this->canEdit($user, $entity, ...$optionalArgs)) {
+            return false;
+        }
+
+        return (new RecommendationWorkflowUiService())->canStartApprovalWorkflow($entity);
     }
 
     /**
@@ -391,7 +477,34 @@ class RecommendationPolicy extends BasePolicy
     }
 
     /**
-     * Determine workflow-backed read access for current and retained prior approvers.
+     * Check current approver visibility for an active approval-cycle recommendation.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The authenticated user.
+     * @param \Awards\Model\Entity\Recommendation $recommendation Recommendation entity.
+     * @return bool
+     */
+    private function canViewViaCurrentApproval(
+        KmpIdentityInterface $user,
+        Recommendation $recommendation,
+    ): bool {
+        $memberId = (int)$user->getAsMember()->id;
+        if ($memberId <= 0) {
+            return false;
+        }
+
+        $activeWorkflowInstanceIds = $this->activeApprovalWorkflowInstanceIds($recommendation);
+        if ($activeWorkflowInstanceIds === []) {
+            return false;
+        }
+
+        return array_intersect(
+            $activeWorkflowInstanceIds,
+            $this->pendingWorkflowInstanceIdsForMember($memberId, $activeWorkflowInstanceIds),
+        ) !== [];
+    }
+
+    /**
+     * Determine workflow-backed read access for current and prior approvers.
      *
      * @param \App\KMP\KmpIdentityInterface $user The authenticated user
      * @param \Awards\Model\Entity\Recommendation $recommendation Recommendation entity
@@ -406,31 +519,22 @@ class RecommendationPolicy extends BasePolicy
             return false;
         }
 
-        $headRecommendationId = (int)($recommendation->recommendation_group_id ?? $recommendation->id);
-        $runsTable = TableRegistry::getTableLocator()->get('Awards.RecommendationApprovalRuns');
-        $runs = $runsTable->find()
-            ->select(['id', 'workflow_instance_id'])
-            ->where(['RecommendationApprovalRuns.recommendation_id' => $headRecommendationId])
-            ->all();
-
-        $workflowInstanceIds = [];
-        foreach ($runs as $run) {
-            $workflowInstanceIds[] = (int)$run->workflow_instance_id;
-        }
-        $workflowInstanceIds = array_values(array_unique(array_filter($workflowInstanceIds)));
+        $workflowInstanceIds = $this->approvalWorkflowInstanceIds($recommendation);
         if ($workflowInstanceIds === []) {
             return false;
         }
 
-        $pendingInstanceIds = $this->pendingWorkflowInstanceIdsForMember($memberId);
+        $pendingInstanceIds = $this->pendingWorkflowInstanceIdsForMember($memberId, $workflowInstanceIds);
         if (array_intersect($workflowInstanceIds, $pendingInstanceIds) !== []) {
             return true;
         }
 
+        $activeWorkflowInstanceIds = $this->activeApprovalWorkflowInstanceIds($recommendation);
         $responses = TableRegistry::getTableLocator()->get('WorkflowApprovalResponses');
         $retainedResponses = $responses->find()
             ->select([
                 'workflow_approval_id',
+                'approval_instance_id' => 'WorkflowApprovals.workflow_instance_id',
                 'approval_config' => 'WorkflowApprovals.approver_config',
             ])
             ->innerJoinWith('WorkflowApprovals', function ($q) use ($workflowInstanceIds) {
@@ -449,6 +553,10 @@ class RecommendationPolicy extends BasePolicy
             ->all();
 
         foreach ($retainedResponses as $response) {
+            if (in_array((int)($response['approval_instance_id'] ?? 0), $activeWorkflowInstanceIds, true)) {
+                return true;
+            }
+
             $approverConfig = $response['approval_config'] ?? null;
             if (is_string($approverConfig)) {
                 $approverConfig = json_decode($approverConfig, true);
@@ -464,18 +572,149 @@ class RecommendationPolicy extends BasePolicy
     }
 
     /**
-     * Get pending approval workflow instance IDs for a member once per policy instance.
+     * Return active approval workflow instance IDs for a recommendation.
      *
-     * @param int $memberId Member ID.
+     * @param \Awards\Model\Entity\Recommendation $recommendation Recommendation entity.
      * @return array<int>
      */
-    private function pendingWorkflowInstanceIdsForMember(int $memberId): array
+    private function activeApprovalWorkflowInstanceIds(Recommendation $recommendation): array
     {
-        if (!array_key_exists($memberId, $this->pendingWorkflowInstanceIdsByMemberId)) {
-            $this->pendingWorkflowInstanceIdsByMemberId[$memberId] =
-                WorkflowApprovalsTable::getPendingApprovalWorkflowInstanceIdsForMember($memberId);
+        return $this->approvalWorkflowInstanceIds($recommendation, [
+            RecommendationApprovalRun::STATUS_IN_PROGRESS,
+            RecommendationApprovalRun::STATUS_CHANGES_REQUESTED,
+        ]);
+    }
+
+    /**
+     * Return approval workflow instance IDs for a recommendation.
+     *
+     * @param \Awards\Model\Entity\Recommendation $recommendation Recommendation entity.
+     * @param array<string>|null $statuses Optional approval run status filter.
+     * @return array<int>
+     */
+    private function approvalWorkflowInstanceIds(Recommendation $recommendation, ?array $statuses = null): array
+    {
+        if (empty($recommendation->id)) {
+            return [];
         }
 
-        return $this->pendingWorkflowInstanceIdsByMemberId[$memberId];
+        $headRecommendationId = (int)($recommendation->recommendation_group_id ?? $recommendation->id);
+        $cacheKey = $headRecommendationId . ':' . implode(',', $statuses ?? ['all']);
+        if (array_key_exists($cacheKey, $this->approvalWorkflowInstanceIdsByRecommendation)) {
+            return $this->approvalWorkflowInstanceIdsByRecommendation[$cacheKey];
+        }
+
+        $runsTable = TableRegistry::getTableLocator()->get('Awards.RecommendationApprovalRuns');
+        $query = $runsTable->find()
+            ->select(['workflow_instance_id'])
+            ->where(['RecommendationApprovalRuns.recommendation_id' => $headRecommendationId]);
+        if ($statuses !== null) {
+            $query->where(['RecommendationApprovalRuns.status IN' => $statuses]);
+        }
+
+        $workflowInstanceIds = $query->all()
+            ->extract('workflow_instance_id')
+            ->map(static fn($id): int => (int)$id)
+            ->toList();
+
+        $workflowInstanceIds = array_values(array_unique(array_filter($workflowInstanceIds)));
+        $this->approvalWorkflowInstanceIdsByRecommendation[$cacheKey] = $workflowInstanceIds;
+
+        return $workflowInstanceIds;
+    }
+
+    /**
+     * Get pending approval workflow instance IDs for a member and workflow scope once per policy instance.
+     *
+     * @param int $memberId Member ID.
+     * @param array<int>|null $workflowInstanceIds Optional workflow instance scope.
+     * @return array<int>
+     */
+    private function pendingWorkflowInstanceIdsForMember(int $memberId, ?array $workflowInstanceIds = null): array
+    {
+        $workflowInstanceIds ??= $this->activeAwardsApprovalWorkflowInstanceIds();
+        $workflowInstanceIds = array_values(array_unique(array_filter(array_map('intval', $workflowInstanceIds))));
+        if ($workflowInstanceIds === []) {
+            return [];
+        }
+
+        sort($workflowInstanceIds);
+        $cacheKey = $memberId . ':' . sha1(implode(',', $workflowInstanceIds));
+        if (!array_key_exists($cacheKey, $this->pendingWorkflowInstanceIdsByMemberId)) {
+            $this->pendingWorkflowInstanceIdsByMemberId[$cacheKey] =
+                WorkflowApprovalsTable::getPendingApprovalWorkflowInstanceIdsForMember($memberId, $workflowInstanceIds);
+        }
+
+        return $this->pendingWorkflowInstanceIdsByMemberId[$cacheKey];
+    }
+
+    /**
+     * Return active Awards recommendation approval workflow instance IDs.
+     *
+     * @return array<int>
+     */
+    private function activeAwardsApprovalWorkflowInstanceIds(): array
+    {
+        if ($this->activeAwardsApprovalWorkflowInstanceIds !== null) {
+            return $this->activeAwardsApprovalWorkflowInstanceIds;
+        }
+
+        $runsTable = TableRegistry::getTableLocator()->get('Awards.RecommendationApprovalRuns');
+        $workflowInstanceIds = $runsTable->find()
+            ->select(['workflow_instance_id'])
+            ->where([
+                'RecommendationApprovalRuns.status IN' => [
+                    RecommendationApprovalRun::STATUS_IN_PROGRESS,
+                    RecommendationApprovalRun::STATUS_CHANGES_REQUESTED,
+                ],
+            ])
+            ->all()
+            ->extract('workflow_instance_id')
+            ->map(static fn($id): int => (int)$id)
+            ->toList();
+
+        $this->activeAwardsApprovalWorkflowInstanceIds = array_values(array_unique(array_filter($workflowInstanceIds)));
+
+        return $this->activeAwardsApprovalWorkflowInstanceIds;
+    }
+
+    /**
+     * Determine whether the member currently has any Awards recommendation approval work.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The authenticated user.
+     * @return bool
+     */
+    private function hasPendingRecommendationApproval(KmpIdentityInterface $user): bool
+    {
+        $memberId = (int)$user->getAsMember()->id;
+        if ($memberId <= 0) {
+            return false;
+        }
+        if (array_key_exists($memberId, $this->pendingRecommendationApprovalByMemberId)) {
+            return $this->pendingRecommendationApprovalByMemberId[$memberId];
+        }
+
+        $pendingWorkflowInstanceIds = $this->pendingWorkflowInstanceIdsForMember($memberId);
+        if ($pendingWorkflowInstanceIds === []) {
+            $this->pendingRecommendationApprovalByMemberId[$memberId] = false;
+
+            return false;
+        }
+
+        $runsTable = TableRegistry::getTableLocator()->get('Awards.RecommendationApprovalRuns');
+
+        $hasPendingApproval = $runsTable->find()
+            ->where([
+                'RecommendationApprovalRuns.workflow_instance_id IN' => $pendingWorkflowInstanceIds,
+                'RecommendationApprovalRuns.status IN' => [
+                    RecommendationApprovalRun::STATUS_IN_PROGRESS,
+                    RecommendationApprovalRun::STATUS_CHANGES_REQUESTED,
+                ],
+            ])
+            ->limit(1)
+            ->first() !== null;
+        $this->pendingRecommendationApprovalByMemberId[$memberId] = $hasPendingApproval;
+
+        return $hasPendingApproval;
     }
 }

@@ -43,7 +43,7 @@ class BestowalQueryService
             'defaultSort' => ['Bestowals.created' => 'desc'],
             'defaultPageSize' => 25,
             'systemViews' => $systemViews,
-            'defaultSystemView' => 'sys-bestowals-all',
+            'defaultSystemView' => 'sys-bestowals-active',
             'showAllTab' => false,
             'canAddViews' => true,
             'canFilter' => true,

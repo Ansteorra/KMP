@@ -13,13 +13,14 @@
 // If we don't have a gathering ID, permission was denied or gathering not found
 if (!isset($gatheringId)) {
     echo '<p class="text-muted">' . __('Unable to load award recommendations for this gathering.') . '</p>';
+
     return;
 }
 
 $frameId = 'gathering-awards-grid-' . $gatheringId;
 ?>
 
-<?php if (!$isEmpty): ?>
+<?php if (!$isEmpty) : ?>
     <?= $this->element('dv_grid', [
         'gridKey' => 'Awards.Recommendations.gathering.' . $gatheringId,
         'frameId' => $frameId,
@@ -31,10 +32,10 @@ $frameId = 'gathering-awards-grid-' . $gatheringId;
         ]),
         'compactMode' => true,
     ]) ?>
-    <?php if ($canBulkEdit): ?>
+    <?php if ($canBulkEdit) : ?>
         <?= $this->element('recommendationQuickEditModal', ['modalId' => 'editRecommendationModal']) ?>
-        <?= $this->element('recommendationsBulkEditModal', ['modalId' => 'bulkEditRecommendationModal']) ?>
     <?php endif; ?>
-<?php else: ?>
+    <?= $this->element('recommendationWorkflowDecisionModals') ?>
+<?php else : ?>
     <p class="text-muted"><?= __('No Award Recommendations for this gathering') ?></p>
 <?php endif; ?>

@@ -3,9 +3,11 @@ declare(strict_types=1);
 
 namespace Awards\Test\TestCase\Services;
 
+use App\Model\Entity\WorkflowInstance;
 use App\Test\TestCase\BaseTestCase;
 use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\Recommendation;
+use Awards\Model\Entity\RecommendationApprovalRun;
 use Awards\Services\BestowalCreationService;
 use Awards\Services\BestowalRecommendationLinkService;
 use Cake\I18n\DateTime;
@@ -16,8 +18,10 @@ class BestowalRecommendationLinkServiceTest extends BaseTestCase
 {
     private Table $recommendationsTable;
     private Table $bestowalsTable;
+    private Table $approvalRunsTable;
     private BestowalCreationService $creationService;
     private BestowalRecommendationLinkService $linkService;
+    private int $approvalProcessId;
 
     protected function setUp(): void
     {
@@ -29,8 +33,10 @@ class BestowalRecommendationLinkServiceTest extends BaseTestCase
 
         $this->recommendationsTable = $this->getTableLocator()->get('Awards.Recommendations');
         $this->bestowalsTable = $this->getTableLocator()->get('Awards.Bestowals');
+        $this->approvalRunsTable = $this->getTableLocator()->get('Awards.RecommendationApprovalRuns');
         $this->creationService = new BestowalCreationService();
         $this->linkService = new BestowalRecommendationLinkService();
+        $this->approvalProcessId = $this->createApprovalProcess();
     }
 
     protected function tearDown(): void
@@ -75,6 +81,27 @@ class BestowalRecommendationLinkServiceTest extends BaseTestCase
 
         $this->assertSame([$linkedIds[0]], $unlinked);
         $this->assertSame([$linkedIds[1]], $this->linkService->getLinkedRecommendationIds($bestowalId));
+    }
+
+    public function testLinkRepairsExistingJoinWithMissingRecommendationShortcut(): void
+    {
+        $bestowalId = $this->createBestowalWithRecommendations(2);
+        $linkedIds = $this->linkService->getLinkedRecommendationIds($bestowalId);
+        $staleRecommendationId = $linkedIds[0];
+
+        $recommendation = $this->recommendationsTable->get($staleRecommendationId);
+        $recommendation->bestowal_id = null;
+        $this->recommendationsTable->saveOrFail($recommendation, ['systemSync' => true]);
+
+        $linked = $this->linkService->linkRecommendations(
+            $bestowalId,
+            [$staleRecommendationId],
+            self::ADMIN_MEMBER_ID,
+        );
+
+        $this->assertSame([$staleRecommendationId], $linked);
+        $updated = $this->recommendationsTable->get($staleRecommendationId);
+        $this->assertSame($bestowalId, (int)$updated->bestowal_id);
     }
 
     public function testAssertMinimumLinkedRecommendationsAllowsLinkBeforeUnlinkSwap(): void
@@ -152,6 +179,117 @@ class BestowalRecommendationLinkServiceTest extends BaseTestCase
         ]);
 
         return (int)$this->recommendationsTable->saveOrFail($entity)->id;
+    }
+
+    public function testLinkSupersedesActiveApprovalRun(): void
+    {
+        $bestowalId = $this->createBestowalWithRecommendations(1);
+        $secondRecommendationId = $this->createRecommendation('Submitted');
+        $approvalRunId = $this->createActiveApprovalRun(
+            $secondRecommendationId,
+            RecommendationApprovalRun::STATUS_IN_PROGRESS,
+        );
+
+        $linked = $this->linkService->linkRecommendations(
+            $bestowalId,
+            [$secondRecommendationId],
+            self::ADMIN_MEMBER_ID,
+        );
+
+        $this->assertSame([$secondRecommendationId], $linked);
+        $run = $this->approvalRunsTable->get($approvalRunId);
+        $this->assertSame(RecommendationApprovalRun::STATUS_CANCELLED, $run->status);
+        $this->assertSame(
+            RecommendationApprovalRun::TERMINAL_REASON_SUPERSEDED_BY_BESTOWAL_LINK,
+            $run->terminal_reason,
+        );
+        $this->assertSame($bestowalId, (int)$run->superseded_by_bestowal_id);
+
+        $workflowInstance = $this->getTableLocator()->get('WorkflowInstances')->get((int)$run->workflow_instance_id);
+        $this->assertSame(WorkflowInstance::STATUS_CANCELLED, $workflowInstance->status);
+    }
+
+    public function testLinkSupersedesChangesRequestedApprovalRun(): void
+    {
+        $bestowalId = $this->createBestowalWithRecommendations(1);
+        $secondRecommendationId = $this->createRecommendation('Submitted');
+        $approvalRunId = $this->createActiveApprovalRun(
+            $secondRecommendationId,
+            RecommendationApprovalRun::STATUS_CHANGES_REQUESTED,
+        );
+
+        $linked = $this->linkService->linkRecommendations(
+            $bestowalId,
+            [$secondRecommendationId],
+            self::ADMIN_MEMBER_ID,
+        );
+
+        $this->assertSame([$secondRecommendationId], $linked);
+        $run = $this->approvalRunsTable->get($approvalRunId);
+        $this->assertSame(RecommendationApprovalRun::STATUS_CANCELLED, $run->status);
+        $this->assertSame(
+            RecommendationApprovalRun::TERMINAL_REASON_SUPERSEDED_BY_BESTOWAL_LINK,
+            $run->terminal_reason,
+        );
+        $this->assertSame($bestowalId, (int)$run->superseded_by_bestowal_id);
+    }
+
+    private function createActiveApprovalRun(int $recommendationId, string $status): int
+    {
+        $workflowInstanceId = $this->createWorkflowInstance();
+        $entity = $this->approvalRunsTable->newEntity([
+            'recommendation_id' => $recommendationId,
+            'workflow_instance_id' => $workflowInstanceId,
+            'approval_process_id' => $this->approvalProcessId,
+            'status' => $status,
+            'started' => new DateTime('2024-01-01 00:00:00'),
+        ]);
+
+        return (int)$this->approvalRunsTable->saveOrFail($entity)->id;
+    }
+
+    private function createApprovalProcess(): int
+    {
+        $processes = $this->getTableLocator()->get('Awards.ApprovalProcesses');
+
+        return (int)$processes->saveOrFail($processes->newEntity([
+            'name' => 'Link Guard Test Process ' . uniqid('', true),
+            'is_active' => true,
+        ]))->id;
+    }
+
+    private function createWorkflowInstance(): int
+    {
+        $definitions = $this->getTableLocator()->get('WorkflowDefinitions');
+        $versions = $this->getTableLocator()->get('WorkflowVersions');
+        $instances = $this->getTableLocator()->get('WorkflowInstances');
+
+        $definition = $definitions->saveOrFail($definitions->newEntity([
+            'name' => 'Link Guard Test ' . uniqid('', true),
+            'slug' => 'link-guard-' . uniqid(),
+            'trigger_type' => 'manual',
+            'is_active' => true,
+        ]));
+        $version = $versions->saveOrFail($versions->newEntity([
+            'workflow_definition_id' => $definition->id,
+            'version_number' => 1,
+            'definition' => [
+                'nodes' => [
+                    'trigger' => ['type' => 'trigger', 'outputs' => [['target' => 'end']]],
+                    'end' => ['type' => 'end', 'outputs' => []],
+                ],
+            ],
+            'status' => 'published',
+        ]));
+
+        $definition->current_version_id = $version->id;
+        $definitions->saveOrFail($definition);
+
+        return (int)$instances->saveOrFail($instances->newEntity([
+            'workflow_definition_id' => $definition->id,
+            'workflow_version_id' => $version->id,
+            'status' => 'waiting',
+        ]))->id;
     }
 
     private function getFirstAwardId(): int

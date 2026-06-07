@@ -111,7 +111,7 @@ class RecommendationMigrationService
             return new ServiceResult(false, "Unsupported migration mode '{$mode}'.");
         }
 
-        $preflight = $this->preflight();
+        $preflight = $this->preflight($filters);
         if (!$preflight->isSuccess()) {
             return $preflight;
         }
@@ -151,6 +151,13 @@ class RecommendationMigrationService
                 }
             }
 
+            if ($mode !== RecommendationMigrationRun::MODE_DRY_RUN) {
+                $postMigrationAudit = $this->auditOpenRecommendationsWithoutWorkflow($filters);
+                if ($postMigrationAudit['count'] > 0) {
+                    throw new RuntimeException($this->formatOpenRecommendationAuditFailure($postMigrationAudit));
+                }
+            }
+
             $run->status = RecommendationMigrationRun::STATUS_COMPLETED;
             $run->completed = DateTime::now();
             $run->summary = $summary;
@@ -176,9 +183,9 @@ class RecommendationMigrationService
     /**
      * Validate prerequisites without mutating records.
      */
-    public function preflight(): ServiceResult
+    public function preflight(array $filters = []): ServiceResult
     {
-        $groupedCount = $this->recommendationsTable->find()
+        $groupedCount = $this->applyRecommendationFilters($this->recommendationsTable->find(), $filters)
             ->where(['recommendation_group_id IS NOT' => null])
             ->count();
         if ($groupedCount > 0) {
@@ -200,8 +207,10 @@ class RecommendationMigrationService
             return new ServiceResult(false, 'Existing recommendation approval workflow is not active and published.');
         }
 
-        $missingApprovalProcessCount = $this->recommendationsTable->find()
-            ->innerJoinWith('Awards')
+        $missingApprovalProcessCount = $this->applyRecommendationFilters(
+            $this->recommendationsTable->find()->innerJoinWith('Awards'),
+            $filters,
+        )
             ->where([
                 'Recommendations.state IN' => self::APPROVAL_STATES,
                 'Recommendations.bestowal_id IS' => null,
@@ -216,6 +225,39 @@ class RecommendationMigrationService
         }
 
         return new ServiceResult(true);
+    }
+
+    /**
+     * Find open recommendations that still lack workflow or bestowal ownership.
+     *
+     * @param array<string, mixed> $filters Optional recommendation filters
+     * @return array{count:int,recommendations:array<int, array{id:int,state:string|null,status:string|null}>}
+     */
+    public function auditOpenRecommendationsWithoutWorkflow(array $filters = []): array
+    {
+        $query = $this->applyRecommendationFilters($this->openRecommendationsWithoutWorkflowQuery(), $filters);
+        $count = $query->count();
+        $sampleRows = $query
+            ->select(['Recommendations.id', 'Recommendations.state', 'Recommendations.status'])
+            ->orderBy(['Recommendations.id' => 'ASC'])
+            ->limit(25)
+            ->enableHydration(false)
+            ->all()
+            ->toList();
+
+        $recommendations = [];
+        foreach ($sampleRows as $row) {
+            $recommendations[] = [
+                'id' => (int)$row['id'],
+                'state' => $row['state'] === null ? null : (string)$row['state'],
+                'status' => $row['status'] === null ? null : (string)$row['status'],
+            ];
+        }
+
+        return [
+            'count' => $count,
+            'recommendations' => $recommendations,
+        ];
     }
 
     /**
@@ -300,6 +342,18 @@ class RecommendationMigrationService
             ->contain(['Awards.ApprovalProcesses.ApprovalProcessSteps'])
             ->orderBy(['Recommendations.id' => 'ASC']);
 
+        return $this->applyRecommendationFilters($query, $filters);
+    }
+
+    /**
+     * Apply migration recommendation filters to a query.
+     *
+     * @param \Cake\ORM\Query\SelectQuery $query Query to filter
+     * @param array<string, mixed> $filters Optional filters
+     * @return \Cake\ORM\Query\SelectQuery
+     */
+    private function applyRecommendationFilters(SelectQuery $query, array $filters): SelectQuery
+    {
         if (!empty($filters['recommendation_id'])) {
             $query->where(['Recommendations.id' => (int)$filters['recommendation_id']]);
         }
@@ -314,6 +368,63 @@ class RecommendationMigrationService
         }
 
         return $query;
+    }
+
+    /**
+     * Build the open recommendation audit query.
+     *
+     * @return \Cake\ORM\Query\SelectQuery
+     */
+    private function openRecommendationsWithoutWorkflowQuery(): SelectQuery
+    {
+        $workflowRecommendationIds = $this->workflowInstancesTable->find()
+            ->select(['WorkflowInstances.entity_id'])
+            ->innerJoinWith('WorkflowDefinitions')
+            ->where([
+                'WorkflowDefinitions.slug' => self::WORKFLOW_SLUG,
+                'WorkflowInstances.entity_type' => 'Awards.Recommendations',
+                'WorkflowInstances.entity_id IS NOT' => null,
+                'WorkflowInstances.status IN' => [
+                    WorkflowInstance::STATUS_PENDING,
+                    WorkflowInstance::STATUS_RUNNING,
+                    WorkflowInstance::STATUS_WAITING,
+                ],
+            ]);
+
+        return $this->recommendationsTable->find()
+            ->where([
+                'Recommendations.status !=' => 'Closed',
+                'Recommendations.bestowal_id IS' => null,
+                'Recommendations.deleted IS' => null,
+                'Recommendations.id NOT IN' => $workflowRecommendationIds,
+            ]);
+    }
+
+    /**
+     * Format an audit failure for console/service output.
+     *
+     * @param array{count:int,recommendations:array<int, array{id:int,state:string|null,status:string|null}>} $audit Audit result
+     * @return string
+     */
+    private function formatOpenRecommendationAuditFailure(array $audit): string
+    {
+        $sample = [];
+        foreach ($audit['recommendations'] as $recommendation) {
+            $sample[] = sprintf(
+                '#%d (%s / %s)',
+                $recommendation['id'],
+                $recommendation['status'] ?? 'unknown status',
+                $recommendation['state'] ?? 'unknown state',
+            );
+        }
+
+        $suffix = $sample === [] ? '' : ' Sample: ' . implode(', ', $sample) . '.';
+
+        return sprintf(
+            '%d open recommendations still lack workflow or bestowal ownership after migration.%s',
+            $audit['count'],
+            $suffix,
+        );
     }
 
     /**

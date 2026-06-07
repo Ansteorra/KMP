@@ -131,6 +131,241 @@ if (!SeedManager::isPostgres('test')) {
 
 // On Postgres (no MySQL seed dump), we also need to seed essential AppSettings.
 if (SeedManager::isPostgres('test')) {
+    $hasBestowalAwardId = (bool)$conn->execute(
+        "SELECT EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = current_schema()
+              AND table_name = 'awards_bestowals'
+              AND column_name = 'award_id'
+        )",
+    )->fetchColumn(0);
+    if (!$hasBestowalAwardId) {
+        $conn->execute('ALTER TABLE awards_bestowals ADD COLUMN award_id integer');
+        $conn->execute(
+            'UPDATE awards_bestowals b
+             SET award_id = (
+                 SELECT r.award_id
+                 FROM awards_recommendations r
+                 WHERE r.id = b.primary_recommendation_id
+                 LIMIT 1
+             )
+             WHERE b.award_id IS NULL
+               AND b.primary_recommendation_id IS NOT NULL',
+        );
+        $conn->execute(
+            'UPDATE awards_bestowals b
+             SET award_id = (
+                 SELECT r.award_id
+                 FROM awards_bestowal_recommendations br
+                 INNER JOIN awards_recommendations r ON r.id = br.recommendation_id
+                 WHERE br.bestowal_id = b.id
+                 ORDER BY br.id ASC
+                 LIMIT 1
+             )
+             WHERE b.award_id IS NULL',
+        );
+        $conn->execute('CREATE INDEX IF NOT EXISTS idx_bestowals_award_id ON awards_bestowals (award_id)');
+        $conn->execute(
+            "DO $$
+             BEGIN
+                 IF NOT EXISTS (
+                     SELECT 1
+                     FROM pg_constraint
+                     WHERE conname = 'fk_bestowals_award_id'
+                 ) THEN
+                     ALTER TABLE awards_bestowals
+                         ADD CONSTRAINT fk_bestowals_award_id
+                         FOREIGN KEY (award_id)
+                         REFERENCES awards_awards(id)
+                         ON DELETE RESTRICT
+                         ON UPDATE CASCADE;
+                 END IF;
+             END
+             $$",
+        );
+    }
+
+    // Guard: roaming_court column added by migration 20260604120000
+    $hasBestowalRoamingCourt = (bool)$conn->execute(
+        "SELECT EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = current_schema()
+              AND table_name = 'awards_bestowals'
+              AND column_name = 'roaming_court'
+        )",
+    )->fetchColumn(0);
+    if (!$hasBestowalRoamingCourt) {
+        $conn->execute('ALTER TABLE awards_bestowals ADD COLUMN roaming_court boolean DEFAULT false NOT NULL');
+    }
+
+    // Guard: approval-run lifecycle columns added by migration 20260607130000.
+    $hasApprovalRunTerminalReason = (bool)$conn->execute(
+        "SELECT EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = current_schema()
+              AND table_name = 'awards_recommendation_approval_runs'
+              AND column_name = 'terminal_reason'
+        )",
+    )->fetchColumn(0);
+    if (!$hasApprovalRunTerminalReason) {
+        $conn->execute('ALTER TABLE awards_recommendation_approval_runs ADD COLUMN terminal_reason varchar(100)');
+        $conn->execute('ALTER TABLE awards_recommendation_approval_runs ADD COLUMN consumed_by_bestowal_id integer');
+        $conn->execute('ALTER TABLE awards_recommendation_approval_runs ADD COLUMN superseded_by_bestowal_id integer');
+        $conn->execute('ALTER TABLE awards_recommendation_approval_runs ADD COLUMN rehydrated_from_run_id integer');
+        $conn->execute(
+            'CREATE INDEX IF NOT EXISTS idx_awards_rec_approval_runs_terminal_reason
+             ON awards_recommendation_approval_runs (terminal_reason)',
+        );
+        $conn->execute(
+            'CREATE INDEX IF NOT EXISTS idx_awards_rec_approval_runs_consumed_bestowal
+             ON awards_recommendation_approval_runs (consumed_by_bestowal_id)',
+        );
+        $conn->execute(
+            'CREATE INDEX IF NOT EXISTS idx_awards_rec_approval_runs_superseded_bestowal
+             ON awards_recommendation_approval_runs (superseded_by_bestowal_id)',
+        );
+        $conn->execute(
+            'CREATE INDEX IF NOT EXISTS idx_awards_rec_approval_runs_rehydrated_from
+             ON awards_recommendation_approval_runs (rehydrated_from_run_id)',
+        );
+    }
+
+    $hasFeedbackRequestTable = (bool)$conn->execute(
+        "SELECT EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = current_schema()
+              AND table_name = 'awards_recommendation_feedback_requests'
+        )",
+    )->fetchColumn(0);
+    if (!$hasFeedbackRequestTable) {
+        $conn->execute(
+            "CREATE TABLE awards_recommendation_feedback_requests (
+                id integer GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+                requester_id integer NOT NULL,
+                status varchar(32) DEFAULT 'pending' NOT NULL,
+                message text NULL,
+                deadline timestamp without time zone NULL,
+                workflow_instance_id integer NULL,
+                completed_at timestamp without time zone NULL,
+                retracted_at timestamp without time zone NULL,
+                expired_at timestamp without time zone NULL,
+                created timestamp without time zone NOT NULL,
+                modified timestamp without time zone NULL,
+                created_by integer NULL,
+                modified_by integer NULL
+            )",
+        );
+        $conn->execute(
+            'CREATE INDEX IF NOT EXISTS idx_rec_feedback_requester_status
+             ON awards_recommendation_feedback_requests (requester_id, status)',
+        );
+        $conn->execute(
+            'CREATE INDEX IF NOT EXISTS idx_rec_feedback_workflow_instance
+             ON awards_recommendation_feedback_requests (workflow_instance_id)',
+        );
+    }
+
+    $feedbackItemColumnCount = (int)$conn->execute(
+        "SELECT count(*)
+         FROM information_schema.columns
+         WHERE table_schema = current_schema()
+           AND table_name = 'awards_recommendation_feedback_request_items'",
+    )->fetchColumn(0);
+    if ($feedbackItemColumnCount === 0) {
+        $conn->execute('DROP TABLE IF EXISTS awards_recommendation_feedback_request_items');
+        $conn->execute(
+            'CREATE TABLE awards_recommendation_feedback_request_items (
+                id integer GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+                feedback_request_id integer NOT NULL,
+                recommendation_id integer NOT NULL,
+                snapshot json NOT NULL,
+                created timestamp without time zone NOT NULL,
+                modified timestamp without time zone NULL
+            )',
+        );
+        $conn->execute(
+            'CREATE INDEX IF NOT EXISTS idx_rec_feedback_items_request
+             ON awards_recommendation_feedback_request_items (feedback_request_id)',
+        );
+        $conn->execute(
+            'CREATE INDEX IF NOT EXISTS idx_rec_feedback_items_rec
+             ON awards_recommendation_feedback_request_items (recommendation_id)',
+        );
+        $conn->execute(
+            "DO $$
+             BEGIN
+                 IF NOT EXISTS (
+                     SELECT 1
+                     FROM pg_constraint
+                     WHERE conname = 'fk_rec_fb_item_request'
+                 ) THEN
+                     ALTER TABLE awards_recommendation_feedback_request_items
+                         ADD CONSTRAINT fk_rec_fb_item_request
+                         FOREIGN KEY (feedback_request_id)
+                         REFERENCES awards_recommendation_feedback_requests(id)
+                         ON DELETE CASCADE
+                         ON UPDATE CASCADE;
+                 END IF;
+                 IF NOT EXISTS (
+                     SELECT 1
+                     FROM pg_constraint
+                     WHERE conname = 'fk_rec_fb_item_rec'
+                 ) THEN
+                     ALTER TABLE awards_recommendation_feedback_request_items
+                         ADD CONSTRAINT fk_rec_fb_item_rec
+                         FOREIGN KEY (recommendation_id)
+                         REFERENCES awards_recommendations(id)
+                         ON DELETE RESTRICT
+                         ON UPDATE CASCADE;
+                 END IF;
+             END
+             $$",
+        );
+    }
+
+    $hasFeedbackRecipientTable = (bool)$conn->execute(
+        "SELECT EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = current_schema()
+              AND table_name = 'awards_recommendation_feedback_request_recipients'
+        )",
+    )->fetchColumn(0);
+    if (!$hasFeedbackRecipientTable) {
+        $conn->execute(
+            "CREATE TABLE awards_recommendation_feedback_request_recipients (
+                id integer GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+                feedback_request_id integer NOT NULL,
+                recipient_id integer NOT NULL,
+                workflow_approval_id integer NULL,
+                workflow_approval_response_id integer NULL,
+                status varchar(32) DEFAULT 'pending' NOT NULL,
+                response_comment text NULL,
+                responded_at timestamp without time zone NULL,
+                retracted_at timestamp without time zone NULL,
+                expired_at timestamp without time zone NULL,
+                created timestamp without time zone NOT NULL,
+                modified timestamp without time zone NULL
+            )",
+        );
+        $conn->execute(
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_rec_feedback_recipient_unique
+             ON awards_recommendation_feedback_request_recipients (feedback_request_id, recipient_id)',
+        );
+        $conn->execute(
+            'CREATE INDEX IF NOT EXISTS idx_rec_feedback_recipient_status
+             ON awards_recommendation_feedback_request_recipients (recipient_id, status)',
+        );
+        $conn->execute(
+            'CREATE INDEX IF NOT EXISTS idx_rec_feedback_workflow_approval
+             ON awards_recommendation_feedback_request_recipients (workflow_approval_id)',
+        );
+    }
+
     // Seed essential AppSettings that tests expect
     $conn = ConnectionManager::get('test');
     $now = date('Y-m-d H:i:s');

@@ -42,6 +42,7 @@ class AwardsWorkflowActions
     private RecommendationDeletionService $deletionService;
     private RecommendationStateLogService $stateLogService;
     private BestowalCreationService $bestowalCreationService;
+    private BestowalHandoffService $bestowalHandoffService;
     private BestowalTransitionService $bestowalTransitionService;
     private BestowalRecommendationSyncService $bestowalRecommendationSyncService;
     private BestowalCancellationService $bestowalCancellationService;
@@ -64,6 +65,7 @@ class AwardsWorkflowActions
      * @param \Awards\Services\BestowalUpdateService|null $bestowalUpdateService Bestowal update service.
      * @param \Awards\Services\AdHocBestowalService|null $adHocBestowalService Ad-hoc bestowal service.
      * @param \Awards\Services\RecommendationApprovalProcessService|null $approvalProcessService Approval process service.
+     * @param \Awards\Services\BestowalHandoffService|null $bestowalHandoffService Workflow-aware bestowal handoff service.
      */
     public function __construct(
         ?StateMachineHandler $stateMachineHandler = null,
@@ -80,6 +82,7 @@ class AwardsWorkflowActions
         ?BestowalUpdateService $bestowalUpdateService = null,
         ?AdHocBestowalService $adHocBestowalService = null,
         ?RecommendationApprovalProcessService $approvalProcessService = null,
+        ?BestowalHandoffService $bestowalHandoffService = null,
     ) {
         $this->recommendationsTable = $this->fetchTable('Awards.Recommendations');
         $this->bestowalsTable = $this->fetchTable('Awards.Bestowals');
@@ -103,6 +106,9 @@ class AwardsWorkflowActions
         $this->bestowalRecommendationSyncService = $bestowalRecommendationSyncService
             ?? new BestowalRecommendationSyncService();
         $this->bestowalCreationService = $bestowalCreationService ?? new BestowalCreationService();
+        $this->bestowalHandoffService = $bestowalHandoffService ?? new BestowalHandoffService(
+            creationService: $this->bestowalCreationService,
+        );
         $this->bestowalCancellationService = $bestowalCancellationService ?? new BestowalCancellationService(
             transitionService: $this->bestowalTransitionService,
             syncService: $this->bestowalRecommendationSyncService,
@@ -752,7 +758,7 @@ class AwardsWorkflowActions
             $recommendationId = (int)$this->resolveValue($config['recommendationId'], $context);
             $actorId = (int)$this->resolveValue($config['actorId'] ?? 0, $context);
 
-            return $this->bestowalCreationService->createFromRecommendation($recommendationId, $actorId);
+            return $this->bestowalHandoffService->createBestowal($recommendationId, $actorId);
         } catch (Throwable $e) {
             Log::error('Workflow CreateBestowal failed: ' . $e->getMessage());
 
@@ -781,46 +787,7 @@ class AwardsWorkflowActions
                 ];
             }
 
-            $results = [];
-            $bestowalIds = [];
-            $errors = [];
-
-            foreach ($recommendationIds as $recommendationId) {
-                $result = $this->bestowalCreationService->createFromRecommendation($recommendationId, $actorId);
-                $results[] = $result;
-
-                if (!($result['success'] ?? false)) {
-                    $errors[] = (string)($result['error'] ?? 'Bestowal creation failed');
-                    continue;
-                }
-
-                if (($result['skipped'] ?? false) || !isset($result['data']['bestowalId'])) {
-                    continue;
-                }
-
-                $bestowalIds[] = (int)$result['data']['bestowalId'];
-            }
-
-            if ($errors !== []) {
-                return [
-                    'success' => false,
-                    'error' => implode('; ', $errors),
-                    'data' => [
-                        'processedCount' => count($recommendationIds),
-                        'bestowalIds' => $bestowalIds,
-                        'results' => $results,
-                    ],
-                ];
-            }
-
-            return [
-                'success' => true,
-                'data' => [
-                    'processedCount' => count($recommendationIds),
-                    'bestowalIds' => $bestowalIds,
-                    'results' => $results,
-                ],
-            ];
+            return $this->bestowalHandoffService->createBestowals($recommendationIds, $actorId);
         } catch (Throwable $e) {
             Log::error('Workflow CreateBestowalsForRecommendations failed: ' . $e->getMessage());
 
@@ -1023,8 +990,7 @@ class AwardsWorkflowActions
      */
     private function extractRecommendationData(array $context, array $config): array
     {
-        $data = $this->resolveConfigArray($config['data'] ?? null, $context);
-        $flatData = $this->mapConfigFields($context, $config, [
+        $fieldMap = [
             'awardId' => 'award_id',
             'requesterId' => 'requester_id',
             'memberId' => 'member_id',
@@ -1044,7 +1010,10 @@ class AwardsWorkflowActions
             'given' => 'given',
             'note' => 'note',
             'state' => 'state',
-        ]);
+        ];
+        $data = $this->resolveConfigArray($config['data'] ?? null, $context);
+        $data = $this->mapPayloadFields($data, $fieldMap);
+        $flatData = $this->mapConfigFields($context, $config, $fieldMap);
 
         $data = array_replace($data, $flatData);
 
@@ -1305,5 +1274,25 @@ class AwardsWorkflowActions
         }
 
         return $data;
+    }
+
+    /**
+     * Map camelCase workflow payload keys to entity field names while preserving snake_case inputs.
+     *
+     * @param array<string, mixed> $payload Workflow payload data.
+     * @param array<string, string> $fieldMap Payload key => entity field.
+     * @return array<string, mixed>
+     */
+    private function mapPayloadFields(array $payload, array $fieldMap): array
+    {
+        foreach ($fieldMap as $payloadKey => $entityField) {
+            if (!array_key_exists($payloadKey, $payload) || array_key_exists($entityField, $payload)) {
+                continue;
+            }
+
+            $payload[$entityField] = $payload[$payloadKey];
+        }
+
+        return $payload;
     }
 }

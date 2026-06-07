@@ -73,6 +73,7 @@ class RecommendationApprovalProcessService
 
             $firstStep = $steps[0];
             if (!$run) {
+                $trigger = $context['trigger'] ?? [];
                 $run = $runsTable->newEntity([
                     'recommendation_id' => $recommendation->id,
                     'approval_process_id' => $process->id,
@@ -81,6 +82,9 @@ class RecommendationApprovalProcessService
                     'current_step_key' => $firstStep->step_key,
                     'current_step_label' => $firstStep->label,
                     'started' => DateTime::now(),
+                    'rehydrated_from_run_id' => !empty($trigger['rehydratedFromRunId'])
+                        ? (int)$trigger['rehydratedFromRunId']
+                        : null,
                     'created_by' => $actorId,
                     'modified_by' => $actorId,
                 ]);
@@ -219,7 +223,11 @@ class RecommendationApprovalProcessService
                 return [];
             }
 
-            $approverIds = $this->approverIds($step, $recommendation);
+            $approverIds = $this->excludePriorApprovalResponders(
+                (int)$approval->workflow_instance_id,
+                $this->approverIds($step, $recommendation),
+                (int)$approval->id,
+            );
             $this->syncRequiredCount($approval, $config, $approverIds);
 
             return $approverIds;
@@ -265,7 +273,10 @@ class RecommendationApprovalProcessService
         Recommendation $recommendation,
         ApprovalProcessStep $step,
     ): array {
-        $approverIds = $this->approverIds($step, $recommendation);
+        $approverIds = $this->excludePriorApprovalResponders(
+            (int)$run->workflow_instance_id,
+            $this->approverIds($step, $recommendation),
+        );
         $requiredCount = $this->requiredCount($step, $approverIds);
 
         return [
@@ -391,6 +402,51 @@ class RecommendationApprovalProcessService
     }
 
     /**
+     * Remove members who have already responded to a prior approval in this workflow instance.
+     *
+     * @param int $workflowInstanceId Workflow instance ID.
+     * @param array<int> $approverIds Candidate approver IDs.
+     * @return array<int>
+     */
+    private function excludePriorApprovalResponders(
+        int $workflowInstanceId,
+        array $approverIds,
+        ?int $currentApprovalId = null,
+    ): array {
+        if ($workflowInstanceId <= 0 || $approverIds === []) {
+            return $approverIds;
+        }
+
+        $responses = $this->fetchTable('WorkflowApprovalResponses');
+        $query = $responses->find()
+            ->select(['member_id'])
+            ->innerJoinWith('WorkflowApprovals', function ($q) use ($workflowInstanceId) {
+                return $q->where(['WorkflowApprovals.workflow_instance_id' => $workflowInstanceId]);
+            })
+            ->where(['WorkflowApprovalResponses.member_id IN' => $approverIds]);
+        if ($currentApprovalId !== null) {
+            $query->where(['WorkflowApprovalResponses.workflow_approval_id !=' => $currentApprovalId]);
+        }
+
+        $priorResponderIds = $query
+            ->all()
+            ->extract('member_id')
+            ->map(static fn($memberId): int => (int)$memberId)
+            ->toList();
+
+        if ($priorResponderIds === []) {
+            return $approverIds;
+        }
+
+        $eligibleIds = array_values(array_diff($approverIds, array_unique($priorResponderIds)));
+        if ($eligibleIds === []) {
+            throw new RuntimeException('The approval step resolved zero eligible approvers after excluding prior responders.');
+        }
+
+        return $eligibleIds;
+    }
+
+    /**
      * Compute required count from the configured threshold.
      *
      * @param \Awards\Model\Entity\ApprovalProcessStep $step Approval step.
@@ -428,6 +484,7 @@ class RecommendationApprovalProcessService
         if ($currentStep->on_reject === ApprovalProcessStep::ACTION_CLOSE) {
             $run->status = RecommendationApprovalRun::STATUS_CLOSED;
             $run->completed = DateTime::now();
+            $run->terminal_reason = RecommendationApprovalRun::TERMINAL_REASON_REJECTED;
             $run->modified_by = $actorId;
             $this->fetchTable('Awards.RecommendationApprovalRuns')->saveOrFail($run);
             $this->transitionRecommendation(

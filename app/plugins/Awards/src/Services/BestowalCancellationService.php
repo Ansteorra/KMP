@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Awards\Services;
 
 use Awards\Model\Entity\Bestowal;
+use Awards\Model\Entity\RecommendationApprovalRun;
 use Cake\Log\Log;
 use Cake\ORM\Locator\LocatorAwareTrait;
 use Cake\ORM\Table;
@@ -21,25 +22,37 @@ class BestowalCancellationService
 
     private Table $bestowalsTable;
     private Table $recommendationsTable;
+    private Table $bestowalRecommendationsTable;
     private BestowalTransitionService $transitionService;
     private BestowalRecommendationSyncService $syncService;
+    private RecommendationApprovalWorkflowLifecycleService $approvalLifecycleService;
 
     /**
      * @param \Cake\ORM\Table|null $bestowalsTable Optional injected bestowals table.
      * @param \Cake\ORM\Table|null $recommendationsTable Optional injected recommendations table.
+     * @param \Cake\ORM\Table|null $bestowalRecommendationsTable Optional injected join table.
      * @param \Awards\Services\BestowalTransitionService|null $transitionService Optional injected transition service.
      * @param \Awards\Services\BestowalRecommendationSyncService|null $syncService Optional injected sync service.
+     * @param \Awards\Services\RecommendationApprovalWorkflowLifecycleService|null $approvalLifecycleService Optional lifecycle service.
      */
     public function __construct(
         ?Table $bestowalsTable = null,
         ?Table $recommendationsTable = null,
+        ?Table $bestowalRecommendationsTable = null,
         ?BestowalTransitionService $transitionService = null,
         ?BestowalRecommendationSyncService $syncService = null,
+        ?RecommendationApprovalWorkflowLifecycleService $approvalLifecycleService = null,
     ) {
         $this->bestowalsTable = $bestowalsTable ?? $this->fetchTable('Awards.Bestowals');
         $this->recommendationsTable = $recommendationsTable ?? $this->fetchTable('Awards.Recommendations');
+        $this->bestowalRecommendationsTable = $bestowalRecommendationsTable
+            ?? $this->fetchTable('Awards.BestowalRecommendations');
         $this->transitionService = $transitionService ?? new BestowalTransitionService();
         $this->syncService = $syncService ?? new BestowalRecommendationSyncService();
+        $this->approvalLifecycleService = $approvalLifecycleService
+            ?? new RecommendationApprovalWorkflowLifecycleService(
+                recommendationsTable: $this->recommendationsTable,
+            );
     }
 
     /**
@@ -109,6 +122,21 @@ class BestowalCancellationService
                     }
 
                     sort($recommendationIds);
+                    if ($recommendationIds !== []) {
+                        $this->bestowalRecommendationsTable->deleteAll([
+                            'bestowal_id' => $bestowalId,
+                            'recommendation_id IN' => $recommendationIds,
+                        ]);
+                    }
+                    $cancelledRunIds = $this->approvalLifecycleService->markRunsForBestowalCancellation(
+                        $bestowalId,
+                        $actorId,
+                    );
+                    $rehydrated = $this->approvalLifecycleService->rehydrateUnlinkedRecommendations(
+                        $recommendationIds,
+                        $actorId,
+                        RecommendationApprovalRun::TERMINAL_REASON_BESTOWAL_CANCELLED,
+                    );
 
                     return [
                         'success' => true,
@@ -117,6 +145,8 @@ class BestowalCancellationService
                             'recommendationIds' => $recommendationIds,
                             'unwindState' => $unwindState,
                             'closeReason' => $normalizedReason,
+                            'cancelledApprovalRunIds' => $cancelledRunIds,
+                            'rehydratedApprovals' => $rehydrated,
                             'eventName' => self::EVENT_NAME,
                             'eventPayload' => [
                                 'bestowalId' => $bestowalId,

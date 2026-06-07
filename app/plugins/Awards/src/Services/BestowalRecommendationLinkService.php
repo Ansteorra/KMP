@@ -21,24 +21,31 @@ class BestowalRecommendationLinkService
     private Table $recommendationsTable;
     private Table $bestowalRecommendationsTable;
     private BestowalRecommendationSyncService $syncService;
+    private RecommendationApprovalWorkflowLifecycleService $approvalLifecycleService;
 
     /**
      * @param \Cake\ORM\Table|null $bestowalsTable Optional injected bestowals table.
      * @param \Cake\ORM\Table|null $recommendationsTable Optional injected recommendations table.
      * @param \Cake\ORM\Table|null $bestowalRecommendationsTable Optional injected join table.
      * @param \Awards\Services\BestowalRecommendationSyncService|null $syncService Optional injected sync service.
+     * @param \Awards\Services\RecommendationApprovalWorkflowLifecycleService|null $approvalLifecycleService Optional approval lifecycle service.
      */
     public function __construct(
         ?Table $bestowalsTable = null,
         ?Table $recommendationsTable = null,
         ?Table $bestowalRecommendationsTable = null,
         ?BestowalRecommendationSyncService $syncService = null,
+        ?RecommendationApprovalWorkflowLifecycleService $approvalLifecycleService = null,
     ) {
         $this->bestowalsTable = $bestowalsTable ?? $this->fetchTable('Awards.Bestowals');
         $this->recommendationsTable = $recommendationsTable ?? $this->fetchTable('Awards.Recommendations');
         $this->bestowalRecommendationsTable = $bestowalRecommendationsTable
             ?? $this->fetchTable('Awards.BestowalRecommendations');
         $this->syncService = $syncService ?? new BestowalRecommendationSyncService();
+        $this->approvalLifecycleService = $approvalLifecycleService
+            ?? new RecommendationApprovalWorkflowLifecycleService(
+                recommendationsTable: $this->recommendationsTable,
+            );
     }
 
     /**
@@ -56,58 +63,67 @@ class BestowalRecommendationLinkService
             return [];
         }
 
-        $currentLinkedIds = $this->getLinkedRecommendationIds($bestowalId);
-        $recommendationIds = array_values(array_intersect($recommendationIds, $currentLinkedIds));
-        if ($recommendationIds === []) {
-            return [];
-        }
+        return $this->bestowalsTable->getConnection()->transactional(
+            function () use ($bestowalId, $recommendationIds, $actorId): array {
+                $currentLinkedIds = $this->getLinkedRecommendationIds($bestowalId);
+                $recommendationIds = array_values(array_intersect($recommendationIds, $currentLinkedIds));
+                if ($recommendationIds === []) {
+                    return [];
+                }
 
-        if (count($currentLinkedIds) - count($recommendationIds) < 1) {
-            throw new RuntimeException(
-                'A bestowal must keep at least one linked recommendation.',
-            );
-        }
+                if (count($currentLinkedIds) - count($recommendationIds) < 1) {
+                    throw new RuntimeException(
+                        'A bestowal must keep at least one linked recommendation.',
+                    );
+                }
 
-        $bestowal = $this->bestowalsTable->get($bestowalId, contain: [
-            'Members',
-            'Recommendations' => ['Awards', 'Awards.Levels'],
-        ]);
-        $unwindState = $this->syncService->resolveUnwindTargetStateName();
-        $unlinked = [];
+                $bestowal = $this->bestowalsTable->get($bestowalId, contain: [
+                    'Members',
+                    'Recommendations' => ['Awards', 'Awards.Levels'],
+                ]);
+                $unwindState = $this->syncService->resolveUnwindTargetStateName();
+                $unlinked = [];
 
-        foreach ($recommendationIds as $recommendationId) {
-            $join = $this->bestowalRecommendationsTable->find()
-                ->where([
-                    'bestowal_id' => $bestowalId,
-                    'recommendation_id' => $recommendationId,
-                ])
-                ->first();
-            if ($join === null) {
-                continue;
-            }
+                foreach ($recommendationIds as $recommendationId) {
+                    $join = $this->bestowalRecommendationsTable->find()
+                        ->where([
+                            'bestowal_id' => $bestowalId,
+                            'recommendation_id' => $recommendationId,
+                        ])
+                        ->first();
+                    if ($join === null) {
+                        continue;
+                    }
 
-            $recommendation = $this->recommendationsTable->get($recommendationId);
-            if ($unwindState !== null) {
-                $this->syncService->applySystemRecommendationState(
-                    $recommendation,
-                    $unwindState,
-                    $actorId,
-                );
-            }
+                    $recommendation = $this->recommendationsTable->get($recommendationId);
+                    if ($unwindState !== null) {
+                        $this->syncService->applySystemRecommendationState(
+                            $recommendation,
+                            $unwindState,
+                            $actorId,
+                        );
+                    }
 
-            $recommendation->bestowal_id = null;
-            $recommendation->gathering_id = null;
-            $recommendation->modified_by = $actorId;
-            $this->recommendationsTable->saveOrFail($recommendation, ['systemSync' => true]);
-            $this->bestowalRecommendationsTable->deleteOrFail($join);
-            $unlinked[] = $recommendationId;
-        }
+                    $recommendation->bestowal_id = null;
+                    $recommendation->gathering_id = null;
+                    $recommendation->modified_by = $actorId;
+                    $this->recommendationsTable->saveOrFail($recommendation, ['systemSync' => true]);
+                    $this->bestowalRecommendationsTable->deleteOrFail($join);
+                    $unlinked[] = $recommendationId;
+                }
 
-        if ($unlinked !== []) {
-            $this->refreshBestowalAfterLinkChange($bestowal, $actorId);
-        }
+                if ($unlinked !== []) {
+                    $this->refreshBestowalAfterLinkChange($bestowal, $actorId);
+                    $this->approvalLifecycleService->rehydrateUnlinkedRecommendations(
+                        $unlinked,
+                        $actorId,
+                        'bestowal_unlinked',
+                    );
+                }
 
-        return $unlinked;
+                return $unlinked;
+            },
+        );
     }
 
     /**
@@ -125,66 +141,61 @@ class BestowalRecommendationLinkService
             return [];
         }
 
-        $bestowal = $this->bestowalsTable->get($bestowalId, contain: [
-            'Members',
-            'Recommendations' => ['Awards', 'Awards.Levels'],
-        ]);
-        $linked = [];
+        return $this->bestowalsTable->getConnection()->transactional(
+            function () use ($bestowalId, $recommendationIds, $actorId): array {
+                $bestowal = $this->bestowalsTable->get($bestowalId, contain: [
+                    'Members',
+                    'Recommendations' => ['Awards', 'Awards.Levels'],
+                ]);
+                $linked = [];
 
-        foreach ($recommendationIds as $recommendationId) {
-            $existingJoin = $this->bestowalRecommendationsTable->find()
-                ->where([
-                    'bestowal_id' => $bestowalId,
-                    'recommendation_id' => $recommendationId,
-                ])
-                ->first();
-            if ($existingJoin !== null) {
-                continue;
-            }
+                foreach ($recommendationIds as $recommendationId) {
+                    $existingJoin = $this->bestowalRecommendationsTable->find()
+                        ->where([
+                            'bestowal_id' => $bestowalId,
+                            'recommendation_id' => $recommendationId,
+                        ])
+                        ->first();
+                    if ($existingJoin !== null) {
+                        $recommendation = $this->recommendationsTable->get(
+                            $recommendationId,
+                            contain: ['Awards', 'Awards.Levels'],
+                        );
+                        $this->assertLinkable($bestowal, $recommendation);
+                        if ($this->syncLinkedRecommendation($bestowal, $recommendation, $actorId)) {
+                            $linked[] = $recommendationId;
+                        }
 
-            $recommendation = $this->recommendationsTable->get(
-                $recommendationId,
-                contain: ['Awards', 'Awards.Levels'],
-            );
-            $this->assertLinkable($bestowal, $recommendation);
+                        continue;
+                    }
 
-            $join = $this->bestowalRecommendationsTable->newEmptyEntity();
-            $join->bestowal_id = $bestowalId;
-            $join->recommendation_id = $recommendationId;
-            $this->bestowalRecommendationsTable->saveOrFail($join);
+                    $recommendation = $this->recommendationsTable->get(
+                        $recommendationId,
+                        contain: ['Awards', 'Awards.Levels'],
+                    );
+                    $this->assertLinkable($bestowal, $recommendation);
 
-            $recommendation->bestowal_id = $bestowalId;
-            $recommendation->modified_by = $actorId;
-            $this->recommendationsTable->saveOrFail($recommendation, ['systemSync' => true]);
+                    $join = $this->bestowalRecommendationsTable->newEmptyEntity();
+                    $join->bestowal_id = $bestowalId;
+                    $join->recommendation_id = $recommendationId;
+                    $this->bestowalRecommendationsTable->saveOrFail($join);
 
-            $targetState = $this->syncService->resolveSyncTargetStateName((string)$bestowal->state);
-            if ($targetState !== null) {
-                $recommendation = $this->syncService->applySystemRecommendationState(
-                    $recommendation,
-                    $targetState,
-                    $actorId,
-                );
-            }
+                    $this->approvalLifecycleService->supersedeActiveRunsForBestowalLink(
+                        [$recommendationId],
+                        $bestowalId,
+                        $actorId,
+                    );
+                    $this->syncLinkedRecommendation($bestowal, $recommendation, $actorId);
+                    $linked[] = $recommendationId;
+                }
 
-            $this->syncService->syncRecommendationGatheringFromBestowal(
-                $bestowal,
-                $recommendation,
-                $actorId,
-            );
-            $this->syncService->syncRecommendationGivenFromBestowal(
-                $bestowal,
-                $recommendation,
-                $actorId,
-            );
+                if ($linked !== []) {
+                    $this->refreshBestowalAfterLinkChange($bestowal, $actorId);
+                }
 
-            $linked[] = $recommendationId;
-        }
-
-        if ($linked !== []) {
-            $this->refreshBestowalAfterLinkChange($bestowal, $actorId);
-        }
-
-        return $linked;
+                return $linked;
+            },
+        );
     }
 
     /**
@@ -234,6 +245,45 @@ class BestowalRecommendationLinkService
         }
 
         return $ids;
+    }
+
+    /**
+     * @param \Awards\Model\Entity\Bestowal $bestowal Bestowal entity.
+     * @param \Awards\Model\Entity\Recommendation $recommendation Recommendation to sync with the bestowal.
+     * @param int $actorId Actor performing the link.
+     * @return bool True when persisted recommendation fields were repaired.
+     */
+    private function syncLinkedRecommendation(
+        Bestowal $bestowal,
+        Recommendation $recommendation,
+        int $actorId,
+    ): bool {
+        $updated = false;
+        if ((int)($recommendation->bestowal_id ?? 0) !== (int)$bestowal->id) {
+            $recommendation->bestowal_id = (int)$bestowal->id;
+            $recommendation->modified_by = $actorId;
+            $this->recommendationsTable->saveOrFail($recommendation, ['systemSync' => true]);
+            $updated = true;
+        }
+
+        $targetState = $this->syncService->resolveSyncTargetStateName((string)$bestowal->state);
+        if ($targetState !== null && (string)$recommendation->state !== $targetState) {
+            $recommendation = $this->syncService->applySystemRecommendationState(
+                $recommendation,
+                $targetState,
+                $actorId,
+            );
+            $updated = true;
+        }
+
+        if ($this->syncService->syncRecommendationGatheringFromBestowal($bestowal, $recommendation, $actorId)) {
+            $updated = true;
+        }
+        if ($this->syncService->syncRecommendationGivenFromBestowal($bestowal, $recommendation, $actorId)) {
+            $updated = true;
+        }
+
+        return $updated;
     }
 
     /**

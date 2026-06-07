@@ -51,6 +51,35 @@ class WorkflowApprovalsTableTest extends BaseTestCase
         );
     }
 
+    public function testPendingApprovalHelpersCanBeScopedToWorkflowInstances(): void
+    {
+        [$includedInstanceId, $includedExecutionLogId] = $this->createWorkflowContext();
+        [$excludedInstanceId, $excludedExecutionLogId] = $this->createWorkflowContext();
+
+        $includedApprovalId = $this->createApproval($includedInstanceId, $includedExecutionLogId, [
+            'approver_type' => WorkflowApproval::APPROVER_TYPE_MEMBER,
+            'approver_config' => ['member_id' => self::ADMIN_MEMBER_ID],
+        ]);
+        $excludedApprovalId = $this->createApproval($excludedInstanceId, $excludedExecutionLogId, [
+            'approver_type' => WorkflowApproval::APPROVER_TYPE_MEMBER,
+            'approver_config' => ['member_id' => self::ADMIN_MEMBER_ID],
+        ]);
+
+        $scopedApprovalIds = WorkflowApprovalsTable::getPendingApprovalIdsForMember(
+            self::ADMIN_MEMBER_ID,
+            [$includedInstanceId],
+        );
+        $scopedInstanceIds = WorkflowApprovalsTable::getPendingApprovalWorkflowInstanceIdsForMember(
+            self::ADMIN_MEMBER_ID,
+            [$includedInstanceId],
+        );
+
+        $this->assertContains($includedApprovalId, $scopedApprovalIds);
+        $this->assertNotContains($excludedApprovalId, $scopedApprovalIds);
+        $this->assertSame([$includedInstanceId], $scopedInstanceIds);
+        $this->assertSame([], WorkflowApprovalsTable::getPendingApprovalIdsForMember(self::ADMIN_MEMBER_ID, []));
+    }
+
     public function testPendingCountUsesCurrentBranchScopedRoleForAwardDynamicApproval(): void
     {
         $scope = $this->findCurrentBranchRoleScope();
@@ -248,6 +277,47 @@ class WorkflowApprovalsTableTest extends BaseTestCase
         );
         $this->assertFalse(
             WorkflowApprovalsTable::isPendingApprovalForMember($approvalId, self::ADMIN_MEMBER_ID),
+        );
+    }
+
+    public function testPendingCountExcludesPriorDynamicWorkflowResponder(): void
+    {
+        $countBefore = WorkflowApprovalsTable::getPendingApprovalCountForMember(self::ADMIN_MEMBER_ID);
+        [$instanceId, $executionLogId] = $this->createWorkflowContext();
+        $firstApprovalId = $this->createApproval($instanceId, $executionLogId, [
+            'approver_type' => WorkflowApproval::APPROVER_TYPE_DYNAMIC,
+            'approver_config' => [
+                'award_approval_approver_type' => 'member',
+                'award_approval_approver_source_id' => self::ADMIN_MEMBER_ID,
+            ],
+            'status' => WorkflowApproval::STATUS_APPROVED,
+        ]);
+        $secondApprovalId = $this->createApproval($instanceId, $executionLogId, [
+            'approver_type' => WorkflowApproval::APPROVER_TYPE_DYNAMIC,
+            'approver_config' => [
+                'award_approval_approver_type' => 'member',
+                'award_approval_approver_source_id' => self::ADMIN_MEMBER_ID,
+            ],
+        ]);
+
+        $response = $this->responsesTable->newEntity([
+            'workflow_approval_id' => $firstApprovalId,
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'decision' => WorkflowApprovalResponse::DECISION_APPROVE,
+            'responded_at' => DateTime::now(),
+        ]);
+        $this->responsesTable->saveOrFail($response);
+
+        $this->assertSame(
+            $countBefore,
+            WorkflowApprovalsTable::getPendingApprovalCountForMember(self::ADMIN_MEMBER_ID),
+        );
+        $this->assertNotContains(
+            $secondApprovalId,
+            WorkflowApprovalsTable::getPendingApprovalIdsForMember(self::ADMIN_MEMBER_ID),
+        );
+        $this->assertFalse(
+            WorkflowApprovalsTable::isPendingApprovalForMember($secondApprovalId, self::ADMIN_MEMBER_ID),
         );
     }
 

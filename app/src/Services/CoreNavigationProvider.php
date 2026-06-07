@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services;
@@ -304,17 +303,6 @@ class CoreNavigationProvider
                     'EmailTemplates/add',
                     'EmailTemplates/edit/*',
                 ],
-            ],
-            [
-                'type' => 'link',
-                'mergePath' => ['Config', 'Email Templates'],
-                'label' => 'Discover',
-                'order' => 10,
-                'url' => [
-                    'controller' => 'EmailTemplates',
-                    'action' => 'discover',
-                ],
-                'icon' => 'bi-search',
             ],
             [
                 'type' => 'link',
