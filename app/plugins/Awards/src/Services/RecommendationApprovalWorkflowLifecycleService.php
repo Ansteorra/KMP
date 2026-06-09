@@ -268,6 +268,57 @@ class RecommendationApprovalWorkflowLifecycleService
     }
 
     /**
+     * Cancel active approval workflows that are superseded by grouping under another head.
+     *
+     * This intentionally queries direct recommendation IDs instead of approval scope so the
+     * chosen head's workflow remains active while child workflows are cancelled.
+     *
+     * @param array<int> $recommendationIds Child recommendation IDs being linked to a group head.
+     * @param int $headRecommendationId Group head recommendation ID.
+     * @param int|null $actorId Actor ID.
+     * @return array<int> Cancelled run IDs.
+     */
+    public function supersedeActiveRunsForGrouping(
+        array $recommendationIds,
+        int $headRecommendationId,
+        ?int $actorId,
+    ): array {
+        $recommendationIds = array_values(array_diff(
+            array_unique(array_filter(array_map('intval', $recommendationIds))),
+            [$headRecommendationId],
+        ));
+        if ($recommendationIds === []) {
+            return [];
+        }
+
+        $runs = $this->approvalRunsTable->find()
+            ->where([
+                'recommendation_id IN' => $recommendationIds,
+                'status IN' => self::ACTIVE_STATUSES,
+                'deleted IS' => null,
+            ])
+            ->orderBy(['id' => 'ASC'])
+            ->all();
+
+        $runIds = [];
+        foreach ($runs as $run) {
+            $this->cancelWorkflowProjection(
+                (int)$run->workflow_instance_id,
+                RecommendationApprovalRun::TERMINAL_REASON_SUPERSEDED_BY_GROUPING,
+            );
+            $this->markRunTerminal(
+                $run,
+                RecommendationApprovalRun::STATUS_CANCELLED,
+                RecommendationApprovalRun::TERMINAL_REASON_SUPERSEDED_BY_GROUPING,
+                $actorId,
+            );
+            $runIds[] = (int)$run->id;
+        }
+
+        return $runIds;
+    }
+
+    /**
      * Rehydrate approval workflows for recommendations whose prior approval was consumed or superseded.
      *
      * @param array<int> $recommendationIds Recommendation IDs.
@@ -384,6 +435,7 @@ class RecommendationApprovalWorkflowLifecycleService
                     RecommendationApprovalRun::TERMINAL_REASON_CONSUMED_BY_BESTOWAL,
                     RecommendationApprovalRun::TERMINAL_REASON_SUPERSEDED_BY_BESTOWAL_LINK,
                     RecommendationApprovalRun::TERMINAL_REASON_BESTOWAL_CANCELLED,
+                    RecommendationApprovalRun::TERMINAL_REASON_SUPERSEDED_BY_GROUPING,
                 ],
                 'deleted IS' => null,
             ])

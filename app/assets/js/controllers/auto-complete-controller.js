@@ -276,6 +276,10 @@ class AutoComplete extends Controller {
             return null;
         }
 
+        if (typeof raw === "object" && !Array.isArray(raw)) {
+            return raw;
+        }
+
         const trimmed = String(raw).trim();
         if (trimmed === "") {
             return null;

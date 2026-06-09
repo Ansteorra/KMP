@@ -141,9 +141,13 @@ class RecommendationApprovalProcessService
                 return new ServiceResult(false, 'The current approval process step could not be found.');
             }
 
-            $currentStep = $steps[$currentIndex];
             if ($approvalStatus === 'rejected') {
-                return $this->handleRejectedStep($run, $recommendation, $steps, $currentIndex, $currentStep, $actorId);
+                return $this->handleRejectedStep(
+                    $run,
+                    $recommendation,
+                    $actorId,
+                    $this->resolveRejectionComment($context, $config),
+                );
             }
 
             if ($approvalStatus !== 'approved') {
@@ -463,47 +467,37 @@ class RecommendationApprovalProcessService
     }
 
     /**
-     * Handle a rejected approval step according to the step kickback rule.
+     * Close a rejected approval run.
      *
      * @param \Awards\Model\Entity\RecommendationApprovalRun $run Approval run.
      * @param \Awards\Model\Entity\Recommendation $recommendation Recommendation.
-     * @param array<int, \Awards\Model\Entity\ApprovalProcessStep> $steps Ordered steps.
-     * @param int $currentIndex Current step index.
-     * @param \Awards\Model\Entity\ApprovalProcessStep $currentStep Current step.
      * @param int|null $actorId Actor ID.
+     * @param string|null $closeReason Rejection comment to store as the close reason.
      * @return \App\Services\ServiceResult
      */
     private function handleRejectedStep(
         RecommendationApprovalRun $run,
         Recommendation $recommendation,
-        array $steps,
-        int $currentIndex,
-        ApprovalProcessStep $currentStep,
         ?int $actorId,
+        ?string $closeReason,
     ): ServiceResult {
-        if ($currentStep->on_reject === ApprovalProcessStep::ACTION_CLOSE) {
-            $run->status = RecommendationApprovalRun::STATUS_CLOSED;
-            $run->completed = DateTime::now();
-            $run->terminal_reason = RecommendationApprovalRun::TERMINAL_REASON_REJECTED;
-            $run->modified_by = $actorId;
-            $this->fetchTable('Awards.RecommendationApprovalRuns')->saveOrFail($run);
-            $this->transitionRecommendation(
-                $recommendation,
-                RecommendationBestowalStatePolicyService::NO_ACTION_STATE,
-                $actorId,
-            );
+        $run->status = RecommendationApprovalRun::STATUS_CLOSED;
+        $run->completed = DateTime::now();
+        $run->terminal_reason = RecommendationApprovalRun::TERMINAL_REASON_REJECTED;
+        $run->modified_by = $actorId;
+        $this->fetchTable('Awards.RecommendationApprovalRuns')->saveOrFail($run);
+        $this->transitionRecommendation(
+            $recommendation,
+            RecommendationBestowalStatePolicyService::NO_ACTION_STATE,
+            $actorId,
+            $closeReason,
+        );
 
-            return new ServiceResult(true, null, [
-                'runId' => (int)$run->id,
-                'status' => $run->status,
-                'closed' => true,
-            ]);
-        }
-
-        $targetStep = $this->resolveKickbackStep($steps, $currentIndex, (string)$currentStep->on_reject);
-        $this->updateRunStep($run, $targetStep, RecommendationApprovalRun::STATUS_CHANGES_REQUESTED, $actorId);
-
-        return new ServiceResult(true, null, $this->stepOutput($run, $recommendation, $targetStep));
+        return new ServiceResult(true, null, [
+            'runId' => (int)$run->id,
+            'status' => $run->status,
+            'closed' => true,
+        ]);
     }
 
     /**
@@ -557,28 +551,68 @@ class RecommendationApprovalProcessService
      * @param int|null $actorId Actor ID.
      * @return void
      */
-    private function transitionRecommendation(Recommendation $recommendation, string $targetState, ?int $actorId): void
-    {
-        if ((string)$recommendation->state === $targetState) {
-            return;
-        }
+    private function transitionRecommendation(
+        Recommendation $recommendation,
+        string $targetState,
+        ?int $actorId,
+        ?string $closeReason = null,
+    ): void {
+        $recommendationsTable = $this->fetchTable('Awards.Recommendations');
 
         if ($actorId === null) {
             $recommendation->state = $targetState;
-            $this->fetchTable('Awards.Recommendations')->saveOrFail($recommendation);
+            if ($closeReason !== null) {
+                $recommendation->close_reason = $closeReason;
+            }
+            $recommendationsTable->saveOrFail($recommendation);
 
             return;
         }
 
-        $result = $this->transitionService->transition(
-            $this->fetchTable('Awards.Recommendations'),
-            (int)$recommendation->id,
-            ['targetState' => $targetState],
-            $actorId,
-        );
-        if (!($result['success'] ?? false)) {
-            throw new RuntimeException((string)($result['error'] ?? 'Recommendation state transition failed.'));
+        if ((string)$recommendation->state !== $targetState) {
+            $transitionData = ['targetState' => $targetState];
+            if ($closeReason !== null) {
+                $transitionData['close_reason'] = $closeReason;
+            }
+            $result = $this->transitionService->transition(
+                $recommendationsTable,
+                (int)$recommendation->id,
+                $transitionData,
+                $actorId,
+            );
+            if (!($result['success'] ?? false)) {
+                throw new RuntimeException((string)($result['error'] ?? 'Recommendation state transition failed.'));
+            }
+
+            return;
         }
+
+        if ($closeReason !== null && (string)$recommendation->close_reason !== $closeReason) {
+            $recommendation->close_reason = $closeReason;
+            $recommendationsTable->saveOrFail($recommendation);
+        }
+    }
+
+    /**
+     * Resolve the reject comment from workflow resume/action context.
+     *
+     * @param array<string, mixed> $context Workflow context.
+     * @param array<string, mixed> $config Node config.
+     * @return string|null
+     */
+    private function resolveRejectionComment(array $context, array $config): ?string
+    {
+        $comment = $context['resumeData']['comment']
+            ?? $context['comment']
+            ?? $config['comment']
+            ?? null;
+        if (!is_string($comment)) {
+            return null;
+        }
+
+        $comment = trim($comment);
+
+        return $comment === '' ? null : $comment;
     }
 
     /**

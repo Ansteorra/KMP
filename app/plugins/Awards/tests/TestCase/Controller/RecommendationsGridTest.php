@@ -91,11 +91,13 @@ class RecommendationsGridTest extends HttpIntegrationTestCase
 
         $queuedReason = 'approval-queue-filter-match-' . uniqid();
         $changesRequestedReason = 'approval-queue-filter-changes-' . uniqid();
+        $declinedChangesRequestedReason = 'approval-queue-filter-declined-' . uniqid();
         $closedRunReason = 'approval-queue-filter-closed-' . uniqid();
         $noQueueReason = 'approval-queue-filter-none-' . uniqid();
 
         $queuedRecommendation = $this->createRecommendation($award->id, $queuedReason);
         $changesRequestedRecommendation = $this->createRecommendation($award->id, $changesRequestedReason);
+        $declinedChangesRequestedRecommendation = $this->createRecommendation($award->id, $declinedChangesRequestedReason);
         $closedRunRecommendation = $this->createRecommendation($award->id, $closedRunReason);
         $this->createRecommendation($award->id, $noQueueReason);
 
@@ -109,6 +111,12 @@ class RecommendationsGridTest extends HttpIntegrationTestCase
             RecommendationApprovalRun::STATUS_CHANGES_REQUESTED,
             'Changes Requested',
         );
+        $declinedChangesRequestedRun = $this->createApprovalRun(
+            (int)$declinedChangesRequestedRecommendation->id,
+            RecommendationApprovalRun::STATUS_CHANGES_REQUESTED,
+            'Changes Requested',
+        );
+        $this->createWorkflowRejectionResponseForRun($declinedChangesRequestedRun, self::ADMIN_MEMBER_ID);
         $this->createApprovalRun(
             (int)$closedRunRecommendation->id,
             RecommendationApprovalRun::STATUS_APPROVED,
@@ -123,10 +131,10 @@ class RecommendationsGridTest extends HttpIntegrationTestCase
         $this->get($url);
 
         $this->assertResponseOk();
-        $this->assertResponseContains('In Approval');
         $this->assertResponseContains('Crown Review');
         $this->assertResponseContains($queuedReason);
         $this->assertResponseContains($changesRequestedReason);
+        $this->assertResponseNotContains($declinedChangesRequestedReason);
         $this->assertResponseNotContains($closedRunReason);
         $this->assertResponseNotContains($noQueueReason);
     }
@@ -157,7 +165,6 @@ class RecommendationsGridTest extends HttpIntegrationTestCase
         $this->get($url);
 
         $this->assertResponseOk();
-        $this->assertResponseContains('In Approval');
         $this->assertResponseContains($queuedReason);
         $this->assertResponseNotContains($noQueueReason);
     }
@@ -231,7 +238,6 @@ class RecommendationsGridTest extends HttpIntegrationTestCase
         $this->get($url);
 
         $this->assertResponseOk();
-        $this->assertResponseContains('Needs My Approval');
         $this->assertResponseContains($needsMeReason);
         $this->assertResponseNotContains($needsOtherReason);
         $this->assertResponseNotContains($approvedByMeReason);
@@ -329,15 +335,24 @@ class RecommendationsGridTest extends HttpIntegrationTestCase
 
         $archivedReason = 'archived-filter-match-' . uniqid();
         $givenReason = 'archived-filter-given-' . uniqid();
+        $declinedReason = 'archived-filter-declined-' . uniqid();
         $submittedReason = 'archived-filter-submitted-' . uniqid();
+        $archivedState = RecommendationsGridColumns::getArchivedStates()[0] ?? 'No Action';
 
-        $this->createRecommendation($award->id, $archivedReason, [
-            'state' => 'No Action',
+        $archivedRecommendation = $this->createRecommendation($award->id, $archivedReason, [
+            'state' => $archivedState,
             'close_reason' => 'Grid archive test',
         ]);
         $givenRecommendation = $this->createRecommendation($award->id, $givenReason, ['state' => 'Need to Schedule']);
-        $this->createBestowalForRecommendation($givenRecommendation, 'Given');
-        $this->createRecommendation($award->id, $submittedReason, ['state' => 'Submitted']);
+        $givenBestowal = $this->createBestowalForRecommendation($givenRecommendation, 'Given');
+        $declinedRecommendation = $this->createRecommendation($award->id, $declinedReason, ['state' => 'Submitted']);
+        $declinedRun = $this->createApprovalRun(
+            (int)$declinedRecommendation->id,
+            RecommendationApprovalRun::STATUS_CHANGES_REQUESTED,
+            'Changes Requested',
+        );
+        $this->createWorkflowRejectionResponseForRun($declinedRun, self::ADMIN_MEMBER_ID);
+        $submittedRecommendation = $this->createRecommendation($award->id, $submittedReason, ['state' => 'Submitted']);
 
         $url = '/awards/recommendations/grid-data?' . http_build_query([
             'view_id' => 'sys-recs-archived',
@@ -348,9 +363,17 @@ class RecommendationsGridTest extends HttpIntegrationTestCase
 
         $this->assertResponseOk();
         $this->assertResponseContains('Archived');
-        $this->assertResponseContains($archivedReason);
-        $this->assertResponseContains($givenReason);
-        $this->assertResponseNotContains($submittedReason);
+        $this->assertResponseContains('Grid archive test');
+        $this->assertResponseContains('/awards/recommendations/view/' . $archivedRecommendation->id);
+        $this->assertResponseContains('/awards/recommendations/view/' . $givenRecommendation->id);
+        $this->assertResponseContains('/awards/recommendations/view/' . $declinedRecommendation->id);
+        $this->assertResponseContains('/awards/bestowals/view/' . $givenBestowal->id);
+        $this->assertResponseNotContains('edit-rec');
+        $this->assertResponseNotContains('data-bulk-action-key="workflow-decision"');
+        $this->assertResponseNotContains('data-bulk-action-key="group-recs"');
+        $this->assertResponseNotContains('data-bulk-action-key="request-feedback"');
+        $this->assertResponseNotContains('#requestRecommendationFeedbackModal');
+        $this->assertResponseNotContains('/awards/recommendations/view/' . $submittedRecommendation->id);
     }
 
     public function testConvertedSystemViewUsesBestowalWorkColumnsAndLinkedActions(): void
@@ -465,8 +488,12 @@ class RecommendationsGridTest extends HttpIntegrationTestCase
         return $savedBestowal;
     }
 
-    private function createApprovalRun(int $recommendationId, string $status, string $stepLabel): RecommendationApprovalRun
-    {
+    private function createApprovalRun(
+        int $recommendationId,
+        string $status,
+        string $stepLabel,
+        ?string $terminalReason = null,
+    ): RecommendationApprovalRun {
         $workflowDefinitions = $this->getTableLocator()->get('WorkflowDefinitions');
         $workflowDefinition = $workflowDefinitions->newEntity([
             'name' => 'Recommendation Approval Queue Test ' . uniqid(),
@@ -516,6 +543,8 @@ class RecommendationsGridTest extends HttpIntegrationTestCase
             'current_step_key' => 'crown_review',
             'current_step_label' => $stepLabel,
             'started' => new DateTimeImmutable(),
+            'completed' => $terminalReason === null ? null : new DateTimeImmutable(),
+            'terminal_reason' => $terminalReason,
         ]);
 
         return $approvalRuns->saveOrFail($approvalRun);
@@ -535,6 +564,24 @@ class RecommendationsGridTest extends HttpIntegrationTestCase
             'workflow_approval_id' => $workflowApproval->id,
             'member_id' => $memberId,
             'decision' => WorkflowApprovalResponse::DECISION_APPROVE,
+            'responded_at' => new DateTimeImmutable(),
+        ]));
+    }
+
+    private function createWorkflowRejectionResponseForRun(RecommendationApprovalRun $run, int $memberId): void
+    {
+        $workflowApproval = $this->createWorkflowApprovalForRun(
+            $run,
+            $memberId,
+            WorkflowApproval::STATUS_REJECTED,
+            0,
+        );
+
+        $workflowApprovalResponses = $this->getTableLocator()->get('WorkflowApprovalResponses');
+        $workflowApprovalResponses->saveOrFail($workflowApprovalResponses->newEntity([
+            'workflow_approval_id' => $workflowApproval->id,
+            'member_id' => $memberId,
+            'decision' => WorkflowApprovalResponse::DECISION_REJECT,
             'responded_at' => new DateTimeImmutable(),
         ]));
     }

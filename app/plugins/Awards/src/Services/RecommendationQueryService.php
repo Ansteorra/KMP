@@ -180,12 +180,14 @@ class RecommendationQueryService
             $viewId = $selectedSystemView['id'] ?? null;
 
             if ($viewId === 'sys-recs-in-approval') {
-                return $query->where([
-                    'CurrentApprovalRun.status IN' => [
-                        RecommendationApprovalRun::STATUS_IN_PROGRESS,
-                        RecommendationApprovalRun::STATUS_CHANGES_REQUESTED,
-                    ],
-                ]);
+                return $query
+                    ->where([
+                        'CurrentApprovalRun.status IN' => [
+                            RecommendationApprovalRun::STATUS_IN_PROGRESS,
+                            RecommendationApprovalRun::STATUS_CHANGES_REQUESTED,
+                        ],
+                    ])
+                    ->where([$this->workflowInstanceRejectedResponseMissingSql('CurrentApprovalRun.workflow_instance_id')]);
             }
 
             if ($viewId === 'sys-recs-needs-my-approval') {
@@ -250,12 +252,70 @@ class RecommendationQueryService
                             'Recommendations.bestowal_id IS' => null,
                         ],
                         'Bestowals.state' => 'Given',
+                        sprintf(
+                            "EXISTS (
+                                SELECT 1
+                                FROM awards_recommendation_approval_runs archived_runs
+                                WHERE archived_runs.recommendation_id = Recommendations.id
+                                  AND archived_runs.deleted IS NULL
+                                  AND archived_runs.status = '%s'
+                                  AND archived_runs.terminal_reason = '%s'
+                            )",
+                            RecommendationApprovalRun::STATUS_CLOSED,
+                            RecommendationApprovalRun::TERMINAL_REASON_REJECTED,
+                        ),
+                        $this->recommendationRejectedResponseExistsSql(),
                     ],
                 ]);
             }
 
             return $query;
         };
+    }
+
+    /**
+     * Build SQL that matches any rejected workflow response for a recommendation's approval runs.
+     *
+     * @return string
+     */
+    private function recommendationRejectedResponseExistsSql(): string
+    {
+        return sprintf(
+            "EXISTS (
+                SELECT 1
+                FROM awards_recommendation_approval_runs response_runs
+                INNER JOIN workflow_approvals response_approvals
+                    ON response_approvals.workflow_instance_id = response_runs.workflow_instance_id
+                INNER JOIN workflow_approval_responses response_decisions
+                    ON response_decisions.workflow_approval_id = response_approvals.id
+                WHERE response_runs.recommendation_id = Recommendations.id
+                  AND response_runs.deleted IS NULL
+                  AND response_decisions.decision = '%s'
+            )",
+            WorkflowApprovalResponse::DECISION_REJECT,
+        );
+    }
+
+    /**
+     * Build SQL that excludes workflow instances that have already received a reject response.
+     *
+     * @param string $workflowInstanceField SQL field/expression for the workflow instance ID.
+     * @return string
+     */
+    private function workflowInstanceRejectedResponseMissingSql(string $workflowInstanceField): string
+    {
+        return sprintf(
+            "NOT EXISTS (
+                SELECT 1
+                FROM workflow_approvals active_response_approvals
+                INNER JOIN workflow_approval_responses active_response_decisions
+                    ON active_response_decisions.workflow_approval_id = active_response_approvals.id
+                WHERE active_response_approvals.workflow_instance_id = %s
+                  AND active_response_decisions.decision = '%s'
+            )",
+            $workflowInstanceField,
+            WorkflowApprovalResponse::DECISION_REJECT,
+        );
     }
 
     /**

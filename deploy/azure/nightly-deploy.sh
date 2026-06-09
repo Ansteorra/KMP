@@ -9,15 +9,19 @@
 #   1. (optional) trigger a fresh GHCR build via `gh workflow run nightly.yml`
 #   2. `az acr import` ghcr.io/jhandel/kmp:<tag> into the nightly ACR
 #   3. run the migrate Container Apps Job and wait for Succeeded
-#   4. (optional, --reset) run the restore job to reseed the database
+#   4. (optional, --reset) run the reset job to reseed the database
 #   5. update the web Container App image → forces a new revision
 #   6. update the fixed schedule-shape job images
 #   7. poll /health until it returns 200
 #
 # Usage:
-#   deploy/azure/nightly-deploy.sh deploy            # deploy current :nightly
+#   deploy/azure/nightly-deploy.sh deploy            # deploy current :nightly from GHCR
+#   deploy/azure/nightly-deploy.sh deploy-local      # build local checkout, push to ACR, deploy
 #   deploy/azure/nightly-deploy.sh deploy --reset    # deploy + wipe+reseed DB
 #   deploy/azure/nightly-deploy.sh build             # rebuild image via GH, then deploy
+#   deploy/azure/nightly-deploy.sh migrate           # run app + platform migrations on current image
+#   deploy/azure/nightly-deploy.sh reset-passwords   # reset tenant member passwords to TestPassword
+#   deploy/azure/nightly-deploy.sh verify-tenants    # smoke custom tenant/platform hosts
 #   deploy/azure/nightly-deploy.sh reset             # alias: deploy --reset
 #   deploy/azure/nightly-deploy.sh status            # recent GH build runs
 #   deploy/azure/nightly-deploy.sh health            # curl /health
@@ -33,16 +37,20 @@
 #   AZURE_WEB_APP_NAME      kmpnightly-web
 #   AZURE_MIGRATE_JOB_NAME  kmpnightly-migrate
 #   AZURE_QUEUE_JOB_NAME          kmpnightly-queue
-#   AZURE_RESTORE_JOB_NAME        kmpnightly-restore
-#   AZURE_SCHED_HOURLY_JOB_NAME   kmpnightly-sched-hourly
-#   AZURE_SCHED_DAILY_JOB_NAME    kmpnightly-sched-daily
-#   AZURE_SCHED_WEEKLY_JOB_NAME   kmpnightly-sched-weekly
-#   AZURE_SCHED_NIGHTLY_JOB_NAME  kmpnightly-sched-nightly
+#   AZURE_RESET_JOB_NAME          kmpnightly-reset
+#   AZURE_SYNC_JOB_NAME           kmpnightly-sync
+#   AZURE_SCHED_HOURLY_JOB_NAME   <unset; skipped if absent>
+#   AZURE_SCHED_DAILY_JOB_NAME    <unset; skipped if absent>
+#   AZURE_SCHED_WEEKLY_JOB_NAME   <unset; skipped if absent>
+#   AZURE_SCHED_NIGHTLY_JOB_NAME  <unset; skipped if absent>
 #   IMAGE_TAG               nightly
 #   NIGHTLY_BRANCH          <current git branch>   (used by `build`)
 #   GH_REPO                 jhandel/KMP            (used by `build` / `status`)
 # =============================================================================
 set -euo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$HERE/../.." && pwd)"
 
 # ---- Config (source nightly.env if present for sub/region overrides) --------
 if [[ -f "$(dirname "${BASH_SOURCE[0]}")/nightly.env" ]]; then
@@ -58,12 +66,15 @@ ACR="${AZURE_ACR_NAME:-kmpnightlyacrd346d2}"
 WEB="${AZURE_WEB_APP_NAME:-kmpnightly-web}"
 MIGRATE_JOB="${AZURE_MIGRATE_JOB_NAME:-kmpnightly-migrate}"
 QUEUE_JOB="${AZURE_QUEUE_JOB_NAME:-kmpnightly-queue}"
-RESTORE_JOB="${AZURE_RESTORE_JOB_NAME:-${AZURE_RESET_JOB_NAME:-kmpnightly-restore}}"
-SCHED_HOURLY_JOB="${AZURE_SCHED_HOURLY_JOB_NAME:-kmpnightly-sched-hourly}"
-SCHED_DAILY_JOB="${AZURE_SCHED_DAILY_JOB_NAME:-${AZURE_SYNC_JOB_NAME:-kmpnightly-sched-daily}}"
-SCHED_WEEKLY_JOB="${AZURE_SCHED_WEEKLY_JOB_NAME:-kmpnightly-sched-weekly}"
-SCHED_NIGHTLY_JOB="${AZURE_SCHED_NIGHTLY_JOB_NAME:-kmpnightly-sched-nightly}"
+RESET_JOB="${AZURE_RESET_JOB_NAME:-kmpnightly-reset}"
+SYNC_JOB="${AZURE_SYNC_JOB_NAME:-kmpnightly-sync}"
+SCHED_HOURLY_JOB="${AZURE_SCHED_HOURLY_JOB_NAME:-}"
+SCHED_DAILY_JOB="${AZURE_SCHED_DAILY_JOB_NAME:-}"
+SCHED_WEEKLY_JOB="${AZURE_SCHED_WEEKLY_JOB_NAME:-}"
+SCHED_NIGHTLY_JOB="${AZURE_SCHED_NIGHTLY_JOB_NAME:-}"
 IMAGE_TAG="${IMAGE_TAG:-nightly}"
+LOCAL_IMAGE_TAG="${LOCAL_IMAGE_TAG:-nightly-local-$(date -u +%Y%m%d%H%M%S)}"
+TEST_PASSWORD="${TEST_PASSWORD:-TestPassword}"
 
 REPO="${GH_REPO:-jhandel/KMP}"
 BRANCH="${NIGHTLY_BRANCH:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo feature/workflow-engine)}"
@@ -83,6 +94,15 @@ ensure_az() {
     # Ensure we're in the right subscription; az account set is idempotent.
     az account set --subscription "$SUB" >/dev/null 2>&1 \
         || die "az not logged in. Run: az login --tenant 77070ec3-247c-40ce-9a4f-df875ffe914f"
+}
+
+acr_login_server() {
+    az acr show -n "$ACR" --query loginServer -o tsv
+}
+
+job_exists() {
+    local job="$1"
+    az containerapp job show -g "$RG" -n "$job" >/dev/null 2>&1
 }
 
 wait_job() {
@@ -116,6 +136,66 @@ run_job() {
     exec_name=$(az containerapp job start -g "$RG" -n "$job" --query name -o tsv)
     log "$job execution: $exec_name"
     wait_job "$job" "$exec_name" "$label"
+}
+
+update_job_image_if_exists() {
+    local job="$1" image="$2"
+    [[ -n "$job" ]] || return 0
+    if job_exists "$job"; then
+        log "Updating $job → $image"
+        az containerapp job update -g "$RG" -n "$job" --image "$image" -o none
+    else
+        warn "Skipping missing optional job: $job"
+    fi
+}
+
+patch_job_command() {
+    need jq
+    local job="$1" command_json="$2" args_json="$3"
+    local tmp
+    tmp="$(mktemp)"
+    az containerapp job show -g "$RG" -n "$job" -o json > "$tmp"
+    jq --argjson command "$command_json" --argjson args "$args_json" '
+        .properties.template.containers[0].command = $command
+        | .properties.template.containers[0].args = $args
+        | del(.properties.template.containers[].imageType?)
+        | {properties:{template:.properties.template}}
+    ' "$tmp" > "$tmp.patch"
+    az rest --method patch \
+        --uri "https://management.azure.com/subscriptions/$SUB/resourceGroups/$RG/providers/Microsoft.App/jobs/$job?api-version=2024-03-01" \
+        --body @"$tmp.patch" \
+        --only-show-errors >/dev/null
+    rm -f "$tmp" "$tmp.patch"
+}
+
+restore_migrate_job_noop() {
+    patch_job_command "$MIGRATE_JOB" '["/usr/local/bin/docker-entrypoint.sh"]' '["/bin/true"]'
+}
+
+run_migrate_command() {
+    local label="$1"
+    shift
+    local args_json
+    args_json="$(printf '%s\n' "$@" | jq -R . | jq -s .)"
+    log "Running $label via $MIGRATE_JOB: $*"
+    patch_job_command "$MIGRATE_JOB" '["/usr/local/bin/docker-entrypoint.sh"]' "$args_json"
+    local exec_name
+    exec_name=$(az containerapp job start -g "$RG" -n "$MIGRATE_JOB" --query name -o tsv)
+    wait_job "$MIGRATE_JOB" "$exec_name" "$label"
+}
+
+run_migrations() {
+    ensure_az
+    trap restore_migrate_job_noop EXIT
+    run_migrate_command "app migrations" bin/cake migrations migrate
+    run_migrate_command "app settings update" bin/cake updateDatabase
+    run_migrate_command "platform migrations" bin/cake platform_migrate migrate
+    if [[ "${RUN_RECOMMENDATION_MIGRATION:-0}" == "1" ]]; then
+        run_migrate_command "award recommendation migration" \
+            bin/cake awards migrate_award_recommendations --apply --allow-open-manual-review
+    fi
+    restore_migrate_job_noop
+    trap - EXIT
 }
 
 # ---- Subcommands ------------------------------------------------------------
@@ -161,18 +241,160 @@ cmd_logs() {
     az containerapp logs show -g "$RG" -n "$WEB" --tail "$tail" --type console --follow false
 }
 
-cmd_deploy() {
-    local do_reset=0
+cmd_migrate() {
+    local run_recommendations=0
+    for arg in "$@"; do
+        case "$arg" in
+            --recommendations) run_recommendations=1 ;;
+            *) die "unknown migrate option: $arg" ;;
+        esac
+    done
+    RUN_RECOMMENDATION_MIGRATION="$run_recommendations" run_migrations
+    ok "migrations complete"
+}
+
+cmd_reset_passwords() {
+    ensure_az
+    need az
+    need php
+    need psql
+
+    local kv db_url hash count
+    kv=$(az keyvault list -g "$RG" --query "[?contains(name, 'kv')].name | [0]" -o tsv)
+    [[ -n "$kv" ]] || die "could not discover Key Vault in $RG"
+
+    db_url=$(az keyvault secret show --vault-name "$kv" --name database-url --query value -o tsv)
+    [[ -n "$db_url" ]] || die "database-url secret is empty"
+
+    hash=$(PASSWORD="$TEST_PASSWORD" php -r 'echo password_hash(getenv("PASSWORD"), PASSWORD_DEFAULT);')
+    log "Resetting tenant member passwords to configured TEST_PASSWORD value"
+    count=$(psql "$db_url" -v ON_ERROR_STOP=1 -v hash="$hash" -At <<'SQL'
+UPDATE members SET password = :'hash', modified = CURRENT_TIMESTAMP WHERE deleted IS NULL;
+SELECT COUNT(*) FROM members WHERE deleted IS NULL;
+SQL
+)
+    ok "password reset complete for $(echo "$count" | tail -1) active member rows"
+}
+
+cmd_verify_tenants() {
+    local urls=(
+        "https://poc-alpha.kmpdev.ansteorra.org/members/login"
+        "https://poc-beta.kmpdev.ansteorra.org/members/login"
+        "https://plat.kmpdev.ansteorra.org/platform-admin/login"
+    )
+    local failed=0
+    for url in "${urls[@]}"; do
+        local body code title marker
+        body="$(mktemp)"
+        code=$(curl -k -sS -o "$body" -w '%{http_code}' "$url" || echo 000)
+        title=$(grep -Eio '<title>[^<]+' "$body" | head -1 | sed 's/<title>//I' || true)
+        marker=$(grep -Eio 'Tenant not found|Missing database password|Platform metadata database unavailable|Tenant maintenance in progress|Internal Server Error|Fatal error' "$body" | head -1 || true)
+        rm -f "$body"
+        printf '%s -> %s %s %s\n' "$url" "$code" "$title" "$marker"
+        [[ "$code" == "200" && -z "$marker" ]] || failed=1
+    done
+    [[ "$failed" == 0 ]] || die "one or more tenant/platform smoke checks failed"
+    ok "tenant/platform smoke checks passed"
+}
+
+build_local_image() {
+    ensure_az
+    need docker
+    local acr_login image_ref ignore_backup=""
+    acr_login=$(acr_login_server)
+    image_ref="${acr_login}/kmp:${LOCAL_IMAGE_TAG}"
+
+    log "Logging Docker into $acr_login"
+    az acr login -n "$ACR" -o none
+
+    pushd "$ROOT" >/dev/null
+    if [[ -f .dockerignore ]]; then
+        ignore_backup=".dockerignore.kmp-nightly-backup.$$"
+        cp .dockerignore "$ignore_backup"
+    fi
+    cp docker/.dockerignore.prod .dockerignore
+    trap 'if [[ -n "$ignore_backup" && -f "$ignore_backup" ]]; then mv "$ignore_backup" .dockerignore; else rm -f .dockerignore; fi' RETURN
+
+    local app_version
+    app_version="${APP_VERSION:-0.0.$(date -u +%Y%m%d%H%M%S)}"
+    log "Building local checkout → $image_ref"
+    docker buildx build \
+        --platform "${LOCAL_BUILD_PLATFORM:-linux/amd64}" \
+        --file docker/Dockerfile.prod \
+        --build-arg BASE_IMAGE="${BASE_IMAGE:-ghcr.io/ansteorra/kmp-base:php83}" \
+        --build-arg APP_VERSION="$app_version" \
+        --build-arg RELEASE_CHANNEL="${RELEASE_CHANNEL:-nightly-local}" \
+        --tag "$image_ref" \
+        --push \
+        .
+    if [[ -n "$ignore_backup" && -f "$ignore_backup" ]]; then
+        mv "$ignore_backup" .dockerignore
+    else
+        rm -f .dockerignore
+    fi
+    trap - RETURN
+    popd >/dev/null
+    ok "local image pushed: $image_ref"
+    echo "$image_ref"
+}
+
+deploy_image_ref() {
+    local image_ref="$1" do_reset="${2:-0}"
+    ensure_az
+
+    update_job_image_if_exists "$MIGRATE_JOB" "$image_ref"
+    RUN_RECOMMENDATION_MIGRATION="${RUN_RECOMMENDATION_MIGRATION:-0}" run_migrations
+
+    if [[ "$do_reset" == 1 ]]; then
+        warn "FULL RESET — dropping & reseeding DB"
+        run_job "$RESET_JOB" "$image_ref" "reset"
+        cmd_reset_passwords
+    fi
+
+    log "Updating web Container App image"
+    az containerapp update -g "$RG" -n "$WEB" --image "$image_ref" -o none
+    ok "web image updated"
+
+    for job in "$QUEUE_JOB" "$RESET_JOB" "$SYNC_JOB" "$SCHED_HOURLY_JOB" "$SCHED_DAILY_JOB" "$SCHED_WEEKLY_JOB" "$SCHED_NIGHTLY_JOB"; do
+        update_job_image_if_exists "$job" "$image_ref"
+    done
+
+    cmd_verify_tenants
+}
+
+cmd_deploy_local() {
+    local do_reset=0 run_recommendations=0
     for arg in "$@"; do
         case "$arg" in
             --reset|reset) do_reset=1 ;;
+            --recommendations) run_recommendations=1 ;;
+            *) die "unknown deploy-local option: $arg" ;;
+        esac
+    done
+
+    local acr_login image_ref
+    ensure_az
+    acr_login=$(acr_login_server)
+    image_ref="${acr_login}/kmp:${LOCAL_IMAGE_TAG}"
+    build_local_image
+    RUN_RECOMMENDATION_MIGRATION="$run_recommendations" deploy_image_ref "$image_ref" "$do_reset"
+}
+
+cmd_deploy() {
+    local do_reset=0
+    local run_recommendations=0
+    for arg in "$@"; do
+        case "$arg" in
+            --reset|reset) do_reset=1 ;;
+            --recommendations) run_recommendations=1 ;;
+            *) die "unknown deploy option: $arg" ;;
         esac
     done
 
     ensure_az
     local date_tag="nightly-$(date -u +%Y-%m-%d-%H%M%S)"
     local acr_login
-    acr_login=$(az acr show -n "$ACR" --query loginServer -o tsv)
+    acr_login=$(acr_login_server)
     local image_ref="${acr_login}/kmp:${date_tag}"
 
     log "Importing ghcr.io/jhandel/kmp:${IMAGE_TAG} → ${acr_login}/kmp:{${IMAGE_TAG},${date_tag}}"
@@ -184,27 +406,9 @@ cmd_deploy() {
         --force -o none
     ok "image imported as $image_ref"
 
-    # 1. Migrate
-    run_job "$MIGRATE_JOB" "$image_ref" "migrate"
+    RUN_RECOMMENDATION_MIGRATION="$run_recommendations" deploy_image_ref "$image_ref" "$do_reset"
 
-    # 2. Optional full reset
-    if [[ "$do_reset" == 1 ]]; then
-        warn "FULL RESET — dropping & reseeding DB (all passwords reset to TestPassword)"
-        run_job "$RESTORE_JOB" "$image_ref" "restore"
-    fi
-
-    # 3. Web
-    log "Updating web Container App image"
-    az containerapp update -g "$RG" -n "$WEB" --image "$image_ref" -o none
-    ok "web image updated"
-
-    # 4. Other jobs so cron/manual starts use the new image next run
-    for job in "$QUEUE_JOB" "$RESTORE_JOB" "$SCHED_HOURLY_JOB" "$SCHED_DAILY_JOB" "$SCHED_WEEKLY_JOB" "$SCHED_NIGHTLY_JOB"; do
-        log "Updating $job → $image_ref"
-        az containerapp job update -g "$RG" -n "$job" --image "$image_ref" -o none
-    done
-
-    # 5. Smoke-check /health
+    # Smoke-check /health on default Container App FQDN too.
     local fqdn
     fqdn=$(az containerapp show -g "$RG" -n "$WEB" \
             --query properties.configuration.ingress.fqdn -o tsv)
@@ -243,14 +447,17 @@ cmd_watch() {
 }
 
 cmd_help() {
-    sed -n '3,36p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'
+    sed -n '3,45p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'
 }
 
 # ---- Dispatch ---------------------------------------------------------------
 sub="${1:-help}"
 shift || true
 case "$sub" in
-    deploy|reset|build|status|watch|health|url|logs|revisions|help) "cmd_$sub" "$@" ;;
+    deploy-local) cmd_deploy_local "$@" ;;
+    reset-passwords) cmd_reset_passwords "$@" ;;
+    verify-tenants) cmd_verify_tenants "$@" ;;
+    deploy|reset|build|migrate|status|watch|health|url|logs|revisions|help) "cmd_$sub" "$@" ;;
     -h|--help) cmd_help ;;
-    *) die "unknown subcommand: $sub (try: deploy, build, reset, status, health, url, logs, revisions, help)" ;;
+    *) die "unknown subcommand: $sub (try: deploy-local, deploy, build, migrate, reset, reset-passwords, verify-tenants, status, health, url, logs, revisions, help)" ;;
 esac

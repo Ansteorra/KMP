@@ -172,6 +172,65 @@ via `workflow_run`. That workflow:
 You can also trigger it manually from the **Actions** tab → "Nightly / Deploy
 to Azure" → **Run workflow**, optionally overriding the image tag.
 
+## Ad-hoc nightly deploys from your workstation
+
+Use [`nightly-deploy.sh`](./nightly-deploy.sh) from the repository root for
+operator-driven releases. It talks directly to Azure and is safe to run outside
+GitHub Actions.
+
+Prerequisites:
+
+```bash
+az login --tenant 77070ec3-247c-40ce-9a4f-df875ffe914f
+az account set --subscription 0df874b5-82eb-455c-8575-b1f9b589a735
+```
+
+Common flows:
+
+```bash
+# Build the current local checkout, push it to ACR, run migrations, update web/jobs,
+# and verify the custom tenant/platform hosts.
+bash deploy/azure/nightly-deploy.sh deploy-local
+
+# Same, but also run the Awards recommendation migration command.
+bash deploy/azure/nightly-deploy.sh deploy-local --recommendations
+
+# Deploy the already-published GHCR :nightly image instead of building locally.
+bash deploy/azure/nightly-deploy.sh deploy
+
+# Run app + platform migrations against the currently configured image.
+bash deploy/azure/nightly-deploy.sh migrate
+
+# Run app + platform migrations plus the recommendation migration.
+bash deploy/azure/nightly-deploy.sh migrate --recommendations
+
+# Reset all active tenant member passwords to TestPassword.
+bash deploy/azure/nightly-deploy.sh reset-passwords
+
+# Smoke-check the current custom host routing.
+bash deploy/azure/nightly-deploy.sh verify-tenants
+```
+
+`deploy-local` intentionally builds from your current working tree, including
+uncommitted changes. It temporarily copies `docker/.dockerignore.prod` into the
+repository root for the Docker build and restores the previous `.dockerignore`
+afterward. The default local image tag is
+`nightly-local-YYYYMMDDHHMMSS`; override with `LOCAL_IMAGE_TAG=...` when you
+want a stable tag.
+
+The helper temporarily patches the `kmpnightly-migrate` Container Apps Job when
+it needs to run specific commands (`bin/cake migrations migrate`,
+`bin/cake updateDatabase`, `bin/cake platform_migrate migrate`, and optionally
+`bin/cake awards migrate_award_recommendations --apply --allow-open-manual-review`).
+It restores the job to the no-op command `/usr/local/bin/docker-entrypoint.sh
+/bin/true` afterward so accidental manual starts remain safe.
+
+Current custom-host smoke checks expect:
+
+- `https://poc-alpha.kmpdev.ansteorra.org/members/login`
+- `https://poc-beta.kmpdev.ansteorra.org/members/login`
+- `https://plat.kmpdev.ansteorra.org/platform-admin/login`
+
 ## Managed identity document storage
 
 `main.bicep` provisions a StorageV2 account for uploaded documents and grants

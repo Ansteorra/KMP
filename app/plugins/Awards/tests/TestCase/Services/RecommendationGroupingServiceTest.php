@@ -3,7 +3,10 @@ declare(strict_types=1);
 
 namespace Awards\Test\TestCase\Services;
 
+use App\Model\Entity\WorkflowApproval;
+use App\Model\Entity\WorkflowInstance;
 use App\Test\TestCase\BaseTestCase;
+use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\Recommendation;
 use Awards\Model\Entity\RecommendationApprovalRun;
 use Awards\Services\RecommendationDeletionService;
@@ -19,6 +22,8 @@ class RecommendationGroupingServiceTest extends BaseTestCase
     private Table $recommendationsTable;
     private Table $stateLogsTable;
     private Table $approvalRunsTable;
+    private Table $workflowInstancesTable;
+    private Table $workflowApprovalsTable;
     private int $awardId;
     private int $approvalProcessId;
 
@@ -30,6 +35,8 @@ class RecommendationGroupingServiceTest extends BaseTestCase
         $this->recommendationsTable = $this->getTableLocator()->get('Awards.Recommendations');
         $this->stateLogsTable = $this->getTableLocator()->get('Awards.RecommendationsStatesLogs');
         $this->approvalRunsTable = $this->getTableLocator()->get('Awards.RecommendationApprovalRuns');
+        $this->workflowInstancesTable = $this->getTableLocator()->get('WorkflowInstances');
+        $this->workflowApprovalsTable = $this->getTableLocator()->get('WorkflowApprovals');
         $this->service = new RecommendationGroupingService($this->recommendationsTable);
         $this->awardId = $this->getFirstAwardId();
         $this->approvalProcessId = $this->createApprovalProcess();
@@ -216,28 +223,114 @@ class RecommendationGroupingServiceTest extends BaseTestCase
         return $log;
     }
 
-    public function testGroupingBlockedDuringActiveApprovalWithNullActor(): void
+    public function testGroupingAllowedDuringActiveApprovalWithNullActor(): void
     {
         $rec1 = $this->createTestRecommendation(['state' => 'Submitted']);
         $rec2 = $this->createTestRecommendation(['state' => 'Submitted']);
         $this->createActiveApprovalRun((int)$rec1->id, RecommendationApprovalRun::STATUS_IN_PROGRESS);
 
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('active approval review');
+        $head = $this->service->groupRecommendations([(int)$rec1->id, (int)$rec2->id], null);
 
-        $this->service->groupRecommendations([(int)$rec1->id, (int)$rec2->id], null);
+        $this->assertNotNull($head);
     }
 
-    public function testGroupingBlockedDuringChangesRequestedApproval(): void
+    public function testGroupingAllowedDuringChangesRequestedApproval(): void
     {
         $rec1 = $this->createTestRecommendation(['state' => 'Submitted']);
         $rec2 = $this->createTestRecommendation(['state' => 'Submitted']);
         $this->createActiveApprovalRun((int)$rec1->id, RecommendationApprovalRun::STATUS_CHANGES_REQUESTED);
 
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('active approval review');
+        $head = $this->service->groupRecommendations([(int)$rec1->id, (int)$rec2->id], null);
 
-        $this->service->groupRecommendations([(int)$rec1->id, (int)$rec2->id], null);
+        $this->assertNotNull($head);
+    }
+
+    public function testGroupingBlocksDifferentMembers(): void
+    {
+        $rec1 = $this->createTestRecommendation([
+            'state' => 'Submitted',
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'member_sca_name' => 'Admin von Admin',
+        ]);
+        $rec2 = $this->createTestRecommendation([
+            'state' => 'Submitted',
+            'member_id' => self::TEST_MEMBER_AGATHA_ID,
+            'member_sca_name' => 'Agatha von Test',
+        ]);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Recommendations with different members cannot be grouped together.');
+
+        $this->service->groupRecommendations([(int)$rec1->id, (int)$rec2->id], self::ADMIN_MEMBER_ID);
+    }
+
+    public function testGroupingAllowsSameMemberWithNullMember(): void
+    {
+        $rec1 = $this->createTestRecommendation([
+            'state' => 'Submitted',
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'member_sca_name' => 'Admin von Admin',
+        ]);
+        $rec2 = $this->createTestRecommendation([
+            'state' => 'Submitted',
+            'member_id' => null,
+            'member_sca_name' => 'Unknown Member',
+        ]);
+
+        $head = $this->service->groupRecommendations([(int)$rec1->id, (int)$rec2->id], self::ADMIN_MEMBER_ID);
+
+        $this->assertSame((int)$rec1->id, (int)$head->id);
+        $child = $this->recommendationsTable->get((int)$rec2->id);
+        $this->assertSame((int)$head->id, (int)$child->recommendation_group_id);
+    }
+
+    public function testGroupingCancelsChildWorkflowButKeepsHeadWorkflowRunning(): void
+    {
+        $head = $this->createTestRecommendation(['state' => 'Submitted']);
+        $child = $this->createTestRecommendation(['state' => 'Submitted']);
+        $headRunId = $this->createActiveApprovalRun((int)$head->id, RecommendationApprovalRun::STATUS_IN_PROGRESS);
+        $childRunId = $this->createActiveApprovalRun((int)$child->id, RecommendationApprovalRun::STATUS_CHANGES_REQUESTED);
+        $childRun = $this->approvalRunsTable->get($childRunId);
+        $approvalId = $this->createPendingWorkflowApproval((int)$childRun->workflow_instance_id);
+
+        $this->service->groupRecommendations([(int)$head->id, (int)$child->id], self::ADMIN_MEMBER_ID);
+
+        $savedHeadRun = $this->approvalRunsTable->get($headRunId);
+        $this->assertSame(RecommendationApprovalRun::STATUS_IN_PROGRESS, $savedHeadRun->status);
+        $this->assertNull($savedHeadRun->terminal_reason);
+        $headInstance = $this->workflowInstancesTable->get((int)$savedHeadRun->workflow_instance_id);
+        $this->assertSame(WorkflowInstance::STATUS_WAITING, $headInstance->status);
+
+        $savedChildRun = $this->approvalRunsTable->get($childRunId);
+        $this->assertSame(RecommendationApprovalRun::STATUS_CANCELLED, $savedChildRun->status);
+        $this->assertSame(RecommendationApprovalRun::TERMINAL_REASON_SUPERSEDED_BY_GROUPING, $savedChildRun->terminal_reason);
+        $childInstance = $this->workflowInstancesTable->get((int)$savedChildRun->workflow_instance_id);
+        $this->assertSame(WorkflowInstance::STATUS_CANCELLED, $childInstance->status);
+        $approval = $this->workflowApprovalsTable->get($approvalId);
+        $this->assertSame(WorkflowApproval::STATUS_CANCELLED, $approval->status);
+    }
+
+    public function testGroupingBlockedForClosedArchivedRecommendation(): void
+    {
+        $rec1 = $this->createTestRecommendation(['state' => $this->stateForStatus('Closed', ['Linked - Closed'])]);
+        $rec2 = $this->createTestRecommendation(['state' => 'Submitted']);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Archived recommendations cannot be grouped.');
+
+        $this->service->groupRecommendations([(int)$rec1->id, (int)$rec2->id], self::ADMIN_MEMBER_ID);
+    }
+
+    public function testGroupingBlockedForRecommendationWithGivenBestowal(): void
+    {
+        $rec1 = $this->createTestRecommendation(['state' => 'Need to Schedule']);
+        $rec2 = $this->createTestRecommendation(['state' => 'Submitted']);
+        $this->createBestowalForRecommendation($rec1, 'Given');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Archived recommendations cannot be grouped.');
+
+        $this->service->groupRecommendations([(int)$rec1->id, (int)$rec2->id], self::ADMIN_MEMBER_ID);
     }
 
     public function testGroupingAllowedAfterApprovalRunCompleted(): void
@@ -301,6 +394,32 @@ class RecommendationGroupingServiceTest extends BaseTestCase
         return (int)$this->approvalRunsTable->saveOrFail($entity)->id;
     }
 
+    private function createBestowalForRecommendation(Recommendation $recommendation, string $state): Bestowal
+    {
+        $bestowals = $this->getTableLocator()->get('Awards.Bestowals');
+        $rankResult = $bestowals->find()
+            ->select(['max_rank' => $bestowals->find()->func()->max('stack_rank')])
+            ->disableHydration()
+            ->first();
+
+        $bestowal = $bestowals->saveOrFail($bestowals->newEntity([
+            'member_id' => $recommendation->member_id,
+            'award_id' => $recommendation->award_id,
+            'primary_recommendation_id' => $recommendation->id,
+            'state' => $state,
+            'status' => 'Planning',
+            'source' => Bestowal::SOURCE_RECOMMENDATION,
+            'stack_rank' => (int)($rankResult['max_rank'] ?? 0) + 1,
+            'created_by' => self::ADMIN_MEMBER_ID,
+            'modified_by' => self::ADMIN_MEMBER_ID,
+        ]));
+
+        $recommendation->bestowal_id = $bestowal->id;
+        $this->recommendationsTable->saveOrFail($recommendation, ['systemSync' => true]);
+
+        return $bestowal;
+    }
+
     private function createApprovalProcess(): int
     {
         $processes = $this->getTableLocator()->get('Awards.ApprovalProcesses');
@@ -342,6 +461,32 @@ class RecommendationGroupingServiceTest extends BaseTestCase
             'workflow_definition_id' => $definition->id,
             'workflow_version_id' => $version->id,
             'status' => 'waiting',
+        ]))->id;
+    }
+
+    private function createPendingWorkflowApproval(int $workflowInstanceId): int
+    {
+        $logs = $this->getTableLocator()->get('WorkflowExecutionLogs');
+        $log = $logs->saveOrFail($logs->newEntity([
+            'workflow_instance_id' => $workflowInstanceId,
+            'node_id' => 'approval',
+            'node_type' => 'approval',
+            'status' => 'running',
+            'started_at' => new DateTime('2024-01-01 00:00:00'),
+        ]));
+
+        return (int)$this->workflowApprovalsTable->saveOrFail($this->workflowApprovalsTable->newEntity([
+            'workflow_instance_id' => $workflowInstanceId,
+            'node_id' => 'approval',
+            'execution_log_id' => $log->id,
+            'approver_type' => WorkflowApproval::APPROVER_TYPE_MEMBER,
+            'approver_config' => ['member_id' => self::ADMIN_MEMBER_ID],
+            'current_approver_id' => self::ADMIN_MEMBER_ID,
+            'required_count' => 1,
+            'approved_count' => 0,
+            'rejected_count' => 0,
+            'status' => WorkflowApproval::STATUS_PENDING,
+            'approval_token' => 'grouping-test-token-' . uniqid(),
         ]))->id;
     }
 

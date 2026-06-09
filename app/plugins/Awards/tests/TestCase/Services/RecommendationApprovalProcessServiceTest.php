@@ -100,7 +100,7 @@ class RecommendationApprovalProcessServiceTest extends BaseTestCase
         $this->assertSame('Submitted', $this->freshRecommendationState((int)$recommendation->id));
     }
 
-    public function testRejectedLaterStepKicksBackToPreviousStepAndMarksChangesRequested(): void
+    public function testRejectedLaterStepClosesRunAsRejected(): void
     {
         [$recommendation, $instanceId] = $this->buildApprovalScenario([
             $this->stepData('local', 'Local approval', 1),
@@ -112,15 +112,25 @@ class RecommendationApprovalProcessServiceTest extends BaseTestCase
             [],
         );
 
-        $returned = $this->service->advanceProcess(
-            ['instanceId' => $instanceId, 'approval' => ['approvalStatus' => 'rejected']],
+        $rejectionComment = 'Not enough supporting evidence for this award.';
+        $closed = $this->service->advanceProcess(
+            [
+                'instanceId' => $instanceId,
+                'approval' => ['approvalStatus' => 'rejected'],
+                'resumeData' => ['comment' => $rejectionComment],
+            ],
             [],
         );
 
-        $this->assertTrue($returned->isSuccess(), $returned->getError() ?? '');
-        $this->assertSame('local', $returned->data['currentStepKey']);
-        $this->assertSame(RecommendationApprovalRun::STATUS_CHANGES_REQUESTED, $returned->data['status']);
-        $this->assertSame('Submitted', $this->freshRecommendationState((int)$recommendation->id));
+        $this->assertTrue($closed->isSuccess(), $closed->getError() ?? '');
+        $this->assertTrue($closed->data['closed']);
+        $this->assertSame(RecommendationApprovalRun::STATUS_CLOSED, $closed->data['status']);
+        $run = $this->getTableLocator()->get('Awards.RecommendationApprovalRuns')
+            ->get((int)$closed->data['runId']);
+        $this->assertSame(RecommendationApprovalRun::TERMINAL_REASON_REJECTED, $run->terminal_reason);
+        $freshRecommendation = $this->getTableLocator()->get('Awards.Recommendations')->get((int)$recommendation->id);
+        $this->assertSame('No Action', $freshRecommendation->state);
+        $this->assertSame($rejectionComment, $freshRecommendation->close_reason);
     }
 
     public function testDynamicResolverUsesCurrentConfiguredRoleTarget(): void

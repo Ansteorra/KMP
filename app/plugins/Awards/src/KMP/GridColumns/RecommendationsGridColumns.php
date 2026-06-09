@@ -845,14 +845,12 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'canManage' => false,
                 'config' => [
                     'filters' => [],
-                    'columns' => array_merge($coreColumns, [
+                    'columns' => array_diff(array_merge($coreColumns, [
                         'status',
                         'state',
                         'close_reason',
-                        'assigned_gathering',
-                        'state_date',
                         'given',
-                    ]),
+                    ]), ['reason', 'gatherings', 'notes']), // Remove reason and gatherings from archived view to reduce clutter
                     'skipFilterColumns' => ['state'],
                 ],
             ],

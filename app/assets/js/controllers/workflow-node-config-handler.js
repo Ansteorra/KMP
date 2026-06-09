@@ -774,6 +774,10 @@ export default class WorkflowNodeConfigHandler {
         this._refreshTemplateAnalysis(form, nodeId)
     }
 
+    _saveKvFieldsFromForm(form) {
+        this._saveStructuredFieldsFromForm(form)
+    }
+
     _extractKvFields(form, nodeData) {
         const kvEditors = form.querySelectorAll('.kv-editor')
         kvEditors.forEach(editor => {

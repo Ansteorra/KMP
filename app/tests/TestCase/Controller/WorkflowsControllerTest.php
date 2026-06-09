@@ -157,6 +157,29 @@ class WorkflowsControllerTest extends HttpIntegrationTestCase
         $this->assertNotEmpty($gridState['filters']['active']['started_at_start']);
     }
 
+    public function testWorkflowInstancesGridDataSearchesNumericEntityId(): void
+    {
+        $workflow = $this->createWorkflowDefinitionWithName('Entity ID Search Workflow');
+        $version = $this->createWorkflowVersion((int)$workflow->id);
+        $matchingInstance = $this->createWorkflowInstance((int)$workflow->id, (int)$version->id, [
+            'entity_type' => 'Awards\Model\Entity\Recommendation',
+            'entity_id' => 2597,
+            'started_at' => new DateTime(),
+        ]);
+        $this->createWorkflowInstance((int)$workflow->id, (int)$version->id, [
+            'entity_type' => 'Awards\Model\Entity\Recommendation',
+            'entity_id' => 1597,
+            'started_at' => new DateTime(),
+        ]);
+
+        $this->authenticateAsSuperUser();
+        $this->get('/workflows/instances/grid-data?search=2597');
+        $this->assertResponseOk();
+
+        $instanceIds = collection($this->viewVariable('data'))->extract('id')->toList();
+        $this->assertContains($matchingInstance->id, $instanceIds);
+    }
+
     public function testSuperUserCanAccessApprovals(): void
     {
         $this->authenticateAsSuperUser();
@@ -480,12 +503,13 @@ class WorkflowsControllerTest extends HttpIntegrationTestCase
      *
      * @param int $definitionId Workflow definition ID
      * @param int $versionId Workflow version ID
+     * @param array<string,mixed> $overrides Field overrides.
      * @return \App\Model\Entity\WorkflowInstance
      */
-    private function createWorkflowInstance(int $definitionId, int $versionId)
+    private function createWorkflowInstance(int $definitionId, int $versionId, array $overrides = [])
     {
         $instancesTable = $this->getTableLocator()->get('WorkflowInstances');
-        $instance = $instancesTable->newEntity([
+        $instance = $instancesTable->newEntity($overrides + [
             'workflow_definition_id' => $definitionId,
             'workflow_version_id' => $versionId,
             'status' => 'completed',

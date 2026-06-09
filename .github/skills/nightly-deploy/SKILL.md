@@ -18,8 +18,11 @@ well-registered `nightly.yml` workflow.
 
 ## Live environment
 
-- **URL**: https://kmpnightly-web.lemonstone-62ccb06f.centralus.azurecontainerapps.io/
-- **Login**: any seeded email + `TestPassword` (example: `admin@amp.ansteorra.org`)
+- **Tenant URLs**:
+  - https://poc-alpha.kmpdev.ansteorra.org/
+  - https://poc-beta.kmpdev.ansteorra.org/
+- **Platform admin URL**: https://plat.kmpdev.ansteorra.org/platform-admin/login
+- **Login**: any seeded tenant email + `TestPassword` (example: `admin@test.com`)
 - **Azure RG**: `kmp-nightly-rg` / ACR: `kmpnightlyacrd346d2`
 
 ## Usage
@@ -30,7 +33,13 @@ Always from the repo root.
 |---|---|
 | Deploy whatever `:nightly` currently is in GHCR | `bash deploy/azure/nightly-deploy.sh deploy` |
 | Rebuild image from HEAD then deploy | `bash deploy/azure/nightly-deploy.sh build` |
+| Build current local checkout, push to ACR, deploy | `bash deploy/azure/nightly-deploy.sh deploy-local` |
+| Local deploy + Awards recommendation migration | `bash deploy/azure/nightly-deploy.sh deploy-local --recommendations` |
 | Deploy + wipe & reseed DB (all passwords → TestPassword) | `bash deploy/azure/nightly-deploy.sh reset` |
+| Run app + platform migrations on current image | `bash deploy/azure/nightly-deploy.sh migrate` |
+| Run migrations + recommendation migration | `bash deploy/azure/nightly-deploy.sh migrate --recommendations` |
+| Reset tenant member passwords to TestPassword | `bash deploy/azure/nightly-deploy.sh reset-passwords` |
+| Smoke-check custom tenant/platform hosts | `bash deploy/azure/nightly-deploy.sh verify-tenants` |
 | Recent GHCR build run status | `bash deploy/azure/nightly-deploy.sh status` |
 | Tail latest running build | `bash deploy/azure/nightly-deploy.sh watch` |
 | Show Container App revisions | `bash deploy/azure/nightly-deploy.sh revisions` |
@@ -41,16 +50,18 @@ Always from the repo root.
 
 Overrides via env: `IMAGE_TAG`, `NIGHTLY_BRANCH`, `GH_REPO`,
 `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `AZURE_ACR_NAME`,
-`AZURE_WEB_APP_NAME`, `AZURE_{MIGRATE,QUEUE,SYNC,RESET}_JOB_NAME`.
+`AZURE_WEB_APP_NAME`, `AZURE_{MIGRATE,QUEUE,SYNC,RESET}_JOB_NAME`,
+`LOCAL_IMAGE_TAG`, `LOCAL_BUILD_PLATFORM`, `TEST_PASSWORD`.
 
 ## What `deploy` does
 
 1. `az acr import ghcr.io/jhandel/kmp:nightly → kmp:nightly-YYYY-MM-DD-HHMMSS`
-2. `az containerapp job update + start` for the migrate job, polls until Succeeded
-3. (if `--reset`) same for the reset job (drops schema, reseeds from encrypted backup, sets passwords)
-4. `az containerapp update --image …` on `kmpnightly-web` — forces a new revision
-5. `az containerapp job update --image …` on queue / sync / reset jobs so their next scheduled run uses the new image
-6. Polls `https://…/health` for up to 10 min until 200 OK
+2. Temporarily patches the migrate job to run app migrations, app settings update, and platform migrations, then restores it to `/bin/true`
+3. (if `--recommendations`) runs `bin/cake awards migrate_award_recommendations --apply --allow-open-manual-review`
+4. (if `--reset`) starts the reset job and resets tenant member passwords to `TestPassword`
+5. `az containerapp update --image …` on `kmpnightly-web` — forces a new revision
+6. `az containerapp job update --image …` on queue / sync / reset jobs so their next scheduled run uses the new image
+7. Smoke-checks the custom tenant/platform hosts and polls `https://…/health` for up to 10 min until 200 OK
 
 ## Typical flows
 
@@ -59,6 +70,11 @@ Overrides via env: `IMAGE_TAG`, `NIGHTLY_BRANCH`, `GH_REPO`,
 bash deploy/azure/nightly-deploy.sh build
 ```
 (Script auto-chains into `deploy` after the GH build finishes.)
+
+### "I have uncommitted local changes — push this exact checkout"
+```bash
+bash deploy/azure/nightly-deploy.sh deploy-local --recommendations
+```
 
 ### "GHCR already has the image I want"
 ```bash

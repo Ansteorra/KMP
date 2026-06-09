@@ -396,7 +396,7 @@ describe('GatheringsCalendarController', () => {
         expect(controller.modalInstance.show).toHaveBeenCalled();
     });
 
-    test('showQuickView loads content into turbo-frame', async () => {
+    test('showQuickView points the turbo-frame at the gathering detail URL', async () => {
         setupController();
         controller.connect();
 
@@ -406,37 +406,12 @@ describe('GatheringsCalendarController', () => {
         };
         event.currentTarget.setAttribute('href', '/gatherings/view/123');
 
-        global.fetch = jest.fn().mockResolvedValue({
-            ok: true,
-            text: () => Promise.resolve('<turbo-frame id="gatheringQuickView"><p>Loaded Content</p></turbo-frame>')
-        });
-
         await controller.showQuickView(event);
 
-        expect(controller.turboFrame.innerHTML).toContain('Loaded Content');
+        expect(controller.turboFrame.src).toBe('/gatherings/view/123');
     });
 
-    test('showQuickView handles fetch error gracefully', async () => {
-        setupController();
-        controller.connect();
-
-        const event = {
-            preventDefault: jest.fn(),
-            currentTarget: document.createElement('a')
-        };
-        event.currentTarget.setAttribute('href', '/gatherings/view/999');
-
-        global.fetch = jest.fn().mockResolvedValue({
-            ok: false,
-            status: 500
-        });
-
-        await controller.showQuickView(event);
-
-        expect(controller.turboFrame.innerHTML).toContain('Error loading gathering details');
-    });
-
-    test('showQuickView handles missing turbo-frame in response', async () => {
+    test('showQuickView attaches close handler after turbo-frame load', async () => {
         setupController();
         controller.connect();
 
@@ -446,14 +421,14 @@ describe('GatheringsCalendarController', () => {
         };
         event.currentTarget.setAttribute('href', '/gatherings/view/123');
 
-        global.fetch = jest.fn().mockResolvedValue({
-            ok: true,
-            text: () => Promise.resolve('<html><body>No turbo frame here</body></html>')
-        });
-
         await controller.showQuickView(event);
+        const closeButton = document.createElement('button');
+        closeButton.className = 'btn-close';
+        controller.modalElement.appendChild(closeButton);
+        controller.turboFrame.dispatchEvent(new Event('turbo:frame-load'));
+        closeButton.click();
 
-        expect(controller.turboFrame.innerHTML).toContain('Failed to load gathering details');
+        expect(controller.modalInstance.hide).toHaveBeenCalled();
     });
 
     test('showQuickView returns early when no modal instance', async () => {

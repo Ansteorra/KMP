@@ -23,6 +23,11 @@ const FIXTURE_MEMBER_NAME = 'Iris Basic User Demoer';
 const FIXTURE_REQUESTER_EMAIL = 'forest@ampdemo.com';
 const FEEDBACK_RECIPIENT_NAME = 'Bryce Local Seneschal Demoer';
 const GRID_ROWS_SELECTOR = 'table.table tbody tr:visible, .dataTable tbody tr:visible';
+const APPROVAL_PROCESS_NAMES = {
+    singleCrown: 'Single Approver - Crown',
+    singleLocal: 'Single Approver - Local',
+    localThenCrown: 'Dual Approver - Local then Crown',
+};
 
 const scopedMailpitMessageCount = async (page, query) => {
     const response = await page.request.get(getMailpitApiUrl('api/v1/search'), {
@@ -76,17 +81,121 @@ const FIXTURE_SETS = {
         { name: 'group-two', awardName: 'Award of the Compass Rose of Ansteorra' },
         { name: 'group-three', awardName: 'Award of the Golden Bridge of Ansteorra' },
     ],
+    'workflow single crown': [
+        { name: 'wf-crown', processName: APPROVAL_PROCESS_NAMES.singleCrown },
+    ],
+    'workflow single local': [
+        { name: 'wf-local', processName: APPROVAL_PROCESS_NAMES.singleLocal },
+    ],
+    'workflow local then crown': [
+        { name: 'wf-dual', processName: APPROVAL_PROCESS_NAMES.localThenCrown },
+    ],
+    'workflow grouping': [
+        { name: 'wf-group-head', processName: APPROVAL_PROCESS_NAMES.singleLocal },
+        { name: 'wf-group-one', processName: APPROVAL_PROCESS_NAMES.singleLocal },
+        { name: 'wf-group-two', processName: APPROVAL_PROCESS_NAMES.singleLocal },
+    ],
+    'workflow multi-award local': [
+        { name: 'wf-award-a', processName: APPROVAL_PROCESS_NAMES.singleLocal },
+        { name: 'wf-award-b', processName: APPROVAL_PROCESS_NAMES.singleLocal },
+    ],
 };
 
 const CREATE_FIXTURES_PHP = `
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';
 
+\\Cake\\Core\\Configure::write('Queue.plugins', array_values(array_unique(array_merge(
+    (array)\\Cake\\Core\\Configure::read('Queue.plugins'),
+    ['Queue'],
+))));
 $input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
 $locator = \\Cake\\ORM\\TableRegistry::getTableLocator();
 $recommendations = $locator->get('Awards.Recommendations');
 $members = $locator->get('Members');
 $awards = $locator->get('Awards.Awards');
+$approvalProcesses = $locator->get('Awards.ApprovalProcesses');
+$approvalResolver = new \\Awards\\Services\\AwardApprovalResolverService();
+$container = new \\Cake\\Core\\Container();
+\\Awards\\Services\\AwardsWorkflowProvider::register();
+\\App\\Services\\WorkflowRegistry\\WorkflowActionRegistry::register('Core', [
+    [
+        'action' => 'Core.SendEmail',
+        'label' => 'Send Email',
+        'description' => 'Send an email notification using a configured template',
+        'inputSchema' => [
+            'to' => ['type' => 'string', 'label' => 'Recipient Email', 'required' => true],
+            'template' => ['type' => 'emailTemplate', 'label' => 'Email Template', 'required' => true],
+            'vars' => ['type' => 'object', 'label' => 'Template Variables'],
+            'replyTo' => ['type' => 'string', 'label' => 'Reply-To Email'],
+        ],
+        'outputSchema' => [
+            'sent' => ['type' => 'boolean', 'label' => 'Email Sent'],
+        ],
+        'serviceClass' => \\App\\Services\\WorkflowEngine\\Actions\\CoreActions::class,
+        'serviceMethod' => 'sendEmail',
+        'isAsync' => false,
+    ],
+]);
+\\App\\Services\\WorkflowRegistry\\WorkflowConditionRegistry::register('Core', [
+    [
+        'condition' => 'Core.FieldEquals',
+        'label' => 'Field Equals Value',
+        'description' => 'Check if a context field equals a specific value',
+        'inputSchema' => [
+            'field' => ['type' => 'string', 'label' => 'Field Path', 'required' => true],
+            'value' => ['type' => 'mixed', 'label' => 'Expected Value', 'required' => true],
+        ],
+        'evaluatorClass' => \\App\\Services\\WorkflowEngine\\Conditions\\CoreConditions::class,
+        'evaluatorMethod' => 'fieldEquals',
+    ],
+]);
+$container->add(
+    \\App\\Services\\ActiveWindowManager\\ActiveWindowManagerInterface::class,
+    \\App\\Services\\ActiveWindowManager\\DefaultActiveWindowManager::class,
+);
+$container->add(\\App\\Services\\WorkflowEngine\\ExpressionEvaluator::class);
+$container->add(\\App\\Services\\WorkflowEngine\\Actions\\CoreActions::class)
+    ->addArguments([
+        \\App\\Services\\ActiveWindowManager\\ActiveWindowManagerInterface::class,
+        \\App\\Services\\WorkflowEngine\\ExpressionEvaluator::class,
+    ]);
+$container->add(\\App\\Services\\WorkflowEngine\\Conditions\\CoreConditions::class)
+    ->addArgument(\\App\\Services\\WorkflowEngine\\ExpressionEvaluator::class);
+$container->add(\\App\\Services\\WorkflowEngine\\StateMachine\\StateMachineHandler::class);
+$container->add(\\Awards\\Services\\AwardsWorkflowActions::class);
+$container->add(\\Awards\\Services\\AwardsWorkflowConditions::class);
+$workflowEngine = new \\App\\Services\\WorkflowEngine\\DefaultWorkflowEngine($container);
+$triggerDispatcher = new \\App\\Services\\WorkflowEngine\\TriggerDispatcher($workflowEngine);
+$extractRecommendationIdFromDispatch = static function (array $dispatchResults): ?int {
+    foreach ($dispatchResults as $dispatchResult) {
+        if (!$dispatchResult instanceof \\App\\Services\\ServiceResult) {
+            continue;
+        }
+        if (!$dispatchResult->isSuccess()) {
+            continue;
+        }
+
+        $dispatchData = $dispatchResult->getData();
+        if (!is_array($dispatchData)) {
+            continue;
+        }
+
+        $workflowResult = $dispatchData['workflowResult'] ?? null;
+        if (!is_array($workflowResult)) {
+            continue;
+        }
+
+        $recommendationId = $workflowResult['data']['recommendationId']
+            ?? $workflowResult['recommendationId']
+            ?? null;
+        if (is_numeric($recommendationId)) {
+            return (int)$recommendationId;
+        }
+    }
+
+    return null;
+};
 
 $requester = $members->find()
     ->select(['id', 'sca_name', 'email_address', 'phone_number'])
@@ -97,49 +206,184 @@ $member = $members->find()
     ->where(['sca_name' => $input['memberName']])
     ->firstOrFail();
 
-$awardRows = $awards->find()
-    ->select(['id', 'name'])
-    ->where(['name IN' => array_values(array_unique(array_column($input['fixtures'], 'awardName')))])
-    ->all()
-    ->indexBy('name')
-    ->toArray();
+$awardNames = array_values(array_filter(array_unique(array_map(
+    static fn(array $fixture): ?string => $fixture['awardName'] ?? null,
+    $input['fixtures'],
+))));
+$awardRows = $awardNames === []
+    ? []
+    : $awards->find()
+        ->select(['id', 'name', 'approval_process_id', 'branch_id'])
+        ->where(['name IN' => $awardNames])
+        ->all()
+        ->indexBy('name')
+        ->toArray();
 
-$service = new \\Awards\\Services\\RecommendationSubmissionService();
 $created = [];
+$usedAwardIdsByProcess = [];
 
 foreach ($input['fixtures'] as $fixture) {
-    $award = $awardRows[$fixture['awardName']] ?? null;
-    if ($award === null) {
-        throw new \\RuntimeException('Award not found: ' . $fixture['awardName']);
+    $award = null;
+    $processName = isset($fixture['processName']) ? (string)$fixture['processName'] : '';
+    if ($processName !== '') {
+        $process = $approvalProcesses->find()
+            ->contain(['ApprovalProcessSteps'])
+            ->where([
+                'ApprovalProcesses.name' => $processName,
+                'ApprovalProcesses.is_active' => true,
+                'ApprovalProcesses.deleted IS' => null,
+            ])
+            ->first();
+        if ($process === null) {
+            throw new \\RuntimeException('Approval process not found: ' . $processName);
+        }
+
+        $candidates = $awards->find()
+            ->select(['id', 'name', 'approval_process_id', 'branch_id'])
+            ->where([
+                'Awards.approval_process_id' => (int)$process->id,
+                'Awards.deleted IS' => null,
+                'Awards.is_active' => true,
+            ])
+            ->orderByAsc('Awards.id')
+            ->all();
+
+        $usedForProcess = $usedAwardIdsByProcess[$processName] ?? [];
+        $orderedCandidates = [];
+        foreach ($candidates as $candidate) {
+            if (!in_array((int)$candidate->id, $usedForProcess, true)) {
+                $orderedCandidates[] = $candidate;
+            }
+        }
+        foreach ($candidates as $candidate) {
+            if (in_array((int)$candidate->id, $usedForProcess, true)) {
+                $orderedCandidates[] = $candidate;
+            }
+        }
+
+        foreach ($orderedCandidates as $candidate) {
+            $preview = $approvalResolver->previewProcess($process, $candidate);
+            $isUsable = $preview !== [];
+            foreach ($preview as $stepPreview) {
+                if ($stepPreview['error'] !== null || empty($stepPreview['members'])) {
+                    $isUsable = false;
+                    break;
+                }
+            }
+            if ($isUsable) {
+                $award = $candidate;
+                $usedAwardIdsByProcess[$processName] = array_values(array_unique(array_merge(
+                    $usedForProcess,
+                    [(int)$candidate->id],
+                )));
+                break;
+            }
+        }
+
+        if ($award === null) {
+            throw new \\RuntimeException('No usable award found for process: ' . $processName);
+        }
+    } else {
+        $award = $awardRows[$fixture['awardName']] ?? null;
+        if ($award === null) {
+            throw new \\RuntimeException('Award not found: ' . $fixture['awardName']);
+        }
     }
 
-    $result = $service->submitAuthenticated(
-        $recommendations,
+    $reasonToken = (string)$fixture['reason'] . ' [' . uniqid('wf-', true) . ']';
+    $dispatchResults = $triggerDispatcher->dispatch(
+        'Awards.RecommendationCreateRequested',
         [
-            'award_id' => (int)$award->id,
-            'member_sca_name' => (string)$member->sca_name,
-            'member_public_id' => (string)$member->public_id,
-            'reason' => (string)$fixture['reason'],
-            'specialty' => 'No specialties available',
+            'data' => [
+                'award_id' => (int)$award->id,
+                'member_sca_name' => (string)$member->sca_name,
+                'member_public_id' => (string)$member->public_id,
+                'reason' => $reasonToken,
+                'specialty' => 'No specialties available',
+            ],
+            'requesterContext' => [
+                'id' => (int)$requester->id,
+                'sca_name' => (string)$requester->sca_name,
+                'email_address' => (string)$requester->email_address,
+                'phone_number' => (string)($requester->phone_number ?? ''),
+            ],
+            'submissionMode' => 'authenticated',
+            'actorId' => (int)$requester->id,
         ],
-        [
-            'id' => (int)$requester->id,
-            'sca_name' => (string)$requester->sca_name,
-            'email_address' => (string)$requester->email_address,
-            'phone_number' => (string)($requester->phone_number ?? ''),
-        ],
+        (int)$requester->id,
     );
-
-    if (!($result['success'] ?? false)) {
-        throw new \\RuntimeException('Fixture creation failed: ' . json_encode($result, JSON_THROW_ON_ERROR));
+    if ($dispatchResults === []) {
+        throw new \\RuntimeException('Fixture creation workflow dispatch returned no results.');
+    }
+    foreach ($dispatchResults as $dispatchResult) {
+        if ($dispatchResult instanceof \\App\\Services\\ServiceResult && !$dispatchResult->isSuccess()) {
+            throw new \\RuntimeException(
+                'Fixture creation workflow dispatch failed: ' . ($dispatchResult->getError() ?? 'unknown error')
+            );
+        }
     }
 
-    $recommendation = $result['recommendation'];
+    $recommendationId = $extractRecommendationIdFromDispatch($dispatchResults);
+
+    $recommendation = $recommendationId === null
+        ? null
+        : $recommendations->find()
+            ->where(['id' => $recommendationId])
+            ->first();
+    if ($recommendation === null) {
+        $recommendation = $recommendations->find()
+            ->where([
+                'award_id' => (int)$award->id,
+                'member_id' => (int)$member->id,
+                'requester_id' => (int)$requester->id,
+                'reason' => $reasonToken,
+            ])
+            ->orderByDesc('id')
+            ->first();
+    }
+    if ($recommendation === null) {
+        throw new \\RuntimeException('Fixture creation did not persist recommendation for reason token: ' . $reasonToken);
+    }
+
+    $approvers = [];
+    $resolvedProcessName = $processName;
+    if (!empty($award->approval_process_id)) {
+        $process = $approvalProcesses->get((int)$award->approval_process_id, contain: ['ApprovalProcessSteps']);
+        if ($resolvedProcessName === '') {
+            $resolvedProcessName = (string)$process->name;
+        }
+        foreach ($approvalResolver->previewProcess($process, $award) as $stepPreview) {
+            $step = $stepPreview['step'];
+            $membersForStep = [];
+            foreach ($stepPreview['members'] as $memberEntity) {
+                $memberRow = $members->find()
+                    ->select(['id', 'sca_name', 'email_address'])
+                    ->where(['id' => (int)$memberEntity->id])
+                    ->first();
+                if ($memberRow !== null) {
+                    $membersForStep[] = [
+                        'id' => (int)$memberRow->id,
+                        'scaName' => (string)$memberRow->sca_name,
+                        'email' => (string)$memberRow->email_address,
+                    ];
+                }
+            }
+            $approvers[] = [
+                'stepKey' => (string)$step->step_key,
+                'stepLabel' => (string)$step->label,
+                'members' => $membersForStep,
+            ];
+        }
+    }
+
     $created[$fixture['name']] = [
         'id' => (int)$recommendation->id,
         'awardName' => (string)$award->name,
+        'awardId' => (int)$award->id,
+        'processName' => $resolvedProcessName,
+        'approvers' => $approvers,
         'memberScaName' => (string)$recommendation->member_sca_name,
-        'reason' => (string)$recommendation->reason,
+        'reason' => (string)$reasonToken,
     ];
 }
 
@@ -150,6 +394,10 @@ const CLEANUP_FIXTURES_PHP = `
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';
 
+\\Cake\\Core\\Configure::write('Queue.plugins', array_values(array_unique(array_merge(
+    (array)\\Cake\\Core\\Configure::read('Queue.plugins'),
+    ['Queue'],
+))));
 $input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
 $recommendations = \\Cake\\ORM\\TableRegistry::getTableLocator()->get('Awards.Recommendations');
 $ids = array_values(array_unique(array_map('intval', $input['ids'] ?? [])));
@@ -171,6 +419,10 @@ const GET_RECOMMENDATION_BESTOWAL_PHP = `
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';
 
+\\Cake\\Core\\Configure::write('Queue.plugins', array_values(array_unique(array_merge(
+    (array)\\Cake\\Core\\Configure::read('Queue.plugins'),
+    ['Queue'],
+))));
 $input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
 $recommendations = \\Cake\\ORM\\TableRegistry::getTableLocator()->get('Awards.Recommendations');
 $recommendation = $recommendations->get((int)$input['recommendationId'], contain: ['Bestowals']);
@@ -179,6 +431,363 @@ echo json_encode([
     'recommendationId' => (int)$recommendation->id,
     'bestowalId' => $recommendation->bestowal_id === null ? null : (int)$recommendation->bestowal_id,
     'bestowalState' => $recommendation->bestowal?->state,
+], JSON_THROW_ON_ERROR);
+`;
+
+const GET_RECOMMENDATION_WORKFLOW_STATE_PHP = `
+require 'vendor/autoload.php';
+require 'config/bootstrap.php';
+
+$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$locator = \\Cake\\ORM\\TableRegistry::getTableLocator();
+$runs = $locator->get('Awards.RecommendationApprovalRuns');
+$recommendations = $locator->get('Awards.Recommendations');
+$workflowApprovals = $locator->get('WorkflowApprovals');
+
+$recommendation = $recommendations->get((int)$input['recommendationId']);
+$run = $runs->find()
+    ->where(['recommendation_id' => (int)$input['recommendationId']])
+    ->orderByDesc('id')
+    ->first();
+$latestTerminalRun = $runs->find()
+    ->where([
+        'recommendation_id' => (int)$input['recommendationId'],
+        'terminal_reason IS NOT' => null,
+    ])
+    ->orderByDesc('completed')
+    ->orderByDesc('id')
+    ->first();
+
+$pendingCount = 0;
+$latestApprovalStatus = null;
+if ($run !== null) {
+    $pendingCount = $workflowApprovals->find()
+        ->where([
+            'workflow_instance_id' => (int)$run->workflow_instance_id,
+            'status' => 'pending',
+        ])
+        ->count();
+    $latestApproval = $workflowApprovals->find()
+        ->where(['workflow_instance_id' => (int)$run->workflow_instance_id])
+        ->orderByDesc('id')
+        ->first();
+    $latestApprovalStatus = $latestApproval?->status;
+}
+
+echo json_encode([
+    'recommendationId' => (int)$recommendation->id,
+    'state' => (string)$recommendation->state,
+    'status' => (string)$recommendation->status,
+    'bestowalId' => $recommendation->bestowal_id === null ? null : (int)$recommendation->bestowal_id,
+    'runId' => $run === null ? null : (int)$run->id,
+    'runStatus' => $run?->status,
+    'runTerminalReason' => $run?->terminal_reason,
+    'latestTerminalReason' => $latestTerminalRun?->terminal_reason,
+    'workflowInstanceId' => $run === null ? null : (int)$run->workflow_instance_id,
+    'pendingApprovalCount' => (int)$pendingCount,
+    'latestApprovalStatus' => $latestApprovalStatus,
+], JSON_THROW_ON_ERROR);
+`;
+
+const RESPOND_TO_RECOMMENDATION_APPROVAL_PHP = `
+require 'vendor/autoload.php';
+require 'config/bootstrap.php';
+
+$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+\\Awards\\Services\\AwardsWorkflowProvider::register();
+$locator = \\Cake\\ORM\\TableRegistry::getTableLocator();
+$runs = $locator->get('Awards.RecommendationApprovalRuns');
+$workflowApprovals = $locator->get('WorkflowApprovals');
+
+$run = $runs->find()
+    ->where(['recommendation_id' => (int)$input['recommendationId']])
+    ->orderByDesc('id')
+    ->first();
+if ($run === null) {
+    throw new \\RuntimeException('No approval run found for recommendation.');
+}
+
+$approval = $workflowApprovals->find()
+    ->where([
+        'workflow_instance_id' => (int)$run->workflow_instance_id,
+        'status' => 'pending',
+    ])
+    ->orderByAsc('id')
+    ->first();
+if ($approval === null) {
+    throw new \\RuntimeException('No pending workflow approval found.');
+}
+
+$decision = (string)$input['decision'];
+$comment = isset($input['comment']) ? (string)$input['comment'] : null;
+$manager = new \\App\\Services\\WorkflowEngine\\DefaultWorkflowApprovalManager();
+$candidateMemberIds = array_values(array_unique(array_filter(array_map(
+    'intval',
+    array_merge([(int)$input['memberId']], $input['candidateMemberIds'] ?? [])
+))));
+$memberId = null;
+foreach ($candidateMemberIds as $candidateMemberId) {
+    foreach ($manager->getPendingApprovalsForMember($candidateMemberId) as $candidateApproval) {
+        if ((int)$candidateApproval->id === (int)$approval->id) {
+            $memberId = $candidateMemberId;
+            break 2;
+        }
+    }
+}
+if ($memberId === null) {
+    throw new \\RuntimeException('No fixture candidate is eligible to respond to approval #' . (int)$approval->id . '.');
+}
+$result = $manager->recordResponse((int)$approval->id, $memberId, $decision, $comment);
+if (!$result->isSuccess()) {
+    throw new \\RuntimeException((string)($result->getError() ?? 'Unable to record approval response.'));
+}
+$resultData = $result->getData();
+if (is_array($resultData) && in_array($resultData['approvalStatus'] ?? '', ['approved', 'rejected'], true)) {
+    \\App\\Services\\WorkflowRegistry\\WorkflowActionRegistry::register('Core', [
+        [
+            'action' => 'Core.SendEmail',
+            'label' => 'Send Email',
+            'description' => 'Send an email notification using a configured template',
+            'inputSchema' => [
+                'to' => ['type' => 'string', 'label' => 'Recipient Email', 'required' => true],
+                'template' => ['type' => 'emailTemplate', 'label' => 'Email Template', 'required' => true],
+                'vars' => ['type' => 'object', 'label' => 'Template Variables'],
+                'replyTo' => ['type' => 'string', 'label' => 'Reply-To Email'],
+            ],
+            'outputSchema' => [
+                'sent' => ['type' => 'boolean', 'label' => 'Email Sent'],
+            ],
+            'serviceClass' => \\App\\Services\\WorkflowEngine\\Actions\\CoreActions::class,
+            'serviceMethod' => 'sendEmail',
+            'isAsync' => false,
+        ],
+    ]);
+    \\App\\Services\\WorkflowRegistry\\WorkflowConditionRegistry::register('Core', [
+        [
+            'condition' => 'Core.FieldEquals',
+            'label' => 'Field Equals Value',
+            'description' => 'Check if a context field equals a specific value',
+            'inputSchema' => [
+                'field' => ['type' => 'string', 'label' => 'Field Path', 'required' => true],
+                'value' => ['type' => 'mixed', 'label' => 'Expected Value', 'required' => true],
+            ],
+            'evaluatorClass' => \\App\\Services\\WorkflowEngine\\Conditions\\CoreConditions::class,
+            'evaluatorMethod' => 'fieldEquals',
+        ],
+    ]);
+    $container = new \\Cake\\Core\\Container();
+    $container->add(
+        \\App\\Services\\ActiveWindowManager\\ActiveWindowManagerInterface::class,
+        \\App\\Services\\ActiveWindowManager\\DefaultActiveWindowManager::class,
+    );
+    $container->add(\\App\\Services\\WorkflowEngine\\ExpressionEvaluator::class);
+    $container->add(\\App\\Services\\WorkflowEngine\\Actions\\CoreActions::class)
+        ->addArguments([
+            \\App\\Services\\ActiveWindowManager\\ActiveWindowManagerInterface::class,
+            \\App\\Services\\WorkflowEngine\\ExpressionEvaluator::class,
+        ]);
+    $container->add(\\App\\Services\\WorkflowEngine\\Conditions\\CoreConditions::class)
+        ->addArgument(\\App\\Services\\WorkflowEngine\\ExpressionEvaluator::class);
+    $container->add(\\App\\Services\\WorkflowEngine\\StateMachine\\StateMachineHandler::class);
+    $container->add(\\Awards\\Services\\AwardsWorkflowActions::class);
+    $container->add(\\Awards\\Services\\AwardsWorkflowConditions::class);
+    $engine = new \\App\\Services\\WorkflowEngine\\DefaultWorkflowEngine($container);
+    $outputPort = $resultData['approvalStatus'] === 'approved' ? 'approved' : 'rejected';
+    $resume = $engine->resumeWorkflow(
+        (int)$resultData['instanceId'],
+        (string)$resultData['nodeId'],
+        $outputPort,
+        [
+            'approval' => $resultData,
+            'approverId' => $memberId,
+            'decision' => $decision,
+            'comment' => $comment,
+        ],
+    );
+    if (!$resume->isSuccess()) {
+        throw new \\RuntimeException((string)($resume->getError() ?? 'Unable to resume approval workflow.'));
+    }
+}
+
+echo json_encode([
+    'approvalId' => (int)$approval->id,
+    'decision' => $decision,
+    'memberId' => $memberId,
+], JSON_THROW_ON_ERROR);
+`;
+
+const CREATE_NO_PROCESS_RECOMMENDATION_FIXTURE_PHP = `
+require 'vendor/autoload.php';
+require 'config/bootstrap.php';
+
+\\Cake\\Core\\Configure::write('Queue.plugins', array_values(array_unique(array_merge(
+    (array)\\Cake\\Core\\Configure::read('Queue.plugins'),
+    ['Queue'],
+))));
+$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$locator = \\Cake\\ORM\\TableRegistry::getTableLocator();
+$awards = $locator->get('Awards.Awards');
+$members = $locator->get('Members');
+$recommendations = $locator->get('Awards.Recommendations');
+$container = new \\Cake\\Core\\Container();
+\\Awards\\Services\\AwardsWorkflowProvider::register();
+\\App\\Services\\WorkflowRegistry\\WorkflowActionRegistry::register('Core', [
+    [
+        'action' => 'Core.SendEmail',
+        'label' => 'Send Email',
+        'description' => 'Send an email notification using a configured template',
+        'inputSchema' => [
+            'to' => ['type' => 'string', 'label' => 'Recipient Email', 'required' => true],
+            'template' => ['type' => 'emailTemplate', 'label' => 'Email Template', 'required' => true],
+            'vars' => ['type' => 'object', 'label' => 'Template Variables'],
+            'replyTo' => ['type' => 'string', 'label' => 'Reply-To Email'],
+        ],
+        'outputSchema' => [
+            'sent' => ['type' => 'boolean', 'label' => 'Email Sent'],
+        ],
+        'serviceClass' => \\App\\Services\\WorkflowEngine\\Actions\\CoreActions::class,
+        'serviceMethod' => 'sendEmail',
+        'isAsync' => false,
+    ],
+]);
+\\App\\Services\\WorkflowRegistry\\WorkflowConditionRegistry::register('Core', [
+    [
+        'condition' => 'Core.FieldEquals',
+        'label' => 'Field Equals Value',
+        'description' => 'Check if a context field equals a specific value',
+        'inputSchema' => [
+            'field' => ['type' => 'string', 'label' => 'Field Path', 'required' => true],
+            'value' => ['type' => 'mixed', 'label' => 'Expected Value', 'required' => true],
+        ],
+        'evaluatorClass' => \\App\\Services\\WorkflowEngine\\Conditions\\CoreConditions::class,
+        'evaluatorMethod' => 'fieldEquals',
+    ],
+]);
+$container->add(
+    \\App\\Services\\ActiveWindowManager\\ActiveWindowManagerInterface::class,
+    \\App\\Services\\ActiveWindowManager\\DefaultActiveWindowManager::class,
+);
+$container->add(\\App\\Services\\WorkflowEngine\\ExpressionEvaluator::class);
+$container->add(\\App\\Services\\WorkflowEngine\\Actions\\CoreActions::class)
+    ->addArguments([
+        \\App\\Services\\ActiveWindowManager\\ActiveWindowManagerInterface::class,
+        \\App\\Services\\WorkflowEngine\\ExpressionEvaluator::class,
+    ]);
+$container->add(\\App\\Services\\WorkflowEngine\\Conditions\\CoreConditions::class)
+    ->addArgument(\\App\\Services\\WorkflowEngine\\ExpressionEvaluator::class);
+$container->add(\\App\\Services\\WorkflowEngine\\StateMachine\\StateMachineHandler::class);
+$container->add(\\Awards\\Services\\AwardsWorkflowActions::class);
+$container->add(\\Awards\\Services\\AwardsWorkflowConditions::class);
+$workflowEngine = new \\App\\Services\\WorkflowEngine\\DefaultWorkflowEngine($container);
+$triggerDispatcher = new \\App\\Services\\WorkflowEngine\\TriggerDispatcher($workflowEngine);
+$extractRecommendationIdFromDispatch = static function (array $dispatchResults): ?int {
+    foreach ($dispatchResults as $dispatchResult) {
+        if (!$dispatchResult instanceof \\App\\Services\\ServiceResult) {
+            continue;
+        }
+        if (!$dispatchResult->isSuccess()) {
+            continue;
+        }
+
+        $dispatchData = $dispatchResult->getData();
+        if (!is_array($dispatchData)) {
+            continue;
+        }
+
+        $workflowResult = $dispatchData['workflowResult'] ?? null;
+        if (!is_array($workflowResult)) {
+            continue;
+        }
+
+        $recommendationId = $workflowResult['data']['recommendationId']
+            ?? $workflowResult['recommendationId']
+            ?? null;
+        if (is_numeric($recommendationId)) {
+            return (int)$recommendationId;
+        }
+    }
+
+    return null;
+};
+
+$requester = $members->find()->select(['id', 'sca_name', 'email_address', 'phone_number'])
+    ->where(['email_address' => (string)$input['requesterEmail']])
+    ->firstOrFail();
+$member = $members->find()->select(['id', 'public_id', 'sca_name'])
+    ->where(['sca_name' => (string)$input['memberName']])
+    ->firstOrFail();
+$seedAward = $awards->find()->select(['domain_id', 'level_id', 'branch_id'])->where(['deleted IS' => null])->firstOrFail();
+
+$tempAward = $awards->newEntity([
+    'name' => 'E2E No Process Award ' . uniqid('', true),
+    'abbreviation' => strtoupper(substr(md5(uniqid('', true)), 0, 8)),
+    'domain_id' => (int)$seedAward->domain_id,
+    'level_id' => (int)$seedAward->level_id,
+    'branch_id' => (int)$seedAward->branch_id,
+    'approval_process_id' => null,
+    'is_active' => true,
+]);
+$awards->saveOrFail($tempAward);
+
+$reasonToken = (string)$input['reason'] . ' [' . uniqid('wf-', true) . ']';
+$dispatchResults = $triggerDispatcher->dispatch(
+    'Awards.RecommendationCreateRequested',
+    [
+        'data' => [
+            'award_id' => (int)$tempAward->id,
+            'member_sca_name' => (string)$member->sca_name,
+            'member_public_id' => (string)$member->public_id,
+            'reason' => $reasonToken,
+            'specialty' => 'No specialties available',
+        ],
+        'requesterContext' => [
+            'id' => (int)$requester->id,
+            'sca_name' => (string)$requester->sca_name,
+            'email_address' => (string)$requester->email_address,
+            'phone_number' => (string)($requester->phone_number ?? ''),
+        ],
+        'submissionMode' => 'authenticated',
+        'actorId' => (int)$requester->id,
+    ],
+    (int)$requester->id,
+);
+if ($dispatchResults === []) {
+    throw new \\RuntimeException('No-process fixture workflow dispatch returned no results.');
+}
+foreach ($dispatchResults as $dispatchResult) {
+    if ($dispatchResult instanceof \\App\\Services\\ServiceResult && !$dispatchResult->isSuccess()) {
+        throw new \\RuntimeException(
+            'No-process fixture workflow dispatch failed: ' . ($dispatchResult->getError() ?? 'unknown error')
+        );
+    }
+}
+
+$recommendationId = $extractRecommendationIdFromDispatch($dispatchResults);
+
+$recommendation = $recommendationId === null
+    ? null
+    : $recommendations->find()
+        ->where(['id' => $recommendationId])
+        ->first();
+if ($recommendation === null) {
+    $recommendation = $recommendations->find()
+        ->where([
+            'award_id' => (int)$tempAward->id,
+            'member_id' => (int)$member->id,
+            'requester_id' => (int)$requester->id,
+            'reason' => $reasonToken,
+        ])
+        ->orderByDesc('id')
+        ->first();
+}
+if ($recommendation === null) {
+    throw new \\RuntimeException('No-process fixture creation did not persist recommendation.');
+}
+echo json_encode([
+    'recommendationId' => (int)$recommendation->id,
+    'awardId' => (int)$tempAward->id,
+    'awardName' => (string)$tempAward->name,
+    'reason' => $reasonToken,
 ], JSON_THROW_ON_ERROR);
 `;
 
@@ -243,6 +852,16 @@ const getFixture = (page, name) => {
     return fixture;
 };
 
+const getFixtureApprover = (fixture, stepIndex = 0) => {
+    const step = fixture.approvers?.[stepIndex];
+    const member = step?.members?.[0];
+    if (!member?.id) {
+        throw new Error(`No approver resolved for fixture ${fixture.id} at step index ${stepIndex}.`);
+    }
+
+    return member;
+};
+
 const getOpenRecommendationEditModal = async (page) => {
     const selectors = ['#editModal', '#editRecommendationModal'];
 
@@ -269,22 +888,42 @@ const getRecommendationFieldLocator = (modal, fieldLabel) => {
     }
 };
 
-const searchRecommendationsGrid = async (page, query) => {
+const searchRecommendationsGrid = async (page, query, options = {}) => {
     await page.waitForSelector('table.table tbody tr', { state: 'visible', timeout: 30000 });
     const filterBtn = page.locator('#filterDropdown, button:has-text("Filter")').first();
     await filterBtn.click();
     await page.waitForTimeout(300);
 
     const searchInput = page.locator('[data-grid-view-target="searchInput"]');
+    await expect(searchInput).toBeVisible({ timeout: 15000 });
     await searchInput.fill(query);
-    await Promise.all([
-        page.waitForResponse(
-            (response) => response.url().includes('/awards/recommendations/grid-data') && response.status() === 200,
-            { timeout: 30000 },
-        ).catch(() => null),
+    const [response] = await Promise.all([
+        page.waitForResponse((res) => {
+            const resUrl = new URL(res.url());
+            return res.status() === 200
+                && resUrl.pathname.endsWith('/awards/recommendations/grid-data')
+                && resUrl.searchParams.get('search') === query;
+        }, { timeout: 30000 }).catch(() => null),
         searchInput.press('Enter'),
     ]);
-    await page.waitForTimeout(1000);
+    if (response) {
+        const body = await response.text().catch(() => '');
+        if (!body.includes(query)) {
+            throw new Error(`recommendations grid-data search for "${query}" did not include the query in the returned fragment.`);
+        }
+    }
+    try {
+        await waitForGridRows(page, GRID_ROWS_SELECTOR);
+    } catch (error) {
+        if (!options.allowAuditFallback) {
+            throw error;
+        }
+
+        const auditTab = page.getByRole('tab', { name: /All \/ Audit/ });
+        await auditTab.click();
+        await page.waitForLoadState('networkidle');
+        await searchRecommendationsGrid(page, query, { allowAuditFallback: false });
+    }
     await page.keyboard.press('Escape').catch(() => {});
     await page.waitForTimeout(500);
 };
@@ -368,6 +1007,12 @@ const selectFixtureRows = async (page) => {
     const fixtures = ensureFixtureSet(page);
     for (const id of fixtures.ids) {
         const checkbox = page.locator(`table tbody tr[data-id="${id}"] input[data-grid-view-target="rowCheckbox"]`);
+        if (await checkbox.count() === 0) {
+            const visibleIds = await page.locator('table tbody tr[data-id]').evaluateAll(
+                (rows) => rows.map((row) => row.getAttribute('data-id')).filter(Boolean),
+            );
+            throw new Error(`fixture recommendation ${id} is not visible in the grid. Visible row IDs: ${visibleIds.join(', ')}`);
+        }
         await expect(checkbox).toBeVisible();
         await checkbox.check();
     }
@@ -411,8 +1056,35 @@ Given('I create recommendation fixtures for {string}', async ({ page }, setName)
     };
 });
 
+Given('I create a recommendation fixture without an approval process', async ({ page }) => {
+    const token = `E2E-REC-NOPROC-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const result = runPhpJson(CREATE_NO_PROCESS_RECOMMENDATION_FIXTURE_PHP, {
+        requesterEmail: FIXTURE_REQUESTER_EMAIL,
+        memberName: FIXTURE_MEMBER_NAME,
+        reason: `${token} no process fallback coverage`,
+    });
+
+    page.__awardRecommendationFixtures = {
+        token,
+        fixtureMap: {
+            'no-process': {
+                id: result.recommendationId,
+                awardId: result.awardId,
+                awardName: result.awardName,
+                memberScaName: FIXTURE_MEMBER_NAME,
+                reason: result.reason,
+                approvers: [],
+            },
+        },
+        ids: [result.recommendationId],
+        headId: result.recommendationId,
+        headName: 'no-process',
+    };
+    page.__temporaryAwardIds = [result.awardId];
+});
+
 When('I search the recommendations grid for the current fixture token', async ({ page }) => {
-    await searchRecommendationsGrid(page, ensureFixtureSet(page).token);
+    await searchRecommendationsGrid(page, ensureFixtureSet(page).token, { allowAuditFallback: true });
 });
 
 When('I open the {string} recommendation detail view', async ({ page }, name) => {
@@ -437,7 +1109,9 @@ When('I open the {string} recommendation quick edit modal from the grid', async 
     await expect(row).toBeVisible();
     await row.locator('button.edit-rec').click();
     await page.waitForSelector('#editRecommendationModal.show', { state: 'visible', timeout: 10000 });
-    await page.locator('#editRecommendationModal select[name="state"]').waitFor({ state: 'visible', timeout: 10000 });
+    await expect(page.locator('#editRecommendationModal form#recommendation_form')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('#editRecommendationModal button[type="submit"][form="recommendation_form"]'))
+        .toBeVisible({ timeout: 10000 });
 });
 
 When('I change the open recommendation state to {string}', async ({ page }, state) => {
@@ -511,6 +1185,85 @@ Then('the {string} recommendation should have an active bestowal link', async ({
 
     expect(data.bestowalId).toBeGreaterThan(0);
     expect(data.bestowalState).toBeTruthy();
+});
+
+Then('the {string} recommendation should have a workflow run with status {string}', async ({ page }, name, expectedStatus) => {
+    const fixture = getFixture(page, name);
+    const data = runPhpJson(GET_RECOMMENDATION_WORKFLOW_STATE_PHP, { recommendationId: fixture.id });
+    expect(data.runId).toBeGreaterThan(0);
+    expect(String(data.runStatus)).toBe(expectedStatus);
+});
+
+Then('the {string} recommendation should have no workflow run', async ({ page }, name) => {
+    const fixture = getFixture(page, name);
+    const data = runPhpJson(GET_RECOMMENDATION_WORKFLOW_STATE_PHP, { recommendationId: fixture.id });
+    expect(data.runId).toBeNull();
+});
+
+Then('the {string} recommendation should have {int} pending approvals', async ({ page }, name, count) => {
+    const fixture = getFixture(page, name);
+    const data = runPhpJson(GET_RECOMMENDATION_WORKFLOW_STATE_PHP, { recommendationId: fixture.id });
+    expect(data.pendingApprovalCount).toBe(count);
+});
+
+Then('the {string} recommendation should be linked to a bestowal', async ({ page }, name) => {
+    const fixture = getFixture(page, name);
+    const data = runPhpJson(GET_RECOMMENDATION_WORKFLOW_STATE_PHP, { recommendationId: fixture.id });
+    expect(data.bestowalId).toBeGreaterThan(0);
+});
+
+Then('the {string} recommendation should not be linked to a bestowal', async ({ page }, name) => {
+    const fixture = getFixture(page, name);
+    const data = runPhpJson(GET_RECOMMENDATION_WORKFLOW_STATE_PHP, { recommendationId: fixture.id });
+    expect(data.bestowalId).toBeNull();
+});
+
+Then('recommendations {string} and {string} should link to different bestowals', async ({ page }, firstName, secondName) => {
+    const first = getFixture(page, firstName);
+    const second = getFixture(page, secondName);
+    const firstState = runPhpJson(GET_RECOMMENDATION_WORKFLOW_STATE_PHP, { recommendationId: first.id });
+    const secondState = runPhpJson(GET_RECOMMENDATION_WORKFLOW_STATE_PHP, { recommendationId: second.id });
+    expect(firstState.bestowalId).toBeGreaterThan(0);
+    expect(secondState.bestowalId).toBeGreaterThan(0);
+    expect(firstState.bestowalId).not.toBe(secondState.bestowalId);
+});
+
+When('I approve the pending workflow step {int} for {string}', async ({ page }, stepNumber, name) => {
+    const fixture = getFixture(page, name);
+    const approver = getFixtureApprover(fixture, stepNumber - 1);
+    const candidateMemberIds = (fixture.approvers?.[stepNumber - 1]?.members ?? []).map((member) => member.id);
+    runPhpJson(RESPOND_TO_RECOMMENDATION_APPROVAL_PHP, {
+        recommendationId: fixture.id,
+        memberId: approver.id,
+        candidateMemberIds,
+        decision: 'approve',
+        comment: `E2E approve step ${stepNumber}`,
+    });
+});
+
+When('I reject the pending workflow step {int} for {string}', async ({ page }, stepNumber, name) => {
+    const fixture = getFixture(page, name);
+    const approver = getFixtureApprover(fixture, stepNumber - 1);
+    const candidateMemberIds = (fixture.approvers?.[stepNumber - 1]?.members ?? []).map((member) => member.id);
+    runPhpJson(RESPOND_TO_RECOMMENDATION_APPROVAL_PHP, {
+        recommendationId: fixture.id,
+        memberId: approver.id,
+        candidateMemberIds,
+        decision: 'reject',
+        comment: `E2E reject step ${stepNumber}`,
+    });
+});
+
+Then('the {string} recommendation workflow run should have terminal reason {string}', async ({ page }, name, reason) => {
+    const fixture = getFixture(page, name);
+    const data = runPhpJson(GET_RECOMMENDATION_WORKFLOW_STATE_PHP, { recommendationId: fixture.id });
+    expect(data.latestTerminalReason ?? data.runTerminalReason).toBe(reason);
+});
+
+Then('the {string} recommendation record should have state {string}', async ({ page }, name, state) => {
+    const fixture = getFixture(page, name);
+    const data = runPhpJson(GET_RECOMMENDATION_WORKFLOW_STATE_PHP, { recommendationId: fixture.id });
+    expect(data.state).toBe(state);
 });
 
 When('I select all current fixture recommendations in the grid', async ({ page }) => {
@@ -627,12 +1380,40 @@ When('I ungroup all recommendations from the detail view', async ({ page }) => {
 
 After(async ({ page }) => {
     if (!page.__awardRecommendationFixtures?.ids?.length) {
+        if (page.__temporaryAwardIds?.length) {
+            runPhpJson(`
+require 'vendor/autoload.php';
+require 'config/bootstrap.php';
+$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$awards = \\Cake\\ORM\\TableRegistry::getTableLocator()->get('Awards.Awards');
+foreach (array_values(array_unique(array_map('intval', $input['awardIds'] ?? []))) as $id) {
+    if ($awards->exists(['id' => $id])) {
+        $awards->delete($awards->get($id));
+    }
+}
+echo json_encode(['deleted' => true], JSON_THROW_ON_ERROR);
+`, { awardIds: page.__temporaryAwardIds });
+        }
         return;
     }
 
     runPhpJson(CLEANUP_FIXTURES_PHP, {
         ids: page.__awardRecommendationFixtures.ids,
     });
+    if (page.__temporaryAwardIds?.length) {
+        runPhpJson(`
+require 'vendor/autoload.php';
+require 'config/bootstrap.php';
+$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$awards = \\Cake\\ORM\\TableRegistry::getTableLocator()->get('Awards.Awards');
+foreach (array_values(array_unique(array_map('intval', $input['awardIds'] ?? []))) as $id) {
+    if ($awards->exists(['id' => $id])) {
+        $awards->delete($awards->get($id));
+    }
+}
+echo json_encode(['deleted' => true], JSON_THROW_ON_ERROR);
+`, { awardIds: page.__temporaryAwardIds });
+    }
 });
 
 async function commitComboboxByTyping(page, inputSelector, hiddenSelector, text) {
@@ -740,6 +1521,35 @@ Then('there should be an award recommendation submitted email to {string} for th
     const query = `to:${recipientEmail} subject:"${subject}"`;
     await waitForScopedMailpitMessageCount(page, query);
     expect(await scopedMailpitMessageCount(page, query)).toBeGreaterThanOrEqual(1);
+});
+
+Then('the public feedback-lane recommendation should have a workflow run', async ({ page }) => {
+    const fixture = publicFeedbackFixture(page);
+    const recommendation = runPhpJson(`
+require 'vendor/autoload.php';
+require 'config/bootstrap.php';
+
+$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$locator = \\Cake\\ORM\\TableRegistry::getTableLocator();
+$recommendation = $locator->get('Awards.Recommendations')->find()
+    ->select(['id', 'reason'])
+    ->where(['reason' => (string)$input['reason']])
+    ->firstOrFail();
+$run = $locator->get('Awards.RecommendationApprovalRuns')->find()
+    ->select(['id', 'status'])
+    ->where(['recommendation_id' => (int)$recommendation->id])
+    ->orderByDesc('id')
+    ->first();
+
+echo json_encode([
+    'recommendationId' => (int)$recommendation->id,
+    'runId' => $run === null ? null : (int)$run->id,
+    'runStatus' => $run?->status,
+], JSON_THROW_ON_ERROR);
+`, { reason: fixture.reason });
+    expect(recommendation.recommendationId).toBeGreaterThan(0);
+    expect(recommendation.runId).toBeGreaterThan(0);
+    fixture.recommendationId = recommendation.recommendationId;
 });
 
 Then('there should be no award recommendation submitted email to {string} for the public feedback-lane recommendation', async ({ page }, recipientEmail) => {
@@ -893,6 +1703,12 @@ Then('there should be no recommendation feedback request email to {string}', asy
     flushWorkflowsAndQueue();
     await waitForQueueSettled();
     expect(await waitForStableMailpitSearchTotal(page.request, query)).toBe(0);
+});
+
+Then('there should be a fallback submission email to crown for {string}', async ({ page }, name) => {
+    const fixture = getFixture(page, name);
+    const query = `to:crown@ansteorra.org ${fixture.reason.split(' ')[0]}`;
+    await waitForScopedMailpitMessageCount(page, query);
 });
 
 // ── Award Bestowals ─────────────────────────────────────────────────
@@ -1303,6 +2119,16 @@ echo json_encode(['bestowalId' => (int)$rec->bestowal_id], JSON_THROW_ON_ERROR);
 When('I open the bestowal handoff recommendation detail view', async ({ page }) => {
     const fixture = ensureBestowalFixture(page);
     await page.goto(`/awards/recommendations/view/${fixture.recommendationId}`, { waitUntil: 'networkidle' });
+});
+
+When('I open the bestowal detail linked to recommendation {string}', async ({ page }, name) => {
+    const fixture = getFixture(page, name);
+    const data = runPhpJson(GET_RECOMMENDATION_WORKFLOW_STATE_PHP, { recommendationId: fixture.id });
+    if (!data.bestowalId) {
+        throw new Error(`Recommendation ${name} is not linked to a bestowal.`);
+    }
+
+    await page.goto(`/awards/bestowals/view/${data.bestowalId}`, { waitUntil: 'networkidle' });
 });
 
 Then('the bestowal detail page should show {string} in the state row', async ({ page }, text) => {

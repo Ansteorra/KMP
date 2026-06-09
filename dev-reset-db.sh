@@ -215,8 +215,12 @@ if [ "$LOAD_SEED" != true ] || { [ "$DB_DRIVER" != "postgres" ] && [ "$DB_DRIVER
     "${COMPOSE[@]}" exec -T app bin/cake updateDatabase || echo "  (updateDatabase command may not exist yet)"
 fi
 
-echo "[post] Migrating award recommendations into lifecycle ownership..."
-"${COMPOSE[@]}" exec -T app bin/cake awards migrate_award_recommendations --apply
+if [ "$(env_or_file KMP_DEV_RESET_MIGRATE_RECOMMENDATIONS 0)" = "1" ]; then
+    echo "[post] Migrating award recommendations into lifecycle ownership..."
+    "${COMPOSE[@]}" exec -T app bin/cake awards migrate_award_recommendations --apply --allow-open-manual-review
+else
+    echo "[post] Skipping legacy award recommendation migration (set KMP_DEV_RESET_MIGRATE_RECOMMENDATIONS=1 to run it)."
+fi
 
 if [ "$DB_DRIVER" = "postgres" ] || [ "$DB_DRIVER" = "pgsql" ]; then
     echo "[5/7] Running platform migrations and registering local tenants..."

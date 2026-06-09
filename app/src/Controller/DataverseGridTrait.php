@@ -272,7 +272,14 @@ trait DataverseGridTrait
                 // or just a column key (e.g., 'name')
                 if (str_contains($columnKey, '.')) {
                     // It's a full queryField path - use directly
-                    $searchConditions['OR'][$columnKey . ' LIKE'] = '%' . $searchTerm . '%';
+                    $searchCondition = $this->buildDataverseGridSearchCondition(
+                        $columnKey,
+                        null,
+                        (string)$searchTerm,
+                    );
+                    if ($searchCondition !== null) {
+                        $searchConditions['OR'][] = $searchCondition;
+                    }
                     continue;
                 }
 
@@ -284,17 +291,43 @@ trait DataverseGridTrait
                         if (count($relationParts) === 2) {
                             $associationName = ucfirst($relationParts[0]) . 's';
                             $fieldName = $relationParts[1];
-                            $searchConditions['OR'][$associationName . '.' . $fieldName . ' LIKE'] = '%'
-                                . $searchTerm . '%';
+                            $searchCondition = $this->buildDataverseGridSearchCondition(
+                                $associationName . '.' . $fieldName,
+                                $columnMeta,
+                                (string)$searchTerm,
+                            );
+                            if ($searchCondition !== null) {
+                                $searchConditions['OR'][] = $searchCondition;
+                            }
                         } elseif (!empty($columnMeta['queryField'])) {
                             // For deeper relation paths (3+ parts), use queryField directly
-                            $searchConditions['OR'][$columnMeta['queryField'] . ' LIKE'] = '%'
-                                . $searchTerm . '%';
+                            $searchCondition = $this->buildDataverseGridSearchCondition(
+                                (string)$columnMeta['queryField'],
+                                $columnMeta,
+                                (string)$searchTerm,
+                            );
+                            if ($searchCondition !== null) {
+                                $searchConditions['OR'][] = $searchCondition;
+                            }
                         }
                     } elseif (!empty($columnMeta['queryField'])) {
-                        $searchConditions['OR'][$columnMeta['queryField'] . ' LIKE'] = '%' . $searchTerm . '%';
+                        $searchCondition = $this->buildDataverseGridSearchCondition(
+                            (string)$columnMeta['queryField'],
+                            $columnMeta,
+                            (string)$searchTerm,
+                        );
+                        if ($searchCondition !== null) {
+                            $searchConditions['OR'][] = $searchCondition;
+                        }
                     } else {
-                        $searchConditions['OR'][$tableName . '.' . $columnKey . ' LIKE'] = '%' . $searchTerm . '%';
+                        $searchCondition = $this->buildDataverseGridSearchCondition(
+                            $tableName . '.' . $columnKey,
+                            $columnMeta,
+                            (string)$searchTerm,
+                        );
+                        if ($searchCondition !== null) {
+                            $searchConditions['OR'][] = $searchCondition;
+                        }
                     }
                 }
             }
@@ -828,6 +861,44 @@ trait DataverseGridTrait
             'currentSort' => $currentSort,
             'currentMember' => $currentMember,
         ];
+    }
+
+    /**
+     * Build a search condition for one Dataverse grid column.
+     *
+     * @param string $field Fully-qualified database field.
+     * @param array<string,mixed>|null $columnMeta Column metadata, when available.
+     * @param string $searchTerm User-entered search term.
+     * @return array<string,mixed>|null
+     */
+    protected function buildDataverseGridSearchCondition(
+        string $field,
+        ?array $columnMeta,
+        string $searchTerm,
+    ): ?array {
+        $searchTerm = trim($searchTerm);
+        if ($searchTerm === '') {
+            return null;
+        }
+
+        if ($this->isDataverseGridNumericSearchColumn($columnMeta)) {
+            if (!preg_match('/^-?\d+$/', $searchTerm)) {
+                return null;
+            }
+
+            return [$field => (int)$searchTerm];
+        }
+
+        return [$field . ' LIKE' => '%' . $searchTerm . '%'];
+    }
+
+    /**
+     * @param array<string,mixed>|null $columnMeta Column metadata.
+     * @return bool
+     */
+    private function isDataverseGridNumericSearchColumn(?array $columnMeta): bool
+    {
+        return in_array($columnMeta['type'] ?? null, ['integer', 'number'], true);
     }
 
     /**

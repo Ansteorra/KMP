@@ -4,8 +4,7 @@ import { Controller } from "@hotwired/stimulus";
  * Awards Recommendation Group Controller
  *
  * Handles the grouping modal and validates member compatibility.
- * Disables the Group button when selected recommendations have
- * different (non-null) member IDs.
+ * Recommendations can be grouped when selected rows share one member or have no member.
  */
 class AwardsRecommendationGroupController extends Controller {
     static targets = ["selectedIds", "validationMessage"];

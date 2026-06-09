@@ -33,6 +33,7 @@ class RecommendationApprovalRun extends BaseEntity
     public const TERMINAL_REASON_BESTOWAL_CANCELLED = 'bestowal_cancelled';
     public const TERMINAL_REASON_RECOMMENDATION_DELETED = 'recommendation_deleted';
     public const TERMINAL_REASON_AWARD_CHANGED = 'award_changed';
+    public const TERMINAL_REASON_SUPERSEDED_BY_GROUPING = 'superseded_by_grouping';
 
     protected array $_accessible = [
         'recommendation_id' => true,

@@ -352,6 +352,7 @@ class WorkflowApprovalsTable extends BaseTable
             if ($memberScope['permissionNames'] !== []) {
                 $candidateTypes[] = WorkflowApproval::APPROVER_TYPE_PERMISSION;
             }
+            $candidateTypes[] = WorkflowApproval::APPROVER_TYPE_POLICY;
 
             $query->where([
                 'OR' => [
@@ -429,8 +430,73 @@ class WorkflowApprovalsTable extends BaseTable
                 $awardBranchIdsByRun,
                 $branchIndex,
             ),
+            WorkflowApproval::APPROVER_TYPE_POLICY => self::memberPassesPolicy($approval, $memberId),
             default => false,
         };
+    }
+
+    /**
+     * Check whether the member passes the approval's configured policy.
+     */
+    private static function memberPassesPolicy(WorkflowApproval $approval, int $memberId): bool
+    {
+        $config = $approval->approver_config ?? [];
+        $policyClass = $config['policyClass'] ?? null;
+        $policyAction = $config['policyAction'] ?? null;
+        $entityTable = $config['entityTable'] ?? null;
+        $entityIdKey = $config['entityIdKey'] ?? null;
+
+        if (!$policyClass || !$policyAction || !$entityTable || !$entityIdKey) {
+            return false;
+        }
+        if (!class_exists((string)$policyClass)) {
+            return false;
+        }
+
+        $instance = TableRegistry::getTableLocator()->get('WorkflowInstances')
+            ->get((int)$approval->workflow_instance_id);
+        $entityId = self::resolveContextValue($instance->context ?? [], (string)$entityIdKey);
+        if (!$entityId) {
+            return false;
+        }
+
+        $table = TableRegistry::getTableLocator()->get((string)$entityTable);
+        $entity = $table->find()
+            ->where([$table->getAlias() . '.id' => (int)$entityId])
+            ->first();
+        if (!$entity) {
+            return false;
+        }
+
+        $member = TableRegistry::getTableLocator()->get('Members')->get($memberId);
+        $policy = new $policyClass();
+        if (!method_exists($policy, (string)$policyAction)) {
+            return false;
+        }
+
+        try {
+            return (bool)$policy->{$policyAction}($member, $entity);
+        } catch (Exception $exception) {
+            Log::error("Policy approval check failed: {$exception->getMessage()}");
+
+            return false;
+        }
+    }
+
+    /**
+     * Resolve a dot-path value from workflow context.
+     */
+    private static function resolveContextValue(array $context, string $key): mixed
+    {
+        $current = $context;
+        foreach (explode('.', $key) as $part) {
+            if (!is_array($current) || !array_key_exists($part, $current)) {
+                return null;
+            }
+            $current = $current[$part];
+        }
+
+        return $current;
     }
 
     /**

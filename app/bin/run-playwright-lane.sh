@@ -29,6 +29,8 @@ case "$lane" in
             "tests/ui/gen/@warrants/WarrantRosterDecline.feature.spec.js"
             "tests/ui/gen/@gatherings/Gatherings.feature.spec.js"
             "tests/ui/gen/@awards/AwardRecommendations.feature.spec.js"
+            "tests/ui/gen/@awards/AwardBestowals.feature.spec.js"
+            "tests/ui/gen/@awards/AwardHotwireGrid.feature.spec.js"
         )
         ;;
     uat|full)

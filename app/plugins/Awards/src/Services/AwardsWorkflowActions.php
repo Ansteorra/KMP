@@ -93,10 +93,7 @@ class AwardsWorkflowActions
             $this->stateLogService,
         );
         $this->submissionService = $submissionService ?? new RecommendationSubmissionService($this->stateLogService);
-        $this->updateService = $updateService ?? new RecommendationUpdateService(
-            $this->groupingService,
-            $this->stateLogService,
-        );
+        $this->updateService = $updateService ?? new RecommendationUpdateService();
         $this->transitionService = $transitionService ?? new RecommendationTransitionService(
             $this->groupingService,
             $this->stateLogService,

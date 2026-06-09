@@ -7,6 +7,7 @@ use App\Test\TestCase\BaseTestCase;
 use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\Recommendation;
 use Awards\Services\BestowalCreationService;
+use Awards\Services\RecommendationGroupingService;
 use Cake\I18n\DateTime;
 use Cake\ORM\Table;
 
@@ -84,6 +85,37 @@ class BestowalCreationServiceTest extends BaseTestCase
         $this->assertTrue($second['skipped']);
     }
 
+    public function testCreateFromGroupedRecommendationsCreatesBestowalsPerAward(): void
+    {
+        $secondAwardId = $this->getDifferentAwardId($this->getFirstAwardId());
+        $headId = $this->createRecommendation('King Approved', [
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'member_sca_name' => 'Admin von Admin',
+        ]);
+        $childId = $this->createRecommendation('King Approved', [
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'member_sca_name' => 'Admin von Admin',
+            'award_id' => $secondAwardId,
+        ]);
+        (new RecommendationGroupingService($this->recommendationsTable))
+            ->groupRecommendations([$headId, $childId], self::ADMIN_MEMBER_ID);
+
+        $result = $this->service->createFromRecommendation($headId, self::ADMIN_MEMBER_ID);
+
+        $this->assertTrue($result['success'], $result['error'] ?? json_encode($result));
+        $this->assertCount(2, $result['data']['bestowalIds']);
+
+        $head = $this->recommendationsTable->get($headId);
+        $child = $this->recommendationsTable->get($childId);
+        $this->assertNotSame((int)$head->bestowal_id, (int)$child->bestowal_id);
+
+        $headBestowal = $this->bestowalsTable->get((int)$head->bestowal_id);
+        $childBestowal = $this->bestowalsTable->get((int)$child->bestowal_id);
+        $this->assertSame(self::ADMIN_MEMBER_ID, (int)$headBestowal->member_id);
+        $this->assertSame(self::ADMIN_MEMBER_ID, (int)$childBestowal->member_id);
+        $this->assertNotSame((int)$headBestowal->award_id, (int)$childBestowal->award_id);
+    }
+
     public function testLockedRecommendationRejectsManualStateChange(): void
     {
         $recommendationId = $this->createRecommendation('Need to Schedule');
@@ -130,6 +162,20 @@ class BestowalCreationServiceTest extends BaseTestCase
             ->select(['id'])
             ->first();
         $this->assertNotNull($award);
+
+        return (int)$award->id;
+    }
+
+    private function getDifferentAwardId(int $awardId): int
+    {
+        $award = $this->getTableLocator()->get('Awards.Awards')
+            ->find()
+            ->select(['id'])
+            ->where(['id !=' => $awardId])
+            ->first();
+        if ($award === null) {
+            $this->markTestSkipped('Need at least two awards for grouped bestowal split tests');
+        }
 
         return (int)$award->id;
     }

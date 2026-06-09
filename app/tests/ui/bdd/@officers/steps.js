@@ -4,6 +4,7 @@ const { execFileSync } = require('node:child_process');
 const path = require('node:path');
 const {
     runPhpJson,
+    loginAs,
     waitForQueueSettled,
     flushWorkflowsAndQueue,
     dbQuery,
@@ -202,6 +203,7 @@ if ($officer !== null) {
 
 $workflowInstance = null;
 $workflowApproval = null;
+$currentApprover = null;
 if ($warrant?->warrant_roster_id) {
     $instances = $workflowInstances->find()
         ->orderBy(['WorkflowInstances.id' => 'DESC'])
@@ -219,6 +221,12 @@ if ($warrant?->warrant_roster_id) {
             ->where(['workflow_instance_id' => $instance->id])
             ->orderBy(['WorkflowApprovals.id' => 'DESC'])
             ->first();
+        if ($workflowApproval?->current_approver_id) {
+            $currentApprover = $members->find()
+                ->select(['id', 'email_address'])
+                ->where(['id' => $workflowApproval->current_approver_id])
+                ->first();
+        }
         break;
     }
 }
@@ -271,6 +279,7 @@ echo json_encode([
         'requiredCount' => (int)$workflowApproval->required_count,
         'approvedCount' => (int)$workflowApproval->approved_count,
         'currentApproverId' => $workflowApproval->current_approver_id !== null ? (int)$workflowApproval->current_approver_id : null,
+        'currentApproverEmail' => $currentApprover ? (string)$currentApprover->email_address : null,
     ] : null,
 ], JSON_THROW_ON_ERROR);
 `;
@@ -954,6 +963,9 @@ When('I approve the officer lifecycle warrant', async ({ page }) => {
         'No pending warrant approval was available to approve.',
     );
 
+    if (state.workflowApproval.currentApproverEmail) {
+        await loginAs(page, state.workflowApproval.currentApproverEmail);
+    }
     await page.goto('/approvals', { waitUntil: 'networkidle' });
     const respondButton = page.locator(
         `button[data-outlet-btn-btn-data-value*='"id":${state.workflowApproval.id}']`,
@@ -999,6 +1011,9 @@ When('I decline the officer lifecycle warrant roster', async ({ page }) => {
 
     page.__officerLifecycleDeclineReason = `Roster decline regression ${Date.now()}`;
 
+    if (state.workflowApproval.currentApproverEmail) {
+        await loginAs(page, state.workflowApproval.currentApproverEmail);
+    }
     await page.goto('/approvals', { waitUntil: 'networkidle' });
     const respondButton = page.locator(
         `button[data-outlet-btn-btn-data-value*='"id":${state.workflowApproval.id}']`,

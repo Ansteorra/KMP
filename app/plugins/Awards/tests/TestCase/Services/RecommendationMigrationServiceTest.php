@@ -87,6 +87,22 @@ class RecommendationMigrationServiceTest extends BaseTestCase
         $this->assertSame(RecommendationMigrationResult::TARGET_BESTOWAL, $classification['target']);
     }
 
+    public function testClassifiesBestowalStateWithMissingGatheringForManualReview(): void
+    {
+        $recommendation = new Recommendation([
+            'id' => 123461,
+            'state' => 'Scheduled',
+            'award_id' => 1,
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'gathering_id' => 999999,
+        ]);
+
+        $classification = $this->service->classify($recommendation);
+
+        $this->assertSame(RecommendationMigrationResult::TARGET_MANUAL_REVIEW, $classification['target']);
+        $this->assertStringContainsString('references missing gathering', $classification['reason']);
+    }
+
     public function testClassifiesApprovalStates(): void
     {
         foreach (['Submitted', 'In Consideration', 'Awaiting Feedback'] as $state) {
@@ -195,6 +211,33 @@ class RecommendationMigrationServiceTest extends BaseTestCase
         $runId = (int)$result->getData()['runId'];
         $run = $this->getTableLocator()->get('Awards.RecommendationMigrationRuns')->get($runId);
         $this->assertSame(RecommendationMigrationRun::STATUS_FAILED, $run->status);
+
+        $migrationResult = $this->getTableLocator()->get('Awards.RecommendationMigrationResults')->find()
+            ->where([
+                'migration_run_id' => $runId,
+                'recommendation_id' => $recommendationId,
+            ])
+            ->firstOrFail();
+        $this->assertSame(RecommendationMigrationResult::TARGET_MANUAL_REVIEW, $migrationResult->target_action);
+        $this->assertSame(RecommendationMigrationResult::STATUS_SKIPPED, $migrationResult->result_status);
+    }
+
+    public function testApplyRunCanAllowOpenManualReviewRecommendations(): void
+    {
+        $recommendationId = $this->createLegacyOpenRecommendation();
+
+        $result = $this->service->run(
+            RecommendationMigrationRun::MODE_APPLY,
+            ['recommendation_id' => $recommendationId],
+            self::ADMIN_MEMBER_ID,
+            true,
+        );
+
+        $this->assertTrue($result->isSuccess(), (string)$result->getError());
+
+        $runId = (int)$result->getData()['runId'];
+        $run = $this->getTableLocator()->get('Awards.RecommendationMigrationRuns')->get($runId);
+        $this->assertSame(RecommendationMigrationRun::STATUS_COMPLETED, $run->status);
 
         $migrationResult = $this->getTableLocator()->get('Awards.RecommendationMigrationResults')->find()
             ->where([

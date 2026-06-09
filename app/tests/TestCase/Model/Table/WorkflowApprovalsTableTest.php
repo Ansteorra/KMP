@@ -6,6 +6,7 @@ namespace App\Test\TestCase\Model\Table;
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowApprovalResponse;
 use App\Model\Table\WorkflowApprovalsTable;
+use App\Test\Policy\WorkflowApprovalsTableTestPolicy;
 use App\Test\TestCase\BaseTestCase;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
@@ -78,6 +79,69 @@ class WorkflowApprovalsTableTest extends BaseTestCase
         $this->assertNotContains($excludedApprovalId, $scopedApprovalIds);
         $this->assertSame([$includedInstanceId], $scopedInstanceIds);
         $this->assertSame([], WorkflowApprovalsTable::getPendingApprovalIdsForMember(self::ADMIN_MEMBER_ID, []));
+    }
+
+    public function testPendingCountIncludesPolicyApprovalForEligibleMember(): void
+    {
+        $countBefore = WorkflowApprovalsTable::getPendingApprovalCountForMember(self::ADMIN_MEMBER_ID);
+        [$instanceId, $executionLogId] = $this->createWorkflowContext([
+            'trigger' => ['memberId' => self::ADMIN_MEMBER_ID],
+        ]);
+
+        $approvalId = $this->createApproval($instanceId, $executionLogId, [
+            'approver_type' => WorkflowApproval::APPROVER_TYPE_POLICY,
+            'current_approver_id' => null,
+            'approver_config' => [
+                'policyClass' => WorkflowApprovalsTableTestPolicy::class,
+                'policyAction' => 'canApprove',
+                'entityTable' => 'Members',
+                'entityIdKey' => 'trigger.memberId',
+            ],
+        ]);
+
+        $this->assertSame(
+            $countBefore + 1,
+            WorkflowApprovalsTable::getPendingApprovalCountForMember(self::ADMIN_MEMBER_ID),
+        );
+        $this->assertContains(
+            $approvalId,
+            WorkflowApprovalsTable::getPendingApprovalIdsForMember(self::ADMIN_MEMBER_ID),
+        );
+        $this->assertTrue(
+            WorkflowApprovalsTable::isPendingApprovalForMember($approvalId, self::ADMIN_MEMBER_ID),
+        );
+    }
+
+    public function testPendingCountExcludesPolicyApprovalForIneligibleMember(): void
+    {
+        $scope = $this->findCurrentBranchRoleScope();
+        $memberId = $scope['member_id'] === self::ADMIN_MEMBER_ID
+            ? $this->findDifferentMemberId(self::ADMIN_MEMBER_ID)
+            : $scope['member_id'];
+        $countBefore = WorkflowApprovalsTable::getPendingApprovalCountForMember($memberId);
+        [$instanceId, $executionLogId] = $this->createWorkflowContext([
+            'trigger' => ['memberId' => self::ADMIN_MEMBER_ID],
+        ]);
+
+        $approvalId = $this->createApproval($instanceId, $executionLogId, [
+            'approver_type' => WorkflowApproval::APPROVER_TYPE_POLICY,
+            'current_approver_id' => null,
+            'approver_config' => [
+                'policyClass' => WorkflowApprovalsTableTestPolicy::class,
+                'policyAction' => 'canApprove',
+                'entityTable' => 'Members',
+                'entityIdKey' => 'trigger.memberId',
+            ],
+        ]);
+
+        $this->assertSame(
+            $countBefore,
+            WorkflowApprovalsTable::getPendingApprovalCountForMember($memberId),
+        );
+        $this->assertNotContains(
+            $approvalId,
+            WorkflowApprovalsTable::getPendingApprovalIdsForMember($memberId),
+        );
     }
 
     public function testPendingCountUsesCurrentBranchScopedRoleForAwardDynamicApproval(): void
@@ -324,7 +388,7 @@ class WorkflowApprovalsTableTest extends BaseTestCase
     /**
      * @return array{0:int,1:int}
      */
-    private function createWorkflowContext(): array
+    private function createWorkflowContext(array $context = []): array
     {
         $defTable = TableRegistry::getTableLocator()->get('WorkflowDefinitions');
         $def = $defTable->newEntity([
@@ -353,6 +417,7 @@ class WorkflowApprovalsTableTest extends BaseTestCase
             'workflow_definition_id' => $def->id,
             'workflow_version_id' => $version->id,
             'status' => 'waiting',
+            'context' => $context,
         ]);
         $instancesTable->saveOrFail($instance);
 
@@ -503,6 +568,16 @@ class WorkflowApprovalsTableTest extends BaseTestCase
         }
 
         return (int)$query->firstOrFail()->id;
+    }
+
+    private function findDifferentMemberId(int $excludedMemberId): int
+    {
+        return (int)TableRegistry::getTableLocator()->get('Members')->find()
+            ->select(['id'])
+            ->where(['id !=' => $excludedMemberId])
+            ->orderBy(['id' => 'ASC'])
+            ->firstOrFail()
+            ->id;
     }
 
     /**

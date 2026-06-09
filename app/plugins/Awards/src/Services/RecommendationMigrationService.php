@@ -93,9 +93,10 @@ class RecommendationMigrationService
      * @param string $mode RecommendationMigrationRun::MODE_* value
      * @param array<string, mixed> $filters Optional recommendation filters
      * @param int $actorId Actor member ID for mutation/audit fields
+     * @param bool $allowOpenManualReview Allow unresolved manual-review recommendations to remain open
      * @return \App\Services\ServiceResult
      */
-    public function run(string $mode, array $filters, int $actorId): ServiceResult
+    public function run(string $mode, array $filters, int $actorId, bool $allowOpenManualReview = false): ServiceResult
     {
         if (
             !in_array(
@@ -151,7 +152,7 @@ class RecommendationMigrationService
                 }
             }
 
-            if ($mode !== RecommendationMigrationRun::MODE_DRY_RUN) {
+            if ($mode !== RecommendationMigrationRun::MODE_DRY_RUN && !$allowOpenManualReview) {
                 $postMigrationAudit = $this->auditOpenRecommendationsWithoutWorkflow($filters);
                 if ($postMigrationAudit['count'] > 0) {
                     throw new RuntimeException($this->formatOpenRecommendationAuditFailure($postMigrationAudit));
@@ -303,6 +304,14 @@ class RecommendationMigrationService
         }
 
         if (in_array($state, self::BESTOWAL_STATES, true)) {
+            $bestowalReadinessIssue = $this->bestowalReadinessIssue($recommendation);
+            if ($bestowalReadinessIssue !== null) {
+                return [
+                    'target' => RecommendationMigrationResult::TARGET_MANUAL_REVIEW,
+                    'reason' => $bestowalReadinessIssue,
+                ];
+            }
+
             return [
                 'target' => RecommendationMigrationResult::TARGET_BESTOWAL,
                 'reason' => "State '{$state}' is bestowal-owned or ready for bestowal handoff.",
@@ -466,6 +475,30 @@ class RecommendationMigrationService
             return sprintf(
                 'Recommendation approval process step "%s" has no eligible approvers.',
                 (string)($firstStep->label ?? $firstStep->step_key ?? $firstStep->id),
+            );
+        }
+
+        return null;
+    }
+
+    /**
+     * Check whether a bestowal-owned recommendation can safely create or link a bestowal.
+     *
+     * @param \Awards\Model\Entity\Recommendation $recommendation Recommendation
+     * @return string|null Manual-review reason, or null when ready
+     */
+    private function bestowalReadinessIssue(Recommendation $recommendation): ?string
+    {
+        $gatheringId = $recommendation->gathering_id;
+        if ($gatheringId === null || (int)$gatheringId === 0) {
+            return null;
+        }
+
+        $gatheringsTable = $this->fetchTable('Gatherings');
+        if (!$gatheringsTable->exists(['id' => (int)$gatheringId])) {
+            return sprintf(
+                'Recommendation references missing gathering #%d; manual review is required before bestowal migration.',
+                (int)$gatheringId,
             );
         }
 

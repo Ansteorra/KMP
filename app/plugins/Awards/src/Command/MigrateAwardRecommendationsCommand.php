@@ -67,6 +67,11 @@ class MigrateAwardRecommendationsCommand extends Command
             ])
             ->addOption('state', [
                 'help' => 'Limit migration to one current recommendation state.',
+            ])
+            ->addOption('allow-open-manual-review', [
+                'boolean' => true,
+                'default' => false,
+                'help' => 'Allow unresolved manual-review recommendations to remain open after apply/resume.',
             ]);
 
         return $parser;
@@ -96,7 +101,12 @@ class MigrateAwardRecommendationsCommand extends Command
         ], fn($value) => $value !== null && $value !== '');
 
         $service = new RecommendationMigrationService($this->triggerDispatcher);
-        $result = $service->run($mode, $filters, (int)$args->getOption('actor-id'));
+        $result = $service->run(
+            $mode,
+            $filters,
+            (int)$args->getOption('actor-id'),
+            (bool)$args->getOption('allow-open-manual-review'),
+        );
         if (!$result->isSuccess()) {
             $io->err((string)$result->getError());
 

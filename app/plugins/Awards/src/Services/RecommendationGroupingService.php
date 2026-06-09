@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Awards\Services;
 
 use Awards\Model\Entity\Recommendation;
+use Awards\Model\Entity\RecommendationApprovalRun;
 use Cake\ORM\Locator\LocatorAwareTrait;
 use Cake\ORM\Table;
 use InvalidArgumentException;
@@ -66,7 +67,7 @@ class RecommendationGroupingService
             throw new InvalidArgumentException('At least 2 recommendations are required to group.');
         }
 
-        $this->assertGroupingPermitted($ids, $actorId);
+        $this->assertGroupingPermitted($ids);
 
         return $this->withTransaction(function () use ($ids, $actorId): Recommendation {
             $recommendations = $this->recommendationsTable->find()
@@ -82,6 +83,12 @@ class RecommendationGroupingService
 
             $head = $this->chooseHead($recommendations);
             $targetLinkedState = $this->determineLinkedStateForHead($head);
+            $childIds = $this->collectChildIdsForGrouping($recommendations, (int)$head->id);
+            $this->approvalLifecycleService->supersedeActiveRunsForGrouping(
+                $childIds,
+                (int)$head->id,
+                $actorId,
+            );
 
             foreach ($recommendations as $recommendation) {
                 if ((int)$recommendation->id === (int)$head->id) {
@@ -298,6 +305,13 @@ class RecommendationGroupingService
             $saved->status !== null ? (string)$saved->status : ($origin['status'] ?? null),
             $actorId,
         );
+        if ($actorId !== null) {
+            $this->approvalLifecycleService->rehydrateUnlinkedRecommendations(
+                [(int)$saved->id],
+                $actorId,
+                RecommendationApprovalRun::TERMINAL_REASON_SUPERSEDED_BY_GROUPING,
+            );
+        }
 
         return $saved;
     }
@@ -450,46 +464,56 @@ class RecommendationGroupingService
     }
 
     /**
-     * Assert that none of the given recommendations are in an active approval run unless
-     * the actor is a current pending approver for every active run involved.
+     * @param array<int, \Awards\Model\Entity\Recommendation> $recommendations Selected recommendations.
+     * @param int $headId Chosen group head ID.
+     * @return array<int>
+     */
+    private function collectChildIdsForGrouping(array $recommendations, int $headId): array
+    {
+        $childIds = [];
+        foreach ($recommendations as $recommendation) {
+            if ((int)$recommendation->id !== $headId) {
+                $childIds[] = (int)$recommendation->id;
+            }
+            foreach ($recommendation->group_children ?? [] as $groupChild) {
+                if ((int)$groupChild->id !== $headId) {
+                    $childIds[] = (int)$groupChild->id;
+                }
+            }
+        }
+
+        return array_values(array_unique($childIds));
+    }
+
+    /**
+     * Assert that the selected recommendations are still groupable.
      *
      * @param array<int> $ids Recommendation IDs to check.
-     * @param int|null $actorId Current user ID.
-     * @param bool $includeChildren Also check group children of each supplied ID.
-     * @throws \InvalidArgumentException when grouping is blocked by an active approval run.
+     * @throws \InvalidArgumentException when grouping is blocked by archived records.
      */
-    private function assertGroupingPermitted(array $ids, ?int $actorId, bool $includeChildren = false): void
+    private function assertGroupingPermitted(array $ids): void
     {
-        $activeRuns = $this->findActiveApprovalRuns($ids, $includeChildren);
+        $archivedStates = Recommendation::getStatuses()['Closed'] ?? [];
+        $archiveConditions = [
+            'Bestowals.state' => 'Given',
+        ];
+        if ($archivedStates !== []) {
+            $archiveConditions[] = ['Recommendations.state IN' => $archivedStates];
+        }
 
-        if ($activeRuns === []) {
+        $archivedCount = $this->recommendationsTable->find()
+            ->leftJoinWith('Bestowals')
+            ->where([
+                'Recommendations.id IN' => $ids,
+                'OR' => $archiveConditions,
+            ])
+            ->count();
+
+        if ($archivedCount === 0) {
             return;
         }
 
-        if ($actorId === null) {
-            throw new InvalidArgumentException(
-                'Cannot group or ungroup recommendations that are under active approval review.',
-            );
-        }
-
-        $workflowInstanceIds = array_values(array_unique(
-            array_map(static fn($run): int => (int)$run->workflow_instance_id, $activeRuns),
-        ));
-
-        /** @var \App\Model\Table\WorkflowApprovalsTable $workflowApprovalsTable */
-        $workflowApprovalsTable = $this->workflowApprovalsTable;
-        $actorPendingIds = $workflowApprovalsTable->getPendingApprovalWorkflowInstanceIdsForMember(
-            $actorId,
-            $workflowInstanceIds,
-        );
-
-        $blockedIds = array_diff($workflowInstanceIds, $actorPendingIds);
-        if ($blockedIds !== []) {
-            throw new InvalidArgumentException(
-                'Cannot group or ungroup recommendations that are under active approval review '
-                . 'unless you are the current pending approver for each recommendation.',
-            );
-        }
+        throw new InvalidArgumentException('Archived recommendations cannot be grouped.');
     }
 
     /**
@@ -547,7 +571,7 @@ class RecommendationGroupingService
     }
 
     /**
-     * Validate that grouped recommendations all point at the same member.
+     * Validate that grouped recommendations point at the same member or no member.
      *
      * @param array<int, \Awards\Model\Entity\Recommendation> $recommendations Selected recommendations.
      * @return void

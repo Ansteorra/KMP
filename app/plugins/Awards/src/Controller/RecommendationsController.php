@@ -159,6 +159,7 @@ class RecommendationsController extends AppController
         // Use unified trait for grid processing
         $result = $this->processDataverseGrid($built['gridOptions']);
         $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
+        $result = $this->filterRecommendationGridActionsForResult($result);
 
         // Handle CSV export using trait's unified method with data mode
         if (!empty($result['isCsvExport'])) {
@@ -171,8 +172,10 @@ class RecommendationsController extends AppController
         $recommendations = $result['data'];
         $this->enrichRecommendationsForGrid($recommendations, (array)$result['visibleColumns']);
 
-        // Get row actions from grid columns
-        $rowActions = RecommendationsGridColumns::getRowActions();
+        $rowActions = $this->filterRecommendationRowActionsForGridResult(
+            RecommendationsGridColumns::getRowActions(),
+            $result,
+        );
 
         $this->renderDataverseGridResponse(
             result: $result,
@@ -3430,6 +3433,37 @@ class RecommendationsController extends AppController
     }
 
     /**
+     * @param array<string, array<string, mixed>> $rowActions
+     * @param array<string, mixed> $gridResult
+     * @return array<string, array<string, mixed>>
+     */
+    private function filterRecommendationRowActionsForGridResult(array $rowActions, array $gridResult): array
+    {
+        $currentViewId = $gridResult['gridState']['view']['currentId'] ?? null;
+        if ($currentViewId !== 'sys-recs-archived') {
+            return $rowActions;
+        }
+
+        return array_intersect_key($rowActions, array_flip(['bestowal', 'view']));
+    }
+
+    /**
+     * @param array<string, mixed> $gridResult
+     * @return array<string, mixed>
+     */
+    private function filterRecommendationGridActionsForResult(array $gridResult): array
+    {
+        $currentViewId = $gridResult['gridState']['view']['currentId'] ?? null;
+        if ($currentViewId !== 'sys-recs-archived') {
+            return $gridResult;
+        }
+
+        $gridResult['gridState']['config']['bulkActions'] = [];
+
+        return $gridResult;
+    }
+
+    /**
      * Determine whether a column is requested for the current grid request.
      *
      * @param string $columnKey
@@ -3873,7 +3907,10 @@ class RecommendationsController extends AppController
             $this->enrichRecommendationsForGridContext($recommendations, $contextKey);
             $recommendation = $recommendations[0];
             $rowActions = $contextKey === 'main' || $contextKey === 'gatheringAwards'
-                ? RecommendationsGridColumns::getRowActions()
+                ? $this->filterRecommendationRowActionsForGridResult(
+                    RecommendationsGridColumns::getRowActions(),
+                    $result,
+                )
                 : [];
             $gridState = $result['gridState'];
             $enableColumnPicker = $gridState['config']['enableColumnPicker'] ?? true;

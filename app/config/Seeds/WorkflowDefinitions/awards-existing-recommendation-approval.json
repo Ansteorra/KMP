@@ -146,6 +146,31 @@
                 },
                 {
                     "port": "false",
+                    "target": "approval-process-closed",
+                    "label": "Continue"
+                }
+            ]
+        },
+        "approval-process-closed": {
+            "type": "condition",
+            "label": "Approval Process Closed?",
+            "config": {
+                "condition": "Core.FieldEquals",
+                "field": "$.nodes.advance-approval-process.result.closed",
+                "value": true
+            },
+            "position": {
+                "x": 1850,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "true",
+                    "target": "end-rejected",
+                    "label": "Closed"
+                },
+                {
+                    "port": "false",
                     "target": "award-approval-gate",
                     "label": "Next Step"
                 }
@@ -196,6 +221,18 @@
                     "label": "Failed"
                 }
             ]
+        },
+        "end-rejected": {
+            "type": "end",
+            "label": "Approval Rejected",
+            "config": {
+                "result": "$.nodes.advance-approval-process.result"
+            },
+            "position": {
+                "x": 2450,
+                "y": 150
+            },
+            "outputs": []
         },
         "end-created": {
             "type": "end",
