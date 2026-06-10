@@ -9,10 +9,21 @@ Deliver small, correct, verified changes that match the existing CakePHP 5, Stim
 ## Start every task
 
 1. Check the current worktree with `git status --short`.
-2. Identify whether the change belongs in root-level infrastructure or in `app/`.
-3. Search for existing patterns before editing.
-4. Preserve unrelated user changes.
-5. Choose the narrowest useful verification command before finishing.
+2. Identify every file or folder you expect to touch and whether each change belongs in root-level infrastructure, `app/`, or a plugin.
+3. Walk from the repository root to each target path and read every `AGENTS.md` on that route before editing. Do not rely on memory from previous sessions.
+4. Treat the nearest `AGENTS.md` as the local contract and parent guides as repo-wide rules. If guidance conflicts, the closer guide controls local details, but it cannot weaken project-wide safety, accessibility, security, or verification requirements.
+5. Search for existing patterns before editing.
+6. Preserve unrelated user changes.
+7. Choose the narrowest useful verification command before finishing.
+
+## AGENTS.md scope and context chain
+
+- This root `AGENTS.md` owns project-wide mission, workflow, safety rules, verification expectations, and the top-level child index.
+- Child `AGENTS.md` files may own domain-specific contracts for a subtree. When a child guide applies, follow it together with this root guide.
+- Keep work understandable from the nearest applicable `AGENTS.md` plus its parent chain. Durable structure, workflows, contracts, and quality expectations should not require chat history to understand.
+- Before completing meaningful changes, re-check the changed paths against the applicable AGENTS chain and update any affected guidance.
+- Create a child `AGENTS.md` only when a subtree becomes a durable boundary with its own purpose, rules, workflows, inputs, outputs, side effects, verification, or ownership.
+- When adding, moving, renaming, or deleting a child `AGENTS.md`, refresh the parent guide's child index in the same change.
 
 ## Important paths
 
@@ -34,7 +45,7 @@ Deliver small, correct, verified changes that match the existing CakePHP 5, Stim
 ## Current stack
 
 - PHP 8.3, CakePHP 5, CakePHP Authentication and Authorization plugins.
-- JavaScript bundled with Laravel Mix/Webpack.
+- JavaScript bundled with Vite.
 - Stimulus controllers registered through `window.Controllers`.
 - Bootstrap 5 UI components.
 - Turbo Drive disabled; Turbo Frames used for dynamic content.
@@ -65,12 +76,12 @@ Run these from `app/` unless noted.
 | Targeted PHP suite | `vendor/bin/phpunit --testsuite core-unit` |
 | Targeted PHP test | `vendor/bin/phpunit path/to/Test.php` or `vendor/bin/phpunit --filter Name` |
 | JS tests | `npm run test:js` |
-| Webpack build | `npm run dev` |
+| Vite build | `npm run dev` |
 | Playwright BDD | `npm run test:ui` |
 | PHPCS on a file | `vendor/bin/phpcs path/to/file.php` |
 | PHPStan | `vendor/bin/phpstan analyse --no-progress` |
 
-`bin/verify.sh` checks PHPUnit, Jest, Webpack, changed PHP files with PHPCS, and PHPStan.
+`bin/verify.sh` checks PHPUnit, Jest, Vite, changed PHP files with PHPCS, and PHPStan.
 
 ## Do not do these
 
@@ -121,3 +132,19 @@ Clean up listeners in `disconnect()`, preserve data attributes used by templates
 ## Documentation guidance
 
 Keep inline docblocks short and maintenance-oriented. Put usage examples, architecture narratives, and workflow documentation in `app/docs` or another existing docs location. Update `.github/copilot-instructions.md` and this file when project-wide agent guidance changes.
+
+Update the closest owning documentation when a change affects durable purpose, scope, ownership, responsibilities, workflows, contracts, required inputs or outputs, permissions, constraints, side effects, artifacts, or user preferences. Update parent docs when parent-level structure or child indexes change. Remove stale or contradictory text instead of explaining historical behavior.
+
+Small edits that do not change behavior, contracts, or durable workflow can leave docs unchanged, but the AGENTS chain still must be checked.
+
+## Child AGENTS index
+
+Durable development boundaries with their own local contracts:
+
+| Path | Purpose |
+| --- | --- |
+| `app/AGENTS.md` | CakePHP application code, configuration, frontend, plugins, tests, and app documentation |
+| `docs/AGENTS.md` | Published project documentation and Jekyll documentation site |
+| `deploy/AGENTS.md` | Cloud deployment templates, scripts, and environment examples |
+| `docker/AGENTS.md` | Container images, entrypoints, local runtime scripts, and Docker support files |
+| `installer/AGENTS.md` | Go-based installer and release packaging workflow |
