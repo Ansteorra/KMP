@@ -40,6 +40,9 @@ module.exports = defineConfig({
   /* Opt out of parallel tests on CI. */
   workers: 1,
 
+  /* Destructive platform-control-plane tests are opt-in because they rebuild seeded tenants. */
+  grepInvert: process.env.PLAYWRIGHT_INCLUDE_DESTRUCTIVE === '1' ? undefined : /@destructive/,
+
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
     ['html', {

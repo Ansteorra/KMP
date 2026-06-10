@@ -95,8 +95,7 @@ inspection:
 
 ```text
 URL:      http://localhost:5050
-Email:    admin@kmpdev.org
-Password: kmpdevpass
+Login:    not required by default in local dev
 ```
 
 The sidecar imports `docker/pgadmin/servers.json` on startup and preconfigures
@@ -104,6 +103,12 @@ The sidecar imports `docker/pgadmin/servers.json` on startup and preconfigures
 `KMP Local` group. Both use host `db`, port `5432`, username `KMPSQLDEV`, and
 the local `POSTGRES_PASSWORD` value. These are local development defaults only;
 do not use them for production.
+
+The Compose sidecar sets `KMP_PGADMIN_SERVER_MODE=False` by default, which runs
+pgAdmin in desktop mode and skips the pgAdmin web login. Keep
+`KMP_PGADMIN_BIND_ADDR=127.0.0.1` when using this mode. Set
+`KMP_PGADMIN_SERVER_MODE=True` plus `KMP_PGADMIN_EMAIL` and
+`KMP_PGADMIN_PASSWORD` if you intentionally need pgAdmin's server-mode login.
 
 The database volume is preserved across `./dev-down.sh`. To start from an empty volume:
 
@@ -222,8 +227,9 @@ The local helper scripts use `app/config/.env` for Docker Compose and the applic
 | `KMP_DB_HOST_PORT` | `5432` | Host port for PostgreSQL |
 | `KMP_PGADMIN_BIND_ADDR` | `127.0.0.1` | Bind address for pgAdmin |
 | `KMP_PGADMIN_PORT` | `5050` | Host port for pgAdmin |
-| `KMP_PGADMIN_EMAIL` | `admin@kmpdev.org` | Local pgAdmin login email |
-| `KMP_PGADMIN_PASSWORD` | `kmpdevpass` | Local pgAdmin login password |
+| `KMP_PGADMIN_SERVER_MODE` | `False` | Run pgAdmin in no-login desktop mode for localhost-bound dev |
+| `KMP_PGADMIN_EMAIL` | `admin@kmpdev.org` | Local pgAdmin login email when server mode is enabled |
+| `KMP_PGADMIN_PASSWORD` | `kmpdevpass` | Local pgAdmin login password when server mode is enabled |
 | `KMP_MAILPIT_WEB_PORT` | `8025` | Host port for Mailpit UI |
 | `KMP_MAILPIT_SMTP_PORT` | `1025` | Host port for Mailpit SMTP |
 | `KMP_HOST_ALIASES` | `kmp.localhost kmp2.localhost platform.kmp.localhost` | Space-separated host aliases printed by `./dev-up.sh` |

@@ -9,6 +9,7 @@ declare(strict_types=1);
  * @var list<array<string, mixed>> $hosts
  * @var list<array<string, mixed>> $jobs
  * @var list<array<string, mixed>> $backups
+ * @var array<string, mixed>|null $provisioningJob
  */
 $this->assign('title', __('Tenant: {0}', $tenant['slug']));
 ?>
@@ -52,6 +53,31 @@ $this->assign('title', __('Tenant: {0}', $tenant['slug']));
                     <dt class="col-sm-4"><?= __('Modified') ?></dt><dd class="col-sm-8"><?= h($tenant['modified_at'] ?? '') ?></dd>
                 </dl>
             </div>
+        </div>
+    </div>
+</section>
+
+<section class="card mb-4" aria-labelledby="provisioning-status-heading">
+    <div class="card-body">
+        <h2 id="provisioning-status-heading" class="h5"><?= __('Provisioning Status') ?></h2>
+        <div role="status" aria-live="polite">
+            <?php if ($provisioningJob !== null) : ?>
+                <p class="mb-1">
+                    <?= __('Latest provisioning job: {0}', h((string)$provisioningJob['status'])) ?>
+                    <?php if (!empty($provisioningJob['has_error'])) : ?>
+                        <span class="badge text-bg-danger ms-2"><?= __('Needs attention') ?></span>
+                    <?php endif; ?>
+                </p>
+                <dl class="row mb-0">
+                    <dt class="col-sm-3"><?= __('Queued') ?></dt><dd class="col-sm-9"><?= h($provisioningJob['created_at'] ?? '') ?></dd>
+                    <dt class="col-sm-3"><?= __('Started') ?></dt><dd class="col-sm-9"><?= h($provisioningJob['started_at'] ?? '') ?></dd>
+                    <dt class="col-sm-3"><?= __('Finished') ?></dt><dd class="col-sm-9"><?= h($provisioningJob['finished_at'] ?? '') ?></dd>
+                </dl>
+            <?php elseif (($tenant['status'] ?? '') === 'provisioning') : ?>
+                <p class="text-warning mb-0"><?= __('This tenant is provisioning, but no provisioning job was found. Queue a new tenant through the create flow or inspect platform jobs.') ?></p>
+            <?php else : ?>
+                <p class="text-muted mb-0"><?= __('No recent provisioning job is recorded for this tenant.') ?></p>
+            <?php endif; ?>
         </div>
     </div>
 </section>

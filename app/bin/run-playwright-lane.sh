@@ -33,11 +33,17 @@ case "$lane" in
             "tests/ui/gen/@awards/AwardHotwireGrid.feature.spec.js"
         )
         ;;
+    platform)
+        export PLAYWRIGHT_INCLUDE_DESTRUCTIVE=1
+        specs=(
+            "tests/ui/gen/@platform-admin/PlatformTenantProvisioning.feature.spec.js"
+        )
+        ;;
     uat|full)
         specs=()
         ;;
     *)
-        echo "Usage: bash bin/run-playwright-lane.sh [smoke|journey|uat|full] [playwright args...]" >&2
+        echo "Usage: bash bin/run-playwright-lane.sh [smoke|journey|platform|uat|full] [playwright args...]" >&2
         exit 1
         ;;
 esac
@@ -54,7 +60,7 @@ fi
 # unique timestamped tokens, so the lane's single reset is authoritative.
 export PLAYWRIGHT_RESET_DB=0
 
-if [ "$lane" = "smoke" ] || [ "$lane" = "journey" ]; then
+if [ "$lane" = "smoke" ] || [ "$lane" = "journey" ] || [ "$lane" = "platform" ]; then
     npx playwright test "${specs[@]}" "$@"
 else
     npx playwright test "$@"

@@ -9,6 +9,14 @@ declare(strict_types=1);
  * @var array<string, string> $formData
  * @var bool $isEdit
  */
+$statusOptions = [
+    'provisioning' => __('Provisioning'),
+    'suspended' => __('Suspended'),
+    'archived' => __('Archived'),
+];
+if (($tenantForm['status'] ?? '') === 'active') {
+    $statusOptions = ['active' => __('Active')] + $statusOptions;
+}
 ?>
 <section class="card mb-4" aria-labelledby="tenant-registry-heading">
     <div class="card-body">
@@ -29,17 +37,24 @@ declare(strict_types=1);
                 ]) ?>
             </div>
             <div class="col-12 col-lg-2">
-                <?= $this->Form->control('status', [
-                    'type' => 'select',
-                    'label' => __('Status'),
-                    'value' => $tenantForm['status'],
-                    'options' => [
-                        'provisioning' => __('Provisioning'),
-                        'active' => __('Active'),
-                        'suspended' => __('Suspended'),
-                        'archived' => __('Archived'),
-                    ],
-                ]) ?>
+                <?php if ($isEdit) : ?>
+                    <?= $this->Form->control('status', [
+                        'type' => 'select',
+                        'label' => __('Status'),
+                        'value' => $tenantForm['status'],
+                        'options' => $statusOptions,
+                        'help' => __('Activation is set by the provisioning worker after migrations complete.'),
+                    ]) ?>
+                <?php else : ?>
+                    <?= $this->Form->hidden('status', ['value' => 'provisioning']) ?>
+                    <div class="form-group">
+                        <label class="form-label"><?= __('Status') ?></label>
+                        <p class="form-control-plaintext mb-0"><?= __('Provisioning') ?></p>
+                        <div class="form-text">
+                            <?= __('The tenant becomes active after the provisioning worker creates the database and runs migrations.') ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
             </div>
             <div class="col-12 col-lg-2">
                 <?= $this->Form->control('region', [
@@ -54,24 +69,46 @@ declare(strict_types=1);
                     'help' => __('Hostname used to route requests to this tenant.'),
                 ]) ?>
             </div>
+            <?php if (!$isEdit) : ?>
+                <div class="col-12 col-lg-4">
+                    <?= $this->Form->control('initial_super_user_email', [
+                        'type' => 'email',
+                        'label' => __('Tenant super user email'),
+                        'value' => $tenantForm['initial_super_user_email'],
+                        'required' => true,
+                        'maxlength' => 50,
+                        'help' => __('Provisioning creates this active tenant super-user account. The user sets their password through Forgot Password.'),
+                    ]) ?>
+                </div>
+            <?php endif; ?>
             <div class="col-12 col-lg-3">
                 <?= $this->Form->control('db_server', [
                     'label' => __('Database server'),
                     'value' => $tenantForm['db_server'],
+                    'readonly' => $isEdit,
+                    'help' => $isEdit
+                        ? __('Database identity fields are immutable after tenant creation.')
+                        : null,
                 ]) ?>
             </div>
             <div class="col-12 col-lg-2">
                 <?= $this->Form->control('db_name', [
                     'label' => __('Database name'),
                     'value' => $tenantForm['db_name'],
-                    'help' => __('Leave blank on create to use the slug default.'),
+                    'readonly' => $isEdit,
+                    'help' => $isEdit
+                        ? __('Database identity fields are immutable after tenant creation.')
+                        : __('Leave blank on create to use the slug default.'),
                 ]) ?>
             </div>
             <div class="col-12 col-lg-2">
                 <?= $this->Form->control('db_role', [
                     'label' => __('Database role'),
                     'value' => $tenantForm['db_role'],
-                    'help' => __('Leave blank on create to use the database-name default.'),
+                    'readonly' => $isEdit,
+                    'help' => $isEdit
+                        ? __('Database identity fields are immutable after tenant creation.')
+                        : __('Leave blank on create to use the database-name default.'),
                 ]) ?>
             </div>
             <div class="col-12 col-lg-2">

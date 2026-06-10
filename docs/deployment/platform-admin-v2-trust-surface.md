@@ -27,6 +27,22 @@ This roadmap defines the next safe slice after the read-only Platform Admin v1 p
 
 Deploy the platform-operator route only in the isolated platform-admin Container App. The tenant route must run inside normal tenant authentication and must resolve tenant context from the current request, never from request parameters alone.
 
+## Platform Admin tenant onboarding
+
+The Platform Admin tenant create flow is an asynchronous control-plane operation. The portal creates the tenant registry row in `provisioning`, stores only secret references and safe tenant configuration, then queues a `platform_jobs` row with `job_type = tenant_provision`. It does not create databases or run migrations inside the HTTP request.
+
+Provisioning is completed by the platform schedule `platform-admin-job-runner`, which dispatches the allowlisted `platform:run-platform-jobs` command. The runner claims queued provisioning jobs, creates or updates the tenant database role/database when permitted, runs tenant migrations, smoke-tests the tenant database, and only then marks the tenant `active`.
+
+The create form requires an initial tenant super-user email address. Provisioning creates one verified tenant member, a system `Super User` role, a super-user permission that does not require a warrant, and assigns that member to the `Super User` role. No known password, password token, or reset link is stored in the platform job payload; the tenant super user claims the account through the normal tenant Forgot Password flow after the tenant becomes active.
+
+Operators must ensure:
+
+- The platform schedule runner is active in the platform-admin runtime.
+- The configured secret store is writable by the platform-admin runtime.
+- The platform database principal has the PostgreSQL privileges required to create tenant roles/databases when portal onboarding is enabled.
+- `KMP_AUTO_CREATE_DATABASES=true` is set only in environments where automatic tenant DB creation is approved, or provisioning jobs are submitted with explicit database creation enabled.
+- Job parameters and audit metadata contain only tenant identifiers, configuration references, and secret names; plaintext passwords, API keys, tokens, and connection strings must remain out of `platform_jobs`.
+
 ## Tenant-visible dashboard cards
 
 Each card should be accessible by keyboard, use semantic headings, and present a concise status, timestamp, evidence link, and support contact. Status text must not rely on color alone.

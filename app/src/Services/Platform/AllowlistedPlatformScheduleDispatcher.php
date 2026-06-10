@@ -5,6 +5,7 @@ namespace App\Services\Platform;
 
 use App\Command\AgeUpMembersCommand;
 use App\Command\BackupCheckCommand;
+use App\Command\PlatformJobsRunCommand;
 use App\Command\SyncActiveWindowStatusesCommand;
 use App\Command\SyncMemberWarrantableStatusesCommand;
 use App\Command\WorkflowSchedulerCommand;
@@ -21,6 +22,7 @@ class AllowlistedPlatformScheduleDispatcher implements PlatformScheduleDispatche
     private const COMMAND_NOOP = 'platform:noop';
     private const COMMAND_SHARED_QUEUE_FANOUT = 'platform:shared-queue-fanout';
     private const COMMAND_RUN_CAKE_COMMAND = 'platform:run-cake-command';
+    private const COMMAND_RUN_PLATFORM_JOBS = 'platform:run-platform-jobs';
 
     /**
      * @var array<string, class-string<\Cake\Command\Command>>
@@ -43,6 +45,7 @@ class AllowlistedPlatformScheduleDispatcher implements PlatformScheduleDispatche
             self::COMMAND_NOOP => null,
             self::COMMAND_SHARED_QUEUE_FANOUT => $this->dispatchSharedQueuePlaceholder($schedule, $tenant),
             self::COMMAND_RUN_CAKE_COMMAND => $this->runCakeCommand($schedule),
+            self::COMMAND_RUN_PLATFORM_JOBS => $this->runPlatformJobs($schedule),
             default => throw new InvalidArgumentException(sprintf(
                 'Platform schedule command "%s" is not allowlisted.',
                 $command,
@@ -87,6 +90,28 @@ class AllowlistedPlatformScheduleDispatcher implements PlatformScheduleDispatche
         $result = $command->execute(new Arguments($arguments, $options, $argumentNames), $io);
         if ($result !== Command::CODE_SUCCESS && $result !== null) {
             throw new RuntimeException(sprintf('Cake command "%s" exited with status %d.', $name, $result));
+        }
+    }
+
+    /**
+     * Run queued platform-admin jobs from a platform-scoped schedule.
+     *
+     * @param array<string, mixed> $schedule Platform schedule row
+     * @return void
+     */
+    private function runPlatformJobs(array $schedule): void
+    {
+        $payload = (array)($schedule['payload'] ?? []);
+        $limit = max(1, min(100, (int)($payload['limit'] ?? 10)));
+        $io = new ConsoleIo(new ConsoleOutput('php://memory'), new ConsoleOutput('php://memory'));
+        $io->setInteractive(false);
+
+        $result = (new PlatformJobsRunCommand())->execute(
+            new Arguments([], ['limit' => (string)$limit], []),
+            $io,
+        );
+        if ($result !== Command::CODE_SUCCESS && $result !== null) {
+            throw new RuntimeException(sprintf('Platform jobs runner exited with status %d.', $result));
         }
     }
 

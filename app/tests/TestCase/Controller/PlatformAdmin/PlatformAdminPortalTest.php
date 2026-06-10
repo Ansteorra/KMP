@@ -292,6 +292,10 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->get('/platform-admin/tenants');
         $this->assertResponseOk();
         $this->assertResponseContains('Create tenant');
+        $this->get('/platform-admin/tenants/add');
+        $this->assertResponseOk();
+        $this->assertResponseContains('Tenant super user email');
+        $this->assertResponseContains('The user sets their password through Forgot Password.');
 
         $this->post('/platform-admin/tenants/add', [
             'slug' => 'newkingdom',
@@ -299,6 +303,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             'status' => 'provisioning',
             'region' => 'us',
             'primary_host' => 'newkingdom.test',
+            'initial_super_user_email' => 'superuser@newkingdom.test',
             'db_server' => 'db.internal',
             'db_name' => '',
             'db_role' => '',
@@ -313,11 +318,13 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             'features_json' => '',
             'integration_endpoints_json' => '{"roster":"https://integrations.newkingdom.test/roster"}',
             'integration_secret_refs_json' => '{"roster":"tenant.newkingdom.roster-token"}',
+            'nonce' => 'newkingdom-provision',
         ]);
 
         $this->assertRedirectContains('/platform-admin/tenants/newkingdom');
         $row = $this->platform()->execute('SELECT * FROM tenants WHERE slug = ?', ['newkingdom'])->fetch('assoc');
         $this->assertSame('New Kingdom', $row['display_name']);
+        $this->assertSame('provisioning', $row['status']);
         $this->assertSame('kmp_tenant_newkingdom', $row['db_name']);
         $this->assertSame('kmp_tenant_newkingdom_role', $row['db_role']);
         $this->assertSame(7, (int)$row['queue_concurrency_limit']);
@@ -337,6 +344,83 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             [$row['id']],
         )->fetchColumn(0);
         $this->assertSame('tenant.created', $auditAction);
+
+        $job = $this->platform()->execute(
+            'SELECT * FROM platform_jobs WHERE job_type = ? ORDER BY created_at DESC LIMIT 1',
+            ['tenant_provision'],
+        )->fetch('assoc');
+        $this->assertSame('queued', $job['status']);
+        $this->assertSame($row['id'], $job['tenant_id']);
+        $this->assertSame('tenant_provision:newkingdom:newkingdom-provision', $job['idempotency_key']);
+        $this->assertStringContainsString('"run_migrations":true', $job['parameters']);
+        $this->assertStringContainsString('"create_database":true', $job['parameters']);
+        $this->assertStringContainsString('"initial_super_user_email":"superuser@newkingdom.test"', $job['parameters']);
+        $this->assertStringNotContainsString('super-secret-password', $job['parameters']);
+        $this->assertStringNotContainsString('password_token', $job['parameters']);
+    }
+
+    public function testTenantCreationRequiresValidInitialSuperUserEmail(): void
+    {
+        $this->enablePortal();
+        $this->loginAsPlatformAdmin();
+
+        $this->post('/platform-admin/tenants/add', [
+            'slug' => 'newkingdom',
+            'display_name' => 'New Kingdom',
+            'status' => 'provisioning',
+            'region' => 'us',
+            'primary_host' => 'newkingdom.test',
+            'initial_super_user_email' => 'not-an-email',
+            'db_server' => 'db.internal',
+            'db_name' => '',
+            'db_role' => '',
+            'queue_concurrency_limit' => '7',
+            'documents_blob_container' => 'documents-newkingdom',
+            'documents_blob_prefix' => 'tenants/newkingdom',
+            'email_mode' => 'disabled',
+            'features_json' => '',
+            'integration_endpoints_json' => '',
+            'integration_secret_refs_json' => '',
+        ]);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Initial tenant super user email is required and must be a valid email address.');
+        $tenantCount = (int)$this->platform()
+            ->execute('SELECT COUNT(*) FROM tenants WHERE slug = ?', ['newkingdom'])
+            ->fetchColumn(0);
+        $this->assertSame(0, $tenantCount);
+    }
+
+    public function testTenantEditCannotManuallyActivateProvisioningTenant(): void
+    {
+        $this->enablePortal();
+        $this->loginAsPlatformAdmin();
+        $this->platform()->update('tenants', ['status' => 'provisioning'], ['id' => 'tenant-1']);
+
+        $this->post('/platform-admin/tenants/example/edit', [
+            'slug' => 'example',
+            'display_name' => 'Example Tenant',
+            'status' => 'active',
+            'region' => 'us',
+            'primary_host' => 'example.test',
+            'db_server' => 'db-secret-host',
+            'db_name' => 'tenant_secret_database',
+            'db_role' => 'tenant_secret_role',
+            'queue_concurrency_limit' => '5',
+            'documents_blob_container' => 'documents-old',
+            'documents_blob_prefix' => 'tenants/old',
+            'email_mode' => 'default',
+            'features_json' => '',
+            'integration_endpoints_json' => '',
+            'integration_secret_refs_json' => '',
+        ]);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Tenant activation is completed by the provisioning worker');
+        $status = $this->platform()
+            ->execute('SELECT status FROM tenants WHERE id = ?', ['tenant-1'])
+            ->fetchColumn(0);
+        $this->assertSame('provisioning', $status);
     }
 
     public function testPlatformAdminCanEditTenantRegistryAndConfiguration(): void
@@ -354,9 +438,9 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             'status' => 'suspended',
             'region' => 'us-central',
             'primary_host' => 'example-updated.test',
-            'db_server' => 'db-secret-host',
-            'db_name' => 'tenant_secret_database',
-            'db_role' => 'tenant_secret_role',
+            'db_server' => 'other-db.internal',
+            'db_name' => 'other_tenant_database',
+            'db_role' => 'other_tenant_role',
             'queue_concurrency_limit' => '3',
             'documents_blob_container' => 'documents-updated',
             'documents_blob_prefix' => 'tenants/example-updated',
@@ -377,6 +461,9 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $row = $this->platform()->execute('SELECT * FROM tenants WHERE slug = ?', ['example'])->fetch('assoc');
         $this->assertSame('Example Updated', $row['display_name']);
         $this->assertSame('suspended', $row['status']);
+        $this->assertSame('db-secret-host', $row['db_server']);
+        $this->assertSame('tenant_secret_database', $row['db_name']);
+        $this->assertSame('tenant_secret_role', $row['db_role']);
         $this->assertSame(3, (int)$row['queue_concurrency_limit']);
         $config = json_decode((string)$row['tenant_config'], true);
         $this->assertSame('smtp', $config['email']['mode']);

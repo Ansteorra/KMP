@@ -53,7 +53,6 @@ use App\Controller\WorkflowDefinitionsController;
 use App\Controller\WorkflowInstancesController;
 use App\KMP\KmpIdentityInterface;
 // Add this line
-use App\KMP\StaticHelpers;
 use App\Middleware\TenantResolutionMiddleware;
 // Authorization usings
 use App\Policy\ControllerResolver;
@@ -83,6 +82,7 @@ use App\Services\Secrets\SecretStoreInterface;
 use App\Services\Security\RequestRateLimiter;
 use App\Services\Security\TenantCsrfTokenScope;
 use App\Services\TenantConnectionManager;
+use App\Services\TenantDefaultSettingsInitializer;
 use App\Services\ViewCellRegistry;
 use App\Services\WarrantManager\DefaultWarrantManager;
 use App\Services\WarrantManager\WarrantManagerInterface;
@@ -113,7 +113,6 @@ use Authorization\Exception\MissingIdentityException;
 use Authorization\Middleware\AuthorizationMiddleware;
 use Authorization\Policy\OrmResolver;
 use Authorization\Policy\ResolverCollection;
-use Cake\Cache\Cache;
 use Cake\Controller\ComponentRegistry;
 use Cake\Core\Configure;
 use Cake\Core\ContainerInterface;
@@ -124,7 +123,6 @@ use Cake\Http\Middleware\BodyParserMiddleware;
 use Cake\Http\Middleware\CsrfProtectionMiddleware;
 use Cake\Http\MiddlewareQueue;
 use Cake\Http\ServerRequest;
-use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\ORM\Locator\TableLocator;
 use Cake\Routing\Middleware\AssetMiddleware;
@@ -270,73 +268,7 @@ class Application extends BaseApplication implements
         // Version-based application configuration management
         // This system allows automatic updates to application settings when KMP is upgraded
         // Each time the version changes, new default settings are applied
-        $currentConfigVersion = '25.11.06.b'; // Update this with each configuration change
-
-        $configVersion = StaticHelpers::getAppSetting('KMP.configVersion', '0.0.0', null, true);
-        if ($configVersion != $currentConfigVersion) {
-            $modelCacheCleared = Cache::clear('_cake_model_');
-            if (!$modelCacheCleared) {
-                Log::warning('Failed clearing _cake_model_ cache during config version update.');
-            } else {
-                StaticHelpers::setAppSetting('KMP.configVersion', $currentConfigVersion, null, true);
-            }
-
-            // Core KMP Settings - Basic application configuration
-            StaticHelpers::getAppSetting('KMP.BranchInitRun', '', null, true); // Tracks branch initialization
-            StaticHelpers::getAppSetting('KMP.KingdomName', 'please_set', null, true); // Primary kingdom identifier
-            StaticHelpers::getAppSetting('KMP.LongSiteTitle', 'Kingdom Management Portal', null, true); // Full application name
-            StaticHelpers::getAppSetting('KMP.ShortSiteTitle', 'KMP', null, true); // Abbreviated name for headers
-            StaticHelpers::getAppSetting('KMP.BannerLogo', 'badge.png', 'image', true); // Main site logo
-            StaticHelpers::getAppSetting('KMP.Login.Graphic', 'populace_badge.png', 'image', true); // Login page graphic
-            StaticHelpers::getAppSetting('KMP.EnablePublicRegistration', 'yes', null, true); // Allow public sign-ups
-            StaticHelpers::getAppSetting('KMP.DefaultTimezone', 'America/Chicago', null, true); // Default timezone for date/time display
-            StaticHelpers::getAppSetting('App.version', '0.0.0', null, true); // Application version tracking
-
-            // Member Card Display Settings - Visual presentation of member information
-            StaticHelpers::getAppSetting('Member.ViewCard.Graphic', 'auth_card_back.gif', 'image', true); // Card background image
-            StaticHelpers::getAppSetting('Member.ViewCard.HeaderColor', 'gold', null, true); // Card header color scheme
-            StaticHelpers::getAppSetting('Member.ViewCard.Template', 'view_card', null, true); // Desktop card template
-            StaticHelpers::getAppSetting('Member.ViewMobileCard.Template', 'view_mobile_card', null, true); // Mobile card template
-            StaticHelpers::getAppSetting('Member.MobileCard.ThemeColor', 'gold', null, true); // Mobile theme color
-            StaticHelpers::getAppSetting('Member.MobileCard.BgColor', 'gold', null, true); // Mobile background color
-
-            // Member Management Email Settings - Contact addresses for various member processes
-            StaticHelpers::getAppSetting('Members.AccountVerificationContactEmail', 'please_set', null, true); // Account verification support
-            StaticHelpers::getAppSetting('Members.AccountDisabledContactEmail', 'please_set', null, true); // Disabled account support
-            StaticHelpers::getAppSetting('Members.NewMemberSecretaryEmail', 'member@test.com', null, true); // New member notifications
-            StaticHelpers::getAppSetting('Members.NewMinorSecretaryEmail', 'minorSet@test.com', null, true); // Minor member notifications
-
-            // Email System Configuration - Global email settings
-            StaticHelpers::getAppSetting('Email.SystemEmailFromAddress', 'site@test.com', null, true); // System sender address
-            StaticHelpers::getAppSetting('Email.SiteAdminSignature', 'site', null, true); // Default email signature
-
-            // Activity Management Settings - Event and activity coordination
-            StaticHelpers::getAppSetting('Activity.SecretaryEmail', 'please_set', null, true); // Activity coordinator email
-            StaticHelpers::getAppSetting('Activity.SecretaryName', 'please_set', null, true); // Activity coordinator name
-
-            // Warrant System Configuration - Officer warrant management
-            StaticHelpers::getAppSetting('Warrant.LastCheck', DateTime::now()->subDays(1)->toDateString(), null, true); // Last warrant validation
-            StaticHelpers::getAppSetting('KMP.RequireActiveWarrantForSecurity', 'yes', null, true); // Warrant requirement for security roles
-            StaticHelpers::getAppSetting('Warrant.RosterApprovalsRequired', '2', null, true); // Number of approvals needed for roster changes
-
-            // Help and Documentation Settings
-            StaticHelpers::getAppSetting(
-                'KMP.AppSettings.HelpUrl',
-                'https://github.com/Ansteorra/KMP/wiki/App-Settings',
-                null,
-                true,
-            ); // Settings help URL
-
-            // Branch Type Configuration - Organizational structure definitions
-            // Uses YAML format for complex data structures
-            StaticHelpers::getAppSetting('Branches.Types', yaml_emit([
-                'Kingdom', // Top-level organization
-                'Principality', // Major subdivision of kingdom
-                'Region', // Geographic grouping of local groups
-                'Local Group', // Individual chapters (Barony, Shire, etc.)
-                'N/A', // Special case for non-geographic roles
-            ]), 'yaml', true);
-        }
+        (new TenantDefaultSettingsInitializer())->initialize();
     }
 
     /**

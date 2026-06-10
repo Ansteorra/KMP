@@ -6,6 +6,7 @@ namespace App\Controller\PlatformAdmin;
 use App\Services\BackupStorageService;
 use App\Services\Platform\PlatformAdminJobEnqueuer;
 use App\Services\Platform\PlatformAuditService;
+use App\Services\Platform\PlatformJobRunner;
 use App\Services\Platform\TenantConfigSchema;
 use App\Services\Platform\TenantHostResolver;
 use App\Services\Secrets\SecretStoreFactory;
@@ -59,9 +60,16 @@ class TenantsController extends PlatformAdminAppController
         if ($this->request->is('post')) {
             try {
                 $tenantData = $this->tenantDataFromRequest($this->request->getData());
+                $initialSuperUserEmail = $this->initialSuperUserEmailFromRequest($this->request->getData(), true);
                 $newConfig = $schema->buildFromFormData($this->configFormData($this->request->getData()));
                 $tenant = $this->createTenant($tenantData, $newConfig);
-                $this->Flash->success(__('Tenant has been created.'));
+                $job = $this->enqueueTenantProvisioningJob(
+                    $tenant,
+                    $tenantData,
+                    $newConfig,
+                    $initialSuperUserEmail,
+                );
+                $this->Flash->success(__('Tenant provisioning has been queued: {0}', $job['id']));
 
                 return $this->redirect([
                     'prefix' => 'PlatformAdmin',
@@ -106,7 +114,14 @@ class TenantsController extends PlatformAdminAppController
 
         if ($this->request->is(['post', 'put', 'patch'])) {
             try {
-                $tenantData = $this->tenantDataFromRequest($this->request->getData(), (string)$tenant['slug']);
+                $tenantData = $this->tenantDataFromRequest(
+                    $this->request->getData(),
+                    (string)$tenant['slug'],
+                    (string)$tenant['status'],
+                );
+                $tenantData['db_server'] = (string)$tenant['db_server'];
+                $tenantData['db_name'] = (string)$tenant['db_name'];
+                $tenantData['db_role'] = (string)$tenant['db_role'];
                 $newConfig = $schema->buildFromFormData($this->configFormData($this->request->getData()));
                 $this->updateTenant($tenant, $tenantData, $safeConfig, $newConfig);
                 $this->Flash->success(__('Tenant has been updated.'));
@@ -154,6 +169,7 @@ class TenantsController extends PlatformAdminAppController
             'hosts' => $this->tenantHosts((string)$tenant['id']),
             'jobs' => $this->tenantJobs((string)$tenant['id']),
             'backups' => $this->tenantBackups((string)$tenant['id']),
+            'provisioningJob' => $this->latestTenantJob((string)$tenant['id'], PlatformJobRunner::JOB_TENANT_PROVISION),
         ]);
     }
 
@@ -507,6 +523,7 @@ class TenantsController extends PlatformAdminAppController
             'status' => 'provisioning',
             'region' => 'us',
             'primary_host' => '',
+            'initial_super_user_email' => '',
             'db_server' => (string)($this->platform()->config()['host'] ?? 'localhost'),
             'db_name' => '',
             'db_role' => '',
@@ -526,6 +543,7 @@ class TenantsController extends PlatformAdminAppController
             'status' => (string)($tenant['status'] ?? 'provisioning'),
             'region' => (string)($tenant['region'] ?? 'us'),
             'primary_host' => (string)($tenant['primary_host'] ?? ''),
+            'initial_super_user_email' => '',
             'db_server' => (string)($tenant['db_server'] ?? ''),
             'db_name' => (string)($tenant['db_name'] ?? ''),
             'db_role' => (string)($tenant['db_role'] ?? ''),
@@ -537,8 +555,11 @@ class TenantsController extends PlatformAdminAppController
      * @param array<string, mixed> $data
      * @return array<string, mixed>
      */
-    private function tenantDataFromRequest(array $data, ?string $existingSlug = null): array
-    {
+    private function tenantDataFromRequest(
+        array $data,
+        ?string $existingSlug = null,
+        ?string $currentStatus = null,
+    ): array {
         $slug = $existingSlug ?? strtolower(trim((string)($data['slug'] ?? '')));
         $this->assertValidSlug($slug);
         if (in_array($slug, ['admin', 'api', 'assets', 'backups', 'objects', 'platform', 'work'], true)) {
@@ -549,9 +570,14 @@ class TenantsController extends PlatformAdminAppController
         if ($displayName === '' || mb_strlen($displayName) > 120) {
             throw new InvalidArgumentException('Tenant display name is required and must be 120 characters or fewer.');
         }
-        $status = trim((string)($data['status'] ?? 'provisioning'));
+        $status = $existingSlug === null ? 'provisioning' : trim((string)($data['status'] ?? 'provisioning'));
         if (!in_array($status, ['provisioning', 'active', 'suspended', 'archived'], true)) {
             throw new InvalidArgumentException('Tenant status must be provisioning, active, suspended, or archived.');
+        }
+        if ($status === 'active' && $currentStatus !== 'active') {
+            throw new InvalidArgumentException(
+                'Tenant activation is completed by the provisioning worker, not manual edits.',
+            );
         }
         $region = trim((string)($data['region'] ?? 'us'));
         if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/', $region)) {
@@ -561,6 +587,7 @@ class TenantsController extends PlatformAdminAppController
         if ($host === '' || !preg_match('/^[a-z0-9.-]{3,255}$/', $host) || str_contains($host, '..')) {
             throw new InvalidArgumentException('Tenant primary host must be a valid hostname.');
         }
+        $this->initialSuperUserEmailFromRequest($data, $existingSlug === null);
         $dbServer = trim((string)($data['db_server'] ?? ''));
         if ($dbServer === '' || mb_strlen($dbServer) > 255) {
             throw new InvalidArgumentException('Tenant database server is required.');
@@ -588,6 +615,26 @@ class TenantsController extends PlatformAdminAppController
             'db_role' => $dbRole,
             'queue_concurrency_limit' => $queueLimit,
         ];
+    }
+
+    /**
+     * Validate and normalize the initial tenant super-user email.
+     *
+     * @param array<string, mixed> $data Request data
+     */
+    private function initialSuperUserEmailFromRequest(array $data, bool $required): ?string
+    {
+        $email = strtolower(trim((string)($data['initial_super_user_email'] ?? '')));
+        if ($email === '' && !$required) {
+            return null;
+        }
+        if ($email === '' || filter_var($email, FILTER_VALIDATE_EMAIL) === false || mb_strlen($email) > 50) {
+            throw new InvalidArgumentException(
+                'Initial tenant super user email is required and must be a valid email address.',
+            );
+        }
+
+        return $email;
     }
 
     /**
@@ -642,6 +689,50 @@ class TenantsController extends PlatformAdminAppController
         TenantHostResolver::clearCache();
 
         return $tenant;
+    }
+
+    /**
+     * Queue out-of-band full tenant provisioning.
+     *
+     * @param array<string, mixed> $tenant
+     * @param array<string, mixed> $tenantData
+     * @param array<string, mixed> $config
+     * @return array<string, mixed>
+     */
+    private function enqueueTenantProvisioningJob(
+        array $tenant,
+        array $tenantData,
+        array $config,
+        string $initialSuperUserEmail,
+    ): array {
+        $nonce = (string)$this->request->getData('nonce', Text::uuid());
+
+        return $this->jobEnqueuer()->enqueue(
+            PlatformJobRunner::JOB_TENANT_PROVISION,
+            (string)$tenant['id'],
+            $this->platformAdmin['id'] ?? null,
+            [
+                'slug' => (string)$tenantData['slug'],
+                'display_name' => (string)$tenantData['display_name'],
+                'primary_host' => (string)$tenantData['primary_host'],
+                'initial_super_user_email' => $initialSuperUserEmail,
+                'db_server' => (string)$tenantData['db_server'],
+                'db_name' => (string)$tenantData['db_name'],
+                'db_role' => (string)$tenantData['db_role'],
+                'blob_container' => (string)($config['documents']['blob_container'] ?? 'tenant-' . $tenantData['slug']),
+                'region' => (string)$tenantData['region'],
+                'queue_concurrency_limit' => (int)$tenantData['queue_concurrency_limit'],
+                'tenantConfig' => $config,
+                'status' => 'active',
+                'create_database' => true,
+                'skip_create_database' => false,
+                'run_migrations' => true,
+                'smoke_table' => 'members',
+            ],
+            sprintf('tenant_provision:%s:%s', $tenantData['slug'], $nonce),
+            'platform admin tenant provisioning request',
+            $this->auditOptions((string)$tenant['id']),
+        );
     }
 
     /**
@@ -815,6 +906,25 @@ class TenantsController extends PlatformAdminAppController
               LIMIT 20',
             ['tenantId' => $tenantId, 'empty' => ''],
         )->fetchAll('assoc');
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function latestTenantJob(string $tenantId, string $jobType): ?array
+    {
+        $row = $this->platform()->execute(
+            'SELECT id, job_type, status, created_at, started_at, finished_at,
+                    CASE WHEN last_error IS NULL OR last_error = :empty THEN 0 ELSE 1 END AS has_error
+               FROM platform_jobs
+              WHERE tenant_id = :tenantId
+                AND job_type = :jobType
+           ORDER BY created_at DESC
+              LIMIT 1',
+            ['tenantId' => $tenantId, 'jobType' => $jobType, 'empty' => ''],
+        )->fetch('assoc');
+
+        return is_array($row) ? $row : null;
     }
 
     /**

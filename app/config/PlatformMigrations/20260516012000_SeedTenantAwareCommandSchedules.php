@@ -18,6 +18,17 @@ class SeedTenantAwareCommandSchedules extends AbstractMigration
         $now = date('Y-m-d H:i:s');
         $rows = [
             $this->schedule(
+                '66666666-6666-4666-8666-666666666666',
+                'platform-admin-job-runner',
+                '* * * * *',
+                'platform_jobs_run',
+                $now,
+                'platform',
+                'platform:run-platform-jobs',
+                ['limit' => 10],
+                ['fail_fast' => true],
+            ),
+            $this->schedule(
                 '11111111-1111-4111-8111-111111111111',
                 'workflow-scheduler',
                 '* * * * *',
@@ -70,7 +81,8 @@ class SeedTenantAwareCommandSchedules extends AbstractMigration
                 'active-window-sync',
                 'member-warrantable-sync',
                 'age-up-members',
-                'backup-check'
+                'backup-check',
+                'platform-admin-job-runner'
             )",
         );
     }
@@ -86,17 +98,25 @@ class SeedTenantAwareCommandSchedules extends AbstractMigration
         string $cron,
         string $commandName,
         string $now,
+        string $tenantScope = 'all_active_tenants',
+        string $command = 'platform:run-cake-command',
+        array $payload = [],
+        array $options = ['requires_tenant_connection' => true],
     ): array {
+        if ($payload === []) {
+            $payload = ['command' => $commandName];
+        }
+
         return [
             'id' => $id,
             'name' => $name,
             'cron_expression' => $cron,
-            'command' => 'platform:run-cake-command',
+            'command' => $command,
             'enabled' => true,
-            'tenant_scope' => 'all_active_tenants',
+            'tenant_scope' => $tenantScope,
             'tenant_id' => null,
-            'payload' => json_encode(['command' => $commandName], JSON_THROW_ON_ERROR),
-            'options' => json_encode(['requires_tenant_connection' => true], JSON_THROW_ON_ERROR),
+            'payload' => json_encode($payload, JSON_THROW_ON_ERROR),
+            'options' => json_encode($options, JSON_THROW_ON_ERROR),
             'status' => 'idle',
             'last_run_at' => null,
             'next_run_at' => null,
