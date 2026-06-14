@@ -171,7 +171,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const configureBulkDecision = function(btn) {
         let selection = {};
         try {
-            selection = JSON.parse(btn.dataset.workflowDecisionSelection || '{}');
+            selection = JSON.parse(btn.dataset.workflowDecisionSelection || btn.dataset.bulkActionSelection || '{}');
         } catch (e) {
             selection = {};
         }
@@ -274,7 +274,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!btn) return;
 
         if (btn.dataset.bulkActionKey === 'workflow-decision') {
-            configureBulkDecision(btn);
+            window.setTimeout(function() {
+                configureBulkDecision(btn);
+            }, 0);
+
             return;
         }
 

@@ -13,7 +13,7 @@ describe('AutoCompleteController', () => {
         const showOnFocus = opts.showOnFocus || false;
         const dataListContent = opts.dataListContent || '';
 
-        return `
+        const autocomplete = `
             <div data-controller="ac"
                  ${url ? `data-auto-complete-url-value="${url}"` : ''}
                  data-auto-complete-min-length-value="${minLength}"
@@ -30,6 +30,20 @@ describe('AutoCompleteController', () => {
                 ${dataListContent ? `<div data-auto-complete-target="dataList" style="display: none;">${dataListContent}</div>` : ''}
             </div>
         `;
+
+        if (opts.inModal) {
+            return `
+                <div class="modal">
+                    <div class="modal-dialog modal-dialog-scrollable">
+                        <div class="modal-content">
+                            <div class="modal-body">${autocomplete}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        return autocomplete;
     }
 
     function setupController(opts = {}) {
@@ -347,6 +361,41 @@ describe('AutoCompleteController', () => {
         expect(handler.mock.calls[0][0].detail.action).toBe('open');
     });
 
+    test('open positions modal results as a fixed scrollable list without moving the target', () => {
+        setupController({ inModal: true });
+        const parent = controller.resultsTarget.parentNode;
+        Object.defineProperty(window, 'innerHeight', { value: 500, configurable: true });
+        controller.inputTarget.getBoundingClientRect = jest.fn(() => ({
+            top: 80,
+            right: 260,
+            bottom: 120,
+            left: 40,
+            width: 220,
+            height: 40,
+        }));
+
+        controller.open();
+
+        expect(controller.resultsTarget.parentNode).toBe(parent);
+        expect(controller.resultsTarget.classList.contains('kmp-auto-complete-floating-list')).toBe(true);
+        expect(controller.resultsTarget.style.position).toBe('fixed');
+        expect(controller.resultsTarget.style.left).toBe('40px');
+        expect(controller.resultsTarget.style.width).toBe('220px');
+        expect(controller.resultsTarget.style.maxHeight).toBe('372px');
+        expect(controller.resultsTarget.style.overflowY).toBe('auto');
+        expect(controller.resultsTarget.style.zIndex).toBe('1070');
+    });
+
+    test('open keeps non-modal results in place', () => {
+        setupController();
+        const parent = controller.resultsTarget.parentNode;
+
+        controller.open();
+
+        expect(controller.resultsTarget.parentNode).toBe(parent);
+        expect(controller.resultsTarget.style.position).toBe('');
+    });
+
     test('open is idempotent when already shown', () => {
         setupController();
         controller.resultsShown = true;
@@ -375,6 +424,25 @@ describe('AutoCompleteController', () => {
         expect(handler.mock.calls[0][0].detail.action).toBe('close');
     });
 
+    test('close restores modal results styling', () => {
+        setupController({ inModal: true });
+        controller.inputTarget.getBoundingClientRect = jest.fn(() => ({
+            top: 80,
+            right: 260,
+            bottom: 120,
+            left: 40,
+            width: 220,
+            height: 40,
+        }));
+
+        controller.open();
+        controller.close();
+
+        expect(controller.element.contains(controller.resultsTarget)).toBe(true);
+        expect(controller.resultsTarget.classList.contains('kmp-auto-complete-floating-list')).toBe(false);
+        expect(controller.resultsTarget.style.cssText).toBe('');
+    });
+
     test('close is idempotent when already hidden', () => {
         setupController();
         controller.resultsShown = false;
@@ -382,6 +450,25 @@ describe('AutoCompleteController', () => {
         controller.element.addEventListener('toggle', handler);
         controller.close();
         expect(handler).not.toHaveBeenCalled();
+    });
+
+    test('disconnect restores a fixed modal results list', () => {
+        setupController({ inModal: true });
+        controller.inputTarget.getBoundingClientRect = jest.fn(() => ({
+            top: 80,
+            right: 260,
+            bottom: 120,
+            left: 40,
+            width: 220,
+            height: 40,
+        }));
+
+        controller.open();
+        controller.disconnect();
+
+        expect(controller.element.contains(controller.resultsTarget)).toBe(true);
+        expect(controller.resultsTarget.hidden).toBe(true);
+        expect(controller.resultsTarget.style.cssText).toBe('');
     });
 
     // ==================== resultsShown getter/setter ====================

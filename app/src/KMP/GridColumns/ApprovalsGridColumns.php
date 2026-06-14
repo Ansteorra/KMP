@@ -41,11 +41,11 @@ class ApprovalsGridColumns extends BaseGridColumns
                 'type' => 'string',
                 'sortable' => false,
                 'filterable' => false,
-                'searchable' => false,
+                'searchable' => true,
                 'defaultVisible' => true,
                 'width' => '220px',
                 'alignment' => 'left',
-                'skipAutoFilter' => true,
+                'queryField' => 'WorkflowApprovals.request_title',
             ],
 
             'requester' => [
@@ -252,6 +252,25 @@ class ApprovalsGridColumns extends BaseGridColumns
                     'filters' => [
                         ['field' => 'status_label', 'operator' => 'eq', 'value' => WorkflowApproval::STATUS_PENDING],
                     ],
+                ],
+            ],
+            'sys-approvals-triage-board' => [
+                'id' => 'sys-approvals-triage-board',
+                'name' => __('Triage Board'),
+                'description' => __('Organize your pending approvals by private triage state'),
+                'canManage' => false,
+                'layout' => 'kanban',
+                'config' => [
+                    'filters' => [
+                        ['field' => 'status_label', 'operator' => 'eq', 'value' => WorkflowApproval::STATUS_PENDING],
+                    ],
+                    'columns' => [
+                        ['key' => 'request', 'visible' => true, 'order' => 0],
+                        ['key' => 'workflow_name', 'visible' => true, 'order' => 1],
+                        ['key' => 'requester', 'visible' => true, 'order' => 2],
+                        ['key' => 'modified', 'visible' => true, 'order' => 3],
+                    ],
+                    'pageSize' => 20,
                 ],
             ],
             'sys-approvals-decisions' => [

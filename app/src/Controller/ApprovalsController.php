@@ -19,6 +19,7 @@ use Cake\Controller\ComponentRegistry;
 use Cake\Http\Response;
 use Cake\Http\ServerRequest;
 use Cake\ORM\TableRegistry;
+use Cake\Routing\Router;
 use Exception;
 
 /**
@@ -69,6 +70,7 @@ class ApprovalsController extends AppController
             'recordApproval',
             'allApprovals',
             'allApprovalsGridData',
+            'approvalsKanbanLaneData',
             'reassignApproval',
             'updateTriage',
             'mobileApprovals',
@@ -213,14 +215,20 @@ class ApprovalsController extends AppController
             $triage = $triageTable->newEntity([
                 'workflow_approval_id' => $approvalId,
                 'member_id' => (int)$currentUser->id,
+                'state' => $state,
+                'note' => trim($note) === '' ? null : $note,
+            ]);
+        } else {
+            $triage = $triageTable->patchEntity($triage, [
+                'state' => $state,
+                'note' => trim($note) === '' ? null : $note,
             ]);
         }
-        $triage = $triageTable->patchEntity($triage, [
-            'state' => $state,
-            'note' => trim($note) === '' ? null : $note,
-        ]);
         if (!$triageTable->save($triage)) {
-            return $this->jsonResponse(['success' => false, 'error' => __('Unable to save triage state.')], 422);
+            $errorMessage = $this->formatValidationErrors($triage->getErrors())
+                ?: __('Unable to save triage state.');
+
+            return $this->jsonResponse(['success' => false, 'error' => $errorMessage], 422);
         }
 
         return $this->jsonResponse([
@@ -274,7 +282,7 @@ class ApprovalsController extends AppController
             'gridColumnsClass' => ApprovalsGridColumns::class,
             'systemViews' => $systemViews,
             'defaultSystemView' => 'sys-approvals-pending',
-            'defaultSort' => ['WorkflowApprovals.modified' => 'desc'],
+            'defaultSort' => ['WorkflowApprovals.modified' => 'desc', 'WorkflowApprovals.id' => 'desc'],
         ]);
         $contain = [];
         if ($queryContext->loadsAny(['workflow_name', 'request', 'requester'])) {
@@ -287,9 +295,7 @@ class ApprovalsController extends AppController
         }
 
         $baseQuery = $approvalsTable->find()->contain($contain);
-        if ($queryContext->loadsColumn('current_approver')) {
-            $baseQuery->leftJoinWith('CurrentApprover');
-        }
+        $baseQuery->leftJoinWith('CurrentApprover');
 
         $queryCallback = function ($query, $systemView) use ($currentUser) {
             if ($systemView === null) {
@@ -298,7 +304,7 @@ class ApprovalsController extends AppController
                 return $query;
             }
 
-            if ($systemView['id'] === 'sys-approvals-pending') {
+            if (in_array($systemView['id'], ['sys-approvals-pending', 'sys-approvals-triage-board'], true)) {
                 $eligibleIds = WorkflowApprovalsTable::getPendingApprovalIdsForMember((int)$currentUser->id);
 
                 if (empty($eligibleIds)) {
@@ -327,7 +333,7 @@ class ApprovalsController extends AppController
             'gridColumnsClass' => ApprovalsGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'WorkflowApprovals',
-            'defaultSort' => ['WorkflowApprovals.modified' => 'desc'],
+            'defaultSort' => ['WorkflowApprovals.modified' => 'desc', 'WorkflowApprovals.id' => 'desc'],
             'defaultPageSize' => 25,
             'systemViews' => $systemViews,
             'defaultSystemView' => 'sys-approvals-pending',
@@ -341,6 +347,7 @@ class ApprovalsController extends AppController
             'showSearchBox' => true,
         ]);
 
+        $isKanbanView = $this->isApprovalKanbanView($result['gridState']);
         $this->prepareApprovalsForGrid($result['data'], $result['visibleColumns']);
 
         $rowActions = ApprovalsGridColumns::getRowActions();
@@ -360,6 +367,12 @@ class ApprovalsController extends AppController
             'currentSort' => $result['currentSort'],
             'currentMember' => $result['currentMember'],
             'rowActions' => $rowActions,
+            'customElement' => $isKanbanView ? 'approvals/kanban_board' : null,
+            'customElementOptions' => $isKanbanView ? [
+                'lanes' => $this->buildApprovalKanbanLanes(),
+                'detailUrl' => Router::url(['controller' => 'Approvals', 'action' => 'approvalDetail']),
+                'triageUrl' => Router::url(['controller' => 'Approvals', 'action' => 'updateTriage']),
+            ] : [],
         ]);
 
         $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
@@ -373,6 +386,99 @@ class ApprovalsController extends AppController
             $this->viewBuilder()->disableAutoLayout();
             $this->viewBuilder()->setTemplate('../element/dv_grid_content');
         }
+    }
+
+    /**
+     * Lane frame endpoint for the approval triage Kanban board.
+     *
+     * @return \Cake\Http\Response|null|void
+     */
+    public function approvalsKanbanLaneData()
+    {
+        $this->request->allowMethod(['get']);
+        $currentUser = $this->request->getAttribute('identity');
+        $state = (string)$this->request->getQuery('triage_state', WorkflowApprovalTriageState::STATE_NEW);
+        if (!in_array($state, WorkflowApprovalTriageState::states(), true)) {
+            $state = WorkflowApprovalTriageState::STATE_NEW;
+        }
+
+        $approvalsTable = $this->fetchTable('WorkflowApprovals');
+        $systemViews = ApprovalsGridColumns::getSystemViews();
+        $baseQuery = $approvalsTable->find()
+            ->contain([
+                'WorkflowInstances' => ['WorkflowDefinitions'],
+            ])
+            ->leftJoinWith('CurrentApprover');
+
+        $queryCallback = function ($query) use ($currentUser, $state) {
+            $eligibleIds = WorkflowApprovalsTable::getPendingApprovalIdsForMember((int)$currentUser->id);
+            if ($eligibleIds === []) {
+                $query->where(['WorkflowApprovals.id' => -1]);
+
+                return $query;
+            }
+
+            $query
+                ->where(['WorkflowApprovals.id IN' => $eligibleIds])
+                ->leftJoinWith('WorkflowApprovalTriageStates', function ($q) use ($currentUser) {
+                    return $q->where(['WorkflowApprovalTriageStates.member_id' => (int)$currentUser->id]);
+                });
+
+            if ($state === WorkflowApprovalTriageState::STATE_NEW) {
+                $query->where(function ($exp) {
+                    return $exp->or([
+                        'WorkflowApprovalTriageStates.id IS' => null,
+                        'WorkflowApprovalTriageStates.state' => WorkflowApprovalTriageState::STATE_NEW,
+                    ]);
+                });
+            } else {
+                $query->where(['WorkflowApprovalTriageStates.state' => $state]);
+            }
+
+            return $query;
+        };
+
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Workflows.approvals.main',
+            'gridColumnsClass' => ApprovalsGridColumns::class,
+            'baseQuery' => $baseQuery,
+            'tableName' => 'WorkflowApprovals',
+            'defaultSort' => ['WorkflowApprovals.modified' => 'desc', 'WorkflowApprovals.id' => 'desc'],
+            'defaultPageSize' => 20,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-approvals-triage-board',
+            'queryCallback' => $queryCallback,
+            'showAllTab' => false,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => false,
+            'lockedFilters' => ['status_label'],
+            'showFilterPills' => true,
+            'showSearchBox' => true,
+            'metadataMode' => 'table',
+        ]);
+
+        $this->prepareApprovalsForKanbanCards($result['data'], (int)$currentUser->id);
+        $paging = method_exists($result['data'], 'pagingParams')
+            ? $result['data']->pagingParams()
+            : ($this->request->getAttribute('paging')['WorkflowApprovals'] ?? []);
+        $page = (int)($paging['currentPage'] ?? $paging['page'] ?? $this->request->getQuery('page', 1));
+        $totalCount = (int)($paging['totalCount'] ?? $paging['count'] ?? count($result['data']));
+        $hasNextPage = (bool)($paging['hasNextPage'] ?? false);
+        $pageCount = (int)($paging['pageCount'] ?? max($page + ($hasNextPage ? 1 : 0), 1));
+
+        $this->set([
+            'lane' => $this->buildApprovalKanbanLane($state),
+            'data' => $result['data'],
+            'cardActions' => $this->getApprovalKanbanCardActions(),
+            'page' => $page,
+            'pageCount' => $pageCount,
+            'totalCount' => $totalCount,
+            'hasNextPage' => $hasNextPage,
+            'nextPage' => $page + 1,
+        ]);
+        $this->viewBuilder()->disableAutoLayout();
+        $this->viewBuilder()->setTemplate('../element/approvals/kanban_lane');
     }
 
     /**
@@ -522,17 +628,22 @@ class ApprovalsController extends AppController
             }
 
             if ($includeRequest || $includeRequester) {
+                $cachedTitle = trim((string)($approval->request_title ?? ''));
                 $instance = $approval->workflow_instance;
-                if ($instance) {
+                if ($includeRequest && $cachedTitle !== '') {
+                    $approval->request = $cachedTitle;
+                }
+
+                if ($instance && ($includeRequester || ($includeRequest && $cachedTitle === ''))) {
                     $ctx = ApprovalContextRendererRegistry::render($instance);
-                    if ($includeRequest) {
+                    if ($includeRequest && $cachedTitle === '') {
                         $approval->request = $ctx->getTitle();
                     }
                     if ($includeRequester) {
                         $approval->requester = $ctx->getRequester() ?? '—';
                     }
                 } else {
-                    if ($includeRequest) {
+                    if ($includeRequest && $cachedTitle === '') {
                         $approval->request = '—';
                     }
                     if ($includeRequester) {
@@ -541,6 +652,138 @@ class ApprovalsController extends AppController
                 }
             }
         }
+    }
+
+    /**
+     * Add lightweight card fields for approval Kanban lanes.
+     *
+     * @param iterable<\App\Model\Entity\WorkflowApproval> $approvals Approvals.
+     * @param int $memberId Current member ID.
+     * @return void
+     */
+    private function prepareApprovalsForKanbanCards(iterable $approvals, int $memberId): void
+    {
+        $approvalList = is_array($approvals) ? $approvals : iterator_to_array($approvals);
+        $triageByApprovalId = $this->getTriagePayloads(
+            array_map(static fn($approval): int => (int)$approval->id, $approvalList),
+            $memberId,
+        );
+
+        foreach ($approvalList as $approval) {
+            $approverConfig = ApprovalsGridColumns::normalizeApproverConfig($approval->approver_config);
+            $isFeedbackResponse = !empty($approverConfig['feedback_response']);
+            $approval->is_feedback_response = $isFeedbackResponse;
+            $approval->workflow_name = $approval->workflow_instance?->workflow_definition?->name ?? __('Unknown');
+            $approval->status_label = ApprovalsGridColumns::getPendingStatusLabel($approval, $approverConfig);
+            $approval->triage = $triageByApprovalId[(int)$approval->id] ?? $this->defaultTriagePayload();
+            $approval->triage_state = $approval->triage['state'];
+            $approval->triage_state_label = $approval->triage['stateLabel'];
+            $approval->triage_note = $approval->triage['note'];
+            $approval->modified_label = $approval->modified
+                ? TimezoneHelper::formatDateTime($approval->modified, TimezoneHelper::DISPLAY_DATETIME_FORMAT)
+                : __('Unknown');
+            $approval->modified_iso = $approval->modified?->toIso8601String();
+
+            $instance = $approval->workflow_instance;
+            $cachedTitle = trim((string)($approval->request_title ?? ''));
+            if ($instance) {
+                $ctx = ApprovalContextRendererRegistry::render($instance);
+                $approval->request = $cachedTitle !== '' ? $cachedTitle : $ctx->getTitle();
+                $approval->requester = $ctx->getRequester() ?? '—';
+                $approval->source_url = $ctx->getEntityUrl();
+                $approval->icon = $ctx->getIcon();
+            } else {
+                $approval->request = $cachedTitle !== '' ? $cachedTitle : __('Unknown Approval');
+                $approval->requester = '—';
+                $approval->source_url = null;
+                $approval->icon = 'bi-question-circle';
+            }
+        }
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    private function getApprovalKanbanCardActions(): array
+    {
+        $actions = ApprovalsGridColumns::getRowActions();
+        unset($actions['detail']);
+
+        return $actions;
+    }
+
+    /**
+     * @param array<string, mixed> $gridState Grid state.
+     * @return bool
+     */
+    private function isApprovalKanbanView(array $gridState): bool
+    {
+        return ($gridState['view']['currentId'] ?? null) === 'sys-approvals-triage-board';
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildApprovalKanbanLanes(): array
+    {
+        return array_map(
+            fn(string $state): array => $this->buildApprovalKanbanLane($state),
+            WorkflowApprovalTriageState::states(),
+        );
+    }
+
+    /**
+     * @param string $state Triage state.
+     * @return array<string, mixed>
+     */
+    private function buildApprovalKanbanLane(string $state): array
+    {
+        $labels = WorkflowApprovalTriageState::labels();
+        $query = $this->sanitizeApprovalKanbanQueryParams($this->request->getQueryParams());
+        $query['triage_state'] = $state;
+        $query['view_id'] = 'sys-approvals-triage-board';
+        unset($query['page']);
+
+        return [
+            'state' => $state,
+            'label' => $labels[$state] ?? $state,
+            'frameId' => 'approval-kanban-lane-' . str_replace('_', '-', $state),
+            'url' => Router::url([
+                'controller' => 'Approvals',
+                'action' => 'approvalsKanbanLaneData',
+                '?' => $query,
+            ]),
+        ];
+    }
+
+    /**
+     * Remove query keys produced by escaped ampersands being reused as literal URL params.
+     *
+     * @param array<string, mixed> $query Query parameters.
+     * @return array<string, mixed>
+     */
+    private function sanitizeApprovalKanbanQueryParams(array $query): array
+    {
+        foreach (array_keys($query) as $key) {
+            if ($this->isEscapedAmpersandQueryKey((string)$key)) {
+                unset($query[$key]);
+            }
+        }
+
+        return $query;
+    }
+
+    /**
+     * Detect keys like amp;page or amp%3Btriage_state created by repeated HTML entity encoding.
+     *
+     * @param string $key Query parameter key.
+     * @return bool
+     */
+    private function isEscapedAmpersandQueryKey(string $key): bool
+    {
+        $decoded = html_entity_decode(rawurldecode($key), ENT_QUOTES | ENT_HTML5);
+
+        return str_starts_with($decoded, 'amp;');
     }
 
     /**
@@ -859,6 +1102,28 @@ class ApprovalsController extends AppController
             'states' => $labels,
             'modified' => $triage->get('modified')?->toIso8601String(),
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $errors Entity validation/rule errors
+     * @return string
+     */
+    private function formatValidationErrors(array $errors): string
+    {
+        $messages = [];
+        foreach ($errors as $field => $fieldErrors) {
+            foreach ((array)$fieldErrors as $error) {
+                if (is_array($error)) {
+                    foreach ($error as $nestedError) {
+                        $messages[] = sprintf('%s: %s', $field, (string)$nestedError);
+                    }
+                    continue;
+                }
+                $messages[] = sprintf('%s: %s', $field, (string)$error);
+            }
+        }
+
+        return implode(', ', $messages);
     }
 
     /**

@@ -892,6 +892,7 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
             'approver_type' => $config['approverType'] ?? WorkflowApproval::APPROVER_TYPE_PERMISSION,
             'approver_config' => $approverConfig,
             'current_approver_id' => $initialApproverId,
+            'request_title' => $approvalsTable->resolveRequestTitleForInstance($instance),
             'required_count' => $requiredCount,
             'approved_count' => 0,
             'rejected_count' => 0,

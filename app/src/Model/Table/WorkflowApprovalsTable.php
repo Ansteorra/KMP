@@ -4,12 +4,15 @@ declare(strict_types=1);
 namespace App\Model\Table;
 
 use App\Model\Entity\WorkflowApproval;
+use App\Model\Entity\WorkflowInstance;
+use App\Services\ApprovalContext\ApprovalContextRendererRegistry;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\TableRegistry;
 use Cake\Validation\Validator;
 use Exception;
+use Throwable;
 
 /**
  * WorkflowApprovals Model
@@ -24,6 +27,8 @@ use Exception;
  */
 class WorkflowApprovalsTable extends BaseTable
 {
+    public const REQUEST_TITLE_MAX_LENGTH = 255;
+
     /**
      * Request-local member approval scope cache.
      *
@@ -137,10 +142,73 @@ class WorkflowApprovalsTable extends BaseTable
             ->allowEmptyDateTime('deadline');
 
         $validator
+            ->scalar('request_title')
+            ->maxLength('request_title', self::REQUEST_TITLE_MAX_LENGTH)
+            ->allowEmptyString('request_title');
+
+        $validator
             ->integer('version')
             ->notEmptyString('version');
 
         return $validator;
+    }
+
+    /**
+     * Resolve the searchable approval request title for a workflow instance.
+     *
+     * @param \App\Model\Entity\WorkflowInstance $instance Workflow instance.
+     * @return string|null
+     */
+    public function resolveRequestTitleForInstance(WorkflowInstance $instance): ?string
+    {
+        try {
+            $title = trim(ApprovalContextRendererRegistry::render($instance)->getTitle());
+        } catch (Throwable $e) {
+            Log::warning(sprintf(
+                'WorkflowApprovals: Could not resolve request title for workflow instance %s: %s',
+                (string)($instance->id ?? 'unknown'),
+                $e->getMessage(),
+            ));
+
+            return null;
+        }
+
+        if ($title === '') {
+            return null;
+        }
+
+        return mb_substr($title, 0, self::REQUEST_TITLE_MAX_LENGTH);
+    }
+
+    /**
+     * Resolve the searchable approval request title for a workflow instance ID.
+     *
+     * @param int $instanceId Workflow instance ID.
+     * @return string|null
+     */
+    public function resolveRequestTitleForInstanceId(int $instanceId): ?string
+    {
+        try {
+            $instance = TableRegistry::getTableLocator()
+                ->get('WorkflowInstances')
+                ->find()
+                ->where(['WorkflowInstances.id' => $instanceId])
+                ->first();
+        } catch (Throwable $e) {
+            Log::warning(sprintf(
+                'WorkflowApprovals: Could not load workflow instance %d for request title: %s',
+                $instanceId,
+                $e->getMessage(),
+            ));
+
+            return null;
+        }
+
+        if (!$instance instanceof WorkflowInstance) {
+            return null;
+        }
+
+        return $this->resolveRequestTitleForInstance($instance);
     }
 
     /**

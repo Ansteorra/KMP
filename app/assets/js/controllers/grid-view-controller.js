@@ -2464,36 +2464,37 @@ class GridViewController extends Controller {
     toggleAllSelection(event) {
         const selectAll = event.target.checked
 
-        if (this.hasRowCheckboxTarget) {
-            this.rowCheckboxTargets.forEach(checkbox => {
-                if (checkbox.disabled) {
-                    checkbox.checked = false
-                    return
+        this.rowCheckboxElements().forEach(checkbox => {
+            if (checkbox.disabled) {
+                checkbox.checked = false
+                return
+            }
+            checkbox.checked = selectAll
+            const id = checkbox.value
+            if (selectAll) {
+                if (!this.selectedIds.includes(id)) {
+                    this.selectedIds.push(id)
                 }
-                checkbox.checked = selectAll
-                const id = checkbox.value
-                if (selectAll) {
-                    if (!this.selectedIds.includes(id)) {
-                        this.selectedIds.push(id)
-                    }
-                } else {
-                    this.selectedIds = this.selectedIds.filter(i => i !== id)
-                }
-            })
-        }
+            } else {
+                this.selectedIds = this.selectedIds.filter(i => i !== id)
+            }
+        })
 
         this.updateBulkSelectionUI()
+    }
+
+    /**
+     * Current row checkbox elements in the live grid DOM.
+     */
+    rowCheckboxElements() {
+        return Array.from(this.element.querySelectorAll('[data-grid-view-target~="rowCheckbox"]'))
     }
 
     /**
      * Row checkboxes that participate in bulk selection (not bestowal-locked).
      */
     selectableRowCheckboxTargets() {
-        if (!this.hasRowCheckboxTarget) {
-            return []
-        }
-
-        return this.rowCheckboxTargets.filter((checkbox) => !checkbox.disabled)
+        return this.rowCheckboxElements().filter((checkbox) => !checkbox.disabled)
     }
 
     /**
@@ -2503,11 +2504,9 @@ class GridViewController extends Controller {
         this.selectedIds = []
 
         // Uncheck all row checkboxes
-        if (this.hasRowCheckboxTarget) {
-            this.rowCheckboxTargets.forEach(checkbox => {
-                checkbox.checked = false
-            })
-        }
+        this.rowCheckboxElements().forEach(checkbox => {
+            checkbox.checked = false
+        })
 
         // Uncheck select all checkbox
         if (this.hasSelectAllCheckboxTarget) {
@@ -2594,9 +2593,7 @@ class GridViewController extends Controller {
      * Selected row checkboxes on the current page.
      */
     selectedRowCheckboxTargets() {
-        if (!this.hasRowCheckboxTarget) return []
-
-        return this.rowCheckboxTargets.filter((checkbox) => checkbox.checked)
+        return this.rowCheckboxElements().filter((checkbox) => checkbox.checked)
     }
 
     /**
@@ -2612,8 +2609,7 @@ class GridViewController extends Controller {
      * Collect data attributes from selected row checkboxes
      */
     getSelectedCheckboxData() {
-        if (!this.hasRowCheckboxTarget) return []
-        return this.rowCheckboxTargets
+        return this.rowCheckboxElements()
             .filter(cb => cb.checked)
             .map(cb => ({ id: cb.value, ...cb.dataset }))
     }
@@ -2627,6 +2623,11 @@ class GridViewController extends Controller {
         }
 
         const detail = { ids: [...this.selectedIds], checkboxes: this.getSelectedCheckboxData() }
+        const serializedDetail = JSON.stringify(detail)
+        event.currentTarget.dataset.bulkActionSelection = serializedDetail
+        if (event.currentTarget.dataset.bulkActionKey === 'workflow-decision') {
+            event.currentTarget.dataset.workflowDecisionSelection = serializedDetail
+        }
         
         // Fire event on the button (outlet-btn pattern expects this)
         event.currentTarget.dispatchEvent(new CustomEvent('outlet-btn:notice', {

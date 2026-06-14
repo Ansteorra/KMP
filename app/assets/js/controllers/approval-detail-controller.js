@@ -158,12 +158,16 @@ class ApprovalDetailController extends Controller {
             const response = await fetch(this.triageUrlValue, {
                 method: "POST",
                 headers: {
+                    Accept: "application/json",
                     "X-Requested-With": "XMLHttpRequest",
                     "X-CSRF-Token": csrfToken,
                 },
                 body,
             });
-            const result = await response.json();
+            const result = await this._readJsonResponse(
+                response,
+                "Unable to save triage state. Please refresh the page and try again.",
+            );
             if (!response.ok || result.success === false) {
                 throw new Error(result.error || `HTTP ${response.status}`);
             }
@@ -189,6 +193,22 @@ class ApprovalDetailController extends Controller {
         } finally {
             submit.disabled = false;
         }
+    }
+
+    async _readJsonResponse(
+        response,
+        fallbackMessage = "Unexpected response from the server.",
+    ) {
+        const contentType = response.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+            try {
+                return await response.json();
+            } catch (error) {
+                throw new Error(fallbackMessage);
+            }
+        }
+
+        throw new Error(fallbackMessage);
     }
 
     _renderDetail(data) {
@@ -218,7 +238,7 @@ class ApprovalDetailController extends Controller {
             });
         }
         if (ctx.entityUrl) {
-            html += `<a href="${h(ctx.entityUrl)}" class="btn btn-sm btn-outline-primary mt-2" data-turbo-frame="_top"><i class="bi bi-box-arrow-up-right me-1"></i>View Entity</a>`;
+            html += `<a href="${h(ctx.entityUrl)}" class="btn btn-sm btn-outline-primary mt-2" data-turbo-frame="_top"><i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>View Source</a>`;
         }
         if (ui.canTriage === true) {
             html += this._renderTriageForm(data, triage);

@@ -292,6 +292,7 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
                 'approver_type' => $approverType,
                 'approver_config' => $approverConfig,
                 'current_approver_id' => $approverConfig['current_approver_id'] ?? null,
+                'request_title' => $approvalsTable->resolveRequestTitleForInstanceId($instanceId),
                 'required_count' => $requiredCount,
                 'approved_count' => 0,
                 'rejected_count' => 0,

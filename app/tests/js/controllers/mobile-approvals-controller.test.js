@@ -9,6 +9,38 @@ describe('MobileApprovalsController', () => {
         controller = new MobileApprovalsController();
     });
 
+    test('saveTriage reports a readable error when the server returns HTML', async () => {
+        document.head.innerHTML = '<meta name="csrf-token" content="csrf-token">';
+        document.body.innerHTML = `
+            <form data-mobile-triage-form="45">
+                <select data-mobile-triage-state><option value="new" selected>New</option></select>
+                <textarea data-mobile-triage-note>Review later</textarea>
+                <button type="button" data-action="click->mobile-approvals#saveTriage">Save private triage</button>
+                <span data-mobile-triage-status role="status" aria-live="polite"></span>
+            </form>
+        `;
+        Object.defineProperty(controller, 'hasTriageUrlValue', { value: true });
+        Object.defineProperty(controller, 'triageUrlValue', { value: '/approvals/triage' });
+        controller._showToast = jest.fn();
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: false,
+            status: 403,
+            headers: { get: () => 'text/html; charset=UTF-8' },
+            json: jest.fn(),
+        });
+
+        const button = document.querySelector('button');
+        await controller.saveTriage({
+            preventDefault: jest.fn(),
+            currentTarget: button,
+        });
+
+        const message = 'Unable to save triage state. Please refresh the page and try again.';
+        expect(document.querySelector('[data-mobile-triage-status]')).toHaveTextContent(message);
+        expect(controller._showToast).toHaveBeenCalledWith(message, 'danger');
+        expect(button).not.toBeDisabled();
+    });
+
     test('renders feedback requests without approve or reject buttons', () => {
         const html = controller._renderResponseForm({
             id: 42,
@@ -69,6 +101,25 @@ describe('MobileApprovalsController', () => {
         expect(document.querySelector('.btn-reject')).toBeNull();
         expect(document.querySelector('[data-approval-form-id="44"]')).not.toHaveAttribute('data-selected-decision');
         expect(document.querySelector('[data-submit-btn="44"]')).toBeDisabled();
+    });
+
+    test('renders source entity links in expanded mobile approval details', () => {
+        const html = controller._renderDetail({
+            id: 45,
+            description: 'Review award recommendation',
+            fields: [],
+            entityUrl: '/awards/recommendations/view/12',
+            triage: { states: { new: 'New' } },
+            approverConfig: {},
+        }, []);
+
+        document.body.innerHTML = html;
+
+        const link = document.querySelector('a[href="/awards/recommendations/view/12"]');
+        expect(link).not.toBeNull();
+        expect(link).toHaveTextContent('View Source');
+        expect(link).toHaveAttribute('data-turbo-frame', '_top');
+        expect(link.querySelector('i')).toHaveAttribute('aria-hidden', 'true');
     });
 
     test('renders private triage controls with labels and help text', () => {

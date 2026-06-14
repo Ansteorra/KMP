@@ -6,6 +6,7 @@ namespace Awards\Test\TestCase\Services;
 use App\Model\Entity\WorkflowInstance;
 use App\Test\TestCase\BaseTestCase;
 use Awards\Model\Entity\RecommendationFeedbackRequest;
+use Awards\Services\RecommendationApprovalContextRenderer;
 use Awards\Services\RecommendationFeedbackContextRenderer;
 use Cake\I18n\DateTime;
 use Cake\ORM\Table;
@@ -91,5 +92,35 @@ class RecommendationFeedbackContextRendererTest extends BaseTestCase
         $this->assertStringContainsString('Second Submitter', $fieldText);
         $this->assertStringContainsString('Second grouped recommendation reason.', $fieldText);
         $this->assertStringContainsString('Please comment on the full group.', $fieldText);
+    }
+
+    public function testRecommendationApprovalContextIncludesRecommendationDetailsAndSourceUrl(): void
+    {
+        $recommendation = $this->getTableLocator()->get('Awards.Recommendations')
+            ->find()
+            ->contain(['Awards', 'Branches'])
+            ->orderByAsc('Recommendations.id')
+            ->firstOrFail();
+        $renderer = new RecommendationApprovalContextRenderer();
+        $instance = new WorkflowInstance([
+            'entity_type' => 'Awards.Recommendations',
+            'entity_id' => $recommendation->id,
+            'started_at' => DateTime::now(),
+        ]);
+
+        $context = $renderer->render($instance);
+        $fieldText = implode("\n", array_map(
+            static fn(array $field): string => $field['label'] . ': ' . $field['value'],
+            $context->getFields(),
+        ));
+
+        $this->assertTrue($renderer->canRender($instance));
+        $this->assertStringContainsString((string)$recommendation->member_sca_name, $context->getTitle());
+        $this->assertStringContainsString((string)$recommendation->member_sca_name, $fieldText);
+        $this->assertStringContainsString((string)$recommendation->requester_sca_name, $fieldText);
+        $this->assertStringContainsString((string)$recommendation->reason, $fieldText);
+        $this->assertStringContainsString((string)$recommendation->award->name, $fieldText);
+        $this->assertStringContainsString((string)$recommendation->branch->name, $fieldText);
+        $this->assertStringContainsString('/awards/recommendations/view/' . $recommendation->id, $context->getEntityUrl());
     }
 }

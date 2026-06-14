@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services\WorkflowEngine;
@@ -103,6 +102,7 @@ class ApprovalManagerTest extends BaseTestCase
 
         $approval = $this->approvalsTable->get($approvalId);
         $this->assertEquals(WorkflowApproval::STATUS_PENDING, $approval->status);
+        $this->assertSame('Approval Required: Unknown', $approval->request_title);
         $this->assertEquals(0, $approval->approved_count);
         $this->assertEquals(0, $approval->rejected_count);
     }
@@ -133,7 +133,7 @@ class ApprovalManagerTest extends BaseTestCase
         $result = $this->manager->recordResponse(
             $approvalId,
             self::ADMIN_MEMBER_ID,
-            WorkflowApprovalResponse::DECISION_APPROVE
+            WorkflowApprovalResponse::DECISION_APPROVE,
         );
         $this->assertTrue($result->isSuccess());
     }
@@ -149,7 +149,7 @@ class ApprovalManagerTest extends BaseTestCase
         $result = $this->manager->recordResponse(
             $approvalId,
             self::TEST_MEMBER_AGATHA_ID,
-            WorkflowApprovalResponse::DECISION_APPROVE
+            WorkflowApprovalResponse::DECISION_APPROVE,
         );
         $this->assertFalse($result->isSuccess());
         $this->assertStringContainsString('not eligible', strtolower($result->getError()));
@@ -170,7 +170,7 @@ class ApprovalManagerTest extends BaseTestCase
         $result = $this->manager->recordResponse(
             $approvalId,
             self::ADMIN_MEMBER_ID,
-            WorkflowApprovalResponse::DECISION_APPROVE
+            WorkflowApprovalResponse::DECISION_APPROVE,
         );
         $this->assertFalse($result->isSuccess());
     }
@@ -243,13 +243,13 @@ class ApprovalManagerTest extends BaseTestCase
         $this->manager->recordResponse(
             $approvalId,
             self::ADMIN_MEMBER_ID,
-            WorkflowApprovalResponse::DECISION_APPROVE
+            WorkflowApprovalResponse::DECISION_APPROVE,
         );
 
         $result = $this->manager->recordResponse(
             $approvalId,
             self::ADMIN_MEMBER_ID,
-            WorkflowApprovalResponse::DECISION_APPROVE
+            WorkflowApprovalResponse::DECISION_APPROVE,
         );
         $this->assertFalse($result->isSuccess());
         $this->assertStringContainsString('already responded', strtolower($result->getError()));
@@ -269,7 +269,7 @@ class ApprovalManagerTest extends BaseTestCase
         $result = $this->manager->recordResponse(
             $approvalId,
             self::ADMIN_MEMBER_ID,
-            WorkflowApprovalResponse::DECISION_APPROVE
+            WorkflowApprovalResponse::DECISION_APPROVE,
         );
         $this->assertTrue($result->isSuccess());
         $this->assertEquals(WorkflowApproval::STATUS_APPROVED, $result->data['approvalStatus']);
@@ -289,7 +289,7 @@ class ApprovalManagerTest extends BaseTestCase
         $result = $this->manager->recordResponse(
             $approvalId,
             self::ADMIN_MEMBER_ID,
-            WorkflowApprovalResponse::DECISION_REJECT
+            WorkflowApprovalResponse::DECISION_REJECT,
         );
         $this->assertTrue($result->isSuccess());
         $this->assertEquals(WorkflowApproval::STATUS_REJECTED, $result->data['approvalStatus']);
@@ -310,7 +310,7 @@ class ApprovalManagerTest extends BaseTestCase
         $this->manager->recordResponse(
             $approvalId,
             self::ADMIN_MEMBER_ID,
-            WorkflowApprovalResponse::DECISION_APPROVE
+            WorkflowApprovalResponse::DECISION_APPROVE,
         );
 
         // Second response should fail because approval is no longer pending
@@ -362,7 +362,7 @@ class ApprovalManagerTest extends BaseTestCase
         $this->manager->recordResponse(
             $approvalId,
             self::ADMIN_MEMBER_ID,
-            WorkflowApprovalResponse::DECISION_APPROVE
+            WorkflowApprovalResponse::DECISION_APPROVE,
         );
 
         $this->assertTrue($this->manager->isResolved($approvalId));
@@ -401,7 +401,7 @@ class ApprovalManagerTest extends BaseTestCase
         $result = $this->manager->recordResponse(
             $approvalId,
             self::ADMIN_MEMBER_ID,
-            WorkflowApprovalResponse::DECISION_ABSTAIN
+            WorkflowApprovalResponse::DECISION_ABSTAIN,
         );
         $this->assertTrue($result->isSuccess());
 
@@ -469,7 +469,7 @@ class ApprovalManagerTest extends BaseTestCase
         $result = $this->manager->recordResponse(
             999999,
             self::ADMIN_MEMBER_ID,
-            WorkflowApprovalResponse::DECISION_APPROVE
+            WorkflowApprovalResponse::DECISION_APPROVE,
         );
         $this->assertFalse($result->isSuccess());
         $this->assertStringContainsString('not found', strtolower($result->getError()));

@@ -16,6 +16,7 @@ namespace App\Model\Entity;
  * @property string $approver_type
  * @property array|null $approver_config
  * @property int|null $current_approver_id
+ * @property string|null $request_title
  * @property int $required_count
  * @property int $approved_count
  * @property int $rejected_count
@@ -59,6 +60,7 @@ class WorkflowApproval extends BaseEntity
         'approver_type' => true,
         'approver_config' => true,
         'current_approver_id' => true,
+        'request_title' => true,
         'required_count' => true,
         'approved_count' => true,
         'rejected_count' => true,

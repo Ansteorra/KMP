@@ -1,12 +1,10 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Policy;
 
 use App\KMP\KmpIdentityInterface;
-use App\Model\Entity\WorkflowApproval;
-use App\Model\Entity\WorkflowInstance;
+use App\Model\Entity\BaseEntity;
 use App\Policy\ApprovalsControllerPolicy;
 use App\Policy\WorkflowApprovalPolicy;
 use App\Policy\WorkflowApprovalsTablePolicy;
@@ -173,6 +171,18 @@ class WorkflowPolicyTest extends TestCase
         $this->assertTrue($this->approvalsTablePolicy->canRecordApproval($this->makeRegularUser(), $this->table));
     }
 
+    public function testTablePolicyAuthenticatedUserCanUpdateTriage(): void
+    {
+        $this->assertTrue($this->approvalsTablePolicy->canUpdateTriage($this->makeRegularUser(), $this->table));
+    }
+
+    public function testTablePolicyAuthenticatedUserCanLoadKanbanLaneData(): void
+    {
+        $this->assertTrue(
+            $this->approvalsTablePolicy->canApprovalsKanbanLaneData($this->makeRegularUser(), $this->table),
+        );
+    }
+
     public function testTablePolicyNullIdentifierCannotApprovals(): void
     {
         $user = $this->makeRegularUser(null);
@@ -321,13 +331,13 @@ class WorkflowPolicyTest extends TestCase
 
     public function testInstanceEntityPolicyRegularUserCannotEdit(): void
     {
-        $entity = $this->createMock(\App\Model\Entity\BaseEntity::class);
+        $entity = $this->createMock(BaseEntity::class);
         $this->assertFalse($this->instanceEntityPolicy->canEdit($this->makeRegularUser(), $entity));
     }
 
     public function testInstanceEntityPolicyRegularUserCannotDelete(): void
     {
-        $entity = $this->createMock(\App\Model\Entity\BaseEntity::class);
+        $entity = $this->createMock(BaseEntity::class);
         $this->assertFalse($this->instanceEntityPolicy->canDelete($this->makeRegularUser(), $entity));
     }
 

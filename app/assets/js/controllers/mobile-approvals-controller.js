@@ -218,6 +218,10 @@ class MobileApprovalsController extends MobileControllerBase {
             html += '</div>'
         }
 
+        if (approval.entityUrl) {
+            html += `<a href="${this._escHtml(approval.entityUrl)}" class="btn btn-sm btn-outline-primary mb-3" data-turbo-frame="_top"><i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>View Source</a>`
+        }
+
         // Response timeline
         if (responses.length > 0) {
             html += '<div class="approval-responses"><small class="fw-semibold text-muted d-block mb-1">Responses:</small>'
@@ -481,12 +485,13 @@ class MobileApprovalsController extends MobileControllerBase {
             const response = await fetch(this.triageUrlValue, {
                 method: 'POST',
                 headers: {
+                    'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
                     'X-CSRF-Token': csrfToken,
                 },
                 body,
             })
-            const result = await response.json()
+            const result = await this._readJsonResponse(response, 'Unable to save triage state. Please refresh the page and try again.')
             if (!response.ok || result.success === false) {
                 throw new Error(result.error || `HTTP ${response.status}`)
             }
@@ -504,6 +509,19 @@ class MobileApprovalsController extends MobileControllerBase {
         } finally {
             button.disabled = false
         }
+    }
+
+    async _readJsonResponse(response, fallbackMessage = 'Unexpected response from the server.') {
+        const contentType = response.headers.get('content-type') || ''
+        if (contentType.includes('application/json')) {
+            try {
+                return await response.json()
+            } catch (error) {
+                throw new Error(fallbackMessage)
+            }
+        }
+
+        throw new Error(fallbackMessage)
     }
 
     async submitResponse(event) {
@@ -563,6 +581,7 @@ class MobileApprovalsController extends MobileControllerBase {
             const response = await fetch(this.recordUrlValue, {
                 method: 'POST',
                 headers: {
+                    'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
                     'X-CSRF-Token': csrfToken,
                 },
@@ -573,7 +592,7 @@ class MobileApprovalsController extends MobileControllerBase {
                 throw new Error(`HTTP ${response.status}`)
             }
 
-            const result = await response.json()
+            const result = await this._readJsonResponse(response, 'Failed to submit response. Please refresh the page and try again.')
 
             if (result.success === false) {
                 throw new Error(result.error || 'Failed to record response')

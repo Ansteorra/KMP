@@ -101,7 +101,23 @@ class ApprovalsGridColumnsTest extends TestCase
     {
         $views = ApprovalsGridColumns::getSystemViews();
         $this->assertArrayHasKey('sys-approvals-pending', $views);
+        $this->assertArrayHasKey('sys-approvals-triage-board', $views);
         $this->assertArrayHasKey('sys-approvals-decisions', $views);
+    }
+
+    public function testTriageBoardSystemViewIsPendingKanbanView(): void
+    {
+        $views = ApprovalsGridColumns::getSystemViews();
+        $view = $views['sys-approvals-triage-board'];
+
+        $this->assertSame('kanban', $view['layout']);
+        $this->assertFalse($view['canManage']);
+        $this->assertSame(20, $view['config']['pageSize']);
+        $this->assertSame(
+            ['field' => 'status_label', 'operator' => 'eq', 'value' => WorkflowApproval::STATUS_PENDING],
+            $view['config']['filters'][0],
+        );
+        $this->assertSame('request', $view['config']['columns'][0]['key']);
     }
 
     public function testGetAdminSystemViewsReturnsViews(): void
@@ -118,9 +134,13 @@ class ApprovalsGridColumnsTest extends TestCase
         $searchable = ApprovalsGridColumns::getSearchableColumns();
         $this->assertNotEmpty($searchable);
         $this->assertContains('workflow_name', $searchable);
+        $this->assertContains('request', $searchable);
         $this->assertContains('current_approver', $searchable);
         // 'requester' is virtual (computed from JSON context), not searchable via SQL
         $this->assertNotContains('requester', $searchable);
+
+        $columns = ApprovalsGridColumns::getColumns();
+        $this->assertSame('WorkflowApprovals.request_title', $columns['request']['queryField']);
     }
 
     public function testStatusFilterOptionsUseConstants(): void

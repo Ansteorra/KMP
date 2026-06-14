@@ -292,6 +292,48 @@ describe('GridViewController', () => {
         expect(controller.bulkActionBtnTargets[0].disabled).toBe(false);
     });
 
+    test('bulk action payload reads selected checkbox data from the live DOM', () => {
+        document.body.innerHTML = `
+            <div data-controller="grid-view">
+                <button type="button" data-bulk-action-key="workflow-decision"></button>
+                <input type="checkbox" data-grid-view-target="rowCheckbox" value="499"
+                    data-pending-approval-id="37" data-can-workflow-decide="true" checked>
+            </div>
+        `;
+        controller.element = document.querySelector('[data-controller="grid-view"]');
+        controller.hasRowCheckboxTarget = false;
+        controller.selectedIds = ['499'];
+
+        const button = document.querySelector('button');
+        const noticeHandler = jest.fn();
+        button.addEventListener('outlet-btn:notice', noticeHandler);
+
+        controller.triggerBulkAction({ currentTarget: button });
+
+        expect(noticeHandler).toHaveBeenCalledWith(expect.objectContaining({
+            detail: expect.objectContaining({
+                ids: ['499'],
+                checkboxes: [
+                    expect.objectContaining({
+                        id: '499',
+                        pendingApprovalId: '37',
+                        canWorkflowDecide: 'true',
+                    }),
+                ],
+            }),
+        }));
+        expect(JSON.parse(button.dataset.bulkActionSelection)).toEqual(expect.objectContaining({
+            ids: ['499'],
+            checkboxes: [
+                expect.objectContaining({
+                    id: '499',
+                    pendingApprovalId: '37',
+                }),
+            ],
+        }));
+        expect(button.dataset.workflowDecisionSelection).toBe(button.dataset.bulkActionSelection);
+    });
+
     test('toggleSubRow synchronizes aria-expanded and controlled region state', async () => {
         document.body.innerHTML = `
             <table>

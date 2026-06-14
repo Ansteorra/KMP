@@ -265,6 +265,7 @@ return function (RouteBuilder $routes): void {
         $builder->scope('/approvals', function (RouteBuilder $builder) {
             $builder->connect('/', ['controller' => 'Approvals', 'action' => 'approvals']);
             $builder->connect('/grid-data', ['controller' => 'Approvals', 'action' => 'approvalsGridData']);
+            $builder->connect('/kanban-lane', ['controller' => 'Approvals', 'action' => 'approvalsKanbanLaneData']);
             $builder->connect('/all', ['controller' => 'Approvals', 'action' => 'allApprovals']);
             $builder->connect('/all/grid-data', ['controller' => 'Approvals', 'action' => 'allApprovalsGridData']);
             $builder->connect('/respond/{token}', ['controller' => 'Approvals', 'action' => 'approvalByToken'])

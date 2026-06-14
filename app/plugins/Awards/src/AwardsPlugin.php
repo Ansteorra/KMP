@@ -28,6 +28,7 @@ use Awards\Services\BestowalRecommendationSyncService;
 use Awards\Services\BestowalStateLogService;
 use Awards\Services\BestowalTransitionService;
 use Awards\Services\BestowalUpdateService;
+use Awards\Services\RecommendationApprovalContextRenderer;
 use Awards\Services\RecommendationApprovalProcessService;
 use Awards\Services\RecommendationFeedbackContextRenderer;
 use Awards\Services\RecommendationFeedbackService;
@@ -107,6 +108,10 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
         ApprovalContextRendererRegistry::register(
             'AwardsFeedback',
             new RecommendationFeedbackContextRenderer(),
+        );
+        ApprovalContextRendererRegistry::register(
+            'AwardsRecommendations',
+            new RecommendationApprovalContextRenderer(),
         );
 
         EventManager::instance()->on(new RecommendationFeedbackApprovalListener());

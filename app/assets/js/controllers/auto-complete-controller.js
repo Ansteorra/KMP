@@ -104,6 +104,7 @@ class AutoComplete extends Controller {
     initialize() {
         this._selectOptions = [];
         this._datalistLoaded = false;
+        this._resultsPortal = null;
     }
 
     // Getter for the value property
@@ -229,6 +230,7 @@ class AutoComplete extends Controller {
         this.inputTarget.addEventListener("change", this.onInputChangeTriggered);
         this.resultsTarget.addEventListener("mousedown", this.onResultsMouseDown)
         this.resultsTarget.addEventListener("click", this.onResultsClick)
+        this.updateFloatingResultsPosition = this.updateFloatingResultsPosition.bind(this)
 
         if (this.inputTarget.hasAttribute("autofocus")) {
             this.inputTarget.focus()
@@ -253,6 +255,10 @@ class AutoComplete extends Controller {
     }
 
     disconnect() {
+        if (this.hasResultsTarget) {
+            this.close()
+        }
+
         if (this.hasInputTarget) {
             this.inputTarget.removeEventListener("keydown", this.onKeydown)
             this.inputTarget.removeEventListener("blur", this.onInputBlur)
@@ -784,7 +790,9 @@ class AutoComplete extends Controller {
     open() {
         if (this.resultsShown) return
 
+        this.enableFloatingResults()
         this.resultsShown = true
+        this.updateFloatingResultsPosition()
         this.element.setAttribute("aria-expanded", "true")
         this.inputTarget.setAttribute("aria-expanded", "true")
         this.hiddenTextTarget.value = this.inputTarget.value;
@@ -797,7 +805,7 @@ class AutoComplete extends Controller {
 
     close() {
         if (!this.resultsShown) {
-
+            this.disableFloatingResults()
             return
         }
         this.state = "finished";
@@ -806,6 +814,7 @@ class AutoComplete extends Controller {
         this.element.setAttribute("aria-expanded", "false")
         this.inputTarget.setAttribute("aria-expanded", "false")
         this.hiddenTextTarget.value = this.inputTarget.value;
+        this.disableFloatingResults()
         this.element.dispatchEvent(
             new CustomEvent("toggle", {
                 detail: { action: "close", inputTarget: this.inputTarget, resultsTarget: this.resultsTarget }
@@ -819,6 +828,61 @@ class AutoComplete extends Controller {
 
     set resultsShown(value) {
         this.resultsTarget.hidden = !value
+    }
+
+    enableFloatingResults() {
+        if (!this.element.closest(".modal") || this._resultsPortal) {
+            return
+        }
+
+        this._resultsPortal = {
+            cssText: this.resultsTarget.style.cssText,
+        }
+
+        this.resultsTarget.classList.add("kmp-auto-complete-floating-list")
+        window.addEventListener("resize", this.updateFloatingResultsPosition)
+        window.addEventListener("scroll", this.updateFloatingResultsPosition, true)
+    }
+
+    disableFloatingResults() {
+        if (!this._resultsPortal) {
+            return
+        }
+
+        window.removeEventListener("resize", this.updateFloatingResultsPosition)
+        window.removeEventListener("scroll", this.updateFloatingResultsPosition, true)
+
+        const { cssText } = this._resultsPortal
+        this.resultsTarget.classList.remove("kmp-auto-complete-floating-list")
+        this.resultsTarget.style.cssText = cssText
+
+        this._resultsPortal = null
+    }
+
+    updateFloatingResultsPosition() {
+        if (!this._resultsPortal) {
+            return
+        }
+
+        const rect = this.inputTarget.getBoundingClientRect()
+        const containerRect = this.element.getBoundingClientRect()
+        const left = containerRect.width > 0 ? containerRect.left : rect.left
+        const width = containerRect.width > 0 ? containerRect.width : rect.width
+        const viewportHeight = window.innerHeight || document.documentElement.clientHeight
+        const margin = 8
+        const spaceBelow = viewportHeight - rect.bottom - margin
+        const spaceAbove = rect.top - margin
+        const openAbove = spaceBelow < 160 && spaceAbove > spaceBelow
+        const maxHeight = Math.max(openAbove ? spaceAbove : spaceBelow, 120)
+
+        this.resultsTarget.style.setProperty("position", "fixed", "important")
+        this.resultsTarget.style.left = `${left}px`
+        this.resultsTarget.style.width = `${width}px`
+        this.resultsTarget.style.maxHeight = `${maxHeight}px`
+        this.resultsTarget.style.overflowY = "auto"
+        this.resultsTarget.style.setProperty("z-index", "1070", "important")
+        this.resultsTarget.style.top = openAbove ? "auto" : `${rect.bottom}px`
+        this.resultsTarget.style.bottom = openAbove ? `${viewportHeight - rect.top}px` : "auto"
     }
 
     get selectedClassesOrDefault() {

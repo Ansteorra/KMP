@@ -3034,7 +3034,8 @@ CREATE TABLE public.workflow_approvals (
     modified timestamp without time zone,
     version integer DEFAULT 1 NOT NULL,
     approval_token character varying(64),
-    current_approver_id integer
+    current_approver_id integer,
+    request_title character varying(255)
 );
 
 
@@ -3057,6 +3058,13 @@ COMMENT ON COLUMN public.workflow_approvals.node_id IS 'References node key in t
 --
 
 COMMENT ON COLUMN public.workflow_approvals.execution_log_id IS 'FK to workflow_execution_logs for this approval step';
+
+
+--
+-- Name: COLUMN workflow_approvals.request_title; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_approvals.request_title IS 'Cached approval request title for grid search';
 
 
 --
