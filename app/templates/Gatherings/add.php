@@ -73,8 +73,12 @@ $this->KMP->endBlock();
                     'options' => $gatheringTypes,
                     'empty' => __('-- Select Type --'),
                     'required' => true,
-                    'class' => 'form-select'
+                    'class' => 'form-select',
+                    'data-gathering-form-target' => 'gatheringTypeSelect',
+                    'data-action' => 'change->gathering-form#gatheringTypeChanged',
                 ]) ?>
+                <small class="form-text text-muted d-none"
+                       data-gathering-form-target="gatheringTypeDescription"></small>
             </div>
         </div>
 

@@ -1044,7 +1044,19 @@ class GatheringsController extends AppController
             }
         }
 
-        $gatheringTypes = $this->Gatherings->GatheringTypes->find('list')->orderBy(['name' => 'ASC']);
+        $gatheringTypesRaw = $this->Gatherings->GatheringTypes->find()
+            ->select(['id', 'name', 'description'])
+            ->orderBy(['name' => 'ASC'])
+            ->toArray();
+
+        $gatheringTypes = array_map(
+            fn($t) => [
+                'value' => $t->id,
+                'text' => $t->name,
+                'data-description' => $t->description ?? '',
+            ],
+            $gatheringTypesRaw
+        );
 
         $this->set(compact('gathering', 'branches', 'gatheringTypes', 'lockBranch', 'branchCount'));
     }
@@ -1148,7 +1160,19 @@ class GatheringsController extends AppController
             $lockBranch = true;
         }
 
-        $gatheringTypes = $this->Gatherings->GatheringTypes->find('list')->orderBy(['name' => 'ASC']);
+        $gatheringTypesRaw = $this->Gatherings->GatheringTypes->find()
+            ->select(['id', 'name', 'description'])
+            ->orderBy(['name' => 'ASC'])
+            ->toArray();
+
+        $gatheringTypes = array_map(
+            fn($t) => [
+                'value' => $t->id,
+                'text' => $t->name,
+                'data-description' => $t->description ?? '',
+            ],
+            $gatheringTypesRaw
+        );
 
         $this->set(compact('gathering', 'branches', 'gatheringTypes', 'lockBranch', 'branchCount'));
     }

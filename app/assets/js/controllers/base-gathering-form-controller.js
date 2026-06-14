@@ -13,8 +13,8 @@ import { Controller } from "@hotwired/stimulus";
  */
 export class BaseGatheringFormController extends Controller {
     // Define targets - elements this controller interacts with
-    static targets = ["startDate", "endDate", "submitButton"]
-    
+    static targets = ["startDate", "endDate", "submitButton", "gatheringTypeSelect", "gatheringTypeDescription"]
+
     /**
      * Connect function - runs when controller connects to DOM
      */
@@ -22,6 +22,10 @@ export class BaseGatheringFormController extends Controller {
         // Set up initial validation when page loads
         if (this.hasStartDateTarget && this.hasEndDateTarget) {
             this.validateDates();
+        }
+        // Show description for pre-selected gathering type (edit form)
+        if (this.hasGatheringTypeSelectTarget) {
+            this._updateTypeDescription(this.gatheringTypeSelectTarget);
         }
     }
     
@@ -117,6 +121,21 @@ export class BaseGatheringFormController extends Controller {
         feedbackElement.style.display = 'block';
     }
     
+    /**
+     * Handle gathering type selection change — show that type's description
+     */
+    gatheringTypeChanged(event) {
+        this._updateTypeDescription(event.currentTarget);
+    }
+
+    _updateTypeDescription(select) {
+        if (!this.hasGatheringTypeDescriptionTarget) return;
+        const selected = select.selectedOptions[0];
+        const description = selected?.dataset.description || '';
+        this.gatheringTypeDescriptionTarget.textContent = description;
+        this.gatheringTypeDescriptionTarget.classList.toggle('d-none', !description);
+    }
+
     /**
      * Clear validation messages
      */
