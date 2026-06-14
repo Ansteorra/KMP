@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Policy;
 
+use App\KMP\KmpIdentityInterface;
+use App\Model\Entity\Permission;
 use App\Policy\GatheringPolicy;
 use App\Test\TestCase\BaseTestCase;
 
@@ -168,5 +170,84 @@ class GatheringPolicyTest extends BaseTestCase
         $uncancelResult = $this->policy->canUncancel($agatha, $gathering);
         $editResult = $this->policy->canEdit($agatha, $gathering);
         $this->assertSame($editResult, $uncancelResult, 'canUncancel should delegate to canEdit');
+    }
+
+    public function testDedicatedPolicyCanCreateScheduledActivity(): void
+    {
+        $gathering = $this->getGathering();
+        $user = $this->createSchedulePolicyUser(1234, 'canCreateScheduledActivity', (int)$gathering->branch_id);
+
+        $this->assertTrue($this->policy->canCreateScheduledActivity($user, $gathering));
+    }
+
+    public function testDedicatedCreatePolicyCanViewGathering(): void
+    {
+        $gathering = $this->getGathering();
+        $user = $this->createSchedulePolicyUser(1234, 'canCreateScheduledActivity', (int)$gathering->branch_id);
+
+        $this->assertTrue($this->policy->canView($user, $gathering));
+    }
+
+    public function testDedicatedEditSchedulePolicyCanViewGathering(): void
+    {
+        $gathering = $this->getGathering();
+        $user = $this->createSchedulePolicyUser(1234, 'canEditScheduledActivity', (int)$gathering->branch_id);
+
+        $this->assertTrue($this->policy->canView($user, $gathering));
+    }
+
+    public function testDedicatedPolicyCanEditOwnScheduledActivity(): void
+    {
+        $gathering = $this->getGathering();
+        $user = $this->createSchedulePolicyUser(1234, 'canEditScheduledActivity', (int)$gathering->branch_id);
+        $scheduledActivity = $this->getTableLocator()->get('GatheringScheduledActivities')->newEntity([
+            'gathering_id' => $gathering->id,
+            'created_by' => 1234,
+        ]);
+
+        $this->assertTrue($this->policy->canEditScheduledActivity($user, $gathering, $scheduledActivity));
+    }
+
+    public function testDedicatedPolicyCannotEditOthersScheduledActivity(): void
+    {
+        $gathering = $this->getGathering();
+        $user = $this->createSchedulePolicyUser(1234, 'canEditScheduledActivity', (int)$gathering->branch_id);
+        $scheduledActivity = $this->getTableLocator()->get('GatheringScheduledActivities')->newEntity([
+            'gathering_id' => $gathering->id,
+            'created_by' => 5678,
+        ]);
+
+        $this->assertFalse($this->policy->canEditScheduledActivity($user, $gathering, $scheduledActivity));
+    }
+
+    public function testDedicatedPolicyCannotEditScheduledActivityFromAnotherGathering(): void
+    {
+        $gathering = $this->getGathering();
+        $user = $this->createSchedulePolicyUser(1234, 'canEditScheduledActivity', (int)$gathering->branch_id);
+        $scheduledActivity = $this->getTableLocator()->get('GatheringScheduledActivities')->newEntity([
+            'gathering_id' => (int)$gathering->id + 1,
+            'created_by' => 1234,
+        ]);
+
+        $this->assertFalse($this->policy->canEditScheduledActivity($user, $gathering, $scheduledActivity));
+    }
+
+    private function createSchedulePolicyUser(int $memberId, string $method, int $branchId): KmpIdentityInterface
+    {
+        $user = $this->createMock(KmpIdentityInterface::class);
+        $user->method('isSuperUser')->willReturn(false);
+        $user->method('getIdentifier')->willReturn($memberId);
+        $user->method('getPolicies')->willReturn([
+            GatheringPolicy::class => [
+                $method => (object)[
+                    'scoping_rule' => Permission::SCOPE_BRANCH_ONLY,
+                    'branch_ids' => [$branchId],
+                    'entity_id' => null,
+                    'entity_type' => 'Direct Grant',
+                ],
+            ],
+        ]);
+
+        return $user;
     }
 }

@@ -3,8 +3,10 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
 
+use App\KMP\TimezoneHelper;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Model\Entity\Recommendation;
+use Cake\Cache\Cache;
 use Cake\I18n\DateTime;
 
 /**
@@ -591,6 +593,126 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertSame(1, $afterCount);
     }
 
+    public function testCourtScheduleManagerCanAddScheduledActivity(): void
+    {
+        $gathering = $this->getScheduleTestGathering();
+        $memberId = self::TEST_MEMBER_AGATHA_ID;
+        $this->grantCourtSchedulePermission($memberId, (int)$gathering->branch_id);
+        $this->authenticateAsMember($memberId);
+
+        $this->post('/gatherings/add-scheduled-activity/' . $gathering->public_id, [
+            'start_datetime' => $this->localScheduleInput($gathering, 1),
+            'has_end_time' => '0',
+            'display_title' => 'Delegated Court Session',
+            'description' => 'Created by a court schedule manager.',
+            'pre_register' => '0',
+            'is_other' => '1',
+        ]);
+
+        $this->assertResponseOk();
+        $scheduledActivities = $this->getTableLocator()->get('GatheringScheduledActivities');
+        $created = $scheduledActivities->find()
+            ->where([
+                'gathering_id' => $gathering->id,
+                'display_title' => 'Delegated Court Session',
+                'created_by' => $memberId,
+            ])
+            ->first();
+        $this->assertNotNull($created);
+    }
+
+    public function testCourtScheduleManagerCanEditOwnScheduledActivity(): void
+    {
+        $gathering = $this->getScheduleTestGathering();
+        $memberId = self::TEST_MEMBER_AGATHA_ID;
+        $scheduledActivity = $this->createScheduledActivity($gathering, $memberId, 'Own Court Session');
+        $this->grantCourtSchedulePermission($memberId, (int)$gathering->branch_id);
+        $this->authenticateAsMember($memberId);
+
+        $this->post(
+            '/gatherings/edit-scheduled-activity/' . $gathering->public_id . '/' . $scheduledActivity->id,
+            [
+                'start_datetime' => $this->localScheduleInput($gathering, 2),
+                'has_end_time' => '0',
+                'display_title' => 'Updated Own Court Session',
+                'description' => 'Updated by original creator.',
+                'pre_register' => '0',
+                'is_other' => '1',
+            ],
+        );
+
+        $this->assertResponseOk();
+        $updated = $this->getTableLocator()->get('GatheringScheduledActivities')->get($scheduledActivity->id);
+        $this->assertSame('Updated Own Court Session', $updated->display_title);
+        $this->assertSame($memberId, (int)$updated->created_by);
+    }
+
+    public function testCourtScheduleManagerCannotEditOthersScheduledActivity(): void
+    {
+        $gathering = $this->getScheduleTestGathering();
+        $memberId = self::TEST_MEMBER_AGATHA_ID;
+        $scheduledActivity = $this->createScheduledActivity(
+            $gathering,
+            self::ADMIN_MEMBER_ID,
+            'Someone Else Court Session',
+        );
+        $this->grantCourtSchedulePermission($memberId, (int)$gathering->branch_id);
+        $this->authenticateAsMember($memberId);
+
+        $this->post(
+            '/gatherings/edit-scheduled-activity/' . $gathering->public_id . '/' . $scheduledActivity->id,
+            [
+                'start_datetime' => $this->localScheduleInput($gathering, 2),
+                'has_end_time' => '0',
+                'display_title' => 'Unauthorized Edit Attempt',
+                'description' => 'Should not save.',
+                'pre_register' => '0',
+                'is_other' => '1',
+            ],
+        );
+
+        $this->assertResponseCode(403);
+        $unchanged = $this->getTableLocator()->get('GatheringScheduledActivities')->get($scheduledActivity->id);
+        $this->assertSame('Someone Else Court Session', $unchanged->display_title);
+    }
+
+    public function testCourtScheduleManagerCannotDeleteScheduledActivity(): void
+    {
+        $gathering = $this->getScheduleTestGathering();
+        $memberId = self::TEST_MEMBER_AGATHA_ID;
+        $scheduledActivity = $this->createScheduledActivity($gathering, $memberId, 'Delete Protected Court Session');
+        $this->grantCourtSchedulePermission($memberId, (int)$gathering->branch_id);
+        $this->authenticateAsMember($memberId);
+
+        $this->post('/gatherings/delete-scheduled-activity/' . $gathering->public_id . '/' . $scheduledActivity->id);
+
+        $this->assertResponseCode(403);
+        $exists = $this->getTableLocator()->get('GatheringScheduledActivities')
+            ->exists(['id' => $scheduledActivity->id]);
+        $this->assertTrue($exists);
+    }
+
+    public function testCourtScheduleManagerSeesOnlyDelegatedScheduleControls(): void
+    {
+        $gathering = $this->getScheduleTestGathering();
+        $memberId = self::TEST_MEMBER_AGATHA_ID;
+        $this->createScheduledActivity($gathering, $memberId, 'Own Delegated Court');
+        $this->createScheduledActivity($gathering, self::ADMIN_MEMBER_ID, 'Other Court');
+        $this->grantCourtSchedulePermission($memberId, (int)$gathering->branch_id);
+        $this->authenticateAsMember($memberId);
+
+        $this->get('/gatherings/view/' . $gathering->public_id);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('id="nav-schedule-tab"');
+        $this->assertResponseContains('Add Scheduled Activity');
+        $this->assertResponseContains('aria-label="Edit Own Delegated Court"');
+        $this->assertResponseNotContains('aria-label="Edit Other Court"');
+        $this->assertResponseNotContains('aria-label="Delete Own Delegated Court"');
+        $this->assertResponseNotContains('aria-label="Delete Other Court"');
+        $this->assertResponseNotContains('href="/gatherings/edit/');
+    }
+
     /**
      * Test authorization - unauthenticated user
      *
@@ -661,5 +783,109 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         }
 
         return $this->getTableLocator()->get('GatheringActivities')->get($link->gathering_activity_id);
+    }
+
+    private function getScheduleTestGathering()
+    {
+        $gathering = $this->getTableLocator()->get('Gatherings')->find()
+            ->where(['branch_id IS NOT' => null])
+            ->contain(['GatheringActivities', 'GatheringScheduledActivities'])
+            ->first();
+        if (!$gathering) {
+            $this->markTestSkipped('No gathering with a branch found in seed data');
+        }
+
+        return $gathering;
+    }
+
+    private function grantCourtSchedulePermission(int $memberId, int $branchId): void
+    {
+        $permissions = $this->getTableLocator()->get('Permissions');
+        $permissionPolicies = $this->getTableLocator()->get('PermissionPolicies');
+        $roles = $this->getTableLocator()->get('Roles');
+        $connection = $roles->getConnection();
+
+        $permission = $permissions->find()->where(['name' => 'Can Manage Court Schedule'])->first();
+        if ($permission === null) {
+            $permission = $permissions->newEntity([
+                'name' => 'Can Manage Court Schedule',
+                'require_active_membership' => false,
+                'require_active_background_check' => false,
+                'require_min_age' => 0,
+                'is_system' => false,
+                'is_super_user' => false,
+                'requires_warrant' => false,
+                'scoping_rule' => 'Branch Only',
+            ]);
+            $permissions->saveOrFail($permission);
+        }
+
+        foreach (
+            [
+            ['App\\Policy\\GatheringPolicy', 'canCreateScheduledActivity'],
+            ['App\\Policy\\GatheringPolicy', 'canEditScheduledActivity'],
+            ] as [$policyClass, $policyMethod]
+        ) {
+            $exists = $permissionPolicies->find()
+                ->where([
+                    'permission_id' => $permission->id,
+                    'policy_class' => $policyClass,
+                    'policy_method' => $policyMethod,
+                ])
+                ->first();
+            if ($exists === null) {
+                $permissionPolicies->saveOrFail($permissionPolicies->newEntity([
+                    'permission_id' => $permission->id,
+                    'policy_class' => $policyClass,
+                    'policy_method' => $policyMethod,
+                ]));
+            }
+        }
+
+        $role = $roles->newEntity([
+            'name' => 'Test Court Schedule Manager ' . $memberId . '-' . $branchId,
+        ]);
+        $roles->saveOrFail($role);
+
+        $connection->execute(
+            'INSERT INTO roles_permissions (role_id, permission_id, created, modified, created_by, modified_by)
+             VALUES (?, ?, NOW(), NOW(), 1, 1)',
+            [(int)$role->id, (int)$permission->id],
+        );
+        $connection->execute(
+            'INSERT INTO member_roles
+             (member_id, role_id, branch_id, start_on, expires_on, approver_id, entity_type, created, modified, created_by, modified_by)
+             VALUES (?, ?, ?, NOW(), ?, 1, ?, NOW(), NOW(), 1, 1)',
+            [$memberId, (int)$role->id, $branchId, '2100-01-01', 'Direct Grant'],
+        );
+
+        Cache::delete('permissions_policies' . $memberId, 'member_permissions');
+        Cache::delete('member_permissions' . $memberId, 'member_permissions');
+    }
+
+    private function createScheduledActivity($gathering, int $createdBy, string $title)
+    {
+        $scheduledActivities = $this->getTableLocator()->get('GatheringScheduledActivities');
+        $scheduledActivity = $scheduledActivities->newEntity([
+            'gathering_id' => $gathering->id,
+            'start_datetime' => (clone $gathering->start_date)->modify('+1 hour'),
+            'has_end_time' => false,
+            'display_title' => $title,
+            'description' => $title . ' description.',
+            'pre_register' => false,
+            'is_other' => true,
+            'created_by' => $createdBy,
+        ]);
+        $saved = $scheduledActivities->save($scheduledActivity);
+        $this->assertNotFalse($saved, 'Expected scheduled activity fixture to save');
+
+        return $saved;
+    }
+
+    private function localScheduleInput($gathering, int $hoursAfterStart): string
+    {
+        $start = (clone $gathering->start_date)->modify('+' . $hoursAfterStart . ' hours');
+
+        return TimezoneHelper::toUserTimezone($start, null, null, $gathering)->format('Y-m-d\TH:i');
     }
 }

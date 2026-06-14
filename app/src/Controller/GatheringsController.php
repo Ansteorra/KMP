@@ -1484,7 +1484,7 @@ class GatheringsController extends AppController
         $this->viewBuilder()->setClassName('Json');
 
         $gathering = $this->Gatherings->find('byPublicId', [$publicId])->firstOrFail();
-        $this->Authorization->authorize($gathering, 'edit');
+        $this->Authorization->authorize($gathering, 'createScheduledActivity');
 
         $result = $scheduleService->add(
             $this->request->getData(),
@@ -1516,7 +1516,8 @@ class GatheringsController extends AppController
         $this->viewBuilder()->setClassName('Json');
 
         $gathering = $this->Gatherings->find('byPublicId', [$gatheringPublicId])->firstOrFail();
-        $this->Authorization->authorize($gathering, 'edit');
+        $scheduledActivity = $this->fetchTable('GatheringScheduledActivities')->get((int)$id);
+        $this->Authorization->authorize($gathering, 'editScheduledActivity', $scheduledActivity);
 
         $result = $scheduleService->edit(
             (int)$id,

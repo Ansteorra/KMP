@@ -15,6 +15,8 @@ class AddBestowalOfficesAndPolicies extends BaseMigration
 
     private const TABLE_POLICY_CLASS = 'Awards\\Policy\\BestowalsTablePolicy';
 
+    private const GATHERING_POLICY_CLASS = 'App\\Policy\\GatheringPolicy';
+
     /**
      * @return void
      */
@@ -106,6 +108,8 @@ class AddBestowalOfficesAndPolicies extends BaseMigration
             ],
             'Can Manage Court Schedule' => [
                 [self::POLICY_CLASS, 'canManageCourtSchedule'],
+                [self::GATHERING_POLICY_CLASS, 'canCreateScheduledActivity'],
+                [self::GATHERING_POLICY_CLASS, 'canEditScheduledActivity'],
             ],
         ];
 
