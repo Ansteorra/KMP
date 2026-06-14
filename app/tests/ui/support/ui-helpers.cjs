@@ -24,7 +24,7 @@ const waitForPageBody = async (page, timeout = DEFAULT_TIMEOUT) => {
 };
 
 const waitForSuccessfulLogin = async (page, timeout = DEFAULT_TIMEOUT) => {
-    await page.waitForURL((url) => !url.pathname.includes('/members/login'), { timeout });
+    await expect(getSignOutButton(page)).toBeVisible({ timeout });
     await waitForPageBody(page, timeout);
 };
 
@@ -36,10 +36,18 @@ const loginAs = async (page, emailAddress, password = 'TestPassword') => {
     await page.locator('#email-address').fill(emailAddress);
     await page.locator('#password').fill(password);
 
-    await Promise.all([
-        waitForSuccessfulLogin(page, 30000),
-        page.locator('input[type="submit"][value="Sign in"]').click(),
-    ]);
+    const loginResponsePromise = page.waitForResponse((response) => {
+        const request = response.request();
+
+        return request.method() === 'POST' && new URL(response.url()).pathname.includes('/members/login');
+    }, { timeout: 30000 });
+    await page.locator('input[type="submit"][value="Sign in"]').click({ noWaitAfter: true });
+    const loginResponse = await loginResponsePromise;
+    if (![200, 302, 303].includes(loginResponse.status())) {
+        throw new Error(`Login failed with HTTP ${loginResponse.status()}`);
+    }
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await waitForSuccessfulLogin(page, 30000);
 };
 
 const clearMailpitMessages = async (requestContext) => {
@@ -134,6 +142,24 @@ const dbQuery = (sql, { timeoutMs = 20000 } = {}) => {
         timeout: timeoutMs,
         encoding: 'utf8',
     }).trim();
+};
+
+const clearActivityAuthorizationFixtures = () => {
+    dbQuery(`
+        DELETE FROM activities_authorization_approvals aa
+        USING activities_authorizations az, members m, activities_activities act
+        WHERE aa.authorization_id = az.id
+          AND az.member_id = m.id
+          AND az.activity_id = act.id
+          AND m.email_address = 'iris@ampdemo.com'
+          AND act.name = 'Armored';
+        DELETE FROM activities_authorizations az
+        USING members m, activities_activities act
+        WHERE az.member_id = m.id
+          AND az.activity_id = act.id
+          AND m.email_address = 'iris@ampdemo.com'
+          AND act.name = 'Armored';
+    `);
 };
 
 /**
@@ -403,7 +429,17 @@ const waitForGridRows = async (
     timeout = 30000,
 ) => {
     const rows = scope.locator(selector);
-    await expect(rows.first()).toBeVisible({ timeout });
+    await expect.poll(async () => {
+        const count = await rows.count();
+        for (let index = 0; index < count; index += 1) {
+            if (await rows.nth(index).isVisible()) {
+                return true;
+            }
+        }
+
+        return false;
+    }, { timeout }).toBe(true);
+
     return rows;
 };
 
@@ -469,6 +505,7 @@ module.exports = {
     assertGridShellPreserved,
     assertNoQueuedEmailFor,
     assertUrlContainsQuery,
+    clearActivityAuthorizationFixtures,
     clearMailpitMessages,
     clickTabAndWait,
     countPendingQueueJobs,

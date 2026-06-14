@@ -1,12 +1,11 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Awards\Policy;
 
-use App\Policy\BasePolicy;
 use App\KMP\KmpIdentityInterface;
 use App\Model\Entity\BaseEntity;
+use App\Policy\BasePolicy;
 use Cake\ORM\Table;
 
 /**
@@ -22,9 +21,9 @@ class BestowalsTablePolicy extends BasePolicy
      *
      * @param \App\KMP\KmpIdentityInterface $user The user requesting data access
      * @param \Cake\ORM\Query $query The base query to scope
-     * @return \Cake\ORM\Query The scoped query with authorization filtering
+     * @return mixed The scoped query with authorization filtering
      */
-    public function scopeIndex(KmpIdentityInterface $user, $query)
+    public function scopeIndex(KmpIdentityInterface $user, $query): mixed
     {
         $table = $query->getRepository();
         $branchIds = $this->_getBranchIdsForPolicy($user, 'canIndex');

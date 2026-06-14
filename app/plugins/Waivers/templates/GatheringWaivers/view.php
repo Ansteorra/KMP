@@ -395,7 +395,7 @@ if ($user && $user->checkCan('decline', $gatheringWaiver) && $gatheringWaiver->c
 <!-- Decline Waiver Modal -->
 <div class="modal fade" id="declineWaiverModal" tabindex="-1" aria-labelledby="declineWaiverModalLabel"
     aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content">
             <?= $this->Form->create(null, [
                     'url' => ['action' => 'decline', $gatheringWaiver->id],
@@ -408,14 +408,14 @@ if ($user && $user->checkCan('decline', $gatheringWaiver) && $gatheringWaiver->c
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
                     aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <div class="alert alert-warning">
+            <div class="modal-body bg-light-subtle">
+                <div class="alert alert-warning border-start border-warning border-4">
                     <i class="bi bi-exclamation-triangle-fill"></i>
                     <strong><?= __('Warning:') ?></strong>
                     <?= __('You are about to decline this waiver. This action cannot be undone.') ?>
                 </div>
 
-                <div class="mb-3">
+                <div class="border rounded-3 bg-white shadow-sm p-3 mb-3">
                     <p><strong><?= __('Waiver Details:') ?></strong></p>
                     <ul>
                         <li><?= __('Type: {0}', h($gatheringWaiver->waiver_type->name)) ?></li>
@@ -425,7 +425,7 @@ if ($user && $user->checkCan('decline', $gatheringWaiver) && $gatheringWaiver->c
                     </ul>
                 </div>
 
-                <div class="mb-3">
+                <div class="border rounded-3 bg-white shadow-sm p-3 mb-3">
                     <?= $this->Form->control('decline_reason', [
                             'label' => __('Reason for Declining (Required)'),
                             'type' => 'textarea',

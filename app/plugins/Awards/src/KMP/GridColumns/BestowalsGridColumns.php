@@ -159,6 +159,20 @@ class BestowalsGridColumns extends BaseGridColumns
                 'queryField' => 'Bestowals.herald_notes',
                 'description' => __('Preview of herald notes'),
             ],
+            'recommendation_reasons' => [
+                'key' => 'recommendation_reasons',
+                'label' => __('Recommendation Reasons'),
+                'type' => 'html',
+                'sortable' => false,
+                'filterable' => false,
+                'searchable' => false,
+                'defaultVisible' => true,
+                'exportable' => false,
+                'width' => '170px',
+                'alignment' => 'left',
+                'collapsible' => true,
+                'description' => __('Linked recommendation reasons for court and herald notes'),
+            ],
             'gathering_name' => [
                 'key' => 'gathering_name',
                 'label' => __('Gathering'),
@@ -208,6 +222,7 @@ class BestowalsGridColumns extends BaseGridColumns
             'state',
             'court_slot',
             'herald_notes_preview',
+            'recommendation_reasons',
         ];
 
         if ($context === 'gatheringBestowals') {

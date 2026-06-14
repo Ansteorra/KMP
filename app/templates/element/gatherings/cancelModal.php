@@ -13,7 +13,7 @@
 
 <div class="modal fade" id="cancelGatheringModal" tabindex="-1" aria-labelledby="cancelGatheringModalLabel"
     aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content">
             <div class="modal-header bg-warning">
                 <h5 class="modal-title" id="cancelGatheringModalLabel">
@@ -25,8 +25,8 @@
             <?= $this->Form->create(null, [
                 'url' => ['controller' => 'Gatherings', 'action' => 'cancel', $gathering->id],
             ]) ?>
-            <div class="modal-body">
-                <div class="alert alert-warning">
+            <div class="modal-body bg-light-subtle">
+                <div class="alert alert-warning border-start border-warning border-4">
                     <i class="bi bi-info-circle"></i>
                     <?= __('Cancelling a gathering will mark it as cancelled but preserve all data (attendances, waivers, etc.). This action can be undone.') ?>
                 </div>
@@ -35,7 +35,7 @@
                     <?= __('Are you sure you want to cancel "{0}"?', h($gathering->name)) ?>
                 </p>
 
-                <div class="mb-3">
+                <div class="border rounded-3 bg-white shadow-sm p-3">
                     <?= $this->Form->control('cancellation_reason', [
                         'type' => 'textarea',
                         'label' => __('Cancellation Reason (optional)'),

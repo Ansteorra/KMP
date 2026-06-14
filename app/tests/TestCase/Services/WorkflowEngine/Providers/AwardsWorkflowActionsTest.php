@@ -23,7 +23,7 @@ class AwardsWorkflowActionsTest extends BaseTestCase
     {
         parent::setUp();
         $this->stateMachineHandler = new StateMachineHandler();
-        $this->actions = new AwardsWorkflowActions($this->stateMachineHandler);
+        $this->actions = new AwardsWorkflowActions();
         $this->conditions = new AwardsWorkflowConditions($this->stateMachineHandler);
     }
 
@@ -196,110 +196,6 @@ class AwardsWorkflowActionsTest extends BaseTestCase
         $this->assertSame(self::TEST_MEMBER_AGATHA_ID, $result['data']['eventPayload']['memberId']);
     }
 
-    // ==========================================================
-    // TransitionState Action Tests
-    // ==========================================================
-
-    public function testTransitionStateSuccess(): void
-    {
-        $recommendation = $this->createTestRecommendation();
-
-        $states = Recommendation::getStates();
-        $currentState = $recommendation->state;
-        // Find a different valid state to transition to
-        $targetState = null;
-        foreach ($states as $state) {
-            if ($state !== $currentState) {
-                $targetState = $state;
-                break;
-            }
-        }
-
-        if (!$targetState) {
-            $this->markTestSkipped('Need at least two states for transition test');
-        }
-
-        $result = $this->actions->transitionState([], [
-            'recommendationId' => $recommendation->id,
-            'targetState' => $targetState,
-            'actorId' => self::ADMIN_MEMBER_ID,
-        ]);
-
-        $this->assertTrue($result['success']);
-        $this->assertEquals($currentState, $result['data']['result']['previousState']);
-        $this->assertEquals($targetState, $result['data']['result']['newState']);
-    }
-
-    public function testTransitionStateInvalidTarget(): void
-    {
-        $recommendation = $this->createTestRecommendation();
-
-        $result = $this->actions->transitionState([], [
-            'recommendationId' => $recommendation->id,
-            'targetState' => 'NonExistentState',
-            'actorId' => self::ADMIN_MEMBER_ID,
-        ]);
-
-        $this->assertFalse($result['success']);
-        $this->assertNotEmpty($result['error']);
-    }
-
-    public function testTransitionStateNonexistentRecommendation(): void
-    {
-        $result = $this->actions->transitionState([], [
-            'recommendationId' => 999999,
-            'targetState' => 'Submitted',
-            'actorId' => self::ADMIN_MEMBER_ID,
-        ]);
-
-        $this->assertFalse($result['success']);
-    }
-
-    // ==========================================================
-    // BulkTransitionState Action Tests
-    // ==========================================================
-
-    public function testBulkTransitionStateProcessesMultiple(): void
-    {
-        $rec1 = $this->createTestRecommendation();
-        $rec2 = $this->createTestRecommendation();
-
-        $states = Recommendation::getStates();
-        $targetState = null;
-        foreach ($states as $state) {
-            if ($state !== $rec1->state) {
-                $targetState = $state;
-                break;
-            }
-        }
-
-        if (!$targetState) {
-            $this->markTestSkipped('Need at least two states for bulk transition test');
-        }
-
-        $result = $this->actions->bulkTransitionState([], [
-            'recommendationIds' => [$rec1->id, $rec2->id],
-            'targetState' => $targetState,
-            'actorId' => self::ADMIN_MEMBER_ID,
-        ]);
-
-        $this->assertTrue($result['success']);
-        $this->assertEquals(2, $result['data']['processedCount']);
-        $this->assertEquals($targetState, $result['data']['targetState']);
-    }
-
-    public function testBulkTransitionStateInvalidIds(): void
-    {
-        $result = $this->actions->bulkTransitionState([], [
-            'recommendationIds' => 'not-an-array',
-            'targetState' => 'Submitted',
-            'actorId' => self::ADMIN_MEMBER_ID,
-        ]);
-
-        $this->assertFalse($result['success']);
-        $this->assertStringContainsString('At least one recommendation ID is required', $result['error']);
-    }
-
     public function testUpdateRecommendationUsesSharedMutationService(): void
     {
         $this->skipIfPostgres();
@@ -383,28 +279,6 @@ class AwardsWorkflowActionsTest extends BaseTestCase
         $recommendations = TableRegistry::getTableLocator()->get('Awards.Recommendations');
         $restoredChild = $recommendations->get($child->id);
         $this->assertNull($restoredChild->recommendation_group_id);
-    }
-
-    // ==========================================================
-    // ApplyStateRules Action Tests
-    // ==========================================================
-
-    public function testApplyStateRulesSetsFields(): void
-    {
-        $recommendation = $this->createTestRecommendation();
-
-        $states = Recommendation::getStates();
-        // Use any valid state - the method applies rules without transitioning
-        $targetState = $states[0] ?? $recommendation->state;
-
-        $result = $this->actions->applyStateRules([], [
-            'recommendationId' => $recommendation->id,
-            'targetState' => $targetState,
-        ]);
-
-        $this->assertTrue($result['success']);
-        $this->assertEquals($recommendation->id, $result['data']['recommendationId']);
-        $this->assertArrayHasKey('appliedRules', $result['data']);
     }
 
     // ==========================================================

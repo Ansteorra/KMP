@@ -5,33 +5,26 @@ namespace Awards\Services;
 
 use Awards\Model\Entity\Recommendation;
 use Cake\ORM\Table;
-use Cake\ORM\TableRegistry;
 
 /**
- * Prepares lookup data for recommendation edit forms (full, quick, and bulk).
+ * Prepares lookup data for recommendation edit forms.
  *
  * Centralises dropdown preparation used by the Turbo Frame templates.
  *
  * @see \Awards\Controller\RecommendationsController::turboEditForm()
  * @see \Awards\Controller\RecommendationsController::turboQuickEditForm()
- * @see \Awards\Controller\RecommendationsController::turboBulkEditForm()
  */
 class RecommendationFormService
 {
     private RecommendationBestowalStatePolicyService $statePolicyService;
 
-    private RecommendationUiModeService $uiModeService;
-
     /**
      * @param \Awards\Services\RecommendationBestowalStatePolicyService|null $statePolicyService Optional state policy.
-     * @param \Awards\Services\RecommendationUiModeService|null $uiModeService Optional UI mode service.
      */
     public function __construct(
         ?RecommendationBestowalStatePolicyService $statePolicyService = null,
-        ?RecommendationUiModeService $uiModeService = null,
     ) {
         $this->statePolicyService = $statePolicyService ?? new RecommendationBestowalStatePolicyService();
-        $this->uiModeService = $uiModeService ?? new RecommendationUiModeService();
     }
 
     /**
@@ -114,49 +107,5 @@ class RecommendationFormService
             'awardsLevels',
             'currentApprovalProcessId',
         );
-    }
-
-    /**
-     * Prepare all view variables for the bulk edit form.
-     *
-     * Loads branches, all gatherings (with cancelled markers), and status/state
-     * rules. Returns an associative array matching the compact() variables expected
-     * by the bulk edit template.
-     *
-     * @param \Cake\ORM\Table $recommendationsTable The Recommendations ORM table.
-     * @return array<string, mixed> View variables: rules, branches, gatheringList, statusList, cancelledGatheringIds.
-     */
-    public function prepareBulkEditFormData(Table $recommendationsTable): array
-    {
-        $branches = $this->buildBranchesList($recommendationsTable->Awards->getTarget());
-
-        // Get gatherings data
-        $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
-        $gatheringsData = $gatheringsTable->find()
-            ->contain(['Branches' => function ($q) {
-                return $q->select(['id', 'name']);
-            }])
-            ->select(['id', 'name', 'start_date', 'end_date', 'cancelled_at', 'Branches.name'])
-            ->orderBy(['start_date' => 'ASC'])
-            ->all();
-
-        $statusList = $this->buildStatusList();
-
-        // Format gathering list for dropdown, tracking cancelled gatherings
-        $gatheringList = [];
-        $cancelledGatheringIds = [];
-        foreach ($gatheringsData as $gathering) {
-            $label = $gathering->name . ' in ' . $gathering->branch->name . ' on '
-                . $gathering->start_date->toDateString() . ' - ' . $gathering->end_date->toDateString();
-            if ($gathering->cancelled_at !== null) {
-                $label = '[CANCELLED] ' . $label;
-                $cancelledGatheringIds[] = $gathering->id;
-            }
-            $gatheringList[$gathering->id] = $label;
-        }
-
-        $rules = $this->uiModeService->buildStateRules();
-
-        return compact('rules', 'branches', 'gatheringList', 'statusList', 'cancelledGatheringIds');
     }
 }

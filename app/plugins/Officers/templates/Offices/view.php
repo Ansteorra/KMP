@@ -132,72 +132,105 @@ echo $this->KMP->startBlock("pageTitle") ?>
 
 echo $this->KMP->startBlock("modals"); ?>
 
-<?php echo $this->Modal->create("Edit Office", [
+<?php
+echo $this->Form->create($office, [
+    "id" => "edit_entity",
+    "url" => [
+        "controller" => "Offices",
+        "action" => "edit",
+        $office->id,
+    ],
+    'data-controller' => 'office-form'
+]);
+echo $this->Modal->create("Edit Office", [
     "id" => "editModal",
     "close" => true,
+    "form" => true,
 ]); ?>
-<fieldset>
-    <?php
-    echo $this->Form->create($office, [
-        "id" => "edit_entity",
-        "url" => [
-            "controller" => "Offices",
-            "action" => "edit",
-            $office->id,
-        ],
-        'data-controller' => 'office-form'
-    ]);
-    echo $this->Form->control("name");
-    echo $this->Form->control("department_id", [
-        "options" => $departments,
-        "empty" => true,
-    ]);
-    echo $this->Form->control("branch_types", [
-        "type" => "select",
-        "multiple" => "checkbox",
-        "options" => $branch_types,
-        "switch" => true,
-        "label" => [
-            "class" => "required",
-        ],
+<div class="row g-3">
+    <div class="col-12 col-xl-6">
+        <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
+            <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                <i class="bi bi-briefcase text-primary me-1" aria-hidden="true"></i>
+                <?= __("Office Identity") ?>
+            </legend>
+            <?php
+            echo $this->Form->control("name");
+            echo $this->Form->control("department_id", [
+                "options" => $departments,
+                "empty" => true,
+            ]);
+            echo $this->Form->control("default_contact_address", [
+                "label" => 'Office Email Template',
+                'help' => 'just the first part of the email address, e.g. "office" for office@example.com',
+            ]);
+            echo $this->Form->control("term_length", [
+                "label" => "Term (Months)",
+                "type" => "number",
+                "tooltip" => "value of 0 will be treated as no term limit",
+            ]);
+            ?>
+        </fieldset>
+    </div>
+    <div class="col-12 col-xl-6">
+        <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
+            <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                <i class="bi bi-toggles text-success me-1" aria-hidden="true"></i>
+                <?= __("Rules") ?>
+            </legend>
+            <?php
+            echo $this->Form->control("required_office", ["switch" => true, 'label' => 'Required']);
+            echo $this->Form->control("can_skip_report", ["switch" => true, 'label' => 'Skip Report']);
+            echo $this->Form->control("requires_warrant", ["switch" => true, 'label' => 'Warrant']);
+            echo $this->Form->control("only_one_per_branch", ["switch" => true, 'label' => 'One Per Branch']);
+            echo $this->Form->control("is_deputy", [
+                "type" => "checkbox",
+                "switch" => true,
+                'label' => 'Is Deputy Office',
+                'data-action' => 'office-form#toggleIsDeputy',
+                'data-office-form-target' => 'isDeputy'
+            ]);
+            ?>
+        </fieldset>
+    </div>
+    <div class="col-12">
+        <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
+            <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                <i class="bi bi-diagram-3 text-info me-1" aria-hidden="true"></i>
+                <?= __("Hierarchy & Scope") ?>
+            </legend>
+            <?php
+            echo $this->Form->control("branch_types", [
+                "type" => "select",
+                "multiple" => "checkbox",
+                "options" => $branch_types,
+                "switch" => true,
+                "label" => [
+                    "class" => "required",
+                ],
 
-    ]);
-    echo $this->Form->control("term_length", [
-        "label" => "Term (Months)",
-        "type" => "number",
-        "tooltip" => "value of 0 will be treated as no term limit",
-    ]);
-    echo $this->Form->control("default_contact_address", ["label" => 'Office Email Template', 'help' => 'just the first part of the email address, e.g. "office" for office@example.com']);
-    echo $this->Form->control("required_office", ["switch" => true, 'label' => 'Required']);
-    echo $this->Form->control("can_skip_report", ["switch" => true, 'label' => 'Skip Report']);
-    echo $this->Form->control("requires_warrant", ["switch" => true, 'label' => 'Warrant']);
-    echo $this->Form->control("only_one_per_branch", ["switch" => true, 'label' => 'One Per Branch']);
-    echo $this->Form->control("is_deputy", [
-        "type" => "checkbox",
-        "switch" => true,
-        'label' => 'Is Deputy Office',
-        'data-action' => 'office-form#toggleIsDeputy',
-        'data-office-form-target' => 'isDeputy'
-    ]);
-    echo $this->Form->control("reports_to_id", [
-        "options" => $report_to_offices,
-        "empty" => true,
-        'data-office-form-target' => 'reportsTo',
-        'container' => ['data-office-form-target' => 'reportsToBlock']
-    ]);
-    echo $this->Form->control("deputy_to_id", [
-        "required" => true,
-        "options" => $deputy_to_offices,
-        "empty" => true,
-        'data-office-form-target' => 'deputyTo',
-        'container' => ['data-office-form-target' => 'deputyToBlock']
-    ]);
-    echo $this->Form->control("grants_role_id", [
-        "options" => $roles,
-        "empty" => true,
-    ]);
-    ?>
-</fieldset>
+            ]);
+            echo $this->Form->control("reports_to_id", [
+                "options" => $report_to_offices,
+                "empty" => true,
+                'data-office-form-target' => 'reportsTo',
+                'container' => ['data-office-form-target' => 'reportsToBlock']
+            ]);
+            echo $this->Form->control("deputy_to_id", [
+                "required" => true,
+                "options" => $deputy_to_offices,
+                "empty" => true,
+                'data-office-form-target' => 'deputyTo',
+                'container' => ['data-office-form-target' => 'deputyToBlock']
+            ]);
+            echo $this->Form->control("grants_role_id", [
+                "options" => $roles,
+                "empty" => true,
+            ]);
+            ?>
+        </fieldset>
+    </div>
+</div>
 <?php echo $this->Modal->end([
     $this->Form->button("Submit", [
         "class" => "btn btn-primary",
@@ -208,7 +241,6 @@ echo $this->KMP->startBlock("modals"); ?>
         "type" => "button",
     ]),
 ]);
-
 echo $this->Form->end(); ?>
 
 

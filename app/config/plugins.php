@@ -1,6 +1,6 @@
 <?php
 
-return [
+$plugins = [
     'DebugKit' => [
         'onlyDebug' => true,
         'optional' => true,
@@ -42,3 +42,9 @@ return [
     //    'migrationOrder' => 6,
     //],
 ];
+
+if (($_SERVER['HTTP_X_KMP_E2E'] ?? '') === '1') {
+    unset($plugins['DebugKit']);
+}
+
+return $plugins;

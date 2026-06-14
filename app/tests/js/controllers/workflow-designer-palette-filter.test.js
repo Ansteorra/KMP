@@ -92,4 +92,29 @@ describe('WorkflowDesignerController palette filter', () => {
         expect(nodePaletteTarget.querySelector('[data-palette-filter-status]'))
             .toHaveTextContent('0 of 11 nodes match.')
     })
+
+    test('palette nodes are keyboard-operable buttons that add nodes to the canvas', () => {
+        const { controller, nodePaletteTarget } = makeController()
+        const status = document.createElement('div')
+        status.id = 'workflow-palette-add-status'
+        document.body.appendChild(status)
+        const canvasTarget = document.createElement('div')
+        Object.defineProperty(canvasTarget, 'getBoundingClientRect', {
+            value: () => ({ width: 600, height: 400, left: 0, top: 0 })
+        })
+        Object.defineProperty(controller, 'hasCanvasTarget', { value: true })
+        Object.defineProperty(controller, 'canvasTarget', { value: canvasTarget })
+        controller.element = document.body
+        controller.editor = { canvas_x: 0, canvas_y: 0 }
+        controller._zoom = 1
+        controller.addNode = jest.fn()
+
+        controller.populateNodePalette()
+        const node = nodePaletteTarget.querySelector('[data-node-type="approval"]')
+        controller.onPaletteNodeKeydown({ key: 'Enter', preventDefault: jest.fn(), currentTarget: node })
+
+        expect(node.tagName).toBe('BUTTON')
+        expect(controller.addNode).toHaveBeenCalledWith('approval', 300, 200, { event: '', action: '' })
+        expect(status).toHaveTextContent('Approval Gate node added to the canvas.')
+    })
 })

@@ -33,23 +33,25 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
     </div>
 
-    <div class="modal-body">
-        <fieldset>
-            <!-- Setting Name (read-only) -->
-            <div class="mb-3">
-                <label class="form-label"><?= __('Setting Name') ?></label>
-                <input type="text" class="form-control" value="<?= h($appSetting->name) ?>" readonly disabled>
-                <?= $this->Form->hidden('name', ['value' => $appSetting->name]) ?>
-            </div>
-
+    <div class="modal-body bg-light-subtle">
+        <fieldset class="border rounded-3 bg-white shadow-sm p-3">
+            <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                <i class="bi bi-gear text-primary me-1" aria-hidden="true"></i>
+                <?= __('Setting Value') ?>
+            </legend>
             <?php $displayType = $appSetting->name === 'Backup.encryptionKey' ? 'password' : ($appSetting->type ?? 'string'); ?>
-
-            <!-- Setting Type (read-only) -->
-            <div class="mb-3">
-                <label class="form-label"><?= __('Type') ?></label>
-                <span class="badge bg-<?= $displayType === 'yaml' ? 'warning' : ($displayType === 'json' ? 'info' : ($displayType === 'password' ? 'dark' : (in_array($displayType, ['file', 'image'], true) ? 'success' : 'secondary'))) ?>">
-                    <?= h(strtoupper($displayType)) ?>
-                </span>
+            <div class="row g-3 mb-3">
+                <div class="col-12 col-lg-6">
+                    <label class="form-label"><?= __('Setting Name') ?></label>
+                    <input type="text" class="form-control" value="<?= h($appSetting->name) ?>" readonly disabled>
+                    <?= $this->Form->hidden('name', ['value' => $appSetting->name]) ?>
+                </div>
+                <div class="col-12 col-lg-6">
+                    <label class="form-label d-block"><?= __('Type') ?></label>
+                    <span class="badge bg-<?= $displayType === 'yaml' ? 'warning' : ($displayType === 'json' ? 'info' : ($displayType === 'password' ? 'dark' : (in_array($displayType, ['file', 'image'], true) ? 'success' : 'secondary'))) ?>">
+                        <?= h(strtoupper($displayType)) ?>
+                    </span>
+                </div>
             </div>
 
             <!-- Value Editor -->

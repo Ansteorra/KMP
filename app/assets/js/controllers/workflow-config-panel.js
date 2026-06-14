@@ -110,7 +110,8 @@ export default class WorkflowConfigPanel {
         if (available.length) {
             if (produced.length) html += '<hr class="my-2">'
             html += '<h6 class="small text-muted mb-2"><i class="bi bi-box-arrow-in-right me-1"></i>Available Variables</h6>'
-            html += '<input type="text" class="form-control form-control-sm mb-2" placeholder="Filter variables..." data-action="input->workflow-designer#filterVariableCatalog">'
+            html += '<label class="form-label form-label-sm visually-hidden" for="workflow-variable-filter">Filter variables</label>'
+            html += '<input type="text" class="form-control form-control-sm mb-2" id="workflow-variable-filter" placeholder="Filter variables..." data-action="input->workflow-designer#filterVariableCatalog">'
             html += this._variableListHTML(available, true)
         }
 
@@ -166,8 +167,8 @@ export default class WorkflowConfigPanel {
             options += `<option value="${t.event}" ${selected}>${t.label}</option>`
         })
         let html = `<div class="mb-3">
-            <label class="form-label">Trigger Event</label>
-            <select class="form-select form-select-sm" name="event" data-action="change->workflow-designer#updateNodeConfig">${options}</select>
+            <label class="form-label" for="workflow-config-event">Trigger Event</label>
+            <select class="form-select form-select-sm" id="workflow-config-event" name="event" data-action="change->workflow-designer#updateNodeConfig">${options}</select>
         </div>`
 
         if (config.event) {
@@ -197,8 +198,8 @@ export default class WorkflowConfigPanel {
         })
 
         let html = `<div class="mb-3">
-            <label class="form-label">Action</label>
-            <select class="form-select form-select-sm" name="action"
+            <label class="form-label" for="workflow-config-action">Action</label>
+            <select class="form-select form-select-sm" id="workflow-config-action" name="action"
                 data-action="change->workflow-designer#updateNodeConfig">${options}</select>
         </div>`
 
@@ -253,14 +254,14 @@ export default class WorkflowConfigPanel {
         }
         const isCore = !config.condition || config.condition.startsWith('Core.')
         let html = `<div class="mb-3">
-            <label class="form-label">Condition</label>
-            <select class="form-select form-select-sm" name="condition" data-action="change->workflow-designer#updateNodeConfig">${options}</select>
+            <label class="form-label" for="workflow-config-condition">Condition</label>
+            <select class="form-select form-select-sm" id="workflow-config-condition" name="condition" data-action="change->workflow-designer#updateNodeConfig">${options}</select>
         </div>`
 
         if (isCore) {
             html += `<div class="mb-3">
-                <label class="form-label">Field Path</label>
-                <input type="text" class="form-control form-control-sm" name="field" value="${config.field || ''}" placeholder="$.entity.field_name" data-action="change->workflow-designer#updateNodeConfig" data-variable-picker="true">
+                <label class="form-label" for="workflow-config-field">Field Path</label>
+                <input type="text" class="form-control form-control-sm" id="workflow-config-field" name="field" value="${config.field || ''}" placeholder="$.entity.field_name" data-action="change->workflow-designer#updateNodeConfig" data-variable-picker="true">
             </div>`
             html += this.renderValuePicker('expectedValue', {
                 label: 'Expected Value',
@@ -316,10 +317,18 @@ export default class WorkflowConfigPanel {
             hiddenAttrs: 'data-action="change->workflow-designer#updateNodeConfig"',
         };
 
+        const approverValueInputIds = {
+            permission: 'workflow-config-approver-value-permission',
+            role: 'workflow-config-approver-value-role',
+            member: 'workflow-config-approver-value-member',
+        }
         const buildAC = (type, url, allowOther, placeholder) => renderAutoComplete({
             ...acSharedOpts,
             url,
             allowOther,
+            inputId: approverValueInputIds[type],
+            resultsId: `${approverValueInputIds[type]}-results`,
+            statusId: `${approverValueInputIds[type]}-status`,
             value: approverType === type && !isContextRef ? effectiveValue : '',
             placeholder,
             initSelection: approverType === type && effectiveValue && !isContextRef
@@ -330,27 +339,30 @@ export default class WorkflowConfigPanel {
         const roleAC = buildAC('role', '/roles/auto-complete', true, 'Search roles...')
         const memberAC = buildAC('member', '/members/auto-complete', false, 'Search members...')
 
-        // Context path input for "context" mode
-        const contextInput = `<input type="text" class="form-control form-control-sm"
-            name="approverValue" value="${this._escapeAttr(isContextRef ? effectiveValue : '')}"
-            placeholder="$.trigger.approvalPermission"
-            data-action="change->workflow-designer#updateNodeConfig"
-            data-variable-picker="true">`
-
-        // Mode toggle dropdown (Fixed Value / Context Variable)
-        const modeToggle = `<select class="form-select form-select-sm" data-approver-value-mode
-                style="max-width: 140px;"
-                data-action="change->workflow-designer#onApproverValueModeChange">
-            <option value="fixed" ${valueMode === 'fixed' ? 'selected' : ''}>Fixed Value</option>
-            <option value="context" ${valueMode === 'context' ? 'selected' : ''}>Context Variable</option>
-        </select>`
-
         // Build each approver section with the mode toggle
         const approverSection = (type, label, acHtml) => {
             const show = approverType === type ? 'block' : 'none'
+            const modeToggleId = `workflow-config-approver-value-mode-${type}`
+            const contextInputId = `workflow-config-approver-value-context-${type}`
+            const valueInputId = valueMode === 'context'
+                ? contextInputId
+                : approverValueInputIds[type]
+            const contextInput = `<input type="text" class="form-control form-control-sm"
+                id="${contextInputId}"
+                name="approverValue" value="${this._escapeAttr(isContextRef ? effectiveValue : '')}"
+                placeholder="$.trigger.approvalPermission"
+                data-action="change->workflow-designer#updateNodeConfig"
+                data-variable-picker="true">`
+            const modeToggle = `<label class="visually-hidden" for="${modeToggleId}">Approver value source for ${label}</label>
+                <select class="form-select form-select-sm" id="${modeToggleId}" data-approver-value-mode
+                    style="max-width: 140px;"
+                    data-action="change->workflow-designer#onApproverValueModeChange">
+                <option value="fixed" ${valueMode === 'fixed' ? 'selected' : ''}>Fixed Value</option>
+                <option value="context" ${valueMode === 'context' ? 'selected' : ''}>Context Variable</option>
+            </select>`
             return `<div data-approver-section="${type}" style="display:${show};">
               <div class="mb-3">
-                <label class="form-label">${label}</label>
+                <label class="form-label" for="${valueInputId}">${label}</label>
                 <div class="input-group input-group-sm mb-1">
                     ${modeToggle}
                 </div>
@@ -365,8 +377,8 @@ export default class WorkflowConfigPanel {
         }
 
         return `<div class="mb-3">
-            <label class="form-label">Approver Type</label>
-            <select class="form-select form-select-sm" name="approverType" data-action="change->workflow-designer#onApproverTypeChange">
+            <label class="form-label" for="workflow-config-approver-type">Approver Type</label>
+            <select class="form-select form-select-sm" id="workflow-config-approver-type" name="approverType" data-action="change->workflow-designer#onApproverTypeChange">
                 <option value="permission" ${approverType === 'permission' ? 'selected' : ''}>By Permission</option>
                 <option value="role" ${approverType === 'role' ? 'selected' : ''}>By Role</option>
                 <option value="member" ${approverType === 'member' ? 'selected' : ''}>Specific Member</option>
@@ -388,8 +400,8 @@ export default class WorkflowConfigPanel {
             // Resolver dropdown
             let resolverHTML = `
               <div class="mb-3">
-                <label class="form-label">Resolver Service</label>
-                <select class="form-select form-select-sm" name="resolverKey"
+                <label class="form-label" for="workflow-config-resolver-key">Resolver Service</label>
+                <select class="form-select form-select-sm" id="workflow-config-resolver-key" name="resolverKey"
                         data-action="change->workflow-designer#onResolverChange">
                     <option value="">Select a resolver...</option>
                     ${this.resolvers.map(r =>
@@ -401,8 +413,8 @@ export default class WorkflowConfigPanel {
             // Method — read-only, auto-populated from selected resolver
             resolverHTML += `
               <div class="mb-3">
-                <label class="form-label text-muted">Method</label>
-                <input type="text" class="form-control form-control-sm"
+                <label class="form-label text-muted" for="workflow-config-resolver-method">Method</label>
+                <input type="text" class="form-control form-control-sm" id="workflow-config-resolver-method"
                        name="approverConfig.method" value="${this._escapeAttr(ac.method || '')}" readonly disabled>
               </div>`;
 
@@ -425,8 +437,8 @@ export default class WorkflowConfigPanel {
         </div>
         <div data-approver-section="policy" style="display:${approverType === 'policy' ? 'block' : 'none'};">
           <div class="mb-3">
-            <label class="form-label">Policy Class</label>
-            <select class="form-select form-select-sm" name="policyClass"
+            <label class="form-label" for="workflow-config-policy-class">Policy Class</label>
+            <select class="form-select form-select-sm" id="workflow-config-policy-class" name="policyClass"
                     data-action="change->workflow-designer#onPolicyClassChange">
               <option value="">Select a policy class...</option>
               ${this.policyClasses.map(p =>
@@ -435,28 +447,28 @@ export default class WorkflowConfigPanel {
             </select>
           </div>
           <div class="mb-3">
-            <label class="form-label">Policy Action</label>
-            <select class="form-select form-select-sm" name="policyAction"
+            <label class="form-label" for="workflow-config-policy-action">Policy Action</label>
+            <select class="form-select form-select-sm" id="workflow-config-policy-action" name="policyAction"
                     data-action="change->workflow-designer#updateNodeConfig">
               <option value="">Select a policy class first...</option>
               ${config.policyAction ? `<option value="${config.policyAction}" selected>${config.policyAction}</option>` : ''}
             </select>
           </div>
           <div class="mb-3">
-            <label class="form-label">Entity Table</label>
-            <input type="text" class="form-control form-control-sm" name="entityTable"
+            <label class="form-label" for="workflow-config-entity-table">Entity Table</label>
+            <input type="text" class="form-control form-control-sm" id="workflow-config-entity-table" name="entityTable"
                    value="${config.entityTable || ''}" placeholder="e.g. WarrantRosters"
                    data-action="change->workflow-designer#updateNodeConfig">
           </div>
           <div class="mb-3">
-            <label class="form-label">Entity ID Key</label>
-            <input type="text" class="form-control form-control-sm" name="entityIdKey"
+            <label class="form-label" for="workflow-config-entity-id-key">Entity ID Key</label>
+            <input type="text" class="form-control form-control-sm" id="workflow-config-entity-id-key" name="entityIdKey"
                    value="${config.entityIdKey || ''}" placeholder="e.g. trigger.rosterId"
                    data-action="change->workflow-designer#updateNodeConfig" data-variable-picker="true">
           </div>
           <div class="mb-3">
-            <label class="form-label">Permission Label</label>
-            <input type="text" class="form-control form-control-sm" name="permission"
+            <label class="form-label" for="workflow-config-permission">Permission Label</label>
+            <input type="text" class="form-control form-control-sm" id="workflow-config-permission" name="permission"
                    value="${config.permission || ''}" placeholder="e.g. Can Approve Warrant Rosters"
                    data-action="change->workflow-designer#updateNodeConfig">
           </div>
@@ -468,21 +480,21 @@ export default class WorkflowConfigPanel {
             description: 'Number of approvals needed'
         }, config.requiredCount, {allowContext: true, allowAppSetting: true})}
         <div class="form-check mb-3">
-            <input type="checkbox" class="form-check-input" name="allowParallel" id="allowParallel" ${config.allowParallel !== false && !config.serialPickNext ? 'checked' : ''} ${config.serialPickNext ? 'disabled' : ''} data-action="change->workflow-designer#updateNodeConfig">
-            <label class="form-check-label" for="allowParallel">Allow Parallel Approvals</label>
+            <input type="checkbox" class="form-check-input" name="allowParallel" id="workflow-config-allow-parallel" ${config.allowParallel !== false && !config.serialPickNext ? 'checked' : ''} ${config.serialPickNext ? 'disabled' : ''} data-action="change->workflow-designer#updateNodeConfig">
+            <label class="form-check-label" for="workflow-config-allow-parallel">Allow Parallel Approvals</label>
         </div>
         <div data-approver-section="dynamic" style="display:${approverType === 'dynamic' ? 'block' : 'none'};">
           <div class="form-check form-switch mb-3">
-            <input type="checkbox" class="form-check-input" name="serialPickNext" id="serialPickNext" ${config.serialPickNext ? 'checked' : ''} data-action="change->workflow-designer#onSerialPickNextChange">
-            <label class="form-check-label" for="serialPickNext">
+            <input type="checkbox" class="form-check-input" name="serialPickNext" id="workflow-config-serial-pick-next" ${config.serialPickNext ? 'checked' : ''} data-action="change->workflow-designer#onSerialPickNextChange">
+            <label class="form-check-label" for="workflow-config-serial-pick-next">
               Serial Pick Next Approver
               <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Each approver picks the next approver from the eligible pool. Approvals happen one at a time in sequence."></i>
             </label>
           </div>
         </div>
         <div class="mb-3">
-            <label class="form-label">Deadline</label>
-            <input type="text" class="form-control form-control-sm" name="deadline" value="${config.deadline || ''}" placeholder="e.g. 7d, 24h" data-action="change->workflow-designer#updateNodeConfig">
+            <label class="form-label" for="workflow-config-deadline">Deadline</label>
+            <input type="text" class="form-control form-control-sm" id="workflow-config-deadline" name="deadline" value="${config.deadline || ''}" placeholder="e.g. 7d, 24h" data-action="change->workflow-designer#updateNodeConfig">
         </div>`
     }
 
@@ -494,8 +506,8 @@ export default class WorkflowConfigPanel {
             description: 'e.g. 1h, 2d, 30m'
         }, config.duration, {allowContext: true, allowAppSetting: true}) +
         `<div class="mb-3">
-            <label class="form-label">Wait For Event (optional)</label>
-            <input type="text" class="form-control form-control-sm" name="waitEvent"
+            <label class="form-label" for="workflow-config-wait-event">Wait For Event (optional)</label>
+            <input type="text" class="form-control form-control-sm" id="workflow-config-wait-event" name="waitEvent"
                 value="${config.waitEvent || ''}" placeholder="Event to resume on"
                 data-action="change->workflow-designer#updateNodeConfig" data-variable-picker="true">
         </div>`
@@ -509,46 +521,46 @@ export default class WorkflowConfigPanel {
             description: 'Maximum loop iterations'
         }, config.maxIterations !== undefined ? config.maxIterations : 100, {allowContext: true, allowAppSetting: true}) +
         `<div class="mb-3">
-            <label class="form-label">Exit Condition</label>
-            <input type="text" class="form-control form-control-sm" name="exitCondition" value="${config.exitCondition || ''}" placeholder="Expression to evaluate" data-action="change->workflow-designer#updateNodeConfig" data-variable-picker="true">
+            <label class="form-label" for="workflow-config-exit-condition">Exit Condition</label>
+            <input type="text" class="form-control form-control-sm" id="workflow-config-exit-condition" name="exitCondition" value="${config.exitCondition || ''}" placeholder="Expression to evaluate" data-action="change->workflow-designer#updateNodeConfig" data-variable-picker="true">
         </div>`
     }
 
     _forEachHTML(config) {
         return `<div class="mb-3">
-            <label class="form-label">Collection Path</label>
-            <input type="text" class="form-control form-control-sm" name="collection"
+            <label class="form-label" for="workflow-config-collection">Collection Path</label>
+            <input type="text" class="form-control form-control-sm" id="workflow-config-collection" name="collection"
                 value="${config.collection || ''}" placeholder="e.g. $.roster.warrants"
                 data-action="change->workflow-designer#updateNodeConfig" data-variable-picker="true">
             <small class="form-text text-muted">Context path to the array to iterate over</small>
         </div>
         <div class="mb-3">
-            <label class="form-label">Item Variable</label>
-            <input type="text" class="form-control form-control-sm" name="itemVariable"
+            <label class="form-label" for="workflow-config-item-variable">Item Variable</label>
+            <input type="text" class="form-control form-control-sm" id="workflow-config-item-variable" name="itemVariable"
                 value="${config.itemVariable || 'currentItem'}" placeholder="currentItem"
                 data-action="change->workflow-designer#updateNodeConfig">
             <small class="form-text text-muted">Context variable name for the current item</small>
         </div>
         <div class="mb-3">
-            <label class="form-label">Index Variable</label>
-            <input type="text" class="form-control form-control-sm" name="indexVariable"
+            <label class="form-label" for="workflow-config-index-variable">Index Variable</label>
+            <input type="text" class="form-control form-control-sm" id="workflow-config-index-variable" name="indexVariable"
                 value="${config.indexVariable || 'currentIndex'}" placeholder="currentIndex"
                 data-action="change->workflow-designer#updateNodeConfig">
             <small class="form-text text-muted">Context variable name for the current index</small>
         </div>
         <div class="form-check mb-3">
             <input type="checkbox" class="form-check-input" name="continueOnError"
-                id="forEach-continueOnError" ${config.continueOnError ? 'checked' : ''}
+                id="workflow-config-foreach-continue-on-error" ${config.continueOnError ? 'checked' : ''}
                 data-action="change->workflow-designer#updateNodeConfig">
-            <label class="form-check-label" for="forEach-continueOnError">Continue on Error</label>
+            <label class="form-check-label" for="workflow-config-foreach-continue-on-error">Continue on Error</label>
             <div><small class="form-text text-muted">If checked, errors are logged but processing continues</small></div>
         </div>`
     }
 
     _subworkflowHTML(config) {
         return `<div class="mb-3">
-            <label class="form-label">Workflow Slug</label>
-            <input type="text" class="form-control form-control-sm" name="workflowSlug"
+            <label class="form-label" for="workflow-config-workflow-slug">Workflow Slug</label>
+            <input type="text" class="form-control form-control-sm" id="workflow-config-workflow-slug" name="workflowSlug"
                 value="${config.workflowSlug || ''}" placeholder="e.g. warrant-approval"
                 data-action="change->workflow-designer#updateNodeConfig">
             <small class="form-text text-muted">The slug of the child workflow to execute</small>
@@ -581,8 +593,8 @@ export default class WorkflowConfigPanel {
             options += `<option value="${s}" ${selected}>${s.charAt(0).toUpperCase() + s.slice(1)}</option>`
         })
         return `<div class="mb-3">
-            <label class="form-label">End Status</label>
-            <select class="form-select form-select-sm" name="status"
+            <label class="form-label" for="workflow-config-end-status">End Status</label>
+            <select class="form-select form-select-sm" id="workflow-config-end-status" name="status"
                 data-action="change->workflow-designer#updateNodeConfig">
                 ${options}
             </select>
@@ -626,6 +638,10 @@ export default class WorkflowConfigPanel {
         const label = fieldMeta.label || fieldName
         const requiredMark = fieldMeta.required ? ' <span class="text-danger">*</span>' : ''
         const escapedFieldName = this._escapeAttr(fieldName)
+        const baseId = this._fieldId(fieldName)
+        const typeId = `${baseId}-source`
+        const inputId = `${baseId}-value`
+        const descriptionId = fieldMeta.description ? `${baseId}-description` : ''
 
         // Type dropdown options
         let typeOptions = `<option value="fixed" ${activeType === 'fixed' ? 'selected' : ''}>Fixed Value</option>`
@@ -639,27 +655,31 @@ export default class WorkflowConfigPanel {
         // Build the dynamic input based on active type
         const inputHTML = this._renderValuePickerInput(fieldName, fieldMeta, activeType, {
             fixedValue, contextPath, settingKey
-        })
+        }, inputId, descriptionId)
 
         return `<div class="mb-2 value-picker" data-vp-field="${escapedFieldName}">
-            <label class="form-label form-label-sm mb-0">${label}${requiredMark}</label>
+            <label class="form-label form-label-sm mb-0" for="${this._escapeAttr(inputId)}">${label}${requiredMark}</label>
             <div class="input-group input-group-sm mb-1">
-                <select class="form-select form-select-sm" data-vp-type="${escapedFieldName}"
+                <label class="visually-hidden" for="${this._escapeAttr(typeId)}">${label} source</label>
+                <select class="form-select form-select-sm" id="${this._escapeAttr(typeId)}" data-vp-type="${escapedFieldName}"
                     data-action="change->workflow-designer#onValuePickerTypeChange"
                     style="max-width: 140px;">
                     ${typeOptions}
                 </select>
                 ${inputHTML}
             </div>
+            ${fieldMeta.description ? `<small class="form-text text-muted" id="${this._escapeAttr(descriptionId)}">${this._escapeAttr(fieldMeta.description)}</small>` : ''}
         </div>`
     }
 
-    _renderValuePickerInput(fieldName, fieldMeta, activeType, values) {
+    _renderValuePickerInput(fieldName, fieldMeta, activeType, values, inputId = '', descriptionId = '') {
         const escapedFieldName = this._escapeAttr(fieldName)
         const dataType = fieldMeta.type || 'string'
+        const idAttr = inputId ? ` id="${this._escapeAttr(inputId)}"` : ''
+        const describedByAttr = descriptionId ? ` aria-describedby="${this._escapeAttr(descriptionId)}"` : ''
 
         if (activeType === 'context') {
-            return `<input type="text" class="form-control form-control-sm"
+            return `<input type="text" class="form-control form-control-sm"${idAttr}${describedByAttr}
                 name="${escapedFieldName}" value="${this._escapeAttr(values.contextPath)}"
                 placeholder="$.path.to.value"
                 data-action="change->workflow-designer#updateNodeConfig"
@@ -668,7 +688,7 @@ export default class WorkflowConfigPanel {
 
         if (activeType === 'app_setting') {
             const keyEsc = this._escapeAttr(values.settingKey)
-            return `<select class="form-select form-select-sm" name="${escapedFieldName}"
+            return `<select class="form-select form-select-sm"${idAttr}${describedByAttr} name="${escapedFieldName}"
                 data-action="change->workflow-designer#updateNodeConfig"
                 data-vp-settings-select="${escapedFieldName}">
                 <option value="">Loading settings...</option>
@@ -678,7 +698,7 @@ export default class WorkflowConfigPanel {
 
         // Fixed value input
         if (dataType === 'integer') {
-            return `<input type="number" class="form-control form-control-sm"
+            return `<input type="number" class="form-control form-control-sm"${idAttr}${describedByAttr}
                 name="${escapedFieldName}" value="${this._escapeAttr(String(values.fixedValue))}"
                 data-action="change->workflow-designer#updateNodeConfig">`
         }
@@ -686,7 +706,7 @@ export default class WorkflowConfigPanel {
         if (dataType === 'boolean') {
             const checked = values.fixedValue ? 'checked' : ''
             return `<div class="form-check ms-2 mt-1">
-                <input type="checkbox" class="form-check-input" name="${escapedFieldName}"
+                <input type="checkbox" class="form-check-input"${idAttr}${describedByAttr} name="${escapedFieldName}"
                     ${checked}
                     data-action="change->workflow-designer#updateNodeConfig">
             </div>`
@@ -702,14 +722,14 @@ export default class WorkflowConfigPanel {
                 options += `<option value="${this._escapeAttr(value)}" ${selected}>${this._escapeAttr(label)}</option>`
             })
 
-            return `<select class="form-select form-select-sm" name="${escapedFieldName}"
+            return `<select class="form-select form-select-sm"${idAttr}${describedByAttr} name="${escapedFieldName}"
                 data-action="change->workflow-designer#updateNodeConfig">
                 ${options}
             </select>`
         }
 
         // Default: string text input
-        return `<input type="text" class="form-control form-control-sm"
+        return `<input type="text" class="form-control form-control-sm"${idAttr}${describedByAttr}
             name="${escapedFieldName}" value="${this._escapeAttr(String(values.fixedValue))}"
             data-action="change->workflow-designer#updateNodeConfig">`
     }
@@ -724,10 +744,11 @@ export default class WorkflowConfigPanel {
         const label = fieldMeta.label || fieldName
         const escaped = this._escapeAttr(fieldName)
         const currentId = currentValue ? String(currentValue) : ''
+        const inputId = this._fieldId(fieldName, 'email-template')
 
         return `<div class="mb-3">
-            <label class="form-label form-label-sm">${label}${fieldMeta.required ? ' <span class="text-danger">*</span>' : ''}</label>
-            <select class="form-select form-select-sm" name="${escaped}"
+            <label class="form-label form-label-sm" for="${this._escapeAttr(inputId)}">${label}${fieldMeta.required ? ' <span class="text-danger">*</span>' : ''}</label>
+            <select class="form-select form-select-sm" id="${this._escapeAttr(inputId)}" name="${escaped}"
                 data-action="change->workflow-designer#onEmailTemplateChange"
                 data-email-template-select="true">
                 <option value="">Loading templates…</option>
@@ -911,6 +932,10 @@ export default class WorkflowConfigPanel {
     _escapeAttr(str) {
         if (!str) return ''
         return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    }
+
+    _fieldId(fieldName, suffix = 'field') {
+        return `workflow-config-${String(fieldName).replace(/[^a-zA-Z0-9_-]/g, '-')}-${suffix}`
     }
 
     _isSchemaFieldHidden(meta) {

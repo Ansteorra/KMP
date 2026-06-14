@@ -17,6 +17,7 @@ $formUrl = $this->URL->build(['plugin' => 'Awards', 'controller' => 'Recommendat
 echo $this->Modal->create('Edit Recommendation', [
     'id' => $modalId,
     'close' => true,
+    'form' => true,
 ]);
 ?>
 <turbo-frame id="editRecommendationQuick"

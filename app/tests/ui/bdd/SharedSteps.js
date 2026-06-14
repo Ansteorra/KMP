@@ -3,6 +3,7 @@ const { expect } = require('@playwright/test');
 const { getMailpitApiUrl, getUiTestEnvironment } = require('../support/test-environment.cjs');
 const {
     clearMailpitMessages,
+    clearActivityAuthorizationFixtures,
     clickTabAndWait,
     flushWorkflowsAndQueue,
     loginAs,
@@ -182,6 +183,7 @@ Given('I delete all test emails', async ({ page }) => {
     // arrive mid-scenario. Do not fail setup on unrelated stuck jobs; strict
     // queue checks stay in the email assertions that depend on them.
     await waitForQueueSettled({ timeoutMs: 10000, throwOnTimeout: false });
+    clearActivityAuthorizationFixtures();
     await clearMailpitMessages(page.request);
 });
 
@@ -299,6 +301,11 @@ When('I submit the form', async ({ page }) => {
 // ── Navigation ──────────────────────────────────────────────────────
 
 Given('I navigate to {string}', async ({ page }, path) => {
+    await page.goto(path, { waitUntil: 'domcontentloaded' });
+    await waitForPageBody(page);
+});
+
+When('I navigate to {string}', async ({ page }, path) => {
     await page.goto(path, { waitUntil: 'domcontentloaded' });
     await waitForPageBody(page);
 });

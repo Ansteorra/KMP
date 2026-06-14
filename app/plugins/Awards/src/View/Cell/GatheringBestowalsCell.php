@@ -1,12 +1,14 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Awards\View\Cell;
 
 use Awards\Model\Entity\Bestowal;
-use Cake\View\Cell;
+use Awards\Services\BestowalFormService;
+use Cake\Log\Log;
 use Cake\ORM\TableRegistry;
+use Cake\View\Cell;
+use Exception;
 
 /**
  * Gathering Bestowals View Cell
@@ -29,8 +31,8 @@ class GatheringBestowalsCell extends Cell
         $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
         try {
             $gathering = $gatheringsTable->get($gatheringId);
-        } catch (\Exception $e) {
-            \Cake\Log\Log::error('GatheringBestowalsCell: Gathering not found: ' . $e->getMessage());
+        } catch (Exception $e) {
+            Log::error('GatheringBestowalsCell: Gathering not found: ' . $e->getMessage());
 
             return;
         }
@@ -61,9 +63,10 @@ class GatheringBestowalsCell extends Cell
 
         $rules = Bestowal::getStateRules();
         $gatheringList = [];
+        $adHocFormData = (new BestowalFormService())->prepareAdHocFormData($currentUser);
 
         $this->set('gatheringId', $gathering->id);
         $this->set('isEmpty', $isEmpty);
-        $this->set(compact('rules', 'statusList', 'gatheringList', 'canManage'));
+        $this->set(compact('rules', 'statusList', 'gatheringList', 'canManage', 'adHocFormData'));
     }
 }

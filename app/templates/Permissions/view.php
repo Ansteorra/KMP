@@ -308,7 +308,7 @@ if ($user->isSuperUser()): ?>
 
         <!-- Import Preview Modal -->
         <div class="modal fade" tabindex="-1" data-permission-import-target="modal">
-            <div class="modal-dialog modal-lg">
+            <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">
@@ -316,7 +316,7 @@ if ($user->isSuperUser()): ?>
                         </h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-                    <div class="modal-body" data-permission-import-target="modalContent">
+                    <div class="modal-body bg-light-subtle" data-permission-import-target="modalContent">
                         <div data-permission-import-target="summary"></div>
                         <div class="row">
                             <div class="col-md-6">
@@ -354,8 +354,14 @@ echo $this->Form->create(null, [
 echo $this->Modal->create("Add Role to Permissions", [
     "id" => "addRoleModal",
     "close" => true,
+    "form" => true,
+    "size" => "modal-lg",
 ]); ?>
-<fieldset>
+<fieldset class="border rounded-3 bg-white shadow-sm p-3">
+    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+        <i class="bi bi-person-plus text-primary me-1" aria-hidden="true"></i>
+        <?= __("Role Assignment") ?>
+    </legend>
     <?php
     echo $this->KMP->comboBoxControl(
         $this->Form,
@@ -402,30 +408,62 @@ echo $this->Form->create($permission, [
 echo $this->Modal->create("Edit Permissions", [
     "id" => "editModal",
     "close" => true,
+    "form" => true,
+    "size" => "modal-lg",
 ]); ?>
-<fieldset>
+<div class="row g-3">
+    <div class="col-12 col-lg-5">
+        <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
+    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+        <i class="bi bi-shield-lock text-primary me-1" aria-hidden="true"></i>
+        <?= __("Permission Details") ?>
+    </legend>
     <?php
     if ($permission->is_system) {
         echo $this->Form->control("name", ["disabled" => "disabled"]);
     } else {
         echo $this->Form->control("name");
     }
-    echo $this->Form->control("require_active_membership", [
-        "switch" => true,
-        "label" => "Require Membership",
-    ]);
-    echo $this->Form->control("require_active_background_check", [
-        "switch" => true,
-        "label" => "Require Background Check",
-    ]);
-    echo $this->Form->control("require_min_age", [
-        "label" => "Minimum Age",
-        "type" => "number",
-    ]);
     echo $this->Form->control("scoping_rule", [
         "options" => \App\Model\Entity\Permission::SCOPING_RULES,
         "empty" => true,
     ]);
+    ?>
+        </fieldset>
+    </div>
+    <div class="col-12 col-lg-7">
+        <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
+            <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                <i class="bi bi-person-check text-success me-1" aria-hidden="true"></i>
+                <?= __("Eligibility Requirements") ?>
+            </legend>
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <?php
+    echo $this->Form->control("require_active_membership", [
+        "switch" => true,
+        "label" => "Require Membership",
+    ]);
+                    ?>
+                </div>
+                <div class="col-12 col-md-6">
+                    <?php
+    echo $this->Form->control("require_active_background_check", [
+        "switch" => true,
+        "label" => "Require Background Check",
+    ]);
+                    ?>
+                </div>
+                <div class="col-12 col-md-6">
+                    <?php
+    echo $this->Form->control("require_min_age", [
+        "label" => "Minimum Age",
+        "type" => "number",
+    ]);
+                    ?>
+                </div>
+                <div class="col-12 col-md-6">
+                    <?php
     if ($user->isSuperUser()) {
         echo $this->Form->control("is_super_user", ["switch" => true]);
     } else {
@@ -434,9 +472,17 @@ echo $this->Modal->create("Edit Permissions", [
             "disabled" => "disabled",
         ]);
     }
+                    ?>
+                </div>
+                <div class="col-12 col-md-6">
+                    <?php
     echo $this->Form->control("requires_warrant", ["switch" => true]);
     ?>
-</fieldset>
+                </div>
+            </div>
+        </fieldset>
+    </div>
+</div>
 <?php echo $this->Modal->end([
     $this->Form->button("Submit", [
         "class" => "btn btn-primary",

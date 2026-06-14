@@ -121,6 +121,20 @@ class InitWorkflowDefinitionsSeedTest extends BaseTestCase
         }
     }
 
+    public function testObsoleteRecommendationStateWorkflowsAreNotSeeded(): void
+    {
+        require_once ROOT . '/config/Seeds/InitWorkflowDefinitionsSeed.php';
+
+        $seed = new InitWorkflowDefinitionsSeed();
+        $workflowMetaBySlug = [];
+        foreach ($seed->getWorkflowMeta() as $workflowMeta) {
+            $workflowMetaBySlug[$workflowMeta['slug']] = $workflowMeta;
+        }
+
+        $this->assertArrayNotHasKey('awards-recommendation-state-changed', $workflowMetaBySlug);
+        $this->assertArrayNotHasKey('awards-recommendation-bulk-transition', $workflowMetaBySlug);
+    }
+
     /**
      * @return array<string, mixed>
      */

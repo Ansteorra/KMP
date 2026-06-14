@@ -22,8 +22,6 @@ class RebuildAwardRecommendationWorkflowDefinitions extends BaseMigration
     private const TARGET_SLUGS = [
         'awards-recommendation-submitted',
         'awards-recommendation-updated',
-        'awards-recommendation-state-changed',
-        'awards-recommendation-bulk-transition',
         'awards-recommendations-group',
         'awards-recommendations-ungroup',
         'awards-recommendation-remove-from-group',

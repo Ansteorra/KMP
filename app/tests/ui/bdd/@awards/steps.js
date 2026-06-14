@@ -889,7 +889,7 @@ const getRecommendationFieldLocator = (modal, fieldLabel) => {
 };
 
 const searchRecommendationsGrid = async (page, query, options = {}) => {
-    await page.waitForSelector('table.table tbody tr', { state: 'visible', timeout: 30000 });
+    await waitForGridRows(page, GRID_ROWS_SELECTOR);
     const filterBtn = page.locator('#filterDropdown, button:has-text("Filter")').first();
     await filterBtn.click();
     await page.waitForTimeout(300);
@@ -929,7 +929,7 @@ const searchRecommendationsGrid = async (page, query, options = {}) => {
 };
 
 const searchCurrentGrid = async (page, query) => {
-    await waitForGridRows(page, GRID_ROWS_SELECTOR);
+    await expect(page.locator('table.table, .dataTable, table').first()).toBeVisible({ timeout: 30000 });
     const filterBtn = page.locator('#filterDropdown, button:has-text("Filter")').first();
     await filterBtn.click();
 
@@ -2058,7 +2058,9 @@ const waitForBestowalsGrid = async (page) => {
     await expect(page.locator('body')).not.toContainText('Database Error');
     await expect(page.locator('body')).not.toContainText('TypeError');
     await expect(page.locator('body')).not.toContainText('Content missing');
-    await page.waitForSelector('turbo-frame#bestowals-grid table.table tbody tr', { state: 'visible', timeout: 30000 });
+    const grid = page.locator('turbo-frame#bestowals-grid');
+    await expect(grid.locator('table.table')).toBeVisible({ timeout: 30000 });
+    await expect(grid).toContainText(/showing \d+ record\(s\)/i, { timeout: 30000 });
 };
 
 Then('the bestowals grid should load successfully', async ({ page }) => {

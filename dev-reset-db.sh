@@ -13,10 +13,11 @@
 #   2. MySQL/MariaDB: loads dev_seed_clean.sql, then runs remaining migrations
 #   3. PostgreSQL: migrates to the baseline, loads the converted baseline seed
 #   4. Runs remaining migrations/update tasks
-#   5. Migrates the platform DB and registers local tenants
-#   6. Resets all baseline tenant member passwords
-#   7. PostgreSQL seeded resets load a pruned second local tenant
-#   8. Rebuilds the test database schema from the reset dev database
+#   5. Reconciles seeded Awards recommendations into workflow/bestowal ownership
+#   6. Migrates the platform DB and registers local tenants
+#   7. Resets all baseline tenant member passwords
+#   8. PostgreSQL seeded resets load a pruned second local tenant
+#   9. Rebuilds the test database schema from the reset dev database
 
 set -e
 set -o pipefail
@@ -65,6 +66,7 @@ if ! printf '%s\n' "$RUNNING_SERVICES" | grep -x "app" >/dev/null; then
 fi
 
 BACKGROUND_SERVICES_TO_RESTART=()
+APP_SERVICE_STOPPED=false
 for service in worker scheduler; do
     if printf '%s\n' "$RUNNING_SERVICES" | grep -x "$service" >/dev/null; then
         BACKGROUND_SERVICES_TO_RESTART+=("$service")
@@ -73,6 +75,12 @@ done
 
 restart_background_services() {
     status=$?
+    if [ "$APP_SERVICE_STOPPED" = true ]; then
+        echo "[cleanup] Restarting app service"
+        if ! "${COMPOSE[@]}" start app >/dev/null; then
+            echo "⚠️  Warning: failed to restart the app service. Run ./dev-up.sh to recover."
+        fi
+    fi
     if [ ${#BACKGROUND_SERVICES_TO_RESTART[@]} -gt 0 ]; then
         echo "[cleanup] Restarting background services: ${BACKGROUND_SERVICES_TO_RESTART[*]}"
         if ! "${COMPOSE[@]}" start "${BACKGROUND_SERVICES_TO_RESTART[@]}" >/dev/null; then
@@ -90,6 +98,10 @@ fi
 
 DB_DRIVER="$(env_or_file KMP_DB_DRIVER postgres)"
 DB_DRIVER="$(printf '%s' "$DB_DRIVER" | tr '[:upper:]' '[:lower:]')"
+
+echo "[pre] Pausing app service during database drop/recreate"
+"${COMPOSE[@]}" stop app >/dev/null
+APP_SERVICE_STOPPED=true
 
 if [ "$DB_DRIVER" = "postgres" ] || [ "$DB_DRIVER" = "pgsql" ]; then
     echo "[1/7] Dropping and recreating app and platform databases..."
@@ -116,6 +128,32 @@ if [ "$DB_DRIVER" = "postgres" ] || [ "$DB_DRIVER" = "pgsql" ]; then
         -v tenant2testdb="${SECOND_TENANT_TEST_DB}" \
         -v legacytenant2db="${LEGACY_SECOND_TENANT_DB}" \
         -v legacytenant2testdb="${LEGACY_SECOND_TENANT_TEST_DB}" <<'SQL'
+SELECT pg_terminate_backend(pid)
+FROM pg_stat_activity
+WHERE datname IN (
+    :'db',
+    :'testdb',
+    :'platformdb',
+    :'platformtestdb',
+    :'tenant2db',
+    :'tenant2testdb',
+    :'legacytenant2db',
+    :'legacytenant2testdb'
+)
+  AND pid <> pg_backend_pid();
+SELECT format('ALTER DATABASE %I WITH ALLOW_CONNECTIONS false;', datname)
+FROM pg_database
+WHERE datname IN (
+    :'db',
+    :'testdb',
+    :'platformdb',
+    :'platformtestdb',
+    :'tenant2db',
+    :'tenant2testdb',
+    :'legacytenant2db',
+    :'legacytenant2testdb'
+)
+\gexec
 SELECT pg_terminate_backend(pid)
 FROM pg_stat_activity
 WHERE datname IN (
@@ -163,6 +201,10 @@ else
     exit 1
 fi
 
+echo "[pre] Restarting app service for migrations and seed tasks"
+"${COMPOSE[@]}" start app >/dev/null
+APP_SERVICE_STOPPED=false
+
 if [ "$LOAD_SEED" = true ] && [ "$DB_DRIVER" != "postgres" ] && [ "$DB_DRIVER" != "pgsql" ] && [ -f "dev_seed_clean.sql" ]; then
     echo "[2/5] Loading seed data snapshot from dev_seed_clean.sql..."
     "${COMPOSE[@]}" exec -T db mariadb -u"${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" < dev_seed_clean.sql
@@ -185,6 +227,12 @@ elif [ "$LOAD_SEED" = true ] && { [ "$DB_DRIVER" = "postgres" ] || [ "$DB_DRIVER
     "${COMPOSE[@]}" exec -T app bin/cake migrations migrate --no-lock --plugin Waivers --target 20260131001511
     "${COMPOSE[@]}" exec -T app bin/cake migrations migrate --no-lock --plugin Tools --target 20200430170235
 
+    echo "[3/6] Running remaining core migrations before baseline data load..."
+    "${COMPOSE[@]}" exec -T app bin/cake migrations migrate --no-lock
+
+    EMAIL_TEMPLATE_DUMP="$(mktemp)"
+    "${COMPOSE[@]}" exec -T app sh -lc 'pg_dump "$DATABASE_URL" --data-only --column-inserts --table=email_templates' > "$EMAIL_TEMPLATE_DUMP"
+
     SEEDED_TABLES="$(grep -oE 'INSERT INTO "[^"]+"' "$PG_SEED_FILE" \
         | sed -E 's/INSERT INTO "([^"]+)"/"\1"/' \
         | sort -u \
@@ -194,14 +242,277 @@ elif [ "$LOAD_SEED" = true ] && { [ "$DB_DRIVER" = "postgres" ] || [ "$DB_DRIVER
             | "${COMPOSE[@]}" exec -T app sh -lc 'psql "$DATABASE_URL" -q -v ON_ERROR_STOP=1' >/dev/null
     fi
 
-    echo "[3/5] Loading PostgreSQL baseline seed from $PG_SEED_FILE..."
+    echo "[4/6] Loading PostgreSQL baseline seed from $PG_SEED_FILE..."
     "${COMPOSE[@]}" exec -T app sh -lc 'psql "$DATABASE_URL" -q -v ON_ERROR_STOP=1' < "$PG_SEED_FILE" >/dev/null
+
+    echo "[5/6] Restoring migration-seeded workflow and email template configuration..."
+    "${COMPOSE[@]}" exec -T app sh -lc 'psql "$DATABASE_URL" -q -v ON_ERROR_STOP=1' < "$EMAIL_TEMPLATE_DUMP" >/dev/null
+    rm -f "$EMAIL_TEMPLATE_DUMP"
+    "${COMPOSE[@]}" exec -T app sh -lc 'psql "$DATABASE_URL" -q -v ON_ERROR_STOP=1' <<'SQL'
+INSERT INTO email_templates (
+    slug,
+    name,
+    description,
+    subject_template,
+    text_template,
+    html_template,
+    available_vars,
+    variables_schema,
+    is_active,
+    created,
+    modified,
+    created_by,
+    modified_by
+) VALUES
+(
+    'authorization-approval-request',
+    'Authorization Approval Request',
+    'Sent to the next approver when an authorization request needs review.',
+    'Authorization Approval Request',
+    'Good day {{approverScaName}}
+
+{{memberScaName}} has requested your authorization in the fine and noble art of {{activityName}}. If
+you could go to the following link to respond to the request, that would be most kind and helpful.
+
+{{authorizationResponseUrl}}
+
+
+Thank you
+{{siteAdminSignature}}.',
+    'Good day {{approverScaName}}
+
+{{memberScaName}} has requested your authorization in the fine and noble art of {{activityName}}. If
+you could go to the following link to respond to the request, that would be most kind and helpful.
+
+{{authorizationResponseUrl}}
+
+
+Thank you
+{{siteAdminSignature}}.',
+    '["authorizationResponseUrl","memberScaName","approverScaName","activityName","siteAdminSignature"]',
+    '{"authorizationResponseUrl":{"type":"string","label":"Authorization Response URL","required":true},"memberScaName":{"type":"string","label":"Member SCA Name","required":true},"approverScaName":{"type":"string","label":"Approver SCA Name","required":true},"activityName":{"type":"string","label":"Activity Name","required":true},"siteAdminSignature":{"type":"string","label":"Site Admin Signature"}}',
+    TRUE,
+    NOW(),
+    NOW(),
+    1,
+    1
+),
+(
+    'authorization-request-update',
+    'Authorization Request Update',
+    'Sent to the requester when an authorization request status changes.',
+    'Update on Authorization Request',
+    'Good day {{memberScaName}}
+
+{{approverScaName}} has responded to your request and the authorization is now {{status}} for
+{{activityName}}.
+
+
+{{#if status == "Pending"}}
+Your request has been forwarded to {{nextApproverScaName}} for additional approval.
+{{/if}}
+
+{{#if status == "Denied"}}
+If you feel this decision was made in error please reach out to {{approverScaName}} for more information.
+{{/if}}
+
+{{#if status == "Revoked"}}
+If you feel this decision was made in error please reach out to {{approverScaName}} for more information.
+{{/if}}
+
+
+{{#if status == "Approved" || status == "Revoked"}}
+You may view your updated member card at the following URL:
+
+{{memberCardUrl}}
+{{/if}}
+
+Thank you
+{{siteAdminSignature}}.',
+    'Good day {{memberScaName}}
+
+{{approverScaName}} has responded to your request and the authorization is now {{status}} for
+{{activityName}}.
+
+
+{{#if status == "Pending"}}
+Your request has been forwarded to {{nextApproverScaName}} for additional approval.
+{{/if}}
+
+{{#if status == "Denied"}}
+If you feel this decision was made in error please reach out to {{approverScaName}} for more information.
+{{/if}}
+
+{{#if status == "Revoked"}}
+If you feel this decision was made in error please reach out to {{approverScaName}} for more information.
+{{/if}}
+
+
+{{#if status == "Approved" || status == "Revoked"}}
+You may view your updated member card at the following URL:
+
+{{memberCardUrl}}
+{{/if}}
+
+Thank you
+{{siteAdminSignature}}.',
+    '["memberScaName","approverScaName","status","activityName","memberCardUrl","nextApproverScaName","siteAdminSignature"]',
+    '{"memberScaName":{"type":"string","label":"Member SCA Name","required":true},"approverScaName":{"type":"string","label":"Approver SCA Name","required":true},"status":{"type":"string","label":"Authorization Status","required":true},"activityName":{"type":"string","label":"Activity Name","required":true},"memberCardUrl":{"type":"string","label":"Member Card URL","required":true},"nextApproverScaName":{"type":"string","label":"Next Approver SCA Name"},"siteAdminSignature":{"type":"string","label":"Site Admin Signature"}}',
+    TRUE,
+    NOW(),
+    NOW(),
+    1,
+    1
+)
+ON CONFLICT (slug) DO NOTHING;
+SQL
+    "${COMPOSE[@]}" exec -T app bin/cake migrations seed --seed InitWorkflowDefinitionsSeed >/dev/null
+    "${COMPOSE[@]}" exec -T app sh -lc 'psql "$DATABASE_URL" -q -v ON_ERROR_STOP=1' <<'SQL'
+WITH definition AS (
+    INSERT INTO workflow_definitions (
+        name,
+        slug,
+        description,
+        trigger_type,
+        trigger_config,
+        entity_type,
+        is_active,
+        execution_mode,
+        current_version_id,
+        created_by,
+        modified_by,
+        created,
+        modified
+    ) VALUES (
+        'Award Recommendation Feedback Request',
+        'awards-recommendation-feedback-request',
+        'Routes recommendation feedback requests into the Action Items approval queue.',
+        'event',
+        '{"event":"Awards.RecommendationFeedbackRequested"}',
+        'Awards.RecommendationFeedbackRequests',
+        TRUE,
+        'durable',
+        NULL,
+        1,
+        1,
+        NOW(),
+        NOW()
+    )
+    ON CONFLICT (slug) DO UPDATE SET
+        name = EXCLUDED.name,
+        description = EXCLUDED.description,
+        trigger_type = EXCLUDED.trigger_type,
+        trigger_config = EXCLUDED.trigger_config,
+        entity_type = EXCLUDED.entity_type,
+        is_active = EXCLUDED.is_active,
+        execution_mode = EXCLUDED.execution_mode,
+        modified_by = EXCLUDED.modified_by,
+        modified = EXCLUDED.modified
+    RETURNING id
+),
+version AS (
+    INSERT INTO workflow_versions (
+        workflow_definition_id,
+        version_number,
+        definition,
+        canvas_layout,
+        status,
+        published_at,
+        published_by,
+        change_notes,
+        created_by,
+        created,
+        modified
+    )
+    SELECT
+        definition.id,
+        1,
+        '{
+            "nodes": {
+                "trigger-feedback": {
+                    "type": "trigger",
+                    "label": "Recommendation Feedback Requested",
+                    "config": {
+                        "event": "Awards.RecommendationFeedbackRequested",
+                        "entityIdField": "feedbackRequestId"
+                    },
+                    "outputs": [
+                        {
+                            "port": "next",
+                            "target": "create-feedback-approval"
+                        }
+                    ]
+                },
+                "create-feedback-approval": {
+                    "type": "action",
+                    "label": "Create Feedback Approval",
+                    "config": {
+                        "action": "Awards.CreateFeedbackApproval",
+                        "nodeId": "create-feedback-approval",
+                        "params": {
+                            "recipientId": "$.trigger.recipientId",
+                            "feedbackRequestRecipientId": "$.trigger.feedbackRequestRecipientId",
+                            "deadline": "$.trigger.deadline"
+                        }
+                    },
+                    "outputs": [
+                        {
+                            "port": "next",
+                            "target": "end-feedback"
+                        }
+                    ]
+                },
+                "end-feedback": {
+                    "type": "end",
+                    "label": "Feedback Approval Created",
+                    "config": [],
+                    "outputs": []
+                }
+            },
+            "startNode": "trigger-feedback"
+        }',
+        '{}',
+        'published',
+        NOW(),
+        1,
+        'Initial recommendation feedback request workflow',
+        1,
+        NOW(),
+        NOW()
+    FROM definition
+    ON CONFLICT (workflow_definition_id, version_number) DO UPDATE SET
+        definition = EXCLUDED.definition,
+        canvas_layout = EXCLUDED.canvas_layout,
+        status = EXCLUDED.status,
+        published_at = EXCLUDED.published_at,
+        published_by = EXCLUDED.published_by,
+        change_notes = EXCLUDED.change_notes,
+        modified = EXCLUDED.modified
+    RETURNING id, workflow_definition_id
+)
+UPDATE workflow_definitions
+SET current_version_id = version.id
+FROM version
+WHERE workflow_definitions.id = version.workflow_definition_id;
+SQL
 
     SEEDED_MEMBER_COUNT="$("${COMPOSE[@]}" exec -T app sh -lc 'psql "$DATABASE_URL" -At -c "SELECT count(*) FROM members"')"
     echo "      Seeded members: ${SEEDED_MEMBER_COUNT}"
 
-    echo "[4/5] Running remaining migrations/updateDatabase..."
+    echo "[6/6] Running plugin migrations/updateDatabase..."
     "${COMPOSE[@]}" exec -T app bin/cake updateDatabase
+
+    echo "      Restoring Awards approval process seed data..."
+    "${COMPOSE[@]}" exec -T app sh -lc 'psql "$DATABASE_URL" -q -v ON_ERROR_STOP=1 -c "DELETE FROM awards_phinxlog WHERE version = 20260604184500"' >/dev/null
+    "${COMPOSE[@]}" exec -T app bin/cake migrations migrate --no-lock --plugin Awards >/dev/null
+    "${COMPOSE[@]}" exec -T app sh -lc 'psql "$DATABASE_URL" -q -v ON_ERROR_STOP=1' <<'SQL'
+UPDATE workflow_definitions
+SET current_version_id = workflow_versions.id
+FROM workflow_versions
+WHERE workflow_definitions.slug = 'awards-recommendation-feedback-request'
+  AND workflow_versions.workflow_definition_id = workflow_definitions.id
+  AND workflow_versions.version_number = 1;
+SQL
 else
     echo "[2/5] Running CakePHP resetDatabase (fresh schema)..."
     "${COMPOSE[@]}" exec -T app bin/cake resetDatabase || echo "  (resetDatabase command may not exist yet)"
@@ -215,11 +526,118 @@ if [ "$LOAD_SEED" != true ] || { [ "$DB_DRIVER" != "postgres" ] && [ "$DB_DRIVER
     "${COMPOSE[@]}" exec -T app bin/cake updateDatabase || echo "  (updateDatabase command may not exist yet)"
 fi
 
-if [ "$(env_or_file KMP_DEV_RESET_MIGRATE_RECOMMENDATIONS 0)" = "1" ]; then
-    echo "[post] Migrating award recommendations into lifecycle ownership..."
-    "${COMPOSE[@]}" exec -T app bin/cake awards migrate_award_recommendations --apply --allow-open-manual-review
-else
-    echo "[post] Skipping legacy award recommendation migration (set KMP_DEV_RESET_MIGRATE_RECOMMENDATIONS=1 to run it)."
+if [ "$LOAD_SEED" = true ]; then
+    AWARD_RECOMMENDATION_MIGRATION="$(env_or_file KMP_DEV_RESET_MIGRATE_RECOMMENDATIONS 1)"
+    if [ "$AWARD_RECOMMENDATION_MIGRATION" = "1" ]; then
+        if [ "$DB_DRIVER" = "postgres" ] || [ "$DB_DRIVER" = "pgsql" ]; then
+            echo "[post] Backfilling seeded award recommendations into bestowals..."
+            "${COMPOSE[@]}" exec -T app sh -lc 'psql "$DATABASE_URL" -q -v ON_ERROR_STOP=1' <<'SQL'
+WITH eligible_recommendations AS (
+    SELECT
+        r.id,
+        r.member_id,
+        r.gathering_id,
+        r.award_id,
+        r.reason,
+        r.call_into_court,
+        r.court_availability,
+        r.person_to_notify,
+        r.given,
+        r.created,
+        r.created_by,
+        r.modified_by,
+        CASE
+            WHEN r.state = 'Need to Schedule' AND r.gathering_id IS NOT NULL THEN 'Gathering Assigned'
+            WHEN r.state = 'Need to Schedule' THEN 'Created'
+            WHEN r.state = 'Scheduled' THEN 'Court Scheduled'
+            WHEN r.state = 'Given' THEN 'Given'
+            WHEN r.state = 'Announced Not Given' THEN 'Announced Not Given'
+            ELSE 'Created'
+        END AS bestowal_state
+    FROM awards_recommendations r
+    WHERE r.deleted IS NULL
+      AND r.recommendation_group_id IS NULL
+      AND r.bestowal_id IS NULL
+      AND r.state IN ('Need to Schedule', 'Scheduled', 'Given', 'Announced Not Given')
+),
+inserted_bestowals AS (
+    INSERT INTO awards_bestowals (
+        member_id,
+        gathering_id,
+        award_id,
+        primary_recommendation_id,
+        status,
+        state,
+        stack_rank,
+        bestowed_at,
+        source,
+        noble_notes,
+        herald_notes,
+        call_into_court,
+        court_availability,
+        person_to_notify,
+        created,
+        modified,
+        created_by,
+        modified_by
+    )
+    SELECT
+        r.member_id,
+        r.gathering_id,
+        r.award_id,
+        r.id,
+        COALESCE(bs.name, 'Planning'),
+        r.bestowal_state,
+        0,
+        r.given,
+        'recommendation',
+        r.reason,
+        NULL,
+        r.call_into_court,
+        r.court_availability,
+        r.person_to_notify,
+        COALESCE(r.created, NOW()),
+        NOW(),
+        r.created_by,
+        r.modified_by
+    FROM eligible_recommendations r
+    LEFT JOIN awards_bestowal_states s ON s.name = r.bestowal_state
+    LEFT JOIN awards_bestowal_statuses bs ON bs.id = s.status_id
+    RETURNING id, primary_recommendation_id
+),
+updated_recommendations AS (
+    UPDATE awards_recommendations r
+    SET bestowal_id = b.id
+    FROM inserted_bestowals b
+    WHERE r.id = b.primary_recommendation_id
+    RETURNING r.id AS recommendation_id, b.id AS bestowal_id
+),
+linked_group_children AS (
+    UPDATE awards_recommendations child
+    SET bestowal_id = parent.bestowal_id
+    FROM updated_recommendations parent
+    WHERE child.deleted IS NULL
+      AND child.recommendation_group_id = parent.recommendation_id
+      AND child.bestowal_id IS NULL
+    RETURNING child.id AS recommendation_id, parent.bestowal_id
+),
+all_links AS (
+    SELECT recommendation_id, bestowal_id FROM updated_recommendations
+    UNION ALL
+    SELECT recommendation_id, bestowal_id FROM linked_group_children
+)
+INSERT INTO awards_bestowal_recommendations (bestowal_id, recommendation_id, created)
+SELECT bestowal_id, recommendation_id, NOW()
+FROM all_links
+ON CONFLICT DO NOTHING;
+SQL
+        fi
+
+        echo "[post] Migrating award recommendations into lifecycle ownership..."
+        "${COMPOSE[@]}" exec -T app bin/cake awards migrate_award_recommendations --apply --allow-open-manual-review
+    else
+        echo "[post] Skipping seeded award recommendation lifecycle reconciliation."
+    fi
 fi
 
 if [ "$DB_DRIVER" = "postgres" ] || [ "$DB_DRIVER" = "pgsql" ]; then

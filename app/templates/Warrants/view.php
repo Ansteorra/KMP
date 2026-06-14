@@ -154,8 +154,14 @@ echo $this->KMP->startBlock("pageTitle") ?>
     echo $this->Modal->create("Add Role to Permissions", [
         "id" => "addRoleModal",
         "close" => true,
+        "form" => true,
+        "size" => "modal-lg",
     ]); ?>
-    <fieldset>
+    <fieldset class="border rounded-3 bg-white shadow-sm p-3">
+        <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+            <i class="bi bi-person-plus text-primary me-1" aria-hidden="true"></i>
+            <?= __("Role Assignment") ?>
+        </legend>
         <?php
         echo $this->KMP->comboBoxControl(
             $this->Form,
@@ -202,26 +208,58 @@ echo $this->KMP->startBlock("pageTitle") ?>
     echo $this->Modal->create("Edit Permissions", [
         "id" => "editModal",
         "close" => true,
+        "form" => true,
+        "size" => "modal-lg",
     ]); ?>
-    <fieldset>
+    <div class="row g-3">
+        <div class="col-12 col-lg-5">
+            <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
+        <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+            <i class="bi bi-shield-lock text-primary me-1" aria-hidden="true"></i>
+            <?= __("Permission Details") ?>
+        </legend>
         <?php
         if ($permission->is_system) {
             echo $this->Form->control("name", ["disabled" => "disabled"]);
         } else {
             echo $this->Form->control("name");
         }
+        ?>
+            </fieldset>
+        </div>
+        <div class="col-12 col-lg-7">
+            <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
+                <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                    <i class="bi bi-person-check text-success me-1" aria-hidden="true"></i>
+                    <?= __("Eligibility Requirements") ?>
+                </legend>
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <?php
         echo $this->Form->control("require_active_membership", [
             "switch" => true,
             "label" => "Require Membership",
         ]);
+                        ?>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <?php
         echo $this->Form->control("require_active_background_check", [
             "switch" => true,
             "label" => "Require Background Check",
         ]);
+                        ?>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <?php
         echo $this->Form->control("require_min_age", [
             "label" => "Minimum Age",
             "type" => "number",
         ]);
+                        ?>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <?php
         if ($user->isSuperUser()) {
             echo $this->Form->control("is_super_user", ["switch" => true]);
         } else {
@@ -230,9 +268,17 @@ echo $this->KMP->startBlock("pageTitle") ?>
                 "disabled" => "disabled",
             ]);
         }
+                        ?>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <?php
         echo $this->Form->control("requires_warrant", ["switch" => true]);
         ?>
-    </fieldset>
+                    </div>
+                </div>
+            </fieldset>
+        </div>
+    </div>
     <?php echo $this->Modal->end([
         $this->Form->button("Submit", [
             "class" => "btn btn-primary",

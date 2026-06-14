@@ -300,6 +300,7 @@ $roles = $locator->get('Roles');
 $memberRoles = $locator->get('MemberRoles');
 $warrantRosters = $locator->get('WarrantRosters');
 $warrants = $locator->get('Warrants');
+$warrantPeriods = $locator->get('WarrantPeriods');
 
 foreach ([
     'officers-release' => true,
@@ -404,6 +405,13 @@ $createMember = static function (string $label, string $emailLocal, int $branchI
 };
 
 $today = new \Cake\I18n\DateTime('today');
+$fixturePeriod = $warrantPeriods->newEntity([
+    'start_date' => (clone $today)->modify('-90 days'),
+    'end_date' => (clone $today)->modify('+180 days'),
+    'created_by' => 1,
+], ['accessibleFields' => ['*' => true]]);
+$warrantPeriods->saveOrFail($fixturePeriod);
+
 $reason = 'Replaced by new officer';
 
 switch ($case) {

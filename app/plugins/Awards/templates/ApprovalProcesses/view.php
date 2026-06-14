@@ -265,6 +265,11 @@ echo $this->KMP->startBlock('pageTitle') ?>
         $selectedOffice = $selectedSourceId(ApprovalProcessStep::APPROVER_TYPE_OFFICE);
         $selectedMember = $selectedSourceId(ApprovalProcessStep::APPROVER_TYPE_MEMBER);
 
+        echo '<div class="row g-3">';
+        echo '<div class="col-12 col-lg-6">';
+        echo '<fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">';
+        echo '<legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3"><i class="bi bi-list-ol text-primary me-1" aria-hidden="true"></i>' .
+            __('Step Identity') . '</legend>';
         echo $this->Form->control('label', ['value' => $step?->label]);
         echo $this->Form->control('step_key', [
             'value' => $step?->step_key,
@@ -273,6 +278,12 @@ echo $this->KMP->startBlock('pageTitle') ?>
             ),
         ]);
         echo $this->Form->control('sequence', ['type' => 'number', 'value' => $step?->sequence ?? 1]);
+        echo '</fieldset>';
+        echo '</div>';
+        echo '<div class="col-12 col-lg-6">';
+        echo '<fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">';
+        echo '<legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3"><i class="bi bi-person-check text-success me-1" aria-hidden="true"></i>' .
+            __('Approver Source') . '</legend>';
         echo $this->Form->control('approver_type', [
             'options' => $approverTypeOptions,
             'value' => $selectedApproverType,
@@ -280,7 +291,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
             'data-awards-approval-step-form-target' => 'approverType',
             'data-action' => 'awards-approval-step-form#sync',
         ]);
-        echo '<div class="border rounded p-3 mb-3">';
+        echo '<div class="border rounded p-3 mb-3 bg-light-subtle">';
         echo '<p class="fw-semibold mb-2">' . __('Typed Approver Source') . '</p>';
         echo '<p class="text-muted small mb-3">' .
             __(
@@ -374,6 +385,12 @@ echo $this->KMP->startBlock('pageTitle') ?>
             '</div>';
         echo '</div>';
         echo '</div>';
+        echo '</fieldset>';
+        echo '</div>';
+        echo '<div class="col-12">';
+        echo '<fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">';
+        echo '<legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3"><i class="bi bi-sliders text-info me-1" aria-hidden="true"></i>' .
+            __('Routing Rules') . '</legend>';
         echo $this->Form->control('branch_mode', [
             'options' => $branchModeOptions,
             'value' => $step?->branch_mode ?? ApprovalProcessStep::BRANCH_MODE_AWARD,
@@ -422,11 +439,18 @@ echo $this->KMP->startBlock('pageTitle') ?>
             'checked' => $step?->retain_read_visibility ?? true,
             'label' => __('Prior approvers retain read-only visibility'),
         ]);
+        echo '</fieldset>';
+        echo '</div>';
+        echo '</div>';
     };
     ?>
 <?= $this->Form->create(null, ['url' => ['action' => 'add-step', $approvalProcess->id]]) ?>
-<?= $this->Modal->create(__('Add Approval Step'), ['id' => 'addStepModal', 'close' => true]) ?>
-<fieldset data-controller="awards-approval-step-form">
+<?= $this->Modal->create(__('Add Approval Step'), ['id' => 'addStepModal', 'close' => true, 'form' => true]) ?>
+<fieldset class="border rounded-3 bg-white shadow-sm p-3" data-controller="awards-approval-step-form">
+    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+        <i class="bi bi-list-check text-primary me-1" aria-hidden="true"></i>
+        <?= __('Approval Step') ?>
+    </legend>
     <?php $renderStepFields(); ?>
 </fieldset>
 <?= $this->Modal->end([
@@ -442,9 +466,13 @@ echo $this->KMP->startBlock('pageTitle') ?>
 <?= $this->Form->create($step, ['url' => ['action' => 'edit-step', $step->id]]) ?>
 <?= $this->Modal->create(
             __('Edit Approval Step: {0}', $step->label),
-            ['id' => 'editStepModal-' . $step->id, 'close' => true],
+            ['id' => 'editStepModal-' . $step->id, 'close' => true, 'form' => true],
         ) ?>
-<fieldset data-controller="awards-approval-step-form">
+<fieldset class="border rounded-3 bg-white shadow-sm p-3" data-controller="awards-approval-step-form">
+    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+        <i class="bi bi-list-check text-primary me-1" aria-hidden="true"></i>
+        <?= __('Approval Step') ?>
+    </legend>
     <?php $renderStepFields($step); ?>
 </fieldset>
 <?= $this->Modal->end([

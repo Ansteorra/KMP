@@ -7,6 +7,7 @@ use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Model\Entity\Bestowal;
+use Awards\Model\Entity\Recommendation;
 use Awards\Services\BestowalCourtSlotService;
 use Awards\Services\BestowalCreationService;
 use Cake\Core\ContainerInterface as CakeContainerInterface;
@@ -138,6 +139,92 @@ class BestowalsControllerTest extends HttpIntegrationTestCase
     /**
      * @return void
      */
+    public function testViewShowsLinkedRecommendationReasons(): void
+    {
+        $award = $this->getTableLocator()->get('Awards.Awards')
+            ->find()
+            ->select(['id'])
+            ->firstOrFail();
+
+        $bestowals = $this->getTableLocator()->get('Awards.Bestowals');
+        $bestowal = $bestowals->newEntity([
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'award_id' => $award->id,
+            'state' => 'Created',
+            'status' => 'Planning',
+            'source' => Bestowal::SOURCE_RECOMMENDATION,
+            'stack_rank' => 0,
+        ]);
+        $bestowals->saveOrFail($bestowal);
+
+        $firstReason = 'First linked bestowal court-note reason ' . uniqid('', true);
+        $secondReason = 'Second linked bestowal herald reason ' . uniqid('', true);
+        $firstRecommendation = $this->createRecommendation((int)$award->id, $firstReason);
+        $secondRecommendation = $this->createRecommendation((int)$award->id, $secondReason);
+
+        $bestowalRecommendations = $this->getTableLocator()->get('Awards.BestowalRecommendations');
+        foreach ([$firstRecommendation, $secondRecommendation] as $recommendation) {
+            $bestowalRecommendations->saveOrFail($bestowalRecommendations->newEntity([
+                'bestowal_id' => $bestowal->id,
+                'recommendation_id' => $recommendation->id,
+            ]));
+        }
+
+        $this->get('/awards/bestowals/view/' . $bestowal->id);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Linked Recommendations');
+        $this->assertResponseContains('Reason:');
+        $this->assertResponseContains(h($firstReason));
+        $this->assertResponseContains(h($secondReason));
+    }
+
+    /**
+     * @return void
+     */
+    public function testGridDataShowsLinkedRecommendationReasons(): void
+    {
+        $award = $this->getTableLocator()->get('Awards.Awards')
+            ->find()
+            ->select(['id'])
+            ->firstOrFail();
+
+        $bestowals = $this->getTableLocator()->get('Awards.Bestowals');
+        $bestowal = $bestowals->newEntity([
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'award_id' => $award->id,
+            'state' => 'Created',
+            'status' => 'Planning',
+            'source' => Bestowal::SOURCE_RECOMMENDATION,
+            'stack_rank' => 0,
+        ]);
+        $bestowals->saveOrFail($bestowal);
+
+        $firstReason = 'First grid linked recommendation reason ' . uniqid('', true);
+        $secondReason = 'Second grid linked recommendation reason ' . uniqid('', true);
+        $firstRecommendation = $this->createRecommendation((int)$award->id, $firstReason);
+        $secondRecommendation = $this->createRecommendation((int)$award->id, $secondReason);
+
+        $bestowalRecommendations = $this->getTableLocator()->get('Awards.BestowalRecommendations');
+        foreach ([$firstRecommendation, $secondRecommendation] as $recommendation) {
+            $bestowalRecommendations->saveOrFail($bestowalRecommendations->newEntity([
+                'bestowal_id' => $bestowal->id,
+                'recommendation_id' => $recommendation->id,
+            ]));
+        }
+
+        $this->get('/awards/bestowals/grid-data?ignore_default=1');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Recommendation Reasons');
+        $this->assertResponseContains('Show 2 linked recommendation reasons');
+        $this->assertResponseContains(h($firstReason));
+        $this->assertResponseContains(h($secondReason));
+    }
+
+    /**
+     * @return void
+     */
     public function testGridDataShowsRoamingCourtInCourtSlotColumn(): void
     {
         $gathering = $this->getTableLocator()->get('Gatherings')
@@ -237,6 +324,38 @@ class BestowalsControllerTest extends HttpIntegrationTestCase
     {
         TableRegistry::getTableLocator()->get('WorkflowDefinitions')
             ->updateAll(['is_active' => true], ['slug' => $slug]);
+    }
+
+    /**
+     * @param int $awardId Award ID
+     * @param string $reason Recommendation reason
+     * @return \Awards\Model\Entity\Recommendation
+     */
+    private function createRecommendation(int $awardId, string $reason): Recommendation
+    {
+        $recommendations = $this->getTableLocator()->get('Awards.Recommendations');
+        $states = Recommendation::getStates();
+        $this->assertNotEmpty($states, 'Expected configured recommendation states');
+
+        $recommendation = $recommendations->newEntity([
+            'stack_rank' => 0,
+            'requester_id' => self::ADMIN_MEMBER_ID,
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'branch_id' => self::KINGDOM_BRANCH_ID,
+            'award_id' => $awardId,
+            'state' => $states[0],
+            'requester_sca_name' => 'Admin von Admin',
+            'member_sca_name' => 'Admin von Admin',
+            'contact_email' => 'admin@amp.ansteorra.org',
+            'contact_number' => '555-555-0100',
+            'reason' => $reason,
+            'call_into_court' => 'Never',
+            'court_availability' => 'Any',
+            'created_by' => self::ADMIN_MEMBER_ID,
+            'modified_by' => self::ADMIN_MEMBER_ID,
+        ]);
+
+        return $recommendations->saveOrFail($recommendation);
     }
 
     /**

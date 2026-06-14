@@ -233,42 +233,73 @@ echo $this->Form->create($state, [
 echo $this->Modal->create('Edit Bestowal State', [
     'id' => 'editModal',
     'close' => true,
+    'form' => true,
 ]);
 ?>
-<fieldset>
-    <?php
-    $statusOptions = [];
-    foreach ($allStates as $s) {
-        if (!isset($statusOptions[$s->bestowal_status->id])) {
-            $statusOptions[$s->bestowal_status->id] = $s->bestowal_status->name;
-        }
+<?php
+$statusOptions = [];
+foreach ($allStates as $s) {
+    if (!isset($statusOptions[$s->bestowal_status->id])) {
+        $statusOptions[$s->bestowal_status->id] = $s->bestowal_status->name;
     }
-    echo $this->Form->control('name');
-    echo $this->Form->control('status_id', ['options' => $statusOptions]);
-    echo $this->Form->control('sort_order', ['type' => 'number']);
-    echo $this->Form->control('supports_gathering', [
-        'type' => 'checkbox',
-        'switch' => true,
-        'label' => __('Supports Gathering Assignment'),
-    ]);
-    echo $this->Form->control('locks_recommendations', [
-        'type' => 'checkbox',
-        'switch' => true,
-        'label' => __('Locks Linked Recommendations'),
-    ]);
-    echo $this->Form->control('is_hidden', ['type' => 'checkbox', 'switch' => true, 'label' => __('Hidden')]);
-    echo $this->Form->control('sync_recommendation_state', [
-        'label' => __('Sync Recommendation State'),
-        'options' => $recommendationStateOptions,
-        'empty' => '-- None --',
-    ]);
-    echo $this->Form->control('unwind_recommendation_state', [
-        'label' => __('Unwind Recommendation State'),
-        'options' => $recommendationStateOptions,
-        'empty' => '-- None --',
-    ]);
-    ?>
-</fieldset>
+}
+?>
+<div class="row g-3">
+    <div class="col-12 col-lg-6">
+        <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
+            <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                <i class="bi bi-diagram-3 text-primary me-1" aria-hidden="true"></i>
+                <?= __('State Details') ?>
+            </legend>
+            <?php
+            echo $this->Form->control('name');
+            echo $this->Form->control('status_id', ['options' => $statusOptions]);
+            echo $this->Form->control('sort_order', ['type' => 'number']);
+            ?>
+        </fieldset>
+    </div>
+    <div class="col-12 col-lg-6">
+        <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
+            <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                <i class="bi bi-toggles text-success me-1" aria-hidden="true"></i>
+                <?= __('Behavior') ?>
+            </legend>
+            <?php
+            echo $this->Form->control('supports_gathering', [
+                'type' => 'checkbox',
+                'switch' => true,
+                'label' => __('Supports Gathering Assignment'),
+            ]);
+            echo $this->Form->control('locks_recommendations', [
+                'type' => 'checkbox',
+                'switch' => true,
+                'label' => __('Locks Linked Recommendations'),
+            ]);
+            echo $this->Form->control('is_hidden', ['type' => 'checkbox', 'switch' => true, 'label' => __('Hidden')]);
+            ?>
+        </fieldset>
+    </div>
+    <div class="col-12">
+        <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
+            <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                <i class="bi bi-arrow-left-right text-info me-1" aria-hidden="true"></i>
+                <?= __('Recommendation Sync') ?>
+            </legend>
+            <?php
+            echo $this->Form->control('sync_recommendation_state', [
+                'label' => __('Sync Recommendation State'),
+                'options' => $recommendationStateOptions,
+                'empty' => '-- None --',
+            ]);
+            echo $this->Form->control('unwind_recommendation_state', [
+                'label' => __('Unwind Recommendation State'),
+                'options' => $recommendationStateOptions,
+                'empty' => '-- None --',
+            ]);
+            ?>
+        </fieldset>
+    </div>
+</div>
 <?php echo $this->Modal->end([
     $this->Form->button('Submit', [
         'class' => 'btn btn-primary',
@@ -292,28 +323,40 @@ echo $this->Form->create(null, [
 echo $this->Modal->create(__('Add Field Rule'), [
     'id' => 'addFieldRuleModal',
     'close' => true,
+    'form' => true,
+    'size' => 'modal-lg',
 ]);
 ?>
-<fieldset>
-    <?php
-    echo $this->Form->control('field_target', [
+<fieldset class="border rounded-3 bg-white shadow-sm p-3">
+    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+        <i class="bi bi-sliders text-primary me-1" aria-hidden="true"></i>
+        <?= __('Field Rule') ?>
+    </legend>
+    <div class="row g-3">
+        <div class="col-12 col-md-6">
+            <?php echo $this->Form->control('field_target', [
         'label' => __('Field Target'),
         'type' => 'select',
         'options' => $fieldTargetOptions,
         'empty' => '-- ' . __('Select Field') . ' --',
         'required' => true,
-    ]);
-    echo $this->Form->control('rule_type', [
+    ]); ?>
+        </div>
+        <div class="col-12 col-md-6">
+            <?php echo $this->Form->control('rule_type', [
         'label' => __('Rule Type'),
         'type' => 'select',
         'options' => $ruleTypeOptions,
         'required' => true,
-    ]);
-    echo $this->Form->control('rule_value', [
+    ]); ?>
+        </div>
+        <div class="col-12">
+            <?php echo $this->Form->control('rule_value', [
         'label' => __('Value (for Set rules)'),
         'required' => false,
-    ]);
-    ?>
+    ]); ?>
+        </div>
+    </div>
 </fieldset>
 <?php echo $this->Modal->end([
     $this->Form->button(__('Add Rule'), [
@@ -338,9 +381,15 @@ foreach ($state->bestowal_state_field_rules as $rule) {
     echo $this->Modal->create(__('Edit Field Rule'), [
         'id' => 'editFieldRuleModal-' . $rule->id,
         'close' => true,
+        'form' => true,
+        'size' => 'modal-lg',
     ]);
     ?>
-    <fieldset>
+    <fieldset class="border rounded-3 bg-white shadow-sm p-3">
+        <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+            <i class="bi bi-sliders text-primary me-1" aria-hidden="true"></i>
+            <?= __('Field Rule') ?>
+        </legend>
         <?php
         echo $this->Form->control('field_target', [
             'label' => __('Field Target'),
@@ -385,6 +434,8 @@ if ($bestowalCount > 0) {
     echo $this->Modal->create('Transfer & Delete State', [
         'id' => 'transferDeleteModal',
         'close' => true,
+        'form' => true,
+        'size' => 'modal-lg',
     ]);
     ?>
     <div class="alert alert-warning">
@@ -393,7 +444,11 @@ if ($bestowalCount > 0) {
         __('This state has {0} bestowal(s). They must be transferred to another state before deletion.', $bestowalCount)
         ?>
     </div>
-    <fieldset>
+    <fieldset class="border rounded-3 bg-white shadow-sm p-3">
+        <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+            <i class="bi bi-arrow-left-right text-warning me-1" aria-hidden="true"></i>
+            <?= __('Transfer Target') ?>
+        </legend>
         <?php
         $targetOptions = [];
         foreach ($allStates as $s) {

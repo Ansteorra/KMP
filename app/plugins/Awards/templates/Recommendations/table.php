@@ -12,12 +12,6 @@ $currentUrl = $this->request->getRequestTarget();
 
     <div class="row">
         <div class="col-12 text-end mt-2">
-            <?php if ($user->checkCan("edit", "Awards.Recommendations")): ?>
-                <button type="button" class="btn btn-primary btn-sm bulk-edit-btn" data-bs-toggle="modal"
-                    data-bs-target="#tableBulkEditModal" data-controller="outlet-btn"
-                    data-outlet-btn-require-data-value="true" data-action="click->outlet-btn#fireNotice" disabled>Bulk
-                    Edit</button>
-            <?php endif; ?>
             <?php
             if ($enableExport != ""):
                 #add .csv to the current url by adding it before the ? if there is one
@@ -495,9 +489,6 @@ $currentUrl = $this->request->getRequestTarget();
 
     </div>
 
-    <?php
-    $bulkUrl = $this->URL->build(["controller" => "Recommendations", "action" => "updateStates", "plugin" => "Awards",]);
-    ?>
     <div class="paginator">
 
         <ul class="pagination">
@@ -516,6 +507,5 @@ $currentUrl = $this->request->getRequestTarget();
             ) ?></p>
     </div>
     <?= $this->element('recommendationQuickEditModal', ['modalId' => 'tableEditModal']) ?>
-    <?= $this->element('recommendationsBulkEditModal', ['modalId' => 'tableBulkEditModal']) ?>
 
 </turbo-frame>

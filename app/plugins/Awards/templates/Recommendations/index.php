@@ -55,7 +55,7 @@ echo $this->element('recommendationQuickEditModal', ['modalId' => 'editRecommend
 if ($user->checkCan("edit", "Awards.Recommendations")):
 ?>
 <div class="modal fade" id="groupRecommendationsModal" tabindex="-1" aria-labelledby="groupRecommendationsModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content">
             <?= $this->Form->create(null, [
                 'url' => ['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'groupRecommendations'],
@@ -68,8 +68,8 @@ if ($user->checkCan("edit", "Awards.Recommendations")):
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <div id="groupValidationMessage" class="alert alert-info" data-awards-rec-group-target="validationMessage">
+            <div class="modal-body bg-light-subtle">
+                <div id="groupValidationMessage" class="alert alert-info border-start border-info border-4" data-awards-rec-group-target="validationMessage">
                     <?= __('Selected recommendations will be grouped together. The first selected recommendation will become the group head.') ?>
                 </div>
                 <div id="groupSelectedIds" data-awards-rec-group-target="selectedIds"></div>

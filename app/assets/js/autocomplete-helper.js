@@ -16,6 +16,9 @@
  * @param {string} [options.hiddenAttrs] - extra attribute string for the hidden value input
  * @param {string} [options.size] - Bootstrap size suffix (e.g. 'sm')
  * @param {string} [options.cssClass] - extra CSS classes on the wrapper div
+ * @param {string} [options.inputId] - id for the visible text input
+ * @param {string} [options.resultsId] - id for the results list
+ * @param {string} [options.statusId] - id for the live status region
  * @returns {string} HTML string
  */
 export function renderAutoComplete(options) {
@@ -31,6 +34,10 @@ export function renderAutoComplete(options) {
 
     const inputGroupClass = size ? `input-group input-group-${size}` : 'input-group';
     const inputClass = size ? `form-control form-control-${size}` : 'form-control';
+    const safeName = (options.name || 'autocomplete').replace(/[^a-zA-Z0-9_-]/g, '-');
+    const inputId = options.inputId || `${safeName}-disp`;
+    const resultsId = options.resultsId || `${safeName}-results`;
+    const statusId = options.statusId || `${safeName}-status`;
 
     let initAttr = '';
     if (options.initSelection) {
@@ -42,18 +49,26 @@ export function renderAutoComplete(options) {
      data-ac-url-value="${url}"
      data-ac-min-length-value="${minLength}"
      data-ac-allow-other-value="${allowOther}"${initAttr}
-     role="combobox"
      class="position-relative kmp_autoComplete${cssClass}">
   <input type="hidden"${name} value="${value}"
          data-ac-target="hidden"${hiddenAttrs}>
   <input type="hidden" data-ac-target="hiddenText">
   <div class="${inputGroupClass}">
-    <input type="text" class="${inputClass}"
+    <input type="text" class="${inputClass}" id="${inputId}"
+           role="combobox"
+           aria-autocomplete="list"
+           aria-expanded="false"
+           aria-controls="${resultsId}"
+           aria-describedby="${statusId}"
            data-ac-target="input"${placeholder}>
-    <button class="btn btn-outline-secondary" data-ac-target="clearBtn" data-action="ac#clear" disabled>Clear</button>
+    <button type="button" class="btn btn-outline-secondary" data-ac-target="clearBtn" data-action="ac#clear" disabled>Clear</button>
   </div>
   <ul data-ac-target="results"
+      id="${resultsId}"
+      role="listbox"
       class="list-group z-3 col-12 position-absolute auto-complete-list"
       hidden="hidden"></ul>
+  <div id="${statusId}" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"
+       data-ac-target="status"></div>
 </div>`;
 }

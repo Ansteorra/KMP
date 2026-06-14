@@ -2338,10 +2338,10 @@ class GridViewController extends Controller {
     toggleSubRow(event) {
         event.preventDefault()
 
-        const link = event.currentTarget
-        const rowId = link.dataset.rowId
-        const subRowType = link.dataset.subrowType
-        const customUrl = link.dataset.subrowUrl
+        const toggle = event.currentTarget
+        const rowId = toggle.dataset.rowId
+        const subRowType = toggle.dataset.subrowType
+        const customUrl = toggle.dataset.subrowUrl
 
         if (!rowId || !subRowType) {
             console.error('Missing rowId or subRowType for toggleSubRow')
@@ -2349,7 +2349,7 @@ class GridViewController extends Controller {
         }
 
         // Find the parent table row
-        const mainRow = link.closest('tr')
+        const mainRow = toggle.closest('tr')
         if (!mainRow) {
             console.error('Could not find parent row for toggleSubRow')
             return
@@ -2365,7 +2365,10 @@ class GridViewController extends Controller {
             mainRow.classList.remove('row-expanded')
 
             // Update icon if present
-            const icon = link.querySelector('.toggle-icon')
+            toggle.setAttribute('aria-expanded', 'false')
+            toggle.removeAttribute('aria-busy')
+
+            const icon = toggle.querySelector('.toggle-icon')
             if (icon) {
                 icon.classList.remove('bi-chevron-down')
                 icon.classList.add('bi-chevron-right')
@@ -2373,6 +2376,7 @@ class GridViewController extends Controller {
         } else {
             // Sub-row doesn't exist - expand it
             const colspan = mainRow.querySelectorAll('td').length
+            toggle.setAttribute('aria-busy', 'true')
 
             // Use custom URL if provided, otherwise fall back to default pattern
             const url = customUrl
@@ -2396,14 +2400,17 @@ class GridViewController extends Controller {
                     const subRow = document.createElement('tr')
                     subRow.id = subRowId
                     subRow.className = 'sub-row'
-                    subRow.innerHTML = `<td colspan="${colspan}" class="sub-row-content">${html}</td>`
+                    subRow.innerHTML = `<td colspan="${colspan}" class="sub-row-content" role="region" aria-live="polite">${html}</td>`
 
                     // Insert after main row
                     mainRow.insertAdjacentElement('afterend', subRow)
                     mainRow.classList.add('row-expanded')
 
                     // Update icon if present
-                    const icon = link.querySelector('.toggle-icon')
+                    toggle.setAttribute('aria-expanded', 'true')
+                    toggle.removeAttribute('aria-busy')
+
+                    const icon = toggle.querySelector('.toggle-icon')
                     if (icon) {
                         icon.classList.remove('bi-chevron-right')
                         icon.classList.add('bi-chevron-down')
@@ -2415,10 +2422,12 @@ class GridViewController extends Controller {
                     const subRow = document.createElement('tr')
                     subRow.id = subRowId
                     subRow.className = 'sub-row sub-row-error'
-                    subRow.innerHTML = `<td colspan="${colspan}" class="sub-row-content text-danger">
+                    subRow.innerHTML = `<td colspan="${colspan}" class="sub-row-content text-danger" role="status" aria-live="assertive">
                     <small>Error loading details. Please try again.</small>
                 </td>`
                     mainRow.insertAdjacentElement('afterend', subRow)
+                    toggle.setAttribute('aria-expanded', 'true')
+                    toggle.removeAttribute('aria-busy')
                 })
         }
     }

@@ -93,6 +93,7 @@ class MobileApprovalsController extends MobileControllerBase {
                             <small>${approval.progress.approved}/${approval.progress.required}</small>
                         </span>`
 
+        const detailId = `approval-card-detail-${approval.id}`
         return `
         <div class="card approval-card" data-approval-id="${approval.id}">
             <div class="approval-card-summary"
@@ -100,6 +101,7 @@ class MobileApprovalsController extends MobileControllerBase {
                  role="button"
                  tabindex="0"
                  aria-expanded="false"
+                 aria-controls="${detailId}"
                  data-id="${approval.id}">
                 <div class="approval-card-icon">
                     <i class="bi ${this._escHtml(approval.icon)}"></i>
@@ -163,7 +165,7 @@ class MobileApprovalsController extends MobileControllerBase {
         if (!approval) return
 
         // Show loading detail
-        const loadingHtml = `<div class="approval-card-detail">
+        const loadingHtml = `<div class="approval-card-detail" id="approval-card-detail-${id}" role="region" aria-live="polite">
             <div class="text-center py-3">
                 <div class="spinner-border spinner-border-sm" style="color: var(--section-approvals);" role="status"></div>
                 <small class="ms-2 text-muted">Loading details...</small>
@@ -197,7 +199,7 @@ class MobileApprovalsController extends MobileControllerBase {
     }
 
     _renderDetail(approval, responses) {
-        let html = '<div class="approval-card-detail">'
+        let html = `<div class="approval-card-detail" id="approval-card-detail-${approval.id}" role="region" aria-live="polite">`
 
         // Description
         if (approval.description) {
@@ -283,6 +285,11 @@ class MobileApprovalsController extends MobileControllerBase {
         const decisionPromptLabel = cfg.decisionPromptLabel || 'Decision'
         const requiresComment = cfg.requiresComment === true
 
+        const commentId = `mobile-approval-comment-${approval.id}`
+        const commentErrorId = `mobile-approval-comment-error-${approval.id}`
+        const commentHelpId = `mobile-approval-comment-help-${approval.id}`
+        const nextApproverId = `mobile-approval-next-approver-${approval.id}`
+
         let html = `<div class="approval-response-form" data-approval-form-id="${approval.id}"${isFeedbackResponse && decisionOptions.length === 0 ? ' data-selected-decision="approve"' : ''}>`
 
         if (decisionOptions.length > 0) {
@@ -301,12 +308,12 @@ class MobileApprovalsController extends MobileControllerBase {
             html += '</fieldset>'
         } else if (!isFeedbackResponse) {
             html += `<div class="approval-decision-btns">
-                <button type="button" class="btn btn-approve"
+                <button type="button" class="btn btn-approve" aria-pressed="false"
                        data-action="click->mobile-approvals#selectDecision"
                        data-id="${approval.id}" data-decision="approve">
                     <i class="bi bi-check-circle me-1"></i>Approve
                 </button>
-                <button type="button" class="btn btn-reject"
+                <button type="button" class="btn btn-reject" aria-pressed="false"
                        data-action="click->mobile-approvals#selectDecision"
                        data-id="${approval.id}" data-decision="reject">
                     <i class="bi bi-x-circle me-1"></i>Reject
@@ -319,24 +326,29 @@ class MobileApprovalsController extends MobileControllerBase {
             ? 'Enter requested feedback...'
             : 'Comment (required for rejections)...'
         html += `<div class="mb-2">
-            ${isFeedbackResponse ? `<label class="form-label fw-semibold" style="font-size: 0.85rem;">Feedback${requiresComment ? ' <span class="text-danger">(required)</span>' : ''}</label>` : ''}
+            <label class="form-label fw-semibold" style="font-size: 0.85rem;" for="${commentId}">${isFeedbackResponse ? 'Feedback' : 'Comment'}${requiresComment ? ' <span class="text-danger">(required)</span>' : ''}</label>
             <textarea class="approval-comment-box"
+                      id="${commentId}"
                       data-approval-comment="${approval.id}"
                       placeholder="${commentPlaceholder}"
+                      aria-describedby="${commentHelpId} ${commentErrorId}"
+                      aria-invalid="false"
                       rows="2"></textarea>`
         if (commentWarning) {
-            html += `<div class="approval-comment-warning"><i class="bi bi-eye me-1"></i>${this._escHtml(commentWarning)}</div>`
+            html += `<div class="approval-comment-warning" id="${commentHelpId}"><i class="bi bi-eye me-1"></i>${this._escHtml(commentWarning)}</div>`
+        } else {
+            html += `<div class="visually-hidden" id="${commentHelpId}">${isFeedbackResponse ? 'Enter feedback for this request.' : 'A comment is required when rejecting.'}</div>`
         }
-        html += `<div class="text-danger small" data-comment-required="${approval.id}" hidden>
+        html += `<div class="text-danger small" id="${commentErrorId}" data-comment-required="${approval.id}" hidden>
             <i class="bi bi-exclamation-circle me-1"></i>${isFeedbackResponse ? 'Feedback is required.' : 'A comment is required when rejecting.'}
         </div></div>`
 
         // Next approver (hidden until needed)
         html += `<div data-next-approver-section="${approval.id}" hidden>
             <div class="alert alert-info py-2 small" role="alert" data-next-approver-info="${approval.id}"></div>
-            <label class="form-label fw-semibold" style="font-size: 0.85rem;">Select Next Approver</label>
+            <label class="form-label fw-semibold" style="font-size: 0.85rem;" for="${nextApproverId}">Select Next Approver</label>
             <div class="approval-next-approver">
-                <select data-next-approver-select="${approval.id}" class="form-select form-select-lg">
+                <select data-next-approver-select="${approval.id}" id="${nextApproverId}" class="form-select form-select-lg">
                     <option value="">Loading approvers...</option>
                 </select>
             </div>
@@ -363,9 +375,13 @@ class MobileApprovalsController extends MobileControllerBase {
         if (!form) return
 
         // Update button states
-        form.querySelectorAll('.btn-approve, .btn-reject').forEach(btn => btn.classList.remove('active'))
+        form.querySelectorAll('.btn-approve, .btn-reject').forEach(btn => {
+            btn.classList.remove('active')
+            btn.setAttribute('aria-pressed', 'false')
+        })
         if (event.currentTarget.classList.contains('btn')) {
             event.currentTarget.classList.add('active')
+            event.currentTarget.setAttribute('aria-pressed', 'true')
         }
 
         // Store decision
@@ -375,6 +391,10 @@ class MobileApprovalsController extends MobileControllerBase {
         const commentRequired = form.querySelector(`[data-comment-required="${id}"]`)
         if (commentRequired) {
             commentRequired.hidden = decision !== 'reject'
+        }
+        const comment = form.querySelector(`[data-approval-comment="${id}"]`)
+        if (comment && decision !== 'reject') {
+            comment.setAttribute('aria-invalid', 'false')
         }
 
         // Handle serial-pick-next for approve
@@ -507,7 +527,9 @@ class MobileApprovalsController extends MobileControllerBase {
         if (requiresComment && !comment) {
             const hint = form.querySelector(`[data-comment-required="${id}"]`)
             if (hint) hint.hidden = false
-            form.querySelector(`[data-approval-comment="${id}"]`)?.focus()
+            const commentField = form.querySelector(`[data-approval-comment="${id}"]`)
+            commentField?.setAttribute('aria-invalid', 'true')
+            commentField?.focus()
             return
         }
 

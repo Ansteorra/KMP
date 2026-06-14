@@ -110,7 +110,7 @@ wait_job() {
     for i in $(seq 1 "$max"); do
         local status
         status=$(az containerapp job execution show \
-                    -g "$RG" --job-name "$job" -n "$exec_name" \
+                    -g "$RG" -n "$job" --job-execution-name "$exec_name" \
                     --query properties.status -o tsv 2>/dev/null || echo Unknown)
         printf '  [%d/%d] %s: %s\n' "$i" "$max" "$label" "$status"
         case "$status" in
@@ -119,7 +119,7 @@ wait_job() {
                 return 0 ;;
             Failed|Cancelled|Degraded)
                 warn "$label finished with $status — log tail:"
-                az containerapp job execution show -g "$RG" --job-name "$job" -n "$exec_name" -o yaml 2>&1 | tail -40 || true
+                az containerapp job execution show -g "$RG" -n "$job" --job-execution-name "$exec_name" -o yaml 2>&1 | tail -40 || true
                 return 1 ;;
         esac
         sleep 10

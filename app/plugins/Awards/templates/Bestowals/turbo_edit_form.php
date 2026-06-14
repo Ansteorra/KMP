@@ -36,6 +36,7 @@ $submitAction = implode(' ', [
         ]) ?>
     </script>
     <fieldset>
+        <div class="row g-3">
         <?php
         echo $this->Form->hidden('id', [
             'value' => $bestowal->id,
@@ -46,8 +47,14 @@ $submitAction = implode(' ', [
             'data-awards-bestowal-edit-target' => 'memberId',
         ]);
         ?>
+        <div class="col-12 col-xl-5">
+            <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
+                <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                    <i class="bi bi-award text-primary me-1" aria-hidden="true"></i>
+                    <?= __('Award & State') ?>
+                </legend>
         <div class="mb-3">
-            <label class="form-label"><?= __('Member') ?></label>
+            <p class="form-label mb-1"><?= __('Member') ?></p>
             <div class="form-control-plaintext">
                 <?= h($bestowal->member->sca_name ?? __('Unknown Member')) ?>
             </div>
@@ -115,7 +122,7 @@ $submitAction = implode(' ', [
         );
         ?>
         <div class="mb-3">
-            <label class="form-label"><?= __('Status') ?></label>
+            <p class="form-label mb-1"><?= __('Status') ?></p>
             <div class="form-control-plaintext" data-awards-bestowal-edit-target="statusDisplay">
                 <?= h($bestowal->status) ?>
             </div>
@@ -135,10 +142,18 @@ $submitAction = implode(' ', [
             'container' => ['data-awards-bestowal-edit-target' => 'closeReasonBlock'],
         ]);
         ?>
+            </fieldset>
+        </div>
+        <div class="col-12 col-xl-7">
+            <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
+                <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                    <i class="bi bi-calendar-event text-success me-1" aria-hidden="true"></i>
+                    <?= __('Court Planning') ?>
+                </legend>
 
         <?php if (!empty($memberAttendanceGatherings)) : ?>
             <div class="mb-3">
-                <label class="form-label"><?= __('Gatherings/Events They May Attend:') ?></label>
+                <p class="form-label mb-1"><?= __('Gatherings/Events They May Attend:') ?></p>
                 <ul>
                     <?php foreach ($memberAttendanceGatherings as $gathering) :
                         $displayName = h($gathering->name);
@@ -280,6 +295,14 @@ $submitAction = implode(' ', [
             'data-awards-bestowal-edit-target' => 'heraldNotes',
         ]);
         ?>
+            </fieldset>
+        </div>
+        <div class="col-12">
+            <fieldset class="border rounded-3 bg-white shadow-sm p-3">
+                <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                    <i class="bi bi-link-45deg text-info me-1" aria-hidden="true"></i>
+                    <?= __('Recommendation Links & Notes') ?>
+                </legend>
 
         <?php
         $linkedRecommendations = $bestowal->recommendations ?? [];
@@ -378,6 +401,9 @@ $submitAction = implode(' ', [
             'type' => 'textarea',
             'label' => __('Note'),
         ]) ?>
+            </fieldset>
+        </div>
+        </div>
     </fieldset>
     <?= $this->Form->end() ?>
 </turbo-frame>

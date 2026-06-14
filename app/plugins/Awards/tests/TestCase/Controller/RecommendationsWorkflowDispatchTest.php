@@ -8,7 +8,6 @@ use App\Services\WorkflowEngine\TriggerDispatcher;
 use App\Test\TestCase\BaseTestCase;
 use ArrayAccess;
 use Awards\Controller\RecommendationsController;
-use Awards\Services\RecommendationTransitionService;
 use Cake\I18n\DateTime;
 use Cake\ORM\Locator\LocatorAwareTrait;
 use Cake\ORM\TableRegistry;
@@ -299,9 +298,7 @@ class RecommendationsWorkflowDispatchTest extends BaseTestCase
         $this->assertEquals(self::ADMIN_MEMBER_ID, $this->dispatched[0]['triggeredBy']);
     }
 
-    // ── 3. State change event fires via dispatchWorkflowEvent ───────
-
-    public function testDispatchWorkflowEventFiresStateChanged(): void
+    public function testDispatchWorkflowEventFiresRecommendationUpdate(): void
     {
         $dispatcher = $this->buildMockDispatcher();
         $recId = $this->createTestRecommendation();
@@ -309,53 +306,20 @@ class RecommendationsWorkflowDispatchTest extends BaseTestCase
 
         $stub->callDispatchWorkflowEvent(
             $dispatcher,
-            'Awards.RecommendationStateChanged',
+            'Awards.RecommendationUpdateRequested',
             [
                 'recommendationId' => $recId,
-                'previousState' => 'Submitted',
-                'newState' => 'In Consideration',
-                'previousStatus' => 'In Progress',
-                'newStatus' => 'In Progress',
+                'data' => ['reason' => 'Updated reason'],
                 'actorId' => self::ADMIN_MEMBER_ID,
             ],
         );
 
         $this->assertCount(1, $this->dispatched);
         $call = $this->dispatched[0];
-        $this->assertEquals('Awards.RecommendationStateChanged', $call['event']);
+        $this->assertEquals('Awards.RecommendationUpdateRequested', $call['event']);
         $this->assertEquals($recId, $call['data']['recommendationId']);
-        $this->assertEquals('Submitted', $call['data']['previousState']);
-        $this->assertEquals('In Consideration', $call['data']['newState']);
+        $this->assertEquals('Updated reason', $call['data']['data']['reason']);
     }
-
-    // ── 4. Bulk transition event fires with correct payload ─────────
-
-    public function testDispatchWorkflowEventFiresBulkTransition(): void
-    {
-        $dispatcher = $this->buildMockDispatcher();
-        $recId1 = $this->createTestRecommendation();
-        $recId2 = $this->createTestRecommendation();
-        $stub = $this->buildTraitStub(self::ADMIN_MEMBER_ID);
-
-        $stub->callDispatchWorkflowEvent(
-            $dispatcher,
-            'Awards.RecommendationBulkTransitionRequested',
-            [
-                'recommendationIds' => [(string)$recId1, (string)$recId2],
-                'targetState' => 'In Consideration',
-                'actorId' => self::ADMIN_MEMBER_ID,
-            ],
-        );
-
-        $this->assertCount(1, $this->dispatched);
-        $call = $this->dispatched[0];
-        $this->assertEquals('Awards.RecommendationBulkTransitionRequested', $call['event']);
-        $this->assertContains((string)$recId1, $call['data']['recommendationIds']);
-        $this->assertContains((string)$recId2, $call['data']['recommendationIds']);
-        $this->assertEquals('In Consideration', $call['data']['targetState']);
-    }
-
-    // ── 5. dispatchWorkflowEvent swallows exceptions gracefully ─────
 
     public function testDispatchWorkflowEventSwallowsExceptions(): void
     {
@@ -365,14 +329,12 @@ class RecommendationsWorkflowDispatchTest extends BaseTestCase
         // Should not throw even though dispatcher raises an exception
         $stub->callDispatchWorkflowEvent(
             $dispatcher,
-            'Awards.RecommendationStateChanged',
-            ['recommendationId' => 1, 'previousState' => 'Submitted', 'newState' => 'Given'],
+            'Awards.RecommendationUpdateRequested',
+            ['recommendationId' => 1, 'data' => ['reason' => 'Updated reason']],
         );
 
         $this->assertTrue(true, 'dispatchWorkflowEvent should swallow exceptions');
     }
-
-    // ── 6. workflow-only dispatch passes identity ID to trigger ─────
 
     public function testDispatchWorkflowOrFailPassesActorId(): void
     {
@@ -438,7 +400,6 @@ class RecommendationsWorkflowDispatchTest extends BaseTestCase
         $expectedTriggers = [
             'Awards.RecommendationCreateRequested',
             'Awards.RecommendationUpdateRequested',
-            'Awards.RecommendationBulkTransitionRequested',
             'Awards.RecommendationsGroupRequested',
             'Awards.RecommendationsUngroupRequested',
             'Awards.RecommendationRemoveFromGroupRequested',

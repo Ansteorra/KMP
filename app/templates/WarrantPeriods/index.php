@@ -50,19 +50,29 @@ echo $this->Form->create($emptyWarrantPeriod, [
 echo $this->Modal->create("Add Warrant Period", [
     "id" => "addModal",
     "close" => true,
+    "form" => true,
+    "size" => "modal-lg",
 ]);
 ?>
-<fieldset>
-    <?php
-    echo $this->Form->control("start_date", [
-        "type" => "date",
-        "label" => __("Start Date"),
-    ]);
-    echo $this->Form->control("end_date", [
-        "type" => "date",
-        "label" => __("End Date"),
-    ]);
-    ?>
+<fieldset class="border rounded-3 bg-white shadow-sm p-3">
+    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+        <i class="bi bi-calendar-range text-primary me-1" aria-hidden="true"></i>
+        <?= __("Period Dates") ?>
+    </legend>
+    <div class="row g-3">
+        <div class="col-12 col-md-6">
+            <?php echo $this->Form->control("start_date", [
+                "type" => "date",
+                "label" => __("Start Date"),
+            ]); ?>
+        </div>
+        <div class="col-12 col-md-6">
+            <?php echo $this->Form->control("end_date", [
+                "type" => "date",
+                "label" => __("End Date"),
+            ]); ?>
+        </div>
+    </div>
 </fieldset>
 <?php echo $this->Modal->end([
     $this->Form->button("Submit", [

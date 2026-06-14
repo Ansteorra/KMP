@@ -129,20 +129,26 @@ $executionModeOptions = [
         </div>
         <?php if ($workflow) : ?>
             <div class="modal fade" id="workflow-metadata-modal" tabindex="-1" aria-labelledby="workflow-metadata-modal-title" aria-hidden="true">
-                <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
                     <div class="modal-content">
                         <form data-workflow-toolbar-target="metadataForm" data-action="submit->workflow-toolbar#saveMetadata">
                             <div class="modal-header">
                                 <h2 class="modal-title fs-5" id="workflow-metadata-modal-title"><?= __('Edit Workflow Details') ?></h2>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?= __('Close') ?>"></button>
                             </div>
-                            <div class="modal-body">
+                            <div class="modal-body bg-light-subtle">
                                 <div class="alert alert-danger d-none" role="alert" data-workflow-toolbar-target="metadataStatus"></div>
+                                <fieldset class="border rounded-3 bg-white shadow-sm p-3">
+                                    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                                        <i class="bi bi-diagram-3 text-primary me-1" aria-hidden="true"></i>
+                                        <?= __('Workflow Metadata') ?>
+                                    </legend>
                                 <div class="row g-3">
                                     <div class="col-md-6">
                                         <label class="form-label" for="workflow-metadata-name"><?= __('Workflow Name') ?></label>
                                         <input class="form-control" id="workflow-metadata-name" name="name" value="<?= h($workflow->name) ?>" maxlength="255" required>
                                     </div>
+                                    </fieldset>
                                     <div class="col-md-6">
                                         <label class="form-label" for="workflow-metadata-slug"><?= __('Slug') ?></label>
                                         <input class="form-control" id="workflow-metadata-slug" name="slug" value="<?= h($workflow->slug) ?>" maxlength="100" pattern="[a-z0-9-]+" required aria-describedby="workflow-metadata-slug-help">
@@ -197,15 +203,22 @@ $executionModeOptions = [
             data-workflow-designer-target="nodePalette">
             <div style="padding: 0.25rem 0 0.5rem;">
                 <span style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #667085;">
-                    <i class="bi bi-grid-3x3-gap me-1"></i><?= __('Nodes') ?>
+                    <i class="bi bi-grid-3x3-gap me-1" aria-hidden="true"></i><?= __('Nodes') ?>
                 </span>
             </div>
+            <p class="visually-hidden" id="workflow-palette-keyboard-help">
+                <?= __('Press Enter or Space on a node to add it to the center of the canvas. Dragging is optional.') ?>
+            </p>
+            <div class="visually-hidden" id="workflow-palette-add-status" role="status" aria-live="polite" aria-atomic="true"></div>
             <p class="text-muted small"><?= __('Loading...') ?></p>
         </div>
 
         <!-- Center: Canvas -->
         <div class="workflow-canvas"
             data-workflow-designer-target="canvas"
+            role="region"
+            aria-label="<?= __('Workflow canvas') ?>"
+            aria-describedby="workflow-palette-keyboard-help"
             data-action="drop->workflow-designer#onCanvasDrop dragover->workflow-designer#onCanvasDragOver">
         </div>
 
@@ -213,6 +226,9 @@ $executionModeOptions = [
         <div class="workflow-config-panel wf-config-panel"
             data-workflow-designer-target="nodeConfig">
             <div class="config-panel-resize-handle"
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="<?= __('Resize configuration panel') ?>"
                 data-action="mousedown->workflow-designer#onResizeStart"></div>
             <div class="config-panel-header">
                 <h6><i class="bi bi-sliders me-1"></i><?= __('Configuration') ?></h6>

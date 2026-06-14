@@ -188,7 +188,10 @@ class BestowalQueryService
             };
         }
 
-        if ($this->shouldLoadColumn('awards', $visibleColumns)) {
+        $needsAwards = $this->shouldLoadColumn('awards', $visibleColumns);
+        $needsRecommendationReasons = $this->shouldLoadColumn('recommendation_reasons', $visibleColumns);
+
+        if ($needsAwards) {
             $contain['Awards'] = function ($query) {
                 return $query->select(['id', 'abbreviation', 'name', 'branch_id', 'level_id']);
             };
@@ -204,14 +207,23 @@ class BestowalQueryService
             $contain['PrimaryRecommendation.Awards.Levels'] = function ($query) {
                 return $query->select(['id', 'name']);
             };
-            $contain['Recommendations'] = function ($query) {
-                return $query->select(['id', 'award_id', 'member_sca_name', 'reason', 'specialty']);
-            };
+        }
+        if ($needsAwards || $needsRecommendationReasons) {
             $contain['Recommendations.Awards'] = function ($query) {
-                return $query->select(['id', 'abbreviation', 'branch_id', 'level_id']);
+                return $query->select(['id', 'abbreviation', 'name', 'branch_id', 'level_id']);
             };
             $contain['Recommendations.Awards.Levels'] = function ($query) {
                 return $query->select(['id', 'name']);
+            };
+            $contain['Recommendations'] = function ($query) {
+                return $query->select([
+                    'id',
+                    'award_id',
+                    'member_sca_name',
+                    'requester_sca_name',
+                    'reason',
+                    'specialty',
+                ]);
             };
         }
 

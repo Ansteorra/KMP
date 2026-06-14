@@ -11,7 +11,6 @@ use Awards\Model\Entity\Recommendation;
 use Awards\Model\Entity\RecommendationApprovalRun;
 use Awards\Services\RecommendationGroupingService;
 use Awards\Services\RecommendationSubmissionService;
-use Awards\Services\RecommendationTransitionService;
 use Awards\Services\RecommendationUpdateService;
 use Cake\Core\ContainerInterface as CakeContainerInterface;
 use Cake\Event\EventInterface;
@@ -467,149 +466,6 @@ class RecommendationsControllerWorkflowDispatchTest extends HttpIntegrationTestC
         $this->assertRedirectContains('/awards/recommendations?search=needle');
     }
 
-    public function testUpdateStatesFailWhenWorkflowInactive(): void
-    {
-        $this->deactivateWorkflows(['awards-recommendation-bulk-transition']);
-        $recommendation = $this->createExistingRecommendation();
-        $originalState = $recommendation->state;
-
-        $this->mockServiceClean(RecommendationTransitionService::class, function () {
-            $mock = $this->createMock(RecommendationTransitionService::class);
-            $mock->expects($this->never())
-                ->method('transitionMany');
-
-            return $mock;
-        });
-        $this->mockServiceClean(TriggerDispatcher::class, function () {
-            $mock = $this->createMock(TriggerDispatcher::class);
-            $mock->expects($this->never())->method('dispatch');
-
-            return $mock;
-        });
-
-        $this->post($this->recommendationsUrl('updateStates'), [
-            'ids' => (string)$recommendation->id,
-            'newState' => 'In Consideration',
-            'view' => 'Index',
-            'status' => 'All',
-        ]);
-
-        $this->assertFlashMessage('The recommendation workflow is not currently available.', 'flash');
-        $this->assertRedirect();
-        $freshRecommendation = $this->recommendations->get((int)$recommendation->id);
-        $this->assertSame($originalState, $freshRecommendation->state);
-    }
-
-    public function testUpdateStatesDispatchesWorkflowWhenActive(): void
-    {
-        $this->ensureActiveWorkflow('awards-recommendation-bulk-transition');
-
-        $dispatched = false;
-        $events = [];
-        $this->mockServiceClean(TriggerDispatcher::class, function () use (&$dispatched, &$events) {
-            $mock = $this->createMock(TriggerDispatcher::class);
-            $mock->expects($this->exactly(2))
-                ->method('dispatch')
-                ->willReturnCallback(function (string $event, array $context) use (&$dispatched, &$events): array {
-                    $events[] = $event;
-                    if ($event === 'Awards.RecommendationStateChanged') {
-                        $this->assertSame(123, $context['recommendationId']);
-                        $this->assertSame('In Consideration', $context['newState']);
-
-                        return [];
-                    }
-
-                    $dispatched = true;
-                    $this->assertSame('Awards.RecommendationBulkTransitionRequested', $event);
-                    $this->assertSame(['123'], $context['recommendationIds']);
-                    $this->assertSame('In Consideration', $context['targetState']);
-
-                    return [$this->successfulWorkflowDispatchResult([
-                        'processedCount' => 1,
-                        'recommendationIds' => [123],
-                        'results' => [],
-                    ])];
-                });
-
-            return $mock;
-        });
-        $this->mockServiceClean(RecommendationTransitionService::class, function () {
-            $mock = $this->createMock(RecommendationTransitionService::class);
-            $mock->expects($this->never())->method('transitionMany');
-
-            return $mock;
-        });
-
-        $this->post($this->recommendationsUrl('updateStates'), [
-            'ids' => '123',
-            'newState' => 'In Consideration',
-            'view' => 'Index',
-            'status' => 'All',
-        ]);
-
-        $this->assertTrue($dispatched);
-        $this->assertSame(
-            ['Awards.RecommendationBulkTransitionRequested', 'Awards.RecommendationStateChanged'],
-            $events,
-        );
-        $this->assertRedirect();
-    }
-
-    public function testUpdateStatesTurboStreamShowsSingleSuccessFlash(): void
-    {
-        $this->ensureActiveWorkflow('awards-recommendation-bulk-transition');
-        $recommendation = $this->createExistingRecommendation();
-
-        $this->mockServiceClean(TriggerDispatcher::class, function () use ($recommendation) {
-            $mock = $this->createMock(TriggerDispatcher::class);
-            $mock->expects($this->exactly(2))
-                ->method('dispatch')
-                ->willReturnCallback(function (string $event, array $context) use ($recommendation): array {
-                    if ($event === 'Awards.RecommendationBulkTransitionRequested') {
-                        $this->assertSame([(string)$recommendation->id], $context['recommendationIds']);
-
-                        return [$this->successfulWorkflowDispatchResult([
-                            'processedCount' => 1,
-                            'recommendationIds' => [(int)$recommendation->id],
-                            'results' => [],
-                        ])];
-                    }
-
-                    if ($event === 'Awards.RecommendationStateChanged') {
-                        $this->assertSame((int)$recommendation->id, $context['recommendationId']);
-                    }
-
-                    return [];
-                });
-
-            return $mock;
-        });
-        $this->mockServiceClean(RecommendationTransitionService::class, function () {
-            $mock = $this->createMock(RecommendationTransitionService::class);
-            $mock->expects($this->never())->method('transitionMany');
-
-            return $mock;
-        });
-
-        $this->configRequest([
-            'headers' => [
-                'Accept' => 'text/vnd.turbo-stream.html',
-            ],
-        ]);
-        $this->post($this->recommendationsUrl('updateStates'), [
-            'ids' => (string)$recommendation->id,
-            'newState' => 'In Consideration',
-            'page_context_url' => '/awards/recommendations?sort=member_sca_name&direction=desc',
-        ]);
-
-        $this->assertResponseOk();
-        $this->assertResponseContains('<turbo-stream action="replace" target="recommendations-grid-table"');
-        $this->assertSame(
-            1,
-            substr_count((string)$this->_response->getBody(), 'The recommendations have been updated.'),
-        );
-    }
-
     public function testGroupRecommendationsFailWhenWorkflowInactive(): void
     {
         $this->deactivateWorkflows(['awards-recommendations-group']);
@@ -786,7 +642,6 @@ class RecommendationsControllerWorkflowDispatchTest extends HttpIntegrationTestC
             'add' => '/awards/recommendations/add',
             'edit' => '/awards/recommendations/edit' . $suffix,
             'submitRecommendation' => '/awards/recommendations/submit-recommendation',
-            'updateStates' => '/awards/recommendations/update-states',
             'groupRecommendations' => '/awards/recommendations/group-recommendations',
             'removeFromGroup' => '/awards/recommendations/remove-from-group',
             'delete' => '/awards/recommendations/delete' . $suffix,

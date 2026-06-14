@@ -34,6 +34,7 @@ class AwardsBestowalEditForm extends Controller {
         "linkRecommendationsBlock",
         "domain",
         "award",
+        "member",
         "currentAwardId",
         "submitButton",
     ];
@@ -89,7 +90,7 @@ class AwardsBestowalEditForm extends Controller {
             return;
         }
 
-        const root = combo.closest("#bestowal_edit_root");
+        const root = combo.closest("[data-controller~=\"awards-bestowal-edit\"]");
         if (!root || root !== this.element) {
             return;
         }
@@ -99,6 +100,8 @@ class AwardsBestowalEditForm extends Controller {
             this.onDomainChange(event);
         } else if (role === "award") {
             this.onAwardChange(event);
+        } else if (role === "member") {
+            this.onMemberChange(event);
         }
     }
 
@@ -390,7 +393,10 @@ class AwardsBestowalEditForm extends Controller {
     submit(event) {
         this.setFieldRules();
 
-        const form = this.element.querySelector("#bestowal_form") || this.element;
+        const form = event?.target?.closest?.("form")
+            || this.element.querySelector("#bestowal_form")
+            || this.element.querySelector("form")
+            || this.element;
         if (!this.hasValidAwardSelection()) {
             event.preventDefault();
             event.stopPropagation();
@@ -428,6 +434,20 @@ class AwardsBestowalEditForm extends Controller {
     awardTargetConnected() {
         this.bindAutocompleteClear(this.awardTarget, () => this.onAwardChange());
         this.syncAwardFieldState();
+    }
+
+    /** Sync lookup and submit state when member autocomplete connects. */
+    memberTargetConnected() {
+        this.bindAutocompleteClear(this.memberTarget, () => this.onMemberChange());
+        const memberHidden = this.memberTarget.querySelector("[data-ac-target='hidden']");
+        const memberInput = this.memberTarget.querySelector("[data-ac-target='input']");
+        if (memberHidden) {
+            memberHidden.required = true;
+        }
+        if (memberInput) {
+            memberInput.required = true;
+        }
+        this.updateSubmitState();
     }
 
     /** Read status map embedded in turbo frame when available. */
@@ -679,6 +699,12 @@ class AwardsBestowalEditForm extends Controller {
         this.updateSubmitState();
     }
 
+    /** Handle member selection changes for ad-hoc bestowal creation. */
+    onMemberChange() {
+        this.updateGatherings();
+        this.updateSubmitState();
+    }
+
     /** Fetch awards for domain and populate award selection. */
     populateAwardDescriptions(event) {
         const awardCombo = this.getAwardComboElement();
@@ -809,6 +835,23 @@ class AwardsBestowalEditForm extends Controller {
         return this.element.querySelector("input[name=\"award_id\"]")?.value ?? "";
     }
 
+    /** Read selected member ID or public ID from add/edit form fields. */
+    getMemberValue() {
+        if (this.hasMemberTarget) {
+            const memberValue = this.getHiddenValue(this.memberTarget);
+            if (memberValue !== "") {
+                return memberValue;
+            }
+        }
+        if (this.hasMemberIdTarget) {
+            return this.memberIdTarget.value ?? "";
+        }
+
+        return this.element.querySelector("input[name=\"member_id\"]")?.value
+            || this.element.querySelector("input[name=\"member_public_id\"]")?.value
+            || "";
+    }
+
     /** Reset an autocomplete control to empty. */
     clearAutocomplete(target, { enableInput = true } = {}) {
         if (!target) {
@@ -914,8 +957,17 @@ class AwardsBestowalEditForm extends Controller {
     }
 
     /** @return {boolean} */
+    hasValidMemberSelection() {
+        if (!this.hasMemberTarget && !this.hasMemberIdTarget) {
+            return true;
+        }
+
+        return this.getMemberValue() !== "";
+    }
+
+    /** @return {boolean} */
     isFormSubmittable() {
-        return this.hasValidAwardSelection();
+        return this.hasValidAwardSelection() && this.hasValidMemberSelection();
     }
 
     /** Enable submit only when required fields are satisfied. */
@@ -954,10 +1006,6 @@ class AwardsBestowalEditForm extends Controller {
         }
 
         const bestowalId = this.hasBestowalIdTarget ? this.bestowalIdTarget.value : "";
-        if (!bestowalId) {
-            return;
-        }
-
         const bestowalKey = String(bestowalId);
         const awardId = this.getAwardId();
         const awardKey = String(awardId || "");
@@ -994,12 +1042,20 @@ class AwardsBestowalEditForm extends Controller {
         if (awardId) {
             params.append("award_id", awardId);
         }
+        const memberValue = this.getMemberValue();
+        if (memberValue) {
+            const memberParam = /^\d+$/.test(String(memberValue)) ? "member_id" : "member_public_id";
+            params.append(memberParam, memberValue);
+        }
         if (currentSelection) {
             params.append("selected_id", currentSelection);
             this.planToGiveGatheringTarget.dataset.initialValue = currentSelection;
         }
 
-        let lookupUrl = `${this.gatheringsLookupUrlValue}/${bestowalId}`;
+        let lookupUrl = this.gatheringsLookupUrlValue;
+        if (bestowalId) {
+            lookupUrl += `/${bestowalId}`;
+        }
         if (params.toString()) {
             lookupUrl += `?${params.toString()}`;
         }

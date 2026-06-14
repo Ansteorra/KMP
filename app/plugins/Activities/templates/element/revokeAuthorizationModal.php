@@ -7,8 +7,17 @@
     echo $this->Modal->create("Revoke Authorization", [
         "id" => "revokeModal",
         "close" => true,
+        "form" => true,
+        "size" => "modal-lg",
     ]); ?>
-    <fieldset>
+    <div class="alert alert-warning border-start border-warning border-4 py-2" role="note">
+        <?= __("Record why this authorization is being revoked.") ?>
+    </div>
+    <fieldset class="border rounded-3 bg-white shadow-sm p-3">
+        <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+            <i class="bi bi-exclamation-triangle text-warning me-1" aria-hidden="true"></i>
+            <?= __("Revocation Details") ?>
+        </legend>
         <?php
         echo $this->Form->control("id", [
             "type" => "hidden",

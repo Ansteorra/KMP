@@ -17,15 +17,6 @@ flowchart LR
     H --> I["Bestowal owned lifecycle"]
 ```
 
-### Legacy state-change path retired
-
-```mermaid
-flowchart LR
-    A["RecommendationStateChanged event"] --> B{"newState == Need to Schedule?"}
-    B -- "No" --> C["No-op"]
-    B -- "Yes" --> D["No-op<br/>state changes no longer create bestowals"]
-```
-
 ## 2) Approval ownership and visibility model
 
 ```mermaid
@@ -141,7 +132,6 @@ flowchart LR
 | --- | --- | --- |
 | `awards-recommendation-submitted.json` | `Awards.RecommendationCreateRequested` | `CreateRecommendation` -> `StartApprovalProcess` -> approval loop -> `CreateBestowal` |
 | `awards-existing-recommendation-approval.json` | `Awards.ExistingRecommendationApprovalRequested` | `StartApprovalProcess` -> approval loop -> `CreateBestowal` |
-| `awards-recommendation-state-changed.json` | `Awards.RecommendationStateChanged` | Retired compatibility path: no-op; state changes no longer create bestowals |
 | `awards-bestowal-transition.json` | `Awards.BestowalTransitionRequested` | `TransitionBestowal` -> `SyncRecommendationsFromBestowal` |
 | `awards-bestowal-update.json` | `Awards.BestowalUpdateRequested` | `UpdateBestowal` (link/unlink + transition + sync) |
 | `awards-bestowal-bulk-transition.json` | `Awards.BestowalBulkTransitionRequested` | `BulkTransitionBestowals` |

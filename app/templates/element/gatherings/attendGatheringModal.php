@@ -31,7 +31,7 @@ if ($isEdit) {
     <?php if ($fromCalendar): ?>
     data-calendar-modal="true"
     <?php endif; ?>>
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content" id="<?= $modalId ?>Content">
             <?php if ($isEdit): ?>
                 <?= $this->Form->create(null, [
@@ -54,8 +54,8 @@ if ($isEdit) {
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
 
-            <div class="modal-body">
-                <div class="alert alert-secondary" role="alert">
+            <div class="modal-body bg-light-subtle">
+                <div class="alert alert-secondary border-start border-secondary border-4" role="alert">
                     <small>Share with the crown, your friends, or the gathering hosts that you plan to attend this
                         gathering (not a replacement for paypal prereg).</small>
                 </div>
@@ -66,7 +66,7 @@ if ($isEdit) {
                     <?= $this->Form->hidden('id', ['value' => $userAttendance->id]) ?>
                 <?php endif; ?>
 
-                <div class="alert alert-info">
+                <div class="alert alert-info border-start border-info border-4">
                     <strong><?= h($gathering->name) ?></strong><br>
                     <small>
                         <?= $this->Timezone->format($gathering->start_date, $gathering, 'F j, Y') ?>
@@ -76,6 +76,11 @@ if ($isEdit) {
                     </small>
                 </div>
 
+                <fieldset class="border rounded-3 bg-white shadow-sm p-3 mb-3">
+                    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                        <i class="bi bi-chat-square-text text-primary me-1" aria-hidden="true"></i>
+                        <?= __('Attendance Note') ?>
+                    </legend>
                 <?= $this->Form->control('public_note', [
                     'type' => 'textarea',
                     'label' => 'Public Note',
@@ -86,7 +91,14 @@ if ($isEdit) {
                     'value' => $isEdit ? $userAttendance->public_note : ''
                 ]) ?>
 
-                <div class="mt-3">
+                </fieldset>
+
+                <fieldset class="border rounded-3 bg-white shadow-sm p-3">
+                    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                        <i class="bi bi-share text-primary me-1" aria-hidden="true"></i>
+                        <?= __('Sharing') ?>
+                    </legend>
+                <div>
                     <label class="form-label">Share Information With:</label>
                     <small class="form-text text-muted d-block mb-2">
                         The count of RSVPs is always visible to everyone. But only those below will be able to see your
@@ -125,6 +137,7 @@ if ($isEdit) {
                     ]) ?>
 
                 </div>
+                </fieldset>
             </div>
 
             <?= $this->Form->end() ?>

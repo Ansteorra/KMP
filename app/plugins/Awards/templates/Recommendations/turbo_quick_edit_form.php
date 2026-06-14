@@ -48,7 +48,6 @@ $submitAction = implode(' ', [
     </div>
     <?php endif; ?>
     <fieldset<?= $recommendation->isLockedByBestowal() ? ' disabled' : '' ?>>
-
         <?php
         echo $this->Form->hidden('id', [
             'value' => $recommendation->id,
@@ -59,104 +58,139 @@ $submitAction = implode(' ', [
             'data-awards-rec-quick-edit-target' => 'memberId',
         ]);
         ?>
-        <div style="margin:0 !important;" class="form-group text pb-3"><label class="form-label"
-                for="member-sca-name"><?= __('Recommendation For') ?></label>
-            <div class="input-group ps-3"><strong><?= h($recommendation->member_sca_name) ?></strong></div>
+        <div class="row g-3">
+            <div class="col-12 col-lg-5">
+                <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
+                    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                        <i class="bi bi-person-badge text-primary me-1" aria-hidden="true"></i>
+                        <?= __('Recommendation') ?>
+                    </legend>
+                    <div style="margin:0 !important;" class="form-group text pb-3">
+                        <p class="form-label mb-1"><?= __('Recommendation For') ?></p>
+                        <div class="form-control-plaintext ps-3"><strong><?= h($recommendation->member_sca_name) ?></strong></div>
+                    </div>
+                    <?php
+                    echo $this->Form->control('reason', [
+                        'type' => 'textarea',
+                        'label' => 'Reason for Recommendation',
+                        'id' => 'recommendation__reason',
+                        'value' => $recommendation->reason,
+                        'disabled' => 'disabled',
+                    ]);
+                    ?>
+                </fieldset>
+            </div>
+            <div class="col-12 col-lg-7">
+                <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
+                    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                        <i class="bi bi-award text-success me-1" aria-hidden="true"></i>
+                        <?= __('Award & Notes') ?>
+                    </legend>
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <?php
+                            echo $this->KMP->comboBoxControl(
+                                $this->Form,
+                                'domain_name',
+                                'domain_id',
+                                $awardsDomains->toArray(),
+                                'Award Type',
+                                true,
+                                false,
+                                [
+                                    'data-action' => 'change->awards-rec-quick-edit#populateAwardDescriptions',
+                                    'data-ac-init-selection-value' => json_encode([
+                                        'value' => $recommendation->award->domain_id,
+                                        'text' => $recommendation->award->domain->name,
+                                    ]),
+                                    'data-awards-rec-quick-edit-target' => 'domain',
+                                ],
+                            );
+                            ?>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <?php
+                            echo $this->Form->control('current_award_id', [
+                                'type' => 'hidden',
+                                'value' => $recommendation->award_id,
+                                'data-awards-rec-quick-edit-target' => 'currentAwardId',
+                            ]);
+                            echo $this->Form->control('current_approval_process_id', [
+                                'type' => 'hidden',
+                                'value' => $currentApprovalProcessId ?? '',
+                                'data-awards-rec-quick-edit-target' => 'currentApprovalProcessId',
+                            ]);
+                            echo $this->Form->control('approval_workflow_restart_confirmed', [
+                                'type' => 'hidden',
+                                'value' => '0',
+                                'data-awards-rec-quick-edit-target' => 'approvalWorkflowRestartConfirmed',
+                            ]);
+                            $awardsList = [];
+                            foreach ($awards as $award) {
+                                $awardsList[$award->id] = [
+                                    'text' => $award->name,
+                                    'specialties' => $award->specialties,
+                                    'approval_process_id' => $award->approval_process_id,
+                                ];
+                            }
+                            echo $this->KMP->comboBoxControl(
+                                $this->Form,
+                                'award_name',
+                                'award_id',
+                                $awardsList,
+                                'Award',
+                                true,
+                                false,
+                                [
+                                    'data-awards-rec-quick-edit-target' => 'award',
+                                    'data-action' => 'change->awards-rec-quick-edit#populateSpecialties',
+                                    'data-ac-init-selection-value' => json_encode([
+                                        'value' => $recommendation->award->id,
+                                        'text' => $recommendation->award->name,
+                                    ]),
+                                ],
+                            );
+                            ?>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <?php
+                            $specialties = [];
+                            if (is_array($recommendation->award->specialties)) {
+                                foreach ($recommendation->award->specialties as $specialty) {
+                                    $specialties[$specialty] = ['value' => $specialty, 'text' => $specialty];
+                                }
+                            }
+                            echo $this->KMP->comboBoxControl(
+                                $this->Form,
+                                'specialty',
+                                'specialty_hidden',
+                                $specialties,
+                                'Specialty',
+                                true,
+                                true,
+                                [
+                                    'data-awards-rec-quick-edit-target' => 'specialty',
+                                    'data-ac-init-selection-value' => json_encode([
+                                        'value' => $recommendation->specialty,
+                                        'text' => $recommendation->specialty,
+                                    ]),
+                                ],
+                            );
+                            ?>
+                        </div>
+                        <div class="col-12">
+                            <?php
+                            echo $this->Form->control('note', [
+                                'type' => 'textarea',
+                                'label' => 'Note',
+                                'id' => 'recommendation__notes',
+                            ]);
+                            ?>
+                        </div>
+                    </div>
+                </fieldset>
+            </div>
         </div>
-        <?php
-        echo $this->KMP->comboBoxControl(
-            $this->Form,
-            'domain_name',
-            'domain_id',
-            $awardsDomains->toArray(),
-            'Award Type',
-            true,
-            false,
-            [
-                'data-action' => 'change->awards-rec-quick-edit#populateAwardDescriptions',
-                'data-ac-init-selection-value' => json_encode([
-                    'value' => $recommendation->award->domain_id,
-                    'text' => $recommendation->award->domain->name,
-                ]),
-                'data-awards-rec-quick-edit-target' => 'domain',
-            ],
-        );
-        echo $this->Form->control('current_award_id', [
-            'type' => 'hidden',
-            'value' => $recommendation->award_id,
-            'data-awards-rec-quick-edit-target' => 'currentAwardId',
-        ]);
-        echo $this->Form->control('current_approval_process_id', [
-            'type' => 'hidden',
-            'value' => $currentApprovalProcessId ?? '',
-            'data-awards-rec-quick-edit-target' => 'currentApprovalProcessId',
-        ]);
-        echo $this->Form->control('approval_workflow_restart_confirmed', [
-            'type' => 'hidden',
-            'value' => '0',
-            'data-awards-rec-quick-edit-target' => 'approvalWorkflowRestartConfirmed',
-        ]);
-        $awardsList = [];
-        foreach ($awards as $award) {
-            $awardsList[$award->id] = [
-                'text' => $award->name,
-                'specialties' => $award->specialties,
-                'approval_process_id' => $award->approval_process_id,
-            ];
-        }
-        echo $this->KMP->comboBoxControl(
-            $this->Form,
-            'award_name',
-            'award_id',
-            $awardsList,
-            'Award',
-            true,
-            false,
-            [
-                'data-awards-rec-quick-edit-target' => 'award',
-                'data-action' => 'change->awards-rec-quick-edit#populateSpecialties',
-                'data-ac-init-selection-value' => json_encode([
-                    'value' => $recommendation->award->id,
-                    'text' => $recommendation->award->name,
-                ]),
-            ],
-        );
-        $specialties = [];
-        if (is_array($recommendation->award->specialties)) {
-            foreach ($recommendation->award->specialties as $specialty) {
-                $specialties[$specialty] = ['value' => $specialty, 'text' => $specialty];
-            }
-        }
-        echo $this->KMP->comboBoxControl(
-            $this->Form,
-            'specialty',
-            'specialty_hidden',
-            $specialties,
-            'Specialty',
-            true,
-            true,
-            [
-                'data-awards-rec-quick-edit-target' => 'specialty',
-                'data-ac-init-selection-value' => json_encode([
-                    'value' => $recommendation->specialty,
-                    'text' => $recommendation->specialty,
-                ]),
-            ],
-        );
-        echo $this->Form->control('reason', [
-            'type' => 'textarea',
-            'label' => 'Reason for Recommendation',
-            'id' => 'recommendation__reason',
-            'value' => $recommendation->reason,
-            'disabled' => 'disabled',
-        ]);
-
-        echo $this->Form->control('note', [
-            'type' => 'textarea',
-            'label' => 'Note',
-            'id' => 'recommendation__notes',
-        ]);
-        ?>
     </fieldset>
     <?= $this->Form->end() ?>
 </turbo-frame>

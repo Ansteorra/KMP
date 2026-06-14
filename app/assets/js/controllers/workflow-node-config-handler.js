@@ -164,6 +164,10 @@ export default class WorkflowNodeConfigHandler {
         const existingInput = inputGroup.querySelector(`[name="${fieldName}"]`)
         const isNumber = existingInput?.type === 'number'
         const dataType = isNumber ? 'integer' : 'string'
+        const idAttr = existingInput?.id ? ` id="${existingInput.id}"` : ''
+        const describedByAttr = existingInput?.getAttribute('aria-describedby')
+            ? ` aria-describedby="${existingInput.getAttribute('aria-describedby')}"`
+            : ''
 
         const oldInputs = inputGroup.querySelectorAll(`[name="${fieldName}"]`)
         oldInputs.forEach(el => {
@@ -176,23 +180,23 @@ export default class WorkflowNodeConfigHandler {
 
         let newInputHTML = ''
         if (selectedType === 'context') {
-            newInputHTML = `<input type="text" class="form-control form-control-sm"
+            newInputHTML = `<input type="text" class="form-control form-control-sm"${idAttr}${describedByAttr}
                 name="${fieldName}" value="" placeholder="$.path.to.value"
                 data-action="change->workflow-designer#updateNodeConfig"
                 data-variable-picker="true">`
         } else if (selectedType === 'app_setting') {
-            newInputHTML = `<select class="form-select form-select-sm" name="${fieldName}"
+            newInputHTML = `<select class="form-select form-select-sm"${idAttr}${describedByAttr} name="${fieldName}"
                 data-action="change->workflow-designer#updateNodeConfig"
                 data-vp-settings-select="${fieldName}">
                 <option value="">Loading settings...</option>
             </select>`
         } else {
             if (dataType === 'integer') {
-                newInputHTML = `<input type="number" class="form-control form-control-sm"
+                newInputHTML = `<input type="number" class="form-control form-control-sm"${idAttr}${describedByAttr}
                     name="${fieldName}" value=""
                     data-action="change->workflow-designer#updateNodeConfig">`
             } else {
-                newInputHTML = `<input type="text" class="form-control form-control-sm"
+                newInputHTML = `<input type="text" class="form-control form-control-sm"${idAttr}${describedByAttr}
                     name="${fieldName}" value=""
                     data-action="change->workflow-designer#updateNodeConfig">`
             }

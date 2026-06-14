@@ -83,12 +83,22 @@ class AddBestowalOfficesAndPolicies extends BaseMigration
             'Can View Bestowals' => [
                 [self::POLICY_CLASS, 'canView'],
                 [self::POLICY_CLASS, 'canIndex'],
+                [self::POLICY_CLASS, 'canGatheringBestowalsGridData'],
                 [self::POLICY_CLASS, 'canViewGatheringBestowals'],
                 [self::TABLE_POLICY_CLASS, 'canIndex'],
                 [self::TABLE_POLICY_CLASS, 'canExport'],
             ],
             'Can Manage Bestowals' => [
                 [self::POLICY_CLASS, 'canEdit'],
+                [self::POLICY_CLASS, 'canUpdateState'],
+                [self::POLICY_CLASS, 'canUpdateStates'],
+                [self::POLICY_CLASS, 'canTurboEditForm'],
+                [self::POLICY_CLASS, 'canTurboBulkEditForm'],
+                [self::POLICY_CLASS, 'canCourtSlotsForGathering'],
+                [self::POLICY_CLASS, 'canGatheringsForBestowalAutoComplete'],
+                [self::POLICY_CLASS, 'canGatheringsForBestowalBulkAutoComplete'],
+                [self::POLICY_CLASS, 'canCancel'],
+                [self::POLICY_CLASS, 'canAdHoc'],
                 [self::POLICY_CLASS, 'canViewHidden'],
             ],
             'Can Prepare Scrolls' => [

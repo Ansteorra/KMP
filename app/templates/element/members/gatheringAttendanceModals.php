@@ -18,7 +18,7 @@ $isMinor = $member && $member->age !== null && $member->age < 18;
 <!-- Add Gathering Attendance Modal -->
 <div class="modal fade" id="addGatheringAttendanceModal" tabindex="-1"
     aria-labelledby="addGatheringAttendanceModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content">
             <?= $this->Form->create(null, [
                 'url' => ['controller' => 'GatheringAttendances', 'action' => 'add'],
@@ -28,13 +28,18 @@ $isMinor = $member && $member->age !== null && $member->age < 18;
                 <h5 class="modal-title" id="addGatheringAttendanceModalLabel">RSVP for Gathering</h5><br />
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <div class="alert alert-secondary" role="alert">
+            <div class="modal-body bg-light-subtle">
+                <div class="alert alert-secondary border-start border-secondary border-4" role="alert">
                     <small>Share with the crown, your friends, or the gathering hosts that you plan to attend this
                         gathering (not a replacement for paypal prereg).</small>
                 </div>
                 <?= $this->Form->hidden('member_id', ['value' => $member->id]) ?>
 
+                <fieldset class="border rounded-3 bg-white shadow-sm p-3 mb-3">
+                    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                        <i class="bi bi-calendar-event text-primary me-1" aria-hidden="true"></i>
+                        <?= __('Gathering and Note') ?>
+                    </legend>
                 <?= $this->Form->control('gathering_id', [
                     'type' => 'select',
                     'label' => 'Gathering',
@@ -53,7 +58,14 @@ $isMinor = $member && $member->age !== null && $member->age < 18;
                     'class' => 'form-control'
                 ]) ?>
 
-                <div class="mt-3">
+                </fieldset>
+
+                <fieldset class="border rounded-3 bg-white shadow-sm p-3">
+                    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                        <i class="bi bi-share text-primary me-1" aria-hidden="true"></i>
+                        <?= __('Sharing') ?>
+                    </legend>
+                <div>
                     <label class="form-label">Share Information With:</label>
                     <small class="form-text text-muted d-block mb-2">
                         The count of RSVPs is always visible to everyone. But only those below will be able to see your
@@ -89,6 +101,7 @@ $isMinor = $member && $member->age !== null && $member->age < 18;
                     ]) ?>
 
                 </div>
+                </fieldset>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -102,7 +115,7 @@ $isMinor = $member && $member->age !== null && $member->age < 18;
 <!-- Edit Gathering Attendance Modal - Content loaded dynamically via AJAX -->
 <div class="modal fade" id="editGatheringAttendanceModal" tabindex="-1"
     aria-labelledby="editGatheringAttendanceModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content" id="editGatheringAttendanceModalContent">
             <!-- Content will be loaded dynamically -->
             <div class="modal-header">

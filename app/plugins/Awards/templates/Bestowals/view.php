@@ -1,5 +1,7 @@
 <?php
 
+use Awards\Services\BestowalCourtSlotService;
+
 /**
  * @var \App\View\AppView $this
  * @var \Awards\Model\Entity\Bestowal $bestowal
@@ -60,12 +62,12 @@ echo $this->KMP->startBlock('recordDetails');
 <tr>
     <th scope="row"><?= __('Member') ?></th>
     <td>
-        <?php if ($bestowal->member_id && $user->checkCan('view', $bestowal->member ?? 'Members')): ?>
+        <?php if ($bestowal->member_id && $user->checkCan('view', $bestowal->member ?? 'Members')) : ?>
             <?= $this->Html->link(
                 h($memberName),
                 ['plugin' => null, 'controller' => 'Members', 'action' => 'view', $bestowal->member_id],
             ) ?>
-        <?php else: ?>
+        <?php else : ?>
             <?= h($memberName) ?>
         <?php endif; ?>
     </td>
@@ -73,12 +75,12 @@ echo $this->KMP->startBlock('recordDetails');
 <tr>
     <th scope="row"><?= __('Award to Bestow') ?></th>
     <td>
-        <?php if ($bestowal->hasValue('award')): ?>
+        <?php if ($bestowal->hasValue('award')) : ?>
             <?= h($bestowal->award->abbreviation ?? $bestowal->award->name ?? '') ?>
-            <?php if ($bestowal->award->hasValue('level') && !empty($bestowal->award->level->name)): ?>
+            <?php if ($bestowal->award->hasValue('level') && !empty($bestowal->award->level->name)) : ?>
                 (<?= h($bestowal->award->level->name) ?>)
             <?php endif; ?>
-        <?php else: ?>
+        <?php else : ?>
             <span class="text-muted"><?= __('Not set') ?></span>
         <?php endif; ?>
     </td>
@@ -98,13 +100,13 @@ echo $this->KMP->startBlock('recordDetails');
 <tr>
     <th scope="row"><?= __('Gathering') ?></th>
     <td>
-        <?php if ($bestowal->hasValue('gathering')): ?>
+        <?php if ($bestowal->hasValue('gathering')) : ?>
             <?= h($bestowal->gathering->name) ?>
         <?php endif; ?>
     </td>
 </tr>
 <?php
-$courtSlotLabel = (new \Awards\Services\BestowalCourtSlotService())->formatCourtSlotDisplay($bestowal);
+$courtSlotLabel = (new BestowalCourtSlotService())->formatCourtSlotDisplay($bestowal);
 if ($courtSlotLabel !== '') :
     ?>
 <tr>
@@ -123,19 +125,50 @@ if ($courtSlotLabel !== '') :
 <tr>
     <th scope="row"><?= __('Linked Recommendations') ?></th>
     <td>
-        <?php if (!empty($bestowal->recommendations)): ?>
-            <ul class="mb-0">
-                <?php foreach ($bestowal->recommendations as $recommendation): ?>
-                    <li>
-                        <?= $this->Html->link(
-                            h(($recommendation->award->abbreviation ?? $recommendation->award->name ?? __('Award'))
-                                . ' — ' . ($recommendation->member_sca_name ?? '')),
-                            ['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'view', $recommendation->id],
-                        ) ?>
+        <?php if (!empty($bestowal->recommendations)) : ?>
+            <ul class="list-unstyled mb-0">
+                <?php foreach ($bestowal->recommendations as $recommendation) : ?>
+                    <?php
+                    $recommendationLabel = ($recommendation->award->abbreviation
+                        ?? $recommendation->award->name
+                        ?? __('Award')) . ' — ' . ($recommendation->member_sca_name ?? '');
+                    $recommendationReason = trim((string)($recommendation->reason ?? ''));
+                    ?>
+                    <li class="mb-3">
+                        <div class="fw-semibold">
+                            <?= $this->Html->link(
+                                $recommendationLabel,
+                                [
+                                    'plugin' => 'Awards',
+                                    'controller' => 'Recommendations',
+                                    'action' => 'view',
+                                    $recommendation->id,
+                                ],
+                            ) ?>
+                        </div>
+                        <?php
+                        if (
+                            !empty($recommendation->requester_sca_name)
+                            || $recommendation->hasValue('requester')
+                        ) :
+                            ?>
+                            <div class="text-muted small">
+                                <?= __('Recommended by') ?>
+                                <?= h($recommendation->requester->sca_name ?? $recommendation->requester_sca_name) ?>
+                            </div>
+                        <?php endif; ?>
+                        <div class="mt-1">
+                            <span class="fw-semibold"><?= __('Reason:') ?></span>
+                            <?php if ($recommendationReason !== '') : ?>
+                                <?= $this->Text->autoParagraph(h($recommendationReason)) ?>
+                            <?php else : ?>
+                                <span class="text-muted"><?= __('No reason recorded') ?></span>
+                            <?php endif; ?>
+                        </div>
                     </li>
                 <?php endforeach; ?>
             </ul>
-        <?php else: ?>
+        <?php else : ?>
             <span class="text-muted"><?= __('None') ?></span>
         <?php endif; ?>
     </td>

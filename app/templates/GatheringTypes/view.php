@@ -139,7 +139,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
 
 <!-- Add Activity Modal -->
 <div class="modal fade" id="addActivityModal" tabindex="-1" aria-labelledby="addActivityModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content">
             <?= $this->Form->create(null, [
                 'url' => ['action' => 'addActivity', $gatheringType->id],
@@ -149,7 +149,12 @@ echo $this->KMP->startBlock("pageTitle") ?>
                 <h5 class="modal-title" id="addActivityModalLabel"><?= __('Add Template Activity') ?></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body bg-light-subtle">
+                <fieldset class="border rounded-3 bg-white shadow-sm p-3">
+                    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                        <i class="bi bi-calendar-plus text-primary me-1" aria-hidden="true"></i>
+                        <?= __('Template Activity') ?>
+                    </legend>
                 <div class="mb-3">
                     <?= $this->Form->control('activity_id', [
                         'type' => 'select',
@@ -171,6 +176,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
                             <?= __('Not Removable') ?>
                         </label>
                     </div>
+                    </fieldset>
                     <small class="form-text text-muted">
                         <?= __('If checked, this activity will be locked on gatherings and cannot be removed.') ?>
                     </small>

@@ -25,8 +25,6 @@ $definition->is_active = true;
 $definitions->saveOrFail($definition);
 
 \App\KMP\StaticHelpers::setAppSetting('KMP.EnablePublicRegistration', 'yes', 'string', true);
-\App\KMP\StaticHelpers::setAppSetting('Members.NewMemberSecretaryEmail', 'adult.secretary@example.test', 'string', true);
-\App\KMP\StaticHelpers::setAppSetting('Members.NewMinorSecretaryEmail', 'minor.secretary@example.test', 'string', true);
 \App\KMP\StaticHelpers::setAppSetting('Email.SiteAdminSignature', 'Test Site Admin', 'string', true);
 \App\KMP\StaticHelpers::setAppSetting('KMP.LongSiteTitle', 'Known Membership Portal', 'string', true);
 
@@ -67,8 +65,18 @@ echo json_encode([
     'expectedCardPresent' => $cardMode === 'uploaded',
     'expectedCardPhrase' => $cardMode === 'uploaded' ? 'uploaded' : 'not uploaded',
     'expectedSuccessMessage' => $expectedSuccessMessage,
-    'adultSecretaryEmail' => 'adult.secretary@example.test',
-    'minorSecretaryEmail' => 'minor.secretary@example.test',
+    'adultSecretaryEmail' => \App\KMP\StaticHelpers::getAppSetting(
+        'Members.NewMemberSecretaryEmail',
+        'amp-secretary@webminister.ansteorra.org',
+        null,
+        true,
+    ),
+    'minorSecretaryEmail' => \App\KMP\StaticHelpers::getAppSetting(
+        'Members.NewMinorSecretaryEmail',
+        'amp-secretary@webminister.ansteorra.org',
+        null,
+        true,
+    ),
     'expectedWelcomeSubject' => 'Welcome ' . $memberName,
     'expectedAdultSecretarySubject' => 'New Member Registration: ' . $memberName,
     'expectedMinorSecretarySubject' => 'New Minor Member Registration: ' . $memberName,

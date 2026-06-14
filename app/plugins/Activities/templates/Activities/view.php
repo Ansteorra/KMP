@@ -190,40 +190,92 @@ echo $this->Form->create($activity, [
 echo $this->Modal->create("Edit Authoriztion Type", [
     "id" => "editModal",
     "close" => true,
+    "form" => true,
 ]);
 ?>
-<fieldset>
-    <?php
-    echo $this->Form->control("name");
-    echo $this->Form->control("activity_group_id", [
-        "options" => $activityGroup,
-    ]);
-    echo $this->Form->control("permission_id", [
-        "label" => "Authorized By",
-        "options" => $authByPermissions,
-        "empty" => true
-    ]);
-    echo $this->Form->control("grants_role_id", [
-        "options" => $authAssignableRoles,
-        "empty" => true,
-    ]);
-    echo $this->Form->control("term_length", [
-        "label" => "Duration (Months)",
-        "type" => "number",
-    ]);
-    echo $this->Form->control("minimum_age", ["type" => "number"]);
-    echo $this->Form->control("maximum_age", ["type" => "number"]);
-    echo $this->Form->control("num_required_authorizors", [
-        "label" => "# for Authorization",
-        "type" => "number",
-    ]);
-    echo $this->Form->control("num_required_renewers", [
-        "label" => "# for Renewal",
-        "type" => "number",
-    ]);
-
-    ?>
-</fieldset>
+<div class="row g-3">
+    <div class="col-12 col-lg-5">
+        <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
+            <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                <i class="bi bi-shield text-primary me-1" aria-hidden="true"></i>
+                <?= __("Authorization Type") ?>
+            </legend>
+            <?php
+            echo $this->Form->control("name");
+            echo $this->Form->control("activity_group_id", [
+                "options" => $activityGroup,
+            ]);
+            echo $this->Form->control("term_length", [
+                "label" => "Duration (Months)",
+                "type" => "number",
+            ]);
+            ?>
+        </fieldset>
+    </div>
+    <div class="col-12 col-lg-7">
+        <div class="row g-3">
+            <div class="col-12">
+                <fieldset class="border rounded-3 bg-white shadow-sm p-3">
+                    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                        <i class="bi bi-person-check text-success me-1" aria-hidden="true"></i>
+                        <?= __("Approvals & Role Grant") ?>
+                    </legend>
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <?php
+                            echo $this->Form->control("permission_id", [
+                                "label" => "Authorized By",
+                                "options" => $authByPermissions,
+                                "empty" => true
+                            ]);
+                            ?>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <?php
+                            echo $this->Form->control("grants_role_id", [
+                                "options" => $authAssignableRoles,
+                                "empty" => true,
+                            ]);
+                            ?>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <?php
+                            echo $this->Form->control("num_required_authorizors", [
+                                "label" => "# for Authorization",
+                                "type" => "number",
+                            ]);
+                            ?>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <?php
+                            echo $this->Form->control("num_required_renewers", [
+                                "label" => "# for Renewal",
+                                "type" => "number",
+                            ]);
+                            ?>
+                        </div>
+                    </div>
+                </fieldset>
+            </div>
+            <div class="col-12">
+                <fieldset class="border rounded-3 bg-white shadow-sm p-3">
+                    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                        <i class="bi bi-calendar-heart text-info me-1" aria-hidden="true"></i>
+                        <?= __("Eligibility Window") ?>
+                    </legend>
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <?php echo $this->Form->control("minimum_age", ["type" => "number"]); ?>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <?php echo $this->Form->control("maximum_age", ["type" => "number"]); ?>
+                        </div>
+                    </div>
+                </fieldset>
+            </div>
+        </div>
+    </div>
+</div>
 <?php echo $this->Modal->end([
     $this->Form->button("Submit", [
         "class" => "btn btn-primary",

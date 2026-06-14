@@ -378,12 +378,12 @@ class OfficesController extends AppController
     /**
      * Edit an existing office with hierarchy validation.
      *
-     * @param string|null $id Office ID
      * @param OfficerManagerInterface $officerManager Officer manager for recalculation
+     * @param string|null $id Office ID
      * @return \Cake\Http\Response|null|void Redirects to view
      * @throws \Cake\Http\Exception\NotFoundException When office not found
      */
-    public function edit($id = null, OfficerManagerInterface $officerManager)
+    public function edit(OfficerManagerInterface $officerManager, $id = null)
     {
         // Load office with minimal associations for edit performance
         $office = $this->Offices->get($id, contain: []);

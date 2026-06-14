@@ -4,6 +4,8 @@ const { execFileSync } = require('node:child_process');
 const { request } = require('@playwright/test');
 
 const {
+  APP_ROOT,
+  getAppContainerName,
   getUiTestEnvironment,
   getPostgresConfig,
   getDbContainerName,
@@ -73,15 +75,38 @@ const ensureRequiredAppSettings = () => {
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';
 
-\App\KMP\StaticHelpers::setAppSetting(
+$settings = \Cake\ORM\TableRegistry::getTableLocator()->get('AppSettings');
+$saved = $settings->setAppSetting(
     'Members.AccountVerificationContactEmail',
     'amp-secretary@webminister.ansteorra.org',
     'string',
-    true
+    true,
 );
+
+if (!$saved || $settings->getSetting('Members.AccountVerificationContactEmail') === null) {
+    throw new \RuntimeException('Unable to seed required Members.AccountVerificationContactEmail app setting.');
+}
 
 echo json_encode(['ok' => true], JSON_THROW_ON_ERROR);
 `);
+};
+
+const cleanupDebugKitState = () => {
+  if (shouldUseDockerPhp()) {
+    execFileSync('docker', [
+      'exec',
+      getAppContainerName(),
+      'sh',
+      '-c',
+      'rm -f tmp/debug_kit.sqlite tmp/debug_kit.sqlite-*',
+    ], { stdio: 'pipe' });
+    return;
+  }
+
+  execFileSync('sh', [
+    '-c',
+    'rm -f tmp/debug_kit.sqlite tmp/debug_kit.sqlite-*',
+  ], { cwd: APP_ROOT, stdio: 'pipe' });
 };
 
 async function globalSetup() {
@@ -90,7 +115,10 @@ async function globalSetup() {
   const apiContext = await request.newContext({
     baseURL: environment.baseUrl,
     ignoreHTTPSErrors: true,
-    extraHTTPHeaders: environment.hostHeader ? { Host: environment.hostHeader } : undefined,
+    extraHTTPHeaders: {
+      ...(environment.hostHeader ? { Host: environment.hostHeader } : {}),
+      'X-KMP-E2E': '1',
+    },
   });
 
   // empty the test mail server inbox
@@ -110,6 +138,14 @@ async function globalSetup() {
     console.log('✅ Auth requests cleaned up');
   } catch (error) {
     console.log('⚠️ Could not clean up auths (non-fatal):', error.message?.substring(0, 100));
+  }
+
+  console.log('🧹 Cleaning up DebugKit request cache...');
+  try {
+    cleanupDebugKitState();
+    console.log('✅ DebugKit request cache cleaned up');
+  } catch (error) {
+    console.log('⚠️ Could not clean up DebugKit request cache (non-fatal):', error.message?.substring(0, 100));
   }
 
   try {

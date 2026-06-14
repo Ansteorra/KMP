@@ -257,6 +257,69 @@ class BestowalFormService
     }
 
     /**
+     * Prepare view variables for the ad-hoc bestowal creation form.
+     *
+     * @param \App\Model\Entity\Member|array|null $member Current user for timezone-aware labels.
+     * @return array<string, mixed>
+     */
+    public function prepareAdHocFormData($member = null): array
+    {
+        $bestowal = new Bestowal([
+            'state' => 'Created',
+            'status' => 'Planning',
+            'stack_rank' => 0,
+            'source' => Bestowal::SOURCE_AD_HOC,
+        ]);
+        $statusList = $this->buildStatusList();
+        $rules = $this->buildFormRules();
+        $statusMap = $this->buildStatusMap();
+        $awardsTable = TableRegistry::getTableLocator()->get('Awards.Awards');
+        $awardsDomains = $awardsTable->Domains->find('list', limit: 200)->all();
+        $awards = [];
+        $gatheringList = [];
+        $courtSlotList = [];
+        $courtSlotValue = null;
+        $courtSlotsAvailable = false;
+        $courtSlotHasScheduledSessions = false;
+        $courtSlotHelpText = BestowalCourtSlotService::fieldHelpText();
+        $courtSlotNoScheduleText = BestowalCourtSlotService::noScheduleMessage();
+        $gatheringScheduleUrl = null;
+        $cancelledGatheringIds = [];
+        $assignedGatheringCancelled = false;
+        $memberAttendanceGatherings = [];
+        $domainId = null;
+        $gatheringStartDateYmd = null;
+        $courtSessionDates = [];
+        $suggestedBestowedDate = null;
+        $linkableRecommendations = [];
+
+        return compact(
+            'rules',
+            'bestowal',
+            'statusList',
+            'gatheringList',
+            'courtSlotList',
+            'courtSlotValue',
+            'courtSlotsAvailable',
+            'courtSlotHasScheduledSessions',
+            'courtSlotHelpText',
+            'courtSlotNoScheduleText',
+            'gatheringScheduleUrl',
+            'linkableRecommendations',
+            'statusMap',
+            'cancelledGatheringIds',
+            'assignedGatheringCancelled',
+            'memberAttendanceGatherings',
+            'awardsDomains',
+            'awards',
+            'domainId',
+            'gatheringStartDateYmd',
+            'courtSessionDates',
+            'suggestedBestowedDate',
+        );
+    }
+
+    /**
      * Prepare view variables for the bulk edit form.
      *
      * @return array<string, mixed>

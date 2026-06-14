@@ -98,13 +98,16 @@ echo $this->Form->create($status, [
 echo $this->Modal->create("Edit Bestowal Status", [
     "id" => "editModal",
     "close" => true,
+    "form" => true,
+    "size" => "modal-lg",
 ]);
 ?>
-<fieldset>
-    <?php
-    echo $this->Form->control("name");
-    echo $this->Form->control("sort_order", ['type' => 'number']);
-    ?>
+<fieldset class="border rounded-3 bg-white shadow-sm p-3">
+    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3"><?= __('Bestowal Status') ?></legend>
+    <div class="row g-3">
+        <div class="col-12 col-md-6"><?php echo $this->Form->control("name"); ?></div>
+        <div class="col-12 col-md-6"><?php echo $this->Form->control("sort_order", ['type' => 'number']); ?></div>
+    </div>
 </fieldset>
 <?php echo $this->Modal->end([
     $this->Form->button("Submit", [

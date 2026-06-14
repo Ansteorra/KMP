@@ -103,9 +103,12 @@ echo $this->Form->create($domain, [
 echo $this->Modal->create("Edit Award Domain", [
     "id" => "editModal",
     "close" => true,
+    "form" => true,
+    "size" => "modal-lg",
 ]);
 ?>
-<fieldset>
+<fieldset class="border rounded-3 bg-white shadow-sm p-3">
+    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3"><?= __('Award Domain') ?></legend>
     <?php
     echo $this->Form->control("name");
     ?>

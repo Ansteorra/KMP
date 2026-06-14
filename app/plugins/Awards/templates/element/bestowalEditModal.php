@@ -31,6 +31,7 @@ $initialTurboFrameSrc = $initialBestowalId
 echo $this->Modal->create(__('Edit Bestowal'), [
     'id' => $modalId,
     'close' => true,
+    'form' => true,
 ]);
 ?>
 <turbo-frame id="editBestowalQuick"

@@ -46,6 +46,7 @@ class WorkflowDesignerController extends Controller {
     _isDirty = false
     _lastSavedSnapshot = null
     _shiftHeld = false
+    _keyboardNodeOffset = 0
 
     async connect() {
         this._showLoading(true)
@@ -270,10 +271,10 @@ class WorkflowDesignerController extends Controller {
                 .join('')
             const searchableText = `${label} ${type} ${searchText}`.trim()
 
-            return `<div class="palette-node" draggable="true" data-node-type="${this._escapeAttr(type)}"${dataAttrs}
+            return `<button type="button" class="palette-node" draggable="true" data-node-type="${this._escapeAttr(type)}"${dataAttrs}
                     data-palette-node data-palette-search="${this._escapeAttr(searchableText)}"
-                    data-action="dragstart->workflow-designer#onPaletteDragStart"
-                    role="button" aria-label="${this._escapeAttr(label)}">${makeIcon(icon)} ${this._escapeHtml(label)}</div>`
+                    data-action="dragstart->workflow-designer#onPaletteDragStart keydown->workflow-designer#onPaletteNodeKeydown"
+                    aria-describedby="workflow-palette-keyboard-help">${makeIcon(icon)} <span>${this._escapeHtml(label)}</span></button>`
         }
 
         const groupBySource = (items) => {
@@ -438,6 +439,39 @@ class WorkflowDesignerController extends Controller {
     onCanvasDragOver(event) {
         event.preventDefault()
         event.dataTransfer.dropEffect = 'move'
+    }
+
+    onPaletteNodeKeydown(event) {
+        if (event.key !== 'Enter' && event.key !== ' ') {
+            return
+        }
+
+        event.preventDefault()
+        this._addPaletteNodeFromElement(event.currentTarget)
+    }
+
+    _addPaletteNodeFromElement(el) {
+        const nodeType = el.dataset.nodeType
+        if (!nodeType || !this.hasCanvasTarget) return
+
+        const canvasRect = this.canvasTarget.getBoundingClientRect()
+        const zoom = this._zoom || 1
+        const canvasX = this.editor.canvas_x || 0
+        const canvasY = this.editor.canvas_y || 0
+        const offset = this._keyboardNodeOffset
+        this._keyboardNodeOffset = (this._keyboardNodeOffset + 32) % 160
+        const x = ((canvasRect.width / 2) - canvasX + offset) / zoom
+        const y = ((canvasRect.height / 2) - canvasY + offset) / zoom
+
+        this.addNode(nodeType, x, y, {
+            event: el.dataset.nodeEvent || '',
+            action: el.dataset.nodeAction || ''
+        })
+
+        const status = this.element.querySelector('#workflow-palette-add-status')
+        if (status) {
+            status.textContent = `${el.textContent.trim()} node added to the canvas.`
+        }
     }
 
     // --- Node CRUD ---

@@ -231,50 +231,84 @@ echo $this->Form->create($award, [
 echo $this->Modal->create('Edit Award', [
     'id' => 'editModal',
     'close' => true,
+    'form' => true,
 ]);
 ?>
-<fieldset>
-    <?php
-    echo $this->Form->control('name');
-    echo $this->Form->control('abbreviation');
-    $specialties = json_encode($award->specialties);
-    if ($specialties === 'null') {
-        $specialties = '[]';
-    }
-    echo $this->Form->hidden('specialties', [
-        'value' => $specialties,
-        'id' => 'specialties',
-        'data-awards-award-form-target' => 'formValue',
-    ]); ?>
-    <div class="mb-3 form-group specialties">
-        <label class="form-label" for="specialtyInput">Specialties</label>
-        <div data-awards-award-form-target='displayList' class="mb-3"></div>
-        <div class="input-group">
-            <input type="text" data-awards-award-form-target="new" class="form-control" placeholder="Add Specialty">
-            <button type="button" class="btn btn-primary btn-sm" data-action="awards-award-form#add">Add</button>
-        </div>
+<?php
+$specialties = json_encode($award->specialties);
+if ($specialties === 'null') {
+    $specialties = '[]';
+}
+echo $this->Form->hidden('specialties', [
+    'value' => $specialties,
+    'id' => 'specialties',
+    'data-awards-award-form-target' => 'formValue',
+]);
+?>
+<div class="row g-3">
+    <div class="col-12">
+        <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
+            <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                <i class="bi bi-award text-primary me-1" aria-hidden="true"></i>
+                <?= __('Award Identity') ?>
+            </legend>
+            <div class="row g-3">
+                <div class="col-12 col-md-6"><?php echo $this->Form->control('name'); ?></div>
+                <div class="col-12 col-md-6"><?php echo $this->Form->control('abbreviation'); ?></div>
+                <div class="col-12"><?php echo $this->Form->control('description'); ?></div>
+                <div class="col-12 col-xl-6">
+                    <?php
+                    echo $this->Form->control('is_disabled', [
+                        'type' => 'checkbox',
+                        'label' => __('Disabled'),
+                        'checked' => $award->disabled,
+                    ]);
+                    ?>
+                </div>
+            </div>
+        </fieldset>
     </div>
-    <?php
-    echo $this->Form->control('description');
-    echo $this->Form->control('insignia');
-    echo $this->Form->control('badge');
-    echo $this->Form->control('charter');
-    echo $this->Form->control('is_disabled', [
-        'type' => 'checkbox',
-        'label' => __('Disabled'),
-        'checked' => $award->disabled,
-    ]);
-    echo $this->Form->control('domain_id', ['options' => $awardsDomains]);
-    echo $this->Form->control('level_id', ['options' => $awardsLevels]);
-    echo $this->Form->control('branch_id', ['options' => $branches]);
-    echo $this->Form->control('approval_process_id', [
-        'options' => $approvalProcesses,
-        'empty' => __('Use legacy recommendation state process'),
-        'label' => __('Approval Process'),
-        'help' => __('Choose the configured approval queue process for new recommendations for this award.'),
-    ]);
-    ?>
-</fieldset>
+    <div class="col-12 col-xl-6">
+        <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
+            <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                <i class="bi bi-palette text-success me-1" aria-hidden="true"></i>
+                <?= __('Insignia & Specialties') ?>
+            </legend>
+            <?php
+            echo $this->Form->control('insignia');
+            echo $this->Form->control('badge');
+            echo $this->Form->control('charter');
+            ?>
+            <div class="mb-3 form-group specialties">
+                <label class="form-label" for="specialtyInput">Specialties</label>
+                <div data-awards-award-form-target='displayList' class="mb-3"></div>
+                <div class="input-group">
+                    <input type="text" id="specialtyInput" data-awards-award-form-target="new" class="form-control" placeholder="Add Specialty">
+                    <button type="button" class="btn btn-primary btn-sm" data-action="awards-award-form#add">Add</button>
+                </div>
+            </div>
+        </fieldset>
+    </div>
+    <div class="col-12 col-xl-6">
+        <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
+            <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                <i class="bi bi-diagram-3 text-info me-1" aria-hidden="true"></i>
+                <?= __('Placement & Approval') ?>
+            </legend>
+            <?php
+            echo $this->Form->control('domain_id', ['options' => $awardsDomains]);
+            echo $this->Form->control('level_id', ['options' => $awardsLevels]);
+            echo $this->Form->control('branch_id', ['options' => $branches]);
+            echo $this->Form->control('approval_process_id', [
+                'options' => $approvalProcesses,
+                'empty' => __('Use legacy recommendation state process'),
+                'label' => __('Approval Process'),
+                'help' => __('Choose the configured approval queue process for new recommendations for this award.'),
+            ]);
+            ?>
+        </fieldset>
+    </div>
+</div>
 <?php echo $this->Modal->end([
     $this->Form->button('Submit', [
         'class' => 'btn btn-primary',
@@ -301,9 +335,11 @@ if ($user->checkCan('edit', $award)) {
     echo $this->Modal->create('Add Activity', [
         'id' => 'addActivityModal',
         'close' => true,
+        'form' => true,
+        'size' => 'modal-lg',
     ]);
     ?>
-<div class="mb-3">
+<div class="border rounded-3 bg-white shadow-sm p-3">
     <label for="gathering_activity_id" class="form-label"><?= __('Select Activity') ?></label>
     <?= $this->Form->control('gathering_activity_id', [
             'options' => $availableActivities,

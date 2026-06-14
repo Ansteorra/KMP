@@ -116,6 +116,11 @@ class ModalHelper extends Helper
      * will be added to the modal and the header will be set accordingly.
      * - `size` Size of the modal. Either a shortcut(`'lg'`/`'large'`/`'modal-lg'` or
      * (`'sm'`/`'small'`/`'modal-sm'`) or `false`(no size specified) or a custom class.
+     * - `form` Applies KMP's responsive, scrollable form-modal layout defaults.
+     * - `bodyClass` Extra classes applied to the modal body.
+     * - `contentClass` Extra classes applied to the modal content.
+     * - `dialogClass` Extra classes applied to the modal dialog.
+     * - `headerClass` Extra classes applied to the modal header.
      * Other options will be passed to the `Html::div` method for creating the
      * outer modal `<div>`.
      *
@@ -139,9 +144,16 @@ class ModalHelper extends Helper
             "size" => false,
             "templateVars" => [],
             "show" => false,
+            "form" => false,
+            "bodyClass" => null,
+            "contentClass" => null,
+            "dialogClass" => null,
+            "headerClass" => null,
         ];
 
         $dialogOptions = [];
+        $contentOptions = [];
+        $bodyOptions = [];
 
         if ($options["id"]) {
             $this->_currentId = $options["id"];
@@ -151,7 +163,12 @@ class ModalHelper extends Helper
             $dialogOptions = $this->addClass($dialogOptions, "show");
         }
 
-        switch ($options["size"]) {
+        $sizeOption = $options["size"];
+        if ($options["form"] && $sizeOption === false) {
+            $sizeOption = "modal-xl";
+        }
+
+        switch ($sizeOption) {
             case "lg":
             case "large":
             case "modal-lg":
@@ -166,15 +183,33 @@ class ModalHelper extends Helper
                 $size = "";
                 break;
             default:
-                $size = " " . $options["size"];
+                $size = " " . $sizeOption;
                 break;
         }
         $dialogOptions = $this->addClass($dialogOptions, $size);
+        if ($options["form"]) {
+            $dialogOptions = $this->addClass(
+                $dialogOptions,
+                "modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down",
+            );
+            $bodyOptions = $this->addClass($bodyOptions, "bg-light-subtle");
+        }
+        if ($options["dialogClass"]) {
+            $dialogOptions = $this->addClass($dialogOptions, $options["dialogClass"]);
+        }
+        if ($options["contentClass"]) {
+            $contentOptions = $this->addClass($contentOptions, $options["contentClass"]);
+        }
+        if ($options["bodyClass"]) {
+            $bodyOptions = $this->addClass($bodyOptions, $options["bodyClass"]);
+        }
 
         $dialogStart = $this->formatTemplate("modalDialogStart", [
             "attrs" => $this->templater()->formatAttributes($dialogOptions),
         ]);
-        $contentStart = $this->formatTemplate("modalContentStart", []);
+        $contentStart = $this->formatTemplate("modalContentStart", [
+            "attrs" => $this->templater()->formatAttributes($contentOptions),
+        ]);
         $res = $this->formatTemplate("modalStart", [
             "dialogStart" => $dialogStart,
             "contentStart" => $contentStart,
@@ -182,15 +217,21 @@ class ModalHelper extends Helper
                 "body",
                 "close",
                 "size",
+                "form",
+                "bodyClass",
+                "contentClass",
+                "dialogClass",
+                "headerClass",
             ]),
             "templateVars" => $options["templateVars"],
         ]);
         if (is_string($title) && $title) {
             $res .= $this->_createHeader($title, [
                 "close" => $options["close"],
+                "class" => $options["headerClass"],
             ]);
             if ($options["body"]) {
-                $res .= $this->_createBody();
+                $res .= $this->_createBody(null, $bodyOptions);
             }
         }
 
@@ -508,5 +549,54 @@ class ModalHelper extends Helper
         }
 
         return $this->_createFooter($buttons, $options);
+    }
+
+    /**
+     * Create a standardized KMP modal form section.
+     *
+     * @param string $title Section title.
+     * @param string $content Section body HTML.
+     * @param array<string, mixed> $options Section options.
+     * @return string
+     */
+    public function formSection(string $title, string $content, array $options = []): string
+    {
+        $options += [
+            "icon" => null,
+            "iconClass" => "text-primary",
+            "badge" => null,
+            "badgeClass" => "text-bg-primary",
+            "class" => "",
+        ];
+
+        $classes = $this->addClass(
+            ["class" => $options["class"]],
+            "border rounded-3 bg-white shadow-sm p-3",
+        )["class"];
+        $icon = "";
+        if ($options["icon"]) {
+            $icon = sprintf(
+                '<i class="%s %s me-1" aria-hidden="true"></i>',
+                h($options["icon"]),
+                h($options["iconClass"]),
+            );
+        }
+        $badge = "";
+        if ($options["badge"]) {
+            $badge = sprintf(
+                '<span class="badge %s ms-2">%s</span>',
+                h($options["badgeClass"]),
+                h($options["badge"]),
+            );
+        }
+
+        return sprintf(
+            '<fieldset class="%s"><legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">%s%s%s</legend>%s</fieldset>',
+            h($classes),
+            $icon,
+            h($title),
+            $badge,
+            $content,
+        );
     }
 }

@@ -8,8 +8,14 @@ echo $this->Form->create(null, [
 echo $this->Modal->create("Add Permission to Role", [
     "id" => "addPermissionModal",
     "close" => true,
+    "form" => true,
+    "size" => "modal-lg",
 ]); ?>
-<fieldset>
+<fieldset class="border rounded-3 bg-white shadow-sm p-3">
+    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+        <i class="bi bi-shield-plus text-primary me-1" aria-hidden="true"></i>
+        <?= __("Role Permission") ?>
+    </legend>
     <?php
     echo $this->KMP->comboBoxControl(
         $this->Form,

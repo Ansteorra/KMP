@@ -155,23 +155,28 @@ switch ($actionType) {
 
     case 'toggleSubRow':
         // Toggle sub-row expansion with configurable URL
-?>
-        <a href="#"
-            class="text-decoration-none d-flex align-items-center"
+        $subRowDomId = 'subrow-'
+            . preg_replace('/[^A-Za-z0-9_-]/', '-', (string)$row[$primaryKey])
+            . '-'
+            . preg_replace('/[^A-Za-z0-9_-]/', '-', (string)$actionParam);
+        ?>
+        <button type="button"
+            class="btn btn-link text-decoration-none d-flex align-items-center p-0 border-0"
             data-action="click->grid-view#toggleSubRow"
             data-row-id="<?= h($row[$primaryKey]) ?>"
             data-subrow-type="<?= h($actionParam) ?>"
             data-subrow-url="<?= h($clickActionUrl ?? '') ?>"
-            onclick="event.preventDefault();">
-            <i class="bi bi-chevron-right toggle-icon me-1" style="font-size: 0.75rem;"></i>
+            aria-expanded="false"
+            aria-controls="<?= h($subRowDomId) ?>">
+            <i class="bi bi-chevron-right toggle-icon me-1" style="font-size: 0.75rem;" aria-hidden="true"></i>
             <span><?= $content ?></span>
-        </a>
-    <?php
+        </button>
+        <?php
         break;
 
     case 'openModal':
         // Open modal (for future implementation)
-    ?>
+        ?>
         <a href="#"
             class="text-decoration-none"
             data-action="click->grid-view#openModal"
@@ -179,7 +184,7 @@ switch ($actionType) {
             data-modal-type="<?= h($actionParam) ?>">
             <?= $content ?>
         </a>
-<?php
+        <?php
         break;
 
     case 'link':

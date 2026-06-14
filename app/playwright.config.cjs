@@ -5,6 +5,10 @@ const { defineBddConfig } = require('playwright-bdd');
 const { getUiTestEnvironment } = require('./tests/ui/support/test-environment.cjs');
 
 const { baseUrl: baseURL, webServerCommand, hostHeader } = getUiTestEnvironment();
+const e2eHeaders = {
+  ...(hostHeader ? { Host: hostHeader } : {}),
+  'X-KMP-E2E': '1',
+};
 
 const testDir = defineBddConfig({
   featuresRoot: './tests/ui/bdd',
@@ -58,7 +62,7 @@ module.exports = defineConfig({
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL,
 
-    extraHTTPHeaders: hostHeader ? { Host: hostHeader } : undefined,
+    extraHTTPHeaders: e2eHeaders,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',

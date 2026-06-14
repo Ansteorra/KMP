@@ -31,7 +31,7 @@ $this->KMP->endBlock(); ?>
 
 <!-- Approval Response Modal -->
 <div class="modal fade" id="approvalResponseModal" tabindex="-1" aria-labelledby="approvalResponseModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="approvalResponseModalLabel">
@@ -54,13 +54,13 @@ $this->KMP->endBlock(); ?>
                 'data-approval-response-approval-id-value' => '0',
                 'data-approval-response-eligible-url-value' => '',
             ]) ?>
-            <div class="modal-body">
+            <div class="modal-body bg-light-subtle">
                 <input type="hidden" name="approvalId" id="approvalResponseApprovalId" value="">
                 <?= $this->Form->hidden('page_context_url', ['value' => '']) ?>
 
                 <!-- Decision -->
-                <fieldset class="mb-3" data-approval-response-target="decisionSection">
-                    <legend class="form-label fw-semibold fs-6 mb-2" data-approval-response-target="decisionLegend"><?= __('Decision') ?></legend>
+                <fieldset class="border rounded-3 bg-white shadow-sm p-3 mb-3" data-approval-response-target="decisionSection">
+                    <legend class="float-none w-auto px-2 fw-semibold fs-6 mb-3" data-approval-response-target="decisionLegend"><?= __('Decision') ?></legend>
                     <div class="d-flex gap-3 flex-wrap" data-approval-response-target="decisionOptions">
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="decision" id="decisionApprove" value="approve"
@@ -82,7 +82,7 @@ $this->KMP->endBlock(); ?>
                 </fieldset>
 
                 <!-- Comment -->
-                <div class="mb-3">
+                <div class="border rounded-3 bg-white shadow-sm p-3 mb-3">
                     <label class="form-label" for="approvalComment"><?= __('Comment') ?>
                         <span class="text-danger" data-approval-response-target="commentRequiredHint" hidden><?= __('(required for rejections)') ?></span>
                     </label>
@@ -95,17 +95,15 @@ $this->KMP->endBlock(); ?>
                 </div>
 
                 <!-- Next Approver (conditional) -->
-                <div data-approval-response-target="nextApproverSection" hidden>
-                    <hr>
+                <div class="border rounded-3 bg-white shadow-sm p-3" data-approval-response-target="nextApproverSection" hidden>
                     <div class="alert alert-info py-2 small" role="alert" data-approval-response-target="infoText">
                     </div>
-                    <label class="form-label fw-semibold"><?= __('Select Next Approver') ?></label>
+                    <label class="form-label fw-semibold" for="approval-next-approver-disp"><?= __('Select Next Approver') ?></label>
                     <div data-controller="ac"
                          data-ac-url-value="/workflows/eligible-approvers/0"
                          data-ac-min-length-value="0"
                          data-ac-show-on-focus-value="true"
                          data-ac-allow-other-value="false"
-                         role="combobox"
                          class="position-relative mb-3 kmp_autoComplete">
                         <input type="hidden" name="next_approver_id"
                                data-ac-target="hidden"
@@ -113,13 +111,23 @@ $this->KMP->endBlock(); ?>
                         <input type="hidden" data-ac-target="hiddenText">
                         <div class="input-group">
                             <input type="text" class="form-control"
+                                   id="approval-next-approver-disp"
+                                   role="combobox"
+                                   aria-autocomplete="list"
+                                   aria-expanded="false"
+                                   aria-controls="approval-next-approver-results"
+                                   aria-describedby="approval-next-approver-status"
                                    data-ac-target="input"
                                    placeholder="<?= __('Click to see all or type to filter...') ?>">
-                            <button class="btn btn-outline-secondary" data-ac-target="clearBtn" data-action="ac#clear" disabled><?= __('Clear') ?></button>
+                            <button type="button" class="btn btn-outline-secondary" data-ac-target="clearBtn" data-action="ac#clear" disabled><?= __('Clear') ?></button>
                         </div>
                         <ul data-ac-target="results"
+                            id="approval-next-approver-results"
+                            role="listbox"
                             class="list-group z-3 col-12 position-absolute auto-complete-list"
                             hidden="hidden"></ul>
+                        <div id="approval-next-approver-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"
+                            data-ac-target="status"></div>
                     </div>
                 </div>
             </div>

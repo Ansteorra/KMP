@@ -1,28 +1,28 @@
 const { createBdd } = require('playwright-bdd');
 const { expect } = require('@playwright/test');
+const { loginAs, waitForPageBody } = require('../../support/ui-helpers.cjs');
 
 const { Given, When, Then } = createBdd();
 
 // Login step — matches baseURL host
-Given('I am logged in as {string}', async ({ page, baseURL }, emailAddress) => {
-    await page.goto('/members/login', { waitUntil: 'networkidle' });
-    await page.getByRole('textbox', { name: 'Email Address' }).fill(emailAddress);
-    await page.getByRole('textbox', { name: 'Password' }).fill('TestPassword');
-    await page.getByRole('button', { name: 'Sign in' }).click();
-    await page.waitForTimeout(2000);
+Given('I am logged in as {string}', async ({ page }, emailAddress) => {
+    await loginAs(page, emailAddress);
 });
 
 // Navigation steps
 When('I navigate to the workflows page', async ({ page }) => {
-    await page.goto('/workflows', { waitUntil: 'networkidle' });
+    await page.goto('/workflows', { waitUntil: 'domcontentloaded' });
+    await waitForPageBody(page);
 });
 
 When('I navigate to the workflow instances page', async ({ page }) => {
-    await page.goto('/workflows/instances', { waitUntil: 'networkidle' });
+    await page.goto('/workflows/instances', { waitUntil: 'domcontentloaded' });
+    await waitForPageBody(page);
 });
 
 When('I navigate to the workflow approvals page', async ({ page }) => {
-    await page.goto('/approvals', { waitUntil: 'networkidle' });
+    await page.goto('/approvals', { waitUntil: 'domcontentloaded' });
+    await waitForPageBody(page);
 });
 
 // List verification steps
@@ -44,7 +44,7 @@ When('I click the design button for {string}', async ({ page }, workflowName) =>
         // Try button instead
         await row.locator('a, button').filter({ hasText: /design/i }).first().click();
     }
-    await page.waitForLoadState('networkidle');
+    await waitForPageBody(page);
 });
 
 Then('I should see the workflow designer', async ({ page }) => {
@@ -78,7 +78,7 @@ When('I click the versions button for {string}', async ({ page }, workflowName) 
     } else {
         await row.locator('a, button').filter({ hasText: /version/i }).first().click();
     }
-    await page.waitForLoadState('networkidle');
+    await waitForPageBody(page);
 });
 
 Then('I should see the versions list', async ({ page }) => {

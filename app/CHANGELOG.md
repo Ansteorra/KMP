@@ -3,8 +3,35 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: 54b10cffa420a9b657b163092fcb4bfc9c282923 -->
-<!-- LAST_SYNCED_DATE: 2026-04-24 -->
+<!-- LAST_SYNCED_COMMIT: 201943f7e8106aac7dba3090b60252ee73a53a37 -->
+<!-- LAST_SYNCED_DATE: 2026-06-13 -->
+
+## June 2026
+
+### KMP 1.5 Major Release
+
+KMP 1.5 is a major upgrade focused on making day-to-day kingdom work smoother, clearer, and more reliable for members, officers, Crown staff, and site administrators. This release replaces several older, one-purpose approval paths with a shared workflow system, improves award recommendation and bestowal tracking, and adds the platform foundation needed to run multiple tenant sites more safely.
+
+For members, the biggest outcome is a clearer experience: requests, approvals, recommendations, and follow-up work now move through more consistent screens, better notifications, and more accessible controls.
+
+- **Approvals are easier to find and act on.** Members and officers now have clearer My Approvals and All Approvals views, including expandable request details, assigned-to information, reassignment support for administrators, and mobile-friendly approval screens.
+- **Recommendation decisions are now part of a guided workflow.** Award recommendations can move through configurable approval steps, feedback requests, Crown review, scheduling, and bestowal preparation with better status tracking and fewer hidden handoffs.
+- **Recommendation feedback is more useful.** Feedback requests can use custom responses, route through approval workflows, and keep recommendation context together so reviewers can understand what they are being asked to decide.
+- **Bestowals now connect the award plan to the original reasons.** Linked recommendations are visible from the bestowal record and the bestowal grids, including the recommendation reasons that help Crown and heralds prepare court notes.
+- **Award planning grids are more responsive.** Recommendation and bestowal grids now update individual rows after modal edits when possible, reducing full-page refreshes and keeping users in context.
+- **Grouped recommendations are easier to review.** Recommendation grouping, grouped-child display, exports, and gathering award views were improved so related recommendations can be handled together without losing individual details.
+- **Officer and warrant approvals now use the same approval experience.** Officer release and warrant roster decisions have been moved onto the shared workflow system, bringing them in line with the rest of KMP's request handling.
+- **Activity authorization approvals are more consistent.** Authorization request, renewal, retract, revoke, and denial flows now use the shared approval engine and clearer status handling.
+- **Platform administration is ready for multi-tenant operations.** KMP now includes tenant isolation foundations, tenant provisioning tools, a platform operations portal, release compatibility checks, migration drills, and safer deployment/rollback practices.
+- **Nightly and deployment operations are more reliable.** Azure nightly environments, PostgreSQL-compatible migrations, encrypted backup seeding, health checks, and deployment helper scripts were improved so test sites can stay closer to the current branch.
+- **Accessibility received a broad pass.** Workflow designers, grids, autocomplete controls, mobile approvals, modal forms, and dynamic updates were improved for keyboard users, screen readers, focus handling, labels, contrast, and status announcements.
+- **The front end is faster and easier to maintain.** The asset build moved to Vite, heavy browser dependencies are split more efficiently, and late-loaded modal content reconnects its JavaScript behavior more reliably.
+- **Testing and release confidence are stronger.** This branch adds broader PHPUnit, Jest, and Playwright coverage for approval journeys, workflow emails, award workflows, platform provisioning, grid behavior, and accessibility-sensitive interactions.
+- **Security and dependency maintenance were refreshed.** Several npm and Composer dependencies were updated, public lookup rate limits were added, and deployment/proxy handling was hardened.
+
+📅 June 13, 2026 · `Major Release`
+
+---
 
 ## April 2026
 

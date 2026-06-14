@@ -13,6 +13,7 @@ describe('AwardsBestowalEditForm', () => {
         root.dataset.awardsBestowalEditFormUrlValue = '/awards/bestowals/edit';
         root.dataset.awardsBestowalEditTurboFrameUrlValue = '/awards/bestowals/turbo-edit-form';
         root.dataset.awardsBestowalEditAwardListUrlValue = '/awards/awards-by-domain';
+        root.dataset.awardsBestowalEditGatheringsLookupUrlValue = '/awards/bestowals/gatherings-for-bestowal-auto-complete';
         root.dataset.awardsBestowalEditModalIdValue = 'editBestowalModal';
 
         const form = document.createElement('form');
@@ -74,6 +75,7 @@ describe('AwardsBestowalEditForm', () => {
         controller.formUrlValue = '/awards/bestowals/edit';
         controller.turboFrameUrlValue = '/awards/bestowals/turbo-edit-form';
         controller.awardListUrlValue = '/awards/awards-by-domain';
+        controller.gatheringsLookupUrlValue = '/awards/bestowals/gatherings-for-bestowal-auto-complete';
         controller.modalIdValue = 'editBestowalModal';
         controller.hasDomainTarget = true;
         controller.hasAwardTarget = true;
@@ -81,6 +83,7 @@ describe('AwardsBestowalEditForm', () => {
         controller.hasTurboFrameTarget = true;
         controller.hasSubmitButtonTarget = true;
         controller.hasAwardListUrlValue = true;
+        controller.hasGatheringsLookupUrlValue = true;
     });
 
     test('hasValidAwardSelection requires both domain and award', () => {
@@ -90,6 +93,26 @@ describe('AwardsBestowalEditForm', () => {
     });
 
     test('updateSubmitState enables submit when award pair is valid', () => {
+        controller.updateSubmitState();
+        expect(controller.submitButtonTarget.disabled).toBe(false);
+    });
+
+    test('updateSubmitState requires member when member target is present', () => {
+        const member = document.createElement('div');
+        member.setAttribute('data-awards-bestowal-edit-target', 'member');
+        const memberHidden = document.createElement('input');
+        memberHidden.type = 'hidden';
+        memberHidden.name = 'member_public_id';
+        memberHidden.setAttribute('data-ac-target', 'hidden');
+        member.appendChild(memberHidden);
+        controller.element.appendChild(member);
+        controller.memberTarget = member;
+        controller.hasMemberTarget = true;
+
+        controller.updateSubmitState();
+        expect(controller.submitButtonTarget.disabled).toBe(true);
+
+        memberHidden.value = 'abc123';
         controller.updateSubmitState();
         expect(controller.submitButtonTarget.disabled).toBe(false);
     });
@@ -131,6 +154,35 @@ describe('AwardsBestowalEditForm', () => {
         controller.onDomainChange();
         expect(controller.awardTarget.querySelector('[data-ac-target="hidden"]').value).toBe('');
         expect(controller.submitButtonTarget.disabled).toBe(true);
+    });
+
+    test('updateGatherings builds add-form lookup without bestowal id', () => {
+        const gathering = document.createElement('div');
+        gathering.setAttribute('data-awards-bestowal-edit-target', 'planToGiveGathering');
+        const gatheringHidden = document.createElement('input');
+        gatheringHidden.type = 'hidden';
+        gatheringHidden.setAttribute('data-ac-target', 'hidden');
+        gathering.appendChild(gatheringHidden);
+        controller.element.appendChild(gathering);
+        controller.planToGiveGatheringTarget = gathering;
+        controller.hasPlanToGiveGatheringTarget = true;
+
+        const member = document.createElement('div');
+        member.setAttribute('data-awards-bestowal-edit-target', 'member');
+        const memberHidden = document.createElement('input');
+        memberHidden.type = 'hidden';
+        memberHidden.name = 'member_public_id';
+        memberHidden.setAttribute('data-ac-target', 'hidden');
+        memberHidden.value = 'public-member-id';
+        member.appendChild(memberHidden);
+        controller.element.appendChild(member);
+        controller.memberTarget = member;
+        controller.hasMemberTarget = true;
+
+        controller.updateGatherings();
+
+        expect(gathering.getAttribute('data-ac-url-value'))
+            .toBe('/awards/bestowals/gatherings-for-bestowal-auto-complete?award_id=2&member_public_id=public-member-id');
     });
 
     test('extractBestowalIdFromTrigger reads outlet button payload', () => {

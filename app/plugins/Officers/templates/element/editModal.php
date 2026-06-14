@@ -18,31 +18,43 @@ echo $this->Form->hidden('page_context_url', ['value' => '']);
 echo $this->Modal->create("Edit Officer", [
     "id" => "editOfficerModal",
     "close" => true,
+    "form" => true,
+    "size" => "modal-lg",
 ]);
 // get the id and name from the offices to use for dropdown options
 
 
 ?>
-<fieldset>
+<fieldset class="border rounded-3 bg-white shadow-sm p-3">
+    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+        <i class="bi bi-person-badge text-primary me-1" aria-hidden="true"></i>
+        <?= __("Officer Details") ?>
+    </legend>
     <?php
     echo $this->Form->control("id", [
         "type" => "hidden",
         "id" => "edit-officer-id",
         "data-officers-edit-officer-target" => "id",
     ]); ?>
-    <div class="mb-3 form-group text" data-officers-edit-officer-target="deputyDescBlock">
-        <label class="form-label" for="assign_officer__deputy_description">
-            Deputy Description
-        </label>
-        <input type="text" name="deputy_description" class=" form-control" maxlength="255"
-            data-officers-edit-officer-target="deputyDesc">
-    </div>
-    <div class="mb-3 form-group date" data-officers-edit-officer-target="emailAddressBlock">
-        <label class="form-label" for="assign_officer__end_date">
-            Email Address
-        </label>
-        <input type="email" name="email_address" id="assign_officer__email_address" class="form-control" value=""
-            data-officers-edit-officer-target="emailAddress">
+    <div class="row g-3">
+        <div class="col-12 col-md-6">
+            <div class="mb-3 form-group text" data-officers-edit-officer-target="deputyDescBlock">
+                <label class="form-label" for="edit_officer__deputy_description">
+                    <?= __("Deputy Description") ?>
+                </label>
+                <input type="text" name="deputy_description" id="edit_officer__deputy_description" class="form-control" maxlength="255"
+                    data-officers-edit-officer-target="deputyDesc">
+            </div>
+        </div>
+        <div class="col-12 col-md-6">
+            <div class="mb-3 form-group date" data-officers-edit-officer-target="emailAddressBlock">
+                <label class="form-label" for="edit_officer__email_address">
+                    <?= __("Email Address") ?>
+                </label>
+                <input type="email" name="email_address" id="edit_officer__email_address" class="form-control" value=""
+                    data-officers-edit-officer-target="emailAddress">
+            </div>
+        </div>
     </div>
 </fieldset>
 <?php

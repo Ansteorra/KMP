@@ -6,7 +6,6 @@ namespace Awards\Services;
 use App\KMP\StaticHelpers;
 use App\KMP\WorkflowApprovalDecisionOptions;
 use App\Model\Entity\WorkflowApproval;
-use App\Services\WorkflowEngine\StateMachine\StateMachineHandler;
 use App\Services\WorkflowEngine\WorkflowContextAwareTrait;
 use Awards\Model\Entity\Recommendation;
 use Awards\Model\Entity\RecommendationFeedbackRequestRecipient;
@@ -20,8 +19,7 @@ use Throwable;
 /**
  * Workflow action implementations for award recommendation operations.
  *
- * Provides state machine transitions, bulk updates, and gathering assignment
- * for the Awards plugin workflow engine integration.
+ * Provides workflow-backed award recommendation and bestowal operations.
  *
  * @property \Awards\Model\Table\RecommendationsTable $Recommendations
  * @property \Awards\Model\Table\RecommendationsStatesLogsTable $RecommendationsStatesLogs
@@ -34,10 +32,8 @@ class AwardsWorkflowActions
 
     private Table $recommendationsTable;
     private Table $bestowalsTable;
-    private StateMachineHandler $stateMachineHandler;
     private RecommendationSubmissionService $submissionService;
     private RecommendationUpdateService $updateService;
-    private RecommendationTransitionService $transitionService;
     private RecommendationGroupingService $groupingService;
     private RecommendationDeletionService $deletionService;
     private RecommendationStateLogService $stateLogService;
@@ -51,10 +47,8 @@ class AwardsWorkflowActions
     private RecommendationApprovalProcessService $approvalProcessService;
 
     /**
-     * @param \App\Services\WorkflowEngine\StateMachine\StateMachineHandler|null $stateMachineHandler State machine helper.
      * @param \Awards\Services\RecommendationSubmissionService|null $submissionService Submission workflow service.
      * @param \Awards\Services\RecommendationUpdateService|null $updateService Update workflow service.
-     * @param \Awards\Services\RecommendationTransitionService|null $transitionService Transition workflow service.
      * @param \Awards\Services\RecommendationGroupingService|null $groupingService Grouping workflow service.
      * @param \Awards\Services\RecommendationDeletionService|null $deletionService Deletion workflow service.
      * @param \Awards\Services\RecommendationStateLogService|null $stateLogService State-log workflow service.
@@ -68,10 +62,8 @@ class AwardsWorkflowActions
      * @param \Awards\Services\BestowalHandoffService|null $bestowalHandoffService Workflow-aware bestowal handoff service.
      */
     public function __construct(
-        ?StateMachineHandler $stateMachineHandler = null,
         ?RecommendationSubmissionService $submissionService = null,
         ?RecommendationUpdateService $updateService = null,
-        ?RecommendationTransitionService $transitionService = null,
         ?RecommendationGroupingService $groupingService = null,
         ?RecommendationDeletionService $deletionService = null,
         ?RecommendationStateLogService $stateLogService = null,
@@ -86,7 +78,6 @@ class AwardsWorkflowActions
     ) {
         $this->recommendationsTable = $this->fetchTable('Awards.Recommendations');
         $this->bestowalsTable = $this->fetchTable('Awards.Bestowals');
-        $this->stateMachineHandler = $stateMachineHandler ?? new StateMachineHandler();
         $this->stateLogService = $stateLogService ?? new RecommendationStateLogService();
         $this->groupingService = $groupingService ?? new RecommendationGroupingService(
             $this->recommendationsTable,
@@ -94,10 +85,6 @@ class AwardsWorkflowActions
         );
         $this->submissionService = $submissionService ?? new RecommendationSubmissionService($this->stateLogService);
         $this->updateService = $updateService ?? new RecommendationUpdateService();
-        $this->transitionService = $transitionService ?? new RecommendationTransitionService(
-            $this->groupingService,
-            $this->stateLogService,
-        );
         $this->deletionService = $deletionService ?? new RecommendationDeletionService($this->groupingService);
         $this->bestowalTransitionService = $bestowalTransitionService ?? new BestowalTransitionService();
         $this->bestowalRecommendationSyncService = $bestowalRecommendationSyncService
@@ -383,105 +370,6 @@ class AwardsWorkflowActions
             Log::warning('CreateFeedbackApproval: unparseable deadline "' . $value . '": ' . $e->getMessage());
 
             return null;
-        }
-    }
-
-    /**
-     * Transition a recommendation to a new state using the state machine handler.
-     *
-     * @param array $context Current workflow context
-     * @param array $config Config with recommendationId, targetState, actorId
-     * @return array Output with success, previousState, newState, newStatus
-     */
-    public function transitionState(array $context, array $config): array
-    {
-        try {
-            $recommendationId = (int)$this->resolveValue($config['recommendationId'], $context);
-            $transitionData = $this->extractTransitionData($context, $config);
-            $actorId = (int)$this->resolveValue($config['actorId'] ?? 0, $context);
-
-            return $this->transitionService->transition(
-                $this->recommendationsTable,
-                $recommendationId,
-                $transitionData,
-                $actorId,
-            );
-        } catch (Throwable $e) {
-            Log::error('Workflow TransitionState failed: ' . $e->getMessage());
-
-            return ['success' => false, 'error' => $e->getMessage()];
-        }
-    }
-
-    /**
-     * Batch state transition for multiple recommendations.
-     *
-     * @param array $context Current workflow context
-     * @param array $config Config with recommendationIds (array), targetState, actorId, note, gatheringId, given, closeReason
-     * @return array Output with success, results per entity
-     */
-    public function bulkTransitionState(array $context, array $config): array
-    {
-        try {
-            $bulkData = $this->extractTransitionData($context, $config);
-            $actorId = (int)$this->resolveValue($config['actorId'] ?? 0, $context);
-
-            return $this->transitionService->transitionMany(
-                $this->recommendationsTable,
-                $bulkData,
-                $actorId,
-            );
-        } catch (Throwable $e) {
-            Log::error('Workflow BulkTransitionState failed: ' . $e->getMessage());
-
-            return ['success' => false, 'error' => $e->getMessage()];
-        }
-    }
-
-    /**
-     * Apply field set rules for a target state without performing the transition.
-     *
-     * @param array $context Current workflow context
-     * @param array $config Config with recommendationId, targetState
-     * @return array Output with success, modified entity data
-     */
-    public function applyStateRules(array $context, array $config): array
-    {
-        try {
-            $recommendationId = (int)$this->resolveValue($config['recommendationId'], $context);
-            $targetState = (string)$this->resolveValue($config['state'] ?? $config['targetState'] ?? null, $context);
-
-            $recommendation = $this->recommendationsTable->get($recommendationId);
-            $entityData = $recommendation->toArray();
-
-            $smConfig = $this->buildStateMachineConfig();
-            $stateRules = $smConfig['stateRules'][$targetState] ?? [];
-
-            $modifiedData = $this->stateMachineHandler->applySetRules($entityData, $stateRules);
-
-            // Apply changes to entity
-            foreach ($modifiedData as $field => $value) {
-                if ($recommendation->isAccessible($field)) {
-                    $recommendation->set($field, $value);
-                }
-            }
-
-            $saved = $this->recommendationsTable->save($recommendation);
-            if (!$saved) {
-                return ['success' => false, 'error' => 'Failed to save recommendation after applying rules'];
-            }
-
-            return [
-                'success' => true,
-                'data' => [
-                    'recommendationId' => $recommendationId,
-                    'appliedRules' => $stateRules['set'] ?? [],
-                ],
-            ];
-        } catch (Throwable $e) {
-            Log::error('Workflow ApplyStateRules failed: ' . $e->getMessage());
-
-            return ['success' => false, 'error' => $e->getMessage()];
         }
     }
 
@@ -918,7 +806,7 @@ class AwardsWorkflowActions
     }
 
     /**
-     * Record an ad-hoc bestowal with linked recommendations.
+     * Record an ad-hoc bestowal without requiring linked recommendations.
      *
      * @param array $context Current workflow context
      * @param array $config Config with data payload and actorId
@@ -936,46 +824,6 @@ class AwardsWorkflowActions
 
             return ['success' => false, 'error' => $e->getMessage()];
         }
-    }
-
-    /**
-     * Build the state machine config from the database-backed recommendation configuration.
-     *
-     * @return array State machine config with transitions, statuses, stateRules, stateField, statusField
-     */
-    private function buildStateMachineConfig(): array
-    {
-        $statuses = Recommendation::getStatuses();
-        $allStates = Recommendation::getStates();
-
-        // Build transitions from database
-        $transitions = [];
-        foreach ($allStates as $state) {
-            $transitions[$state] = Recommendation::getValidTransitionsFrom($state);
-        }
-
-        $stateRulesRaw = Recommendation::getStateRules();
-
-        // Normalize rule keys to match StateMachineHandler expectations
-        $normalizedRules = [];
-        foreach ($stateRulesRaw as $state => $rules) {
-            $normalized = [];
-            if (isset($rules['Set'])) {
-                $normalized['set'] = $rules['Set'];
-            }
-            if (isset($rules['Required'])) {
-                $normalized['required'] = $rules['Required'];
-            }
-            $normalizedRules[$state] = $normalized;
-        }
-
-        return [
-            'transitions' => $transitions,
-            'statuses' => $statuses,
-            'stateRules' => $normalizedRules,
-            'stateField' => 'state',
-            'statusField' => 'status',
-        ];
     }
 
     /**
@@ -1022,38 +870,6 @@ class AwardsWorkflowActions
         $gatheringIds = $this->resolveValue($config['gatheringIds'] ?? null, $context);
         if (is_array($gatheringIds)) {
             $data['gatherings'] = ['_ids' => array_values($gatheringIds)];
-        }
-
-        return $data;
-    }
-
-    /**
-     * Build transition input data from nested or flat workflow params.
-     *
-     * @param array $context Current workflow context
-     * @param array $config Workflow node/action config
-     * @return array<string, mixed>
-     */
-    private function extractTransitionData(array $context, array $config): array
-    {
-        $data = $this->resolveConfigArray($config['data'] ?? null, $context);
-        $flatData = $this->mapConfigFields($context, $config, [
-            'newState' => 'newState',
-            'targetState' => 'targetState',
-            'toState' => 'toState',
-            'state' => 'state',
-            'gatheringId' => 'gathering_id',
-            'gathering_id' => 'gathering_id',
-            'given' => 'given',
-            'note' => 'note',
-            'closeReason' => 'close_reason',
-            'close_reason' => 'close_reason',
-        ]);
-        $data = array_replace($data, $flatData);
-
-        $ids = $this->resolveValue($config['recommendationIds'] ?? $config['ids'] ?? null, $context);
-        if (is_array($ids)) {
-            $data['ids'] = array_values($ids);
         }
 
         return $data;
@@ -1116,12 +932,21 @@ class AwardsWorkflowActions
         return array_replace($data, $this->mapConfigFields($context, $config, [
             'memberId' => 'memberId',
             'member_id' => 'member_id',
+            'memberPublicId' => 'memberPublicId',
+            'member_public_id' => 'member_public_id',
+            'awardId' => 'awardId',
+            'award_id' => 'award_id',
             'awardIds' => 'awardIds',
             'award_ids' => 'award_ids',
             'gatheringId' => 'gatheringId',
             'gathering_id' => 'gathering_id',
+            'gatheringScheduledActivityId' => 'gatheringScheduledActivityId',
+            'gathering_scheduled_activity_id' => 'gathering_scheduled_activity_id',
             'bestowedAt' => 'bestowedAt',
             'bestowed_at' => 'bestowed_at',
+            'state' => 'state',
+            'stackRank' => 'stackRank',
+            'stack_rank' => 'stack_rank',
             'reason' => 'reason',
             'nobleNotes' => 'nobleNotes',
             'noble_notes' => 'noble_notes',
@@ -1133,6 +958,8 @@ class AwardsWorkflowActions
             'court_availability' => 'court_availability',
             'personToNotify' => 'personToNotify',
             'person_to_notify' => 'person_to_notify',
+            'closeReason' => 'closeReason',
+            'close_reason' => 'close_reason',
         ]));
     }
 

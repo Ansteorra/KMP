@@ -17,12 +17,15 @@ use Awards\Services\BestowalCreationService;
 use Awards\Services\BestowalFormService;
 use Awards\Services\BestowalGatheringLookupService;
 use Awards\Services\BestowalQueryService;
+use Cake\Datasource\Exception\RecordNotFoundException;
 use Cake\Http\Exception\BadRequestException;
+use Cake\Http\Exception\NotFoundException;
 use Cake\Http\Response;
 use Cake\Log\Log;
 use Cake\ORM\TableRegistry;
 use Cake\Routing\Router;
 use Throwable;
+use Traversable;
 
 /**
  * Bestowals Controller
@@ -42,18 +45,6 @@ class BestowalsController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel(
-            'index',
-            'gridData',
-            'gatheringBestowalsGridData',
-            'edit',
-            'turboEditForm',
-            'turboBulkEditForm',
-            'updateStates',
-            'courtSlotsForGathering',
-            'gatheringsForBestowalAutoComplete',
-            'gatheringsForBestowalBulkAutoComplete',
-        );
     }
 
     /**
@@ -72,7 +63,8 @@ class BestowalsController extends AppController
             $statusList = $formService->buildStatusList();
             $rules = $formService->buildFormRules();
             $gatheringList = [];
-            $this->set(compact('rules', 'statusList', 'gatheringList'));
+            $adHocFormData = $formService->prepareAdHocFormData($user);
+            $this->set(compact('rules', 'statusList', 'gatheringList', 'adHocFormData'));
         }
 
         return null;
@@ -85,7 +77,7 @@ class BestowalsController extends AppController
      * @param \Awards\Services\BestowalQueryService $queryService Bestowal query builder
      * @return \Cake\Http\Response|null|void
      */
-    public function gridData(CsvExportService $csvExportService, BestowalQueryService $queryService): Response|null
+    public function gridData(CsvExportService $csvExportService, BestowalQueryService $queryService): ?Response
     {
         $emptyBestowal = $this->Bestowals->newEmptyEntity();
         $this->Authorization->authorize($emptyBestowal, 'index');
@@ -140,7 +132,7 @@ class BestowalsController extends AppController
         CsvExportService $csvExportService,
         BestowalQueryService $queryService,
         ?int $gatheringId = null,
-    ): Response|null {
+    ): ?Response {
         if ($gatheringId === null) {
             throw new BadRequestException(__('Gathering ID is required.'));
         }
@@ -153,7 +145,7 @@ class BestowalsController extends AppController
         $bestowal->gathering_id = $gatheringId;
         $bestowal->gathering = $gathering;
 
-        $this->Authorization->authorize($bestowal, 'ViewGatheringBestowals');
+        $this->Authorization->authorize($bestowal, 'gatheringBestowalsGridData');
         $canViewHidden = $user->checkCan('ViewHidden', $bestowal);
 
         $systemViews = BestowalsGridColumns::getSystemViews(['context' => 'gatheringBestowals']);
@@ -280,7 +272,7 @@ class BestowalsController extends AppController
 
         $user = $this->request->getAttribute('identity');
         $emptyBestowal = $this->Bestowals->newEmptyEntity();
-        $this->Authorization->authorize($emptyBestowal, 'edit');
+        $this->Authorization->authorize($emptyBestowal, 'updateState');
 
         $bestowalId = $this->request->getData('bestowalId') ?? $this->request->getData('id');
         $newState = $this->request->getData('newState') ?? $this->request->getData('targetState');
@@ -400,8 +392,8 @@ class BestowalsController extends AppController
                     return $stream;
                 }
             }
-        } catch (\Cake\Datasource\Exception\RecordNotFoundException) {
-            throw new \Cake\Http\Exception\NotFoundException(__('Bestowal not found'));
+        } catch (RecordNotFoundException) {
+            throw new NotFoundException(__('Bestowal not found'));
         }
 
         $redirect = $this->request->getData('current_page');
@@ -427,7 +419,7 @@ class BestowalsController extends AppController
 
         $user = $this->request->getAttribute('identity');
         $emptyBestowal = $this->Bestowals->newEmptyEntity();
-        $this->Authorization->authorize($emptyBestowal, 'edit');
+        $this->Authorization->authorize($emptyBestowal, 'updateStates');
 
         $ids = explode(',', (string)$this->request->getData('ids'));
         $ids = array_values(array_filter(array_map('intval', $ids)));
@@ -463,7 +455,9 @@ class BestowalsController extends AppController
                 if ($result['success']) {
                     $this->Flash->success(__('The bestowals have been updated.'));
                 } else {
-                    $this->Flash->error($result['error'] ?? __('The bestowals could not be updated. Please, try again.'));
+                    $this->Flash->error(
+                        $result['error'] ?? __('The bestowals could not be updated. Please, try again.'),
+                    );
                 }
             }
 
@@ -520,15 +514,15 @@ class BestowalsController extends AppController
     public function turboEditForm(BestowalFormService $formService, ?string $id = null): ?Response
     {
         try {
-        $bestowal = $this->Bestowals->get($id, contain: [
-            'Members',
-            'Gatherings',
-            'GatheringScheduledActivities',
-            'Awards' => ['Domains', 'Levels'],
-            'PrimaryRecommendation' => ['Awards' => ['Domains', 'Levels']],
-            'Recommendations' => ['Awards', 'Awards.Levels'],
-        ]);
-            $this->Authorization->authorize($bestowal, 'view');
+            $bestowal = $this->Bestowals->get($id, contain: [
+                'Members',
+                'Gatherings',
+                'GatheringScheduledActivities',
+                'Awards' => ['Domains', 'Levels'],
+                'PrimaryRecommendation' => ['Awards' => ['Domains', 'Levels']],
+                'Recommendations' => ['Awards', 'Awards.Levels'],
+            ]);
+            $this->Authorization->authorize($bestowal, 'turboEditForm');
             $this->set($formService->prepareEditFormData(
                 $this->Bestowals,
                 $bestowal,
@@ -536,8 +530,8 @@ class BestowalsController extends AppController
             ));
 
             return null;
-        } catch (\Cake\Datasource\Exception\RecordNotFoundException) {
-            throw new \Cake\Http\Exception\NotFoundException(__('Bestowal not found'));
+        } catch (RecordNotFoundException) {
+            throw new NotFoundException(__('Bestowal not found'));
         }
     }
 
@@ -550,7 +544,7 @@ class BestowalsController extends AppController
     public function turboBulkEditForm(BestowalFormService $formService): ?Response
     {
         $emptyBestowal = $this->Bestowals->newEmptyEntity();
-        $this->Authorization->authorize($emptyBestowal, 'view');
+        $this->Authorization->authorize($emptyBestowal, 'turboBulkEditForm');
         $this->set($formService->prepareBulkEditFormData());
 
         return null;
@@ -566,7 +560,7 @@ class BestowalsController extends AppController
     {
         $this->request->allowMethod(['get']);
         $emptyBestowal = $this->Bestowals->newEmptyEntity();
-        $this->Authorization->authorize($emptyBestowal, 'view');
+        $this->Authorization->authorize($emptyBestowal, 'courtSlotsForGathering');
 
         $member = $this->request->getAttribute('identity');
         $courtSlotService = new BestowalCourtSlotService();
@@ -602,7 +596,7 @@ class BestowalsController extends AppController
     ): void {
         $this->request->allowMethod(['get']);
         $emptyBestowal = $this->Bestowals->newEmptyEntity();
-        $this->Authorization->authorize($emptyBestowal, 'index');
+        $this->Authorization->authorize($emptyBestowal, 'gatheringsForBestowalAutoComplete');
         $this->viewBuilder()->setClassName('Ajax');
         $this->viewBuilder()->setTemplate('/Recommendations/gatherings_auto_complete');
 
@@ -613,6 +607,9 @@ class BestowalsController extends AppController
         $selectedId = is_numeric((string)$selectedId) ? (int)$selectedId : null;
         $awardIdOverride = $this->request->getQuery('award_id');
         $awardIdOverride = is_numeric((string)$awardIdOverride) ? (int)$awardIdOverride : null;
+        $memberIdOverride = $this->request->getQuery('member_id');
+        $memberIdOverride = is_numeric((string)$memberIdOverride) ? (int)$memberIdOverride : null;
+        $memberPublicId = trim((string)$this->request->getQuery('member_public_id', ''));
 
         $gatherings = [];
         $cancelledGatheringIds = [];
@@ -642,6 +639,28 @@ class BestowalsController extends AppController
                     $gatherings = $gatheringData['gatherings'] ?? [];
                     $cancelledGatheringIds = $gatheringData['cancelledGatheringIds'] ?? [];
                 }
+            } else {
+                $bestowal = $this->Bestowals->newEmptyEntity();
+                $bestowal->award_id = $awardIdOverride;
+                if ($memberIdOverride !== null) {
+                    $bestowal->member_id = $memberIdOverride;
+                } elseif ($memberPublicId !== '') {
+                    $member = TableRegistry::getTableLocator()->get('Members')->find()
+                        ->select(['id'])
+                        ->where(['public_id' => $memberPublicId])
+                        ->first();
+                    if ($member !== null) {
+                        $bestowal->member_id = (int)$member->id;
+                    }
+                }
+                $gatheringData = $lookupService->getFilteredGatheringsForBestowal(
+                    $bestowal,
+                    $futureOnly,
+                    $selectedId,
+                    $awardIdOverride,
+                );
+                $gatherings = $gatheringData['gatherings'] ?? [];
+                $cancelledGatheringIds = $gatheringData['cancelledGatheringIds'] ?? [];
             }
 
             $stickyGatheringIds = array_values(array_unique(array_filter(array_map('intval', array_merge(
@@ -688,7 +707,7 @@ class BestowalsController extends AppController
     ): void {
         $this->request->allowMethod(['get']);
         $emptyBestowal = $this->Bestowals->newEmptyEntity();
-        $this->Authorization->authorize($emptyBestowal, 'index');
+        $this->Authorization->authorize($emptyBestowal, 'gatheringsForBestowalBulkAutoComplete');
         $this->viewBuilder()->setClassName('Ajax');
         $this->viewBuilder()->setTemplate('/Recommendations/gatherings_auto_complete');
 
@@ -748,7 +767,7 @@ class BestowalsController extends AppController
 
         $user = $this->request->getAttribute('identity');
         $emptyBestowal = $this->Bestowals->newEmptyEntity();
-        $this->Authorization->authorize($emptyBestowal, 'edit');
+        $this->Authorization->authorize($emptyBestowal, 'cancel');
 
         $bestowalId = $this->request->getData('bestowalId')
             ?? $this->request->getData('id')
@@ -810,7 +829,7 @@ class BestowalsController extends AppController
 
         $user = $this->request->getAttribute('identity');
         $emptyBestowal = $this->Bestowals->newEmptyEntity();
-        $this->Authorization->authorize($emptyBestowal, 'edit');
+        $this->Authorization->authorize($emptyBestowal, 'adHoc');
 
         $data = $this->request->getData();
         $result = $this->dispatchBestowalMutation(
@@ -896,6 +915,9 @@ class BestowalsController extends AppController
             if ($this->shouldLoadBestowalDisplayColumn('herald_notes_preview', $visibleColumns)) {
                 $bestowal->herald_notes_preview = $this->buildHeraldNotesPreviewHtml($bestowal);
             }
+            if ($this->shouldLoadBestowalDisplayColumn('recommendation_reasons', $visibleColumns)) {
+                $bestowal->recommendation_reasons = $this->buildRecommendationReasonsHtml($bestowal);
+            }
             if ($this->shouldLoadBestowalDisplayColumn('gathering_name', $visibleColumns)) {
                 $bestowal->gathering_name = $bestowal->gathering->name ?? '';
             }
@@ -939,7 +961,8 @@ class BestowalsController extends AppController
             $labels[] = $label;
         }
 
-        if ($labels === []
+        if (
+            $labels === []
             && $bestowal->hasValue('primary_recommendation')
             && $bestowal->primary_recommendation->hasValue('award')
         ) {
@@ -976,6 +999,83 @@ class BestowalsController extends AppController
         $preview = mb_strlen($notes) > 120 ? mb_substr($notes, 0, 117) . '...' : $notes;
 
         return h($preview);
+    }
+
+    /**
+     * @param \Awards\Model\Entity\Bestowal $bestowal Bestowal entity
+     * @return string
+     */
+    protected function buildRecommendationReasonsHtml(Bestowal $bestowal): string
+    {
+        if (empty($bestowal->recommendations)) {
+            return '';
+        }
+
+        $items = [];
+        foreach ($bestowal->recommendations as $recommendation) {
+            $reason = trim((string)($recommendation->reason ?? ''));
+            if ($reason === '') {
+                continue;
+            }
+
+            $awardLabel = $recommendation->award->abbreviation
+                ?? $recommendation->award->name
+                ?? __('Recommendation #{0}', $recommendation->id);
+            $memberName = trim((string)($recommendation->member_sca_name ?? ''));
+            $requesterName = trim((string)($recommendation->requester_sca_name ?? ''));
+            $label = $memberName !== '' ? $awardLabel . ' - ' . $memberName : $awardLabel;
+
+            $items[] = [
+                'label' => $label,
+                'requester' => $requesterName,
+                'reason' => $reason,
+            ];
+        }
+
+        $count = count($items);
+        if ($count === 0) {
+            return '';
+        }
+
+        $title = $count === 1
+            ? __('1 Recommendation Reason')
+            : __('{0} Recommendation Reasons', $count);
+        $popoverContent = '<div class="popover-header-bar d-flex justify-content-between align-items-center'
+            . ' border-bottom pb-2 mb-2">';
+        $popoverContent .= '<strong>' . h($title) . '</strong>';
+        $popoverContent .= '<button type="button" class="btn-close popover-close-btn" aria-label="'
+            . h(__('Close')) . '"></button>';
+        $popoverContent .= '</div>';
+
+        foreach ($items as $item) {
+            $popoverContent .= '<div class="border-bottom pb-2 mb-2">';
+            $popoverContent .= '<div class="fw-bold">' . h($item['label']) . '</div>';
+            if ($item['requester'] !== '') {
+                $popoverContent .= '<div class="text-muted small">';
+                $popoverContent .= h(__('Recommended by {0}', $item['requester']));
+                $popoverContent .= '</div>';
+            }
+            $popoverContent .= '<div>' . nl2br(h($item['reason'])) . '</div>';
+            $popoverContent .= '</div>';
+        }
+
+        $escapedContent = htmlspecialchars($popoverContent, ENT_QUOTES, 'UTF-8');
+
+        $html = '<button type="button" class="btn btn-link text-primary p-0" ';
+        $html .= 'style="font-size: inherit;" ';
+        $html .= 'aria-label="' . h(__('Show {0} linked recommendation reasons', $count)) . '" ';
+        $html .= 'data-controller="popover" ';
+        $html .= 'data-bs-toggle="popover" ';
+        $html .= 'data-bs-trigger="click" ';
+        $html .= 'data-bs-placement="auto" ';
+        $html .= 'data-bs-html="true" ';
+        $html .= 'data-bs-custom-class="reason-popover" ';
+        $html .= 'data-bs-content="' . $escapedContent . '" ';
+        $html .= 'data-turbo="false">';
+        $html .= '<span class="badge bg-secondary">' . $count . '</span>';
+        $html .= '</button>';
+
+        return $html;
     }
 
     /**
@@ -1196,7 +1296,7 @@ class BestowalsController extends AppController
                 $gathering = $gatheringsTable->find()
                     ->where(['public_id' => $matches[1]])
                     ->firstOrFail();
-            } catch (\Cake\Datasource\Exception\RecordNotFoundException) {
+            } catch (RecordNotFoundException) {
                 return null;
             }
 
@@ -1288,7 +1388,7 @@ class BestowalsController extends AppController
             $gridData = $result['data'];
             if (is_array($gridData)) {
                 $bestowals = $gridData;
-            } elseif ($gridData instanceof \Traversable) {
+            } elseif ($gridData instanceof Traversable) {
                 $bestowals = iterator_to_array($gridData, false);
             } else {
                 $bestowals = [];

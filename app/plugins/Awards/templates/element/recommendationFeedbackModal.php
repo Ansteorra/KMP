@@ -15,15 +15,18 @@ $memberLookupUrl = $this->Url->build(['plugin' => null, 'controller' => 'Members
     ]) ?>
     <?= $this->Form->hidden('page_context_url', ['value' => $this->request->getRequestTarget()]) ?>
     <?= $this->Form->hidden('ids', ['data-recommendation-feedback-modal-target' => 'ids']) ?>
-    <?= $this->Modal->create(__('Request Feedback'), ['id' => $modalId, 'close' => true]) ?>
-    <div class="alert alert-info" data-recommendation-feedback-modal-target="selectionSummary">
+    <?= $this->Modal->create(__('Request Feedback'), ['id' => $modalId, 'close' => true, 'form' => true]) ?>
+    <div class="alert alert-info border-start border-info border-4" data-recommendation-feedback-modal-target="selectionSummary">
         <?= __('Select recommendations from the grid before requesting feedback.') ?>
     </div>
     <?= $this->Form->hidden('recipient_ids', [
         'data-recommendation-feedback-modal-target' => 'recipientIds',
     ]) ?>
-    <fieldset class="mb-3">
-        <legend class="form-label fs-6 mb-2"><?= __('Recipients') ?></legend>
+    <fieldset class="border rounded-3 bg-white shadow-sm p-3 mb-3">
+        <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+            <i class="bi bi-people text-primary me-1" aria-hidden="true"></i>
+            <?= __('Recipients') ?>
+        </legend>
         <div class="row g-2 align-items-end">
             <div class="col-md">
                 <?= $this->KMP->autoCompleteControl(
@@ -62,17 +65,29 @@ $memberLookupUrl = $this->Url->build(['plugin' => null, 'controller' => 'Members
         <div class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"
             data-recommendation-feedback-modal-target="recipientStatus"></div>
     </fieldset>
-    <?= $this->Form->control('message', [
-        'type' => 'textarea',
-        'label' => __('Message to recipients'),
-        'rows' => 3,
-    ]) ?>
-    <?= $this->Form->control('deadline', [
-        'type' => 'datetime-local',
-        'label' => __('Deadline'),
-        'empty' => true,
-        'required' => false,
-    ]) ?>
+    <fieldset class="border rounded-3 bg-white shadow-sm p-3">
+        <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+            <i class="bi bi-envelope text-success me-1" aria-hidden="true"></i>
+            <?= __('Request Details') ?>
+        </legend>
+        <div class="row g-3">
+            <div class="col-12 col-lg-6">
+                <?= $this->Form->control('message', [
+                    'type' => 'textarea',
+                    'label' => __('Message to recipients'),
+                    'rows' => 4,
+                ]) ?>
+            </div>
+            <div class="col-12 col-lg-6">
+                <?= $this->Form->control('deadline', [
+                    'type' => 'datetime-local',
+                    'label' => __('Deadline'),
+                    'empty' => true,
+                    'required' => false,
+                ]) ?>
+            </div>
+        </div>
+    </fieldset>
     <?= $this->Modal->end([
         $this->Form->button(__('Send Feedback Request'), [
             'class' => 'btn btn-primary',

@@ -9,9 +9,14 @@
 <?php echo $this->Modal->create("Edit " . $member->sca_name, [
     "id" => "passwordModal",
     "close" => true,
+    "form" => true,
+    "size" => "modal-lg",
 ]); ?>
-<fieldset>
-    <legend><?= __("Change Password") ?></legend>
+<fieldset class="border rounded-3 bg-white shadow-sm p-3">
+    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+        <i class="bi bi-key text-primary me-1" aria-hidden="true"></i>
+        <?= __("Change Password") ?>
+    </legend>
     <?php
     echo $this->Form->control("new_password", [
         "type" => "password",

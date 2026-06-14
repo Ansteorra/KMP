@@ -19,7 +19,7 @@ $bulkDecisionUrl = $this->Url->build([
 ?>
 
 <div class="modal fade" id="recommendationWorkflowDecisionModal" tabindex="-1" aria-labelledby="recommendationWorkflowDecisionModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content">
             <?= $this->Form->create(null, [
                 'url' => ['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'workflowDecisionFromGrid'],
@@ -42,14 +42,14 @@ $bulkDecisionUrl = $this->Url->build([
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?= __('Close') ?>"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body bg-light-subtle">
                 <input type="hidden" name="approvalId" id="recommendationWorkflowDecisionApprovalId" value="">
                 <div id="recommendationWorkflowDecisionBulkApprovalIds"></div>
                 <div class="alert alert-info" id="recommendationWorkflowDecisionSelectionNotice" role="status" hidden></div>
                 <div class="alert alert-warning" id="recommendationWorkflowDecisionSkippedNotice" role="status" hidden></div>
 
-                <fieldset class="mb-3" data-approval-response-target="decisionSection">
-                    <legend class="form-label fw-semibold fs-6 mb-2" data-approval-response-target="decisionLegend"><?= __('Decision') ?></legend>
+                <fieldset class="border rounded-3 bg-white shadow-sm p-3 mb-3" data-approval-response-target="decisionSection">
+                    <legend class="float-none w-auto px-2 fw-semibold fs-6 mb-3" data-approval-response-target="decisionLegend"><?= __('Decision') ?></legend>
                     <div class="d-flex gap-3 flex-wrap" data-approval-response-target="decisionOptions">
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="decision" id="decisionApprove" value="approve"
@@ -70,7 +70,7 @@ $bulkDecisionUrl = $this->Url->build([
                     </div>
                 </fieldset>
 
-                <div class="mb-3">
+                <div class="border rounded-3 bg-white shadow-sm p-3 mb-3">
                     <label class="form-label" for="recommendationWorkflowDecisionComment">
                         <?= __('Comment') ?>
                         <span class="text-danger" data-approval-response-target="commentRequiredHint" hidden><?= __('(required for rejections)') ?></span>
@@ -83,16 +83,14 @@ $bulkDecisionUrl = $this->Url->build([
                     </div>
                 </div>
 
-                <div data-approval-response-target="nextApproverSection" hidden>
-                    <hr>
+                <div class="border rounded-3 bg-white shadow-sm p-3" data-approval-response-target="nextApproverSection" hidden>
                     <div class="alert alert-info py-2 small" role="alert" data-approval-response-target="infoText"></div>
-                    <label class="form-label fw-semibold"><?= __('Select Next Approver') ?></label>
+                    <label class="form-label fw-semibold" for="recommendation-next-approver-disp"><?= __('Select Next Approver') ?></label>
                     <div data-controller="ac"
                          data-ac-url-value="/workflows/eligible-approvers/0"
                          data-ac-min-length-value="0"
                          data-ac-show-on-focus-value="true"
                          data-ac-allow-other-value="false"
-                         role="combobox"
                          class="position-relative mb-3 kmp_autoComplete">
                         <input type="hidden" name="next_approver_id"
                                data-ac-target="hidden"
@@ -100,13 +98,23 @@ $bulkDecisionUrl = $this->Url->build([
                         <input type="hidden" data-ac-target="hiddenText">
                         <div class="input-group">
                             <input type="text" class="form-control"
+                                   id="recommendation-next-approver-disp"
+                                   role="combobox"
+                                   aria-autocomplete="list"
+                                   aria-expanded="false"
+                                   aria-controls="recommendation-next-approver-results"
+                                   aria-describedby="recommendation-next-approver-status"
                                    data-ac-target="input"
                                    placeholder="<?= __('Click to see all or type to filter...') ?>">
-                            <button class="btn btn-outline-secondary" data-ac-target="clearBtn" data-action="ac#clear" disabled><?= __('Clear') ?></button>
+                            <button type="button" class="btn btn-outline-secondary" data-ac-target="clearBtn" data-action="ac#clear" disabled><?= __('Clear') ?></button>
                         </div>
                         <ul data-ac-target="results"
+                            id="recommendation-next-approver-results"
+                            role="listbox"
                             class="list-group z-3 col-12 position-absolute auto-complete-list"
                             hidden="hidden"></ul>
+                        <div id="recommendation-next-approver-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"
+                            data-ac-target="status"></div>
                     </div>
                 </div>
             </div>

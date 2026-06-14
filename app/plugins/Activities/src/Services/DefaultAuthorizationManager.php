@@ -39,6 +39,8 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
     #region
     use MailerAwareTrait;
 
+    private ActiveWindowManagerInterface $activeWindowManager;
+
     private TriggerDispatcher $triggerDispatcher;
 
     #endregion

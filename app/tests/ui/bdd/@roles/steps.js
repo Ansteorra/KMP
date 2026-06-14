@@ -8,6 +8,7 @@ const {
     getSignOutButton,
     isLocatorVisible,
     loginAs,
+    runPhpJson,
     runAndWaitForNetworkIdle,
     waitForPageBody,
 } = require('../../support/ui-helpers.cjs');
@@ -20,7 +21,7 @@ const SETUP_FIXTURE_PHP = String.raw`
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';
 
-$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$input = json_decode((string)stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 $locator = \Cake\ORM\TableRegistry::getTableLocator();
 $permissions = $locator->get('Permissions');
 $members = $locator->get('Members');
@@ -102,7 +103,7 @@ const INSPECT_FIXTURE_PHP = String.raw`
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';
 
-$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$input = json_decode((string)stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 $roleId = (int)($input['roleId'] ?? 0);
 $memberId = (int)($input['memberId'] ?? 0);
 
@@ -163,23 +164,6 @@ echo json_encode([
     'previousMemberRole' => $mapRole($previousMemberRole),
 ], JSON_THROW_ON_ERROR);
 `;
-
-const runPhpJson = (script, payload = {}) => {
-    const output = execFileSync(
-        'php',
-        ['-d', 'xdebug.mode=off', '-r', script],
-        {
-            cwd: APP_ROOT,
-            env: {
-                ...process.env,
-                FIXTURE_JSON: JSON.stringify(payload),
-            },
-            encoding: 'utf8',
-        },
-    ).trim();
-
-    return output === '' ? {} : JSON.parse(output);
-};
 
 const resetDevDatabase = () => {
     execFileSync(
@@ -465,13 +449,14 @@ When('I deactivate the prepared member role assignment', async ({ page }) => {
 
     const row = page.locator('table tbody tr').filter({ hasText: fixture.memberName }).first();
     await expect(row).toBeVisible({ timeout: 15000 });
-    page.once('dialog', async (dialog) => {
-        await dialog.accept();
-    });
 
+    await row.locator('a,button').filter({ hasText: /^Deactivate$/ }).first().click();
+
+    const confirmDialog = page.getByRole('dialog', { name: 'Confirm action' });
+    await expect(confirmDialog).toBeVisible({ timeout: 10000 });
     await Promise.all([
         page.waitForLoadState('networkidle'),
-        row.locator('a,button').filter({ hasText: /^Deactivate$/ }).first().click(),
+        confirmDialog.getByRole('button', { name: 'Confirm', exact: true }).click(),
     ]);
 
     await expect(page.locator('table tbody tr').filter({ hasText: fixture.memberName })).toHaveCount(0, { timeout: 15000 });

@@ -40,6 +40,8 @@ describe('MobileApprovalsController', () => {
         expect(document.body.textContent).toContain('Reject');
         expect(document.querySelector('[data-approval-form-id="43"]')).not.toHaveAttribute('data-selected-decision');
         expect(document.querySelector('[data-submit-btn="43"]')).toBeDisabled();
+        expect(document.querySelector('[data-approval-comment="43"]')).toHaveAccessibleName('Comment');
+        expect(document.querySelector('.btn-approve')).toHaveAttribute('aria-pressed', 'false');
     });
 
     test('renders configured feedback decision options without approve or reject buttons', () => {
@@ -107,7 +109,22 @@ describe('MobileApprovalsController', () => {
         expect(summary).toHaveAttribute('role', 'button');
         expect(summary).toHaveAttribute('tabindex', '0');
         expect(summary).toHaveAttribute('aria-expanded', 'false');
+        expect(summary).toHaveAttribute('aria-controls', 'approval-card-detail-46');
         expect(summary.getAttribute('data-action')).toContain('keydown->mobile-approvals#toggleCardWithKeyboard');
         expect(document.body.textContent).toContain('Reviewing');
+    });
+
+    test('selectDecision synchronizes pressed state and validation ARIA', () => {
+        controller.element = document.createElement('div');
+        controller._approvals = [{ id: 47, progress: { required: 1, approved: 0 }, approverConfig: {} }];
+        controller.element.innerHTML = controller._renderResponseForm(controller._approvals[0]);
+
+        const reject = controller.element.querySelector('.btn-reject');
+        controller.selectDecision({ preventDefault: jest.fn(), currentTarget: reject });
+
+        expect(reject).toHaveClass('active');
+        expect(reject).toHaveAttribute('aria-pressed', 'true');
+        expect(controller.element.querySelector('.btn-approve')).toHaveAttribute('aria-pressed', 'false');
+        expect(controller.element.querySelector('[data-comment-required="47"]')).not.toHaveAttribute('hidden');
     });
 });

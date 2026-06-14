@@ -291,4 +291,37 @@ describe('GridViewController', () => {
         expect(controller.bulkActionBtnTargets[0].classList.contains('d-none')).toBe(false);
         expect(controller.bulkActionBtnTargets[0].disabled).toBe(false);
     });
+
+    test('toggleSubRow synchronizes aria-expanded and controlled region state', async () => {
+        document.body.innerHTML = `
+            <table>
+                <tr>
+                    <td>
+                        <button type="button" data-action="click->grid-view#toggleSubRow"
+                            data-row-id="99" data-subrow-type="details" data-subrow-url="/details/:id"
+                            aria-expanded="false" aria-controls="subrow-99-details">
+                            <i class="toggle-icon bi bi-chevron-right"></i><span>Details</span>
+                        </button>
+                    </td>
+                </tr>
+            </table>
+        `;
+        global.fetch = jest.fn(() => Promise.resolve({
+            ok: true,
+            text: () => Promise.resolve('<div>Loaded details</div>')
+        }));
+
+        const button = document.querySelector('button');
+        controller.toggleSubRow({ preventDefault: jest.fn(), currentTarget: button });
+        expect(button).toHaveAttribute('aria-busy', 'true');
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(button).toHaveAttribute('aria-expanded', 'true');
+        expect(button).not.toHaveAttribute('aria-busy');
+        expect(document.querySelector('#subrow-99-details [role="region"]')).toHaveTextContent('Loaded details');
+
+        controller.toggleSubRow({ preventDefault: jest.fn(), currentTarget: button });
+        expect(button).toHaveAttribute('aria-expanded', 'false');
+        expect(document.querySelector('#subrow-99-details')).toBeNull();
+    });
 });

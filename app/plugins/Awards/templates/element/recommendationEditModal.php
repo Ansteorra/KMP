@@ -30,6 +30,7 @@ echo $this->Form->control('current_page', [
 echo $this->Modal->create('Edit Recommendation', [
     'id' => 'editModal',
     'close' => true,
+    'form' => true,
 ]);
 ?>
 <turbo-frame id="editRecommendation"
