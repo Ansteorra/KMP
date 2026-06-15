@@ -177,14 +177,35 @@ const countPendingQueueJobs = () => {
     return Number.parseInt(raw, 10);
 };
 
+const drainPendingQueueJobs = () => {
+    if (countPendingQueueJobs() === 0) {
+        return;
+    }
+
+    try {
+        runCakeCommand(['queue', 'run', '-q'], {
+            env: {
+                QUEUE_EXIT_WHEN_NOTHING_TO_DO: '1',
+                QUEUE_MAX_WORKERS: '10',
+            },
+            timeoutMs: 120000,
+        });
+    } catch (error) {
+        const message = error?.message || String(error);
+        if (/Too many workers (running|already)/.test(message)) {
+            return;
+        }
+        throw error;
+    }
+};
+
 /**
  * Block until the queue has no due, uncompleted jobs — the deterministic "settled"
  * primitive for trustworthy negative-email and async-side-effect assertions.
  *
  * `completed IS NULL` intentionally counts fetched-but-running (in-flight) jobs, so a
- * job the worker is mid-processing keeps the backlog > 0 until it truly finishes. The
- * always-on `kmp-worker` drains transitively-enqueued jobs too (job A enqueues job B →
- * B appears in the same backlog), so a single settle covers queue→queue chains.
+ * job the worker is mid-processing keeps the backlog > 0 until it truly finishes.
+ * If a background worker is not currently running, the helper drains due jobs itself.
  *
  * Throws on timeout by default: silently continuing would let a stuck/failed worker turn
  * a "no email" negative assertion into a false pass. Pass `throwOnTimeout: false` only
@@ -203,6 +224,10 @@ const waitForQueueSettled = async ({ timeoutMs = 45000, pollMs = 1000, throwOnTi
         try {
             lastPending = countPendingQueueJobs();
             lastError = null;
+            if (lastPending > 0) {
+                drainPendingQueueJobs();
+                lastPending = countPendingQueueJobs();
+            }
         } catch (error) {
             lastPending = -1;
             lastError = error;
@@ -292,16 +317,17 @@ const assertNoQueuedEmailFor = (match) => {
     }
 };
 
-const runCakeCommand = (cakeArgs, { timeoutMs = 60000 } = {}) => {
+const runCakeCommand = (cakeArgs, { env = {}, timeoutMs = 60000 } = {}) => {
     const useDocker = shouldUseDockerPhp();
     const file = useDocker ? 'docker' : 'bash';
+    const dockerEnvArgs = Object.entries(env).flatMap(([key, value]) => ['-e', `${key}=${value}`]);
     const args = useDocker
-        ? ['exec', getAppContainerName(), 'bin/cake', ...cakeArgs]
+        ? ['exec', ...dockerEnvArgs, getAppContainerName(), 'bin/cake', ...cakeArgs]
         : [`${APP_ROOT}/bin/cake`, ...cakeArgs];
 
     return execFileSync(file, args, {
         cwd: APP_ROOT,
-        env: process.env,
+        env: { ...process.env, ...env },
         stdio: 'pipe',
         timeout: timeoutMs,
         encoding: 'utf8',
@@ -312,11 +338,9 @@ const runCakeCommand = (cakeArgs, { timeoutMs = 60000 } = {}) => {
  * Deterministically settle pending workflow/queue side-effects before asserting.
  *
  * Architecture: trigger-driven workflows execute synchronously during the web request
- * and enqueue their email jobs; the always-on `kmp-worker` container drains those jobs
- * within seconds. We therefore do NOT run `bin/cake queue run` here — with an empty
- * queue it blocks on `receive()` and ignores `--max-runtime` until a job arrives, which
- * would hang the test. Queue draining is owned by the background worker; tests achieve
- * determinism by calling this flush and then polling the Mailpit API.
+ * and enqueue their email jobs. Queue draining is handled by waitForQueueSettled(), which
+ * only runs the queue command when due jobs already exist so it cannot hang on an empty
+ * queue.
  *
  * When `forceScheduler` is set we dispatch time-based scheduled workflows now via
  * `workflow_scheduler --force` (fast, ~1s); the worker then drains anything it enqueued.

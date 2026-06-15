@@ -5,6 +5,7 @@ const { defineBddConfig } = require('playwright-bdd');
 const { getUiTestEnvironment } = require('./tests/ui/support/test-environment.cjs');
 
 const { baseUrl: baseURL, webServerCommand, hostHeader } = getUiTestEnvironment();
+const webServerReadyUrl = `${baseURL}/health`;
 const e2eHeaders = {
   ...(hostHeader ? { Host: hostHeader } : {}),
   'X-KMP-E2E': '1',
@@ -126,9 +127,10 @@ module.exports = defineConfig({
   /* Run your local dev server before starting the tests */
   webServer: process.env.PLAYWRIGHT_SKIP_WEBSERVER === '1' ? undefined : {
     command: webServerCommand,
-    url: baseURL,
+    url: webServerReadyUrl,
     reuseExistingServer: true,
     ignoreHTTPSErrors: true,
+    timeout: 180000,
   },
 
   /* Global setup and teardown */
