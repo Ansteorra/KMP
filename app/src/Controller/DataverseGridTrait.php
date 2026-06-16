@@ -14,6 +14,7 @@ use Cake\Cache\Cache;
 use Cake\Http\Response;
 use Cake\Log\Log;
 use DateTime;
+use Cake\Utility\Inflector;
 use DateTimeInterface;
 use DateTimeZone;
 
@@ -287,20 +288,7 @@ trait DataverseGridTrait
 
                 if ($columnMeta) {
                     if ($columnMeta['type'] === 'relation' && !empty($columnMeta['renderField'])) {
-                        $relationParts = explode('.', $columnMeta['renderField']);
-                        if (count($relationParts) === 2) {
-                            $associationName = ucfirst($relationParts[0]) . 's';
-                            $fieldName = $relationParts[1];
-                            $searchCondition = $this->buildDataverseGridSearchCondition(
-                                $associationName . '.' . $fieldName,
-                                $columnMeta,
-                                (string)$searchTerm,
-                            );
-                            if ($searchCondition !== null) {
-                                $searchConditions['OR'][] = $searchCondition;
-                            }
-                        } elseif (!empty($columnMeta['queryField'])) {
-                            // For deeper relation paths (3+ parts), use queryField directly
+                        if (!empty($columnMeta['queryField'])) {
                             $searchCondition = $this->buildDataverseGridSearchCondition(
                                 (string)$columnMeta['queryField'],
                                 $columnMeta,
@@ -308,6 +296,20 @@ trait DataverseGridTrait
                             );
                             if ($searchCondition !== null) {
                                 $searchConditions['OR'][] = $searchCondition;
+                            }
+                        } else {
+                            $relationParts = explode('.', $columnMeta['renderField']);
+                            if (count($relationParts) === 2) {
+                                $associationName = Inflector::pluralize(Inflector::camelize($relationParts[0]));
+                                $fieldName = $relationParts[1];
+                                $searchCondition = $this->buildDataverseGridSearchCondition(
+                                    $associationName . '.' . $fieldName,
+                                    $columnMeta,
+                                    (string)$searchTerm,
+                                );
+                                if ($searchCondition !== null) {
+                                    $searchConditions['OR'][] = $searchCondition;
+                                }
                             }
                         }
                     } elseif (!empty($columnMeta['queryField'])) {

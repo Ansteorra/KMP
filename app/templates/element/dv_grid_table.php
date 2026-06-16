@@ -57,6 +57,7 @@ $tableColumns = $columns ?? $gridState['columns']['all'] ?? [];
 
         <!-- Pagination -->
         <div class="paginator">
+            <?php $this->Paginator->options(['url' => ['?' => $this->getRequest()->getQueryParams()]]); ?>
             <ul class="pagination">
                 <?= $this->Paginator->first('<< ' . __('first')) ?>
                 <?= $this->Paginator->prev('< ' . __('previous')) ?>

@@ -742,6 +742,8 @@ $publicLandingUrl = $this->Url->build([
             <!-- Render the public landing page content inline -->
             <?= $this->element('gatherings/public_content', [
                 'gathering' => $gathering,
+                'scheduleByDate' => $scheduleByDate ?? [],
+                'durationDays' => $durationDays ?? 1,
                 'user' => $user ?? null,
                 'userAttendance' => $userAttendance ?? null,
                 'kingdomAttendances' => $kingdomAttendances ?? []

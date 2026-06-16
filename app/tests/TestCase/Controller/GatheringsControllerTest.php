@@ -8,6 +8,7 @@ use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Model\Entity\Recommendation;
 use Cake\Cache\Cache;
 use Cake\I18n\DateTime;
+use Waivers\Policy\GatheringWaiverPolicy;
 
 /**
  * App\Controller\GatheringsController Test Case
@@ -502,6 +503,48 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains('Pagination Off Calendar Event 205');
     }
 
+    public function testPublicLandingGroupsScheduleByGatheringTimezoneDate(): void
+    {
+        $gatherings = $this->getTableLocator()->get('Gatherings');
+        $scheduledActivities = $this->getTableLocator()->get('GatheringScheduledActivities');
+
+        $gathering = $gatherings->newEntity([
+            'public_id' => 'tzpub001',
+            'branch_id' => 2,
+            'gathering_type_id' => 1,
+            'name' => 'Timezone Grouping Public Test Event',
+            'description' => 'Verifies public schedule date grouping.',
+            'start_date' => '2099-12-01 00:00:00',
+            'end_date' => '2099-12-03 12:00:00',
+            'location' => 'Timezone Test Site',
+            'timezone' => 'America/Los_Angeles',
+            'public_page_enabled' => true,
+            'created_by' => self::ADMIN_MEMBER_ID,
+        ]);
+        $savedGathering = $gatherings->save($gathering);
+        $this->assertNotFalse($savedGathering);
+
+        $scheduled = $scheduledActivities->newEntity([
+            'gathering_id' => $savedGathering->id,
+            'start_datetime' => '2099-12-02 01:30:00',
+            'end_datetime' => '2099-12-02 02:00:00',
+            'has_end_time' => true,
+            'display_title' => 'Late Night Activity',
+            'description' => 'Crosses local day boundary from UTC.',
+            'pre_register' => false,
+            'is_other' => true,
+            'created_by' => self::ADMIN_MEMBER_ID,
+        ]);
+        $savedScheduled = $scheduledActivities->save($scheduled);
+        $this->assertNotFalse($savedScheduled);
+
+        $this->get('/gatherings/public-landing/' . $savedGathering->public_id);
+        $this->assertResponseOk();
+        $this->assertResponseContains('Tuesday, December 1, 2099');
+        $this->assertResponseNotContains('Wednesday, December 2, 2099');
+        $this->assertResponseContains('5:30 PM');
+    }
+
     /**
      * Test activity management remains available when waivers are uploaded.
      *
@@ -520,7 +563,6 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
 
         $this->assertResponseContains('Add Activity');
         $this->assertResponseContains('addActivityModal');
-        $this->assertResponseNotContains('remove-activity');
     }
 
     /**
@@ -561,36 +603,79 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
     }
 
     /**
-     * Test removing an activity remains blocked when waivers are uploaded.
+     * Test policy blocks removing an activity when it is the last one requiring submitted waivers.
+     *
+     * @return void
+     * @uses \Waivers\Policy\GatheringWaiverPolicy::canRemoveGatheringActivity()
+     */
+    public function testRemoveActivityBlockedWhenLastRequiredWaiverActivity(): void
+    {
+        $gathering = $this->getGatheringWithUploadedWaivers();
+        $waiverTypeId = $this->getSubmittedWaiverTypeIdForGathering((int)$gathering->id);
+        $activity = $this->getLinkedActivityForGathering((int)$gathering->id);
+        $this->ensureActivityIsOnlyWaiverRequirement((int)$gathering->id, (int)$activity->id, $waiverTypeId);
+
+        $waiverPolicy = new GatheringWaiverPolicy();
+        $authorizationEntity = $this->getTableLocator()->get('Waivers.GatheringWaivers')->newEmptyEntity();
+        $authorizationEntity->gathering_id = (int)$gathering->id;
+        $authorizationEntity->gathering = $gathering;
+
+        $this->assertFalse(
+            $waiverPolicy->canRemoveGatheringActivity(
+                $this->getTableLocator()->get('Members')->get(self::ADMIN_MEMBER_ID),
+                $authorizationEntity,
+                (int)$activity->id,
+            ),
+        );
+    }
+
+    /**
+     * Test removing an activity is allowed when another activity still requires submitted waivers.
      *
      * @return void
      * @uses \App\Controller\GatheringsController::removeActivity()
      */
-    public function testRemoveActivityBlockedWhenWaiversUploaded(): void
+    public function testRemoveActivityAllowedWhenAnotherActivityStillRequiresSubmittedWaiver(): void
     {
         $gathering = $this->getGatheringWithUploadedWaivers();
-        $activity = $this->getLinkedActivityForGathering((int)$gathering->id);
+        $waiverTypeId = $this->getSubmittedWaiverTypeIdForGathering((int)$gathering->id);
+        $activityToRemove = $this->getLinkedActivityForGathering((int)$gathering->id);
         $links = $this->getTableLocator()->get('GatheringsGatheringActivities');
+
+        $otherActivity = $this->getActivityNotLinkedToGathering((int)$gathering->id);
+        $newLink = $links->newEntity([
+            'gathering_id' => $gathering->id,
+            'gathering_activity_id' => $otherActivity->id,
+            'sort_order' => 999,
+        ]);
+        $this->assertNotFalse($links->save($newLink));
+
+        $this->ensureActivitiesShareWaiverRequirement(
+            (int)$gathering->id,
+            (int)$activityToRemove->id,
+            (int)$otherActivity->id,
+            $waiverTypeId,
+        );
 
         $beforeCount = $links->find()
             ->where([
                 'gathering_id' => $gathering->id,
-                'gathering_activity_id' => $activity->id,
+                'gathering_activity_id' => $activityToRemove->id,
             ])
             ->count();
         $this->assertSame(1, $beforeCount);
 
-        $this->post('/gatherings/remove-activity/' . $gathering->id . '/' . $activity->id);
+        $this->post('/gatherings/remove-activity/' . $gathering->id . '/' . $activityToRemove->id);
 
         $this->assertRedirect(['action' => 'view', $gathering->public_id]);
 
         $afterCount = $links->find()
             ->where([
                 'gathering_id' => $gathering->id,
-                'gathering_activity_id' => $activity->id,
+                'gathering_activity_id' => $activityToRemove->id,
             ])
             ->count();
-        $this->assertSame(1, $afterCount);
+        $this->assertSame(0, $afterCount);
     }
 
     public function testCourtScheduleManagerCanAddScheduledActivity(): void
@@ -887,5 +972,60 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $start = (clone $gathering->start_date)->modify('+' . $hoursAfterStart . ' hours');
 
         return TimezoneHelper::toUserTimezone($start, null, null, $gathering)->format('Y-m-d\TH:i');
+    }
+
+    private function getSubmittedWaiverTypeIdForGathering(int $gatheringId): int
+    {
+        $waiver = $this->getTableLocator()
+            ->get('Waivers.GatheringWaivers')
+            ->find()
+            ->where(['gathering_id' => $gatheringId])
+            ->orderBy(['id' => 'ASC'])
+            ->first();
+
+        if (!$waiver || !$waiver->waiver_type_id) {
+            $this->markTestSkipped('No submitted waiver type found for gathering');
+        }
+
+        return (int)$waiver->waiver_type_id;
+    }
+
+    private function ensureActivityIsOnlyWaiverRequirement(int $gatheringId, int $activityId, int $waiverTypeId): void
+    {
+        $links = $this->getTableLocator()->get('GatheringsGatheringActivities');
+        $linkedActivityIds = $links->find()
+            ->select(['gathering_activity_id'])
+            ->where(['gathering_id' => $gatheringId])
+            ->all()
+            ->extract('gathering_activity_id')
+            ->toList();
+
+        $requirements = $this->getTableLocator()->get('Waivers.GatheringActivityWaivers');
+        $requirements->deleteAll([
+            'waiver_type_id' => $waiverTypeId,
+            'gathering_activity_id IN' => $linkedActivityIds,
+        ]);
+
+        $requirement = $requirements->newEntity([
+            'gathering_activity_id' => $activityId,
+            'waiver_type_id' => $waiverTypeId,
+        ]);
+        $this->assertNotFalse($requirements->save($requirement));
+    }
+
+    private function ensureActivitiesShareWaiverRequirement(
+        int $gatheringId,
+        int $activityId,
+        int $otherActivityId,
+        int $waiverTypeId,
+    ): void {
+        $this->ensureActivityIsOnlyWaiverRequirement($gatheringId, $activityId, $waiverTypeId);
+
+        $requirements = $this->getTableLocator()->get('Waivers.GatheringActivityWaivers');
+        $otherRequirement = $requirements->newEntity([
+            'gathering_activity_id' => $otherActivityId,
+            'waiver_type_id' => $waiverTypeId,
+        ]);
+        $this->assertNotFalse($requirements->save($otherRequirement));
     }
 }

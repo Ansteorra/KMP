@@ -54,6 +54,7 @@ use App\Controller\WorkflowInstancesController;
 use App\KMP\KmpIdentityInterface;
 // Add this line
 use App\Middleware\TenantResolutionMiddleware;
+use App\KMP\Telemetry\RequestQueryCounter;
 // Authorization usings
 use App\Policy\ControllerResolver;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
@@ -116,6 +117,7 @@ use Authorization\Policy\ResolverCollection;
 use Cake\Controller\ComponentRegistry;
 use Cake\Core\Configure;
 use Cake\Core\ContainerInterface;
+use Cake\Datasource\ConnectionManager;
 use Cake\Datasource\FactoryLocator;
 use Cake\Error\Middleware\ErrorHandlerMiddleware;
 use Cake\Http\BaseApplication;
@@ -130,6 +132,7 @@ use Cake\Routing\Middleware\RoutingMiddleware;
 use Cake\Routing\Router;
 use Cake\Utility\Security;
 use Psr\Http\Message\ServerRequestInterface;
+use Throwable;
 
 /**
  * Kingdom Management Portal Application Class
@@ -269,6 +272,37 @@ class Application extends BaseApplication implements
         // This system allows automatic updates to application settings when KMP is upgraded
         // Each time the version changes, new default settings are applied
         (new TenantDefaultSettingsInitializer())->initialize();
+        $this->installQueryCounter();
+    }
+
+    /**
+     * Installs the per-request query counter on the default database
+     * connection. The counter wraps any existing driver logger so the
+     * built-in queries log channel (PERF_DB_QUERY_LOG_ENABLED) keeps
+     * working when enabled. Failure is non-fatal — telemetry must never
+     * take down the app.
+     *
+     * @return void
+     */
+    private function installQueryCounter(): void
+    {
+        try {
+            $connection = ConnectionManager::get('default');
+            if (!method_exists($connection, 'getDriver')) {
+                return;
+            }
+            $driver = $connection->getDriver();
+            if (!method_exists($driver, 'setLogger')) {
+                return;
+            }
+
+            $inner = method_exists($driver, 'getLogger') ? $driver->getLogger() : null;
+            $counter = new RequestQueryCounter($inner);
+            RequestQueryCounter::setInstance($counter);
+            $driver->setLogger($counter);
+        } catch (Throwable) {
+            // Telemetry bootstrap must not break the app; ignore.
+        }
     }
 
     /**
@@ -345,27 +379,84 @@ class Application extends BaseApplication implements
 
                 $thresholdMs = max(1, (int)env('PERF_SLOW_REQUEST_MS', 750));
                 $logAllRequests = filter_var((string)env('PERF_LOG_ALL_REQUESTS', false), FILTER_VALIDATE_BOOLEAN);
+                $kingdomTag = trim((string)env('PERF_KINGDOM_TAG', ''));
+
+                $queryCounter = RequestQueryCounter::instance();
+                $queryCounter->reset();
 
                 $startedAt = hrtime(true);
+                $cpuStart = function_exists('getrusage') ? getrusage() : null;
+
                 $response = $handler->handle($request);
-                $durationMs = (hrtime(true) - $startedAt) / 1000000;
+
+                $durationMs = (hrtime(true) - $startedAt) / 1_000_000;
+                $cpuEnd = function_exists('getrusage') ? getrusage() : null;
 
                 if (!$logAllRequests && $durationMs < $thresholdMs) {
                     return $response;
                 }
 
+                $cpuUserMs = $this->rusageDeltaMs($cpuStart, $cpuEnd, 'ru_utime');
+                $cpuSysMs = $this->rusageDeltaMs($cpuStart, $cpuEnd, 'ru_stime');
+
+                $responseBytes = 0;
+                try {
+                    $responseBytes = (int)($response->getBody()->getSize() ?? 0);
+                } catch (Throwable) {
+                    $responseBytes = 0;
+                }
+                if ($responseBytes === 0) {
+                    $contentLength = $response->getHeaderLine('Content-Length');
+                    if ($contentLength !== '') {
+                        $responseBytes = (int)$contentLength;
+                    }
+                }
+
+                $routeTemplate = $this->deriveRouteTemplate($request);
+
                 $level = $durationMs >= $thresholdMs ? 'warning' : 'info';
+                $context = [
+                    'scope' => ['app.performance'],
+                    'method' => $request->getMethod(),
+                    'host' => $request->getUri()->getHost(),
+                    'path' => $request->getUri()->getPath(),
+                    'route_template' => $routeTemplate,
+                    'status' => $response->getStatusCode(),
+                    'duration_ms' => round($durationMs, 2),
+                    'memory_peak_mb' => round(memory_get_peak_usage(true) / 1048576, 2),
+                    'cpu_user_ms' => $cpuUserMs,
+                    'cpu_sys_ms' => $cpuSysMs,
+                    'query_count' => $queryCounter->count(),
+                    'db_total_ms' => round($queryCounter->totalMs(), 2),
+                    'response_bytes' => $responseBytes,
+                    'kingdom' => $kingdomTag !== '' ? $kingdomTag : 'unknown',
+                    'php_version' => PHP_VERSION,
+                    'php_sapi' => PHP_SAPI,
+                    'php_os' => PHP_OS_FAMILY,
+                    'app_version' => $this->appVersion(),
+                ];
+
                 Log::write(
                     $level,
                     sprintf(
-                        '[request_timing] method=%s path=%s status=%d duration_ms=%.2f memory_peak_mb=%.2f',
-                        $request->getMethod(),
-                        $request->getUri()->getPath(),
-                        $response->getStatusCode(),
-                        $durationMs,
-                        memory_get_peak_usage(true) / 1048576,
+                        '[request_timing] method=%s host=%s path=%s route=%s status=%d'
+                        . ' duration_ms=%.2f memory_peak_mb=%.2f cpu_user_ms=%.2f cpu_sys_ms=%.2f'
+                        . ' query_count=%d db_total_ms=%.2f response_bytes=%d kingdom=%s',
+                        $context['method'],
+                        $context['host'],
+                        $context['path'],
+                        $context['route_template'],
+                        $context['status'],
+                        $context['duration_ms'],
+                        $context['memory_peak_mb'],
+                        $context['cpu_user_ms'],
+                        $context['cpu_sys_ms'],
+                        $context['query_count'],
+                        $context['db_total_ms'],
+                        $context['response_bytes'],
+                        $context['kingdom'],
                     ),
-                    ['scope' => ['app.performance']],
+                    $context,
                 );
 
                 return $response;
@@ -945,5 +1036,107 @@ class Application extends BaseApplication implements
         // Return custom authorization service with enhanced functionality
         // KmpAuthorizationService extends the base service with KMP-specific features
         return new KmpAuthorizationService($resolver);
+    }
+
+    /**
+     * Computes the delta between two getrusage() snapshots for the given
+     * timer field ('ru_utime' for user or 'ru_stime' for system), in
+     * milliseconds. Returns 0.0 when either snapshot is missing.
+     *
+     * @param array|null $start Snapshot taken before the work
+     * @param array|null $end   Snapshot taken after the work
+     * @param string $field     ru_utime or ru_stime
+     * @return float Delta in milliseconds
+     */
+    private function rusageDeltaMs(?array $start, ?array $end, string $field): float
+    {
+        if ($start === null || $end === null) {
+            return 0.0;
+        }
+
+        $startSec = (int)($start[$field . '.tv_sec'] ?? 0);
+        $startUsec = (int)($start[$field . '.tv_usec'] ?? 0);
+        $endSec = (int)($end[$field . '.tv_sec'] ?? 0);
+        $endUsec = (int)($end[$field . '.tv_usec'] ?? 0);
+
+        $startMs = $startSec * 1000.0 + $startUsec / 1000.0;
+        $endMs = $endSec * 1000.0 + $endUsec / 1000.0;
+        $delta = $endMs - $startMs;
+
+        return round($delta < 0.0 ? 0.0 : $delta, 2);
+    }
+
+    /**
+     * Derives a low-cardinality route template from the matched routing
+     * params, falling back to the raw path. Format: /controller/action with
+     * `{name}` placeholders for parameterized segments.
+     *
+     * @param \Psr\Http\Message\ServerRequestInterface $request The request
+     * @return string A stable template such as `/members/view/{id}`
+     */
+    private function deriveRouteTemplate(ServerRequestInterface $request): string
+    {
+        $params = (array)$request->getAttribute('params', []);
+        $controller = isset($params['controller']) ? (string)$params['controller'] : '';
+        $action = isset($params['action']) ? (string)$params['action'] : '';
+        $plugin = isset($params['plugin']) ? (string)$params['plugin'] : '';
+
+        if ($controller === '' && $action === '') {
+            return $request->getUri()->getPath();
+        }
+
+        $prefix = isset($params['prefix']) && $params['prefix'] !== false
+            ? '/' . strtolower((string)$params['prefix'])
+            : '';
+        $pluginSeg = $plugin !== '' ? '/' . strtolower($plugin) : '';
+        $controllerSeg = $controller !== '' ? '/' . strtolower($controller) : '';
+        $actionSeg = $action !== '' ? '/' . strtolower($action) : '';
+
+        $template = $prefix . $pluginSeg . $controllerSeg . $actionSeg;
+
+        $passed = $params['pass'] ?? [];
+        if (is_array($passed) && $passed !== []) {
+            $count = count($passed);
+            // Always emit placeholders so cardinality stays bounded.
+            for ($i = 0; $i < $count; $i++) {
+                $template .= '/{arg' . $i . '}';
+            }
+        }
+
+        return $template === '' ? $request->getUri()->getPath() : $template;
+    }
+
+    /**
+     * Reads the application version from composer.json, cached per process.
+     *
+     * @return string Version string or "unknown"
+     */
+    private function appVersion(): string
+    {
+        static $cached = null;
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        $cached = 'unknown';
+        $composerPath = ROOT . DIRECTORY_SEPARATOR . 'composer.json';
+        if (!is_file($composerPath)) {
+            return $cached;
+        }
+
+        try {
+            $raw = file_get_contents($composerPath);
+            if ($raw === false) {
+                return $cached;
+            }
+            $decoded = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+            if (is_array($decoded) && isset($decoded['version'])) {
+                $cached = (string)$decoded['version'];
+            }
+        } catch (Throwable) {
+            // keep "unknown"
+        }
+
+        return $cached;
     }
 }

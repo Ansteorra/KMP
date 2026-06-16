@@ -823,6 +823,7 @@ class GatheringsController extends AppController
                     'GatheringActivities',
                     'Creators' => ['fields' => ['id', 'sca_name']],
                     'Modifiers' => ['fields' => ['id', 'sca_name']],
+                    'sort' => ['GatheringScheduledActivities.start_datetime' => 'ASC'],
                 ],
                 'GatheringStaff' => [
                     'Members' => ['fields' => ['id', 'sca_name']],
@@ -851,9 +852,17 @@ class GatheringsController extends AppController
         // Check if waivers exist (for activity locking)
         // This is used to determine if activities can be added/removed
         $hasWaivers = false;
+        $waiverRemovalAuthorization = null;
         if (class_exists('Waivers\Model\Table\GatheringWaiversTable')) {
-            $hasWaivers = $this->fetchTable('Waivers.GatheringWaivers')
+            $gatheringWaiversTable = $this->fetchTable('Waivers.GatheringWaivers');
+            $hasWaivers = $gatheringWaiversTable
                 ->find()->where(['gathering_id' => $gathering->id])->count() > 0;
+
+            if ($hasWaivers) {
+                $waiverRemovalAuthorization = $gatheringWaiversTable->newEmptyEntity();
+                $waiverRemovalAuthorization->gathering_id = $gathering->id;
+                $waiverRemovalAuthorization->gathering = $gathering;
+            }
         }
 
         // Get available activities (not already in this gathering)
@@ -893,13 +902,53 @@ class GatheringsController extends AppController
                 ->toArray();
         }
 
+        // Build schedule data for public view (used by view_public template)
+        // Enrich scheduled activities with custom descriptions from junction table
+        $customDescriptions = [];
+        foreach ($gathering->gathering_activities as $gatheringActivity) {
+            if (!empty($gatheringActivity->custom_description)) {
+                $customDescriptions[$gatheringActivity->id] = $gatheringActivity->custom_description;
+            }
+        }
+        foreach ($gathering->gathering_scheduled_activities as $scheduledActivity) {
+            if (
+                $scheduledActivity->gathering_activity_id
+                && isset($customDescriptions[$scheduledActivity->gathering_activity_id])
+            ) {
+                $scheduledActivity->gathering_activity
+                    ->custom_description = $customDescriptions[$scheduledActivity->gathering_activity_id];
+            }
+        }
+
+        // Group scheduled activities by date
+        $scheduleByDate = [];
+        foreach ($gathering->gathering_scheduled_activities as $scheduledActivity) {
+            $localStart = \App\KMP\TimezoneHelper::toUserTimezone(
+                $scheduledActivity->start_datetime,
+                null,
+                null,
+                $gathering,
+            );
+            $date = $localStart->format('Y-m-d');
+            if (!isset($scheduleByDate[$date])) {
+                $scheduleByDate[$date] = [];
+            }
+            $scheduleByDate[$date][] = $scheduledActivity;
+        }
+
+        // Calculate event duration
+        $durationDays = $gathering->start_date->diffInDays($gathering->end_date) + 1;
+
         $this->set(compact(
             'gathering',
             'hasWaivers',
+            'waiverRemovalAuthorization',
             'availableActivities',
             'totalAttendanceCount',
             'userAttendance',
             'kingdomAttendances',
+            'scheduleByDate',
+            'durationDays',
         ));
 
         // Override recordId to use integer ID for plugin cells that expect it
@@ -1010,7 +1059,19 @@ class GatheringsController extends AppController
             }
         }
 
-        $gatheringTypes = $this->Gatherings->GatheringTypes->find('list')->orderBy(['name' => 'ASC']);
+        $gatheringTypesRaw = $this->Gatherings->GatheringTypes->find()
+            ->select(['id', 'name', 'description'])
+            ->orderBy(['name' => 'ASC'])
+            ->toArray();
+
+        $gatheringTypes = array_map(
+            fn($t) => [
+                'value' => $t->id,
+                'text' => $t->name,
+                'data-description' => $t->description ?? '',
+            ],
+            $gatheringTypesRaw
+        );
 
         $this->set(compact('gathering', 'branches', 'gatheringTypes', 'lockBranch', 'branchCount'));
     }
@@ -1114,7 +1175,19 @@ class GatheringsController extends AppController
             $lockBranch = true;
         }
 
-        $gatheringTypes = $this->Gatherings->GatheringTypes->find('list')->orderBy(['name' => 'ASC']);
+        $gatheringTypesRaw = $this->Gatherings->GatheringTypes->find()
+            ->select(['id', 'name', 'description'])
+            ->orderBy(['name' => 'ASC'])
+            ->toArray();
+
+        $gatheringTypes = array_map(
+            fn($t) => [
+                'value' => $t->id,
+                'text' => $t->name,
+                'data-description' => $t->description ?? '',
+            ],
+            $gatheringTypesRaw
+        );
 
         $this->set(compact('gathering', 'branches', 'gatheringTypes', 'lockBranch', 'branchCount'));
     }
@@ -1313,12 +1386,21 @@ class GatheringsController extends AppController
         $gathering = $this->Gatherings->get($gatheringId);
         $this->Authorization->authorize($gathering, 'edit');
 
-        if ($activityService->hasUploadedWaivers((int)$gatheringId)) {
-            $this->Flash->error(__(
-                'Cannot remove activities because waivers have been uploaded for this gathering.',
-            ));
+        if (
+            $activityService->hasUploadedWaivers((int)$gatheringId) &&
+            class_exists('Waivers\Model\Table\GatheringWaiversTable')
+        ) {
+            $waiverAuthorization = $this->fetchTable('Waivers.GatheringWaivers')->newEmptyEntity();
+            $waiverAuthorization->gathering_id = $gathering->id;
+            $waiverAuthorization->gathering = $gathering;
 
-            return $this->redirect(['action' => 'view', $gathering->public_id]);
+            if (!$this->Authentication->getIdentity()->checkCan('removeGatheringActivity', $waiverAuthorization, (int)$activityId)) {
+                $this->Flash->error(__(
+                    'Cannot remove this activity because it is the last one supporting submitted waivers.',
+                ));
+
+                return $this->redirect(['action' => 'view', $gathering->public_id]);
+            }
         }
 
         $result = $activityService->removeActivity((int)$gatheringId, (int)$activityId);
@@ -1631,7 +1713,13 @@ class GatheringsController extends AppController
         // Group scheduled activities by date
         $scheduleByDate = [];
         foreach ($gathering->gathering_scheduled_activities as $scheduledActivity) {
-            $date = $scheduledActivity->start_datetime->format('Y-m-d');
+            $localStart = \App\KMP\TimezoneHelper::toUserTimezone(
+                $scheduledActivity->start_datetime,
+                null,
+                null,
+                $gathering,
+            );
+            $date = $localStart->format('Y-m-d');
             if (!isset($scheduleByDate[$date])) {
                 $scheduleByDate[$date] = [];
             }

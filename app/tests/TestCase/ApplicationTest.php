@@ -22,8 +22,15 @@ use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Cake\Core\Configure;
 use Cake\Error\Middleware\ErrorHandlerMiddleware;
 use Cake\Http\MiddlewareQueue;
+use Cake\Http\Response;
+use Cake\Http\ServerRequest;
+use Cake\Log\Engine\FileLog;
+use Cake\Log\Log;
 use Cake\Routing\Middleware\AssetMiddleware;
 use Cake\Routing\Middleware\RoutingMiddleware;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Server\RequestHandlerInterface;
 
 /**
  * ApplicationTest class
@@ -97,5 +104,101 @@ class ApplicationTest extends HttpIntegrationTestCase
         $this->assertNotNull($assetIndex, 'AssetMiddleware should be in middleware stack');
         $this->assertNotNull($routingIndex, 'RoutingMiddleware should be in middleware stack');
         $this->assertTrue($assetIndex < $routingIndex, 'AssetMiddleware should execute before RoutingMiddleware');
+    }
+
+    public function testPerformanceMiddlewareLogsKingdomAndHostDimensions(): void
+    {
+        $previousEnabled = getenv('PERF_REQUEST_LOG_ENABLED');
+        $previousLogAll = getenv('PERF_LOG_ALL_REQUESTS');
+        $previousKingdomTag = getenv('PERF_KINGDOM_TAG');
+        $previousServerKingdom = $_SERVER['PERF_KINGDOM_TAG'] ?? null;
+        $previousEnvKingdom = $_ENV['PERF_KINGDOM_TAG'] ?? null;
+
+        putenv('PERF_REQUEST_LOG_ENABLED=true');
+        putenv('PERF_LOG_ALL_REQUESTS=true');
+        putenv('PERF_KINGDOM_TAG=test-kingdom');
+        $_SERVER['PERF_KINGDOM_TAG'] = 'test-kingdom';
+        $_ENV['PERF_KINGDOM_TAG'] = 'test-kingdom';
+        $_SERVER['PERF_REQUEST_LOG_ENABLED'] = 'true';
+        $_SERVER['PERF_LOG_ALL_REQUESTS'] = 'true';
+
+        try {
+            $app = new Application(dirname(dirname(__DIR__)) . '/config');
+            $middleware = iterator_to_array($app->middleware(new MiddlewareQueue()));
+            $performanceMiddleware = $middleware[1];
+
+            $logFile = TMP . 'performance-instrumentation-test.log';
+            if (file_exists($logFile)) {
+                unlink($logFile);
+            }
+
+            Log::drop('performance');
+            Log::setConfig('performance', [
+                'className' => FileLog::class,
+                'path' => TMP,
+                'file' => 'performance-instrumentation-test',
+                'scopes' => ['app.performance'],
+                'levels' => ['info', 'warning'],
+            ]);
+
+            $request = new ServerRequest([
+                'environment' => [
+                    'REQUEST_METHOD' => 'GET',
+                    'HTTP_HOST' => 'metrics.example.test',
+                ],
+                'url' => '/members',
+                'params' => [
+                    'controller' => 'Members',
+                    'action' => 'view',
+                    'pass' => ['42'],
+                    'plugin' => null,
+                ],
+            ]);
+
+            $handler = new class () implements RequestHandlerInterface {
+                public function handle(ServerRequestInterface $request): ResponseInterface
+                {
+                    return new Response(['status' => 200]);
+                }
+            };
+
+            $performanceMiddleware->process($request, $handler);
+
+            $this->assertFileExists($logFile);
+            $logContents = (string)file_get_contents($logFile);
+            $this->assertStringContainsString('host=metrics.example.test', $logContents);
+            $this->assertStringContainsString('kingdom=test-kingdom', $logContents);
+            $this->assertStringContainsString('route=/members/view/{arg0}', $logContents);
+            $this->assertStringContainsString('query_count=', $logContents);
+            $this->assertStringContainsString('cpu_user_ms=', $logContents);
+            $this->assertStringContainsString('response_bytes=', $logContents);
+        } finally {
+            if ($previousEnabled !== false) {
+                putenv("PERF_REQUEST_LOG_ENABLED={$previousEnabled}");
+            } else {
+                putenv('PERF_REQUEST_LOG_ENABLED');
+            }
+            if ($previousLogAll !== false) {
+                putenv("PERF_LOG_ALL_REQUESTS={$previousLogAll}");
+            } else {
+                putenv('PERF_LOG_ALL_REQUESTS');
+            }
+            if ($previousKingdomTag !== false) {
+                putenv("PERF_KINGDOM_TAG={$previousKingdomTag}");
+            } else {
+                putenv('PERF_KINGDOM_TAG');
+            }
+            if ($previousServerKingdom === null) {
+                unset($_SERVER['PERF_KINGDOM_TAG']);
+            } else {
+                $_SERVER['PERF_KINGDOM_TAG'] = $previousServerKingdom;
+            }
+            if ($previousEnvKingdom === null) {
+                unset($_ENV['PERF_KINGDOM_TAG']);
+            } else {
+                $_ENV['PERF_KINGDOM_TAG'] = $previousEnvKingdom;
+            }
+            unset($_SERVER['PERF_REQUEST_LOG_ENABLED'], $_SERVER['PERF_LOG_ALL_REQUESTS']);
+        }
     }
 }
