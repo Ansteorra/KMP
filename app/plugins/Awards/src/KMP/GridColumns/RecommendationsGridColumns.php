@@ -619,6 +619,7 @@ class RecommendationsGridColumns extends BaseGridColumns
                             'branch_id',
                             'domain_name',
                             'award_name',
+                            'specialty',
                             'reason',
                             'status',
                             'state',
