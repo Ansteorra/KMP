@@ -6,12 +6,13 @@ namespace App\Controller;
 use App\KMP\GridColumns\AppSettingsGridColumns;
 use App\KMP\GridRowDomId;
 use App\KMP\StaticHelpers;
-use Cake\Http\Response;
 use App\Services\CsvExportService;
 use Cake\Event\EventInterface;
 use Cake\Http\Exception\NotFoundException;
+use Cake\Http\Response;
 use InvalidArgumentException;
 use Psr\Http\Message\UploadedFileInterface;
+use Traversable;
 
 /**
  * AppSettings Controller
@@ -105,6 +106,7 @@ class AppSettingsController extends AppController
         $this->set([
             'appSettings' => $result['data'],
             'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
             'emptyAppSetting' => $this->AppSettings->newEmptyEntity(),
             'rowActions' => AppSettingsGridColumns::getRowActions(),
         ]);
@@ -363,7 +365,7 @@ class AppSettingsController extends AppController
             $gridData = $result['data'];
             if (is_array($gridData)) {
                 $appSettings = $gridData;
-            } elseif ($gridData instanceof \Traversable) {
+            } elseif ($gridData instanceof Traversable) {
                 $appSettings = iterator_to_array($gridData, false);
             } else {
                 $appSettings = [];
@@ -418,7 +420,10 @@ class AppSettingsController extends AppController
         if (
             $this->wantsTurboStreamRequest()
             && $pageContext !== null
-            && ($this->isGridOriginRequest($pageContext) || $this->matchesGridIndexPath($pageContext, '#/app-settings/?$#'))
+            && (
+                $this->isGridOriginRequest($pageContext)
+                || $this->matchesGridIndexPath($pageContext, '#/app-settings/?$#')
+            )
         ) {
             if ($forceRemove && $this->matchesGridIndexPath($pageContext, '#/app-settings/?$#')) {
                 $rowDomId = GridRowDomId::fromTableFrameId('app-settings-grid-table', $appSettingId);

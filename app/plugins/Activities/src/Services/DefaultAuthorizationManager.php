@@ -7,7 +7,6 @@ namespace Activities\Services;
 use Activities\Model\Entity\Authorization;
 use Activities\Services\AuthorizationManagerInterface;
 use App\KMP\StaticHelpers;
-use App\Model\Behavior\WorkflowTriggerBehavior;
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowInstance;
 use App\Services\WorkflowEngine\TriggerDispatcher;
@@ -457,18 +456,6 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
 
         // Commit transaction
         $table->getConnection()->commit();
-
-        if (!WorkflowTriggerBehavior::$suppressTriggers) {
-            try {
-                $this->triggerDispatcher->dispatch('Activities.AuthorizationRetracted', [
-                    'authorizationId' => $authorizationId,
-                    'memberId' => $requesterId,
-                    'activityId' => $authorization->activity_id,
-                ], $requesterId);
-            } catch (\Throwable $e) {
-                Log::error('Failed to dispatch Activities.AuthorizationRetracted trigger: ' . $e->getMessage());
-            }
-        }
 
         return new ServiceResult(true, null, ['authorization' => $authorization]);
     }

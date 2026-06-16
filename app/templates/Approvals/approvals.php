@@ -56,7 +56,12 @@ $this->KMP->endBlock(); ?>
             ]) ?>
             <div class="modal-body bg-light-subtle">
                 <input type="hidden" name="approvalId" id="approvalResponseApprovalId" value="">
+                <input type="hidden" name="approvalIds" id="approvalResponseApprovalIds" value=""
+                    data-approval-response-target="approvalIds">
                 <?= $this->Form->hidden('page_context_url', ['value' => '']) ?>
+
+                <div class="alert py-2 small" role="status" aria-live="polite"
+                    data-approval-response-target="bulkSummary" hidden></div>
 
                 <!-- Decision -->
                 <fieldset class="border rounded-3 bg-white shadow-sm p-3 mb-3" data-approval-response-target="decisionSection">
@@ -151,11 +156,28 @@ document.addEventListener('DOMContentLoaded', function() {
         const btn = event.relatedTarget;
         if (!btn) return;
 
+        const bulkSelection = parseBulkSelection(btn);
         let btnData = {};
-        try {
-            btnData = JSON.parse(btn.getAttribute('data-outlet-btn-btn-data-value') || '{}');
-        } catch (e) {
-            return;
+        let bulkIds = [];
+        let bulkError = '';
+        if (bulkSelection) {
+            bulkIds = bulkSelection.ids;
+            const selectedRows = Array.isArray(bulkSelection.checkboxes) ? bulkSelection.checkboxes : [];
+            const selectedTypes = [...new Set(selectedRows.map(row => row.approvalTypeKey).filter(Boolean))];
+            if (selectedTypes.length !== 1) {
+                bulkError = '<?= __('Select approvals of the same type before responding in bulk.') ?>';
+            }
+            try {
+                btnData = JSON.parse(selectedRows[0]?.approvalResponsePayload || '{}');
+            } catch (e) {
+                bulkError = '<?= __('Unable to read the selected approval details. Refresh the grid and try again.') ?>';
+            }
+        } else {
+            try {
+                btnData = JSON.parse(btn.getAttribute('data-outlet-btn-btn-data-value') || '{}');
+            } catch (e) {
+                return;
+            }
         }
 
         const approvalId = btnData.id || 0;
@@ -180,9 +202,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const modalTitle = document.getElementById('approvalResponseModalLabel');
         if (modalTitle) {
-            modalTitle.innerHTML = feedbackResponse
+            modalTitle.innerHTML = bulkIds.length > 1
+                ? '<i class="bi bi-check2-square me-2"></i><?= __('Respond to Selected Approvals') ?>'
+                : (feedbackResponse
                 ? '<i class="bi bi-chat-left-text me-2"></i><?= __('Send Feedback') ?>'
-                : '<i class="bi bi-check2-square me-2"></i><?= __('Respond to Approval') ?>';
+                : '<i class="bi bi-check2-square me-2"></i><?= __('Respond to Approval') ?>');
         }
         const approveLabelEl = document.querySelector('label[for="decisionApprove"]');
         if (approveLabelEl) {
@@ -211,12 +235,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Set hidden field
         document.getElementById('approvalResponseApprovalId').value = approvalId;
+        document.getElementById('approvalResponseApprovalIds').value = bulkIds.join(',');
 
         // Configure the Stimulus controller
         const controller = window.Stimulus?.getControllerForElementAndIdentifier(form, 'approval-response');
         if (controller) {
             controller.configure({
                 id: approvalId,
+                bulkIds: bulkIds,
+                bulkError: bulkError,
                 serialPickNext: serialPickNext,
                 requiredCount: requiredCount,
                 approvedCount: approvedCount,
@@ -232,6 +259,54 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     });
+
+    function parseBulkSelection(btn) {
+        const liveSelection = getLiveBulkSelection(btn);
+        if (liveSelection) {
+            return liveSelection;
+        }
+        if (!btn.dataset.bulkActionSelection) {
+            return null;
+        }
+        try {
+            const selection = JSON.parse(btn.dataset.bulkActionSelection);
+            const ids = Array.isArray(selection.ids) ? selection.ids.filter(Boolean) : [];
+            if (ids.length === 0) {
+                return null;
+            }
+
+            return {
+                ids: ids,
+                checkboxes: Array.isArray(selection.checkboxes) ? selection.checkboxes : [],
+            };
+        } catch (e) {
+            return {
+                ids: [],
+                checkboxes: [],
+            };
+        }
+    }
+
+    function getLiveBulkSelection(btn) {
+        if (!btn.dataset.bulkActionKey) {
+            return null;
+        }
+        const grid = btn.closest('turbo-frame') || btn.closest('[data-controller~="grid-view"]') || document;
+        if (!grid) {
+            return null;
+        }
+        const selectedRows = Array.from(
+            grid.querySelectorAll('[data-grid-view-target~="rowCheckbox"]:checked:not(:disabled)')
+        );
+        if (selectedRows.length === 0) {
+            return null;
+        }
+
+        return {
+            ids: selectedRows.map(row => row.value).filter(Boolean),
+            checkboxes: selectedRows.map(row => ({ id: row.value, ...row.dataset })),
+        };
+    }
 
     <?php if ($focusedApprovalId) : ?>
     // Auto-open response modal for token deep-link approval

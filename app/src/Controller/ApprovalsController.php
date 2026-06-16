@@ -12,6 +12,7 @@ use App\Model\Entity\WorkflowApprovalTriageState;
 use App\Model\Entity\WorkflowInstance;
 use App\Model\Table\WorkflowApprovalsTable;
 use App\Services\ApprovalContext\ApprovalContextRendererRegistry;
+use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\WorkflowApprovalManagerInterface;
 use App\Services\WorkflowEngine\WorkflowEngineInterface;
 use Awards\Services\RecommendationFeedbackService;
@@ -342,6 +343,25 @@ class ApprovalsController extends AppController
             'canAddViews' => false,
             'canFilter' => true,
             'canExportCsv' => false,
+            'enableBulkSelection' => true,
+            'bulkSelection' => [
+                'selectAllLabel' => __('Select all approvals on this page'),
+                'rowLabelTemplate' => __('Select approval: {request}'),
+                'disabledLabel' => __('Only pending approvals can be selected for bulk response.'),
+            ],
+            'bulkActions' => [
+                [
+                    'key' => 'approval-response',
+                    'label' => __('Respond'),
+                    'icon' => 'bi-reply-fill',
+                    'modalTarget' => '#approvalResponseModal',
+                ],
+            ],
+            'bulkSelectionDataFields' => [
+                'approval-type-key' => 'bulk_response_type_key',
+                'approval-response-payload' => 'bulk_response_payload',
+            ],
+            'bulkSelectionDisabledField' => 'bulk_response_disabled',
             'lockedFilters' => ['status_label'],
             'showFilterPills' => true,
             'showSearchBox' => true,
@@ -611,6 +631,9 @@ class ApprovalsController extends AppController
             $approverConfig = ApprovalsGridColumns::normalizeApproverConfig($approval->approver_config);
             $isFeedbackResponse = !empty($approverConfig['feedback_response']);
             $approval->is_feedback_response = $isFeedbackResponse;
+            $approval->bulk_response_type_key = $this->getApprovalResponseTypeKey($approval);
+            $approval->bulk_response_payload = json_encode($this->getApprovalResponseModalPayload($approval));
+            $approval->bulk_response_disabled = $approval->status !== WorkflowApproval::STATUS_PENDING;
             if ($includeWorkflowName) {
                 $approval->workflow_name = $approval->workflow_instance?->workflow_definition?->name ?? __('Unknown');
             }
@@ -794,6 +817,11 @@ class ApprovalsController extends AppController
     public function recordApproval(RecommendationFeedbackService $feedbackService)
     {
         $this->request->allowMethod(['post']);
+        $bulkApprovalIds = $this->parseBulkApprovalIds($this->request->getData('approvalIds'));
+        if ($bulkApprovalIds !== []) {
+            return $this->recordBulkApprovalResponses($feedbackService, $bulkApprovalIds);
+        }
+
         $approvalId = (int)$this->request->getData('approvalId');
         $decision = $this->request->getData('decision');
         $comment = $this->request->getData('comment');
@@ -804,7 +832,9 @@ class ApprovalsController extends AppController
         $approval = $this->fetchTable('WorkflowApprovals')->find()
             ->where(['WorkflowApprovals.id' => $approvalId])
             ->first();
-        $approverConfig = $approval?->approver_config ?? [];
+        $approverConfig = $approval
+            ? ApprovalsGridColumns::normalizeApproverConfig($approval->approver_config)
+            : [];
         $isFeedbackResponse = !empty($approverConfig['feedback_response']);
         $decisionOptions = WorkflowApprovalDecisionOptions::normalizeOptions($approverConfig);
         if ($isFeedbackResponse && $decisionOptions === []) {
@@ -829,65 +859,17 @@ class ApprovalsController extends AppController
             return $this->redirect(['action' => 'approvals']);
         }
 
-        $approvalManager = $this->getApprovalManager();
-        $result = $approvalManager->recordResponse(
-            $approvalId,
-            $currentUser->id,
-            $decision,
-            $comment,
+        $result = $this->recordSingleApprovalResponse(
+            $approval,
+            (int)$currentUser->id,
+            (string)$decision,
+            $comment !== null ? (string)$comment : null,
             $nextApproverId,
+            $feedbackService,
         );
-        $feedbackRecorded = false;
 
-        if (!$result->isSuccess() && $isFeedbackResponse && $result->getError() === 'Approval is no longer pending.') {
-            $result = $feedbackService->recordFeedbackFromApproval(
-                $approvalId,
-                (int)$currentUser->id,
-                $comment,
-            );
-            $feedbackRecorded = $result->isSuccess();
-        }
-
-        if ($result->isSuccess() && $isFeedbackResponse && !$feedbackRecorded) {
-            $feedbackResult = $feedbackService->recordFeedbackFromApproval(
-                $approvalId,
-                (int)$currentUser->id,
-                $comment,
-            );
-            if (!$feedbackResult->isSuccess()) {
-                $result = $feedbackResult;
-            }
-        } elseif ($result->isSuccess() && $result->getData()) {
-            $data = $result->getData();
-            if (in_array($data['approvalStatus'] ?? '', ['approved', 'rejected'])) {
-                $engine = $this->getWorkflowEngine();
-                $outputPort = $data['approvalStatus'] === 'approved' ? 'approved' : 'rejected';
-                $engine->resumeWorkflow(
-                    $data['instanceId'],
-                    $data['nodeId'],
-                    $outputPort,
-                    [
-                        'approval' => $data,
-                        'approverId' => $currentUser->id,
-                        'decision' => $decision,
-                        'comment' => $comment,
-                    ],
-                );
-            }
-
-            if (!empty($data['needsMore'])) {
-                $engine = $this->getWorkflowEngine();
-                $engine->fireIntermediateApprovalActions(
-                    $data['instanceId'],
-                    $data['nodeId'],
-                    [
-                        'approverId' => $currentUser->id,
-                        'decision' => $decision,
-                        'comment' => $comment ?? null,
-                        'nextApproverId' => $data['nextApproverId'] ?? null,
-                    ],
-                );
-            }
+        if ($result->isSuccess()) {
+            $this->handleApprovalResponseSideEffects($result, (int)$currentUser->id, (string)$decision, $comment);
         }
 
         if ($this->request->is('ajax') && !$this->wantsTurboStreamRequest()) {
@@ -908,6 +890,275 @@ class ApprovalsController extends AppController
 
             return $this->redirect(['action' => 'approvals']);
         }
+    }
+
+    /**
+     * Apply one modal response to multiple same-type approvals.
+     *
+     * @param \Awards\Services\RecommendationFeedbackService $feedbackService Feedback service.
+     * @param array<int> $approvalIds Selected approval IDs.
+     * @return \Cake\Http\Response|null|void
+     */
+    private function recordBulkApprovalResponses(
+        RecommendationFeedbackService $feedbackService,
+        array $approvalIds,
+    ) {
+        $decision = $this->request->getData('decision');
+        $comment = $this->request->getData('comment');
+        $nextApproverId = $this->request->getData('next_approver_id')
+            ? (int)$this->request->getData('next_approver_id')
+            : null;
+        $currentUser = $this->request->getAttribute('identity');
+
+        if (count($approvalIds) < 1) {
+            $error = __('Select at least one approval for bulk response.');
+
+            return $this->approvalResponseFailure($error);
+        }
+
+        $approvals = $this->fetchTable('WorkflowApprovals')->find()
+            ->where(['WorkflowApprovals.id IN' => $approvalIds])
+            ->all()
+            ->combine('id', fn(WorkflowApproval $approval): WorkflowApproval => $approval)
+            ->toArray();
+        if (count($approvals) !== count($approvalIds)) {
+            return $this->approvalResponseFailure(__('One or more selected approvals could not be found.'));
+        }
+
+        $typeKeys = [];
+        foreach ($approvalIds as $approvalId) {
+            /** @var \App\Model\Entity\WorkflowApproval $approval */
+            $approval = $approvals[$approvalId];
+            if (!$this->isApprovalPendingForMember((int)$approval->id, (int)$currentUser->id)) {
+                return $this->approvalResponseFailure(__('One or more selected approvals are not pending for you.'));
+            }
+            $typeKeys[$this->getApprovalResponseTypeKey($approval)] = true;
+        }
+        if (count($typeKeys) !== 1) {
+            return $this->approvalResponseFailure(__('Bulk responses require approvals of the same type.'));
+        }
+
+        /** @var \App\Model\Entity\WorkflowApproval $firstApproval */
+        $firstApproval = $approvals[$approvalIds[0]];
+        $approverConfig = ApprovalsGridColumns::normalizeApproverConfig($firstApproval->approver_config);
+        $isFeedbackResponse = !empty($approverConfig['feedback_response']);
+        $decisionOptions = WorkflowApprovalDecisionOptions::normalizeOptions($approverConfig);
+        if ($isFeedbackResponse && $decisionOptions === []) {
+            $decision = WorkflowApprovalResponse::DECISION_APPROVE;
+        }
+        $requiresComment = $decision === WorkflowApprovalResponse::DECISION_REJECT
+            || !empty($approverConfig['requires_comment']);
+        if ($requiresComment && empty(trim((string)$comment))) {
+            $error = $isFeedbackResponse
+                ? __('Feedback comment is required.')
+                : __('A comment is required when rejecting an approval.');
+
+            return $this->approvalResponseFailure($error);
+        }
+
+        $successCount = 0;
+        $errors = [];
+        foreach ($approvalIds as $approvalId) {
+            /** @var \App\Model\Entity\WorkflowApproval $approval */
+            $approval = $approvals[$approvalId];
+            $result = $this->recordSingleApprovalResponse(
+                $approval,
+                (int)$currentUser->id,
+                (string)$decision,
+                $comment !== null ? (string)$comment : null,
+                $nextApproverId,
+                $feedbackService,
+            );
+            if ($result->isSuccess()) {
+                $successCount++;
+                $this->handleApprovalResponseSideEffects($result, (int)$currentUser->id, (string)$decision, $comment);
+            } else {
+                $errors[] = __('Approval {0}: {1}', $approvalId, $result->getError());
+            }
+        }
+
+        if ($successCount === 0) {
+            return $this->approvalResponseFailure(implode(' ', $errors) ?: __('No approval responses were recorded.'));
+        }
+
+        if ($errors !== []) {
+            $this->Flash->warning(__(
+                'Recorded {0} approval response(s); {1} failed.',
+                $successCount,
+                count($errors),
+            ));
+        } else {
+            $this->Flash->success(__('Recorded {0} approval response(s).', $successCount));
+        }
+
+        $stream = $this->tryApprovalsGridTurboResponse($this->getPageContextUrl());
+        if ($stream !== null) {
+            return $stream;
+        }
+
+        return $this->redirect(['action' => 'approvals']);
+    }
+
+    /**
+     * Record one approval response without applying controller response handling.
+     */
+    private function recordSingleApprovalResponse(
+        ?WorkflowApproval $approval,
+        int $memberId,
+        string $decision,
+        ?string $comment,
+        ?int $nextApproverId,
+        RecommendationFeedbackService $feedbackService,
+    ): ServiceResult {
+        if ($approval === null || empty($approval->id)) {
+            return new ServiceResult(false, 'Approval not found.');
+        }
+
+        $approvalId = (int)$approval->id;
+        $approverConfig = ApprovalsGridColumns::normalizeApproverConfig($approval->approver_config);
+        $isFeedbackResponse = !empty($approverConfig['feedback_response']);
+        $feedbackRecorded = false;
+
+        $result = $this->getApprovalManager()->recordResponse(
+            $approvalId,
+            $memberId,
+            $decision,
+            $comment,
+            $nextApproverId,
+        );
+
+        if (!$result->isSuccess() && $isFeedbackResponse && $result->getError() === 'Approval is no longer pending.') {
+            $result = $feedbackService->recordFeedbackFromApproval($approvalId, $memberId, $comment);
+            $feedbackRecorded = $result->isSuccess();
+        }
+
+        if ($result->isSuccess() && $isFeedbackResponse && !$feedbackRecorded) {
+            $feedbackResult = $feedbackService->recordFeedbackFromApproval($approvalId, $memberId, $comment);
+            if (!$feedbackResult->isSuccess()) {
+                return $feedbackResult;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Apply workflow side effects after a successful approval response.
+     */
+    private function handleApprovalResponseSideEffects(
+        ServiceResult $result,
+        int $memberId,
+        string $decision,
+        mixed $comment,
+    ): void {
+        $data = $result->getData();
+        if (!is_array($data)) {
+            return;
+        }
+
+        if (in_array($data['approvalStatus'] ?? '', ['approved', 'rejected'], true)) {
+            $outputPort = $data['approvalStatus'] === 'approved' ? 'approved' : 'rejected';
+            $this->getWorkflowEngine()->resumeWorkflow(
+                $data['instanceId'],
+                $data['nodeId'],
+                $outputPort,
+                [
+                    'approval' => $data,
+                    'approverId' => $memberId,
+                    'decision' => $decision,
+                    'comment' => $comment,
+                ],
+            );
+        }
+
+        if (!empty($data['needsMore'])) {
+            $this->getWorkflowEngine()->fireIntermediateApprovalActions(
+                $data['instanceId'],
+                $data['nodeId'],
+                [
+                    'approverId' => $memberId,
+                    'decision' => $decision,
+                    'comment' => $comment ?? null,
+                    'nextApproverId' => $data['nextApproverId'] ?? null,
+                ],
+            );
+        }
+    }
+
+    /**
+     * Return a JSON-safe payload the bulk modal can reuse from the first selected approval.
+     *
+     * @return array<string, mixed>
+     */
+    private function getApprovalResponseModalPayload(WorkflowApproval $approval): array
+    {
+        return [
+            'id' => (int)$approval->id,
+            'approver_config' => ApprovalsGridColumns::normalizeApproverConfig($approval->approver_config),
+            'required_count' => (int)$approval->required_count,
+            'approved_count' => (int)$approval->approved_count,
+            'bulk_type_key' => $this->getApprovalResponseTypeKey($approval),
+        ];
+    }
+
+    /**
+     * Hash the modal-affecting approval configuration so bulk responses cannot mix types.
+     */
+    private function getApprovalResponseTypeKey(WorkflowApproval $approval): string
+    {
+        $approverConfig = ApprovalsGridColumns::normalizeApproverConfig($approval->approver_config);
+        $isFeedbackResponse = !empty($approverConfig['feedback_response']);
+        $typeConfig = [
+            'approver_type' => (string)$approval->approver_type,
+            'feedback_response' => $isFeedbackResponse,
+            'serial_pick_next' => !empty($approverConfig['serial_pick_next']),
+            'requires_comment' => !empty($approverConfig['requires_comment']),
+            'hide_reject' => $isFeedbackResponse || !empty($approverConfig['hide_reject']),
+            'approve_label' => (string)($approverConfig['approve_label'] ?? ''),
+            'response_label' => (string)($approverConfig['response_label'] ?? ''),
+            'comment_warning' => (string)($approverConfig['comment_warning'] ?? ''),
+            'decision_prompt_label' => (string)($approverConfig['decision_prompt_label'] ?? ''),
+            'decision_options' => WorkflowApprovalDecisionOptions::normalizeOptions($approverConfig),
+        ];
+
+        return hash('sha256', json_encode($typeConfig, JSON_UNESCAPED_SLASHES));
+    }
+
+    /**
+     * @param mixed $rawApprovalIds Posted approval ID list.
+     * @return array<int>
+     */
+    private function parseBulkApprovalIds(mixed $rawApprovalIds): array
+    {
+        if (is_string($rawApprovalIds)) {
+            $rawApprovalIds = explode(',', $rawApprovalIds);
+        }
+        if (!is_array($rawApprovalIds)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_filter(array_map('intval', $rawApprovalIds))));
+    }
+
+    /**
+     * Return a consistent failure response for single and bulk approval modal posts.
+     *
+     * @return \Cake\Http\Response|null|void
+     */
+    private function approvalResponseFailure(string $error)
+    {
+        if ($this->request->is('ajax') && !$this->wantsTurboStreamRequest()) {
+            $this->set('result', ['success' => false, 'error' => $error]);
+            $this->viewBuilder()->setOption('serialize', 'result');
+            $this->response = $this->response->withType('application/json');
+            $this->viewBuilder()->setClassName('Json');
+
+            return;
+        }
+
+        $this->Flash->error($error);
+
+        return $this->redirect(['action' => 'approvals']);
     }
 
     /**

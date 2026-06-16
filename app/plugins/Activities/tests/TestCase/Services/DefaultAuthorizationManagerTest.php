@@ -7,10 +7,12 @@ namespace Activities\Test\TestCase\Services;
 use Activities\Model\Entity\Authorization;
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowInstance;
+use App\Services\WorkflowEngine\TriggerDispatcher;
 use App\Test\TestCase\BaseTestCase;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 use App\Services\ActiveWindowManager\DefaultActiveWindowManager;
+use PHPUnit\Framework\MockObject\MockObject;
 
 /**
  * Activities\Services\DefaultAuthorizationManager Test Case
@@ -52,6 +54,13 @@ class DefaultAuthorizationManagerTest extends BaseTestCase
     protected $Members;
 
     /**
+     * Trigger dispatcher mock.
+     *
+     * @var \App\Services\WorkflowEngine\TriggerDispatcher|\PHPUnit\Framework\MockObject\MockObject
+     */
+    protected TriggerDispatcher|MockObject $triggerDispatcher;
+
+    /**
      * Test activity ID from seed data (Armored, id=1)
      */
     private const TEST_ACTIVITY_ID = 1;
@@ -76,11 +85,11 @@ class DefaultAuthorizationManagerTest extends BaseTestCase
         $this->Members = TableRegistry::getTableLocator()->get('Members');
 
         $activeWindowManager = new DefaultActiveWindowManager();
-        $triggerDispatcher = $this->createMock(\App\Services\WorkflowEngine\TriggerDispatcher::class);
+        $this->triggerDispatcher = $this->createMock(TriggerDispatcher::class);
 
         // Create partial mock to stub out mailer (avoids email transport issues in tests)
         $this->authManager = $this->getMockBuilder(\Activities\Services\DefaultAuthorizationManager::class)
-            ->setConstructorArgs([$activeWindowManager, $triggerDispatcher])
+            ->setConstructorArgs([$activeWindowManager, $this->triggerDispatcher])
             ->onlyMethods(['getMailer'])
             ->getMock();
 
@@ -422,6 +431,9 @@ class DefaultAuthorizationManagerTest extends BaseTestCase
             'approval_token' => str_repeat('a', 32),
         ]);
         $approvalsTable->saveOrFail($approval);
+
+        $this->triggerDispatcher->expects($this->never())
+            ->method('dispatch');
 
         $retractResult = $this->authManager->retract($auth->id, $requesterId);
 

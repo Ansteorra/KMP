@@ -15,6 +15,7 @@
  * @var bool $enableBulkSelection
  * @var array $bulkSelectionDataFields
  * @var string|null $bulkSelectionDisabledField
+ * @var string|null $bulkSelectionDisabledLabel
  * @var string|null $bulkSelectionLabel
  * @var string|null $rowDomIdPrefix
  * @var bool $showActionsColumn
@@ -22,6 +23,7 @@
 
 $rowId = is_array($row) ? ($row[$primaryKey] ?? null) : ($row->{$primaryKey} ?? null);
 $bulkSelectionLabel = $bulkSelectionLabel ?? __('Select row {0}', $rowId);
+$bulkSelectionDisabledLabel = $bulkSelectionDisabledLabel ?? __('This row cannot be selected for bulk actions');
 $rowDomId = null;
 if ($rowDomIdPrefix !== null && $rowDomIdPrefix !== '' && $rowId !== null) {
     $rowDomId = $rowDomIdPrefix . '-row-' . $rowId;
@@ -47,7 +49,7 @@ if ($rowDomIdPrefix !== null && $rowDomIdPrefix !== '' && $rowId !== null) {
                    aria-label="<?= h($bulkSelectionLabel) ?>"
                    <?php if ($bulkRowDisabled) : ?>
                    disabled
-                   title="<?= h(__('Linked to a bestowal — cannot bulk edit')) ?>"
+                   title="<?= h($bulkSelectionDisabledLabel) ?>"
                    <?php endif; ?>
                    <?php foreach ($bulkSelectionDataFields as $attr => $field): ?>
                    data-<?= h($attr) ?>="<?= h(is_array($row) ? ($row[$field] ?? '') : ($row->{$field} ?? '')) ?>"

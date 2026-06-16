@@ -391,6 +391,55 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
         $this->assertSame('Checked the private context.', $triage->get('note'));
     }
 
+    public function testBulkRecordApprovalRecordsSameTypeResponses(): void
+    {
+        $this->authenticateAsSuperUser();
+        [$instanceId, $executionLogId] = $this->createWorkflowContext();
+        $firstApprovalId = $this->createApproval($instanceId, $executionLogId, 'Bulk Approval 1', requiredCount: 2);
+        $secondApprovalId = $this->createApproval($instanceId, $executionLogId, 'Bulk Approval 2', requiredCount: 2);
+
+        $this->post('/approvals/record', [
+            'approvalIds' => implode(',', [$firstApprovalId, $secondApprovalId]),
+            'decision' => WorkflowApprovalResponse::DECISION_APPROVE,
+            'comment' => 'Bulk approved.',
+            'page_context_url' => '/approvals',
+        ]);
+
+        $this->assertRedirectContains('/approvals');
+        $responsesTable = TableRegistry::getTableLocator()->get('WorkflowApprovalResponses');
+        $responses = $responsesTable->find()
+            ->where(['workflow_approval_id IN' => [$firstApprovalId, $secondApprovalId]])
+            ->all();
+        $this->assertCount(2, $responses);
+    }
+
+    public function testBulkRecordApprovalRejectsMixedApprovalTypes(): void
+    {
+        $this->authenticateAsSuperUser();
+        [$instanceId, $executionLogId] = $this->createWorkflowContext();
+        $firstApprovalId = $this->createApproval($instanceId, $executionLogId, 'Bulk Approval 1');
+        $secondApprovalId = $this->createApproval(
+            $instanceId,
+            $executionLogId,
+            'Bulk Approval 2',
+            ['member_id' => self::ADMIN_MEMBER_ID, 'requires_comment' => true],
+        );
+
+        $this->post('/approvals/record', [
+            'approvalIds' => implode(',', [$firstApprovalId, $secondApprovalId]),
+            'decision' => WorkflowApprovalResponse::DECISION_APPROVE,
+            'comment' => '',
+            'page_context_url' => '/approvals',
+        ]);
+
+        $this->assertRedirectContains('/approvals');
+        $responsesTable = TableRegistry::getTableLocator()->get('WorkflowApprovalResponses');
+        $responseCount = $responsesTable->find()
+            ->where(['workflow_approval_id IN' => [$firstApprovalId, $secondApprovalId]])
+            ->count();
+        $this->assertSame(0, $responseCount);
+    }
+
     /**
      * @return array{0:int,1:int}
      */
@@ -443,6 +492,8 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
         int $instanceId,
         int $executionLogId,
         string $requestTitle = 'Approval Required: Test Request',
+        array $approverConfig = ['member_id' => self::ADMIN_MEMBER_ID],
+        int $requiredCount = 1,
     ): int {
         $approvalsTable = TableRegistry::getTableLocator()->get('WorkflowApprovals');
         $approval = $approvalsTable->newEntity([
@@ -450,9 +501,9 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
             'node_id' => 'approval_node',
             'execution_log_id' => $executionLogId,
             'approver_type' => WorkflowApproval::APPROVER_TYPE_MEMBER,
-            'approver_config' => ['member_id' => self::ADMIN_MEMBER_ID],
+            'approver_config' => $approverConfig,
             'request_title' => $requestTitle,
-            'required_count' => 1,
+            'required_count' => $requiredCount,
             'approved_count' => 0,
             'rejected_count' => 0,
             'status' => WorkflowApproval::STATUS_PENDING,

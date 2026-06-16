@@ -14,6 +14,7 @@ use Cake\Mailer\MailerAwareTrait;
 use Cake\ORM\TableRegistry;
 use Cake\Routing\Exception\MissingRouteException;
 use Cake\Routing\Router;
+use RuntimeException;
 
 /**
  * Workflow action implementations for activity authorization operations.
@@ -273,11 +274,14 @@ class ActivitiesWorkflowActions
             $requesterId = (int)$this->resolveValue($config['requesterId'], $context);
 
             $result = $this->authManager->retract($authorizationId, $requesterId);
+            if (!$result->success) {
+                throw new RuntimeException($result->reason ?? 'Authorization retraction failed.');
+            }
 
-            return ['retracted' => $result->success];
+            return ['retracted' => true];
         } catch (\Throwable $e) {
             Log::error('Workflow RetractAuthorization failed: ' . $e->getMessage());
-            return ['retracted' => false];
+            throw $e;
         }
     }
 

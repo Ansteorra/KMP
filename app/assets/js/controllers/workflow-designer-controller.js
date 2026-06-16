@@ -51,7 +51,7 @@ class WorkflowDesignerController extends Controller {
     async connect() {
         this._showLoading(true)
         try {
-            this.initEditor()
+            await this.initEditor()
             await this.loadRegistry()
             if (this.hasWorkflowIdValue && this.workflowIdValue) {
                 await this.loadWorkflow()

@@ -12,6 +12,7 @@ use App\Services\ServiceResult;
 use App\Test\TestCase\BaseTestCase;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
+use RuntimeException;
 
 /**
  * Tests for Activities plugin workflow actions and conditions.
@@ -112,7 +113,9 @@ class ActivitiesWorkflowActionsTest extends BaseTestCase
 
     public function testRetractAuthorizationSuccess(): void
     {
-        $this->mockAuthManager->method('retract')
+        $this->mockAuthManager->expects($this->once())
+            ->method('retract')
+            ->with(50, 10)
             ->willReturn(new ServiceResult(true));
 
         $result = $this->actions->retractAuthorization(
@@ -128,12 +131,13 @@ class ActivitiesWorkflowActionsTest extends BaseTestCase
         $this->mockAuthManager->method('retract')
             ->willReturn(new ServiceResult(false, 'Not owner'));
 
-        $result = $this->actions->retractAuthorization(
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Not owner');
+
+        $this->actions->retractAuthorization(
             [],
             ['authorizationId' => 50, 'requesterId' => 99]
         );
-
-        $this->assertFalse($result['retracted']);
     }
 
     public function testRetractAuthorizationResolvesContextPaths(): void

@@ -40,6 +40,7 @@ function makeController() {
 describe('WorkflowDesignerController palette filter', () => {
     afterEach(() => {
         document.body.innerHTML = ''
+        jest.restoreAllMocks()
     })
 
     test('renders an accessible quick filter above the node catalog', () => {
@@ -116,5 +117,44 @@ describe('WorkflowDesignerController palette filter', () => {
         expect(node.tagName).toBe('BUTTON')
         expect(controller.addNode).toHaveBeenCalledWith('approval', 300, 200, { event: '', action: '' })
         expect(status).toHaveTextContent('Approval Gate node added to the canvas.')
+    })
+
+    test('waits for editor initialization before loading workflow data', async () => {
+        const controller = new WorkflowDesignerController()
+        const callOrder = []
+        let resolveInit
+        const initPromise = new Promise(resolve => {
+            resolveInit = resolve
+        })
+
+        controller._showLoading = jest.fn()
+        controller._showError = jest.fn()
+        controller.initEditor = jest.fn(() => {
+            callOrder.push('init-start')
+            return initPromise.then(() => {
+                controller.editor = { export: () => ({ drawflow: { Home: { data: {} } } }) }
+                controller._nodeConfigHandler = { restoreConfigPanelWidth: jest.fn() }
+                callOrder.push('init-done')
+            })
+        })
+        controller.loadRegistry = jest.fn(async () => {
+            callOrder.push('registry')
+        })
+        controller.loadWorkflow = jest.fn(async () => {
+            callOrder.push('workflow')
+        })
+        Object.defineProperty(controller, 'hasWorkflowIdValue', { value: true })
+        Object.defineProperty(controller, 'workflowIdValue', { value: 42 })
+
+        const connectPromise = controller.connect()
+        await Promise.resolve()
+
+        expect(controller.loadRegistry).not.toHaveBeenCalled()
+
+        resolveInit()
+        await connectPromise
+
+        expect(callOrder).toEqual(['init-start', 'init-done', 'registry', 'workflow'])
+        expect(controller._showError).not.toHaveBeenCalled()
     })
 })

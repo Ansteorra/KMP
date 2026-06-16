@@ -57,8 +57,8 @@ trait DataverseGridTrait
      *       filters (e.g., member_id) must always be applied.
      *   - enableBulkSelection (bool): Whether row selection checkboxes are shown (default: false)
      *   - bulkSelection (array): Bulk selection accessibility label configuration.
-     *       Keys: selectAllLabel, rowLabelTemplate. rowLabelTemplate supports {field_key}
-     *       placeholders resolved from each row, including dotted paths and column renderField aliases.
+     *       Keys: selectAllLabel, rowLabelTemplate, disabledLabel. rowLabelTemplate supports
+     *       {field_key} placeholders resolved from each row, including dotted paths and column renderField aliases.
      *   - bulkActions (array): Array of bulk action button configurations when enableBulkSelection is true.
      *       Each action is an array with keys: label, icon, modalTarget, permission.
      *   - disablePagination (bool): When true, bypasses the paginator and returns all matching

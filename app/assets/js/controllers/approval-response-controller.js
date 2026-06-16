@@ -8,7 +8,7 @@ import { Controller } from "@hotwired/stimulus"
  * and serialPickNext configuration.
  */
 class ApprovalResponseController extends Controller {
-    static targets = ["decision", "decisionSection", "decisionLegend", "decisionOptions", "nextApproverSection", "nextApproverInput", "submitBtn", "comment", "commentRequiredHint", "commentWarning", "commentWarningText", "infoText"]
+    static targets = ["decision", "decisionSection", "decisionLegend", "decisionOptions", "nextApproverSection", "nextApproverInput", "submitBtn", "comment", "commentRequiredHint", "commentWarning", "commentWarningText", "infoText", "approvalIds", "bulkSummary"]
     static values = {
         serialPickNext: Boolean,
         requiredCount: Number,
@@ -41,6 +41,8 @@ class ApprovalResponseController extends Controller {
         this._decisionPromptLabel = approvalData.decisionPromptLabel || 'Decision'
         this._approveLabel = approvalData.approveLabel || 'Approve'
         this._hideReject = approvalData.hideReject || false
+        this._bulkIds = Array.isArray(approvalData.bulkIds) ? approvalData.bulkIds : []
+        this._bulkError = approvalData.bulkError || ''
         this._renderDecisionOptions()
 
         // Reset form
@@ -50,6 +52,9 @@ class ApprovalResponseController extends Controller {
             if (defaultDecision) defaultDecision.checked = true
         }
         if (this.hasCommentTarget) this.commentTarget.value = ''
+        if (this.hasApprovalIdsTarget) {
+            this.approvalIdsTarget.value = this._bulkIds.join(',')
+        }
         if (this.hasNextApproverInputTarget) {
             // Clear the autocomplete widget
             const acEl = this.nextApproverInputTarget.closest('[data-controller="ac"]')
@@ -85,6 +90,14 @@ class ApprovalResponseController extends Controller {
             if (acEl) {
                 acEl.setAttribute('data-ac-url-value', this.eligibleUrlValue)
             }
+        }
+
+        if (this.hasBulkSummaryTarget) {
+            this.bulkSummaryTarget.hidden = this._bulkIds.length < 2 && !this._bulkError
+            this.bulkSummaryTarget.classList.toggle('alert-info', !this._bulkError)
+            this.bulkSummaryTarget.classList.toggle('alert-danger', !!this._bulkError)
+            this.bulkSummaryTarget.textContent = this._bulkError
+                || `This response will be applied to ${this._bulkIds.length} selected approvals.`
         }
 
         this._updateVisibility()
@@ -143,7 +156,7 @@ class ApprovalResponseController extends Controller {
 
         // Enable/disable submit
         if (this.hasSubmitBtnTarget) {
-            this.submitBtnTarget.disabled = !decision
+            this.submitBtnTarget.disabled = !decision || !!this._bulkError
         }
     }
 

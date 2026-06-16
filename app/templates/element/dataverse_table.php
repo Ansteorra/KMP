@@ -18,6 +18,7 @@
  * @var \Authorization\Identity|null $user Current user for permission checks (optional)
  * @var bool $enableBulkSelection Whether to show row selection checkboxes (optional)
  * @var array $bulkSelection Bulk selection label configuration (optional)
+ * @var string|null $bulkSelectionDisabledLabel Disabled row checkbox title (optional)
  */
 
 use App\KMP\StaticHelpers;
@@ -32,6 +33,7 @@ $enableColumnPicker = $enableColumnPicker ?? true;
 $enableBulkSelection = $enableBulkSelection ?? false;
 $bulkSelectionDataFields = $bulkSelectionDataFields ?? [];
 $bulkSelectionDisabledField = $bulkSelectionDisabledField ?? null;
+$bulkSelectionDisabledLabel = $bulkSelectionDisabledLabel ?? null;
 $bulkSelection = $bulkSelection ?? [];
 $selectAllBulkSelectionLabel = $bulkSelection['selectAllLabel'] ?? __('Select all rows on this page');
 $rowBulkSelectionLabelTemplate = $bulkSelection['rowLabelTemplate'] ?? null;
@@ -192,6 +194,7 @@ $totalColumns = count($visibleColumns) + ($showActionsColumn ? 1 : 0) + ($enable
                         'enableBulkSelection' => $enableBulkSelection,
                         'bulkSelectionDataFields' => $bulkSelectionDataFields,
                         'bulkSelectionDisabledField' => $bulkSelectionDisabledField,
+                        'bulkSelectionDisabledLabel' => $bulkSelectionDisabledLabel,
                         'bulkSelectionLabel' => $bulkSelectionLabel,
                         'rowDomIdPrefix' => $rowDomIdPrefix,
                         'showActionsColumn' => $showActionsColumn,

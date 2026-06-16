@@ -16,6 +16,8 @@ describe('ApprovalResponseController', () => {
                     </div>
                 </div>
                 <textarea data-approval-response-target="comment"></textarea>
+                <input type="hidden" data-approval-response-target="approvalIds">
+                <div data-approval-response-target="bulkSummary" hidden></div>
                 <span data-approval-response-target="commentRequiredHint" hidden></span>
                 <div data-approval-response-target="commentWarning" hidden>
                     <span data-approval-response-target="commentWarningText"></span>
@@ -40,6 +42,10 @@ describe('ApprovalResponseController', () => {
             hasDecisionOptionsTarget: { get: () => true },
             commentTarget: { get: () => target('[data-approval-response-target="comment"]') },
             hasCommentTarget: { get: () => true },
+            approvalIdsTarget: { get: () => target('[data-approval-response-target="approvalIds"]') },
+            hasApprovalIdsTarget: { get: () => true },
+            bulkSummaryTarget: { get: () => target('[data-approval-response-target="bulkSummary"]') },
+            hasBulkSummaryTarget: { get: () => true },
             commentRequiredHintTarget: { get: () => target('[data-approval-response-target="commentRequiredHint"]') },
             hasCommentRequiredHintTarget: { get: () => true },
             commentWarningTarget: { get: () => target('[data-approval-response-target="commentWarning"]') },
@@ -94,6 +100,44 @@ describe('ApprovalResponseController', () => {
         expect(form.querySelector('[data-approval-response-target="decisionSection"]')).not.toHaveAttribute('hidden');
         expect(form.querySelector('[data-approval-response-target="submitBtn"]')).toBeDisabled();
         expect(form.querySelector('textarea')).not.toBeRequired();
+    });
+
+    test('stores bulk approval IDs and shows the bulk summary', () => {
+        const form = document.querySelector('form');
+
+        controller.configure({
+            id: 21,
+            bulkIds: ['21', '22', '23'],
+            feedbackResponse: false,
+            requiredCount: 1,
+            approvedCount: 0,
+            defaultDecision: 'approve',
+        });
+
+        expect(form.querySelector('[data-approval-response-target="approvalIds"]').value).toBe('21,22,23');
+        expect(form.querySelector('[data-approval-response-target="bulkSummary"]')).not.toHaveAttribute('hidden');
+        expect(form.querySelector('[data-approval-response-target="bulkSummary"]')).toHaveTextContent(
+            'This response will be applied to 3 selected approvals.',
+        );
+        expect(form.querySelector('[data-approval-response-target="submitBtn"]')).not.toBeDisabled();
+    });
+
+    test('blocks submit when bulk selection mixes approval types', () => {
+        const form = document.querySelector('form');
+
+        controller.configure({
+            id: 21,
+            bulkIds: ['21', '22'],
+            bulkError: 'Select approvals of the same type before responding in bulk.',
+            feedbackResponse: false,
+            requiredCount: 1,
+            approvedCount: 0,
+            defaultDecision: 'approve',
+        });
+
+        expect(form.querySelector('[data-approval-response-target="approvalIds"]').value).toBe('21,22');
+        expect(form.querySelector('[data-approval-response-target="bulkSummary"]')).toHaveClass('alert-danger');
+        expect(form.querySelector('[data-approval-response-target="submitBtn"]')).toBeDisabled();
     });
 
     test('renders configured decision options for feedback responses', () => {

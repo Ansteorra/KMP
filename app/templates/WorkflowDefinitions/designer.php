@@ -143,42 +143,42 @@ $executionModeOptions = [
                                         <i class="bi bi-diagram-3 text-primary me-1" aria-hidden="true"></i>
                                         <?= __('Workflow Metadata') ?>
                                     </legend>
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label" for="workflow-metadata-name"><?= __('Workflow Name') ?></label>
-                                        <input class="form-control" id="workflow-metadata-name" name="name" value="<?= h($workflow->name) ?>" maxlength="255" required>
-                                    </div>
-                                    </fieldset>
-                                    <div class="col-md-6">
-                                        <label class="form-label" for="workflow-metadata-slug"><?= __('Slug') ?></label>
-                                        <input class="form-control" id="workflow-metadata-slug" name="slug" value="<?= h($workflow->slug) ?>" maxlength="100" pattern="[a-z0-9-]+" required aria-describedby="workflow-metadata-slug-help">
-                                        <div class="form-text" id="workflow-metadata-slug-help"><?= __('Use lowercase letters, numbers, and dashes.') ?></div>
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label" for="workflow-metadata-description"><?= __('Description') ?></label>
-                                        <textarea class="form-control" id="workflow-metadata-description" name="description" rows="3"><?= h((string)$workflow->description) ?></textarea>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label" for="workflow-metadata-trigger-type"><?= __('Trigger Type') ?></label>
-                                        <select class="form-select" id="workflow-metadata-trigger-type" name="trigger_type" required>
-                                            <?php foreach ($triggerTypeOptions as $value => $label) : ?>
-                                                <option value="<?= h($value) ?>" <?= $workflow->trigger_type === $value ? 'selected' : '' ?>><?= h($label) ?></option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label" for="workflow-metadata-entity-type"><?= __('Object Type') ?></label>
-                                        <input class="form-control" id="workflow-metadata-entity-type" name="entity_type" value="<?= h((string)$workflow->entity_type) ?>" maxlength="100" placeholder="App\Model\Entity\Member">
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label" for="workflow-metadata-execution-mode"><?= __('Execution Mode') ?></label>
-                                        <select class="form-select" id="workflow-metadata-execution-mode" name="execution_mode" required>
-                                            <?php foreach ($executionModeOptions as $value => $label) : ?>
-                                                <option value="<?= h($value) ?>" <?= $workflow->execution_mode === $value ? 'selected' : '' ?>><?= h($label) ?></option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </div>
-                                </div>
+                                       <div class="row g-3">
+                                       <div class="col-md-6">
+                                           <label class="form-label" for="workflow-metadata-name"><?= __('Workflow Name') ?></label>
+                                           <input class="form-control" id="workflow-metadata-name" name="name" value="<?= h($workflow->name) ?>" maxlength="255" required>
+                                       </div>
+                                       <div class="col-md-6">
+                                           <label class="form-label" for="workflow-metadata-slug"><?= __('Slug') ?></label>
+                                           <input class="form-control" id="workflow-metadata-slug" name="slug" value="<?= h($workflow->slug) ?>" maxlength="100" pattern="[a-z0-9-]+" required aria-describedby="workflow-metadata-slug-help">
+                                           <div class="form-text" id="workflow-metadata-slug-help"><?= __('Use lowercase letters, numbers, and dashes.') ?></div>
+                                       </div>
+                                       <div class="col-12">
+                                           <label class="form-label" for="workflow-metadata-description"><?= __('Description') ?></label>
+                                           <textarea class="form-control" id="workflow-metadata-description" name="description" rows="3"><?= h((string)$workflow->description) ?></textarea>
+                                       </div>
+                                       <div class="col-md-4">
+                                           <label class="form-label" for="workflow-metadata-trigger-type"><?= __('Trigger Type') ?></label>
+                                           <select class="form-select" id="workflow-metadata-trigger-type" name="trigger_type" required>
+                                               <?php foreach ($triggerTypeOptions as $value => $label) : ?>
+                                                   <option value="<?= h($value) ?>" <?= $workflow->trigger_type === $value ? 'selected' : '' ?>><?= h($label) ?></option>
+                                               <?php endforeach; ?>
+                                           </select>
+                                       </div>
+                                       <div class="col-md-4">
+                                           <label class="form-label" for="workflow-metadata-entity-type"><?= __('Object Type') ?></label>
+                                           <input class="form-control" id="workflow-metadata-entity-type" name="entity_type" value="<?= h((string)$workflow->entity_type) ?>" maxlength="100" placeholder="App\Model\Entity\Member">
+                                       </div>
+                                       <div class="col-md-4">
+                                           <label class="form-label" for="workflow-metadata-execution-mode"><?= __('Execution Mode') ?></label>
+                                           <select class="form-select" id="workflow-metadata-execution-mode" name="execution_mode" required>
+                                               <?php foreach ($executionModeOptions as $value => $label) : ?>
+                                                   <option value="<?= h($value) ?>" <?= $workflow->execution_mode === $value ? 'selected' : '' ?>><?= h($label) ?></option>
+                                               <?php endforeach; ?>
+                                           </select>
+                                       </div>
+                                       </div>
+                                   </fieldset>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><?= __('Cancel') ?></button>

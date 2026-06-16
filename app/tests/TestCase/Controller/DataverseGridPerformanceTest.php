@@ -33,7 +33,8 @@ class DataverseGridPerformanceTest extends HttpIntegrationTestCase
         $this->assertIsArray($state['columns']['all'] ?? null);
         $this->assertSame([], $state['columns']['all'] ?? null);
         $this->assertSame([], $state['view']['available'] ?? null);
-        $this->assertStringContainsString('<th', $body, 'Table frame must still render column headers');
+        $this->assertStringContainsString('Setting Name', $body, 'Table frame must still render data column headers');
+        $this->assertStringContainsString('Value', $body, 'Table frame must still render data column headers');
     }
 
     public function testGridDataSizeTableFrameIsSmallerThanOuterFrame(): void
@@ -56,6 +57,8 @@ class DataverseGridPerformanceTest extends HttpIntegrationTestCase
         $this->assertGreaterThan(0, $outerSize);
         $this->assertGreaterThan(0, $tableSize);
         $this->assertLessThan($outerSize, $tableSize);
+        $this->assertStringContainsString('Setting Name', $tableBody, 'Second page must render data column headers');
+        $this->assertStringContainsString('Value', $tableBody, 'Second page must render data column headers');
 
         fwrite(STDERR, sprintf(
             "METRIC AppSettings outer_bytes=%d table_bytes=%d\n",
