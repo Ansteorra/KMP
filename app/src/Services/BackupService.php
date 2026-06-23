@@ -10,6 +10,7 @@ use Cake\Datasource\ConnectionManager;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use DateTimeImmutable;
+use Exception;
 use RuntimeException;
 use Throwable;
 
@@ -154,7 +155,7 @@ class BackupService
         $payload = $this->ensureOperationalSchemaTables($payload);
 
         $this->reportProgress($progressReporter, 'resetting_schema', 'Resetting database schema to backup structure.');
-        (new DatabaseSchemaResetService())->reset($payload['schema'], $progressReporter);
+        (new DatabaseSchemaResetService($this->connectionName))->reset($payload['schema'], $progressReporter);
 
         $stats = $this->importPayloadRows($payload, $progressReporter);
 
@@ -255,6 +256,23 @@ class BackupService
             || !is_array($payload['tables'])
         ) {
             throw new RuntimeException('Invalid backup file structure');
+        }
+        if (
+            ($payload['schema']['version'] ?? null) !== 1
+            || !isset($payload['schema']['tables'])
+            || !is_array($payload['schema']['tables'])
+        ) {
+            throw new RuntimeException('Invalid backup file structure');
+        }
+        foreach ($payload['tables'] as $tableName => $rows) {
+            if (!is_string($tableName) || !is_array($rows) || !array_is_list($rows)) {
+                throw new RuntimeException('Invalid backup table payload structure');
+            }
+            foreach ($rows as $row) {
+                if (!is_array($row)) {
+                    throw new RuntimeException('Invalid backup table row structure');
+                }
+            }
         }
 
         return $payload;

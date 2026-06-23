@@ -28,6 +28,7 @@ class BackupRestoreRunnerService
         $context = [
             'restore_id' => $restoreId,
         ];
+        $maintenanceRequired = false;
 
         try {
             if ($restoreStatusService->isLocked() && !$ownsRestoreLock) {
@@ -64,10 +65,19 @@ class BackupRestoreRunnerService
             $stats = (new BackupService())->import(
                 $staged['encrypted_data'],
                 $staged['encryption_key'],
-                function (array $progress) use ($restoreStatusService, $context, $log, &$lastPhase): void {
+                function (array $progress) use (
+                    $restoreStatusService,
+                    $context,
+                    $log,
+                    &$lastPhase,
+                    &$maintenanceRequired,
+                ): void {
                     $phase = (string)($progress['phase'] ?? 'running');
                     $message = (string)($progress['message'] ?? 'Restore in progress.');
                     unset($progress['phase'], $progress['message']);
+                    if (!in_array($phase, ['decrypting', 'decompressing', 'validating'], true)) {
+                        $maintenanceRequired = true;
+                    }
 
                     $restoreStatusService->updateStatus($phase, $message, array_merge($progress, $context));
                     if (
@@ -124,7 +134,7 @@ class BackupRestoreRunnerService
                 ));
                 $restoreStatusService->markFailed('Restore/import failed: ' . $e->getMessage(), array_merge(
                     $context,
-                    ['maintenance_required' => true],
+                    ['maintenance_required' => $maintenanceRequired],
                 ));
                 $this->appendLog($restoreStatusService, 'Restore failed: ' . $e->getMessage(), $log);
             }
@@ -144,7 +154,9 @@ class BackupRestoreRunnerService
     {
         $status = $restoreStatusService->getStatus();
 
-        return (string)($status['restore_id'] ?? '') === $restoreId;
+        return !empty($status['locked'])
+            && ($status['status'] ?? null) === 'running'
+            && (string)($status['restore_id'] ?? '') === $restoreId;
     }
 
     /**

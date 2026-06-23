@@ -151,7 +151,7 @@ class RestoreStagingService
     private function stagingEncryptionKey(): string
     {
         $configuredKey = getenv('RESTORE_STAGING_KEY');
-        $key = $configuredKey === false ? Security::getSalt() : (string)$configuredKey;
+        $key = is_string($configuredKey) && $configuredKey !== '' ? $configuredKey : Security::getSalt();
         if (strlen($key) < 32) {
             $key = str_pad($key, 32, '0');
         }

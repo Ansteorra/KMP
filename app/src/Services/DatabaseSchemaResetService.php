@@ -15,6 +15,10 @@ use RuntimeException;
  */
 class DatabaseSchemaResetService
 {
+    public function __construct(private readonly string $connectionName = 'default')
+    {
+    }
+
     /**
      * @param array<string, mixed> $manifest
      * @param callable(array<string, mixed>):void|null $progressReporter
@@ -25,7 +29,7 @@ class DatabaseSchemaResetService
             throw new InvalidArgumentException('Backup schema manifest is missing or unsupported.');
         }
 
-        $connection = ConnectionManager::get('default');
+        $connection = ConnectionManager::get($this->connectionName);
         $driver = $connection->getDriver();
         if (!$driver instanceof Mysql && !$driver instanceof Postgres) {
             throw new RuntimeException('Backup schema reset currently supports MySQL and PostgreSQL connections.');
@@ -70,12 +74,15 @@ class DatabaseSchemaResetService
         $tableSql = [];
         foreach ($tables as $tableName => $tableSpec) {
             if (!is_string($tableName) || !is_array($tableSpec)) {
-                continue;
+                throw new InvalidArgumentException('Backup schema manifest contains an invalid table entry.');
             }
             $tableSql[] = [
                 'name' => $tableName,
                 'sql' => $this->createTableSql($driver, $tableName, $tableSpec),
             ];
+        }
+        if ($tableSql === []) {
+            throw new InvalidArgumentException('Backup schema manifest contains no restorable tables.');
         }
 
         return [
@@ -126,9 +133,12 @@ class DatabaseSchemaResetService
         $definitions = [];
         foreach ($columns as $columnName => $definition) {
             if (!is_string($columnName) || !is_array($definition)) {
-                continue;
+                throw new InvalidArgumentException("Backup schema table {$tableName} has an invalid column.");
             }
             $definitions[] = $this->columnSql($driver, $columnName, $definition);
+        }
+        if ($definitions === []) {
+            throw new InvalidArgumentException("Backup schema table {$tableName} has no restorable columns.");
         }
 
         foreach (($tableSpec['constraints'] ?? []) as $constraint) {

@@ -11,6 +11,7 @@ use App\Services\RestoreStatusService;
 use Cake\Http\Response;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
+use Exception;
 use Psr\Http\Message\UploadedFileInterface;
 use Throwable;
 

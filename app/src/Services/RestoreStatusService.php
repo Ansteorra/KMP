@@ -74,12 +74,13 @@ class RestoreStatusService
      */
     public function updateStatus(string $phase, string $message, array $context = []): void
     {
-        $status = $this->getStatus();
+        $locked = $this->refreshLock($context);
+        $status = $this->readStatus();
         $status = array_merge(
             $status,
             $context,
             [
-                'locked' => $this->isLocked(),
+                'locked' => $locked,
                 'status' => 'running',
                 'phase' => $phase,
                 'message' => $message,
@@ -88,6 +89,26 @@ class RestoreStatusService
         );
 
         $this->writeStatus($status);
+    }
+
+    /**
+     * Extend the active restore lock TTL while preserving ownership context.
+     *
+     * @param array<string, mixed> $context
+     */
+    public function refreshLock(array $context = [], ?int $ttlSeconds = null): bool
+    {
+        $lock = $this->readActiveLock();
+        if ($lock === null) {
+            return false;
+        }
+
+        $seconds = max(60, (int)($ttlSeconds ?? self::DEFAULT_LOCK_TTL_SECONDS));
+        Cache::write(self::LOCK_KEY, array_merge($lock, $context, [
+            'expires_at' => $this->isoAfterSeconds($seconds),
+        ]), self::CACHE_CONFIG);
+
+        return true;
     }
 
     /**
