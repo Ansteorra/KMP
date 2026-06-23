@@ -20,6 +20,7 @@ class BackupRestoreStatusController extends Controller {
         "modalBadge",
         "modalMessage",
         "modalDetails",
+        "modalLog",
         "modalSpinner",
         "modalClose"
     ]
@@ -221,6 +222,7 @@ class BackupRestoreStatusController extends Controller {
         const rowsProcessed = Number(status?.rows_processed || 0)
         const source = status?.source || ''
         const currentTable = status?.current_table || ''
+        const log = Array.isArray(status?.log) ? status.log : []
         const message = state === 'idle'
             ? 'No restore currently running.'
             : (status?.message || 'No restore currently running.')
@@ -248,6 +250,7 @@ class BackupRestoreStatusController extends Controller {
             badgeClass: this.badgeClass(locked, state),
             panelClass: this.panelClass(locked, state),
             showSpinner: locked || state === 'running',
+            log,
         }
     }
 
@@ -311,6 +314,9 @@ class BackupRestoreStatusController extends Controller {
         if (this.hasModalDetailsTarget) {
             this.modalDetailsTarget.textContent = normalizedStatus.details
         }
+        if (this.hasModalLogTarget) {
+            this.renderLog(this.modalLogTarget, normalizedStatus.log)
+        }
         if (this.hasModalSpinnerTarget) {
             this.modalSpinnerTarget.classList.toggle('d-none', !normalizedStatus.showSpinner)
         }
@@ -318,6 +324,25 @@ class BackupRestoreStatusController extends Controller {
         if (this.restoreRequestInFlight || normalizedStatus.showSpinner) {
             this.modalInstance.show()
         }
+    }
+
+    renderLog(target, log) {
+        const entries = Array.isArray(log) ? log.slice(-20) : []
+        if (entries.length === 0) {
+            const item = document.createElement('li')
+            item.textContent = 'No restore log entries have been written yet.'
+            target.replaceChildren(item)
+
+            return
+        }
+
+        target.replaceChildren(...entries.map((entry) => {
+            const item = document.createElement('li')
+            const timestamp = entry?.timestamp ? `${entry.timestamp}: ` : ''
+            item.textContent = `${timestamp}${entry?.message || ''}`
+
+            return item
+        }))
     }
 
     showModal(normalizedStatus) {

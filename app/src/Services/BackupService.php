@@ -9,23 +9,18 @@ use Cake\Database\Schema\TableSchemaInterface;
 use Cake\Datasource\ConnectionManager;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
-use Cake\ORM\Locator\LocatorAwareTrait;
-use Cake\Utility\Inflector;
 use DateTimeImmutable;
-use Exception;
 use RuntimeException;
 use Throwable;
 
 /**
  * Database-agnostic backup and restore service.
  *
- * Exports all application tables via the ORM as JSON, compresses with gzip,
+ * Exports all application tables via direct database reads as JSON, compresses with gzip,
  * and encrypts with AES-256-GCM. Restore reverses the process.
  */
 class BackupService
 {
-    use LocatorAwareTrait;
-
     private const FORMAT_VERSION = 2;
     private const CIPHER = 'aes-256-gcm';
     private const PBKDF2_ITERATIONS = 100000;
@@ -35,13 +30,43 @@ class BackupService
     private const TAG_LENGTH = 16;
 
     /**
-     * Tables excluded from backup (transient or migration-tracking data).
+     * Tables excluded from backup because they contain transient runtime state.
+     *
+     * Queue state, backup metadata, and session tokens should not cross
+     * environments. Phinx migration logs are intentionally preserved so a
+     * restored database keeps accurate main/plugin migration history.
      */
     private const EXCLUDED_TABLES = [
         'queued_jobs',
         'queue_processes',
         'backups',
+        'sessions',
     ];
+
+    /**
+     * Runtime tables whose rows are excluded but schemas must be preserved.
+     */
+    private const OPERATIONAL_SCHEMA_TABLES = [
+        'backups',
+        'queued_jobs',
+        'queue_processes',
+        'sessions',
+    ];
+
+    /**
+     * @param string $connectionName CakePHP connection name to back up or restore.
+     */
+    public function __construct(private readonly string $connectionName = 'default')
+    {
+    }
+
+    /**
+     * Return true when the table should never appear in a backup payload.
+     */
+    private static function isExcludedTable(string $tableName): bool
+    {
+        return in_array($tableName, self::EXCLUDED_TABLES, true);
+    }
 
     /**
      * Export all application tables to an encrypted backup file.
@@ -51,18 +76,18 @@ class BackupService
      */
     public function export(string $encryptionKey): array
     {
-        $connection = ConnectionManager::get('default');
+        $connection = $this->connection();
         $schemaCollection = $connection->getSchemaCollection();
         $allTables = $schemaCollection->listTables();
 
-        // Filter out excluded tables (queue jobs are transient)
+        // Filter out transient tables while preserving migration history.
         $tables = array_values(array_filter($allTables, function (string $table) {
-            return !in_array($table, self::EXCLUDED_TABLES, true);
+            return !self::isExcludedTable($table);
         }));
 
         sort($tables);
 
-        $schemaManifest = (new BackupSchemaManifestService())->export(self::EXCLUDED_TABLES);
+        $schemaManifest = (new BackupSchemaManifestService())->export([], $this->connectionName);
         $payload = [
             'meta' => [
                 'version' => self::FORMAT_VERSION,
@@ -77,28 +102,9 @@ class BackupService
         $totalRows = 0;
 
         foreach ($tables as $tableName) {
-            try {
-                $tableObj = $this->fetchTable(
-                    ucfirst(Inflector::camelize($tableName)),
-                );
-            } catch (Exception $e) {
-                // Fallback: query directly
-                $tableObj = null;
-            }
-
-            $rows = [];
-            if ($tableObj !== null) {
-                // Include soft-deleted rows so backups are complete
-                $finder = $tableObj->hasBehavior('Trash') ? 'withTrashed' : 'all';
-                $query = $tableObj->find($finder)->disableHydration();
-                foreach ($query as $row) {
-                    $rows[] = $row;
-                }
-            } else {
-                // Direct query fallback for tables without a Table class
-                $stmt = $connection->execute("SELECT * FROM {$connection->getDriver()->quoteIdentifier($tableName)}");
-                $rows = $stmt->fetchAll('assoc') ?: [];
-            }
+            $quotedTable = $connection->getDriver()->quoteIdentifier($tableName);
+            $stmt = $connection->execute("SELECT * FROM {$quotedTable}");
+            $rows = $stmt->fetchAll('assoc') ?: [];
 
             $payload['tables'][$tableName] = $rows;
             $totalRows += count($rows);
@@ -145,6 +151,7 @@ class BackupService
         ?callable $migrationRunner = null,
     ): array {
         $payload = $this->decodePayload($encryptedData, $encryptionKey, $progressReporter);
+        $payload = $this->ensureOperationalSchemaTables($payload);
 
         $this->reportProgress($progressReporter, 'resetting_schema', 'Resetting database schema to backup structure.');
         (new DatabaseSchemaResetService())->reset($payload['schema'], $progressReporter);
@@ -172,6 +179,47 @@ class BackupService
         }
 
         return $stats;
+    }
+
+    /**
+     * Add operational table definitions that older backup manifests omitted.
+     *
+     * The rows remain excluded from the restore payload, but preserving table
+     * shapes keeps runtime services usable after schema reset.
+     *
+     * @param array{meta: array<string, mixed>, schema: array<string, mixed>, tables: array<string, mixed>} $payload
+     * @return array{meta: array<string, mixed>, schema: array<string, mixed>, tables: array<string, mixed>}
+     */
+    private function ensureOperationalSchemaTables(array $payload): array
+    {
+        $schemaTables = $payload['schema']['tables'] ?? [];
+        if (!is_array($schemaTables)) {
+            return $payload;
+        }
+
+        $missingTables = array_values(array_diff(self::OPERATIONAL_SCHEMA_TABLES, array_keys($schemaTables)));
+        if ($missingTables === []) {
+            return $payload;
+        }
+
+        $connection = $this->connection();
+        $currentTables = $connection->getSchemaCollection()->listTables();
+        $availableMissingTables = array_values(array_intersect($missingTables, $currentTables));
+        if ($availableMissingTables === []) {
+            return $payload;
+        }
+
+        $preservedSchema = (new BackupSchemaManifestService())->export(
+            array_values(array_diff($currentTables, $availableMissingTables)),
+            $this->connectionName,
+        );
+        foreach ($availableMissingTables as $tableName) {
+            if (isset($preservedSchema['tables'][$tableName])) {
+                $payload['schema']['tables'][$tableName] = $preservedSchema['tables'][$tableName];
+            }
+        }
+
+        return $payload;
     }
 
     /**
@@ -221,7 +269,7 @@ class BackupService
     {
         $tablesToRestore = [];
         foreach ($payload['tables'] as $tableName => $rows) {
-            if (in_array($tableName, self::EXCLUDED_TABLES, true)) {
+            if (self::isExcludedTable($tableName)) {
                 continue;
             }
             $tablesToRestore[$tableName] = is_array($rows) ? $rows : [];
@@ -234,7 +282,7 @@ class BackupService
             'rows_processed' => 0,
         ]);
 
-        $connection = ConnectionManager::get('default');
+        $connection = $this->connection();
         $schemaCollection = $connection->getSchemaCollection();
         $driver = $connection->getDriver();
         $isPostgres = $driver instanceof Postgres;
@@ -644,6 +692,14 @@ SQL;
         $maxRowsByParams = intdiv(60000, max(1, $columnCount));
 
         return max(1, min(200, $maxRowsByParams));
+    }
+
+    /**
+     * Return the configured backup target connection.
+     */
+    private function connection()
+    {
+        return ConnectionManager::get($this->connectionName);
     }
 
     /**

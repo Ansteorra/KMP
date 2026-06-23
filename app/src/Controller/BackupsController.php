@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Queue\Task\BackupRestoreTask;
 use App\Services\BackupService;
 use App\Services\BackupStorageService;
 use App\Services\RestoreStagingService;
@@ -11,7 +12,6 @@ use Cake\Http\Response;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Psr\Http\Message\UploadedFileInterface;
-use RuntimeException;
 use Throwable;
 
 /**
@@ -241,13 +241,14 @@ class BackupsController extends AppController
                 'actor' => $actor,
                 'restore_id' => $restoreId,
             ]);
-            $this->launchRestoreRunner($token, $restoreId);
+            $restoreJob = $this->enqueueRestoreRunner($token, $restoreId);
 
             $restoreStatusService->updateStatus('queued', sprintf('Restore queued from %s.', $sourceLabel), [
                 'source' => $sourceLabel,
                 'backup_id' => $id,
                 'actor' => $actor,
                 'restore_id' => $restoreId,
+                'queue_job_id' => $restoreJob->id,
             ]);
 
             if ($expectsJson) {
@@ -293,32 +294,20 @@ class BackupsController extends AppController
     }
 
     /**
-     * Launch staged restore runner without exposing the encryption key in process args.
+     * Queue a staged restore runner without exposing the encryption key in process args.
      */
-    private function launchRestoreRunner(string $token, string $restoreId): void
+    private function enqueueRestoreRunner(string $token, string $restoreId): object
     {
-        $php = escapeshellarg(PHP_BINARY);
-        $cake = escapeshellarg(ROOT . DS . 'bin' . DS . 'cake');
-        $arg = escapeshellarg($token);
-        $restoreArg = escapeshellarg($restoreId);
+        $queuedJobs = $this->fetchTable('Queue.QueuedJobs');
 
-        if (PHP_OS_FAMILY === 'Windows') {
-            $process = popen("start /B {$php} {$cake} backup_restore_run {$arg} {$restoreArg}", 'r');
-            if ($process === false) {
-                throw new RuntimeException('Unable to launch restore runner process.');
-            }
-            $exitCode = pclose($process);
-            if ($exitCode !== 0) {
-                throw new RuntimeException('Restore runner process launch failed.');
-            }
-
-            return;
-        }
-
-        exec("nohup {$php} {$cake} backup_restore_run {$arg} {$restoreArg} > /dev/null 2>&1 &", $output, $exitCode);
-        if ($exitCode !== 0) {
-            throw new RuntimeException('Restore runner process launch failed.');
-        }
+        return $queuedJobs->createJob(BackupRestoreTask::class, [
+            'token' => $token,
+            'restore_id' => $restoreId,
+        ], [
+            'group' => 'backup_restore',
+            'reference' => 'restore-' . $restoreId,
+            'status' => 'Restore queued.',
+        ]);
     }
 
     /**

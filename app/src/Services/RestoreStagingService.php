@@ -18,7 +18,7 @@ class RestoreStagingService
      */
     public function __construct(?string $directory = null)
     {
-        $this->directory = $directory ?? sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kmp_restore_staging';
+        $this->directory = $directory ?? $this->defaultDirectory();
         if (!is_dir($this->directory) && !mkdir($this->directory, 0700, true) && !is_dir($this->directory)) {
             throw new RuntimeException("Cannot create restore staging directory: {$this->directory}");
         }
@@ -58,8 +58,8 @@ class RestoreStagingService
     public function consume(string $token): array
     {
         $path = $this->path($token);
-        $claimedPath = $path . '.' . bin2hex(random_bytes(4)) . '.claimed';
-        if (!@rename($path, $claimedPath)) {
+        $claimedPath = $this->claimPath($path);
+        if ($claimedPath === null) {
             throw new RuntimeException('Restore staging payload not found.');
         }
 
@@ -86,13 +86,23 @@ class RestoreStagingService
             throw new RuntimeException('Restore staging payload key is invalid.');
         }
 
-        @unlink($claimedPath);
-
         return [
             'encrypted_data' => $encryptedData,
             'encryption_key' => $encryptionKey,
             'context' => is_array($payload['context'] ?? null) ? $payload['context'] : [],
         ];
+    }
+
+    /**
+     * Delete a staged payload after the restore completes successfully.
+     */
+    public function discard(string $token): void
+    {
+        $path = $this->path($token);
+        @unlink($path);
+        foreach (glob($path . '.*.claimed') ?: [] as $claimedPath) {
+            @unlink($claimedPath);
+        }
     }
 
     /**
@@ -105,6 +115,34 @@ class RestoreStagingService
         }
 
         return $this->directory . DIRECTORY_SEPARATOR . $token . '.json';
+    }
+
+    /**
+     * Claim or reuse a previously claimed staging payload.
+     */
+    private function claimPath(string $path): ?string
+    {
+        $claimedPath = $path . '.' . bin2hex(random_bytes(4)) . '.claimed';
+        if (@rename($path, $claimedPath)) {
+            return $claimedPath;
+        }
+
+        $claimedPaths = glob($path . '.*.claimed') ?: [];
+
+        return $claimedPaths[0] ?? null;
+    }
+
+    /**
+     * Resolve the shared staging directory used by web and worker containers.
+     */
+    private function defaultDirectory(): string
+    {
+        $configuredDirectory = getenv('RESTORE_STAGING_DIR');
+        if (is_string($configuredDirectory) && $configuredDirectory !== '') {
+            return $configuredDirectory;
+        }
+
+        return TMP . 'restore_staging';
     }
 
     /**

@@ -91,6 +91,27 @@ class RestoreStatusService
     }
 
     /**
+     * Append a user-visible restore log line to the shared status payload.
+     */
+    public function appendLog(string $message): void
+    {
+        $status = $this->readStatus();
+        $log = $status['log'] ?? [];
+        if (!is_array($log)) {
+            $log = [];
+        }
+
+        $log[] = [
+            'timestamp' => $this->nowIso(),
+            'message' => $message,
+        ];
+
+        $status['log'] = array_slice($log, -100);
+        $status['updated_at'] = $this->nowIso();
+        $this->writeStatus($status);
+    }
+
+    /**
      * Mark restore status as completed and clear lock.
      *
      * @param array<string, mixed> $context
@@ -112,12 +133,16 @@ class RestoreStatusService
                 'updated_at' => $now,
                 'completed_at' => $now,
                 'expires_at' => null,
+                'maintenance_required' => false,
             ],
         ));
     }
 
     /**
      * Mark restore status as failed and clear lock.
+     *
+     * Set maintenance_required when the database may have been partially reset
+     * and normal controllers should not run against the current schema.
      *
      * @param array<string, mixed> $context
      */
@@ -138,6 +163,7 @@ class RestoreStatusService
                 'updated_at' => $now,
                 'completed_at' => $now,
                 'expires_at' => null,
+                'maintenance_required' => (bool)($context['maintenance_required'] ?? false),
             ],
         ));
     }
@@ -172,6 +198,7 @@ class RestoreStatusService
                 $status['updated_at'] = $now;
                 $status['completed_at'] = $now;
                 $status['expires_at'] = null;
+                $status['maintenance_required'] = true;
                 $this->writeStatus($status);
 
                 return $status;
@@ -194,6 +221,7 @@ class RestoreStatusService
             $status['updated_at'] = $now;
             $status['completed_at'] = $now;
             $status['expires_at'] = null;
+            $status['maintenance_required'] = true;
             $this->writeStatus($status);
 
             return $status;
@@ -236,6 +264,9 @@ class RestoreStatusService
             'row_count' => null,
             'rows_processed' => 0,
             'current_table' => null,
+            'queue_job_id' => null,
+            'maintenance_required' => false,
+            'log' => [],
         ];
     }
 

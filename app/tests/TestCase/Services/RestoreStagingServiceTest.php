@@ -41,9 +41,9 @@ class RestoreStagingServiceTest extends TestCase
     }
 
     /**
-     * Verify staged payloads round-trip once and are deleted after consumption.
+     * Verify staged payloads round-trip and remain claimed until success cleanup.
      */
-    public function testStageAndConsumeRoundTripDeletesPayload(): void
+    public function testStageAndConsumeRoundTripRetainsClaimedPayloadUntilDiscard(): void
     {
         $service = new RestoreStagingService($this->directory);
         $token = $service->stage('encrypted-bytes', 'restore-key', [
@@ -62,9 +62,13 @@ class RestoreStagingServiceTest extends TestCase
         $this->assertSame('restore-key', $payload['encryption_key']);
         $this->assertSame('backup.kmpbackup', $payload['context']['source']);
         $this->assertFileDoesNotExist($payloadPath);
+        $this->assertCount(1, glob($payloadPath . '.*.claimed') ?: []);
 
-        $this->expectException(RuntimeException::class);
-        $service->consume($token);
+        $payload = $service->consume($token);
+        $this->assertSame('encrypted-bytes', $payload['encrypted_data']);
+
+        $service->discard($token);
+        $this->assertSame([], glob($payloadPath . '.*.claimed') ?: []);
     }
 
     /**

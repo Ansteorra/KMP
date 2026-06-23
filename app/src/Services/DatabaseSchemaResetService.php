@@ -193,6 +193,7 @@ class DatabaseSchemaResetService
 
         return match ($type) {
             'biginteger' => 'BIGINT',
+            'smallinteger' => 'SMALLINT',
             'tinyinteger' => $driver instanceof Mysql ? 'TINYINT' : 'SMALLINT',
             'integer' => $limit !== null && $limit > 0 && $driver instanceof Mysql ? "INT({$limit})" : 'INTEGER',
             'boolean' => $driver instanceof Mysql ? 'TINYINT(1)' : 'BOOLEAN',
@@ -200,6 +201,8 @@ class DatabaseSchemaResetService
             'text' => 'TEXT',
             'date' => 'DATE',
             'time' => 'TIME',
+            'timefractional' => 'TIME(6)',
+            'timestampfractional', 'datetimefractional' => $driver instanceof Mysql ? 'DATETIME(6)' : 'TIMESTAMP(6)',
             'datetime', 'timestamp' => $driver instanceof Mysql ? 'DATETIME' : 'TIMESTAMP',
             'float' => $driver instanceof Mysql ? 'DOUBLE' : 'DOUBLE PRECISION',
             'decimal' => $this->decimalTypeSql($definition),
@@ -223,6 +226,15 @@ class DatabaseSchemaResetService
     {
         if (is_bool($default)) {
             return $driver instanceof Mysql ? ($default ? '1' : '0') : ($default ? 'TRUE' : 'FALSE');
+        }
+        if ($driver instanceof Postgres && $type === 'boolean') {
+            $normalized = strtolower(trim((string)$default, "'\""));
+            if (in_array($normalized, ['1', 'true', 't', 'yes', 'y', 'on'], true)) {
+                return 'TRUE';
+            }
+            if (in_array($normalized, ['0', 'false', 'f', 'no', 'n', 'off'], true)) {
+                return 'FALSE';
+            }
         }
         if (is_int($default) || is_float($default)) {
             return (string)$default;
@@ -341,6 +353,12 @@ class DatabaseSchemaResetService
     private function referentialActionSql(mixed $action): string
     {
         $normalized = strtoupper(trim(preg_replace('/\s+/', ' ', (string)$action) ?? ''));
+        $normalized = match ($normalized) {
+            'NOACTION' => 'NO ACTION',
+            'SETNULL' => 'SET NULL',
+            'SETDEFAULT' => 'SET DEFAULT',
+            default => $normalized,
+        };
         $allowed = ['CASCADE', 'SET NULL', 'SET DEFAULT', 'RESTRICT', 'NO ACTION'];
         if (!in_array($normalized, $allowed, true)) {
             throw new InvalidArgumentException("Unsupported foreign key referential action: {$normalized}");

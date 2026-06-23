@@ -26,7 +26,8 @@ class RestoreMaintenanceMiddleware implements MiddlewareInterface
     {
         $statusService = new RestoreStatusService();
         $status = $statusService->getStatus();
-        if (empty($status['locked']) && ($status['status'] ?? null) !== 'running') {
+        $requiresMaintenance = !empty($status['maintenance_required']);
+        if (empty($status['locked']) && ($status['status'] ?? null) !== 'running' && !$requiresMaintenance) {
             return $handler->handle($request);
         }
 
@@ -51,17 +52,19 @@ class RestoreMaintenanceMiddleware implements MiddlewareInterface
         $accept = $request->getHeaderLine('Accept');
         if (str_contains($accept, 'application/json')) {
             return (new Response())
-                ->withStatus(503)
+                ->withStatus($requiresMaintenance ? 500 : 503)
                 ->withType('application/json')
                 ->withStringBody((string)json_encode([
                     'success' => false,
-                    'message' => 'Restore is in progress. Please try again after it completes.',
+                    'message' => $requiresMaintenance
+                        ? 'Restore failed and maintenance is required.'
+                        : 'Restore is in progress. Please try again after it completes.',
                     'restore' => $status,
                 ]));
         }
 
         return (new Response())
-            ->withStatus(503)
+            ->withStatus($requiresMaintenance ? 500 : 503)
             ->withType('text/html')
             ->withStringBody($this->htmlBody($status));
     }
@@ -76,9 +79,19 @@ class RestoreMaintenanceMiddleware implements MiddlewareInterface
             ENT_QUOTES | ENT_SUBSTITUTE,
             'UTF-8',
         );
+        $isFailed = ($status['status'] ?? null) === 'failed';
+        $title = $isFailed ? 'Restore failed' : 'Restore in progress';
+        $escapedTitle = htmlspecialchars($title, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $logHtml = $this->logHtml($status);
 
         $style = 'body{font-family:system-ui,sans-serif;margin:3rem;line-height:1.5;color:#222}'
-            . '.card{max-width:42rem;padding:1.5rem;border:1px solid #ddd;border-radius:.5rem}';
+            . '.card{max-width:52rem;padding:1.5rem;border:1px solid #ddd;border-radius:.5rem}'
+            . '.log{max-height:24rem;overflow:auto;background:#111;color:#f5f5f5;padding:1rem;border-radius:.375rem}'
+            . '.log-entry{margin:0 0 .5rem}.log-time{color:#9ad;margin-right:.5rem}';
+        $refresh = $isFailed ? '' : '<meta http-equiv="refresh" content="10">';
+        $helpText = $isFailed
+            ? 'The restore did not complete. Review the log below before restarting the application.'
+            : 'This page will refresh automatically.';
 
         return <<<HTML
 <!doctype html>
@@ -86,18 +99,43 @@ class RestoreMaintenanceMiddleware implements MiddlewareInterface
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta http-equiv="refresh" content="10">
-    <title>Restore in progress</title>
+    {$refresh}
+    <title>{$escapedTitle}</title>
     <style>{$style}</style>
 </head>
 <body>
     <main class="card">
-        <h1>Restore in progress</h1>
+        <h1>{$escapedTitle}</h1>
         <p>{$message}</p>
-        <p>This page will refresh automatically.</p>
+        <p>{$helpText}</p>
+        {$logHtml}
     </main>
 </body>
 </html>
 HTML;
+    }
+
+    /**
+     * @param array<string, mixed> $status
+     */
+    private function logHtml(array $status): string
+    {
+        $log = $status['log'] ?? [];
+        if (!is_array($log) || $log === []) {
+            return '<p>No restore log entries have been written yet.</p>';
+        }
+
+        $entries = [];
+        foreach ($log as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+            $timestamp = htmlspecialchars((string)($entry['timestamp'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $message = htmlspecialchars((string)($entry['message'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $entries[] = "<p class=\"log-entry\"><span class=\"log-time\">{$timestamp}</span>{$message}</p>";
+        }
+
+        return '<section aria-labelledby="restore-log-title"><h2 id="restore-log-title">Restore log</h2>'
+            . '<div class="log" role="log" aria-live="polite">' . implode('', $entries) . '</div></section>';
     }
 }

@@ -133,7 +133,7 @@ class RestoreStatusServiceTest extends BaseTestCase
     public function testMarkFailed(): void
     {
         $this->service->acquireLock();
-        $this->service->markFailed('SQL import error');
+        $this->service->markFailed('SQL import error', ['maintenance_required' => true]);
 
         $status = $this->service->getStatus();
         $this->assertFalse($status['locked']);
@@ -141,6 +141,20 @@ class RestoreStatusServiceTest extends BaseTestCase
         $this->assertEquals('failed', $status['phase']);
         $this->assertEquals('SQL import error', $status['message']);
         $this->assertNotNull($status['completed_at']);
+        $this->assertTrue($status['maintenance_required']);
+    }
+
+    public function testAppendLogKeepsUserVisibleEntries(): void
+    {
+        $this->service->acquireLock();
+        $this->service->appendLog('Decrypting backup file.');
+        $this->service->appendLog('Resetting database schema.');
+
+        $status = $this->service->getStatus();
+        $this->assertCount(2, $status['log']);
+        $this->assertEquals('Decrypting backup file.', $status['log'][0]['message']);
+        $this->assertEquals('Resetting database schema.', $status['log'][1]['message']);
+        $this->assertArrayHasKey('timestamp', $status['log'][0]);
     }
 
     public function testMarkCompletedReleasesLock(): void
@@ -181,12 +195,14 @@ class RestoreStatusServiceTest extends BaseTestCase
             'source' => 'manual',
             'backup_id' => 'backup-123',
             'actor' => 'admin@test.com',
+            'queue_job_id' => 42,
         ]);
 
         $status = $this->service->getStatus();
         $this->assertEquals('manual', $status['source']);
         $this->assertEquals('backup-123', $status['backup_id']);
         $this->assertEquals('admin@test.com', $status['actor']);
+        $this->assertEquals(42, $status['queue_job_id']);
     }
 
     public function testAcquireLockMinimumTtl(): void
@@ -209,6 +225,7 @@ class RestoreStatusServiceTest extends BaseTestCase
             'source', 'backup_id', 'actor',
             'table_count', 'tables_processed',
             'row_count', 'rows_processed', 'current_table',
+            'queue_job_id', 'maintenance_required', 'log',
         ];
 
         foreach ($expectedKeys as $key) {

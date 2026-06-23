@@ -12,11 +12,12 @@ class BackupSchemaManifestService
 {
     /**
      * @param array<int, string> $excludedTables
+     * @param string $connectionName CakePHP connection name to describe.
      * @return array<string, mixed>
      */
-    public function export(array $excludedTables = []): array
+    public function export(array $excludedTables = [], string $connectionName = 'default'): array
     {
-        $connection = ConnectionManager::get('default');
+        $connection = ConnectionManager::get($connectionName);
         $schemaCollection = $connection->getSchemaCollection();
         $tables = array_values(array_filter(
             $schemaCollection->listTables(),
