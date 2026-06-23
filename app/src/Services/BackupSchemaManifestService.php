@@ -42,7 +42,7 @@ class BackupSchemaManifestService
             }
 
             $indexes = [];
-            if (method_exists($schema, 'indexes')) {
+            if (method_exists($schema, 'indexes') && method_exists($schema, 'getIndex')) {
                 foreach ($schema->indexes() as $indexName) {
                     $indexes[$indexName] = $this->normalizeDefinition($schema->getIndex($indexName) ?? []);
                 }

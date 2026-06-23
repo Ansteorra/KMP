@@ -62,7 +62,7 @@ class BackupService
 
         sort($tables);
 
-        $schemaManifest = (new BackupSchemaManifestService())->export();
+        $schemaManifest = (new BackupSchemaManifestService())->export(self::EXCLUDED_TABLES);
         $payload = [
             'meta' => [
                 'version' => self::FORMAT_VERSION,
@@ -134,6 +134,8 @@ class BackupService
      *
      * @param string $encryptedData Raw encrypted backup bytes
      * @param string $encryptionKey User-provided encryption key
+     * @param callable(array<string, mixed>):void|null $progressReporter Restore progress callback
+     * @param callable():void|null $migrationRunner Post-import migration callback
      * @return array{table_count: int, row_count: int} Import statistics
      */
     public function import(

@@ -112,6 +112,7 @@ class BackupRestoreStatusController extends Controller {
                 message: payload?.message || 'Restore started.',
             }
             this.render(startedStatus)
+            this.awaitingFreshRunningState = false
             await this.pollStatus(true)
         } catch (error) {
             const failedStatus = {

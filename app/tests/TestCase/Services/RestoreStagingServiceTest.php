@@ -5,11 +5,18 @@ namespace App\Test\TestCase\Services;
 
 use App\Services\RestoreStagingService;
 use Cake\TestSuite\TestCase;
+use RuntimeException;
 
+/**
+ * Tests restore payload staging and single-use token consumption.
+ */
 class RestoreStagingServiceTest extends TestCase
 {
     private string $directory;
 
+    /**
+     * Create an isolated staging directory for each test.
+     */
     protected function setUp(): void
     {
         parent::setUp();
@@ -19,6 +26,9 @@ class RestoreStagingServiceTest extends TestCase
             . bin2hex(random_bytes(4));
     }
 
+    /**
+     * Remove staged files and the test staging directory.
+     */
     protected function tearDown(): void
     {
         if (is_dir($this->directory)) {
@@ -30,6 +40,9 @@ class RestoreStagingServiceTest extends TestCase
         parent::tearDown();
     }
 
+    /**
+     * Verify staged payloads round-trip once and are deleted after consumption.
+     */
     public function testStageAndConsumeRoundTripDeletesPayload(): void
     {
         $service = new RestoreStagingService($this->directory);
@@ -41,6 +54,7 @@ class RestoreStagingServiceTest extends TestCase
         $this->assertMatchesRegularExpression('/^[a-f0-9]{48}$/', $token);
         $payloadPath = $this->directory . DIRECTORY_SEPARATOR . $token . '.json';
         $this->assertFileExists($payloadPath);
+        $this->assertStringNotContainsString('restore-key', (string)file_get_contents($payloadPath));
 
         $payload = $service->consume($token);
 
@@ -48,5 +62,29 @@ class RestoreStagingServiceTest extends TestCase
         $this->assertSame('restore-key', $payload['encryption_key']);
         $this->assertSame('backup.kmpbackup', $payload['context']['source']);
         $this->assertFileDoesNotExist($payloadPath);
+
+        $this->expectException(RuntimeException::class);
+        $service->consume($token);
+    }
+
+    /**
+     * Keep invalid claimed payloads for troubleshooting instead of deleting them.
+     */
+    public function testConsumeKeepsClaimedPayloadWhenValidationFails(): void
+    {
+        $service = new RestoreStagingService($this->directory);
+        $token = $service->stage('encrypted-bytes', 'restore-key');
+        $payloadPath = $this->directory . DIRECTORY_SEPARATOR . $token . '.json';
+        file_put_contents($payloadPath, '{invalid');
+
+        try {
+            $service->consume($token);
+            $this->fail('Expected corrupt staging payload to fail validation.');
+        } catch (RuntimeException $e) {
+            $this->assertSame('Restore staging payload is invalid.', $e->getMessage());
+        }
+
+        $this->assertFileDoesNotExist($payloadPath);
+        $this->assertCount(1, glob($payloadPath . '.*.claimed') ?: []);
     }
 }

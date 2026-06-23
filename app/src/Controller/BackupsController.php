@@ -10,8 +10,9 @@ use App\Services\RestoreStatusService;
 use Cake\Http\Response;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
-use Exception;
 use Psr\Http\Message\UploadedFileInterface;
+use RuntimeException;
+use Throwable;
 
 /**
  * Manages database backups: list, create, restore, download, delete, settings.
@@ -188,11 +189,13 @@ class BackupsController extends AppController
             $identity,
             'getIdentifier',
         ) ? (string)$identity->getIdentifier() : null;
+        $restoreId = bin2hex(random_bytes(16));
         if (
             !$restoreStatusService->acquireLock([
             'source' => $sourceLabel,
             'backup_id' => $id,
             'actor' => $actor,
+            'restore_id' => $restoreId,
             'message' => sprintf('Restore starting from %s.', $sourceLabel),
             ])
         ) {
@@ -223,6 +226,7 @@ class BackupsController extends AppController
                 'source' => $sourceLabel,
                 'backup_id' => $id,
                 'actor' => $actor,
+                'restore_id' => $restoreId,
             ]);
 
             if ($restoreTrackedBackup !== null) {
@@ -235,13 +239,15 @@ class BackupsController extends AppController
                 'source' => $sourceLabel,
                 'backup_id' => $id,
                 'actor' => $actor,
+                'restore_id' => $restoreId,
             ]);
-            $this->launchRestoreRunner($token);
+            $this->launchRestoreRunner($token, $restoreId);
 
             $restoreStatusService->updateStatus('queued', sprintf('Restore queued from %s.', $sourceLabel), [
                 'source' => $sourceLabel,
                 'backup_id' => $id,
                 'actor' => $actor,
+                'restore_id' => $restoreId,
             ]);
 
             if ($expectsJson) {
@@ -255,7 +261,7 @@ class BackupsController extends AppController
             $this->Flash->success(__('Restore started. Progress will continue in the background.'));
 
             return $this->redirect(['action' => 'index']);
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             Log::error('Restore failed to start: ' . $e->getMessage());
 
             if ($restoreTrackedBackup !== null) {
@@ -271,6 +277,7 @@ class BackupsController extends AppController
                 'source' => $sourceLabel,
                 'backup_id' => $id,
                 'actor' => $actor,
+                'restore_id' => $restoreId,
             ]);
             if ($expectsJson) {
                 return $this->jsonResponse([
@@ -288,19 +295,30 @@ class BackupsController extends AppController
     /**
      * Launch staged restore runner without exposing the encryption key in process args.
      */
-    private function launchRestoreRunner(string $token): void
+    private function launchRestoreRunner(string $token, string $restoreId): void
     {
         $php = escapeshellarg(PHP_BINARY);
         $cake = escapeshellarg(ROOT . DS . 'bin' . DS . 'cake');
         $arg = escapeshellarg($token);
+        $restoreArg = escapeshellarg($restoreId);
 
         if (PHP_OS_FAMILY === 'Windows') {
-            pclose(popen("start /B {$php} {$cake} backup_restore_run {$arg}", 'r'));
+            $process = popen("start /B {$php} {$cake} backup_restore_run {$arg} {$restoreArg}", 'r');
+            if ($process === false) {
+                throw new RuntimeException('Unable to launch restore runner process.');
+            }
+            $exitCode = pclose($process);
+            if ($exitCode !== 0) {
+                throw new RuntimeException('Restore runner process launch failed.');
+            }
 
             return;
         }
 
-        exec("nohup {$php} {$cake} backup_restore_run {$arg} > /dev/null 2>&1 &");
+        exec("nohup {$php} {$cake} backup_restore_run {$arg} {$restoreArg} > /dev/null 2>&1 &", $output, $exitCode);
+        if ($exitCode !== 0) {
+            throw new RuntimeException('Restore runner process launch failed.');
+        }
     }
 
     /**
