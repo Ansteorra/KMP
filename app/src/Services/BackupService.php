@@ -26,6 +26,7 @@ class BackupService
 {
     use LocatorAwareTrait;
 
+    private const FORMAT_VERSION = 2;
     private const CIPHER = 'aes-256-gcm';
     private const PBKDF2_ITERATIONS = 100000;
     private const PBKDF2_ALGO = 'sha256';
@@ -61,13 +62,15 @@ class BackupService
 
         sort($tables);
 
+        $schemaManifest = (new BackupSchemaManifestService())->export();
         $payload = [
             'meta' => [
-                'version' => 1,
+                'version' => self::FORMAT_VERSION,
                 'created_at' => DateTime::now()->toIso8601String(),
                 'table_count' => count($tables),
                 'tables' => $tables,
             ],
+            'schema' => $schemaManifest,
             'tables' => [],
         ];
 
@@ -133,8 +136,51 @@ class BackupService
      * @param string $encryptionKey User-provided encryption key
      * @return array{table_count: int, row_count: int} Import statistics
      */
-    public function import(string $encryptedData, string $encryptionKey, ?callable $progressReporter = null): array
-    {
+    public function import(
+        string $encryptedData,
+        string $encryptionKey,
+        ?callable $progressReporter = null,
+        ?callable $migrationRunner = null,
+    ): array {
+        $payload = $this->decodePayload($encryptedData, $encryptionKey, $progressReporter);
+
+        $this->reportProgress($progressReporter, 'resetting_schema', 'Resetting database schema to backup structure.');
+        (new DatabaseSchemaResetService())->reset($payload['schema'], $progressReporter);
+
+        $stats = $this->importPayloadRows($payload, $progressReporter);
+
+        if ($migrationRunner !== null) {
+            $this->reportProgress($progressReporter, 'migrating', 'Applying application migrations.');
+            $migrationRunner();
+            $this->clearApplicationCachesAfterRestore();
+            $this->reportProgress($progressReporter, 'migrated', 'Application migrations completed.', [
+                'table_count' => $stats['table_count'],
+                'tables_processed' => $stats['table_count'],
+                'row_count' => $stats['row_count'],
+                'rows_processed' => $stats['row_count'],
+            ]);
+        } else {
+            $this->clearApplicationCachesAfterRestore();
+            $this->reportProgress($progressReporter, 'completed', 'Restore transaction committed.', [
+                'table_count' => $stats['table_count'],
+                'tables_processed' => $stats['table_count'],
+                'row_count' => $stats['row_count'],
+                'rows_processed' => $stats['row_count'],
+            ]);
+        }
+
+        return $stats;
+    }
+
+    /**
+     * @param callable(array<string, mixed>):void|null $progressReporter
+     * @return array{meta: array<string, mixed>, schema: array<string, mixed>, tables: array<string, mixed>}
+     */
+    private function decodePayload(
+        string $encryptedData,
+        string $encryptionKey,
+        ?callable $progressReporter = null,
+    ): array {
         // Decrypt → decompress → JSON
         $this->reportProgress($progressReporter, 'decrypting', 'Decrypting backup file.');
         $compressed = $this->decrypt($encryptedData, $encryptionKey);
@@ -147,10 +193,30 @@ class BackupService
 
         $this->reportProgress($progressReporter, 'validating', 'Validating backup payload.');
         $payload = json_decode($json, true);
-        if (!is_array($payload) || !isset($payload['tables']) || !isset($payload['meta'])) {
+        if (!is_array($payload) || !isset($payload['meta']) || !is_array($payload['meta'])) {
+            throw new RuntimeException('Invalid backup file structure');
+        }
+        if (($payload['meta']['version'] ?? null) !== self::FORMAT_VERSION) {
+            throw new RuntimeException('Unsupported backup format. Regenerate the backup with this KMP release.');
+        }
+        if (
+            !isset($payload['tables'], $payload['schema'])
+            || !is_array($payload['schema'])
+            || !is_array($payload['tables'])
+        ) {
             throw new RuntimeException('Invalid backup file structure');
         }
 
+        return $payload;
+    }
+
+    /**
+     * @param array{tables: array<string, mixed>} $payload
+     * @param callable(array<string, mixed>):void|null $progressReporter
+     * @return array{table_count: int, row_count: int}
+     */
+    private function importPayloadRows(array $payload, ?callable $progressReporter = null): array
+    {
         $tablesToRestore = [];
         foreach ($payload['tables'] as $tableName => $rows) {
             if (in_array($tableName, self::EXCLUDED_TABLES, true)) {
@@ -413,10 +479,10 @@ class BackupService
             }
 
             $connection->commit();
-            $this->clearApplicationCachesAfterRestore();
-            $this->reportProgress($progressReporter, 'completed', 'Restore transaction committed.', [
+            $this->reportProgress($progressReporter, 'data_imported', 'Backup data import committed.', [
                 'table_count' => $tableCount,
                 'tables_processed' => $processedTables,
+                'row_count' => $totalRows,
                 'rows_processed' => $totalRows,
             ]);
         } catch (Exception $e) {

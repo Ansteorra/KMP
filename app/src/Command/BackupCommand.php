@@ -234,6 +234,9 @@ class BackupCommand extends Command
                         $lastPhase = $phase;
                     }
                 },
+                function () use ($io): void {
+                    $this->executeCommand(UpdateDatabaseCommand::class, [], $io);
+                },
             );
 
             $restoreStatusService->markCompleted(sprintf(

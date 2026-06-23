@@ -105,22 +105,13 @@ class BackupRestoreStatusController extends Controller {
             if (!response.ok || payload?.success === false) {
                 throw new Error(payload?.message || 'Restore request failed.')
             }
-            this.awaitingFreshRunningState = false
-            this.hasSeenRunningState = true
-
-            const completedStatus = {
-                locked: false,
-                status: 'completed',
-                phase: 'completed',
-                message: payload?.message || 'Restore/import completed.',
-                table_count: payload?.stats?.table_count,
-                tables_processed: payload?.stats?.table_count,
-                row_count: payload?.stats?.row_count,
-                rows_processed: payload?.stats?.row_count,
-                completed_at: new Date().toISOString(),
+            const startedStatus = payload?.status || {
+                locked: true,
+                status: 'running',
+                phase: 'queued',
+                message: payload?.message || 'Restore started.',
             }
-            this.render(completedStatus)
-            this.scheduleReload()
+            this.render(startedStatus)
             await this.pollStatus(true)
         } catch (error) {
             const failedStatus = {
