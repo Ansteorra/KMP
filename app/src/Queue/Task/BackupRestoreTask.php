@@ -104,7 +104,7 @@ class BackupRestoreTask extends Task
         }
 
         try {
-            $connection->disconnect();
+            $connection->getDriver()->disconnect();
         } catch (Throwable $e) {
             Log::warning('Unable to disconnect failed restore migration connection: ' . $e->getMessage());
         }
