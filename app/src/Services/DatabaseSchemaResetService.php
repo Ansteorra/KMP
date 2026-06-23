@@ -317,7 +317,7 @@ class DatabaseSchemaResetService
                 }
                 $sql[] = sprintf(
                     'CREATE UNIQUE INDEX %s ON %s (%s)',
-                    $driver->quoteIdentifier($constraintName),
+                    $driver->quoteIdentifier($this->indexIdentifier($driver, $tableName, $constraintName)),
                     $driver->quoteIdentifier($tableName),
                     $columnsSql,
                 );
@@ -334,7 +334,7 @@ class DatabaseSchemaResetService
                 $sql[] = sprintf(
                     'CREATE %sINDEX %s ON %s (%s)',
                     $unique,
-                    $driver->quoteIdentifier($indexName),
+                    $driver->quoteIdentifier($this->indexIdentifier($driver, $tableName, $indexName)),
                     $driver->quoteIdentifier($tableName),
                     $columnsSql,
                 );
@@ -342,6 +342,20 @@ class DatabaseSchemaResetService
         }
 
         return $sql;
+    }
+
+    private function indexIdentifier(Mysql|Postgres $driver, string $tableName, string $indexName): string
+    {
+        if (!$driver instanceof Postgres) {
+            return $indexName;
+        }
+
+        $identifier = $tableName . '_' . $indexName;
+        if (strlen($identifier) <= 63) {
+            return $identifier;
+        }
+
+        return substr($identifier, 0, 54) . '_' . substr(sha1($identifier), 0, 8);
     }
 
     /**
