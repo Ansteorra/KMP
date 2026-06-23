@@ -11,6 +11,7 @@ use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 use Exception;
+use RuntimeException;
 
 /**
  * CLI backup management: create and restore backups.
@@ -232,6 +233,12 @@ class BackupCommand extends Command
                     if ($phase !== $lastPhase) {
                         $io->out($message);
                         $lastPhase = $phase;
+                    }
+                },
+                function () use ($io): void {
+                    $exitCode = $this->executeCommand(UpdateDatabaseCommand::class, [], $io);
+                    if ($exitCode !== null && $exitCode !== self::CODE_SUCCESS) {
+                        throw new RuntimeException('Database migrations failed during restore.');
                     }
                 },
             );

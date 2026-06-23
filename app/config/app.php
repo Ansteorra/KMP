@@ -57,7 +57,7 @@ if ($cacheEngine === RedisEngine::class) {
         ];
     }
 }
-$restoreStatusPath = env('RESTORE_STATUS_CACHE_PATH', sys_get_temp_dir() . DS . 'kmp_restore_status_shared' . DS);
+$restoreStatusPath = env('RESTORE_STATUS_CACHE_PATH', TMP . 'restore_status' . DS);
 if (!is_dir($restoreStatusPath)) {
     @mkdir($restoreStatusPath, 0777, true);
 }

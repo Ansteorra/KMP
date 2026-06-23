@@ -77,8 +77,54 @@ class BackupServiceTest extends TestCase
         $this->assertSame(1, $notValidatedConstraintCount);
         $this->assertContains('ROLLBACK TO SAVEPOINT kmp_fk_validate_0', $connection->queries);
         $this->assertContains(
-            'ALTER TABLE "awards_recommendations_events" ADD CONSTRAINT "awards_recommendations_events_recommendation_id_fkey" FOREIGN KEY (recommendation_id) REFERENCES awards_recommendations(id) NOT VALID',
+            'ALTER TABLE "awards_recommendations_events" ADD CONSTRAINT '
+            . '"awards_recommendations_events_recommendation_id_fkey" FOREIGN KEY '
+            . '(recommendation_id) REFERENCES awards_recommendations(id) NOT VALID',
             $connection->queries,
         );
+    }
+
+    public function testImportRejectsObsoleteRowOnlyPayload(): void
+    {
+        $service = new BackupService();
+        $payload = [
+            'meta' => ['version' => 1],
+            'tables' => [],
+        ];
+        $json = json_encode($payload);
+        $this->assertNotFalse($json);
+        $compressed = gzencode($json);
+        $this->assertNotFalse($compressed);
+
+        $method = new ReflectionMethod(BackupService::class, 'encrypt');
+        $method->setAccessible(true);
+        $encrypted = $method->invoke($service, $compressed, 'test-key');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Unsupported backup format. Regenerate the backup with this KMP release.');
+
+        $service->import($encrypted, 'test-key');
+    }
+
+    public function testImportRejectsMalformedV2PayloadBeforeSchemaReset(): void
+    {
+        $service = new BackupService();
+        $payload = [
+            'meta' => ['version' => 2],
+            'tables' => [],
+        ];
+        $json = json_encode($payload);
+        $this->assertNotFalse($json);
+        $compressed = gzencode($json);
+        $this->assertNotFalse($compressed);
+
+        $method = new ReflectionMethod(BackupService::class, 'encrypt');
+        $method->setAccessible(true);
+        $encrypted = $method->invoke($service, $compressed, 'test-key');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Invalid backup file structure');
+
+        $service->import($encrypted, 'test-key');
     }
 }

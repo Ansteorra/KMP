@@ -37,6 +37,9 @@ app/.editorconfig
 docker/Dockerfile.app
 docker/entrypoint.sh
 docker/.env.example
+!docker/entrypoint.sh
+!docker/app_local.php
+!docker/apache-vhost.conf
 
 # Dev scripts
 dev-up.sh

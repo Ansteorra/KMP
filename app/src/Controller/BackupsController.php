@@ -3,14 +3,17 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Queue\Task\BackupRestoreTask;
 use App\Services\BackupService;
 use App\Services\BackupStorageService;
+use App\Services\RestoreStagingService;
 use App\Services\RestoreStatusService;
 use Cake\Http\Response;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Exception;
 use Psr\Http\Message\UploadedFileInterface;
+use Throwable;
 
 /**
  * Manages database backups: list, create, restore, download, delete, settings.
@@ -142,7 +145,6 @@ class BackupsController extends AppController
             return $this->redirect(['action' => 'index']);
         }
 
-        $backupService = new BackupService();
         $restoreStatusService = new RestoreStatusService();
         $restoreTrackedBackup = null;
         $data = '';
@@ -188,11 +190,13 @@ class BackupsController extends AppController
             $identity,
             'getIdentifier',
         ) ? (string)$identity->getIdentifier() : null;
+        $restoreId = bin2hex(random_bytes(16));
         if (
             !$restoreStatusService->acquireLock([
             'source' => $sourceLabel,
             'backup_id' => $id,
             'actor' => $actor,
+            'restore_id' => $restoreId,
             'message' => sprintf('Restore starting from %s.', $sourceLabel),
             ])
         ) {
@@ -223,6 +227,7 @@ class BackupsController extends AppController
                 'source' => $sourceLabel,
                 'backup_id' => $id,
                 'actor' => $actor,
+                'restore_id' => $restoreId,
             ]);
 
             if ($restoreTrackedBackup !== null) {
@@ -231,98 +236,79 @@ class BackupsController extends AppController
                 $this->Backups->save($restoreTrackedBackup);
             }
 
-            $stats = $backupService->import(
-                $data,
-                $encryptionKey,
-                function (array $progress) use ($restoreStatusService, $sourceLabel, $id, $actor): void {
-                    $phase = (string)($progress['phase'] ?? 'running');
-                    $message = (string)($progress['message'] ?? 'Restore in progress.');
-                    unset($progress['phase'], $progress['message']);
-
-                    $restoreStatusService->updateStatus($phase, $message, array_merge($progress, [
-                        'source' => $sourceLabel,
-                        'backup_id' => $id,
-                        'actor' => $actor,
-                    ]));
-                },
-            );
-
-            if ($restoreTrackedBackup !== null) {
-                $restoreTrackedBackup->status = 'completed';
-                $restoreTrackedBackup->table_count = $stats['table_count'];
-                $restoreTrackedBackup->row_count = $stats['row_count'];
-                $restoreTrackedBackup->notes = __(
-                    'Restore completed at {0}: {1} tables, {2} rows.',
-                    date('Y-m-d H:i:s'),
-                    $stats['table_count'],
-                    $stats['row_count'],
-                );
-                $this->Backups->save($restoreTrackedBackup);
-            }
-
-            $restoreStatusService->markCompleted(sprintf(
-                'Restore/import completed from %s: %d tables, %d rows.',
-                $sourceLabel,
-                $stats['table_count'],
-                $stats['row_count'],
-            ), [
+            $token = (new RestoreStagingService())->stage($data, $encryptionKey, [
                 'source' => $sourceLabel,
                 'backup_id' => $id,
                 'actor' => $actor,
-                'table_count' => $stats['table_count'],
-                'tables_processed' => $stats['table_count'],
-                'row_count' => $stats['row_count'],
-                'rows_processed' => $stats['row_count'],
+                'restore_id' => $restoreId,
+            ]);
+            $restoreJob = $this->enqueueRestoreRunner($token, $restoreId);
+
+            $restoreStatusService->updateStatus('queued', sprintf('Restore queued from %s.', $sourceLabel), [
+                'source' => $sourceLabel,
+                'backup_id' => $id,
+                'actor' => $actor,
+                'restore_id' => $restoreId,
+                'queue_job_id' => $restoreJob->id,
             ]);
 
             if ($expectsJson) {
                 return $this->jsonResponse([
                     'success' => true,
-                    'message' => __(
-                        'Restore/import completed from {0}: {1} tables, {2} rows',
-                        $sourceLabel,
-                        $stats['table_count'],
-                        $stats['row_count'],
-                    ),
-                    'stats' => $stats,
-                ]);
+                    'message' => __('Restore started. Progress will continue in the background.'),
+                    'status' => $restoreStatusService->getStatus(),
+                ], 202);
             }
 
-            $this->Flash->success(__(
-                'Restore/import completed from {0}: {1} tables, {2} rows',
-                $sourceLabel,
-                $stats['table_count'],
-                $stats['row_count'],
-            ));
-        } catch (Exception $e) {
-            Log::error('Restore failed: ' . $e->getMessage());
+            $this->Flash->success(__('Restore started. Progress will continue in the background.'));
+
+            return $this->redirect(['action' => 'index']);
+        } catch (Throwable $e) {
+            Log::error('Restore failed to start: ' . $e->getMessage());
 
             if ($restoreTrackedBackup !== null) {
                 $restoreTrackedBackup->status = 'failed';
                 $restoreTrackedBackup->notes = __(
-                    'Restore failed at {0}: {1}',
+                    'Restore failed to start at {0}: {1}',
                     date('Y-m-d H:i:s'),
                     $e->getMessage(),
                 );
                 $this->Backups->save($restoreTrackedBackup);
             }
-            $restoreStatusService->markFailed(sprintf('Restore/import failed: %s', $e->getMessage()), [
+            $restoreStatusService->markFailed(sprintf('Restore/import failed to start: %s', $e->getMessage()), [
                 'source' => $sourceLabel,
                 'backup_id' => $id,
                 'actor' => $actor,
+                'restore_id' => $restoreId,
             ]);
             if ($expectsJson) {
                 return $this->jsonResponse([
                     'success' => false,
-                    'message' => __('Restore failed: {0}', $e->getMessage()),
+                    'message' => __('Restore failed to start: {0}', $e->getMessage()),
                 ], 500);
             }
-            $this->Flash->error(__('Restore failed: {0}', $e->getMessage()));
-        } finally {
+            $this->Flash->error(__('Restore failed to start: {0}', $e->getMessage()));
             $restoreStatusService->releaseLock();
         }
 
         return $this->redirect(['action' => 'index']);
+    }
+
+    /**
+     * Queue a staged restore runner without exposing the encryption key in process args.
+     */
+    private function enqueueRestoreRunner(string $token, string $restoreId): object
+    {
+        $queuedJobs = $this->fetchTable('Queue.QueuedJobs');
+
+        return $queuedJobs->createJob(BackupRestoreTask::class, [
+            'token' => $token,
+            'restore_id' => $restoreId,
+        ], [
+            'group' => 'backup_restore',
+            'reference' => 'restore-' . $restoreId,
+            'status' => 'Restore queued.',
+        ]);
     }
 
     /**

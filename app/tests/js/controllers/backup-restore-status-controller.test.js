@@ -29,6 +29,7 @@ describe('BackupRestoreStatusController', () => {
                     <span data-backup-restore-status-target="modalBadge" class="badge"></span>
                     <span data-backup-restore-status-target="modalMessage"></span>
                     <span data-backup-restore-status-target="modalDetails"></span>
+                    <ol data-backup-restore-status-target="modalLog"></ol>
                     <div data-backup-restore-status-target="modalSpinner" class="d-none"></div>
                     <button data-backup-restore-status-target="modalClose">Close</button>
                 </div>
@@ -61,6 +62,8 @@ describe('BackupRestoreStatusController', () => {
         controller.hasModalMessageTarget = true;
         controller.modalDetailsTarget = document.querySelector('[data-backup-restore-status-target="modalDetails"]');
         controller.hasModalDetailsTarget = true;
+        controller.modalLogTarget = document.querySelector('[data-backup-restore-status-target="modalLog"]');
+        controller.hasModalLogTarget = true;
         controller.modalSpinnerTarget = document.querySelector('[data-backup-restore-status-target="modalSpinner"]');
         controller.hasModalSpinnerTarget = true;
         controller.modalCloseTargets = Array.from(document.querySelectorAll('[data-backup-restore-status-target="modalClose"]'));
@@ -86,7 +89,7 @@ describe('BackupRestoreStatusController', () => {
     test('has correct static targets', () => {
         expect(BackupRestoreStatusController.targets).toEqual(expect.arrayContaining([
             'panel', 'badge', 'message', 'details', 'modal',
-            'modalBadge', 'modalMessage', 'modalDetails', 'modalSpinner', 'modalClose'
+            'modalBadge', 'modalMessage', 'modalDetails', 'modalLog', 'modalSpinner', 'modalClose'
         ]));
     });
 
@@ -129,6 +132,25 @@ describe('BackupRestoreStatusController', () => {
         expect(result.state).toBe('failed');
         expect(result.badgeClass).toBe('bg-danger');
         expect(result.panelClass).toBe('alert-danger');
+    });
+
+    test('renderModal writes restore log entries', () => {
+        controller.modalInstance = { show: jest.fn() };
+
+        controller.renderModal({
+            badgeLabel: 'restoring',
+            badgeClass: 'bg-info',
+            message: 'Restore running.',
+            details: 'Rows: 10',
+            showSpinner: true,
+            log: [
+                { timestamp: '2026-06-23T18:03:31+00:00', message: 'Decrypting backup file.' },
+                { timestamp: '2026-06-23T18:03:32+00:00', message: 'Resetting database schema.' },
+            ],
+        });
+
+        expect(controller.modalLogTarget.textContent).toContain('Decrypting backup file.');
+        expect(controller.modalLogTarget.textContent).toContain('Resetting database schema.');
     });
 
     test('normalizeStatus includes source and table details', () => {
