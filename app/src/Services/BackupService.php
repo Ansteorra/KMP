@@ -639,22 +639,30 @@ class BackupService
             $constraintDefinition = stripos($foreignKey['definition'], 'NOT VALID') === false
                 ? $foreignKey['definition'] . ' NOT VALID'
                 : $foreignKey['definition'];
-            $connection->execute(
-                "ALTER TABLE {$quotedTable} ADD CONSTRAINT {$quotedConstraint} {$constraintDefinition}",
-            );
-
+            $savepoint = sprintf('kmp_fk_validate_%d', $index);
             $savepoint = sprintf('kmp_fk_validate_%d', $index);
             $connection->execute("SAVEPOINT {$savepoint}");
             try {
                 $connection->execute(
+                    "ALTER TABLE {$quotedTable} ADD CONSTRAINT {$quotedConstraint} {$constraintDefinition}",
+                );
+                $constraintAdded = true;
+                $connection->execute(
                     "ALTER TABLE {$quotedTable} VALIDATE CONSTRAINT {$quotedConstraint}",
                 );
                 $connection->execute("RELEASE SAVEPOINT {$savepoint}");
-            } catch (Exception $e) {
-                // Postgres marks the transaction failed after VALIDATE errors; rollback to savepoint
-                // so remaining constraints can still be recreated as NOT VALID.
+            } catch (Throwable $e) {
+                // Roll back the add/validate attempt so validation errors do not leave
+                // the restore transaction aborted before final sequence/reset work runs.
                 $connection->execute("ROLLBACK TO SAVEPOINT {$savepoint}");
                 $connection->execute("RELEASE SAVEPOINT {$savepoint}");
+                if (!$constraintAdded) {
+                    throw $e;
+                }
+
+                $connection->execute(
+                    "ALTER TABLE {$quotedTable} ADD CONSTRAINT {$quotedConstraint} {$constraintDefinition}",
+                );
                 // Keep the constraint as NOT VALID when legacy/orphaned rows are present.
                 $notValidatedConstraintCount++;
                 Log::warning(sprintf(
