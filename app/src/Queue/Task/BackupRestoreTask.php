@@ -5,6 +5,7 @@ namespace App\Queue\Task;
 
 use App\Command\UpdateDatabaseCommand;
 use App\Services\BackupRestoreRunnerService;
+use App\Services\RestoreStatusService;
 use Cake\Command\Command;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOutput;
@@ -36,18 +37,49 @@ class BackupRestoreTask extends Task
         }
 
         try {
+            $restoreStatusService = new RestoreStatusService();
+            $consoleOutput = function (string $message): void {
+                $this->io->out($message);
+            };
+            $migrationOutput = function (string $message) use ($restoreStatusService, $consoleOutput): void {
+                $consoleOutput($message);
+                foreach (preg_split('/\R/', trim($message)) ?: [] as $line) {
+                    $line = trim($line);
+                    if ($line !== '') {
+                        $restoreStatusService->appendLog($line);
+                    }
+                }
+            };
+
             (new BackupRestoreRunnerService())->run(
                 $token,
                 $restoreId,
-                function (string $message): void {
-                    $this->io->out($message);
-                },
-                function (): void {
-                    $io = new ConsoleIo(new ConsoleOutput('php://stdout'), new ConsoleOutput('php://stderr'));
+                $consoleOutput,
+                function () use ($migrationOutput): void {
+                    $output = new class ($migrationOutput) extends ConsoleOutput {
+                        /**
+                         * @var callable(string):void
+                         */
+                        private $callback;
+
+                        public function __construct(callable $callback)
+                        {
+                            $this->callback = $callback;
+                            parent::__construct('php://memory');
+                        }
+
+                        protected function _write(string $message): int
+                        {
+                            ($this->callback)($message);
+
+                            return strlen($message);
+                        }
+                    };
+                    $io = new ConsoleIo($output, $output);
                     $io->setInteractive(false);
                     $exitCode = (new UpdateDatabaseCommand())->run([], $io);
                     if ($exitCode !== null && $exitCode !== Command::CODE_SUCCESS) {
-                        throw new RuntimeException('Database migrations failed during restore.');
+                        throw new RuntimeException('Database migrations failed during restore; see restore log.');
                     }
                 },
             );

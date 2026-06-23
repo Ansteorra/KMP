@@ -61,18 +61,24 @@ class UpdateDatabaseCommand extends Command
         asort($pluginsToMigrate);
         $exitCode = $this->executeCommand(SchemacacheClearCommand::class, ['--connection', 'default'], $io);
         if ($exitCode !== null && $exitCode !== Command::CODE_SUCCESS) {
-            return $exitCode;
+            $io->err('Schema cache clear failed.');
+
+            return Command::CODE_ERROR;
         }
         $frameworkMigration = new Migrate();
         $exitCode = $this->executeCommand($frameworkMigration, ['migrate'], $io);
         if ($exitCode !== null && $exitCode !== Command::CODE_SUCCESS) {
-            return $exitCode;
+            $io->err('Application migrations failed.');
+
+            return Command::CODE_ERROR;
         }
         foreach ($pluginsToMigrate as $name => $order) {
             $pluginMigration = new Migrate();
             $exitCode = $this->executeCommand($pluginMigration, ['migrate', '-p', $name], $io);
             if ($exitCode !== null && $exitCode !== Command::CODE_SUCCESS) {
-                return $exitCode;
+                $io->err(sprintf('Plugin migrations failed for %s.', $name));
+
+                return Command::CODE_ERROR;
             }
         }
 
