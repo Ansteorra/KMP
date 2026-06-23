@@ -252,8 +252,44 @@ class DatabaseSchemaResetService
         if (is_string($default) && strtoupper($default) === 'CURRENT_TIMESTAMP') {
             return 'CURRENT_TIMESTAMP';
         }
+        if (is_string($default)) {
+            $default = $this->normalizeMysqlStringLiteralDefault($default);
+        }
+        if ($type === 'json' && $driver instanceof Postgres) {
+            $jsonDefault = (string)$default;
+            json_decode($jsonDefault);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                throw new InvalidArgumentException(sprintf(
+                    'Unsupported JSON default for PostgreSQL restore: %s',
+                    json_last_error_msg(),
+                ));
+            }
+
+            return "'" . str_replace("'", "''", $jsonDefault) . "'::jsonb";
+        }
 
         return "'" . str_replace("'", "''", (string)$default) . "'";
+    }
+
+    /**
+     * Strip MySQL character-set introducers captured by schema manifests.
+     */
+    private function normalizeMysqlStringLiteralDefault(string $default): string
+    {
+        $value = trim($default);
+        if (!preg_match('/^_[A-Za-z0-9]+/', $value, $matches)) {
+            return $default;
+        }
+
+        $literal = substr($value, strlen($matches[0]));
+        if (str_starts_with($literal, "\\'") && str_ends_with($literal, "\\'")) {
+            return str_replace("\\'", "'", substr($literal, 2, -2));
+        }
+        if (str_starts_with($literal, "'") && str_ends_with($literal, "'")) {
+            return str_replace("\\'", "'", substr($literal, 1, -1));
+        }
+
+        return $default;
     }
 
     /**
