@@ -15,6 +15,13 @@ use Psr\Http\Server\RequestHandlerInterface;
  */
 class RestoreMaintenanceMiddleware implements MiddlewareInterface
 {
+    /**
+     * Block normal request handling while a restore is active.
+     *
+     * @param \Psr\Http\Message\ServerRequestInterface $request Server request
+     * @param \Psr\Http\Server\RequestHandlerInterface $handler Request handler
+     * @return \Psr\Http\Message\ResponseInterface
+     */
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         $statusService = new RestoreStatusService();

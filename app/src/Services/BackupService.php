@@ -141,7 +141,7 @@ class BackupService
         sort($tables);
 
         $migrationFingerprint = $this->getMigrationFingerprint();
-        $schemaManifest = (new BackupSchemaManifestService())->export();
+        $schemaManifest = (new BackupSchemaManifestService())->export(self::EXCLUDED_TABLES);
         $payload = [
             'meta' => [
                 'version' => self::FORMAT_VERSION,
@@ -214,9 +214,9 @@ class BackupService
      *
      * @param string $encryptedData Raw encrypted backup bytes
      * @param string $encryptionKey User-provided encryption key
-     * @param callable|null $progressReporter Optional progress callback
+     * @param callable(array<string, mixed>):void|null $progressReporter Restore progress callback
      * @param array{ignoreSchemaMismatch?: bool}|callable|null $options Restore options, or migration runner for BC
-     * @param callable|null $migrationRunner Optional post-restore migration runner
+     * @param callable():void|null $migrationRunner Post-import migration callback
      * @return array{table_count: int, row_count: int, constraints_not_valid?: int,
      *   payload_upgrade?: array<string, mixed>, post_restore?: array<string, int>} Import statistics
      */

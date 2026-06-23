@@ -11,6 +11,7 @@ use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 use Exception;
+use RuntimeException;
 
 /**
  * CLI backup management: create and restore backups.
@@ -257,7 +258,10 @@ class BackupCommand extends Command
                     'ignoreSchemaMismatch' => (bool)$args->getOption('ignore-schema-mismatch'),
                 ],
                 function () use ($io): void {
-                    $this->executeCommand(UpdateDatabaseCommand::class, [], $io);
+                    $exitCode = $this->executeCommand(UpdateDatabaseCommand::class, [], $io);
+                    if ($exitCode !== null && $exitCode !== self::CODE_SUCCESS) {
+                        throw new RuntimeException('Database migrations failed during restore.');
+                    }
                 },
             );
 

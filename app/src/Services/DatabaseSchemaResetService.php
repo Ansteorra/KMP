@@ -32,32 +32,57 @@ class DatabaseSchemaResetService
         }
 
         $tables = $manifest['tables'];
+        $plan = $this->buildResetPlan($driver, $tables);
         $this->report($progressReporter, 'resetting_schema', 'Dropping current database tables.');
         $this->dropExistingTables($connection, $driver);
 
         $created = 0;
-        $tableCount = count($tables);
+        $tableCount = count($plan['tables']);
+        foreach ($plan['tables'] as $tablePlan) {
+            $this->report($progressReporter, 'creating_schema', sprintf(
+                'Creating table %s (%d/%d).',
+                $tablePlan['name'],
+                $created + 1,
+                $tableCount,
+            ), [
+                'current_table' => $tablePlan['name'],
+                'table_count' => $tableCount,
+                'tables_processed' => $created,
+            ]);
+            $connection->execute($tablePlan['sql']);
+            $created++;
+        }
+
+        foreach ($plan['indexes'] as $sql) {
+            $connection->execute($sql);
+        }
+        foreach ($plan['foreignKeys'] as $sql) {
+            $connection->execute($sql);
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $tables
+     * @return array<string, array<int, mixed>>
+     */
+    private function buildResetPlan(Mysql|Postgres $driver, array $tables): array
+    {
+        $tableSql = [];
         foreach ($tables as $tableName => $tableSpec) {
             if (!is_string($tableName) || !is_array($tableSpec)) {
                 continue;
             }
-
-            $this->report($progressReporter, 'creating_schema', sprintf(
-                'Creating table %s (%d/%d).',
-                $tableName,
-                $created + 1,
-                $tableCount,
-            ), [
-                'current_table' => $tableName,
-                'table_count' => $tableCount,
-                'tables_processed' => $created,
-            ]);
-            $connection->execute($this->createTableSql($driver, $tableName, $tableSpec));
-            $created++;
+            $tableSql[] = [
+                'name' => $tableName,
+                'sql' => $this->createTableSql($driver, $tableName, $tableSpec),
+            ];
         }
 
-        $this->createIndexes($connection, $driver, $tables);
-        $this->createForeignKeys($connection, $driver, $tables);
+        return [
+            'tables' => $tableSql,
+            'indexes' => $this->indexSql($driver, $tables),
+            'foreignKeys' => $this->foreignKeySql($driver, $tables),
+        ];
     }
 
     private function dropExistingTables($connection, Mysql|Postgres $driver): void
@@ -69,10 +94,13 @@ class DatabaseSchemaResetService
                 [$database, 'BASE TABLE'],
             )->fetchAll(PDO::FETCH_COLUMN) ?: [];
             $connection->execute('SET FOREIGN_KEY_CHECKS = 0');
-            foreach ($rows as $table) {
-                $connection->execute('DROP TABLE IF EXISTS ' . $driver->quoteIdentifier((string)$table));
+            try {
+                foreach ($rows as $table) {
+                    $connection->execute('DROP TABLE IF EXISTS ' . $driver->quoteIdentifier((string)$table));
+                }
+            } finally {
+                $connection->execute('SET FOREIGN_KEY_CHECKS = 1');
             }
-            $connection->execute('SET FOREIGN_KEY_CHECKS = 1');
 
             return;
         }
@@ -208,9 +236,11 @@ class DatabaseSchemaResetService
 
     /**
      * @param array<string, mixed> $tables
+     * @return array<int, string>
      */
-    private function createIndexes($connection, Mysql|Postgres $driver, array $tables): void
+    private function indexSql(Mysql|Postgres $driver, array $tables): array
     {
+        $sql = [];
         foreach ($tables as $tableName => $tableSpec) {
             if (!is_string($tableName) || !is_array($tableSpec)) {
                 continue;
@@ -227,12 +257,12 @@ class DatabaseSchemaResetService
                 if ($columnsSql === '') {
                     continue;
                 }
-                $connection->execute(sprintf(
+                $sql[] = sprintf(
                     'CREATE UNIQUE INDEX %s ON %s (%s)',
                     $driver->quoteIdentifier($constraintName),
                     $driver->quoteIdentifier($tableName),
                     $columnsSql,
-                ));
+                );
             }
             foreach (($tableSpec['indexes'] ?? []) as $indexName => $index) {
                 if (!is_string($indexName) || !is_array($index)) {
@@ -243,22 +273,26 @@ class DatabaseSchemaResetService
                     continue;
                 }
                 $unique = ($index['type'] ?? '') === 'unique' ? 'UNIQUE ' : '';
-                $connection->execute(sprintf(
+                $sql[] = sprintf(
                     'CREATE %sINDEX %s ON %s (%s)',
                     $unique,
                     $driver->quoteIdentifier($indexName),
                     $driver->quoteIdentifier($tableName),
                     $columnsSql,
-                ));
+                );
             }
         }
+
+        return $sql;
     }
 
     /**
      * @param array<string, mixed> $tables
+     * @return array<int, string>
      */
-    private function createForeignKeys($connection, Mysql|Postgres $driver, array $tables): void
+    private function foreignKeySql(Mysql|Postgres $driver, array $tables): array
     {
+        $sql = [];
         foreach ($tables as $tableName => $tableSpec) {
             if (!is_string($tableName) || !is_array($tableSpec)) {
                 continue;
@@ -280,7 +314,7 @@ class DatabaseSchemaResetService
                     continue;
                 }
 
-                $sql = sprintf(
+                $foreignKeySql = sprintf(
                     'ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s (%s)',
                     $driver->quoteIdentifier($tableName),
                     $driver->quoteIdentifier($constraintName),
@@ -289,14 +323,30 @@ class DatabaseSchemaResetService
                     $referencedColumnsSql,
                 );
                 if (!empty($constraint['delete'])) {
-                    $sql .= ' ON DELETE ' . strtoupper((string)$constraint['delete']);
+                    $foreignKeySql .= ' ON DELETE ' . $this->referentialActionSql($constraint['delete']);
                 }
                 if (!empty($constraint['update'])) {
-                    $sql .= ' ON UPDATE ' . strtoupper((string)$constraint['update']);
+                    $foreignKeySql .= ' ON UPDATE ' . $this->referentialActionSql($constraint['update']);
                 }
-                $connection->execute($sql);
+                $sql[] = $foreignKeySql;
             }
         }
+
+        return $sql;
+    }
+
+    /**
+     * Validate and normalize a foreign key referential action.
+     */
+    private function referentialActionSql(mixed $action): string
+    {
+        $normalized = strtoupper(trim(preg_replace('/\s+/', ' ', (string)$action) ?? ''));
+        $allowed = ['CASCADE', 'SET NULL', 'SET DEFAULT', 'RESTRICT', 'NO ACTION'];
+        if (!in_array($normalized, $allowed, true)) {
+            throw new InvalidArgumentException("Unsupported foreign key referential action: {$normalized}");
+        }
+
+        return $normalized;
     }
 
     /**
