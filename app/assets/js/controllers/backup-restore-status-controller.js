@@ -30,6 +30,8 @@ class BackupRestoreStatusController extends Controller {
         this.hasSeenRunningState = false
         this.awaitingFreshRunningState = false
         this.restoreRequestInFlight = false
+        this.clientTerminalStatus = null
+        this.clientTerminalStatusExpiresAt = 0
         this.currentStatus = null
         this.statusRequestInFlight = false
         this.modalInstance = this.hasModalTarget ? new bootstrap.Modal(this.modalTarget) : null
@@ -84,12 +86,18 @@ class BackupRestoreStatusController extends Controller {
         this.restoreRequestInFlight = true
         this.showModal({
             state: 'running',
-            badgeLabel: 'starting',
+            badgeLabel: 'validating',
             badgeClass: 'bg-info',
-            message: 'Restore request submitted. Waiting for status updates...',
-            details: 'Preparing restore...',
+            message: 'Validating backup file and encryption key...',
+            details: 'Checking the backup before starting restore.',
             panelClass: 'alert-warning',
             showSpinner: true,
+            log: [
+                {
+                    timestamp: new Date().toISOString(),
+                    message: 'Validating backup file and encryption key.',
+                },
+            ],
         })
         this.setModalClosable(false)
 
@@ -112,30 +120,42 @@ class BackupRestoreStatusController extends Controller {
                 phase: 'queued',
                 message: payload?.message || 'Restore started.',
             }
+            this.clientTerminalStatus = null
+            this.clientTerminalStatusExpiresAt = 0
             this.render(startedStatus)
             this.awaitingFreshRunningState = false
             await this.pollStatus(true)
         } catch (error) {
+            const message = error instanceof Error ? error.message : 'Restore request failed.'
             const failedStatus = {
                 locked: false,
                 status: 'failed',
                 phase: 'failed',
-                message: error instanceof Error ? error.message : 'Restore request failed.',
+                message,
                 completed_at: new Date().toISOString(),
+                log: [
+                    {
+                        timestamp: new Date().toISOString(),
+                        message,
+                    },
+                ],
             }
+            this.clientTerminalStatus = failedStatus
+            this.clientTerminalStatusExpiresAt = Date.now() + (this.terminalWindowValue * 1000)
             this.render(failedStatus)
+            window.KMP_accessibility.announce(message, { assertive: true })
         } finally {
             this.restoreRequestInFlight = false
             this.setModalClosable(true)
         }
     }
 
-    async pollStatus() {
+    async pollStatus(force = false) {
         if (!this.hasUrlValue) {
             return
         }
 
-        if (this.statusRequestInFlight) {
+        if (this.statusRequestInFlight || (!force && this.restoreRequestInFlight)) {
             return
         }
         this.statusRequestInFlight = true
@@ -150,6 +170,9 @@ class BackupRestoreStatusController extends Controller {
             }
 
             const status = await response.json()
+            if (this.shouldKeepClientTerminalStatus(status)) {
+                return
+            }
             this.currentStatus = status
             this.render(status)
             this.reloadOnCompletion(status)
@@ -158,6 +181,20 @@ class BackupRestoreStatusController extends Controller {
         } finally {
             this.statusRequestInFlight = false
         }
+    }
+
+    shouldKeepClientTerminalStatus(status) {
+        if (this.clientTerminalStatus == null || Date.now() > this.clientTerminalStatusExpiresAt) {
+            this.clientTerminalStatus = null
+            this.clientTerminalStatusExpiresAt = 0
+
+            return false
+        }
+
+        const locked = Boolean(status?.locked)
+        const state = status?.status || 'idle'
+
+        return !locked && state === 'idle'
     }
 
     render(status) {

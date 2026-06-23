@@ -188,7 +188,7 @@ class BackupsController extends AppController
         try {
             (new BackupService())->validateImportPayload($data, $encryptionKey);
         } catch (Throwable $e) {
-            $message = __('The backup file could not be opened with the provided encryption key.');
+            $message = __('The backup file could not be opened with the provided encryption key: {0}', $e->getMessage());
             Log::warning(sprintf(
                 'Restore preflight failed for %s: %s',
                 (string)$sourceLabel,

@@ -241,6 +241,39 @@ describe('BackupRestoreStatusController', () => {
         expect(headers['X-Requested-With']).toBe('XMLHttpRequest');
     });
 
+    // --- submitRestore ---
+
+    test('submitRestore displays server preflight errors and announces them', async () => {
+        const form = document.createElement('form');
+        form.action = '/backups/restore';
+        form.dataset.restoreConfirmMessage = '';
+        document.body.appendChild(form);
+
+        window.KMP_accessibility.prompt.mockResolvedValue('wrong-key');
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: false,
+            text: () => Promise.resolve(JSON.stringify({
+                success: false,
+                message: 'The backup file could not be opened: Decryption failed.',
+            })),
+        });
+        jest.spyOn(controller, 'pollStatus').mockResolvedValue(undefined);
+        controller.modalInstance = mockModalInstance;
+
+        await controller.submitRestore({
+            preventDefault: jest.fn(),
+            currentTarget: form,
+        });
+
+        expect(controller.modalBadgeTarget.textContent).toBe('failed');
+        expect(controller.modalMessageTarget.textContent).toBe('The backup file could not be opened: Decryption failed.');
+        expect(controller.modalLogTarget.textContent).toContain('The backup file could not be opened: Decryption failed.');
+        expect(window.KMP_accessibility.announce).toHaveBeenCalledWith(
+            'The backup file could not be opened: Decryption failed.',
+            { assertive: true }
+        );
+    });
+
     // --- parseJson ---
 
     test('parseJson returns parsed JSON', async () => {
@@ -307,6 +340,33 @@ describe('BackupRestoreStatusController', () => {
         await controller.pollStatus();
 
         expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    test('pollStatus does not overwrite validating restore request with idle status', async () => {
+        controller.restoreRequestInFlight = true;
+        global.fetch = jest.fn();
+
+        await controller.pollStatus();
+
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    test('pollStatus keeps recent client-side failure visible when server remains idle', async () => {
+        controller.clientTerminalStatus = {
+            status: 'failed',
+            message: 'The backup file could not be opened.',
+        };
+        controller.clientTerminalStatusExpiresAt = Date.now() + 30000;
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve({ status: 'idle', locked: false })
+        });
+        const renderSpy = jest.spyOn(controller, 'render').mockImplementation(() => {});
+
+        await controller.pollStatus();
+
+        expect(global.fetch).toHaveBeenCalled();
+        expect(renderSpy).not.toHaveBeenCalled();
     });
 
     // --- startPolling / stopPolling ---
