@@ -293,6 +293,9 @@ class MobileApprovalsController extends MobileControllerBase {
         const commentErrorId = `mobile-approval-comment-error-${approval.id}`
         const commentHelpId = `mobile-approval-comment-help-${approval.id}`
         const nextApproverId = `mobile-approval-next-approver-${approval.id}`
+        const gatheringId = `mobile-approval-bestowal-gathering-${approval.id}`
+        const gatheringHelpId = `mobile-approval-bestowal-gathering-help-${approval.id}`
+        const gatheringErrorId = `mobile-approval-bestowal-gathering-error-${approval.id}`
 
         let html = `<div class="approval-response-form" data-approval-form-id="${approval.id}"${isFeedbackResponse && decisionOptions.length === 0 ? ' data-selected-decision="approve"' : ''}>`
 
@@ -346,6 +349,23 @@ class MobileApprovalsController extends MobileControllerBase {
         html += `<div class="text-danger small" id="${commentErrorId}" data-comment-required="${approval.id}" hidden>
             <i class="bi bi-exclamation-circle me-1"></i>${isFeedbackResponse ? 'Feedback is required.' : 'A comment is required when rejecting.'}
         </div></div>`
+
+        const gatheringOptions = Array.isArray(cfg.bestowalGatheringOptions) ? cfg.bestowalGatheringOptions : []
+        html += `<div class="mb-2" data-bestowal-gathering-section="${approval.id}" hidden>
+            <label class="form-label fw-semibold" style="font-size: 0.85rem;" for="${gatheringId}">
+                Bestowal Gathering <span class="text-danger" aria-hidden="true">*</span>
+            </label>
+            <select class="form-select form-select-sm" id="${gatheringId}" data-bestowal-gathering-select="${approval.id}"
+                    aria-describedby="${gatheringHelpId} ${gatheringErrorId}" aria-invalid="false"
+                    data-action="change->mobile-approvals#bestowalGatheringChanged">
+                <option value="">Select a gathering...</option>
+                ${gatheringOptions.map(option => `<option value="${this._escHtml(option.id)}">${this._escHtml(option.label)}</option>`).join('')}
+            </select>
+            <div class="form-text" id="${gatheringHelpId}">Choose the event or court where the bestowal should be scheduled.</div>
+            <div class="text-danger small" id="${gatheringErrorId}" data-bestowal-gathering-error="${approval.id}" hidden>
+                <i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>Select the gathering where the bestowal will be presented.
+            </div>
+        </div>`
 
         // Next approver (hidden until needed)
         html += `<div data-next-approver-section="${approval.id}" hidden>
@@ -401,9 +421,26 @@ class MobileApprovalsController extends MobileControllerBase {
             comment.setAttribute('aria-invalid', 'false')
         }
 
-        // Handle serial-pick-next for approve
+        // Handle bestowal gathering and serial-pick-next for approve
         const approval = this._approvals.find(a => a.id === id)
         const cfg = approval?.approverConfig || {}
+        const gatheringSection = form.querySelector(`[data-bestowal-gathering-section="${id}"]`)
+        const gatheringSelect = form.querySelector(`[data-bestowal-gathering-select="${id}"]`)
+        if (gatheringSection && gatheringSelect) {
+            const showGathering = decision === 'approve' && cfg.requiresBestowalGathering === true
+            gatheringSection.hidden = !showGathering
+            if (showGathering) {
+                gatheringSelect.setAttribute('required', 'required')
+                gatheringSelect.setAttribute('aria-required', 'true')
+            } else {
+                gatheringSelect.removeAttribute('required')
+                gatheringSelect.removeAttribute('aria-required')
+                gatheringSelect.value = ''
+                gatheringSelect.setAttribute('aria-invalid', 'false')
+                const gatheringError = form.querySelector(`[data-bestowal-gathering-error="${id}"]`)
+                if (gatheringError) gatheringError.hidden = true
+            }
+        }
         const nextSection = form.querySelector(`[data-next-approver-section="${id}"]`)
 
         if (decision === 'approve' && cfg.serialPickNext && cfg.feedbackResponse !== true) {
@@ -456,6 +493,16 @@ class MobileApprovalsController extends MobileControllerBase {
             console.error('Failed to load eligible approvers:', e)
             select.innerHTML = '<option value="">Error loading approvers</option>'
         }
+    }
+
+    bestowalGatheringChanged(event) {
+        if (!event.currentTarget.value) return
+
+        const id = event.currentTarget.dataset.bestowalGatheringSelect
+        event.currentTarget.setAttribute('aria-invalid', 'false')
+        const form = event.currentTarget.closest(`[data-approval-form-id="${id}"]`)
+        const error = form?.querySelector(`[data-bestowal-gathering-error="${id}"]`)
+        if (error) error.hidden = true
     }
 
     // --- Submit Response ---
@@ -550,6 +597,15 @@ class MobileApprovalsController extends MobileControllerBase {
             commentField?.focus()
             return
         }
+        const bestowalGatheringId = form.querySelector(`[data-bestowal-gathering-select="${id}"]`)?.value || ''
+        if (decision === 'approve' && cfg.requiresBestowalGathering === true && !bestowalGatheringId) {
+            const hint = form.querySelector(`[data-bestowal-gathering-error="${id}"]`)
+            if (hint) hint.hidden = false
+            const gatheringField = form.querySelector(`[data-bestowal-gathering-select="${id}"]`)
+            gatheringField?.setAttribute('aria-invalid', 'true')
+            gatheringField?.focus()
+            return
+        }
 
         if (!this.online) {
             this._showToast('You must be online to submit responses.', 'danger')
@@ -575,6 +631,7 @@ class MobileApprovalsController extends MobileControllerBase {
             body.append('approvalId', id)
             body.append('decision', decision)
             body.append('comment', comment)
+            if (bestowalGatheringId) body.append('bestowal_gathering_id', bestowalGatheringId)
             if (nextApproverId) body.append('next_approver_id', nextApproverId)
             body.append('_csrfToken', csrfToken)
 

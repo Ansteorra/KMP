@@ -115,6 +115,9 @@ class AdHocBestowalService
                     $bestowal->person_to_notify = $this->normalizeOptionalString(
                         $data['personToNotify'] ?? $data['person_to_notify'] ?? null,
                     );
+                    $bestowal->specialty = $this->normalizeOptionalString(
+                        $data['specialty'] ?? null,
+                    );
                     $bestowal->noble_notes = $this->normalizeOptionalString(
                         $data['nobleNotes'] ?? $data['noble_notes'] ?? null,
                     );

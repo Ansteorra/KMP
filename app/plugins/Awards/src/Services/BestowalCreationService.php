@@ -51,19 +51,20 @@ class BestowalCreationService
      *
      * @param int $recommendationId Recommendation ID that triggered creation.
      * @param int $actorId Current user ID.
+     * @param int|null $gatheringId Optional gathering override selected during approval.
      * @return array<string, mixed>
      */
-    public function createFromRecommendation(int $recommendationId, int $actorId): array
+    public function createFromRecommendation(int $recommendationId, int $actorId, ?int $gatheringId = null): array
     {
         if ($recommendationId <= 0) {
             return $this->failureResult('Recommendation ID must be greater than zero.');
         }
 
         try {
-            return $this->withTransaction(function () use ($recommendationId, $actorId): array {
+            return $this->withTransaction(function () use ($recommendationId, $actorId, $gatheringId): array {
                 $recommendation = $this->loadRecommendationForCreation($recommendationId);
 
-                return $this->createFromLoadedRecommendation($recommendation, $actorId);
+                return $this->createFromLoadedRecommendation($recommendation, $actorId, $gatheringId);
             });
         } catch (Throwable $e) {
             Log::error('Bestowal creation failed: ' . $e->getMessage());
@@ -77,10 +78,14 @@ class BestowalCreationService
      *
      * @param int $recommendationId Recommendation ID that triggered creation.
      * @param int $actorId Current user ID.
+     * @param int|null $gatheringId Optional gathering override selected during approval.
      * @return array<string, mixed>
      */
-    public function createFromRecommendationInCallerTransaction(int $recommendationId, int $actorId): array
-    {
+    public function createFromRecommendationInCallerTransaction(
+        int $recommendationId,
+        int $actorId,
+        ?int $gatheringId = null,
+    ): array {
         if ($recommendationId <= 0) {
             return $this->failureResult('Recommendation ID must be greater than zero.');
         }
@@ -88,7 +93,7 @@ class BestowalCreationService
         try {
             $recommendation = $this->loadRecommendationForCreation($recommendationId);
 
-            return $this->createFromLoadedRecommendation($recommendation, $actorId);
+            return $this->createFromLoadedRecommendation($recommendation, $actorId, $gatheringId);
         } catch (Throwable $e) {
             Log::error('Bestowal creation failed: ' . $e->getMessage());
 
@@ -105,8 +110,12 @@ class BestowalCreationService
         $recommendation = $this->recommendationsTable->get(
             $recommendationId,
             contain: [
-                'GroupChildren',
+                'GroupChildren' => [
+                    'Awards' => ['Levels'],
+                    'Requesters',
+                ],
                 'Awards' => ['Levels'],
+                'Requesters',
             ],
         );
         if (!$recommendation instanceof Recommendation) {
@@ -119,10 +128,14 @@ class BestowalCreationService
     /**
      * @param \Awards\Model\Entity\Recommendation $recommendation Head or standalone recommendation.
      * @param int $actorId Current user ID.
+     * @param int|null $gatheringId Optional gathering override selected during approval.
      * @return array<string, mixed>
      */
-    private function createFromLoadedRecommendation(Recommendation $recommendation, int $actorId): array
-    {
+    private function createFromLoadedRecommendation(
+        Recommendation $recommendation,
+        int $actorId,
+        ?int $gatheringId = null,
+    ): array {
         if ($recommendation->recommendation_group_id !== null) {
             return $this->skippedResult('Group child recommendations do not create bestowals.');
         }
@@ -137,37 +150,27 @@ class BestowalCreationService
             return $this->skippedResult($skipReason);
         }
 
-        $bestowalResults = [];
-        foreach ($this->bucketRecommendationsForBestowals($groupRecommendations) as $bucketRecommendations) {
-            $bestowalResults[] = $this->createBestowalForRecommendations($bucketRecommendations, $actorId);
-        }
-        $firstBestowal = $bestowalResults[0]['bestowal'] ?? null;
-        if (!$firstBestowal instanceof Bestowal) {
+        $bestowalResult = $this->createBestowalForRecommendations($groupRecommendations, $actorId, $gatheringId);
+        $bestowal = $bestowalResult['bestowal'] ?? null;
+        if (!$bestowal instanceof Bestowal) {
             throw new RuntimeException('Bestowal creation did not produce a bestowal.');
         }
 
-        $bestowalIds = array_map(
-            static fn(array $result): int => (int)$result['bestowal']->id,
-            $bestowalResults,
-        );
-        $recommendationIds = [];
-        $eventPayloads = [];
-        foreach ($bestowalResults as $result) {
-            $recommendationIds = array_merge($recommendationIds, $result['recommendationIds']);
-            $eventPayloads[] = $result['eventPayload'];
-        }
+        $bestowalIds = [(int)$bestowal->id];
+        $recommendationIds = $bestowalResult['recommendationIds'];
+        $eventPayload = $bestowalResult['eventPayload'];
         sort($recommendationIds);
 
         return [
             'success' => true,
             'skipped' => false,
             'data' => [
-                'bestowalId' => (int)$firstBestowal->id,
+                'bestowalId' => (int)$bestowal->id,
                 'bestowalIds' => $bestowalIds,
                 'recommendationIds' => $recommendationIds,
                 'eventName' => self::EVENT_NAME,
-                'eventPayload' => $eventPayloads[0] ?? null,
-                'eventPayloads' => $eventPayloads,
+                'eventPayload' => $eventPayload,
+                'eventPayloads' => [$eventPayload],
             ],
         ];
     }
@@ -205,36 +208,22 @@ class BestowalCreationService
     }
 
     /**
-     * @param array<int, \Awards\Model\Entity\Recommendation> $recommendations Group recommendations.
-     * @return array<string, array<int, \Awards\Model\Entity\Recommendation>>
-     */
-    private function bucketRecommendationsForBestowals(array $recommendations): array
-    {
-        $buckets = [];
-        foreach ($recommendations as $recommendation) {
-            if ($recommendation->member_id === null) {
-                throw new RuntimeException('Recommendations must have a member before creating a bestowal.');
-            }
-            $awardId = (int)$recommendation->award_id;
-            if ($awardId <= 0) {
-                throw new RuntimeException('Recommendations must have a valid award before creating a bestowal.');
-            }
-
-            $bucketKey = (int)$recommendation->member_id . ':' . $awardId;
-            $buckets[$bucketKey][] = $recommendation;
-        }
-
-        return $buckets;
-    }
-
-    /**
      * @param array<int, \Awards\Model\Entity\Recommendation> $recommendations Recommendations for one member/award.
      * @param int $actorId Current user ID.
-     * @return array{bestowal: \Awards\Model\Entity\Bestowal, recommendationIds: array<int>, eventPayload: array<string,mixed>}
+     * @param int|null $gatheringId Optional gathering override selected during approval.
+     * @return array{
+     *   bestowal: \Awards\Model\Entity\Bestowal,
+     *   recommendationIds: array<int>,
+     *   eventPayload: array<string,mixed>
+     * }
      */
-    private function createBestowalForRecommendations(array $recommendations, int $actorId): array
-    {
+    private function createBestowalForRecommendations(
+        array $recommendations,
+        int $actorId,
+        ?int $gatheringId = null,
+    ): array {
         $head = $this->chooseHead($recommendations);
+        $resolvedGatheringId = $gatheringId ?? ($head->gathering_id !== null ? (int)$head->gathering_id : null);
         $bestowal = $this->bestowalsTable->newEmptyEntity();
         if (!$bestowal instanceof Bestowal) {
             throw new RuntimeException('Bestowal entity could not be initialized.');
@@ -242,16 +231,18 @@ class BestowalCreationService
         $bestowal->member_id = (int)$head->member_id;
         $bestowal->primary_recommendation_id = (int)$head->id;
         $bestowal->source = Bestowal::SOURCE_RECOMMENDATION;
-        $this->applyInitialBestowalState($bestowal, 'Created');
-        $bestowal->gathering_id = $head->gathering_id;
+        $this->applyInitialBestowalState($bestowal, $resolvedGatheringId !== null ? 'Gathering Assigned' : 'Created');
+        $bestowal->gathering_id = $resolvedGatheringId;
         $bestowal->call_into_court = $head->call_into_court;
         $bestowal->court_availability = $head->court_availability;
         $bestowal->person_to_notify = $head->person_to_notify;
+        $bestowal->specialty = $this->buildSpecialtySummary($recommendations);
         $bestowal->noble_notes = $this->buildNobleNotes($recommendations);
         $bestowal->herald_notes = $this->buildHeraldNotes(
             $recommendations,
             (string)$head->member_sca_name,
         );
+        $bestowal->reason_summary = $this->buildReasonSummary($recommendations);
         $bestowal->created_by = $actorId;
         $bestowal->modified_by = $actorId;
         $bestowal->set('award_id', (int)$head->award_id, ['guard' => false]);
@@ -280,6 +271,12 @@ class BestowalCreationService
             $this->bestowalRecommendationsTable->saveOrFail($join);
 
             $groupRecommendation->bestowal_id = (int)$savedBestowal->id;
+            if (
+                $gatheringId !== null
+                && Recommendation::supportsGatheringAssignmentForState((string)$groupRecommendation->state)
+            ) {
+                $groupRecommendation->gathering_id = $gatheringId;
+            }
             $groupRecommendation->modified_by = $actorId;
             $this->recommendationsTable->saveOrFail($groupRecommendation, ['systemSync' => true]);
         }

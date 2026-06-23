@@ -60,7 +60,7 @@ class BackupCommand extends Command
                 'boolean' => true,
             ])
             ->addOption('ignore-schema-mismatch', [
-                'help' => 'Restore even if the backup migration fingerprint does not match the current schema. Use with caution.',
+                'help' => 'Suppress schema fingerprint mismatch warnings while compatibility upgrades run.',
                 'boolean' => true,
             ])
             ->addOption('fail-on-not-valid-fk', [
@@ -256,6 +256,9 @@ class BackupCommand extends Command
                 [
                     'ignoreSchemaMismatch' => (bool)$args->getOption('ignore-schema-mismatch'),
                 ],
+                function () use ($io): void {
+                    $this->executeCommand(UpdateDatabaseCommand::class, [], $io);
+                },
             );
 
             $notValidCount = (int)($stats['constraints_not_valid'] ?? 0);

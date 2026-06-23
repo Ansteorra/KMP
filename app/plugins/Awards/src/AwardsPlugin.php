@@ -28,6 +28,7 @@ use Awards\Services\BestowalRecommendationSyncService;
 use Awards\Services\BestowalStateLogService;
 use Awards\Services\BestowalTransitionService;
 use Awards\Services\BestowalUpdateService;
+use Awards\Services\CourtAgendaService;
 use Awards\Services\RecommendationApprovalContextRenderer;
 use Awards\Services\RecommendationApprovalProcessService;
 use Awards\Services\RecommendationFeedbackContextRenderer;
@@ -337,6 +338,7 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
         $container->add(AdHocBestowalService::class);
         $container->add(BestowalStateLogService::class);
         $container->add(BestowalQueryService::class);
+        $container->add(CourtAgendaService::class);
         $container->add(BestowalNotificationVarsService::class);
         $container->add(BestowalFormService::class);
         $container->add(BestowalGatheringLookupService::class);

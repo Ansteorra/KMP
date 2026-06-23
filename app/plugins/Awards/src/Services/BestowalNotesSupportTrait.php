@@ -7,7 +7,7 @@ use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\Recommendation;
 
 /**
- * Builds noble and herald note text from linked recommendations.
+ * Builds bestowal note text from linked recommendations.
  */
 trait BestowalNotesSupportTrait
 {
@@ -34,6 +34,62 @@ trait BestowalNotesSupportTrait
         }
 
         return implode("\n\n", $sections);
+    }
+
+    /**
+     * Build a persisted summary of linked recommendation reasons and submitters.
+     *
+     * @param array<int, \Awards\Model\Entity\Recommendation> $recommendations Linked recommendations.
+     * @return string|null
+     */
+    protected function buildReasonSummary(array $recommendations): ?string
+    {
+        $sections = [];
+        foreach ($recommendations as $recommendation) {
+            $reason = trim((string)($recommendation->reason ?? ''));
+            if ($reason === '') {
+                continue;
+            }
+
+            $submitter = trim((string)($recommendation->requester_sca_name
+                ?? $recommendation->requester->sca_name
+                ?? ''));
+            if ($submitter === '') {
+                $submitter = 'Unknown submitter';
+            }
+
+            $sections[] = 'Submitted by ' . $submitter . ":\n" . $reason;
+        }
+
+        if ($sections === []) {
+            return null;
+        }
+
+        return implode("\n\n", $sections);
+    }
+
+    /**
+     * Build the bestowal specialty from unique linked recommendation specialties.
+     *
+     * @param array<int, \Awards\Model\Entity\Recommendation> $recommendations Linked recommendations.
+     * @return string|null
+     */
+    protected function buildSpecialtySummary(array $recommendations): ?string
+    {
+        $specialties = [];
+        foreach ($recommendations as $recommendation) {
+            $specialty = trim((string)($recommendation->specialty ?? ''));
+            if ($specialty === '' || $specialty === 'No specialties available') {
+                continue;
+            }
+            $specialties[$specialty] = true;
+        }
+
+        if ($specialties === []) {
+            return null;
+        }
+
+        return mb_substr(implode(', ', array_keys($specialties)), 0, 255);
     }
 
     /**

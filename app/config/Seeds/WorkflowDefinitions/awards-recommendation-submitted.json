@@ -130,7 +130,8 @@
                     "member_id": "$.awardApprovalCurrentStep.approvalApproverConfig.member_id",
                     "retain_read_visibility": "$.awardApprovalCurrentStep.approvalApproverConfig.retain_read_visibility",
                     "on_reject": "$.awardApprovalCurrentStep.approvalApproverConfig.on_reject",
-                    "on_request_changes": "$.awardApprovalCurrentStep.approvalApproverConfig.on_request_changes"
+                    "on_request_changes": "$.awardApprovalCurrentStep.approvalApproverConfig.on_request_changes",
+                    "requires_bestowal_gathering": true
                 },
                 "requiredCount": "$.awardApprovalCurrentStep.requiredCount"
             },
@@ -229,7 +230,8 @@
                 "action": "Awards.CreateBestowal",
                 "params": {
                     "recommendationId": "$.nodes.advance-approval-process.result.recommendationId",
-                    "actorId": "$.nodes.award-approval-gate.approverId"
+                    "actorId": "$.nodes.award-approval-gate.approverId",
+                    "gatheringId": "$.nodes.award-approval-gate.bestowalGatheringId"
                 }
             },
             "position": {

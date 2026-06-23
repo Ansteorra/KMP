@@ -8,6 +8,7 @@ use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\Recommendation;
 use Awards\Model\Entity\RecommendationApprovalRun;
 use Awards\Services\BestowalHandoffService;
+use Awards\Services\RecommendationGroupingService;
 use Cake\I18n\DateTime;
 use Cake\ORM\Table;
 use RuntimeException;
@@ -102,6 +103,91 @@ class BestowalHandoffServiceTest extends BaseTestCase
         $this->assertSame($bestowalId, (int)$run->consumed_by_bestowal_id);
     }
 
+    public function testCreateBestowalFromApprovedRecommendationPopulatesReasonSummary(): void
+    {
+        $recommendationId = $this->createRecommendation('King Approved', [
+            'reason' => 'Approved through the award process for steady event service.',
+            'requester_sca_name' => 'Approval Submitter',
+        ]);
+        $this->createApprovalRun($recommendationId, RecommendationApprovalRun::STATUS_APPROVED);
+
+        $result = $this->service->createBestowal($recommendationId, self::ADMIN_MEMBER_ID);
+
+        $this->assertTrue($result['success'], $result['error'] ?? json_encode($result));
+        $bestowal = $this->bestowalsTable->get((int)$result['data']['bestowalId']);
+        $summary = (string)$bestowal->reason_summary;
+        $this->assertStringContainsString('Submitted by Approval Submitter:', $summary);
+        $this->assertStringContainsString('Approved through the award process for steady event service.', $summary);
+    }
+
+    public function testCreateBestowalFromApprovedRecommendationCopiesSpecialty(): void
+    {
+        $recommendationId = $this->createRecommendation('King Approved', [
+            'specialty' => 'Vocal Performance',
+        ]);
+        $this->createApprovalRun($recommendationId, RecommendationApprovalRun::STATUS_APPROVED);
+
+        $result = $this->service->createBestowal($recommendationId, self::ADMIN_MEMBER_ID);
+
+        $this->assertTrue($result['success'], $result['error'] ?? json_encode($result));
+        $bestowal = $this->bestowalsTable->get((int)$result['data']['bestowalId']);
+        $this->assertSame('Vocal Performance', $bestowal->specialty);
+    }
+
+    public function testCreateBestowalFromApprovedRecommendationUsesSelectedGathering(): void
+    {
+        $gatheringId = $this->getFirstGatheringId();
+        $recommendationId = $this->createRecommendation('King Approved', ['gathering_id' => null]);
+        $this->createApprovalRun($recommendationId, RecommendationApprovalRun::STATUS_APPROVED);
+
+        $result = $this->service->createBestowal($recommendationId, self::ADMIN_MEMBER_ID, $gatheringId);
+
+        $this->assertTrue($result['success'], $result['error'] ?? json_encode($result));
+        $bestowal = $this->bestowalsTable->get((int)$result['data']['bestowalId']);
+        $this->assertSame($gatheringId, (int)$bestowal->gathering_id);
+
+        $recommendation = $this->recommendationsTable->get($recommendationId);
+        $this->assertSame((int)$bestowal->id, (int)$recommendation->bestowal_id);
+    }
+
+    public function testCreateBestowalFromApprovedGroupedRecommendationCreatesOneBestowal(): void
+    {
+        $headId = $this->createRecommendation('King Approved', [
+            'reason' => 'Head grouped reason.',
+            'requester_sca_name' => 'Head Submitter',
+        ]);
+        $childId = $this->createRecommendation('Queen Approved', [
+            'reason' => 'Child grouped reason.',
+            'requester_sca_name' => 'Child Submitter',
+        ]);
+        (new RecommendationGroupingService($this->recommendationsTable))
+            ->groupRecommendations([$headId, $childId], self::ADMIN_MEMBER_ID);
+        $this->createApprovalRun($headId, RecommendationApprovalRun::STATUS_APPROVED);
+
+        $result = $this->service->createBestowal($headId, self::ADMIN_MEMBER_ID);
+
+        $this->assertTrue($result['success'], $result['error'] ?? json_encode($result));
+        $this->assertSame([$headId, $childId], $result['data']['recommendationIds']);
+        $this->assertCount(1, $result['data']['bestowalIds']);
+
+        $head = $this->recommendationsTable->get($headId);
+        $child = $this->recommendationsTable->get($childId);
+        $this->assertSame((int)$head->bestowal_id, (int)$child->bestowal_id);
+
+        $bestowalId = (int)$result['data']['bestowalId'];
+        $this->assertSame($bestowalId, (int)$head->bestowal_id);
+        $joinCount = $this->getTableLocator()->get('Awards.BestowalRecommendations')
+            ->find()
+            ->where(['bestowal_id' => $bestowalId])
+            ->count();
+        $this->assertSame(2, $joinCount);
+
+        $bestowal = $this->bestowalsTable->get($bestowalId);
+        $summary = (string)$bestowal->reason_summary;
+        $this->assertStringContainsString('Head grouped reason.', $summary);
+        $this->assertStringContainsString('Child grouped reason.', $summary);
+    }
+
     public function testCreateBestowalAllowedWithNoApprovalRunAtAll(): void
     {
         $recommendationId = $this->createRecommendation('Need to Schedule');
@@ -178,7 +264,7 @@ class BestowalHandoffServiceTest extends BaseTestCase
         $this->assertSame($approvalRunId, $foundId);
     }
 
-    private function createRecommendation(string $state): int
+    private function createRecommendation(string $state, array $overrides = []): int
     {
         $entity = $this->recommendationsTable->newEntity([
             'member_id' => self::ADMIN_MEMBER_ID,
@@ -196,6 +282,10 @@ class BestowalHandoffServiceTest extends BaseTestCase
             'person_to_notify' => '',
             'branch_id' => self::KINGDOM_BRANCH_ID,
         ]);
+
+        foreach ($overrides as $field => $value) {
+            $entity->set($field, $value);
+        }
 
         return (int)$this->recommendationsTable->saveOrFail($entity)->id;
     }
@@ -257,6 +347,19 @@ class BestowalHandoffServiceTest extends BaseTestCase
         ]));
 
         return (int)$instance->id;
+    }
+
+    private function getFirstGatheringId(): int
+    {
+        $gathering = $this->getTableLocator()->get('Gatherings')
+            ->find()
+            ->select(['id'])
+            ->first();
+        if ($gathering === null) {
+            $this->markTestSkipped('Need at least one gathering for selected gathering tests');
+        }
+
+        return (int)$gathering->id;
     }
 
     private function createApprovalProcess(): int

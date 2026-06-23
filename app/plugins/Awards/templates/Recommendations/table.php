@@ -506,6 +506,6 @@ $currentUrl = $this->request->getRequestTarget();
                 ),
             ) ?></p>
     </div>
-    <?= $this->element('recommendationQuickEditModal', ['modalId' => 'tableEditModal']) ?>
+    <?= $this->element('recommendationEditModal', ['modalId' => 'tableEditModal']) ?>
 
 </turbo-frame>

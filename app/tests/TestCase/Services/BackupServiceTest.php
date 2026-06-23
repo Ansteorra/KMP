@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Services;
 
 use App\Services\BackupService;
+use Cake\Database\Schema\TableSchema;
 use Cake\Datasource\ConnectionManager;
 use Cake\TestSuite\TestCase;
 use ReflectionMethod;
@@ -110,8 +111,124 @@ class BackupServiceTest extends TestCase
         $this->assertSame(1, $notValidatedConstraintCount);
         $this->assertContains('ROLLBACK TO SAVEPOINT kmp_fk_validate_0', $connection->queries);
         $this->assertContains(
-            'ALTER TABLE "awards_recommendations_events" ADD CONSTRAINT "awards_recommendations_events_recommendation_id_fkey" FOREIGN KEY (recommendation_id) REFERENCES awards_recommendations(id) NOT VALID',
+            'ALTER TABLE "awards_recommendations_events" ADD CONSTRAINT '
+            . '"awards_recommendations_events_recommendation_id_fkey" FOREIGN KEY '
+            . '(recommendation_id) REFERENCES awards_recommendations(id) NOT VALID',
             $connection->queries,
         );
+    }
+
+    public function testImportRejectsObsoleteRowOnlyPayload(): void
+    {
+        $service = new BackupService();
+        $payload = [
+            'meta' => ['version' => 1],
+            'tables' => [],
+        ];
+        $json = json_encode($payload);
+        $this->assertNotFalse($json);
+        $compressed = gzencode($json);
+        $this->assertNotFalse($compressed);
+
+        $method = new ReflectionMethod(BackupService::class, 'encrypt');
+        $method->setAccessible(true);
+        $encrypted = $method->invoke($service, $compressed, 'test-key');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Unsupported backup format');
+
+        $service->import($encrypted, 'test-key');
+    }
+
+    public function testBuildRestoreTableMapIncludesCurrentTablesMissingFromBackup(): void
+    {
+        $service = new BackupService();
+        $method = new ReflectionMethod(BackupService::class, 'buildRestoreTableMap');
+        $method->setAccessible(true);
+
+        $tables = $method->invoke($service, [
+            'members' => [
+                ['id' => 1, 'name' => 'Restored Member'],
+            ],
+            'phinxlog' => [
+                ['version' => 20260622141930],
+            ],
+        ], [
+            'awards_bestowals',
+            'members',
+            'phinxlog',
+            'workflow_definitions',
+        ]);
+
+        $this->assertSame([
+            'awards_bestowals' => [],
+            'members' => [
+                ['id' => 1, 'name' => 'Restored Member'],
+            ],
+            'workflow_definitions' => [],
+        ], $tables);
+    }
+
+    public function testBuildRestoreTableMapPreservesUnknownBackupTablesForCompatibilityLayer(): void
+    {
+        $service = new BackupService();
+        $method = new ReflectionMethod(BackupService::class, 'buildRestoreTableMap');
+        $method->setAccessible(true);
+
+        $tables = $method->invoke($service, [
+            'members' => [],
+            'removed_table' => [
+                ['id' => 1, 'legacy_value' => 'available in decoded payload'],
+            ],
+        ], [
+            'members',
+        ]);
+
+        $this->assertSame([
+            'members' => [],
+        ], $tables);
+    }
+
+    public function testNormalizeRowForInsertPreservesLongJsonTextValues(): void
+    {
+        $service = new BackupService();
+        $method = new ReflectionMethod(BackupService::class, 'normalizeRowForInsert');
+        $method->setAccessible(true);
+
+        $schema = new TableSchema('members');
+        $schema->addColumn('additional_info', [
+            'type' => 'text',
+            'null' => false,
+            'default' => '{}',
+        ]);
+
+        $value = [
+            'CallIntoCourt' => 'With notice given to another person',
+            'CourtAvailability' => str_repeat('Available for any regional court. ', 12),
+        ];
+
+        $row = $method->invoke($service, ['additional_info' => $value], ['additional_info'], $schema, true);
+
+        $this->assertIsString($row['additional_info']);
+        $this->assertGreaterThan(255, strlen($row['additional_info']));
+        $this->assertJsonStringEqualsJsonString(json_encode($value), $row['additional_info']);
+    }
+
+    public function testNormalizeRowForInsertRestoresNullAdditionalInfoAsEmptyJsonObject(): void
+    {
+        $service = new BackupService();
+        $method = new ReflectionMethod(BackupService::class, 'normalizeRowForInsert');
+        $method->setAccessible(true);
+
+        $schema = new TableSchema('members');
+        $schema->addColumn('additional_info', [
+            'type' => 'text',
+            'null' => false,
+            'default' => '{}',
+        ]);
+        $row = $method->invoke($service, ['additional_info' => null], ['additional_info'], $schema, true);
+        $row = $method->invoke($service, ['additional_info' => null], ['additional_info'], $schema, true);
+        $this->assertSame('{}', $row['additional_info']);
+        $this->assertSame('{}', $row['additional_info']);
     }
 }

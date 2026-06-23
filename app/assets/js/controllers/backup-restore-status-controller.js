@@ -63,7 +63,11 @@ class BackupRestoreStatusController extends Controller {
             return
         }
 
-        const confirmMessage = form.dataset.confirmMessage || 'Restore this backup and replace all current data?'
+        if (!this.validateRestoreForm(form)) {
+            return
+        }
+
+        const confirmMessage = form.dataset.restoreConfirmMessage || 'Restore this backup and replace all current data?'
         if (confirmMessage && !await window.KMP_accessibility.confirm(confirmMessage, {
             title: 'Restore backup',
             confirmLabel: 'Restore backup',
@@ -75,6 +79,7 @@ class BackupRestoreStatusController extends Controller {
         const restoreKey = await window.KMP_accessibility.prompt(restoreKeyPrompt, {
             title: 'Backup encryption key',
             inputLabel: 'Encryption key',
+            inputType: 'password',
             required: true,
             confirmLabel: 'Continue restore',
         })
@@ -101,6 +106,10 @@ class BackupRestoreStatusController extends Controller {
         this.setModalClosable(false)
 
         const formData = new FormData(form)
+        const fileInput = this.restoreFileInput(form)
+        if (fileInput instanceof HTMLInputElement && fileInput.files.length > 0) {
+            formData.set(fileInput.name || 'backup_file', fileInput.files[0])
+        }
         formData.set('restore_key', restoreKey.trim())
         try {
             const response = await fetch(form.action, {
@@ -113,22 +122,13 @@ class BackupRestoreStatusController extends Controller {
             if (!response.ok || payload?.success === false) {
                 throw new Error(payload?.message || 'Restore request failed.')
             }
-            this.awaitingFreshRunningState = false
-            this.hasSeenRunningState = true
-
-            const completedStatus = {
-                locked: false,
-                status: 'completed',
-                phase: 'completed',
-                message: payload?.message || 'Restore/import completed.',
-                table_count: payload?.stats?.table_count,
-                tables_processed: payload?.stats?.table_count,
-                row_count: payload?.stats?.row_count,
-                rows_processed: payload?.stats?.row_count,
-                completed_at: new Date().toISOString(),
+            const startedStatus = payload?.status || {
+                locked: true,
+                status: 'running',
+                phase: 'queued',
+                message: payload?.message || 'Restore started.',
             }
-            this.render(completedStatus)
-            this.scheduleReload()
+            this.render(startedStatus)
             await this.pollStatus(true)
         } catch (error) {
             const failedStatus = {
@@ -143,6 +143,47 @@ class BackupRestoreStatusController extends Controller {
             this.restoreRequestInFlight = false
             this.setModalClosable(true)
         }
+    }
+
+    validateRestoreForm(form) {
+        const fileInput = this.restoreFileInput(form)
+        if (fileInput instanceof HTMLInputElement && fileInput.required && fileInput.files.length === 0) {
+            if (typeof fileInput.reportValidity === 'function') {
+                fileInput.reportValidity()
+            }
+            fileInput.focus()
+            fileInput.click()
+            window.KMP_accessibility.announce(
+                'Choose a backup file before starting the restore.',
+                { assertive: true }
+            )
+
+            return false
+        }
+
+        if (typeof form.checkValidity === 'function' && !form.checkValidity()) {
+            if (typeof form.reportValidity === 'function') {
+                form.reportValidity()
+            }
+
+            return false
+        }
+
+        return true
+    }
+
+    restoreFileInput(form) {
+        const fileInputId = form.dataset.fileInputId
+        if (fileInputId) {
+            const fileInput = document.getElementById(fileInputId)
+            if (fileInput instanceof HTMLInputElement && fileInput.type === 'file') {
+                return fileInput
+            }
+        }
+
+        const fileInput = form.querySelector('input[type="file"][name="backup_file"]')
+
+        return fileInput instanceof HTMLInputElement ? fileInput : null
     }
 
     async pollStatus() {

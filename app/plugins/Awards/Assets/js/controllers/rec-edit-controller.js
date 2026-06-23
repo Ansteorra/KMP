@@ -32,8 +32,13 @@ class AwardsRecommendationEditForm extends Controller {
     static outlets = ['outlet-btn'];
 
     setId(event) {
-        this.turboFrameTarget.setAttribute("src", this.turboFrameUrlValue + "/" + event.detail.id);
-        this.element.setAttribute("action", this.formUrlValue + "/" + event.detail.id);
+        if (event.detail.id) {
+            this.turboFrameTarget.setAttribute("src", this.turboFrameUrlValue + "/" + event.detail.id);
+            const form = this.formElement();
+            if (form) {
+                form.action = this.formUrlValue + "/" + event.detail.id;
+            }
+        }
     }
 
     outletBtnOutletConnected(outlet, element) {
@@ -50,6 +55,7 @@ class AwardsRecommendationEditForm extends Controller {
         if (submitBtn) {
             submitBtn.disabled = Boolean(locked);
         }
+        window.dispatchEvent(new CustomEvent('page-context:sync'));
     }
 
     async submit(event) {
@@ -261,10 +267,22 @@ class AwardsRecommendationEditForm extends Controller {
     }
 
     recIdTargetConnected() {
+        const form = this.formElement();
+        if (!form) {
+            return;
+        }
         const recId = this.recIdTarget.value;
-        let actionUrl = this.element.getAttribute("action");
+        let actionUrl = form.getAttribute("action");
         actionUrl = actionUrl.replace(/\/\d+$/, "");
-        this.element.setAttribute("action", actionUrl + "/" + recId);
+        form.setAttribute("action", actionUrl + "/" + recId);
+    }
+
+    formElement() {
+        if (this.element instanceof HTMLFormElement) {
+            return this.element;
+        }
+
+        return this.element.querySelector('form');
     }
 }
 

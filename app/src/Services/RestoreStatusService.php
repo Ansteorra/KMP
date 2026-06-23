@@ -17,7 +17,7 @@ class RestoreStatusService
     private const LOCK_KEY = 'restore.lock';
     private const STATUS_KEY = 'restore.status';
     private const DEFAULT_LOCK_TTL_SECONDS = 1800;
-    private const STALE_PROGRESS_SECONDS = 180;
+    private const STALE_PROGRESS_SECONDS = 900;
 
     /**
      * Acquire restore lock and initialize running status.

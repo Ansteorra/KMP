@@ -539,7 +539,7 @@ class AwardsWorkflowActions
      * Delete a recommendation through the shared mutation service.
      *
      * @param array $context Current workflow context
-     * @param array $config Config with recommendationId, actorId
+     * @param array $config Config with recommendationId, actorId, optional gatheringId
      * @return array Workflow action result
      */
     public function deleteRecommendation(array $context, array $config): array
@@ -642,8 +642,12 @@ class AwardsWorkflowActions
         try {
             $recommendationId = (int)$this->resolveValue($config['recommendationId'], $context);
             $actorId = (int)$this->resolveValue($config['actorId'] ?? 0, $context);
+            $gatheringId = isset($config['gatheringId'])
+                ? (int)$this->resolveValue($config['gatheringId'], $context)
+                : null;
+            $gatheringId = $gatheringId !== null && $gatheringId > 0 ? $gatheringId : null;
 
-            return $this->bestowalHandoffService->createBestowal($recommendationId, $actorId);
+            return $this->bestowalHandoffService->createBestowal($recommendationId, $actorId, $gatheringId);
         } catch (Throwable $e) {
             Log::error('Workflow CreateBestowal failed: ' . $e->getMessage());
 
@@ -655,7 +659,7 @@ class AwardsWorkflowActions
      * Create bestowals for each recommendation ID in the payload.
      *
      * @param array $context Current workflow context
-     * @param array $config Config with recommendationIds, actorId
+     * @param array $config Config with recommendationIds, actorId, optional gatheringId
      * @return array Workflow action result
      */
     public function createBestowalsForRecommendations(array $context, array $config): array
@@ -663,6 +667,10 @@ class AwardsWorkflowActions
         try {
             $recommendationIds = $this->extractRecommendationIds($context, $config);
             $actorId = (int)$this->resolveValue($config['actorId'] ?? 0, $context);
+            $gatheringId = isset($config['gatheringId'])
+                ? (int)$this->resolveValue($config['gatheringId'], $context)
+                : null;
+            $gatheringId = $gatheringId !== null && $gatheringId > 0 ? $gatheringId : null;
 
             if ($recommendationIds === []) {
                 return [
@@ -672,7 +680,7 @@ class AwardsWorkflowActions
                 ];
             }
 
-            return $this->bestowalHandoffService->createBestowals($recommendationIds, $actorId);
+            return $this->bestowalHandoffService->createBestowals($recommendationIds, $actorId, $gatheringId);
         } catch (Throwable $e) {
             Log::error('Workflow CreateBestowalsForRecommendations failed: ' . $e->getMessage());
 
@@ -896,6 +904,7 @@ class AwardsWorkflowActions
             'gathering_scheduled_activity_id' => 'gathering_scheduled_activity_id',
             'bestowedAt' => 'bestowed_at',
             'bestowed_at' => 'bestowed_at',
+            'specialty' => 'specialty',
             'closeReason' => 'close_reason',
             'close_reason' => 'close_reason',
             'stackRank' => 'stack_rank',
@@ -936,6 +945,7 @@ class AwardsWorkflowActions
             'member_public_id' => 'member_public_id',
             'awardId' => 'awardId',
             'award_id' => 'award_id',
+            'specialty' => 'specialty',
             'awardIds' => 'awardIds',
             'award_ids' => 'award_ids',
             'gatheringId' => 'gatheringId',

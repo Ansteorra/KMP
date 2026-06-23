@@ -33,7 +33,7 @@ $frameId = 'gathering-awards-grid-' . $gatheringId;
         'compactMode' => true,
     ]) ?>
     <?php if ($canBulkEdit) : ?>
-        <?= $this->element('recommendationQuickEditModal', ['modalId' => 'editRecommendationModal']) ?>
+        <?= $this->element('recommendationEditModal', ['modalId' => 'editRecommendationModal']) ?>
     <?php endif; ?>
     <?= $this->element('recommendationWorkflowDecisionModals') ?>
 <?php else : ?>

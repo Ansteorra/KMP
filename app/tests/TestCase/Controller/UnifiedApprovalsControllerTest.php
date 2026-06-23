@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Controller;
 
 use App\Model\Entity\WorkflowApproval;
+use App\Model\Entity\WorkflowApprovalResponse;
 use App\Model\Entity\WorkflowApprovalTriageState;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Cake\ORM\TableRegistry;
@@ -206,6 +207,60 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
         $rows = array_values(iterator_to_array($this->viewVariable('data')));
         $this->assertCount(1, $rows);
         $this->assertSame('Warrant Roster: Kingdom Chatelaine', $rows[0]->request);
+    }
+
+    public function testAwardApprovalGridPayloadRequiresGatheringFromWorkflowSlug(): void
+    {
+        $this->authenticateAsSuperUser();
+        [$instanceId, $executionLogId] = $this->createWorkflowContext('awards-recommendation-submitted');
+        $this->createApproval(
+            $instanceId,
+            $executionLogId,
+            'Award Recommendation: Needs Gathering',
+            ['member_id' => self::ADMIN_MEMBER_ID],
+        );
+
+        $this->get('/approvals/grid-data');
+
+        $this->assertResponseOk();
+        $rows = array_values(iterator_to_array($this->viewVariable('data')));
+        $this->assertNotEmpty($rows);
+        $payload = json_decode((string)$rows[0]->bulk_response_payload, true);
+        $this->assertTrue($payload['approver_config']['requires_bestowal_gathering'] ?? false);
+    }
+
+    public function testAwardApprovalKanbanPayloadRequiresGatheringFromWorkflowSlug(): void
+    {
+        $this->authenticateAsSuperUser();
+        [$instanceId, $executionLogId] = $this->createWorkflowContext('awards-recommendation-submitted');
+        $approvalId = $this->createApproval(
+            $instanceId,
+            $executionLogId,
+            'Award Recommendation: Kanban Gathering',
+            ['member_id' => self::ADMIN_MEMBER_ID],
+        );
+
+        $this->get('/approvals/kanban-lane?triage_state=new&view_id=sys-approvals-triage-board');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Award Recommendation: Kanban Gathering');
+        $this->assertResponseContains('&quot;id&quot;:' . $approvalId);
+        $this->assertResponseContains('&quot;requires_bestowal_gathering&quot;:true');
+    }
+
+    public function testBestowalGatheringsAutoCompleteReturnsOnlyFutureGatherings(): void
+    {
+        $this->authenticateAsSuperUser();
+        $futureId = $this->createGathering('ApprovalAuto Future', '+30 days');
+        $this->createGathering('ApprovalAuto Past', '-30 days');
+
+        $this->get('/approvals/bestowal-gatherings-auto-complete?q=ApprovalAuto');
+
+        $this->assertResponseOk();
+        $body = (string)$this->_response->getBody();
+        $this->assertStringContainsString('Future', $body);
+        $this->assertStringContainsString('data-ac-value="' . $futureId . '"', $body);
+        $this->assertStringNotContainsString('ApprovalAuto Past', $body);
     }
 
     // =====================================================
@@ -440,23 +495,94 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
         $this->assertSame(0, $responseCount);
     }
 
+    public function testRecordApprovalRequiresGatheringForAwardBestowalApproval(): void
+    {
+        $this->authenticateAsSuperUser();
+        [$instanceId, $executionLogId] = $this->createWorkflowContext();
+        $approvalId = $this->createApproval(
+            $instanceId,
+            $executionLogId,
+            'Award Approval',
+            [
+                'member_id' => self::ADMIN_MEMBER_ID,
+                'requires_bestowal_gathering' => true,
+            ],
+        );
+
+        $this->post('/approvals/record', [
+            'approvalId' => $approvalId,
+            'decision' => WorkflowApprovalResponse::DECISION_APPROVE,
+            'comment' => '',
+            'page_context_url' => '/approvals',
+        ]);
+
+        $this->assertRedirectContains('/approvals');
+        $responsesTable = TableRegistry::getTableLocator()->get('WorkflowApprovalResponses');
+        $responseCount = $responsesTable->find()
+            ->where(['workflow_approval_id' => $approvalId])
+            ->count();
+        $this->assertSame(0, $responseCount);
+    }
+
+    public function testRecordApprovalRejectsPastGatheringForAwardBestowalApproval(): void
+    {
+        $this->authenticateAsSuperUser();
+        [$instanceId, $executionLogId] = $this->createWorkflowContext();
+        $approvalId = $this->createApproval(
+            $instanceId,
+            $executionLogId,
+            'Award Approval',
+            [
+                'member_id' => self::ADMIN_MEMBER_ID,
+                'requires_bestowal_gathering' => true,
+            ],
+        );
+        $pastGatheringId = $this->createGathering('ApprovalAuto Past Submit', '-30 days');
+
+        $this->post('/approvals/record', [
+            'approvalId' => $approvalId,
+            'decision' => WorkflowApprovalResponse::DECISION_APPROVE,
+            'bestowal_gathering_id' => $pastGatheringId,
+            'comment' => '',
+            'page_context_url' => '/approvals',
+        ]);
+
+        $this->assertRedirectContains('/approvals');
+        $responsesTable = TableRegistry::getTableLocator()->get('WorkflowApprovalResponses');
+        $responseCount = $responsesTable->find()
+            ->where(['workflow_approval_id' => $approvalId])
+            ->count();
+        $this->assertSame(0, $responseCount);
+    }
+
     /**
      * @return array{0:int,1:int}
      */
-    private function createWorkflowContext(): array
+    private function createWorkflowContext(?string $definitionSlug = null): array
     {
         $defTable = TableRegistry::getTableLocator()->get('WorkflowDefinitions');
-        $def = $defTable->newEntity([
-            'name' => 'Approvals Controller Test ' . uniqid(),
-            'slug' => 'approvals-controller-test-' . uniqid(),
-            'trigger_type' => 'manual',
-        ]);
-        $defTable->saveOrFail($def);
+        $def = null;
+        if ($definitionSlug !== null) {
+            $def = $defTable->find()->where(['slug' => $definitionSlug])->first();
+        }
+        if (!$def) {
+            $def = $defTable->newEntity([
+                'name' => 'Approvals Controller Test ' . uniqid(),
+                'slug' => $definitionSlug ?? 'approvals-controller-test-' . uniqid(),
+                'trigger_type' => 'manual',
+            ]);
+            $defTable->saveOrFail($def);
+        }
 
         $versionsTable = TableRegistry::getTableLocator()->get('WorkflowVersions');
+        $versionNumber = ((int)$versionsTable->find()
+            ->where(['workflow_definition_id' => $def->id])
+            ->select(['max_version' => $versionsTable->find()->func()->max('version_number')])
+            ->first()
+            ?->get('max_version')) + 1;
         $version = $versionsTable->newEntity([
             'workflow_definition_id' => $def->id,
-            'version_number' => 1,
+            'version_number' => $versionNumber,
             'definition' => [
                 'nodes' => [
                     'trigger' => ['type' => 'trigger', 'outputs' => [['target' => 'end']]],
@@ -513,5 +639,28 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
         $approvalsTable->saveOrFail($approval);
 
         return (int)$approval->id;
+    }
+
+    private function createGathering(string $name, string $startModifier): int
+    {
+        $branches = TableRegistry::getTableLocator()->get('Branches');
+        $branch = $branches->find()->select(['id'])->firstOrFail();
+        $types = TableRegistry::getTableLocator()->get('GatheringTypes');
+        $type = $types->find()->select(['id'])->firstOrFail();
+        $startDate = date('Y-m-d H:i:s', strtotime($startModifier));
+
+        $gatherings = TableRegistry::getTableLocator()->get('Gatherings');
+        $gathering = $gatherings->newEntity([
+            'branch_id' => (int)$branch->id,
+            'gathering_type_id' => (int)$type->id,
+            'name' => $name,
+            'start_date' => $startDate,
+            'end_date' => $startDate,
+            'location' => 'Test Hall',
+            'created_by' => self::ADMIN_MEMBER_ID,
+        ]);
+        $gatherings->saveOrFail($gathering);
+
+        return (int)$gathering->id;
     }
 }

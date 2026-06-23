@@ -104,6 +104,40 @@ class BestowalRecommendationLinkServiceTest extends BaseTestCase
         $this->assertSame($bestowalId, (int)$updated->bestowal_id);
     }
 
+    public function testLinkRefreshesReasonSummary(): void
+    {
+        $firstRecommendationId = $this->createRecommendation('Need to Schedule', [
+            'reason' => 'Original reason.',
+            'requester_sca_name' => 'Original Submitter',
+            'specialty' => 'Original Specialty',
+        ]);
+        $createResult = $this->creationService->createFromRecommendation(
+            $firstRecommendationId,
+            self::ADMIN_MEMBER_ID,
+        );
+        $this->assertTrue($createResult['success'], $createResult['error'] ?? json_encode($createResult));
+        $bestowalId = (int)$createResult['data']['bestowalId'];
+        $secondRecommendationId = $this->createRecommendation('King Approved', [
+            'reason' => 'Additional reason.',
+            'requester_sca_name' => 'Additional Submitter',
+            'specialty' => 'Additional Specialty',
+        ]);
+
+        $this->linkService->linkRecommendations(
+            $bestowalId,
+            [$secondRecommendationId],
+            self::ADMIN_MEMBER_ID,
+        );
+
+        $bestowal = $this->bestowalsTable->get($bestowalId);
+        $summary = (string)$bestowal->reason_summary;
+        $this->assertStringContainsString('Submitted by Original Submitter:', $summary);
+        $this->assertStringContainsString('Original reason.', $summary);
+        $this->assertStringContainsString('Submitted by Additional Submitter:', $summary);
+        $this->assertStringContainsString('Additional reason.', $summary);
+        $this->assertSame('Original Specialty, Additional Specialty', $bestowal->specialty);
+    }
+
     public function testAssertMinimumLinkedRecommendationsAllowsLinkBeforeUnlinkSwap(): void
     {
         $bestowalId = $this->createBestowalWithRecommendations(1);
@@ -159,7 +193,7 @@ class BestowalRecommendationLinkServiceTest extends BaseTestCase
         return $bestowalId;
     }
 
-    private function createRecommendation(string $state): int
+    private function createRecommendation(string $state, array $overrides = []): int
     {
         $entity = $this->recommendationsTable->newEntity([
             'member_id' => self::ADMIN_MEMBER_ID,
@@ -177,6 +211,10 @@ class BestowalRecommendationLinkServiceTest extends BaseTestCase
             'person_to_notify' => '',
             'branch_id' => self::KINGDOM_BRANCH_ID,
         ]);
+
+        foreach ($overrides as $field => $value) {
+            $entity->set($field, $value);
+        }
 
         return (int)$this->recommendationsTable->saveOrFail($entity)->id;
     }

@@ -5,6 +5,7 @@ namespace App\Controller;
 
 use App\Services\BackupService;
 use App\Services\BackupStorageService;
+use App\Services\RestoreStagingService;
 use App\Services\RestoreStatusService;
 use Cake\Http\Response;
 use Cake\I18n\DateTime;
@@ -142,7 +143,6 @@ class BackupsController extends AppController
             return $this->redirect(['action' => 'index']);
         }
 
-        $backupService = new BackupService();
         $restoreStatusService = new RestoreStatusService();
         $restoreTrackedBackup = null;
         $data = '';
@@ -231,82 +231,43 @@ class BackupsController extends AppController
                 $this->Backups->save($restoreTrackedBackup);
             }
 
-            $stats = $backupService->import(
-                $data,
-                $encryptionKey,
-                function (array $progress) use ($restoreStatusService, $sourceLabel, $id, $actor): void {
-                    $phase = (string)($progress['phase'] ?? 'running');
-                    $message = (string)($progress['message'] ?? 'Restore in progress.');
-                    unset($progress['phase'], $progress['message']);
-
-                    $restoreStatusService->updateStatus($phase, $message, array_merge($progress, [
-                        'source' => $sourceLabel,
-                        'backup_id' => $id,
-                        'actor' => $actor,
-                    ]));
-                },
-            );
-
-            if ($restoreTrackedBackup !== null) {
-                $restoreTrackedBackup->status = 'completed';
-                $restoreTrackedBackup->table_count = $stats['table_count'];
-                $restoreTrackedBackup->row_count = $stats['row_count'];
-                $restoreTrackedBackup->notes = __(
-                    'Restore completed at {0}: {1} tables, {2} rows.',
-                    date('Y-m-d H:i:s'),
-                    $stats['table_count'],
-                    $stats['row_count'],
-                );
-                $this->Backups->save($restoreTrackedBackup);
-            }
-
-            $restoreStatusService->markCompleted(sprintf(
-                'Restore/import completed from %s: %d tables, %d rows.',
-                $sourceLabel,
-                $stats['table_count'],
-                $stats['row_count'],
-            ), [
+            $token = (new RestoreStagingService())->stage($data, $encryptionKey, [
                 'source' => $sourceLabel,
                 'backup_id' => $id,
                 'actor' => $actor,
-                'table_count' => $stats['table_count'],
-                'tables_processed' => $stats['table_count'],
-                'row_count' => $stats['row_count'],
-                'rows_processed' => $stats['row_count'],
+            ]);
+            $this->launchRestoreRunner($token);
+
+            $restoreStatusService->updateStatus('queued', sprintf('Restore queued from %s.', $sourceLabel), [
+                'source' => $sourceLabel,
+                'backup_id' => $id,
+                'actor' => $actor,
             ]);
 
             if ($expectsJson) {
                 return $this->jsonResponse([
                     'success' => true,
-                    'message' => __(
-                        'Restore/import completed from {0}: {1} tables, {2} rows',
-                        $sourceLabel,
-                        $stats['table_count'],
-                        $stats['row_count'],
-                    ),
-                    'stats' => $stats,
-                ]);
+                    'message' => __('Restore started. Progress will continue in the background.'),
+                    'status' => $restoreStatusService->getStatus(),
+                ], 202);
             }
 
-            $this->Flash->success(__(
-                'Restore/import completed from {0}: {1} tables, {2} rows',
-                $sourceLabel,
-                $stats['table_count'],
-                $stats['row_count'],
-            ));
+            $this->Flash->success(__('Restore started. Progress will continue in the background.'));
+
+            return $this->redirect(['action' => 'index']);
         } catch (Exception $e) {
-            Log::error('Restore failed: ' . $e->getMessage());
+            Log::error('Restore failed to start: ' . $e->getMessage());
 
             if ($restoreTrackedBackup !== null) {
                 $restoreTrackedBackup->status = 'failed';
                 $restoreTrackedBackup->notes = __(
-                    'Restore failed at {0}: {1}',
+                    'Restore failed to start at {0}: {1}',
                     date('Y-m-d H:i:s'),
                     $e->getMessage(),
                 );
                 $this->Backups->save($restoreTrackedBackup);
             }
-            $restoreStatusService->markFailed(sprintf('Restore/import failed: %s', $e->getMessage()), [
+            $restoreStatusService->markFailed(sprintf('Restore/import failed to start: %s', $e->getMessage()), [
                 'source' => $sourceLabel,
                 'backup_id' => $id,
                 'actor' => $actor,
@@ -314,15 +275,32 @@ class BackupsController extends AppController
             if ($expectsJson) {
                 return $this->jsonResponse([
                     'success' => false,
-                    'message' => __('Restore failed: {0}', $e->getMessage()),
+                    'message' => __('Restore failed to start: {0}', $e->getMessage()),
                 ], 500);
             }
-            $this->Flash->error(__('Restore failed: {0}', $e->getMessage()));
-        } finally {
+            $this->Flash->error(__('Restore failed to start: {0}', $e->getMessage()));
             $restoreStatusService->releaseLock();
         }
 
         return $this->redirect(['action' => 'index']);
+    }
+
+    /**
+     * Launch staged restore runner without exposing the encryption key in process args.
+     */
+    private function launchRestoreRunner(string $token): void
+    {
+        $php = escapeshellarg(PHP_BINARY);
+        $cake = escapeshellarg(ROOT . DS . 'bin' . DS . 'cake');
+        $arg = escapeshellarg($token);
+
+        if (PHP_OS_FAMILY === 'Windows') {
+            pclose(popen("start /B {$php} {$cake} backup_restore_run {$arg}", 'r'));
+
+            return;
+        }
+
+        exec("nohup {$php} {$cake} backup_restore_run {$arg} > /dev/null 2>&1 &");
     }
 
     /**

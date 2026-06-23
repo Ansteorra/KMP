@@ -17,6 +17,19 @@ if (!isset($gatheringId)) {
 $frameId = 'gathering-bestowals-grid-' . $gatheringId;
 ?>
 
+<div class="d-flex justify-content-end mb-3">
+    <?= $this->Html->link(
+        __('Open Court Agenda'),
+        [
+            'plugin' => 'Awards',
+            'controller' => 'CourtAgendas',
+            'action' => 'gathering',
+            $gatheringId,
+        ],
+        ['class' => 'btn btn-outline-primary btn-sm'],
+    ) ?>
+</div>
+
 <?php if (!$isEmpty): ?>
     <?= $this->element('dv_grid', [
         'gridKey' => 'Awards.Bestowals.gathering.' . $gatheringId,

@@ -1,9 +1,10 @@
 <?php
 $formUrl = $this->URL->build(['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'edit']);
 $turboFrameUrl = $this->URL->build(['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'TurboEditForm']);
+$modalId = $modalId ?? 'editModal';
 ?>
 <div id="recommendation_edit_root"
-    data-controller="awards-rec-edit"
+    data-controller="awards-rec-edit page-context"
     data-awards-rec-edit-public-profile-url-value="<?= h($this->URL->build([
         'controller' => 'Members',
         'action' => 'PublicProfile',
@@ -20,15 +21,21 @@ echo $this->Form->create(null, [
         'controller' => 'Recommendations',
         'action' => 'edit',
     ],
-    'data-action' => 'submit->awards-rec-edit#submit',
+    'data-controller' => 'turbo-modal',
+    'data-turbo' => 'true',
+    'data-action' => 'submit->awards-rec-edit#submit submit->turbo-modal#submitAsTurboStream turbo:submit-end->turbo-modal#submitEnd',
 ]);
 echo $this->Form->control('current_page', [
     'type' => 'hidden',
     'id' => 'recommendation__current_page',
     'value' => $this->request->getRequestTarget(),
 ]);
+echo $this->Form->hidden('page_context_url', [
+    'value' => '',
+    'data-page-context-target' => 'field',
+]);
 echo $this->Modal->create('Edit Recommendation', [
-    'id' => 'editModal',
+    'id' => $modalId,
     'close' => true,
     'form' => true,
 ]);

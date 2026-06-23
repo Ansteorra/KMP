@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace Awards\Test\TestCase\Controller;
 
+use App\Model\Entity\WorkflowApproval;
+use App\Model\Entity\WorkflowApprovalResponse;
 use App\Model\Entity\WorkflowInstance;
 use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\TriggerDispatcher;
@@ -431,6 +433,62 @@ class RecommendationsControllerWorkflowDispatchTest extends HttpIntegrationTestC
         $this->assertResponseContains('<turbo-stream action="replace" target="recommendations-grid-table"');
     }
 
+    public function testWorkflowDecisionFromGridPreservesGridQueryOnRefresh(): void
+    {
+        $this->configRequest([
+            'headers' => [
+                'Accept' => 'text/vnd.turbo-stream.html',
+            ],
+        ]);
+        $this->post($this->recommendationsUrl('workflowDecisionFromGrid'), [
+            'approvalId' => '999999',
+            'decision' => WorkflowApprovalResponse::DECISION_APPROVE,
+            'comment' => '',
+            'page_context_url' => '/awards/recommendations?sort=member_sca_name&direction=asc&search=needle',
+        ]);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('<turbo-stream action="replace" target="recommendations-grid-table"');
+        $this->assertResponseContains(
+            'src="/awards/recommendations/grid-data?sort=member_sca_name&amp;direction=asc&amp;search=needle"',
+        );
+    }
+
+    public function testRecommendationsIndexApprovalModalIncludesBestowalGatheringAutocomplete(): void
+    {
+        $this->get('/awards/recommendations');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('data-approval-response-target="bestowalGatheringSection"');
+        $this->assertResponseContains('/approvals/bestowal-gatherings-auto-complete');
+    }
+
+    public function testWorkflowDecisionFromGridRequiresBestowalGatheringForAwardApprovals(): void
+    {
+        $instanceId = $this->createWorkflowInstance('awards-existing-recommendation-approval');
+        $approvalId = $this->createPendingWorkflowApproval($instanceId, self::ADMIN_MEMBER_ID);
+
+        $this->configRequest([
+            'headers' => [
+                'Accept' => 'text/vnd.turbo-stream.html',
+            ],
+        ]);
+        $this->post($this->recommendationsUrl('workflowDecisionFromGrid'), [
+            'approvalId' => (string)$approvalId,
+            'decision' => WorkflowApprovalResponse::DECISION_APPROVE,
+            'comment' => '',
+            'page_context_url' => '/awards/recommendations?search=needs-gathering',
+        ]);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Select the gathering where the bestowal will be presented.');
+        $this->assertResponseContains(
+            'src="/awards/recommendations/grid-data?search=needs-gathering"',
+        );
+        $responses = $this->getTableLocator()->get('WorkflowApprovalResponses');
+        $this->assertSame(0, $responses->find()->where(['workflow_approval_id' => $approvalId])->count());
+    }
+
     public function testEditFromGridWithoutTurboAcceptRedirectsToPageContext(): void
     {
         $this->ensureActiveWorkflow('awards-recommendation-updated');
@@ -494,6 +552,53 @@ class RecommendationsControllerWorkflowDispatchTest extends HttpIntegrationTestC
         $this->assertRedirectContains('/awards/recommendations');
         $freshChild = $this->recommendations->get((int)$child->id);
         $this->assertNull($freshChild->recommendation_group_id);
+    }
+
+    public function testGroupRecommendationsPreservesGridQueryOnTurboRefresh(): void
+    {
+        $this->ensureActiveWorkflow('awards-recommendations-group');
+        $head = $this->createExistingRecommendation();
+        $child = $this->createExistingRecommendation();
+
+        $this->mockServiceClean(TriggerDispatcher::class, function () use ($head, $child) {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->once())
+                ->method('dispatch')
+                ->willReturnCallback(function (string $event, array $context) use ($head, $child): array {
+                    $this->assertSame('Awards.RecommendationsGroupRequested', $event);
+                    $this->assertSame([(int)$head->id, (int)$child->id], $context['recommendationIds']);
+
+                    return [$this->successfulWorkflowDispatchResult([
+                        'headId' => (int)$head->id,
+                        'childIds' => [(int)$child->id],
+                    ])];
+                });
+
+            return $mock;
+        });
+        $this->mockServiceClean(RecommendationGroupingService::class, function () {
+            $mock = $this->createMock(RecommendationGroupingService::class);
+            $mock->expects($this->never())
+                ->method('groupRecommendations');
+
+            return $mock;
+        });
+
+        $this->configRequest([
+            'headers' => [
+                'Accept' => 'text/vnd.turbo-stream.html',
+            ],
+        ]);
+        $this->post($this->recommendationsUrl('groupRecommendations'), [
+            'recommendation_ids' => [(string)$head->id, (string)$child->id],
+            'page_context_url' => '/awards/recommendations?view_id=sys-recs-all&sort=created&direction=desc',
+        ]);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('<turbo-stream action="replace" target="recommendations-grid-table"');
+        $this->assertResponseContains(
+            'src="/awards/recommendations/grid-data?view_id=sys-recs-all&amp;sort=created&amp;direction=desc"',
+        );
     }
 
     public function testRemoveFromGroupDispatchesWorkflowWhenActive(): void
@@ -642,6 +747,7 @@ class RecommendationsControllerWorkflowDispatchTest extends HttpIntegrationTestC
             'add' => '/awards/recommendations/add',
             'edit' => '/awards/recommendations/edit' . $suffix,
             'submitRecommendation' => '/awards/recommendations/submit-recommendation',
+            'workflowDecisionFromGrid' => '/awards/recommendations/workflow-decision-from-grid',
             'groupRecommendations' => '/awards/recommendations/group-recommendations',
             'removeFromGroup' => '/awards/recommendations/remove-from-group',
             'delete' => '/awards/recommendations/delete' . $suffix,
@@ -699,25 +805,37 @@ class RecommendationsControllerWorkflowDispatchTest extends HttpIntegrationTestC
         ]));
     }
 
-    private function createWorkflowInstance(): int
+    private function createWorkflowInstance(?string $slug = null): int
     {
-        $definition = $this->workflowDefinitions->saveOrFail($this->workflowDefinitions->newEntity([
-            'name' => 'Recommendation Grid Sync Workflow ' . uniqid('', true),
-            'slug' => 'recommendation-grid-sync-workflow-' . uniqid(),
-            'trigger_type' => 'manual',
-            'is_active' => true,
-        ]));
-        $version = $this->workflowVersions->saveOrFail($this->workflowVersions->newEntity([
-            'workflow_definition_id' => $definition->id,
-            'version_number' => 1,
-            'definition' => [
-                'nodes' => [
-                    'trigger' => ['type' => 'trigger', 'outputs' => [['target' => 'end']]],
-                    'end' => ['type' => 'end', 'outputs' => []],
+        $definition = null;
+        if ($slug !== null) {
+            $definition = $this->workflowDefinitions->find()->where(['slug' => $slug])->first();
+        }
+        if ($definition === null) {
+            $definition = $this->workflowDefinitions->saveOrFail($this->workflowDefinitions->newEntity([
+                'name' => 'Recommendation Grid Sync Workflow ' . uniqid('', true),
+                'slug' => $slug ?? 'recommendation-grid-sync-workflow-' . uniqid(),
+                'trigger_type' => 'manual',
+                'is_active' => true,
+            ]));
+        }
+        $version = null;
+        if (!empty($definition->current_version_id)) {
+            $version = $this->workflowVersions->get((int)$definition->current_version_id);
+        }
+        if ($version === null) {
+            $version = $this->workflowVersions->saveOrFail($this->workflowVersions->newEntity([
+                'workflow_definition_id' => $definition->id,
+                'version_number' => 1,
+                'definition' => [
+                    'nodes' => [
+                        'trigger' => ['type' => 'trigger', 'outputs' => [['target' => 'end']]],
+                        'end' => ['type' => 'end', 'outputs' => []],
+                    ],
                 ],
-            ],
-            'status' => 'published',
-        ]));
+                'status' => 'published',
+            ]));
+        }
         $instances = $this->getTableLocator()->get('WorkflowInstances');
         $instance = $instances->saveOrFail($instances->newEntity([
             'workflow_definition_id' => $definition->id,
@@ -728,6 +846,34 @@ class RecommendationsControllerWorkflowDispatchTest extends HttpIntegrationTestC
         ]));
 
         return (int)$instance->id;
+    }
+
+    private function createPendingWorkflowApproval(int $workflowInstanceId, int $memberId): int
+    {
+        $logs = $this->getTableLocator()->get('WorkflowExecutionLogs');
+        $log = $logs->saveOrFail($logs->newEntity([
+            'workflow_instance_id' => $workflowInstanceId,
+            'node_id' => 'award-approval-gate',
+            'node_type' => 'approval',
+            'status' => 'waiting',
+        ]));
+
+        $approvals = $this->getTableLocator()->get('WorkflowApprovals');
+        $approval = $approvals->saveOrFail($approvals->newEntity([
+            'workflow_instance_id' => $workflowInstanceId,
+            'node_id' => 'award-approval-gate',
+            'execution_log_id' => (int)$log->id,
+            'approver_type' => WorkflowApproval::APPROVER_TYPE_MEMBER,
+            'approver_config' => ['member_id' => $memberId],
+            'required_count' => 1,
+            'approved_count' => 0,
+            'rejected_count' => 0,
+            'status' => WorkflowApproval::STATUS_PENDING,
+            'allow_parallel' => false,
+            'version' => 1,
+        ]));
+
+        return (int)$approval->id;
     }
 
     /**

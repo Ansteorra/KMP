@@ -281,6 +281,13 @@ class BestowalTransitionService
             $bestowal->award_id = (int)$awardId;
         }
 
+        if ($this->hasAnyKey($data, ['specialty'])) {
+            $specialty = $this->getOptionalValue($data, ['specialty']);
+            if ($specialty !== null) {
+                $bestowal->specialty = $this->normalizeOptionalString($specialty);
+            }
+        }
+
         if ($this->hasAnyKey($data, ['noble_notes', 'nobleNotes'])) {
             $nobleNotes = $this->getOptionalValue($data, ['noble_notes', 'nobleNotes']);
             if ($nobleNotes !== null) {
@@ -292,6 +299,13 @@ class BestowalTransitionService
             $heraldNotes = $this->getOptionalValue($data, ['herald_notes', 'heraldNotes']);
             if ($heraldNotes !== null) {
                 $bestowal->herald_notes = $this->normalizeOptionalString($heraldNotes);
+            }
+        }
+
+        if ($this->hasAnyKey($data, ['reason_summary', 'reasonSummary'])) {
+            $reasonSummary = $this->getOptionalValue($data, ['reason_summary', 'reasonSummary']);
+            if ($reasonSummary !== null) {
+                $bestowal->reason_summary = $this->normalizeOptionalString($reasonSummary);
             }
         }
 

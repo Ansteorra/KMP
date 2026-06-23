@@ -26,6 +26,14 @@ describe('ApprovalResponseController', () => {
                     <input type="hidden" data-approval-response-target="nextApproverInput">
                     <div data-approval-response-target="infoText"></div>
                 </div>
+                <div data-approval-response-target="bestowalGatheringSection" hidden>
+                    <div data-approval-response-target="bestowalGathering">
+                        <input type="hidden" data-ac-target="hidden" name="bestowal_gathering_id">
+                        <input type="hidden" data-ac-target="hiddenText">
+                        <input type="text" data-ac-target="input" aria-invalid="false">
+                    </div>
+                    <div data-approval-response-target="bestowalGatheringError" hidden></div>
+                </div>
                 <button type="submit" data-approval-response-target="submitBtn" disabled>Submit</button>
             </form>
         `;
@@ -60,6 +68,12 @@ describe('ApprovalResponseController', () => {
             hasSubmitBtnTarget: { get: () => true },
             infoTextTarget: { get: () => target('[data-approval-response-target="infoText"]') },
             hasInfoTextTarget: { get: () => true },
+            bestowalGatheringSectionTarget: { get: () => target('[data-approval-response-target="bestowalGatheringSection"]') },
+            hasBestowalGatheringSectionTarget: { get: () => true },
+            bestowalGatheringTarget: { get: () => target('[data-approval-response-target="bestowalGathering"]') },
+            hasBestowalGatheringTarget: { get: () => true },
+            bestowalGatheringErrorTarget: { get: () => target('[data-approval-response-target="bestowalGatheringError"]') },
+            hasBestowalGatheringErrorTarget: { get: () => true },
         });
     });
 
@@ -100,6 +114,63 @@ describe('ApprovalResponseController', () => {
         expect(form.querySelector('[data-approval-response-target="decisionSection"]')).not.toHaveAttribute('hidden');
         expect(form.querySelector('[data-approval-response-target="submitBtn"]')).toBeDisabled();
         expect(form.querySelector('textarea')).not.toBeRequired();
+    });
+
+    test('requires bestowal gathering only when approving configured approvals', () => {
+        const form = document.querySelector('form');
+
+        controller.configure({
+            id: 18,
+            feedbackResponse: false,
+            requiredCount: 1,
+            approvedCount: 0,
+            requiresBestowalGathering: true,
+            bestowalGatheringOptions: [{ id: 12, label: 'Spring Crown - 2026-04-12' }],
+        });
+        form.querySelector('input[value="approve"]').checked = true;
+        controller.onDecisionChange();
+
+        const section = form.querySelector('[data-approval-response-target="bestowalGatheringSection"]');
+        const autocomplete = form.querySelector('[data-approval-response-target="bestowalGathering"]');
+        const input = autocomplete.querySelector('[data-ac-target="input"]');
+        expect(section).not.toHaveAttribute('hidden');
+        expect(autocomplete).toHaveAttribute('required');
+        expect(autocomplete).toHaveAttribute('aria-required', 'true');
+        expect(input).toBeRequired();
+        expect(input).toHaveAttribute('aria-required', 'true');
+
+        form.querySelector('input[value="reject"]').checked = true;
+        controller.onDecisionChange();
+
+        expect(section).toHaveAttribute('hidden');
+        expect(autocomplete).not.toHaveAttribute('required');
+        expect(autocomplete).not.toHaveAttribute('aria-required');
+        expect(input).not.toBeRequired();
+        expect(input).not.toHaveAttribute('aria-required');
+    });
+
+    test('validateSubmit focuses invalid gathering select', () => {
+        controller.configure({
+            id: 19,
+            feedbackResponse: false,
+            requiredCount: 1,
+            approvedCount: 0,
+            requiresBestowalGathering: true,
+            bestowalGatheringOptions: [{ id: 12, label: 'Spring Crown - 2026-04-12' }],
+        });
+        document.querySelector('input[value="approve"]').checked = true;
+        controller.onDecisionChange();
+        const event = {
+            preventDefault: jest.fn(),
+            stopImmediatePropagation: jest.fn(),
+        };
+
+        controller.validateSubmit(event);
+
+        expect(event.preventDefault).toHaveBeenCalled();
+        expect(event.stopImmediatePropagation).toHaveBeenCalled();
+        expect(document.querySelector('[data-ac-target="input"]')).toHaveAttribute('aria-invalid', 'true');
+        expect(document.querySelector('[data-approval-response-target="bestowalGatheringError"]')).not.toHaveAttribute('hidden');
     });
 
     test('stores bulk approval IDs and shows the bulk summary', () => {

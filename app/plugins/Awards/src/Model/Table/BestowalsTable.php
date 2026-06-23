@@ -135,6 +135,11 @@ class BestowalsTable extends BaseTable
             ->notEmptyString('award_id', __('Award to Bestow is required.'));
 
         $validator
+            ->scalar('specialty')
+            ->maxLength('specialty', 255)
+            ->allowEmptyString('specialty');
+
+        $validator
             ->scalar('status')
             ->maxLength('status', 100)
             ->requirePresence('status', 'create')
@@ -171,6 +176,10 @@ class BestowalsTable extends BaseTable
         $validator
             ->scalar('herald_notes')
             ->allowEmptyString('herald_notes');
+
+        $validator
+            ->scalar('reason_summary')
+            ->allowEmptyString('reason_summary');
 
         $validator
             ->scalar('call_into_court')

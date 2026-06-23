@@ -22,6 +22,7 @@ use InvalidArgumentException;
  * @property bool $roaming_court
  * @property int|null $primary_recommendation_id
  * @property int|null $award_id
+ * @property string|null $specialty
  * @property string $status
  * @property string $state
  * @property \Cake\I18n\DateTime|null $state_date
@@ -31,6 +32,7 @@ use InvalidArgumentException;
  * @property int|null $source_approval_run_id
  * @property string|null $noble_notes
  * @property string|null $herald_notes
+ * @property string|null $reason_summary
  * @property string|null $call_into_court
  * @property string|null $court_availability
  * @property string|null $person_to_notify
@@ -89,6 +91,7 @@ class Bestowal extends BaseEntity
         'roaming_court' => true,
         'primary_recommendation_id' => true,
         'award_id' => true,
+        'specialty' => true,
         'status' => true,
         'state' => true,
         'state_date' => true,
@@ -98,6 +101,7 @@ class Bestowal extends BaseEntity
         'source_approval_run_id' => true,
         'noble_notes' => true,
         'herald_notes' => true,
+        'reason_summary' => true,
         'call_into_court' => true,
         'court_availability' => true,
         'person_to_notify' => true,

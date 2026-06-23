@@ -8,11 +8,16 @@
  *
  * @var \App\View\AppView $this
  */
+
+$bestowalGatheringLookupUrl = $this->Url->build([
+    'controller' => 'Approvals',
+    'action' => 'bestowalGatheringsAutoComplete',
+]);
 ?>
 <?php $this->extend('/layout/TwitterBootstrap/dashboard');
 
-echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': All Approvals';
+echo $this->KMP->startBlock('title');
+echo $this->KMP->getAppSetting('KMP.ShortSiteTitle') . ': All Approvals';
 $this->KMP->endBlock(); ?>
 
 <h3><i class="bi bi-clipboard-check me-2"></i><?= __('All Approvals') ?></h3>
@@ -39,6 +44,7 @@ $this->KMP->endBlock(); ?>
                 'url' => ['controller' => 'Approvals', 'action' => 'recordApproval'],
                 'id' => 'approvalResponseForm',
                 'data-controller' => 'approval-response',
+                'data-action' => 'submit->approval-response#validateSubmit',
                 'data-approval-response-serial-pick-next-value' => 'false',
                 'data-approval-response-required-count-value' => '1',
                 'data-approval-response-approved-count-value' => '0',
@@ -81,6 +87,34 @@ $this->KMP->endBlock(); ?>
                         placeholder="<?= __('Optional comment...') ?>"></textarea>
                     <div class="form-text text-muted small" data-approval-response-target="commentWarning" hidden>
                         <i class="bi bi-eye me-1"></i><span data-approval-response-target="commentWarningText"></span>
+                    </div>
+                </div>
+
+                <!-- Bestowal Gathering (conditional) -->
+                <div class="border rounded-3 bg-white shadow-sm p-3 mb-3"
+                    data-approval-response-target="bestowalGatheringSection" hidden>
+                    <?= $this->KMP->autoCompleteControl(
+                        $this->Form,
+                        'bestowal_gathering_name',
+                        'bestowal_gathering_id',
+                        $bestowalGatheringLookupUrl,
+                        __('Bestowal Gathering'),
+                        false,
+                        false,
+                        2,
+                        [
+                            'data-approval-response-target' => 'bestowalGathering',
+                            'data-ac-show-on-focus-value' => 'true',
+                            'data-action' => 'autocomplete.change->approval-response#onBestowalGatheringChange',
+                        ],
+                    ) ?>
+                    <div class="form-text" id="allApprovalBestowalGatheringHelp">
+                        <?= __('Choose a future event or court where the approved bestowal should be scheduled.') ?>
+                    </div>
+                    <div class="text-danger small" id="allApprovalBestowalGatheringError"
+                        data-approval-response-target="bestowalGatheringError" hidden>
+                        <i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>
+                        <?= __('Select the gathering where the bestowal will be presented.') ?>
                     </div>
                 </div>
 
@@ -293,6 +327,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     approveLabel: approveLabel,
                     hideReject: hideReject,
                     defaultDecision: feedbackResponse && decisionOptions.length === 0 ? 'approve' : null,
+                    requiresBestowalGathering: approverConfig.requires_bestowal_gathering
+                        || approverConfig.requiresBestowalGathering
+                        || false,
+                    bestowalGatheringOptions: Array.isArray(approverConfig.bestowal_gathering_options)
+                        ? approverConfig.bestowal_gathering_options
+                        : (Array.isArray(approverConfig.bestowalGatheringOptions)
+                            ? approverConfig.bestowalGatheringOptions
+                            : []),
                 });
             }
         });

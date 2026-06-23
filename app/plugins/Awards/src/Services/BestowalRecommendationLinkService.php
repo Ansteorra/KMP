@@ -79,7 +79,7 @@ class BestowalRecommendationLinkService
 
                 $bestowal = $this->bestowalsTable->get($bestowalId, contain: [
                     'Members',
-                    'Recommendations' => ['Awards', 'Awards.Levels'],
+                    'Recommendations' => ['Awards', 'Awards.Levels', 'Requesters'],
                 ]);
                 $unwindState = $this->syncService->resolveUnwindTargetStateName();
                 $unlinked = [];
@@ -145,7 +145,7 @@ class BestowalRecommendationLinkService
             function () use ($bestowalId, $recommendationIds, $actorId): array {
                 $bestowal = $this->bestowalsTable->get($bestowalId, contain: [
                     'Members',
-                    'Recommendations' => ['Awards', 'Awards.Levels'],
+                    'Recommendations' => ['Awards', 'Awards.Levels', 'Requesters'],
                 ]);
                 $linked = [];
 
@@ -325,14 +325,16 @@ class BestowalRecommendationLinkService
     {
         $bestowal = $this->bestowalsTable->get((int)$bestowal->id, contain: [
             'Members',
-            'Recommendations' => ['Awards', 'Awards.Levels'],
+            'Recommendations' => ['Awards', 'Awards.Levels', 'Requesters'],
         ]);
 
         $recommendations = $bestowal->recommendations ?? [];
         if ($recommendations === []) {
             $bestowal->primary_recommendation_id = null;
+            $bestowal->specialty = null;
             $bestowal->noble_notes = null;
             $bestowal->herald_notes = null;
+            $bestowal->reason_summary = null;
         } else {
             if (
                 $bestowal->primary_recommendation_id === null
@@ -342,8 +344,10 @@ class BestowalRecommendationLinkService
             }
 
             $memberName = (string)($bestowal->member->sca_name ?? '');
+            $bestowal->specialty = $this->buildSpecialtySummary($recommendations);
             $bestowal->noble_notes = $this->buildNobleNotes($recommendations);
             $bestowal->herald_notes = $this->buildHeraldNotes($recommendations, $memberName);
+            $bestowal->reason_summary = $this->buildReasonSummary($recommendations);
         }
 
         $bestowal->modified_by = $actorId;

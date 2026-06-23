@@ -109,6 +109,15 @@ class AwardsWorkflowProvider
                 ],
             ],
             [
+                'event' => 'Awards.ExistingRecommendationApprovalRequested',
+                'label' => 'Existing Recommendation Approval Requested',
+                'description' => 'When a workflow should start the approval process for an existing recommendation',
+                'payloadSchema' => [
+                    'recommendationId' => ['type' => 'integer', 'label' => 'Recommendation ID'],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ],
+            ],
+            [
                 'event' => 'Awards.RecommendationsGroupRequested',
                 'label' => 'Recommendations Group Requested',
                 'description' => 'When selected recommendations should be grouped under a shared head',

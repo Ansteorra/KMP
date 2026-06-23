@@ -219,6 +219,93 @@ describe('BackupRestoreStatusController', () => {
         expect(headers['X-Requested-With']).toBe('XMLHttpRequest');
     });
 
+    // --- validateRestoreForm / submitRestore ---
+
+    test('submitRestore opens required backup file input before prompting', async () => {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.id = 'backup-file-input';
+        fileInput.name = 'backup_file';
+        fileInput.required = true;
+        document.body.appendChild(fileInput);
+
+        const form = document.createElement('form');
+        form.action = '/backups/restore';
+        form.dataset.restoreConfirmMessage = 'Import?';
+        form.dataset.fileInputId = 'backup-file-input';
+        document.body.appendChild(form);
+
+        fileInput.focus = jest.fn();
+        fileInput.click = jest.fn();
+        fileInput.reportValidity = jest.fn(() => false);
+        global.fetch = jest.fn();
+
+        await controller.submitRestore({
+            preventDefault: jest.fn(),
+            currentTarget: form,
+        });
+
+        expect(fileInput.reportValidity).toHaveBeenCalled();
+        expect(fileInput.focus).toHaveBeenCalled();
+        expect(fileInput.click).toHaveBeenCalled();
+        expect(window.KMP_accessibility.announce).toHaveBeenCalledWith(
+            'Choose a backup file before starting the restore.',
+            { assertive: true }
+        );
+        expect(window.KMP_accessibility.confirm).not.toHaveBeenCalled();
+        expect(window.KMP_accessibility.prompt).not.toHaveBeenCalled();
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    test('submitRestore appends the selected external backup file', async () => {
+        const file = new File(['backup'], 'selected.kmpbackup', { type: 'application/octet-stream' });
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.id = 'backup-file-input';
+        fileInput.name = 'backup_file';
+        Object.defineProperty(fileInput, 'files', {
+            value: [file],
+            configurable: true,
+        });
+        document.body.appendChild(fileInput);
+
+        const form = document.createElement('form');
+        form.action = '/backups/restore';
+        form.dataset.restoreConfirmMessage = '';
+        form.dataset.fileInputId = 'backup-file-input';
+        document.body.appendChild(form);
+
+        window.KMP_accessibility.prompt.mockResolvedValue('restore-key');
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: true,
+            text: () => Promise.resolve(JSON.stringify({
+                success: true,
+                message: 'Restore complete.',
+                stats: { table_count: 1, row_count: 2 },
+            })),
+        });
+        jest.spyOn(controller, 'pollStatus').mockResolvedValue(undefined);
+        jest.spyOn(controller, 'scheduleReload').mockImplementation(() => {});
+        controller.modalInstance = mockModalInstance;
+
+        await controller.submitRestore({
+            preventDefault: jest.fn(),
+            currentTarget: form,
+        });
+
+        const requestBody = global.fetch.mock.calls[0][1].body;
+        expect(requestBody.get('backup_file')).toBe(file);
+        expect(requestBody.get('restore_key')).toBe('restore-key');
+        expect(window.KMP_accessibility.prompt).toHaveBeenCalledWith(
+            'Enter the backup encryption key to continue restore:',
+            expect.objectContaining({
+                inputLabel: 'Encryption key',
+                inputType: 'password',
+                required: true,
+            })
+        );
+    });
+
     // --- parseJson ---
 
     test('parseJson returns parsed JSON', async () => {

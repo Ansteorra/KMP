@@ -21,6 +21,7 @@ use Throwable;
  */
 class BestowalHandoffService
 {
+    use BestowalNotesSupportTrait;
     use LocatorAwareTrait;
 
     private Table $recommendationsTable;
@@ -65,9 +66,10 @@ class BestowalHandoffService
      *
      * @param int $recommendationId Recommendation ID.
      * @param int $actorId Current user ID.
+     * @param int|null $gatheringId Optional gathering override selected during approval.
      * @return array<string, mixed>
      */
-    public function createBestowal(int $recommendationId, int $actorId): array
+    public function createBestowal(int $recommendationId, int $actorId, ?int $gatheringId = null): array
     {
         if ($recommendationId <= 0) {
             return $this->failureResult('Recommendation ID must be greater than zero.');
@@ -79,7 +81,7 @@ class BestowalHandoffService
             return $this->failureResult($e->getMessage());
         }
 
-        $result = $this->creationService->createFromRecommendation($recommendationId, $actorId);
+        $result = $this->creationService->createFromRecommendation($recommendationId, $actorId, $gatheringId);
 
         if (($result['success'] ?? false) && !($result['skipped'] ?? false)) {
             $bestowalId = (int)($result['data']['bestowalId'] ?? 0);
@@ -94,6 +96,7 @@ class BestowalHandoffService
                     );
                     $result['data']['sourceApprovalRunId'] = $sourceRunId;
                 }
+                $this->refreshReasonSummary($bestowalId, $actorId);
             }
         }
 
@@ -105,9 +108,10 @@ class BestowalHandoffService
      *
      * @param array<int> $recommendationIds Recommendation IDs.
      * @param int $actorId Current user ID.
+     * @param int|null $gatheringId Optional gathering override selected during approval.
      * @return array<string, mixed>
      */
-    public function createBestowals(array $recommendationIds, int $actorId): array
+    public function createBestowals(array $recommendationIds, int $actorId, ?int $gatheringId = null): array
     {
         $ids = array_values(array_unique(array_filter(array_map('intval', $recommendationIds))));
         if ($ids === []) {
@@ -123,7 +127,7 @@ class BestowalHandoffService
         $errors = [];
 
         foreach ($ids as $recommendationId) {
-            $result = $this->createBestowal($recommendationId, $actorId);
+            $result = $this->createBestowal($recommendationId, $actorId, $gatheringId);
             $results[] = $result;
 
             if (!($result['success'] ?? false)) {
@@ -214,6 +218,24 @@ class BestowalHandoffService
         } catch (Throwable $e) {
             Log::warning("Failed to record source_approval_run_id on bestowal #{$bestowalId}: {$e->getMessage()}");
         }
+    }
+
+    /**
+     * Ensure approval-created handoffs persist linked recommendation planning details.
+     *
+     * @param int $bestowalId Bestowal ID.
+     * @param int $actorId Actor ID.
+     * @return void
+     */
+    private function refreshReasonSummary(int $bestowalId, int $actorId): void
+    {
+        $bestowal = $this->bestowalsTable->get($bestowalId, contain: [
+            'Recommendations' => ['Requesters'],
+        ]);
+        $bestowal->specialty = $this->buildSpecialtySummary($bestowal->recommendations ?? []);
+        $bestowal->reason_summary = $this->buildReasonSummary($bestowal->recommendations ?? []);
+        $bestowal->modified_by = $actorId;
+        $this->bestowalsTable->saveOrFail($bestowal);
     }
 
     /**

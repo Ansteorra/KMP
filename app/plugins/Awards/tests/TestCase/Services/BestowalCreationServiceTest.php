@@ -73,6 +73,35 @@ class BestowalCreationServiceTest extends BaseTestCase
         $this->assertSame(1, $joinCount);
     }
 
+    public function testCreateFromRecommendationPopulatesReasonSummary(): void
+    {
+        $recommendationId = $this->createRecommendation('Need to Schedule', [
+            'reason' => 'Organized the court list and kept everyone on time.',
+            'requester_sca_name' => 'Mistress Submitter',
+        ]);
+
+        $result = $this->service->createFromRecommendation($recommendationId, self::ADMIN_MEMBER_ID);
+
+        $this->assertTrue($result['success'], $result['error'] ?? json_encode($result));
+        $bestowal = $this->bestowalsTable->get((int)$result['data']['bestowalId']);
+        $summary = (string)$bestowal->reason_summary;
+        $this->assertStringContainsString('Submitted by Mistress Submitter:', $summary);
+        $this->assertStringContainsString('Organized the court list and kept everyone on time.', $summary);
+    }
+
+    public function testCreateFromRecommendationCopiesSpecialty(): void
+    {
+        $recommendationId = $this->createRecommendation('Need to Schedule', [
+            'specialty' => 'Court Coordination',
+        ]);
+
+        $result = $this->service->createFromRecommendation($recommendationId, self::ADMIN_MEMBER_ID);
+
+        $this->assertTrue($result['success'], $result['error'] ?? json_encode($result));
+        $bestowal = $this->bestowalsTable->get((int)$result['data']['bestowalId']);
+        $this->assertSame('Court Coordination', $bestowal->specialty);
+    }
+
     public function testCreateFromRecommendationSkipsWhenBestowalAlreadyLinked(): void
     {
         $recommendationId = $this->createRecommendation('Need to Schedule');
@@ -85,7 +114,7 @@ class BestowalCreationServiceTest extends BaseTestCase
         $this->assertTrue($second['skipped']);
     }
 
-    public function testCreateFromGroupedRecommendationsCreatesBestowalsPerAward(): void
+    public function testCreateFromGroupedRecommendationsCreatesOneBestowalForGroup(): void
     {
         $secondAwardId = $this->getDifferentAwardId($this->getFirstAwardId());
         $headId = $this->createRecommendation('King Approved', [
@@ -103,17 +132,99 @@ class BestowalCreationServiceTest extends BaseTestCase
         $result = $this->service->createFromRecommendation($headId, self::ADMIN_MEMBER_ID);
 
         $this->assertTrue($result['success'], $result['error'] ?? json_encode($result));
-        $this->assertCount(2, $result['data']['bestowalIds']);
+        $this->assertCount(1, $result['data']['bestowalIds']);
 
         $head = $this->recommendationsTable->get($headId);
         $child = $this->recommendationsTable->get($childId);
-        $this->assertNotSame((int)$head->bestowal_id, (int)$child->bestowal_id);
+        $this->assertSame((int)$head->bestowal_id, (int)$child->bestowal_id);
 
         $headBestowal = $this->bestowalsTable->get((int)$head->bestowal_id);
-        $childBestowal = $this->bestowalsTable->get((int)$child->bestowal_id);
         $this->assertSame(self::ADMIN_MEMBER_ID, (int)$headBestowal->member_id);
-        $this->assertSame(self::ADMIN_MEMBER_ID, (int)$childBestowal->member_id);
-        $this->assertNotSame((int)$headBestowal->award_id, (int)$childBestowal->award_id);
+        $this->assertSame((int)$headBestowal->award_id, (int)$head->award_id);
+    }
+
+    public function testCreateFromGroupedRecommendationsUsesSelectedGathering(): void
+    {
+        $gatheringId = $this->getFirstGatheringId();
+        $headId = $this->createRecommendation('King Approved', [
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'member_sca_name' => 'Admin von Admin',
+            'gathering_id' => null,
+        ]);
+        $childId = $this->createRecommendation('King Approved', [
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'member_sca_name' => 'Admin von Admin',
+            'gathering_id' => null,
+        ]);
+        (new RecommendationGroupingService($this->recommendationsTable))
+            ->groupRecommendations([$headId, $childId], self::ADMIN_MEMBER_ID);
+
+        $result = $this->service->createFromRecommendation($headId, self::ADMIN_MEMBER_ID, $gatheringId);
+
+        $this->assertTrue($result['success'], $result['error'] ?? json_encode($result));
+        $bestowal = $this->bestowalsTable->get((int)$result['data']['bestowalId']);
+        $this->assertSame($gatheringId, (int)$bestowal->gathering_id);
+
+        $head = $this->recommendationsTable->get($headId);
+        $child = $this->recommendationsTable->get($childId);
+        $this->assertSame((int)$head->bestowal_id, (int)$child->bestowal_id);
+    }
+
+    public function testCreateFromGroupedRecommendationsIncludesAllLinkedReasonsInSummary(): void
+    {
+        $awardId = $this->getFirstAwardId();
+        $headId = $this->createRecommendation('King Approved', [
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'member_sca_name' => 'Admin von Admin',
+            'award_id' => $awardId,
+            'reason' => 'First grouped reason.',
+            'requester_sca_name' => 'First Submitter',
+        ]);
+        $childId = $this->createRecommendation('King Approved', [
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'member_sca_name' => 'Admin von Admin',
+            'award_id' => $awardId,
+            'reason' => 'Second grouped reason.',
+            'requester_sca_name' => 'Second Submitter',
+        ]);
+        (new RecommendationGroupingService($this->recommendationsTable))
+            ->groupRecommendations([$headId, $childId], self::ADMIN_MEMBER_ID);
+
+        $result = $this->service->createFromRecommendation($headId, self::ADMIN_MEMBER_ID);
+
+        $this->assertTrue($result['success'], $result['error'] ?? json_encode($result));
+        $this->assertCount(1, $result['data']['bestowalIds']);
+        $bestowal = $this->bestowalsTable->get((int)$result['data']['bestowalId']);
+        $summary = (string)$bestowal->reason_summary;
+        $this->assertStringContainsString('Submitted by First Submitter:', $summary);
+        $this->assertStringContainsString('First grouped reason.', $summary);
+        $this->assertStringContainsString('Submitted by Second Submitter:', $summary);
+        $this->assertStringContainsString('Second grouped reason.', $summary);
+    }
+
+    public function testCreateFromGroupedRecommendationsCopiesUniqueSpecialties(): void
+    {
+        $awardId = $this->getFirstAwardId();
+        $headId = $this->createRecommendation('King Approved', [
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'member_sca_name' => 'Admin von Admin',
+            'award_id' => $awardId,
+            'specialty' => 'Illumination',
+        ]);
+        $childId = $this->createRecommendation('King Approved', [
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'member_sca_name' => 'Admin von Admin',
+            'award_id' => $awardId,
+            'specialty' => 'Calligraphy',
+        ]);
+        (new RecommendationGroupingService($this->recommendationsTable))
+            ->groupRecommendations([$headId, $childId], self::ADMIN_MEMBER_ID);
+
+        $result = $this->service->createFromRecommendation($headId, self::ADMIN_MEMBER_ID);
+
+        $this->assertTrue($result['success'], $result['error'] ?? json_encode($result));
+        $bestowal = $this->bestowalsTable->get((int)$result['data']['bestowalId']);
+        $this->assertSame('Illumination, Calligraphy', $bestowal->specialty);
     }
 
     public function testLockedRecommendationRejectsManualStateChange(): void
@@ -178,6 +289,19 @@ class BestowalCreationServiceTest extends BaseTestCase
         }
 
         return (int)$award->id;
+    }
+
+    private function getFirstGatheringId(): int
+    {
+        $gathering = $this->getTableLocator()->get('Gatherings')
+            ->find()
+            ->select(['id'])
+            ->first();
+        if ($gathering === null) {
+            $this->markTestSkipped('Need at least one gathering for selected gathering tests');
+        }
+
+        return (int)$gathering->id;
     }
 
     private function statusForState(string $state): string

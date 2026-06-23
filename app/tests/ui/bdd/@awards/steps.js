@@ -68,7 +68,7 @@ const FIXTURE_SETS = {
     'detail edit': [
         { name: 'detail', awardName: 'Award of Arms' },
     ],
-    'quick edit': [
+    'grid edit': [
         { name: 'quick', awardName: 'Award of Amicitia of Ansteorra' },
     ],
     'bulk edit': [
@@ -1103,7 +1103,7 @@ When('I open the detail edit modal', async ({ page }) => {
     await page.locator('#editModal select[name="state"]').waitFor({ state: 'visible', timeout: 10000 });
 });
 
-When('I open the {string} recommendation quick edit modal from the grid', async ({ page }, name) => {
+When('I open the {string} recommendation edit modal from the grid', async ({ page }, name) => {
     const fixture = getFixture(page, name);
     const row = page.locator(`table tbody tr[data-id="${fixture.id}"]`);
     await expect(row).toBeVisible();
@@ -2447,10 +2447,10 @@ When('I submit the bestowal state transitions form on the current state', async 
     await expect(page.getByRole('alert').first()).toContainText('Transitions updated.', { timeout: 15000 });
 });
 
-When('I submit the open recommendation quick edit with a turbo stream response', async ({ page }) => {
+When('I submit the open recommendation edit with a turbo stream response', async ({ page }) => {
     const modal = page.locator('#editRecommendationModal');
     await expect(modal).toBeVisible();
-    const form = modal.locator('turbo-frame#editRecommendationQuick form').first();
+    const form = modal.locator('turbo-frame#editRecommendation form').first();
     await expect(form).toBeVisible({ timeout: 15000 });
 
     await waitForTurboStreamResponse(page, async () => {

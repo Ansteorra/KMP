@@ -12,7 +12,6 @@ use Cake\ORM\Table;
  * Centralises dropdown preparation used by the Turbo Frame templates.
  *
  * @see \Awards\Controller\RecommendationsController::turboEditForm()
- * @see \Awards\Controller\RecommendationsController::turboQuickEditForm()
  */
 class RecommendationFormService
 {

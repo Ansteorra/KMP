@@ -94,8 +94,10 @@ class BestowalUpdateService
                         'gathering_id' => $data['gathering_id'] ?? null,
                         'gathering_scheduled_activity_id' => $data['gathering_scheduled_activity_id'] ?? null,
                         'bestowed_at' => $data['bestowed_at'] ?? null,
+                        'specialty' => $data['specialty'] ?? null,
                         'noble_notes' => $data['noble_notes'] ?? null,
                         'herald_notes' => $data['herald_notes'] ?? null,
+                        'reason_summary' => $data['reason_summary'] ?? null,
                         'close_reason' => $data['close_reason'] ?? null,
                         'note' => $data['note'] ?? null,
                     ];

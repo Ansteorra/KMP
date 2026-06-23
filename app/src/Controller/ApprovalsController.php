@@ -15,10 +15,13 @@ use App\Services\ApprovalContext\ApprovalContextRendererRegistry;
 use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\WorkflowApprovalManagerInterface;
 use App\Services\WorkflowEngine\WorkflowEngineInterface;
+use Awards\Model\Entity\Bestowal;
+use Awards\Services\BestowalGatheringLookupService;
 use Awards\Services\RecommendationFeedbackService;
 use Cake\Controller\ComponentRegistry;
 use Cake\Http\Response;
 use Cake\Http\ServerRequest;
+use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 use Cake\Routing\Router;
 use Exception;
@@ -34,10 +37,17 @@ class ApprovalsController extends AppController
 {
     use DataverseGridTrait;
 
+    private const BESTOWAL_GATHERING_REQUIRED_KEY = 'requires_bestowal_gathering';
+    private const BESTOWAL_GATHERING_WORKFLOW_SLUGS = [
+        'awards-recommendation-submitted',
+        'awards-existing-recommendation-approval',
+    ];
+
     protected ?string $defaultTable = 'WorkflowApprovals';
 
     private WorkflowEngineInterface $engine;
     private WorkflowApprovalManagerInterface $approvalManager;
+    private ?array $bestowalGatheringOptions = null;
 
     /**
      * Constructor.
@@ -76,6 +86,7 @@ class ApprovalsController extends AppController
             'updateTriage',
             'mobileApprovals',
             'mobileApprovalsData',
+            'bestowalGatheringsAutoComplete',
         );
     }
 
@@ -139,9 +150,10 @@ class ApprovalsController extends AppController
                 'requester' => null,
             ];
 
-            $approverConfig = is_string($approval->approver_config)
-                ? json_decode($approval->approver_config, true)
-                : ($approval->approver_config ?? []);
+            $approverConfig = $this->augmentApproverConfigForResponse(
+                ApprovalsGridColumns::normalizeApproverConfig($approval->approver_config),
+                $approval,
+            );
             $isFeedbackResponse = !empty($approverConfig['feedback_response']);
             $decisionOptions = WorkflowApprovalDecisionOptions::normalizeOptions($approverConfig);
 
@@ -168,6 +180,8 @@ class ApprovalsController extends AppController
                     'requiresComment' => !empty($approverConfig['requires_comment']),
                     'decisionOptions' => $decisionOptions,
                     'decisionPromptLabel' => $approverConfig['decision_prompt_label'] ?? '',
+                    'requiresBestowalGathering' => $this->requiresBestowalGatheringSelection($approverConfig),
+                    'bestowalGatheringOptions' => $approverConfig['bestowal_gathering_options'] ?? [],
                 ],
                 'modified' => $approval->modified ? $approval->modified->toIso8601String() : null,
             ];
@@ -239,6 +253,35 @@ class ApprovalsController extends AppController
     }
 
     /**
+     * Return future gathering autocomplete options for approval-created bestowals.
+     *
+     * @param \Awards\Services\BestowalGatheringLookupService $lookupService Gathering lookup service.
+     * @return void
+     */
+    public function bestowalGatheringsAutoComplete(BestowalGatheringLookupService $lookupService): void
+    {
+        $this->request->allowMethod(['get']);
+        $this->viewBuilder()->setClassName('Ajax');
+
+        $q = trim((string)$this->request->getQuery('q', ''));
+        $selectedId = $this->request->getQuery('selected_id');
+        $selectedId = is_numeric((string)$selectedId) ? (int)$selectedId : null;
+        $bestowal = new Bestowal();
+        $gatheringData = $lookupService->getFilteredGatheringsForBestowal($bestowal, true, $selectedId);
+        $gatherings = $gatheringData['gatherings'] ?? [];
+        $cancelledGatheringIds = $gatheringData['cancelledGatheringIds'] ?? [];
+
+        if ($q !== '') {
+            $gatherings = array_filter(
+                $gatherings,
+                fn($display) => mb_stripos((string)$display, $q) !== false,
+            );
+        }
+
+        $this->set(compact('gatherings', 'q', 'cancelledGatheringIds', 'selectedId'));
+    }
+
+    /**
      * Token-based deep link for email-based approval access.
      *
      * @param string $token Approval token from email
@@ -285,10 +328,9 @@ class ApprovalsController extends AppController
             'defaultSystemView' => 'sys-approvals-pending',
             'defaultSort' => ['WorkflowApprovals.modified' => 'desc', 'WorkflowApprovals.id' => 'desc'],
         ]);
-        $contain = [];
-        if ($queryContext->loadsAny(['workflow_name', 'request', 'requester'])) {
-            $contain['WorkflowInstances'] = ['WorkflowDefinitions'];
-        }
+        $contain = [
+            'WorkflowInstances' => ['WorkflowDefinitions'],
+        ];
         if ($queryContext->loadsColumn('current_approver')) {
             $contain['CurrentApprover'] = function ($q) {
                 return $q->select(['id', 'sca_name']);
@@ -520,17 +562,9 @@ class ApprovalsController extends AppController
     {
         $approvalsTable = $this->fetchTable('WorkflowApprovals');
         $systemViews = ApprovalsGridColumns::getAdminSystemViews();
-        $queryContext = $this->resolveDataverseGridQueryContext([
-            'gridKey' => 'Workflows.allApprovals.main',
-            'gridColumnsClass' => ApprovalsGridColumns::class,
-            'systemViews' => $systemViews,
-            'defaultSystemView' => 'sys-admin-pending',
-            'defaultSort' => ['WorkflowApprovals.modified' => 'desc'],
-        ]);
-        $contain = [];
-        if ($queryContext->loadsAny(['workflow_name', 'request', 'requester'])) {
-            $contain['WorkflowInstances'] = ['WorkflowDefinitions'];
-        }
+        $contain = [
+            'WorkflowInstances' => ['WorkflowDefinitions'],
+        ];
         $contain['CurrentApprover'] = function ($q) {
             return $q->select(['id', 'sca_name']);
         };
@@ -629,6 +663,8 @@ class ApprovalsController extends AppController
 
         foreach ($approvals as $approval) {
             $approverConfig = ApprovalsGridColumns::normalizeApproverConfig($approval->approver_config);
+            $approverConfig = $this->augmentApproverConfigForResponse($approverConfig, $approval);
+            $approval->approver_config = $approverConfig;
             $isFeedbackResponse = !empty($approverConfig['feedback_response']);
             $approval->is_feedback_response = $isFeedbackResponse;
             $approval->bulk_response_type_key = $this->getApprovalResponseTypeKey($approval);
@@ -694,6 +730,8 @@ class ApprovalsController extends AppController
 
         foreach ($approvalList as $approval) {
             $approverConfig = ApprovalsGridColumns::normalizeApproverConfig($approval->approver_config);
+            $approverConfig = $this->augmentApproverConfigForResponse($approverConfig, $approval);
+            $approval->approver_config = $approverConfig;
             $isFeedbackResponse = !empty($approverConfig['feedback_response']);
             $approval->is_feedback_response = $isFeedbackResponse;
             $approval->workflow_name = $approval->workflow_instance?->workflow_definition?->name ?? __('Unknown');
@@ -825,11 +863,13 @@ class ApprovalsController extends AppController
         $approvalId = (int)$this->request->getData('approvalId');
         $decision = $this->request->getData('decision');
         $comment = $this->request->getData('comment');
+        $bestowalGatheringId = $this->getPostedBestowalGatheringId();
         $nextApproverId = $this->request->getData('next_approver_id')
             ? (int)$this->request->getData('next_approver_id')
             : null;
         $currentUser = $this->request->getAttribute('identity');
         $approval = $this->fetchTable('WorkflowApprovals')->find()
+            ->contain(['WorkflowInstances' => ['WorkflowDefinitions']])
             ->where(['WorkflowApprovals.id' => $approvalId])
             ->first();
         $approverConfig = $approval
@@ -859,6 +899,11 @@ class ApprovalsController extends AppController
             return $this->redirect(['action' => 'approvals']);
         }
 
+        $gatheringError = $this->validateBestowalGatheringSelection($approval, (string)$decision, $bestowalGatheringId);
+        if ($gatheringError !== null) {
+            return $this->approvalResponseFailure($gatheringError);
+        }
+
         $result = $this->recordSingleApprovalResponse(
             $approval,
             (int)$currentUser->id,
@@ -869,7 +914,13 @@ class ApprovalsController extends AppController
         );
 
         if ($result->isSuccess()) {
-            $this->handleApprovalResponseSideEffects($result, (int)$currentUser->id, (string)$decision, $comment);
+            $this->handleApprovalResponseSideEffects(
+                $result,
+                (int)$currentUser->id,
+                (string)$decision,
+                $comment,
+                $bestowalGatheringId,
+            );
         }
 
         if ($this->request->is('ajax') && !$this->wantsTurboStreamRequest()) {
@@ -905,6 +956,7 @@ class ApprovalsController extends AppController
     ) {
         $decision = $this->request->getData('decision');
         $comment = $this->request->getData('comment');
+        $bestowalGatheringId = $this->getPostedBestowalGatheringId();
         $nextApproverId = $this->request->getData('next_approver_id')
             ? (int)$this->request->getData('next_approver_id')
             : null;
@@ -917,6 +969,7 @@ class ApprovalsController extends AppController
         }
 
         $approvals = $this->fetchTable('WorkflowApprovals')->find()
+            ->contain(['WorkflowInstances' => ['WorkflowDefinitions']])
             ->where(['WorkflowApprovals.id IN' => $approvalIds])
             ->all()
             ->combine('id', fn(WorkflowApproval $approval): WorkflowApproval => $approval)
@@ -956,6 +1009,15 @@ class ApprovalsController extends AppController
             return $this->approvalResponseFailure($error);
         }
 
+        $gatheringError = $this->validateBestowalGatheringSelection(
+            $firstApproval,
+            (string)$decision,
+            $bestowalGatheringId,
+        );
+        if ($gatheringError !== null) {
+            return $this->approvalResponseFailure($gatheringError);
+        }
+
         $successCount = 0;
         $errors = [];
         foreach ($approvalIds as $approvalId) {
@@ -971,7 +1033,13 @@ class ApprovalsController extends AppController
             );
             if ($result->isSuccess()) {
                 $successCount++;
-                $this->handleApprovalResponseSideEffects($result, (int)$currentUser->id, (string)$decision, $comment);
+                $this->handleApprovalResponseSideEffects(
+                    $result,
+                    (int)$currentUser->id,
+                    (string)$decision,
+                    $comment,
+                    $bestowalGatheringId,
+                );
             } else {
                 $errors[] = __('Approval {0}: {1}', $approvalId, $result->getError());
             }
@@ -1050,10 +1118,28 @@ class ApprovalsController extends AppController
         int $memberId,
         string $decision,
         mixed $comment,
+        ?int $bestowalGatheringId = null,
     ): void {
         $data = $result->getData();
         if (!is_array($data)) {
             return;
+        }
+
+        $resumeData = [
+            'approval' => $data,
+            'approverId' => $memberId,
+            'decision' => $decision,
+            'comment' => $comment,
+        ];
+        $intermediateData = [
+            'approverId' => $memberId,
+            'decision' => $decision,
+            'comment' => $comment ?? null,
+            'nextApproverId' => $data['nextApproverId'] ?? null,
+        ];
+        if ($bestowalGatheringId !== null) {
+            $resumeData['bestowalGatheringId'] = $bestowalGatheringId;
+            $intermediateData['bestowalGatheringId'] = $bestowalGatheringId;
         }
 
         if (in_array($data['approvalStatus'] ?? '', ['approved', 'rejected'], true)) {
@@ -1062,12 +1148,7 @@ class ApprovalsController extends AppController
                 $data['instanceId'],
                 $data['nodeId'],
                 $outputPort,
-                [
-                    'approval' => $data,
-                    'approverId' => $memberId,
-                    'decision' => $decision,
-                    'comment' => $comment,
-                ],
+                $resumeData,
             );
         }
 
@@ -1075,12 +1156,7 @@ class ApprovalsController extends AppController
             $this->getWorkflowEngine()->fireIntermediateApprovalActions(
                 $data['instanceId'],
                 $data['nodeId'],
-                [
-                    'approverId' => $memberId,
-                    'decision' => $decision,
-                    'comment' => $comment ?? null,
-                    'nextApproverId' => $data['nextApproverId'] ?? null,
-                ],
+                $intermediateData,
             );
         }
     }
@@ -1094,7 +1170,10 @@ class ApprovalsController extends AppController
     {
         return [
             'id' => (int)$approval->id,
-            'approver_config' => ApprovalsGridColumns::normalizeApproverConfig($approval->approver_config),
+            'approver_config' => $this->augmentApproverConfigForResponse(
+                ApprovalsGridColumns::normalizeApproverConfig($approval->approver_config),
+                $approval,
+            ),
             'required_count' => (int)$approval->required_count,
             'approved_count' => (int)$approval->approved_count,
             'bulk_type_key' => $this->getApprovalResponseTypeKey($approval),
@@ -1119,9 +1198,158 @@ class ApprovalsController extends AppController
             'comment_warning' => (string)($approverConfig['comment_warning'] ?? ''),
             'decision_prompt_label' => (string)($approverConfig['decision_prompt_label'] ?? ''),
             'decision_options' => WorkflowApprovalDecisionOptions::normalizeOptions($approverConfig),
+            self::BESTOWAL_GATHERING_REQUIRED_KEY => $this->approvalRequiresBestowalGatheringSelection(
+                $approval,
+                $approverConfig,
+            ),
         ];
 
         return hash('sha256', json_encode($typeConfig, JSON_UNESCAPED_SLASHES));
+    }
+
+    /**
+     * @param array<string, mixed> $approverConfig Approval config.
+     * @return array<string, mixed>
+     */
+    private function augmentApproverConfigForResponse(array $approverConfig, ?WorkflowApproval $approval = null): array
+    {
+        if (!$this->approvalRequiresBestowalGatheringSelection($approval, $approverConfig)) {
+            return $approverConfig;
+        }
+
+        $approverConfig[self::BESTOWAL_GATHERING_REQUIRED_KEY] = true;
+        $approverConfig['bestowal_gathering_options'] = $this->getBestowalGatheringOptions();
+
+        return $approverConfig;
+    }
+
+    /**
+     * @param array<string, mixed> $approverConfig Approval config.
+     * @return bool
+     */
+    private function requiresBestowalGatheringSelection(array $approverConfig): bool
+    {
+        return !empty($approverConfig[self::BESTOWAL_GATHERING_REQUIRED_KEY])
+            || !empty($approverConfig['requiresBestowalGathering']);
+    }
+
+    /**
+     * Determine whether this approval creates an award bestowal that must be scheduled to a gathering.
+     *
+     * Older pending approvals may have been created before the workflow node included
+     * requires_bestowal_gathering, so the workflow slug is the compatibility fallback.
+     *
+     * @param \App\Model\Entity\WorkflowApproval|null $approval Approval.
+     * @param array<string, mixed> $approverConfig Approval config.
+     * @return bool
+     */
+    private function approvalRequiresBestowalGatheringSelection(
+        ?WorkflowApproval $approval,
+        array $approverConfig,
+    ): bool {
+        if ($this->requiresBestowalGatheringSelection($approverConfig)) {
+            return true;
+        }
+
+        $slug = (string)($approval?->workflow_instance?->workflow_definition?->slug ?? '');
+
+        return in_array($slug, self::BESTOWAL_GATHERING_WORKFLOW_SLUGS, true);
+    }
+
+    /**
+     * Read the optional approval-selected bestowal gathering ID from the posted form data.
+     *
+     * @return int|null
+     */
+    private function getPostedBestowalGatheringId(): ?int
+    {
+        $rawId = $this->request->getData('bestowal_gathering_id') ?? $this->request->getData('gathering_id');
+        $gatheringId = (int)$rawId;
+
+        return $gatheringId > 0 ? $gatheringId : null;
+    }
+
+    /**
+     * Validate the gathering selection for approval types that create scheduled bestowals.
+     *
+     * @param \App\Model\Entity\WorkflowApproval|null $approval Approval being answered.
+     * @param string $decision Submitted decision.
+     * @param int|null $gatheringId Selected gathering ID.
+     * @return string|null Error message when invalid.
+     */
+    private function validateBestowalGatheringSelection(
+        ?WorkflowApproval $approval,
+        string $decision,
+        ?int $gatheringId,
+    ): ?string {
+        if ($approval === null || $decision !== WorkflowApprovalResponse::DECISION_APPROVE) {
+            return null;
+        }
+
+        $approverConfig = ApprovalsGridColumns::normalizeApproverConfig($approval->approver_config);
+        if (!$this->approvalRequiresBestowalGatheringSelection($approval, $approverConfig)) {
+            return null;
+        }
+
+        if ($gatheringId === null) {
+            return (string)__('Select the gathering where the bestowal will be presented.');
+        }
+
+        if (!$this->isSelectableBestowalGathering($gatheringId)) {
+            return (string)__('Select a valid, future gathering for the bestowal.');
+        }
+
+        return null;
+    }
+
+    /**
+     * Check that a selected bestowal gathering is still available for scheduling.
+     *
+     * @param int $gatheringId Gathering ID.
+     * @return bool
+     */
+    private function isSelectableBestowalGathering(int $gatheringId): bool
+    {
+        return $this->fetchTable('Gatherings')->exists([
+            'Gatherings.id' => $gatheringId,
+            'Gatherings.deleted IS' => null,
+            'Gatherings.cancelled_at IS' => null,
+            'Gatherings.start_date >' => DateTime::now(),
+        ]);
+    }
+
+    /**
+     * @return array<int, array{id:int,label:string}>
+     */
+    private function getBestowalGatheringOptions(): array
+    {
+        if ($this->bestowalGatheringOptions !== null) {
+            return $this->bestowalGatheringOptions;
+        }
+
+        $gatherings = $this->fetchTable('Gatherings')->find()
+            ->select(['id', 'name', 'start_date'])
+            ->where([
+                'Gatherings.deleted IS' => null,
+                'Gatherings.cancelled_at IS' => null,
+                'Gatherings.start_date >' => DateTime::now(),
+            ])
+            ->orderBy(['Gatherings.start_date' => 'ASC', 'Gatherings.name' => 'ASC'])
+            ->limit(100)
+            ->all();
+
+        $options = [];
+        foreach ($gatherings as $gathering) {
+            $dateLabel = $gathering->start_date ? TimezoneHelper::formatDate($gathering->start_date) : '';
+            $options[] = [
+                'id' => (int)$gathering->id,
+                'label' => trim((string)$gathering->name . ($dateLabel !== '' ? ' - ' . $dateLabel : '')),
+            ];
+        }
+
+        $this->bestowalGatheringOptions = $options;
+
+        return $this->bestowalGatheringOptions;
     }
 
     /**

@@ -8,7 +8,7 @@ import { Controller } from "@hotwired/stimulus"
  * and serialPickNext configuration.
  */
 class ApprovalResponseController extends Controller {
-    static targets = ["decision", "decisionSection", "decisionLegend", "decisionOptions", "nextApproverSection", "nextApproverInput", "submitBtn", "comment", "commentRequiredHint", "commentWarning", "commentWarningText", "infoText", "approvalIds", "bulkSummary"]
+    static targets = ["decision", "decisionSection", "decisionLegend", "decisionOptions", "nextApproverSection", "nextApproverInput", "submitBtn", "comment", "commentRequiredHint", "commentWarning", "commentWarningText", "infoText", "approvalIds", "bulkSummary", "bestowalGatheringSection", "bestowalGathering", "bestowalGatheringError"]
     static values = {
         serialPickNext: Boolean,
         requiredCount: Number,
@@ -23,6 +23,12 @@ class ApprovalResponseController extends Controller {
 
     onDecisionChange(event) {
         this._updateVisibility()
+    }
+
+    onBestowalGatheringChange() {
+        if (this.hasBestowalGatheringTarget && this._getBestowalGatheringValue()) {
+            this._setBestowalGatheringInvalid(false)
+        }
     }
 
     /**
@@ -43,6 +49,7 @@ class ApprovalResponseController extends Controller {
         this._hideReject = approvalData.hideReject || false
         this._bulkIds = Array.isArray(approvalData.bulkIds) ? approvalData.bulkIds : []
         this._bulkError = approvalData.bulkError || ''
+        this._requiresBestowalGathering = approvalData.requiresBestowalGathering === true
         this._renderDecisionOptions()
 
         // Reset form
@@ -52,6 +59,10 @@ class ApprovalResponseController extends Controller {
             if (defaultDecision) defaultDecision.checked = true
         }
         if (this.hasCommentTarget) this.commentTarget.value = ''
+        if (this.hasBestowalGatheringTarget) {
+            this._setBestowalGatheringValue('')
+            this._setBestowalGatheringInvalid(false)
+        }
         if (this.hasApprovalIdsTarget) {
             this.approvalIdsTarget.value = this._bulkIds.join(',')
         }
@@ -103,6 +114,18 @@ class ApprovalResponseController extends Controller {
         this._updateVisibility()
     }
 
+    validateSubmit(event) {
+        if (this._requiresBestowalGathering && this._getSelectedDecision() === 'approve') {
+            const value = this._getBestowalGatheringValue()
+            if (!value) {
+                event.preventDefault()
+                event.stopImmediatePropagation()
+                this._setBestowalGatheringInvalid(true)
+                this._getBestowalGatheringInput()?.focus()
+            }
+        }
+    }
+
     _updateVisibility() {
         if (!this.hasNextApproverSectionTarget) return
 
@@ -111,6 +134,7 @@ class ApprovalResponseController extends Controller {
         const isReject = decision === 'reject'
         const needsMore = (this.approvedCountValue + 1) < this.requiredCountValue
         const showPicker = !this._feedbackResponse && isApprove && this.serialPickNextValue && needsMore
+        const showBestowalGathering = !this._feedbackResponse && isApprove && this._requiresBestowalGathering
 
         if (this.hasDecisionSectionTarget) {
             this.decisionSectionTarget.hidden = this._feedbackResponse && this._decisionOptions.length === 0
@@ -120,6 +144,24 @@ class ApprovalResponseController extends Controller {
         }
 
         this.nextApproverSectionTarget.hidden = !showPicker
+        if (this.hasBestowalGatheringSectionTarget) {
+            this.bestowalGatheringSectionTarget.hidden = !showBestowalGathering
+        }
+        if (this.hasBestowalGatheringTarget) {
+            if (showBestowalGathering) {
+                this.bestowalGatheringTarget.setAttribute('required', 'required')
+                this.bestowalGatheringTarget.setAttribute('aria-required', 'true')
+                this._getBestowalGatheringInput()?.setAttribute('required', 'required')
+                this._getBestowalGatheringInput()?.setAttribute('aria-required', 'true')
+            } else {
+                this.bestowalGatheringTarget.removeAttribute('required')
+                this.bestowalGatheringTarget.removeAttribute('aria-required')
+                this._getBestowalGatheringInput()?.removeAttribute('required')
+                this._getBestowalGatheringInput()?.removeAttribute('aria-required')
+                this._setBestowalGatheringValue('')
+                this._setBestowalGatheringInvalid(false)
+            }
+        }
 
         // Comment is required for rejections and feedback responses.
         if (this.hasCommentTarget) {
@@ -204,6 +246,47 @@ class ApprovalResponseController extends Controller {
                 <label class="form-check-label fw-semibold" for="${id}">${label}</label>
             </div>`
         }).join('')
+    }
+
+    _setBestowalGatheringInvalid(isInvalid) {
+        if (!this.hasBestowalGatheringTarget) return
+
+        const input = this._getBestowalGatheringInput()
+        const target = input || this.bestowalGatheringTarget
+        target.setAttribute('aria-invalid', isInvalid ? 'true' : 'false')
+        if (this.hasBestowalGatheringErrorTarget) {
+            this.bestowalGatheringErrorTarget.hidden = !isInvalid
+        }
+    }
+
+    _getBestowalGatheringValue() {
+        if (!this.hasBestowalGatheringTarget) return ''
+
+        const hidden = this.bestowalGatheringTarget.querySelector('[data-ac-target="hidden"]')
+        if (hidden) return hidden.value
+
+        return this.bestowalGatheringTarget.value || ''
+    }
+
+    _setBestowalGatheringValue(value) {
+        if (!this.hasBestowalGatheringTarget) return
+
+        const hidden = this.bestowalGatheringTarget.querySelector('[data-ac-target="hidden"]')
+        if (hidden) hidden.value = value
+        const hiddenText = this.bestowalGatheringTarget.querySelector('[data-ac-target="hiddenText"]')
+        if (hiddenText) hiddenText.value = ''
+        const input = this._getBestowalGatheringInput()
+        if (input) input.value = ''
+        if (!hidden && !input) this.bestowalGatheringTarget.value = value
+    }
+
+    _getBestowalGatheringInput() {
+        if (!this.hasBestowalGatheringTarget) return null
+
+        return this.bestowalGatheringTarget.querySelector('[data-ac-target="input"]')
+            || (this.bestowalGatheringTarget.matches?.('input,select,textarea')
+                ? this.bestowalGatheringTarget
+                : null)
     }
 
     _escHtml(value) {

@@ -85,6 +85,31 @@ describe('AwardsRecommendationEditForm', () => {
         expect(controller.element.getAttribute('action')).toBe('/awards/recommendations/edit/99');
     });
 
+    test('setId updates nested form action when controller is mounted on modal wrapper', () => {
+        document.body.innerHTML = `
+            <div data-controller="awards-rec-edit">
+                <form action="/awards/recommendations/edit/1">
+                    <turbo-frame data-awards-rec-edit-target="turboFrame" src=""></turbo-frame>
+                </form>
+            </div>
+        `;
+        controller.element = document.querySelector('[data-controller="awards-rec-edit"]');
+        controller.turboFrameTarget = document.querySelector('[data-awards-rec-edit-target="turboFrame"]');
+
+        controller.setId({ detail: { id: '99' } });
+
+        expect(controller.turboFrameTarget.getAttribute('src')).toBe('/awards/recommendations/frame/99');
+        expect(document.querySelector('form').getAttribute('action')).toBe('/awards/recommendations/edit/99');
+    });
+
+    test('onTurboFrameLoad syncs page context after full edit form loads', () => {
+        const dispatchSpy = jest.spyOn(window, 'dispatchEvent');
+
+        controller.onTurboFrameLoad();
+
+        expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'page-context:sync' }));
+    });
+
     test('submit enables disabled fields before submission', async () => {
         controller.notFoundTarget.disabled = true;
         controller.scaMemberTarget.disabled = true;

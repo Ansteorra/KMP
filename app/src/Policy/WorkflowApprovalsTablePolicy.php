@@ -92,4 +92,15 @@ class WorkflowApprovalsTablePolicy extends BasePolicy
     {
         return $user->getIdentifier() !== null;
     }
+
+    /**
+     * Allow authenticated approvers to search future gatherings for approval-created bestowals.
+     */
+    public function canBestowalGatheringsAutoComplete(
+        KmpIdentityInterface $user,
+        BaseEntity|Table $entity,
+        ...$optionalArgs,
+    ): bool {
+        return $user->getIdentifier() !== null;
+    }
 }

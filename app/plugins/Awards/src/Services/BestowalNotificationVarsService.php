@@ -103,6 +103,7 @@ class BestowalNotificationVarsService
                 'callIntoCourt' => (string)($bestowal->call_into_court ?? ''),
                 'courtAvailability' => (string)($bestowal->court_availability ?? ''),
                 'personToNotify' => (string)($bestowal->person_to_notify ?? ''),
+                'specialty' => (string)($bestowal->specialty ?? ''),
                 'nobleNotes' => (string)($bestowal->noble_notes ?? ''),
                 'heraldNotes' => (string)($bestowal->herald_notes ?? ''),
                 'closeReason' => (string)($bestowal->close_reason ?? ''),

@@ -248,6 +248,7 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
                 'comment' => $additionalData['comment'] ?? null,
                 'rejectionComment' => $additionalData['comment'] ?? null,
                 'decision' => $additionalData['decision'] ?? $outputPort,
+                'bestowalGatheringId' => $additionalData['bestowalGatheringId'] ?? null,
             ];
             $instance->context = $context;
 

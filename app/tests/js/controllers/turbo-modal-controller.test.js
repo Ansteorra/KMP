@@ -16,7 +16,7 @@ describe('TurboModalController', () => {
                       method="post"
                       data-action="submit->turbo-modal#submitAsTurboStream turbo:submit-start->turbo-modal#closeModalBeforeSubmit">
                     <input type="text" name="field" value="test">
-                    <input type="hidden" name="page_context_url" value="/awards/recommendations/turbo-quick-edit-form/594">
+                    <input type="hidden" name="page_context_url" value="/awards/recommendations/turbo-edit-form/594">
                     <button type="submit">Submit</button>
                 </form>
             </div>
@@ -149,7 +149,7 @@ describe('TurboModalController', () => {
             unobserve: jest.fn(),
         }));
         document.body.innerHTML = `
-            <turbo-frame id="editRecommendationQuick">
+            <turbo-frame id="editRecommendation">
                 <form data-controller="turbo-modal"
                       action="http://localhost/awards/recommendations/edit/594"
                       method="post">
@@ -171,7 +171,7 @@ describe('TurboModalController', () => {
         await controller.submitAsTurboStream({ preventDefault: jest.fn() });
 
         expect(controller.renderTurboStream).not.toHaveBeenCalled();
-        expect(document.getElementById('editRecommendationQuick').innerHTML)
+        expect(document.getElementById('editRecommendation').innerHTML)
             .toContain('replacement-form');
     });
 

@@ -282,6 +282,11 @@ $submitAction = implode(' ', [
             'data-awards-bestowal-edit-target' => 'givenDate',
             'container' => ['data-awards-bestowal-edit-target' => 'givenBlock'],
         ]);
+        echo $this->Form->control('specialty', [
+            'label' => __('Specialty'),
+            'value' => $bestowal->specialty,
+            'help' => __('Copied from linked recommendation specialties; edit for court, herald, or scribe notes.'),
+        ]);
         echo $this->Form->control('noble_notes', [
             'type' => 'textarea',
             'label' => __('Noble Notes'),
@@ -303,6 +308,14 @@ $submitAction = implode(' ', [
                     <i class="bi bi-link-45deg text-info me-1" aria-hidden="true"></i>
                     <?= __('Recommendation Links & Notes') ?>
                 </legend>
+
+        <?= $this->Form->control('reason_summary', [
+            'type' => 'textarea',
+            'label' => __('Reason Summary'),
+            'value' => $bestowal->reason_summary,
+            'help' => __('Created from linked recommendation reasons and submitter names. Update this if court notes need a shorter or edited version.'),
+            'rows' => 5,
+        ]) ?>
 
         <?php
         $linkedRecommendations = $bestowal->recommendations ?? [];

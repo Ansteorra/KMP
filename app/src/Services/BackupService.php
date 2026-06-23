@@ -27,6 +27,7 @@ class BackupService
 {
     use LocatorAwareTrait;
 
+    private const FORMAT_VERSION = 2;
     private const CIPHER = 'aes-256-gcm';
     private const PBKDF2_ITERATIONS = 100000;
     private const PBKDF2_ALGO = 'sha256';
@@ -140,15 +141,16 @@ class BackupService
         sort($tables);
 
         $migrationFingerprint = $this->getMigrationFingerprint();
-
+        $schemaManifest = (new BackupSchemaManifestService())->export();
         $payload = [
             'meta' => [
-                'version' => 1,
+                'version' => self::FORMAT_VERSION,
                 'created_at' => DateTime::now()->toIso8601String(),
                 'table_count' => count($tables),
                 'tables' => $tables,
                 'migration_fingerprint' => $migrationFingerprint,
             ],
+            'schema' => $schemaManifest,
             'tables' => [],
         ];
 
@@ -213,17 +215,73 @@ class BackupService
      * @param string $encryptedData Raw encrypted backup bytes
      * @param string $encryptionKey User-provided encryption key
      * @param callable|null $progressReporter Optional progress callback
-     * @param array{ignoreSchemaMismatch?: bool} $options Restore options
-     * @return array{table_count: int, row_count: int} Import statistics
+     * @param array{ignoreSchemaMismatch?: bool}|callable|null $options Restore options, or migration runner for BC
+     * @param callable|null $migrationRunner Optional post-restore migration runner
+     * @return array{table_count: int, row_count: int, constraints_not_valid?: int,
+     *   payload_upgrade?: array<string, mixed>, post_restore?: array<string, int>} Import statistics
      */
     public function import(
         string $encryptedData,
         string $encryptionKey,
         ?callable $progressReporter = null,
-        array $options = [],
+        array|callable|null $options = [],
+        ?callable $migrationRunner = null,
     ): array {
-        $ignoreSchemaMismatch = (bool)($options['ignoreSchemaMismatch'] ?? false);
+        if (is_callable($options) && $migrationRunner === null) {
+            $migrationRunner = $options;
+            $options = [];
+        }
+        $ignoreSchemaMismatch = (bool)(is_array($options) ? ($options['ignoreSchemaMismatch'] ?? false) : false);
 
+        $payload = $this->decodePayload($encryptedData, $encryptionKey, $progressReporter);
+
+        $this->reportSchemaMismatch($payload, $ignoreSchemaMismatch, $progressReporter);
+
+        $this->reportProgress($progressReporter, 'resetting_schema', 'Resetting database schema to backup structure.');
+        (new DatabaseSchemaResetService())->reset($payload['schema'], $progressReporter);
+
+        $stats = $this->importPayloadRows($payload, $progressReporter);
+
+        if ($migrationRunner !== null) {
+            $this->reportProgress($progressReporter, 'migrating', 'Applying application migrations.');
+            $migrationRunner();
+            $this->clearApplicationCachesAfterRestore();
+            $this->reportProgress($progressReporter, 'migrated', 'Application migrations completed.', [
+                'table_count' => $stats['table_count'],
+                'tables_processed' => $stats['table_count'],
+                'row_count' => $stats['row_count'],
+                'rows_processed' => $stats['row_count'],
+            ]);
+        }
+
+        $postRestoreStats = (new BackupRestoreCompatibilityService())->reconcile(
+            $this->connection(),
+            $payload,
+            $progressReporter,
+        );
+        $this->clearApplicationCachesAfterRestore();
+        $this->reportProgress($progressReporter, 'completed', 'Restore transaction committed.', [
+            'table_count' => $stats['table_count'],
+            'tables_processed' => $stats['table_count'],
+            'row_count' => $stats['row_count'],
+            'rows_processed' => $stats['row_count'],
+            'post_restore' => $postRestoreStats,
+        ]);
+
+        $stats['post_restore'] = $postRestoreStats;
+
+        return $stats;
+    }
+
+    /**
+     * @param callable(array<string, mixed>):void|null $progressReporter
+     * @return array{meta: array<string, mixed>, schema: array<string, mixed>, tables: array<string, mixed>}
+     */
+    private function decodePayload(
+        string $encryptedData,
+        string $encryptionKey,
+        ?callable $progressReporter = null,
+    ): array {
         // Decrypt → decompress → JSON
         $this->reportProgress($progressReporter, 'decrypting', 'Decrypting backup file.');
         $compressed = $this->decrypt($encryptedData, $encryptionKey);
@@ -236,27 +294,30 @@ class BackupService
 
         $this->reportProgress($progressReporter, 'validating', 'Validating backup payload.');
         $payload = json_decode($json, true);
-        if (!is_array($payload) || !isset($payload['tables']) || !isset($payload['meta'])) {
+        if (!is_array($payload) || !isset($payload['meta']) || !is_array($payload['meta'])) {
+            throw new RuntimeException('Invalid backup file structure');
+        }
+        if (($payload['meta']['version'] ?? null) !== self::FORMAT_VERSION) {
+            throw new RuntimeException('Unsupported backup format. Regenerate the backup with this KMP release.');
+        }
+        if (
+            !isset($payload['tables'], $payload['schema'])
+            || !is_array($payload['schema'])
+            || !is_array($payload['tables'])
+        ) {
             throw new RuntimeException('Invalid backup file structure');
         }
 
-        // Guard against schema drift: compare migration state. Older backups
-        // (v1 without a fingerprint) are always allowed so this doesn't break
-        // existing backup files.
-        $backupFingerprint = $payload['meta']['migration_fingerprint'] ?? null;
-        if (is_array($backupFingerprint) && !empty($backupFingerprint)) {
-            $currentFingerprint = $this->getMigrationFingerprint();
-            if ($currentFingerprint !== $backupFingerprint && !$ignoreSchemaMismatch) {
-                $diff = $this->describeFingerprintDiff($backupFingerprint, $currentFingerprint);
-                throw new RuntimeException(
-                    "Backup migration fingerprint does not match current database schema.\n"
-                    . $diff
-                    . "\nRe-bake the backup against the current schema, or pass "
-                    . 'ignoreSchemaMismatch=true (CLI: --ignore-schema-mismatch) to bypass.',
-                );
-            }
-        }
+        return $payload;
+    }
 
+    /**
+     * @param array{tables: array<string, mixed>} $payload
+     * @param callable(array<string, mixed>):void|null $progressReporter
+     * @return array{table_count: int, row_count: int}
+     */
+    private function importPayloadRows(array $payload, ?callable $progressReporter = null): array
+    {
         $tablesToRestore = [];
         foreach ($payload['tables'] as $tableName => $rows) {
             if (self::isExcludedTable($tableName)) {
@@ -265,20 +326,25 @@ class BackupService
             $tablesToRestore[$tableName] = is_array($rows) ? $rows : [];
         }
 
-        $tableCount = count($tablesToRestore);
-        $this->reportProgress($progressReporter, 'preparing', 'Preparing database restore transaction.', [
-            'table_count' => $tableCount,
-            'tables_processed' => 0,
-            'rows_processed' => 0,
-        ]);
-
         $connection = $this->connection();
         $schemaCollection = $connection->getSchemaCollection();
+        $tablesToRestore = $this->buildRestoreTableMap($tablesToRestore, $schemaCollection->listTables());
+        $legacyPayloadTables = array_values(array_diff(array_keys($payload['tables']), array_keys($tablesToRestore)));
+        $tableCount = count($tablesToRestore);
         $driver = $connection->getDriver();
         $isPostgres = $driver instanceof Postgres;
         $totalRows = 0;
         $processedTables = 0;
         $notValidatedConstraintCount = 0;
+
+        $this->reportProgress($progressReporter, 'preparing', 'Preparing database restore transaction.', [
+            'table_count' => $tableCount,
+            'tables_processed' => 0,
+            'rows_processed' => 0,
+            'tables_from_backup' => count($payload['tables']),
+            'tables_cleared' => count(array_diff(array_keys($tablesToRestore), array_keys($payload['tables']))),
+            'legacy_tables_available' => count($legacyPayloadTables),
+        ]);
 
         $connection->begin();
         try {
@@ -331,44 +397,49 @@ class BackupService
                     // CASCADE is required because FK constraints may reference this table.
                     $connection->execute("TRUNCATE TABLE {$quotedTable} RESTART IDENTITY CASCADE");
 
+                    $rows = $this->filterRowsToCurrentColumns($rows, $tableSchema);
                     if (!empty($rows)) {
                         $columns = array_keys($rows[0]);
-                        $tableRowCount = count($rows);
-                        $tableRowsProcessed = 0;
-                        $nextProgressAt = 100;
-                        $insertBatchSize = $this->getInsertBatchSize(count($columns), $isPostgres);
-                        foreach (array_chunk($rows, $insertBatchSize) as $batch) {
-                            $this->insertBatchRows(
-                                $connection,
-                                $driver,
-                                $quotedTable,
-                                $columns,
-                                $batch,
-                                $tableSchema,
-                                $isPostgres,
-                            );
+                        if ($columns === []) {
+                            $rows = [];
+                        } else {
+                            $tableRowCount = count($rows);
+                            $tableRowsProcessed = 0;
+                            $nextProgressAt = 100;
+                            $insertBatchSize = $this->getInsertBatchSize(count($columns), $isPostgres);
+                            foreach (array_chunk($rows, $insertBatchSize) as $batch) {
+                                $this->insertBatchRows(
+                                    $connection,
+                                    $driver,
+                                    $quotedTable,
+                                    $columns,
+                                    $batch,
+                                    $tableSchema,
+                                    $isPostgres,
+                                );
 
-                            $insertedRows = count($batch);
-                            $totalRows += $insertedRows;
-                            $tableRowsProcessed += $insertedRows;
+                                $insertedRows = count($batch);
+                                $totalRows += $insertedRows;
+                                $tableRowsProcessed += $insertedRows;
 
-                            if ($tableRowsProcessed >= $nextProgressAt || $tableRowsProcessed >= $tableRowCount) {
-                                $this->reportProgress($progressReporter, 'restoring_table', sprintf(
-                                    'Restoring table %s (%d/%d): %d/%d rows.',
-                                    $tableName,
-                                    $processedTables + 1,
-                                    $tableCount,
-                                    $tableRowsProcessed,
-                                    $tableRowCount,
-                                ), [
-                                    'current_table' => $tableName,
-                                    'current_table_rows_processed' => $tableRowsProcessed,
-                                    'current_table_row_count' => $tableRowCount,
-                                    'table_count' => $tableCount,
-                                    'tables_processed' => $processedTables,
-                                    'rows_processed' => $totalRows,
-                                ]);
-                                $nextProgressAt += 100;
+                                if ($tableRowsProcessed >= $nextProgressAt || $tableRowsProcessed >= $tableRowCount) {
+                                    $this->reportProgress($progressReporter, 'restoring_table', sprintf(
+                                        'Restoring table %s (%d/%d): %d/%d rows.',
+                                        $tableName,
+                                        $processedTables + 1,
+                                        $tableCount,
+                                        $tableRowsProcessed,
+                                        $tableRowCount,
+                                    ), [
+                                        'current_table' => $tableName,
+                                        'current_table_rows_processed' => $tableRowsProcessed,
+                                        'current_table_row_count' => $tableRowCount,
+                                        'table_count' => $tableCount,
+                                        'tables_processed' => $processedTables,
+                                        'rows_processed' => $totalRows,
+                                    ]);
+                                    $nextProgressAt += 100;
+                                }
                             }
                         }
                     }
@@ -442,44 +513,49 @@ class BackupService
                     $quotedTable = $driver->quoteIdentifier($tableName);
                     $connection->execute("DELETE FROM {$quotedTable}");
 
+                    $rows = $this->filterRowsToCurrentColumns($rows, $tableSchema);
                     if (!empty($rows)) {
                         $columns = array_keys($rows[0]);
-                        $tableRowCount = count($rows);
-                        $tableRowsProcessed = 0;
-                        $nextProgressAt = 100;
-                        $insertBatchSize = $this->getInsertBatchSize(count($columns), $isPostgres);
-                        foreach (array_chunk($rows, $insertBatchSize) as $batch) {
-                            $this->insertBatchRows(
-                                $connection,
-                                $driver,
-                                $quotedTable,
-                                $columns,
-                                $batch,
-                                $tableSchema,
-                                $isPostgres,
-                            );
+                        if ($columns === []) {
+                            $rows = [];
+                        } else {
+                            $tableRowCount = count($rows);
+                            $tableRowsProcessed = 0;
+                            $nextProgressAt = 100;
+                            $insertBatchSize = $this->getInsertBatchSize(count($columns), $isPostgres);
+                            foreach (array_chunk($rows, $insertBatchSize) as $batch) {
+                                $this->insertBatchRows(
+                                    $connection,
+                                    $driver,
+                                    $quotedTable,
+                                    $columns,
+                                    $batch,
+                                    $tableSchema,
+                                    $isPostgres,
+                                );
 
-                            $insertedRows = count($batch);
-                            $totalRows += $insertedRows;
-                            $tableRowsProcessed += $insertedRows;
+                                $insertedRows = count($batch);
+                                $totalRows += $insertedRows;
+                                $tableRowsProcessed += $insertedRows;
 
-                            if ($tableRowsProcessed >= $nextProgressAt || $tableRowsProcessed >= $tableRowCount) {
-                                $this->reportProgress($progressReporter, 'restoring_table', sprintf(
-                                    'Restoring table %s (%d/%d): %d/%d rows.',
-                                    $tableName,
-                                    $processedTables + 1,
-                                    $tableCount,
-                                    $tableRowsProcessed,
-                                    $tableRowCount,
-                                ), [
-                                    'current_table' => $tableName,
-                                    'current_table_rows_processed' => $tableRowsProcessed,
-                                    'current_table_row_count' => $tableRowCount,
-                                    'table_count' => $tableCount,
-                                    'tables_processed' => $processedTables,
-                                    'rows_processed' => $totalRows,
-                                ]);
-                                $nextProgressAt += 100;
+                                if ($tableRowsProcessed >= $nextProgressAt || $tableRowsProcessed >= $tableRowCount) {
+                                    $this->reportProgress($progressReporter, 'restoring_table', sprintf(
+                                        'Restoring table %s (%d/%d): %d/%d rows.',
+                                        $tableName,
+                                        $processedTables + 1,
+                                        $tableCount,
+                                        $tableRowsProcessed,
+                                        $tableRowCount,
+                                    ), [
+                                        'current_table' => $tableName,
+                                        'current_table_rows_processed' => $tableRowsProcessed,
+                                        'current_table_row_count' => $tableRowCount,
+                                        'table_count' => $tableCount,
+                                        'tables_processed' => $processedTables,
+                                        'rows_processed' => $totalRows,
+                                    ]);
+                                    $nextProgressAt += 100;
+                                }
                             }
                         }
                     }
@@ -509,21 +585,14 @@ class BackupService
             ]);
 
             if ($isPostgres) {
-                // Reset sequences so auto-increment continues from the restored max id.
-                foreach ($tablesToRestore as $tableName => $rows) {
-                    if (!empty($rows) && isset($rows[0]['id'])) {
-                        $maxId = max(array_column($rows, 'id'));
-                        $seqName = "{$tableName}_id_seq";
-                        $connection->execute("SELECT setval('{$seqName}', {$maxId}, true)");
-                    }
-                }
+                $this->resetPostgresSequences($connection, $schemaCollection, $driver, array_keys($tablesToRestore));
             }
 
             $connection->commit();
-            $this->clearApplicationCachesAfterRestore();
-            $this->reportProgress($progressReporter, 'completed', 'Restore transaction committed.', [
+            $this->reportProgress($progressReporter, 'data_imported', 'Backup data import committed.', [
                 'table_count' => $tableCount,
                 'tables_processed' => $processedTables,
+                'row_count' => $totalRows,
                 'rows_processed' => $totalRows,
             ]);
         } catch (Exception $e) {
@@ -543,6 +612,96 @@ class BackupService
             'row_count' => $totalRows,
             'constraints_not_valid' => $notValidatedConstraintCount,
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @param callable(array<string, mixed>):void|null $progressReporter
+     */
+    private function reportSchemaMismatch(
+        array $payload,
+        bool $ignoreSchemaMismatch,
+        ?callable $progressReporter = null,
+    ): void {
+        if ($ignoreSchemaMismatch) {
+            return;
+        }
+
+        $backupFingerprint = $payload['meta']['migration_fingerprint'] ?? null;
+        if (!is_array($backupFingerprint) || empty($backupFingerprint)) {
+            return;
+        }
+
+        $currentFingerprint = $this->getMigrationFingerprint();
+        if ($currentFingerprint === $backupFingerprint) {
+            return;
+        }
+
+        $diff = $this->describeFingerprintDiff($backupFingerprint, $currentFingerprint);
+        $this->reportProgress(
+            $progressReporter,
+            'schema_mismatch',
+            'Backup schema differs from the current database; applying schema-aware restore.',
+            ['migration_fingerprint_diff' => $diff],
+        );
+    }
+
+    /**
+     * Build restore table map for the current schema.
+     *
+     * A backup is a full logical snapshot. When an older backup is restored into
+     * a newer schema, tables introduced after the backup was taken must be
+     * emptied so stale current-environment data cannot survive the restore.
+     * Tables that no longer exist in the current schema are left in the decoded
+     * payload for compatibility migrators, but they are not inserted directly.
+     *
+     * @param array<string, array<int, array<string, mixed>>> $payloadTables
+     * @param array<int, string> $currentTables
+     * @return array<string, array<int, array<string, mixed>>>
+     */
+    private function buildRestoreTableMap(array $payloadTables, array $currentTables): array
+    {
+        $payloadTables = array_filter(
+            $payloadTables,
+            static fn(string $tableName): bool => !self::isExcludedTable($tableName),
+            ARRAY_FILTER_USE_KEY,
+        );
+
+        $currentRestoreTables = [];
+        foreach ($currentTables as $tableName) {
+            if (!self::isExcludedTable($tableName)) {
+                $currentRestoreTables[] = $tableName;
+            }
+        }
+        sort($currentRestoreTables);
+
+        $tablesToRestore = [];
+        foreach ($currentRestoreTables as $tableName) {
+            $tablesToRestore[$tableName] = $payloadTables[$tableName] ?? [];
+        }
+
+        return $tablesToRestore;
+    }
+
+    /**
+     * Drop columns that existed in the backup environment but no longer exist
+     * in the current schema.
+     *
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<int, array<string, mixed>>
+     */
+    private function filterRowsToCurrentColumns(array $rows, TableSchemaInterface $tableSchema): array
+    {
+        if ($rows === []) {
+            return $rows;
+        }
+
+        $currentColumns = array_flip($tableSchema->columns());
+
+        return array_map(
+            static fn(array $row): array => array_intersect_key($row, $currentColumns),
+            $rows,
+        );
     }
 
     /**
@@ -698,6 +857,34 @@ SQL;
     }
 
     /**
+     * Reset Postgres sequences so new rows follow restored primary keys.
+     *
+     * @param array<int, string> $tableNames
+     */
+    private function resetPostgresSequences(
+        Connection $connection,
+        $schemaCollection,
+        $driver,
+        array $tableNames,
+    ): void {
+        foreach ($tableNames as $tableName) {
+            $tableSchema = $schemaCollection->describe($tableName);
+            if (!in_array('id', $tableSchema->columns(), true)) {
+                continue;
+            }
+
+            $quotedTable = $driver->quoteIdentifier($tableName);
+            $connection->execute(
+                "SELECT setval(seq.sequence_name, COALESCE((SELECT MAX(id) FROM {$quotedTable}), 1), "
+                . "COALESCE((SELECT MAX(id) FROM {$quotedTable}), 0) > 0)
+                FROM (SELECT pg_get_serial_sequence(?, 'id') AS sequence_name) seq
+                WHERE seq.sequence_name IS NOT NULL",
+                [$tableName],
+            );
+        }
+    }
+
+    /**
      * @param array<int, string> $columns
      * @param array<int, array<string, mixed>> $batch
      */
@@ -844,6 +1031,15 @@ SQL;
 
                 $columnType = $tableSchema->getColumnType($column);
                 if ($columnType === null) {
+                    continue;
+                }
+
+                if ($row[$column] === null) {
+                    $normalizedNull = $this->normalizeNullForMysql($tableSchema, $column, $columnType);
+                    if ($normalizedNull['converted']) {
+                        $row[$column] = $normalizedNull['value'];
+                    }
+
                     continue;
                 }
 
@@ -1054,9 +1250,15 @@ SQL;
             ];
         }
 
+        if ($column === 'additional_info' && in_array($columnType, ['json', 'jsonb', 'text', 'string'], true)) {
+            return ['converted' => true, 'value' => '{}'];
+        }
+
         return match ($columnType) {
             'boolean', 'integer', 'biginteger', 'smallinteger', 'tinyinteger' => ['converted' => true, 'value' => 0],
             'float', 'decimal' => ['converted' => true, 'value' => 0.0],
+            'json', 'jsonb' => ['converted' => true, 'value' => '{}'],
+            'text', 'string', 'char', 'uuid' => ['converted' => true, 'value' => ''],
             default => ['converted' => false, 'value' => null],
         };
     }

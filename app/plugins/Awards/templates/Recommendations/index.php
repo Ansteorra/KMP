@@ -49,7 +49,7 @@ $this->KMP->endBlock();
 echo $this->KMP->startBlock("modals");
 
 // Edit Recommendation Modal - uses existing element with proper Stimulus controller
-echo $this->element('recommendationQuickEditModal', ['modalId' => 'editRecommendationModal']);
+echo $this->element('recommendationEditModal', ['modalId' => 'editRecommendationModal']);
 
 // Group Recommendations Modal - confirmation dialog for grouping
 if ($user->checkCan("edit", "Awards.Recommendations")):
@@ -60,7 +60,12 @@ if ($user->checkCan("edit", "Awards.Recommendations")):
             <?= $this->Form->create(null, [
                 'url' => ['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'groupRecommendations'],
                 'id' => 'groupRecommendationsForm',
-                'data-controller' => 'awards-rec-group',
+                'data-turbo' => 'true',
+                'data-controller' => 'awards-rec-group turbo-modal',
+                'data-action' => implode(' ', [
+                    'submit->turbo-modal#submitAsTurboStream',
+                    'turbo:submit-start->turbo-modal#closeModalBeforeSubmit',
+                ]),
             ]) ?>
             <div class="modal-header">
                 <h5 class="modal-title" id="groupRecommendationsModalLabel">
@@ -72,6 +77,7 @@ if ($user->checkCan("edit", "Awards.Recommendations")):
                 <div id="groupValidationMessage" class="alert alert-info border-start border-info border-4" data-awards-rec-group-target="validationMessage">
                     <?= __('Selected recommendations will be grouped together. The first selected recommendation will become the group head.') ?>
                 </div>
+                <?= $this->Form->hidden('page_context_url', ['value' => '']) ?>
                 <div id="groupSelectedIds" data-awards-rec-group-target="selectedIds"></div>
             </div>
             <div class="modal-footer">

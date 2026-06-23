@@ -288,8 +288,10 @@ class BestowalsController extends AppController
                 'gathering_id' => $this->request->getData('gathering_id'),
                 'gathering_scheduled_activity_id' => $this->request->getData('gathering_scheduled_activity_id'),
                 'bestowed_at' => $this->request->getData('bestowed_at'),
+                'specialty' => $this->request->getData('specialty'),
                 'noble_notes' => $this->request->getData('noble_notes'),
                 'herald_notes' => $this->request->getData('herald_notes'),
+                'reason_summary' => $this->request->getData('reason_summary'),
                 'note' => $this->request->getData('note'),
                 'close_reason' => $this->request->getData('close_reason'),
             ];

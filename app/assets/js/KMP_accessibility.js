@@ -31,7 +31,15 @@ const announce = (message, options = {}) => {
     }, 10)
 }
 
-const openDialog = ({ title, message, inputLabel, inputRequired = false, confirmLabel = 'OK', cancelLabel = 'Cancel' }) => {
+const openDialog = ({
+    title,
+    message,
+    inputLabel,
+    inputRequired = false,
+    inputType = 'text',
+    confirmLabel = 'OK',
+    cancelLabel = 'Cancel',
+}) => {
     const Modal = getBootstrapModal()
     if (!Modal || !document.body) {
         return Promise.resolve({ confirmed: false, value: '' })
@@ -44,10 +52,13 @@ const openDialog = ({ title, message, inputLabel, inputRequired = false, confirm
     modal.setAttribute('aria-labelledby', 'kmp-a11y-dialog-title')
     modal.setAttribute('aria-describedby', 'kmp-a11y-dialog-message')
 
+    const safeInputType = ['text', 'password', 'email', 'number', 'search', 'url', 'tel'].includes(inputType)
+        ? inputType
+        : 'text'
     const inputMarkup = inputLabel ? `
         <div class="mb-3">
             <label class="form-label" for="kmp-a11y-dialog-input">${escapeHtml(inputLabel)}</label>
-            <input id="kmp-a11y-dialog-input" class="form-control" type="text" ${inputRequired ? 'required' : ''}>
+            <input id="kmp-a11y-dialog-input" class="form-control" type="${safeInputType}" ${inputRequired ? 'required' : ''}>
         </div>
     ` : ''
     const cancelMarkup = cancelLabel ? `<button type="button" class="btn btn-secondary" data-dialog-cancel>${escapeHtml(cancelLabel)}</button>` : ''
@@ -130,6 +141,7 @@ const prompt = async (message, options = {}) => {
         title: options.title || 'Input required',
         message,
         inputLabel: options.inputLabel || message,
+        inputType: options.inputType || 'text',
         inputRequired: options.required || false,
         confirmLabel: options.confirmLabel || 'Save',
         cancelLabel: options.cancelLabel || 'Cancel',

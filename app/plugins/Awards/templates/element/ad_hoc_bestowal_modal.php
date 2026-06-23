@@ -334,6 +334,13 @@ $submitAction = implode(' ', [
                                             'label' => __('Court Availability'),
                                         ]) ?>
                                     </div>
+
+                                    <div class="col-12 col-md-6">
+                                        <?= $this->Form->control('specialty', [
+                                            'label' => __('Specialty'),
+                                            'help' => __('Optional specialty for heralds and scribes.'),
+                                        ]) ?>
+                                    </div>
                                 </div>
                             </fieldset>
                         </div>

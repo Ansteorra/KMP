@@ -129,6 +129,17 @@ if (!SeedManager::isPostgres('test')) {
     SeedManager::bootstrap('test');
 }
 
+$bestowalSchema = $conn->getSchemaCollection()->describe('awards_bestowals');
+if (!$bestowalSchema->hasColumn('reason_summary')) {
+    $conn->execute('ALTER TABLE awards_bestowals ADD COLUMN reason_summary text');
+    (new SchemaCache($conn))->clear();
+    $bestowalSchema = $conn->getSchemaCollection()->describe('awards_bestowals');
+}
+if (!$bestowalSchema->hasColumn('specialty')) {
+    $conn->execute('ALTER TABLE awards_bestowals ADD COLUMN specialty varchar(255)');
+    (new SchemaCache($conn))->clear();
+}
+
 // On Postgres (no MySQL seed dump), we also need to seed essential AppSettings.
 if (SeedManager::isPostgres('test')) {
     $hasBestowalAwardId = (bool)$conn->execute(

@@ -98,6 +98,27 @@ class BestowalUpdateServiceTest extends BaseTestCase
         );
     }
 
+    public function testUpdatePersistsSpecialty(): void
+    {
+        $bestowalId = $this->createBestowalFromRecommendation();
+        $bestowal = $this->bestowalsTable->get($bestowalId);
+
+        $result = $this->updateService->update(
+            $this->bestowalsTable,
+            $bestowalId,
+            [
+                'state' => $bestowal->state,
+                'award_id' => (int)$bestowal->award_id,
+                'specialty' => 'Scribal Arts',
+            ],
+            self::ADMIN_MEMBER_ID,
+        );
+
+        $this->assertTrue($result['success'], $result['error'] ?? json_encode($result));
+        $updatedBestowal = $this->bestowalsTable->get($bestowalId);
+        $this->assertSame('Scribal Arts', $updatedBestowal->specialty);
+    }
+
     private function createBestowalFromRecommendation(): int
     {
         $recommendationId = $this->createRecommendation('Need to Schedule');

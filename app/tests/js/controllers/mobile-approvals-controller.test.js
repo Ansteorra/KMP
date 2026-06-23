@@ -178,4 +178,47 @@ describe('MobileApprovalsController', () => {
         expect(controller.element.querySelector('.btn-approve')).toHaveAttribute('aria-pressed', 'false');
         expect(controller.element.querySelector('[data-comment-required="47"]')).not.toHaveAttribute('hidden');
     });
+
+    test('shows required bestowal gathering select when approving award approvals', () => {
+        controller.element = document.createElement('div');
+        controller._approvals = [{
+            id: 48,
+            progress: { required: 1, approved: 0 },
+            approverConfig: {
+                requiresBestowalGathering: true,
+                bestowalGatheringOptions: [{ id: 9, label: 'Spring Crown - 2026-04-12' }],
+            },
+        }];
+        controller.element.innerHTML = controller._renderResponseForm(controller._approvals[0]);
+
+        const approve = controller.element.querySelector('.btn-approve');
+        controller.selectDecision({ preventDefault: jest.fn(), currentTarget: approve });
+
+        const section = controller.element.querySelector('[data-bestowal-gathering-section="48"]');
+        const select = controller.element.querySelector('[data-bestowal-gathering-select="48"]');
+        expect(section).not.toHaveAttribute('hidden');
+        expect(select).toBeRequired();
+        expect(select).toHaveAttribute('aria-required', 'true');
+        expect(select.querySelector('option[value="9"]')).toHaveTextContent('Spring Crown - 2026-04-12');
+    });
+
+    test('submitResponse focuses missing bestowal gathering', async () => {
+        controller.element = document.createElement('div');
+        controller._approvals = [{
+            id: 49,
+            progress: { required: 1, approved: 0 },
+            approverConfig: { requiresBestowalGathering: true },
+        }];
+        controller.element.innerHTML = controller._renderResponseForm(controller._approvals[0]);
+        const approve = controller.element.querySelector('.btn-approve');
+        controller.selectDecision({ preventDefault: jest.fn(), currentTarget: approve });
+
+        await controller.submitResponse({
+            preventDefault: jest.fn(),
+            currentTarget: controller.element.querySelector('[data-submit-btn="49"]'),
+        });
+
+        expect(controller.element.querySelector('[data-bestowal-gathering-error="49"]')).not.toHaveAttribute('hidden');
+        expect(controller.element.querySelector('[data-bestowal-gathering-select="49"]')).toHaveAttribute('aria-invalid', 'true');
+    });
 });

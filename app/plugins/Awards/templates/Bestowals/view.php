@@ -114,6 +114,12 @@ if ($courtSlotLabel !== '') :
     <td><?= h($courtSlotLabel) ?></td>
 </tr>
 <?php endif; ?>
+<?php if (trim((string)($bestowal->specialty ?? '')) !== '') : ?>
+<tr>
+    <th scope="row"><?= __('Specialty') ?></th>
+    <td><?= h((string)$bestowal->specialty) ?></td>
+</tr>
+<?php endif; ?>
 <tr>
     <th scope="row"><?= __('Herald Notes') ?></th>
     <td><?= $this->Text->autoParagraph(h((string)($bestowal->herald_notes ?? ''))) ?></td>
@@ -121,6 +127,10 @@ if ($courtSlotLabel !== '') :
 <tr>
     <th scope="row"><?= __('Noble Notes') ?></th>
     <td><?= $this->Text->autoParagraph(h((string)($bestowal->noble_notes ?? ''))) ?></td>
+</tr>
+<tr>
+    <th scope="row"><?= __('Reason Summary') ?></th>
+    <td><?= $this->Text->autoParagraph(h((string)($bestowal->reason_summary ?? ''))) ?></td>
 </tr>
 <tr>
     <th scope="row"><?= __('Linked Recommendations') ?></th>

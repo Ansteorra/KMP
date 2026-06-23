@@ -92,7 +92,11 @@ if [ "$DB_ENGINE" = "postgres" ]; then
 else
     TABLES=$(mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" -N -e "SHOW TABLES;" 2>/dev/null | wc -l)
 fi
-if [ "$TABLES" -eq 0 ]; then
+if [ -f /var/www/html/tmp/skip-initial-db-setup ]; then
+    echo "Skipping initial database setup because tmp/skip-initial-db-setup exists."
+elif [ "${KMP_SKIP_INITIAL_DB_SETUP:-false}" = "true" ]; then
+    echo "KMP_SKIP_INITIAL_DB_SETUP=true - skipping initial database setup."
+elif [ "$TABLES" -eq 0 ]; then
     echo "Empty database detected - running initial setup..."
     cd /var/www/html
     if [ -f bin/cake ]; then

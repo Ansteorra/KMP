@@ -74,8 +74,8 @@ class TurboResponseTraitTest extends HttpIntegrationTestCase
             public function exposeReloadStream(): Response
             {
                 return $this->renderTurboReloadFrame(
-                    'editRecommendationQuick',
-                    '/awards/recommendations/turbo-quick-edit-form/42',
+                    'editRecommendation',
+                    '/awards/recommendations/turbo-edit-form/42',
                     [],
                 );
             }
@@ -156,8 +156,8 @@ class TurboResponseTraitTest extends HttpIntegrationTestCase
         $body = (string)$response->getBody();
 
         $this->assertStringContainsString('<turbo-stream action="replace"', $body);
-        $this->assertStringContainsString('target="editRecommendationQuick"', $body);
-        $this->assertStringContainsString('/awards/recommendations/turbo-quick-edit-form/42', $body);
+        $this->assertStringContainsString('target="editRecommendation"', $body);
+        $this->assertStringContainsString('/awards/recommendations/turbo-edit-form/42', $body);
     }
 
     public function testRenderTurboReplaceGridRowReturnsRenderedStreamBody(): void

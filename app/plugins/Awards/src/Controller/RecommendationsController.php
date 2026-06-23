@@ -57,6 +57,12 @@ class RecommendationsController extends AppController
     use DataverseGridTrait;
     use \App\Controller\WorkflowDispatchTrait;
 
+    private const BESTOWAL_GATHERING_REQUIRED_KEY = 'requires_bestowal_gathering';
+    private const BESTOWAL_GATHERING_WORKFLOW_SLUGS = [
+        'awards-recommendation-submitted',
+        'awards-existing-recommendation-approval',
+    ];
+
     /**
      * Configure authentication for public recommendation submission helpers.
      * 
@@ -100,6 +106,7 @@ class RecommendationsController extends AppController
                     $statusList[$key][$state] = $state;
                 }
             }
+
 
             // Get explicit UI mode rules for form field visibility
             $rules = (new RecommendationUiModeService())->buildStateRules();
@@ -1244,24 +1251,36 @@ class RecommendationsController extends AppController
         $this->request->allowMethod(['post']);
         $this->Authorization->authorize($this->Recommendations->newEmptyEntity(), 'index');
 
+        $pageContext = $this->getPageContextUrl();
         $identity = $this->request->getAttribute('identity');
         $approvalId = (int)$this->request->getData('approvalId');
         $decision = (string)$this->request->getData('decision');
         $comment = trim((string)$this->request->getData('comment'));
+        $bestowalGatheringId = $this->getPostedBestowalGatheringId();
         $memberId = (int)$identity->getAsMember()->id;
 
         $approval = $this->getPendingApprovalForMember($approvalId, $memberId);
         if (!$approval instanceof WorkflowApproval) {
             $this->Flash->error(__('There is no pending approval assigned to you for this recommendation.'));
 
-            return $this->redirect(['action' => 'index']);
+            return $this->recommendationsGridRefreshResponse($pageContext)
+                ?? $this->redirect($pageContext ?: ['action' => 'index']);
         }
 
         $validationError = $this->validateWorkflowDecision($approval, $decision, $comment);
         if ($validationError !== null) {
             $this->Flash->error($validationError);
 
-            return $this->redirect(['action' => 'index']);
+            return $this->recommendationsGridRefreshResponse($pageContext)
+                ?? $this->redirect($pageContext ?: ['action' => 'index']);
+        }
+
+        $gatheringError = $this->validateBestowalGatheringSelection($approval, $decision, $bestowalGatheringId);
+        if ($gatheringError !== null) {
+            $this->Flash->error($gatheringError);
+
+            return $this->recommendationsGridRefreshResponse($pageContext)
+                ?? $this->redirect($pageContext ?: ['action' => 'index']);
         }
 
         $result = $this->recordWorkflowApprovalDecision(
@@ -1270,6 +1289,7 @@ class RecommendationsController extends AppController
             $decision,
             $comment !== '' ? $comment : null,
             $triggerDispatcher,
+            $bestowalGatheringId,
         );
 
         if ($result->isSuccess()) {
@@ -1278,7 +1298,8 @@ class RecommendationsController extends AppController
             $this->Flash->error($result->getError() ?? __('Approval response could not be recorded.'));
         }
 
-        return $this->redirect(['action' => 'index']);
+        return $this->recommendationsGridRefreshResponse($pageContext)
+            ?? $this->redirect($pageContext ?: ['action' => 'index']);
     }
 
     /**
@@ -1292,10 +1313,12 @@ class RecommendationsController extends AppController
         $this->request->allowMethod(['post']);
         $this->Authorization->authorize($this->Recommendations->newEmptyEntity(), 'index');
 
+        $pageContext = $this->getPageContextUrl();
         $identity = $this->request->getAttribute('identity');
         $memberId = (int)$identity->getAsMember()->id;
         $decision = (string)$this->request->getData('decision');
         $comment = trim((string)$this->request->getData('comment'));
+        $bestowalGatheringId = $this->getPostedBestowalGatheringId();
         $approvalIds = array_values(array_unique(array_map(
             'intval',
             (array)$this->request->getData('approval_ids'),
@@ -1305,14 +1328,16 @@ class RecommendationsController extends AppController
         if ($approvalIds === []) {
             $this->Flash->error(__('Select at least one recommendation that is pending your approval.'));
 
-            return $this->redirect(['action' => 'index']);
+            return $this->recommendationsGridRefreshResponse($pageContext)
+                ?? $this->redirect($pageContext ?: ['action' => 'index']);
         }
 
         $eligibleApprovals = $this->getPendingApprovalsForMember($memberId, $approvalIds);
         if ($eligibleApprovals === []) {
             $this->Flash->error(__('None of the selected recommendations are pending your approval.'));
 
-            return $this->redirect(['action' => 'index']);
+            return $this->recommendationsGridRefreshResponse($pageContext)
+                ?? $this->redirect($pageContext ?: ['action' => 'index']);
         }
 
         $recorded = 0;
@@ -1323,6 +1348,15 @@ class RecommendationsController extends AppController
                 $failed++;
                 continue;
             }
+            $gatheringError = $this->validateBestowalGatheringSelection(
+                $approval,
+                $decision,
+                $bestowalGatheringId,
+            );
+            if ($gatheringError !== null) {
+                $failed++;
+                continue;
+            }
 
             $result = $this->recordWorkflowApprovalDecision(
                 $approval,
@@ -1330,6 +1364,7 @@ class RecommendationsController extends AppController
                 $decision,
                 $comment !== '' ? $comment : null,
                 $triggerDispatcher,
+                $bestowalGatheringId,
             );
             if ($result->isSuccess()) {
                 $recorded++;
@@ -1351,7 +1386,8 @@ class RecommendationsController extends AppController
             $this->Flash->error(__('No approval responses could be recorded for the selected recommendations.'));
         }
 
-        return $this->redirect(['action' => 'index']);
+        return $this->recommendationsGridRefreshResponse($pageContext)
+            ?? $this->redirect($pageContext ?: ['action' => 'index']);
     }
 
     /**
@@ -1375,6 +1411,119 @@ class RecommendationsController extends AppController
         }
 
         return null;
+    }
+
+    /**
+     * @param mixed $approverConfig Approval config.
+     * @return array<string, mixed>
+     */
+    private function normalizeApproverConfig(mixed $approverConfig): array
+    {
+        return is_array($approverConfig) ? $approverConfig : [];
+    }
+
+    /**
+     * @param array<string, mixed> $approverConfig Approval config.
+     * @return array<string, mixed>
+     */
+    private function augmentApproverConfigForResponse(array $approverConfig, ?WorkflowApproval $approval = null): array
+    {
+        if (!$this->approvalRequiresBestowalGatheringSelection($approval, $approverConfig)) {
+            return $approverConfig;
+        }
+
+        $approverConfig[self::BESTOWAL_GATHERING_REQUIRED_KEY] = true;
+
+        return $approverConfig;
+    }
+
+    /**
+     * @param array<string, mixed> $approverConfig Approval config.
+     * @return bool
+     */
+    private function requiresBestowalGatheringSelection(array $approverConfig): bool
+    {
+        return !empty($approverConfig[self::BESTOWAL_GATHERING_REQUIRED_KEY])
+            || !empty($approverConfig['requiresBestowalGathering']);
+    }
+
+    /**
+     * Determine whether this recommendation approval must schedule the created bestowal.
+     *
+     * Older pending approvals may predate requires_bestowal_gathering in node config,
+     * so the award workflow slug remains the compatibility fallback.
+     *
+     * @param \App\Model\Entity\WorkflowApproval|null $approval Approval.
+     * @param array<string, mixed> $approverConfig Approval config.
+     * @return bool
+     */
+    private function approvalRequiresBestowalGatheringSelection(
+        ?WorkflowApproval $approval,
+        array $approverConfig,
+    ): bool {
+        if ($this->requiresBestowalGatheringSelection($approverConfig)) {
+            return true;
+        }
+
+        $slug = (string)($approval?->workflow_instance?->workflow_definition?->slug ?? '');
+
+        return in_array($slug, self::BESTOWAL_GATHERING_WORKFLOW_SLUGS, true);
+    }
+
+    /**
+     * @return int|null
+     */
+    private function getPostedBestowalGatheringId(): ?int
+    {
+        $rawId = $this->request->getData('bestowal_gathering_id') ?? $this->request->getData('gathering_id');
+        $gatheringId = (int)$rawId;
+
+        return $gatheringId > 0 ? $gatheringId : null;
+    }
+
+    /**
+     * @param \App\Model\Entity\WorkflowApproval|null $approval Approval.
+     * @param string $decision Submitted decision.
+     * @param int|null $gatheringId Selected gathering ID.
+     * @return string|null
+     */
+    private function validateBestowalGatheringSelection(
+        ?WorkflowApproval $approval,
+        string $decision,
+        ?int $gatheringId,
+    ): ?string {
+        if ($approval === null || $decision !== WorkflowApprovalResponse::DECISION_APPROVE) {
+            return null;
+        }
+
+        $approverConfig = $this->normalizeApproverConfig($approval->approver_config);
+        if (!$this->approvalRequiresBestowalGatheringSelection($approval, $approverConfig)) {
+            return null;
+        }
+
+        if ($gatheringId === null) {
+            return (string)__('Select the gathering where the bestowal will be presented.');
+        }
+
+        if (!$this->isSelectableBestowalGathering($gatheringId)) {
+            return (string)__('Select a valid, future gathering for the bestowal.');
+        }
+
+        return null;
+    }
+
+    /**
+     * @param int $gatheringId Gathering ID.
+     * @return bool
+     */
+    private function isSelectableBestowalGathering(int $gatheringId): bool
+    {
+        return $this->fetchTable('Gatherings')->exists([
+            'Gatherings.id' => $gatheringId,
+            'Gatherings.deleted IS' => null,
+            'Gatherings.cancelled_at IS' => null,
+            'Gatherings.start_date >' => DateTime::now(),
+        ]);
     }
 
     /**
@@ -1403,7 +1552,10 @@ class RecommendationsController extends AppController
         $approvalIdSet = array_flip(array_map('intval', $approvalIds));
         $approvals = [];
         $workflowApprovalsTable = TableRegistry::getTableLocator()->get('WorkflowApprovals');
-        foreach ($workflowApprovalsTable::getPendingApprovalsForMember($memberId) as $approval) {
+        foreach ($workflowApprovalsTable::getPendingApprovalsForMember(
+            $memberId,
+            ['WorkflowInstances' => ['WorkflowDefinitions']],
+        ) as $approval) {
             $approvalId = (int)$approval->id;
             if (isset($approvalIdSet[$approvalId])) {
                 $approvals[$approvalId] = $approval;
@@ -1427,6 +1579,7 @@ class RecommendationsController extends AppController
         string $decision,
         ?string $comment,
         TriggerDispatcher $triggerDispatcher,
+        ?int $bestowalGatheringId = null,
     ): ServiceResult {
         $approvalManager = new DefaultWorkflowApprovalManager();
         $result = $approvalManager->recordResponse(
@@ -1449,16 +1602,21 @@ class RecommendationsController extends AppController
             ], true)
         ) {
             $outputPort = $data['approvalStatus'] === WorkflowApproval::STATUS_APPROVED ? 'approved' : 'rejected';
+            $resumeData = [
+                'approval' => $data,
+                'approverId' => $memberId,
+                'decision' => $decision,
+                'comment' => $comment,
+            ];
+            if ($bestowalGatheringId !== null) {
+                $resumeData['bestowalGatheringId'] = $bestowalGatheringId;
+            }
+
             $resume = $engine->resumeWorkflow(
                 (int)$data['instanceId'],
                 (string)$data['nodeId'],
                 $outputPort,
-                [
-                    'approval' => $data,
-                    'approverId' => $memberId,
-                    'decision' => $decision,
-                    'comment' => $comment,
-                ],
+                $resumeData,
             );
             if (!$resume->isSuccess()) {
                 return new ServiceResult(
@@ -1467,15 +1625,20 @@ class RecommendationsController extends AppController
                 );
             }
         } elseif (!empty($data['needsMore'])) {
+            $intermediateData = [
+                'approverId' => $memberId,
+                'decision' => $decision,
+                'comment' => $comment,
+                'nextApproverId' => $data['nextApproverId'] ?? null,
+            ];
+            if ($bestowalGatheringId !== null) {
+                $intermediateData['bestowalGatheringId'] = $bestowalGatheringId;
+            }
+
             $engine->fireIntermediateApprovalActions(
                 (int)$data['instanceId'],
                 (string)$data['nodeId'],
-                [
-                    'approverId' => $memberId,
-                    'decision' => $decision,
-                    'comment' => $comment,
-                    'nextApproverId' => $data['nextApproverId'] ?? null,
-                ],
+                $intermediateData,
             );
         }
 
@@ -1857,48 +2020,8 @@ class RecommendationsController extends AppController
      * @return \Cake\Http\Response|null A Response when the action issues an explicit response, or null after setting view variables for rendering
      * @throws \Cake\Http\Exception\NotFoundException If the recommendation cannot be found
      * @see edit() For form submission handling
-     * @see turboQuickEditForm() For a streamlined quick-edit variant
      */
     public function turboEditForm(RecommendationFormService $formService, ?string $id = null): ?\Cake\Http\Response
-    {
-        try {
-            $recommendation = $this->Recommendations->get($id, contain: [
-                'Requesters',
-                'Members',
-                'Branches',
-                'Awards',
-                'Awards.Domains',
-                'CurrentApprovalRun',
-            ]);
-
-            if (!$recommendation) {
-                throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
-            }
-
-            $this->Authorization->authorize($recommendation, 'view');
-            $viewVars = $formService->prepareEditFormData(
-                $this->Recommendations,
-                $recommendation,
-            );
-            $this->set($viewVars);
-            return null;
-        } catch (\Cake\Datasource\Exception\RecordNotFoundException $e) {
-            throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
-        }
-    }
-
-    /**
-     * Render a streamlined Turbo Frame quick-edit form for a recommendation.
-     *
-     * Provides a minimal edit form containing the most commonly changed fields.
-     *
-     * @param string|null $id Recommendation ID to load for the quick-edit form.
-     * @return \Cake\Http\Response|null Renders the quick-edit template or null when rendering within a Turbo Frame.
-     * @throws \Cake\Http\Exception\NotFoundException If the recommendation cannot be found.
-     * @see turboEditForm() For the full edit interface
-     * @see edit() For form submission handling
-     */
-    public function turboQuickEditForm(RecommendationFormService $formService, ?string $id = null): ?\Cake\Http\Response
     {
         try {
             $recommendation = $this->Recommendations->get($id, contain: [
@@ -2329,10 +2452,13 @@ class RecommendationsController extends AppController
         $emptyRecommendation = $this->Recommendations->newEmptyEntity();
         $this->Authorization->authorize($emptyRecommendation, 'group');
 
+        $pageContext = $this->getPageContextUrl();
         $ids = $this->request->getData('recommendation_ids');
         if (!is_array($ids) || count($ids) < 2) {
             $this->Flash->error(__('At least 2 recommendations are required to group.'));
-            return $this->redirect(['action' => 'index']);
+
+            return $this->recommendationsGridRefreshResponse($pageContext)
+                ?? $this->redirect($pageContext ?: ['action' => 'index']);
         }
 
         $ids = array_map('intval', $ids);
@@ -2353,7 +2479,8 @@ class RecommendationsController extends AppController
             $this->Flash->error($result['error'] ?? __('An error occurred while grouping recommendations.'));
         }
 
-        return $this->redirect(['action' => 'index']);
+        return $this->recommendationsGridRefreshResponse($pageContext)
+            ?? $this->redirect($pageContext ?: ['action' => 'index']);
     }
 
     /**
@@ -2826,7 +2953,7 @@ class RecommendationsController extends AppController
         $workflowApprovalsTable = TableRegistry::getTableLocator()->get('WorkflowApprovals');
         $approvals = $workflowApprovalsTable::getPendingApprovalsForMember(
             (int)$member->id,
-            [],
+            ['WorkflowInstances' => ['WorkflowDefinitions']],
             $workflowInstanceIds,
         );
         foreach ($approvals as $approval) {
@@ -2844,9 +2971,10 @@ class RecommendationsController extends AppController
 
             $approval = $approvalsByInstance[$workflowInstanceId];
             $recommendation->pending_approval_id = (int)$approval->id;
-            $recommendation->pending_approval_approver_config = is_array($approval->approver_config)
-                ? $approval->approver_config
-                : [];
+            $recommendation->pending_approval_approver_config = $this->augmentApproverConfigForResponse(
+                $this->normalizeApproverConfig($approval->approver_config),
+                $approval,
+            );
             $recommendation->pending_approval_required_count = (int)($approval->required_count ?? 1);
             $recommendation->pending_approval_approved_count = (int)($approval->approved_count ?? 0);
             $recommendation->can_workflow_decide = true;
@@ -3432,13 +3560,29 @@ class RecommendationsController extends AppController
             $frameSrc = Router::url([
                 'plugin' => 'Awards',
                 'controller' => 'Recommendations',
-                'action' => 'turboQuickEditForm',
+                'action' => 'turboEditForm',
                 $reloadQuickEditId,
             ]);
 
-            return $this->renderTurboReloadFrame('editRecommendationQuick', $frameSrc)->withStatus(422);
+            return $this->renderTurboReloadFrame('editRecommendation', $frameSrc)->withStatus(422);
         }
 
         return null;
+    }
+
+    /**
+     * Turbo-stream table refresh for recommendation grid actions.
+     */
+    private function recommendationsGridRefreshResponse(?string $pageContext): ?\Cake\Http\Response
+    {
+        if (!$this->wantsTurboStreamRequest() || $pageContext === null) {
+            return null;
+        }
+
+        return $this->renderTurboCloseModal(
+            'recommendations-grid-table',
+            ['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'gridData'],
+            $pageContext,
+        );
     }
 }

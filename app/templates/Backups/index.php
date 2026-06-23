@@ -108,34 +108,45 @@ $restoreIsLocked = !empty($restoreStatus['locked']);
                                 <?= $this->Form->end() ?>
                             </div>
                             <div class="flex-grow-1">
-                                <?= $this->Form->create(null, [
-                                    'url' => ['action' => 'restore'],
-                                    'type' => 'file',
-                                    'class' => 'row g-2 align-items-end',
-                                    'data-action' => 'submit->backup-restore-status#submitRestore',
-                                    'data-confirm-message' => __('Import this backup and replace all current data? This action cannot be undone.'),
-                                    'data-restore-key-prompt' => __('Enter the encryption key for this backup file:'),
-                                ]) ?>
-                                <div class="col-md-8">
-                                    <label class="form-label mb-1 small fw-bold"><?= __('Import Backup File') ?></label>
-                                    <input type="file"
-                                        name="backup_file"
-                                        class="form-control form-control-sm"
-                                        accept=".kmpbackup,application/octet-stream"
-                                        required>
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-8">
+                                        <label for="backup-file-input" class="form-label mb-1 small fw-bold">
+                                            <?= __('Import Backup File') ?>
+                                        </label>
+                                        <input type="file"
+                                            id="backup-file-input"
+                                            name="backup_file"
+                                            class="form-control form-control-sm"
+                                            accept=".kmpbackup,application/octet-stream"
+                                            aria-describedby="backup-file-help"
+                                            required>
+                                        <div id="backup-file-help" class="form-text">
+                                            <?= __('Choose a .kmpbackup archive exported from KMP before starting the restore.') ?>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-auto">
+                                        <?= $this->Form->create(null, [
+                                            'url' => ['action' => 'restore'],
+                                            'type' => 'file',
+                                            'class' => 'd-inline',
+                                            'id' => 'backup-import-restore-form',
+                                            'data-action' => 'submit->backup-restore-status#submitRestore',
+                                            'data-file-input-id' => 'backup-file-input',
+                                            'data-restore-confirm-message' => __('Import this backup and replace all current data? This action cannot be undone.'),
+                                            'data-restore-key-prompt' => __('Enter the encryption key for this backup file:'),
+                                        ]) ?>
+                                        <?= $this->Form->button(
+                                            '<i class="bi bi-upload"></i> ' . __('Import and Restore'),
+                                            [
+                                                'class' => 'btn btn-outline-warning btn-sm',
+                                                'escapeTitle' => false,
+                                                'disabled' => $restoreIsLocked,
+                                                'title' => $restoreIsLocked ? __('A restore/import is currently running') : '',
+                                            ],
+                                        ) ?>
+                                        <?= $this->Form->end() ?>
+                                    </div>
                                 </div>
-                                <div class="col-md-auto">
-                                    <?= $this->Form->button(
-                                        '<i class="bi bi-upload"></i> ' . __('Import and Restore'),
-                                        [
-                                            'class' => 'btn btn-outline-warning btn-sm',
-                                            'escapeTitle' => false,
-                                            'disabled' => $restoreIsLocked,
-                                            'title' => $restoreIsLocked ? __('A restore/import is currently running') : '',
-                                        ],
-                                    ) ?>
-                                </div>
-                                <?= $this->Form->end() ?>
                             </div>
                         </div>
                     </div>
@@ -197,7 +208,7 @@ $restoreIsLocked = !empty($restoreStatus['locked']);
                                                         'url' => ['action' => 'restore', $backup->id],
                                                         'class' => 'd-inline',
                                                         'data-action' => 'submit->backup-restore-status#submitRestore',
-                                                        'data-confirm-message' => __('Restore this backup? This will REPLACE all current data. This action cannot be undone.'),
+                                                        'data-restore-confirm-message' => __('Restore this backup? This will REPLACE all current data. This action cannot be undone.'),
                                                         'data-restore-key-prompt' => __('Enter the encryption key for this backup:'),
                                                     ]) ?>
                                                     <?= $this->Form->button(

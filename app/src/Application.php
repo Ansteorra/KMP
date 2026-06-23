@@ -52,7 +52,8 @@ use App\Controller\ApprovalsController;
 use App\Controller\WorkflowDefinitionsController;
 use App\Controller\WorkflowInstancesController;
 use App\KMP\KmpIdentityInterface;
-// Add this line
+use App\KMP\StaticHelpers;
+use App\Middleware\RestoreMaintenanceMiddleware;
 use App\Middleware\TenantResolutionMiddleware;
 use App\KMP\Telemetry\RequestQueryCounter;
 // Authorization usings
@@ -533,6 +534,9 @@ class Application extends BaseApplication implements
                     'cacheTime' => Configure::read('Asset.cacheTime'), // Use configured cache time
                 ]),
             )
+
+            // 4b. Restore maintenance gate - blocks normal traffic while DB schema is being reset.
+            ->add(new RestoreMaintenanceMiddleware())
 
             // 5. Routing Middleware - URL to controller/action mapping
             // For large applications, consider enabling route caching in production
