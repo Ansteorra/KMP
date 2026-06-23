@@ -59,12 +59,21 @@ class UpdateDatabaseCommand extends Command
         }
         //sort
         asort($pluginsToMigrate);
-        $this->executeCommand(SchemacacheClearCommand::class, ['--connection', 'default'], $io);
+        $exitCode = $this->executeCommand(SchemacacheClearCommand::class, ['--connection', 'default'], $io);
+        if ($exitCode !== null && $exitCode !== Command::CODE_SUCCESS) {
+            return $exitCode;
+        }
         $frameworkMigration = new Migrate();
-        $this->executeCommand($frameworkMigration, ['migrate']);
+        $exitCode = $this->executeCommand($frameworkMigration, ['migrate'], $io);
+        if ($exitCode !== null && $exitCode !== Command::CODE_SUCCESS) {
+            return $exitCode;
+        }
         foreach ($pluginsToMigrate as $name => $order) {
             $pluginMigration = new Migrate();
-            $this->executeCommand($pluginMigration, ['migrate', '-p', $name]);
+            $exitCode = $this->executeCommand($pluginMigration, ['migrate', '-p', $name], $io);
+            if ($exitCode !== null && $exitCode !== Command::CODE_SUCCESS) {
+                return $exitCode;
+            }
         }
 
         return Command::CODE_SUCCESS;

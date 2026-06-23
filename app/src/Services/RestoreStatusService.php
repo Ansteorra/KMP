@@ -16,7 +16,7 @@ class RestoreStatusService
     private const LOCK_KEY = 'restore.lock';
     private const STATUS_KEY = 'restore.status';
     private const DEFAULT_LOCK_TTL_SECONDS = 1800;
-    private const STALE_PROGRESS_SECONDS = 180;
+    private const STALE_PROGRESS_SECONDS = 900;
 
     /**
      * Acquire restore lock and initialize running status.
@@ -74,12 +74,13 @@ class RestoreStatusService
      */
     public function updateStatus(string $phase, string $message, array $context = []): void
     {
-        $status = $this->getStatus();
+        $locked = $this->refreshLock($context);
+        $status = $this->readStatus();
         $status = array_merge(
             $status,
             $context,
             [
-                'locked' => $this->isLocked(),
+                'locked' => $locked,
                 'status' => 'running',
                 'phase' => $phase,
                 'message' => $message,
@@ -87,6 +88,47 @@ class RestoreStatusService
             ],
         );
 
+        $this->writeStatus($status);
+    }
+
+    /**
+     * Extend the active restore lock TTL while preserving ownership context.
+     *
+     * @param array<string, mixed> $context
+     */
+    public function refreshLock(array $context = [], ?int $ttlSeconds = null): bool
+    {
+        $lock = $this->readActiveLock();
+        if ($lock === null) {
+            return false;
+        }
+
+        $seconds = max(60, (int)($ttlSeconds ?? self::DEFAULT_LOCK_TTL_SECONDS));
+        Cache::write(self::LOCK_KEY, array_merge($lock, $context, [
+            'expires_at' => $this->isoAfterSeconds($seconds),
+        ]), self::CACHE_CONFIG);
+
+        return true;
+    }
+
+    /**
+     * Append a user-visible restore log line to the shared status payload.
+     */
+    public function appendLog(string $message): void
+    {
+        $status = $this->readStatus();
+        $log = $status['log'] ?? [];
+        if (!is_array($log)) {
+            $log = [];
+        }
+
+        $log[] = [
+            'timestamp' => $this->nowIso(),
+            'message' => $message,
+        ];
+
+        $status['log'] = array_slice($log, -100);
+        $status['updated_at'] = $this->nowIso();
         $this->writeStatus($status);
     }
 
@@ -112,12 +154,16 @@ class RestoreStatusService
                 'updated_at' => $now,
                 'completed_at' => $now,
                 'expires_at' => null,
+                'maintenance_required' => false,
             ],
         ));
     }
 
     /**
      * Mark restore status as failed and clear lock.
+     *
+     * Set maintenance_required when the database may have been partially reset
+     * and normal controllers should not run against the current schema.
      *
      * @param array<string, mixed> $context
      */
@@ -138,6 +184,7 @@ class RestoreStatusService
                 'updated_at' => $now,
                 'completed_at' => $now,
                 'expires_at' => null,
+                'maintenance_required' => (bool)($context['maintenance_required'] ?? false),
             ],
         ));
     }
@@ -172,6 +219,7 @@ class RestoreStatusService
                 $status['updated_at'] = $now;
                 $status['completed_at'] = $now;
                 $status['expires_at'] = null;
+                $status['maintenance_required'] = true;
                 $this->writeStatus($status);
 
                 return $status;
@@ -194,6 +242,7 @@ class RestoreStatusService
             $status['updated_at'] = $now;
             $status['completed_at'] = $now;
             $status['expires_at'] = null;
+            $status['maintenance_required'] = true;
             $this->writeStatus($status);
 
             return $status;
@@ -236,6 +285,9 @@ class RestoreStatusService
             'row_count' => null,
             'rows_processed' => 0,
             'current_table' => null,
+            'queue_job_id' => null,
+            'maintenance_required' => false,
+            'log' => [],
         ];
     }
 

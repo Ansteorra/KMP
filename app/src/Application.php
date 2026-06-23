@@ -51,6 +51,7 @@ namespace App;
 use App\KMP\KmpIdentityInterface;
 // Add this line
 use App\KMP\StaticHelpers;
+use App\Middleware\RestoreMaintenanceMiddleware;
 use App\KMP\Telemetry\RequestQueryCounter;
 // Authorization usings
 use App\Policy\ControllerResolver;
@@ -569,6 +570,9 @@ class Application extends BaseApplication implements
                     'cacheTime' => Configure::read('Asset.cacheTime'), // Use configured cache time
                 ]),
             )
+
+            // 4b. Restore maintenance gate - blocks normal traffic while DB schema is being reset.
+            ->add(new RestoreMaintenanceMiddleware())
 
             // 5. Routing Middleware - URL to controller/action mapping
             // For large applications, consider enabling route caching in production
