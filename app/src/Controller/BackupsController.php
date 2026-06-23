@@ -185,6 +185,23 @@ class BackupsController extends AppController
             $sourceLabel = $uploadedFile->getClientFilename() ?: __('uploaded backup file');
         }
 
+        try {
+            (new BackupService())->validateImportPayload($data, $encryptionKey);
+        } catch (Throwable $e) {
+            $message = __('The backup file could not be opened with the provided encryption key.');
+            Log::warning(sprintf(
+                'Restore preflight failed for %s: %s',
+                (string)$sourceLabel,
+                $e->getMessage(),
+            ));
+            if ($expectsJson) {
+                return $this->jsonResponse(['success' => false, 'message' => $message], 400);
+            }
+            $this->Flash->error($message);
+
+            return $this->redirect(['action' => 'index']);
+        }
+
         $identity = $this->request->getAttribute('identity');
         $actor = is_object($identity) && method_exists(
             $identity,

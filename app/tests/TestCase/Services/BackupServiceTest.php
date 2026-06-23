@@ -84,6 +84,31 @@ class BackupServiceTest extends TestCase
         );
     }
 
+    public function testValidateImportPayloadRejectsWrongKeyBeforeRestore(): void
+    {
+        $payload = [
+            'meta' => ['version' => 2],
+            'schema' => ['version' => 1, 'tables' => []],
+            'tables' => [],
+        ];
+        $json = json_encode($payload);
+        $this->assertNotFalse($json);
+        $compressed = gzencode($json);
+        $this->assertNotFalse($compressed);
+
+        $service = new BackupService();
+        $method = new ReflectionMethod(BackupService::class, 'encrypt');
+        $method->setAccessible(true);
+        $encrypted = $method->invoke($service, $compressed, 'correct-key');
+
+        $service->validateImportPayload($encrypted, 'correct-key');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Decryption failed');
+
+        $service->validateImportPayload($encrypted, 'wrong-key');
+    }
+
     public function testImportRejectsObsoleteRowOnlyPayload(): void
     {
         $service = new BackupService();

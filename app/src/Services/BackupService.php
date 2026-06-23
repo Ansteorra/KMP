@@ -137,6 +137,17 @@ class BackupService
     }
 
     /**
+     * Validate that an encrypted backup can be opened before starting restore side effects.
+     *
+     * This decrypts, decompresses, and validates the payload structure only; it
+     * does not reset schema, write rows, queue work, or mutate restore status.
+     */
+    public function validateImportPayload(string $encryptedData, string $encryptionKey): void
+    {
+        $this->decodePayload($encryptedData, $encryptionKey);
+    }
+
+    /**
      * Import (restore) from an encrypted backup.
      *
      * @param string $encryptedData Raw encrypted backup bytes
