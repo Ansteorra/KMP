@@ -9,6 +9,7 @@ use App\Services\RestoreStatusService;
 use Cake\Command\Command;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOutput;
+use Cake\Datasource\ConnectionManager;
 use Cake\Log\Log;
 use InvalidArgumentException;
 use Queue\Queue\Task;
@@ -79,6 +80,7 @@ class BackupRestoreTask extends Task
                     $io->setInteractive(false);
                     $exitCode = (new UpdateDatabaseCommand())->run([], $io);
                     if ($exitCode !== null && $exitCode !== Command::CODE_SUCCESS) {
+                        $this->resetDefaultConnectionAfterMigrationFailure();
                         throw new RuntimeException('Database migrations failed during restore; see restore log.');
                     }
                 },
@@ -87,6 +89,24 @@ class BackupRestoreTask extends Task
             Log::error('Backup restore queue task failed: ' . $e->getMessage());
 
             throw $e;
+        }
+    }
+
+    private function resetDefaultConnectionAfterMigrationFailure(): void
+    {
+        $connection = ConnectionManager::get('default');
+        try {
+            while ($connection->inTransaction()) {
+                $connection->rollback(true);
+            }
+        } catch (Throwable $e) {
+            Log::warning('Unable to roll back failed restore migration transaction: ' . $e->getMessage());
+        }
+
+        try {
+            $connection->disconnect();
+        } catch (Throwable $e) {
+            Log::warning('Unable to disconnect failed restore migration connection: ' . $e->getMessage());
         }
     }
 }

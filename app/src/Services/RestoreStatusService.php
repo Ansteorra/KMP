@@ -17,6 +17,7 @@ class RestoreStatusService
     private const STATUS_KEY = 'restore.status';
     private const DEFAULT_LOCK_TTL_SECONDS = 1800;
     private const STALE_PROGRESS_SECONDS = 900;
+    private const MAX_LOG_ENTRIES = 500;
 
     /**
      * Acquire restore lock and initialize running status.
@@ -127,7 +128,7 @@ class RestoreStatusService
             'message' => $message,
         ];
 
-        $status['log'] = array_slice($log, -100);
+        $status['log'] = array_slice($log, -self::MAX_LOG_ENTRIES);
         $status['updated_at'] = $this->nowIso();
         $this->writeStatus($status);
     }
