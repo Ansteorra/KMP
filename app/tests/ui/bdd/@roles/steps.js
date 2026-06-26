@@ -166,6 +166,11 @@ echo json_encode([
 `;
 
 const resetDevDatabase = () => {
+    const resetFlag = (process.env.PLAYWRIGHT_RESET_DB ?? '').toLowerCase();
+    if (resetFlag === '0' || resetFlag === 'false' || resetFlag === 'no') {
+        return;
+    }
+
     execFileSync(
         'bash',
         [path.join(REPO_ROOT, 'reset_dev_database.sh')],

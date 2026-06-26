@@ -6,9 +6,11 @@ namespace App\Test\TestCase\Services;
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowInstance;
 use App\Services\BackupRestoreCompatibilityService;
+use App\Services\WorkflowEngine\TriggerDispatcher;
 use App\Test\TestCase\BaseTestCase;
 use Awards\Model\Entity\ApprovalProcessStep;
 use Awards\Model\Entity\RecommendationApprovalRun;
+use Cake\Database\Connection;
 use Cake\Datasource\ConnectionManager;
 use Cake\I18n\DateTime;
 use ReflectionMethod;
@@ -32,31 +34,40 @@ class BackupRestoreCompatibilityServiceTest extends BaseTestCase
         $names = [
             'Single Approver - Crown',
             'Single Approver - Local',
+            'Single Approver - Principality Coronet',
             'Dual Approver - Local then Crown',
         ];
         $connection->execute(
             'UPDATE awards_awards SET approval_process_id = NULL WHERE approval_process_id IN (
-                SELECT id FROM awards_approval_processes WHERE name IN (?, ?, ?)
+                SELECT id FROM awards_approval_processes WHERE name IN (?, ?, ?, ?)
             )',
             $names,
         );
         $connection->execute(
-            'UPDATE awards_approval_processes SET is_active = FALSE, deleted = ? WHERE name IN (?, ?, ?)',
+            'UPDATE awards_approval_processes SET is_active = FALSE, deleted = ? WHERE name IN (?, ?, ?, ?)',
             [DateTime::now()->toDateTimeString(), ...$names],
         );
+        $landedNobilityOfficeId = (int)$connection->execute(
+            'SELECT id FROM officers_offices WHERE name = ? AND deleted IS NULL LIMIT 1',
+            ['Landed Nobility'],
+        )->fetchColumn(0);
+        $principalityCoronetOfficeId = (int)$connection->execute(
+            'SELECT id FROM officers_offices WHERE name = ? AND deleted IS NULL LIMIT 1',
+            ['Principality Coronet'],
+        )->fetchColumn(0);
 
         $stats = $this->invokePrivate('seedBaselineAwardApprovalProcesses', [
             $connection,
             ['meta' => ['version' => 1], 'tables' => ['awards_recommendations' => []]],
         ]);
 
-        $this->assertSame(['award_approval_processes_seeded' => 3], $stats);
+        $this->assertSame(['award_approval_processes_seeded' => 4], $stats);
         $processes = $this->getTableLocator()->get('Awards.ApprovalProcesses')->find()
             ->where(['name IN' => $names])
             ->all()
             ->indexBy('name')
             ->toArray();
-        $this->assertCount(3, $processes);
+        $this->assertCount(4, $processes);
         foreach ($names as $name) {
             $this->assertTrue((bool)$processes[$name]->is_active);
             $this->assertNull($processes[$name]->deleted);
@@ -65,7 +76,26 @@ class BackupRestoreCompatibilityServiceTest extends BaseTestCase
         $stepCount = $this->getTableLocator()->get('Awards.ApprovalProcessSteps')->find()
             ->where(['approval_process_id IN' => array_map(static fn($process): int => (int)$process->id, $processes)])
             ->count();
-        $this->assertSame(4, $stepCount);
+        $this->assertSame(5, $stepCount);
+        $localStepCount = $this->getTableLocator()->get('Awards.ApprovalProcessSteps')->find()
+            ->where([
+                'approval_process_id' => (int)$processes['Single Approver - Local']->id,
+                'approver_source_id' => $landedNobilityOfficeId,
+            ])
+            ->count();
+        $this->assertSame(1, $localStepCount);
+        $principalityStepCount = $this->getTableLocator()->get('Awards.ApprovalProcessSteps')->find()
+            ->where([
+                'approval_process_id' => (int)$processes['Single Approver - Principality Coronet']->id,
+                'approver_source_id' => $principalityCoronetOfficeId,
+            ])
+            ->count();
+        $this->assertSame(1, $principalityStepCount);
+        $principalityAwardCount = (int)$connection->execute(
+            'SELECT COUNT(*) FROM awards_awards WHERE domain_id = ? AND approval_process_id = ? AND deleted IS NULL',
+            [11, (int)$processes['Single Approver - Principality Coronet']->id],
+        )->fetchColumn(0);
+        $this->assertGreaterThan(0, $principalityAwardCount);
     }
 
     public function testBaselineAwardApprovalSeedDoesNotReplayWhenBackupContainsApprovalProcessTables(): void
@@ -78,6 +108,14 @@ class BackupRestoreCompatibilityServiceTest extends BaseTestCase
         ]);
 
         $this->assertSame(['award_approval_processes_seeded' => 0], $stats);
+    }
+
+    public function testRestoreCreatesWorkflowTriggerDispatcherForRecommendationMigration(): void
+    {
+        $this->assertInstanceOf(
+            TriggerDispatcher::class,
+            $this->invokePrivateValue('createWorkflowTriggerDispatcher', []),
+        );
     }
 
     public function testSubmittedRecommendationApprovalWorkflowBackfillIsIdempotent(): void
@@ -125,10 +163,96 @@ class BackupRestoreCompatibilityServiceTest extends BaseTestCase
         $this->assertTrue($approval->approver_config['requires_bestowal_gathering']);
     }
 
+    public function testWarrantRosterApprovalWorkflowBackfillIsIdempotent(): void
+    {
+        $connection = ConnectionManager::get('default');
+        $createdLegacyTable = $this->createLegacyWarrantRosterApprovalSourceTable($connection);
+
+        try {
+            $this->invokePrivate('syncWorkflowDefinitions', [$connection]);
+            $rosterName = 'Restore Compatibility Warrant Roster ' . uniqid('', true);
+            $connection->insert('warrant_rosters', [
+                'name' => $rosterName,
+                'approvals_required' => 1,
+                'approval_count' => 1,
+                'status' => 'approved',
+                'created' => '2026-01-01 10:00:00',
+                'modified' => '2026-01-01 10:05:00',
+                'created_by' => self::ADMIN_MEMBER_ID,
+                'modified_by' => self::ADMIN_MEMBER_ID,
+            ]);
+            $rosterId = (int)$connection->execute(
+                'SELECT id FROM warrant_rosters WHERE name = ?',
+                [$rosterName],
+            )->fetchColumn(0);
+            $connection->insert('warrant_roster_approvals', [
+                'warrant_roster_id' => $rosterId,
+                'approver_id' => self::ADMIN_MEMBER_ID,
+                'approved_on' => '2026-01-01 10:05:00',
+            ]);
+
+            $beforeInstances = $this->getTableLocator()->get('WorkflowInstances')->find()
+                ->where(['entity_type' => 'WarrantRosters'])
+                ->count();
+            $firstStats = $this->invokePrivate('backfillWarrantRosterApprovalWorkflows', [$connection]);
+            $afterInstances = $this->getTableLocator()->get('WorkflowInstances')->find()
+                ->where(['entity_type' => 'WarrantRosters'])
+                ->count();
+            $secondStats = $this->invokePrivate('backfillWarrantRosterApprovalWorkflows', [$connection]);
+
+            $this->assertSame(
+                ['warrant_roster_approval_workflows_backfilled' => $afterInstances - $beforeInstances],
+                $firstStats,
+            );
+            $this->assertGreaterThanOrEqual(1, $firstStats['warrant_roster_approval_workflows_backfilled']);
+            $this->assertSame(['warrant_roster_approval_workflows_backfilled' => 0], $secondStats);
+
+            $instance = $this->getTableLocator()->get('WorkflowInstances')->find()
+                ->where([
+                    'entity_type' => 'WarrantRosters',
+                    'entity_id' => $rosterId,
+                    'status' => WorkflowInstance::STATUS_COMPLETED,
+                ])
+                ->firstOrFail();
+            $this->assertSame([], $instance->active_nodes);
+
+            $approval = $this->getTableLocator()->get('WorkflowApprovals')->find()
+                ->where([
+                    'workflow_instance_id' => (int)$instance->id,
+                    'node_id' => 'approval-gate',
+                    'status' => WorkflowApproval::STATUS_APPROVED,
+                ])
+                ->firstOrFail();
+            $this->assertSame(1, (int)$approval->approved_count);
+            $this->assertSame('App\\Policy\\WarrantRosterPolicy', $approval->approver_config['policyClass']);
+
+            $response = $this->getTableLocator()->get('WorkflowApprovalResponses')->find()
+                ->where([
+                    'workflow_approval_id' => (int)$approval->id,
+                    'member_id' => self::ADMIN_MEMBER_ID,
+                    'decision' => 'approve',
+                ])
+                ->firstOrFail();
+            $this->assertSame('2026-01-01 10:05:00', $response->responded_at->format('Y-m-d H:i:s'));
+        } finally {
+            if ($createdLegacyTable) {
+                $connection->execute('DROP TABLE warrant_roster_approvals');
+            }
+        }
+    }
+
     /**
      * @param array<int, mixed> $args
      */
     private function invokePrivate(string $methodName, array $args): array
+    {
+        return $this->invokePrivateValue($methodName, $args);
+    }
+
+    /**
+     * @param array<int, mixed> $args
+     */
+    private function invokePrivateValue(string $methodName, array $args): mixed
     {
         $method = new ReflectionMethod(BackupRestoreCompatibilityService::class, $methodName);
         $method->setAccessible(true);
@@ -237,5 +361,24 @@ class BackupRestoreCompatibilityServiceTest extends BaseTestCase
             'call_into_court' => 'No',
             'court_availability' => 'Anytime',
         ]));
+    }
+
+    private function createLegacyWarrantRosterApprovalSourceTable(Connection $connection): bool
+    {
+        if (in_array('warrant_roster_approvals', $connection->getSchemaCollection()->listTables(), true)) {
+            $connection->execute('DELETE FROM warrant_roster_approvals');
+
+            return false;
+        }
+
+        $connection->execute(
+            'CREATE TABLE warrant_roster_approvals (
+                warrant_roster_id INTEGER NOT NULL,
+                approver_id INTEGER NOT NULL,
+                approved_on TIMESTAMP NULL
+            )',
+        );
+
+        return true;
     }
 }

@@ -118,8 +118,6 @@ class BestowalsControllerTest extends HttpIntegrationTestCase
             'member_id' => self::ADMIN_MEMBER_ID,
             'award_id' => $award->id,
             'gathering_id' => $gathering->id,
-            'state' => 'Created',
-            'status' => 'Pending',
             'source' => Bestowal::SOURCE_AD_HOC,
             'stack_rank' => 0,
         ]);
@@ -150,8 +148,6 @@ class BestowalsControllerTest extends HttpIntegrationTestCase
         $bestowal = $bestowals->newEntity([
             'member_id' => self::ADMIN_MEMBER_ID,
             'award_id' => $award->id,
-            'state' => 'Created',
-            'status' => 'Planning',
             'source' => Bestowal::SOURCE_RECOMMENDATION,
             'stack_rank' => 0,
         ]);
@@ -193,8 +189,6 @@ class BestowalsControllerTest extends HttpIntegrationTestCase
         $bestowal = $bestowals->newEntity([
             'member_id' => self::ADMIN_MEMBER_ID,
             'award_id' => $award->id,
-            'state' => 'Created',
-            'status' => 'Planning',
             'source' => Bestowal::SOURCE_RECOMMENDATION,
             'stack_rank' => 0,
         ]);
@@ -242,8 +236,6 @@ class BestowalsControllerTest extends HttpIntegrationTestCase
             'award_id' => $award->id,
             'gathering_id' => $gathering->id,
             'roaming_court' => true,
-            'state' => 'Court Scheduled',
-            'status' => 'Scheduling',
             'source' => Bestowal::SOURCE_AD_HOC,
             'stack_rank' => 0,
         ]);

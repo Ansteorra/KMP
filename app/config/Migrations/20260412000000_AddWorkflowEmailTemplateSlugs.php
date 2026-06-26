@@ -35,10 +35,24 @@ class AddWorkflowEmailTemplateSlugs extends BaseMigration
         $templates = $this->buildTemplates($now);
 
         foreach ($templates as $tpl) {
-            $existing = $this->fetchRow(
-                "SELECT id FROM email_templates WHERE slug = '" . $this->sqlEscape($tpl['slug']) . "'",
-            );
+            $existing = $this->findExistingTemplate($tpl);
             if ($existing) {
+                $this->execute(
+                    "UPDATE email_templates
+                    SET slug = '" . $this->sqlEscape($tpl['slug']) . "',
+                        name = '" . $this->sqlEscape($tpl['name']) . "',
+                        description = '" . $this->sqlEscape($tpl['description']) . "',
+                        subject_template = '" . $this->sqlEscape($tpl['subject_template']) . "',
+                        text_template = '" . $this->sqlEscape($tpl['text_template']) . "',
+                        html_template = NULL,
+                        available_vars = '" . $this->sqlEscape(json_encode($tpl['available_vars'])) . "',
+                        variables_schema = '" . $this->sqlEscape(json_encode($tpl['variables_schema'])) . "',
+                        is_active = TRUE,
+                        modified = '{$now}',
+                        modified_by = 1
+                    WHERE id = " . (int)$existing['id'],
+                );
+
                 continue;
             }
 
@@ -64,6 +78,34 @@ class AddWorkflowEmailTemplateSlugs extends BaseMigration
                  )",
             );
         }
+    }
+
+    /**
+     * Find a template by new slug or by legacy mailer/action identity.
+     *
+     * @param array<string, mixed> $tpl Template definition
+     * @return array<string, mixed>|false
+     */
+    private function findExistingTemplate(array $tpl): array|false
+    {
+        $existing = $this->fetchRow(
+            "SELECT id FROM email_templates WHERE slug = '" . $this->sqlEscape($tpl['slug']) . "'",
+        );
+        if ($existing) {
+            return $existing;
+        }
+
+        if (empty($tpl['mailer_class']) || empty($tpl['action_method'])) {
+            return false;
+        }
+
+        return $this->fetchRow(
+            "SELECT id FROM email_templates
+            WHERE mailer_class = '" . $this->sqlEscape($tpl['mailer_class']) . "'
+                AND action_method = '" . $this->sqlEscape($tpl['action_method']) . "'
+            ORDER BY id ASC
+            LIMIT 1",
+        );
     }
 
     /**

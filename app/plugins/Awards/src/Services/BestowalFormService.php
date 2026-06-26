@@ -30,121 +30,23 @@ class BestowalFormService
     }
 
     /**
-     * Map database field targets to Stimulus controller target property names.
-     *
-     * @var array<string, array{block: string, input: string}>
-     */
-    private const FORM_FIELD_MAP = [
-        'gathering_id' => [
-            'block' => 'planToGiveBlockTarget',
-            'input' => 'planToGiveGatheringTarget',
-        ],
-        'gathering_scheduled_activity_id' => [
-            'block' => 'courtSlotBlockTarget',
-            'input' => 'courtSlotTarget',
-        ],
-        'bestowed_at' => [
-            'block' => 'givenBlockTarget',
-            'input' => 'givenDateTarget',
-        ],
-        'close_reason' => [
-            'block' => 'closeReasonBlockTarget',
-            'input' => 'closeReasonTarget',
-        ],
-    ];
-
-    /**
-     * Build grouped status/state options for dropdowns.
+     * Lifecycle bestowals have no status/state dropdown options.
      *
      * @return array<string, array<string, string>>
      */
     public function buildStatusList(): array
     {
-        $statusList = Bestowal::getStatuses();
-        foreach ($statusList as $key => $value) {
-            $states = $value;
-            $statusList[$key] = [];
-            foreach ($states as $state) {
-                $statusList[$key][$state] = $state;
-            }
-        }
-
-        return $statusList;
+        return [];
     }
 
     /**
-     * Build state options allowed for editing a bestowal (current + valid transitions).
-     *
-     * @param string $currentState Current bestowal state.
-     * @return array<string, array<string, string>> Grouped status => [state => state]
-     */
-    public function buildStateListForEdit(string $currentState): array
-    {
-        $allowedStates = array_values(array_unique(array_merge(
-            [$currentState],
-            Bestowal::getValidTransitionsFrom($currentState),
-        )));
-
-        $statusList = Bestowal::getStatuses();
-        $options = [];
-        foreach ($statusList as $statusName => $states) {
-            $filtered = array_intersect($states, $allowedStates);
-            if ($filtered === []) {
-                continue;
-            }
-            $options[$statusName] = [];
-            foreach ($filtered as $state) {
-                $options[$statusName][$state] = $state;
-            }
-        }
-
-        if ($options === []) {
-            $options['Current'] = [$currentState => $currentState];
-        }
-
-        return $options;
-    }
-
-    /**
-     * Convert database state rules to Stimulus-friendly target names.
+     * Lifecycle bestowals expose no field-rule mapping.
      *
      * @return array<string, array<string, array<int, string>>>
      */
     public function buildFormRules(): array
     {
-        $rawRules = Bestowal::getStateRules();
-        $rules = [];
-
-        foreach ($rawRules as $stateName => $stateRules) {
-            $mapped = [];
-            foreach ($stateRules as $ruleType => $fields) {
-                if (!is_array($fields)) {
-                    continue;
-                }
-                foreach ($fields as $field) {
-                    $mapping = self::FORM_FIELD_MAP[(string)$field] ?? null;
-                    if ($mapping === null) {
-                        continue;
-                    }
-                    if ($ruleType === 'Required') {
-                        $mapped['Visible'][] = $mapping['block'];
-                        $mapped['Required'][] = $mapping['input'];
-                    } elseif ($ruleType === 'Optional' || $ruleType === 'Visible') {
-                        $mapped['Visible'][] = $mapping['block'];
-                    } elseif ($ruleType === 'Disabled') {
-                        $mapped['Disabled'][] = $mapping['input'];
-                    }
-                }
-            }
-            if ($mapped !== []) {
-                foreach ($mapped as $type => $targets) {
-                    $mapped[$type] = array_values(array_unique($targets));
-                }
-                $rules[$stateName] = $mapped;
-            }
-        }
-
-        return $rules;
+        return [];
     }
 
     /**
@@ -157,10 +59,10 @@ class BestowalFormService
      */
     public function prepareEditFormData(Table $bestowalsTable, Bestowal $bestowal, $member = null): array
     {
-        $currentState = (string)$bestowal->state;
-        $statusList = $this->buildStateListForEdit($currentState);
-        $rules = $this->buildFormRules();
-        $futureOnly = $currentState !== 'Given';
+        $futureOnly = (string)($bestowal->lifecycle_status ?? Bestowal::LIFECYCLE_OPEN)
+            !== Bestowal::LIFECYCLE_GIVEN;
+        $statusList = [];
+        $rules = [];
         $gatheringData = $this->gatheringLookupService->getFilteredGatheringsForBestowal(
             $bestowal,
             $futureOnly,
@@ -265,8 +167,7 @@ class BestowalFormService
     public function prepareAdHocFormData($member = null): array
     {
         $bestowal = new Bestowal([
-            'state' => 'Created',
-            'status' => 'Planning',
+            'lifecycle_status' => Bestowal::LIFECYCLE_OPEN,
             'stack_rank' => 0,
             'source' => Bestowal::SOURCE_AD_HOC,
         ]);
@@ -320,20 +221,6 @@ class BestowalFormService
     }
 
     /**
-     * Prepare view variables for the bulk edit form.
-     *
-     * @return array<string, mixed>
-     */
-    public function prepareBulkEditFormData(): array
-    {
-        $statusList = $this->buildStatusList();
-        $rules = $this->buildFormRules();
-        $gatheringList = [];
-
-        return compact('rules', 'statusList', 'gatheringList');
-    }
-
-    /**
      * Find recommendations that may be linked to the bestowal.
      *
      * @param \Cake\ORM\Table $bestowalsTable Bestowals table.
@@ -349,10 +236,15 @@ class BestowalFormService
         }
 
         $conditions = [
-            'Recommendations.member_id' => (int)$bestowal->member_id,
             'Recommendations.recommendation_group_id IS' => null,
             'Recommendations.state NOT IN' => ['Closed', 'Given'],
         ];
+        if ($bestowal->member_id !== null) {
+            $conditions['Recommendations.member_id'] = (int)$bestowal->member_id;
+        } else {
+            $conditions['Recommendations.member_id IS'] = null;
+            $conditions['Recommendations.member_sca_name'] = (string)$bestowal->member_sca_name;
+        }
         if ($linkedIds !== []) {
             $conditions['OR'] = [
                 'Recommendations.bestowal_id IS' => null,
@@ -397,17 +289,12 @@ class BestowalFormService
     }
 
     /**
-     * @return array<string, string> State name => status name
+     * Lifecycle bestowals expose no state-to-status mapping.
+     *
+     * @return array<string, string>
      */
     public function buildStatusMap(): array
     {
-        $map = [];
-        foreach (Bestowal::getStatuses() as $statusName => $states) {
-            foreach ($states as $stateName) {
-                $map[$stateName] = $statusName;
-            }
-        }
-
-        return $map;
+        return [];
     }
 }

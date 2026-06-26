@@ -51,6 +51,11 @@ class Member extends BaseEntity implements
     use MemberAuthorizationsTrait;
 
     /**
+     * @var \Authorization\AuthorizationServiceInterface|null
+     */
+    protected ?AuthorizationServiceInterface $authorization = null;
+
+    /**
      * @var array|null Cached permissions
      */
     protected ?array $_permissions = null;

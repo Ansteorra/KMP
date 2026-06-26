@@ -99,10 +99,13 @@ class BackfillWarrantRosterApprovalsToWorkflowEngine extends AbstractMigration
             $created = $roster['created'];
             $startedBy = $roster['created_by'] !== null ? (int)$roster['created_by'] : 'NULL';
 
-            // Count approved responses for this roster
+            // Count unique approved responders for this roster. Legacy backups can
+            // contain duplicate rows for the same approver, while workflow responses
+            // are unique by approval/member.
             $countsRow = $this->fetchRow(
-                "SELECT COUNT(*) AS approved_count " .
-                "FROM warrant_roster_approvals WHERE warrant_roster_id = {$rosterId}"
+                "SELECT COUNT(DISTINCT approver_id) AS approved_count " .
+                "FROM warrant_roster_approvals " .
+                "WHERE warrant_roster_id = {$rosterId} AND approved_on IS NOT NULL"
             );
             $approvedCount = $countsRow ? (int)$countsRow['approved_count'] : 0;
 
@@ -222,11 +225,12 @@ class BackfillWarrantRosterApprovalsToWorkflowEngine extends AbstractMigration
             }
             $workflowApprovalId = (int)$approvalRow['id'];
 
-            // (d) Create workflow_approval_responses for each warrant_roster_approvals row
+            // (d) Create workflow_approval_responses for each unique legacy approver.
             $responses = $this->fetchAll(
-                "SELECT approver_id, approved_on " .
+                "SELECT approver_id, MAX(approved_on) AS approved_on " .
                 "FROM warrant_roster_approvals " .
-                "WHERE warrant_roster_id = {$rosterId}"
+                "WHERE warrant_roster_id = {$rosterId} AND approved_on IS NOT NULL " .
+                "GROUP BY approver_id ORDER BY approved_on"
             );
 
             foreach ($responses as $resp) {

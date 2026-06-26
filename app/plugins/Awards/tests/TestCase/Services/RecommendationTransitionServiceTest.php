@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Awards\Test\TestCase\Services;
 
 use App\Test\TestCase\BaseTestCase;
+use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\Recommendation;
 use Awards\Services\BestowalCancellationService;
 use Awards\Services\RecommendationGroupingService;
@@ -71,7 +72,7 @@ class RecommendationTransitionServiceTest extends BaseTestCase
 
         $bestowal = $this->getTableLocator()->get('Awards.Bestowals')
             ->get((int)$result['data']['result']['bestowalId']);
-        $this->assertSame('Created', $bestowal->state);
+        $this->assertSame(Bestowal::LIFECYCLE_OPEN, $bestowal->lifecycle_status);
         $this->assertSame($recommendationId, (int)$bestowal->primary_recommendation_id);
 
         $note = $this->recommendationsTable->Notes->find()

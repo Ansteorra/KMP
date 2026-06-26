@@ -301,6 +301,10 @@ class AwardsController extends AppController
             ->where(['ApprovalProcesses.is_active' => true])
             ->orderBy(['ApprovalProcesses.name' => 'ASC'])
             ->all();
+        $bestowalTodoTemplates = $this->Awards->BestowalTodoTemplates->find('list', limit: 200)
+            ->where(['BestowalTodoTemplates.is_active' => true])
+            ->orderBy(['BestowalTodoTemplates.name' => 'ASC'])
+            ->all();
         $branches = $this->Awards->Branches
             ->find('treeList', spacer: '--', keyPath: function ($entity) {
                 return $entity->id;
@@ -329,6 +333,7 @@ class AwardsController extends AppController
             'awardsDomains',
             'awardsLevels',
             'approvalProcesses',
+            'bestowalTodoTemplates',
             'branches',
             'availableActivities',
         ));
@@ -358,12 +363,23 @@ class AwardsController extends AppController
             ->where(['ApprovalProcesses.is_active' => true])
             ->orderBy(['ApprovalProcesses.name' => 'ASC'])
             ->all();
+        $bestowalTodoTemplates = $this->Awards->BestowalTodoTemplates->find('list', limit: 200)
+            ->where(['BestowalTodoTemplates.is_active' => true])
+            ->orderBy(['BestowalTodoTemplates.name' => 'ASC'])
+            ->all();
         $branches = $this->Awards->Branches
             ->find('treeList', spacer: '--', keyPath: function ($entity) {
                 return $entity->id;
             })
             ->orderBy(['name' => 'ASC'])->toArray();
-        $this->set(compact('award', 'awardsDomains', 'awardsLevels', 'approvalProcesses', 'branches'));
+        $this->set(compact(
+            'award',
+            'awardsDomains',
+            'awardsLevels',
+            'approvalProcesses',
+            'bestowalTodoTemplates',
+            'branches',
+        ));
     }
 
     /**

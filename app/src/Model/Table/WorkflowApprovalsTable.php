@@ -3,11 +3,16 @@ declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use App\KMP\PermissionsLoader;
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowInstance;
 use App\Services\ApprovalContext\ApprovalContextRendererRegistry;
+use ArrayObject;
+use Cake\Datasource\EntityInterface;
+use Cake\Event\Event;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
+use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\TableRegistry;
 use Cake\Validation\Validator;
@@ -35,6 +40,13 @@ class WorkflowApprovalsTable extends BaseTable
      * @var array<int, array<string, mixed>>
      */
     private static array $memberApprovalScopeCache = [];
+
+    /**
+     * Request-local pending approval eligibility cache.
+     *
+     * @var array<string, array<\App\Model\Entity\WorkflowApproval>>
+     */
+    private static array $pendingApprovalEligibilityCache = [];
 
     /**
      * Initialize method.
@@ -234,7 +246,7 @@ class WorkflowApprovalsTable extends BaseTable
      */
     public static function getPendingApprovalCountForMember(int $memberId): int
     {
-        return count(self::getPendingApprovalIdsForMember($memberId));
+        return count(self::getPendingApprovalsMatchingMember($memberId));
     }
 
     /**
@@ -246,14 +258,23 @@ class WorkflowApprovalsTable extends BaseTable
      * @param int $memberId The member ID to check.
      * @param array<string, mixed> $contain Associations to contain on the rich fetch.
      * @param array<int>|null $workflowInstanceIds Optional workflow instance scope.
+     * @param int|null $limit Maximum approvals to return.
+     * @param int $offset Number of eligible approvals to skip.
      * @return array<\App\Model\Entity\WorkflowApproval>
      */
     public static function getPendingApprovalsForMember(
         int $memberId,
         array $contain = [],
         ?array $workflowInstanceIds = null,
+        ?int $limit = null,
+        int $offset = 0,
     ): array {
         $approvalIds = self::getPendingApprovalIdsForMember($memberId, $workflowInstanceIds);
+        if ($limit !== null) {
+            $approvalIds = array_slice($approvalIds, max(0, $offset), max(0, $limit));
+        } elseif ($offset > 0) {
+            $approvalIds = array_slice($approvalIds, $offset);
+        }
         if ($approvalIds === []) {
             return [];
         }
@@ -261,7 +282,7 @@ class WorkflowApprovalsTable extends BaseTable
         return TableRegistry::getTableLocator()->get('WorkflowApprovals')->find()
             ->contain($contain)
             ->where(['WorkflowApprovals.id IN' => $approvalIds])
-            ->orderBy(['WorkflowApprovals.modified' => 'DESC'])
+            ->orderBy(['WorkflowApprovals.modified' => 'DESC', 'WorkflowApprovals.id' => 'DESC'])
             ->all()
             ->toArray();
     }
@@ -360,6 +381,57 @@ class WorkflowApprovalsTable extends BaseTable
     }
 
     /**
+     * Clear request-local pending approval eligibility cache.
+     *
+     * @return void
+     */
+    public static function clearPendingApprovalEligibilityCache(): void
+    {
+        self::$pendingApprovalEligibilityCache = [];
+    }
+
+    /**
+     * Populate denormalized lookup fields from the approval config snapshot.
+     *
+     * @param \Cake\Event\Event $event The beforeSave event.
+     * @param \Cake\Datasource\EntityInterface $entity Approval entity.
+     * @param \ArrayObject $options Save options.
+     * @return void
+     */
+    public function beforeSave(Event $event, EntityInterface $entity, ArrayObject $options): void
+    {
+        $this->syncApprovalLookupFields($entity);
+    }
+
+    /**
+     * Clear pending approval caches when approval rows change.
+     *
+     * @param mixed $event Event object.
+     * @param mixed $entity Saved entity.
+     * @param mixed $options Save options.
+     * @return void
+     */
+    public function afterSave($event, $entity, $options): void
+    {
+        parent::afterSave($event, $entity, $options);
+        self::clearPendingApprovalEligibilityCache();
+    }
+
+    /**
+     * Clear pending approval caches when approval rows are deleted.
+     *
+     * @param mixed $event Event object.
+     * @param mixed $entity Deleted entity.
+     * @param mixed $options Delete options.
+     * @return void
+     */
+    public function afterDelete($event, $entity, $options): void
+    {
+        parent::afterDelete($event, $entity, $options);
+        self::clearPendingApprovalEligibilityCache();
+    }
+
+    /**
      * Get pending approval rows matching the member's current approval scope.
      *
      * @param int $memberId The member ID to check.
@@ -369,12 +441,14 @@ class WorkflowApprovalsTable extends BaseTable
     private static function getPendingApprovalsMatchingMember(int $memberId, ?array $workflowInstanceIds = null): array
     {
         try {
-            if ($workflowInstanceIds !== null) {
-                $workflowInstanceIds = array_map('intval', $workflowInstanceIds);
-                $workflowInstanceIds = array_values(array_unique(array_filter($workflowInstanceIds)));
-                if ($workflowInstanceIds === []) {
-                    return [];
-                }
+            $workflowInstanceIds = self::normalizeWorkflowInstanceIds($workflowInstanceIds);
+            if ($workflowInstanceIds !== null && $workflowInstanceIds === []) {
+                return [];
+            }
+
+            $cacheKey = self::pendingApprovalEligibilityCacheKey($memberId, $workflowInstanceIds);
+            if (array_key_exists($cacheKey, self::$pendingApprovalEligibilityCache)) {
+                return self::$pendingApprovalEligibilityCache[$cacheKey];
             }
 
             $approvalsTable = TableRegistry::getTableLocator()->get('WorkflowApprovals');
@@ -383,6 +457,7 @@ class WorkflowApprovalsTable extends BaseTable
             $query = $approvalsTable->find()
                 ->select(['id', 'workflow_instance_id', 'approver_type', 'approver_config', 'current_approver_id'])
                 ->where(['WorkflowApprovals.status' => WorkflowApproval::STATUS_PENDING])
+                ->orderBy(['WorkflowApprovals.modified' => 'DESC', 'WorkflowApprovals.id' => 'DESC'])
                 ->where([
                     sprintf(
                         'NOT EXISTS (
@@ -410,24 +485,7 @@ class WorkflowApprovalsTable extends BaseTable
                 $query->where(['WorkflowApprovals.workflow_instance_id IN' => $workflowInstanceIds]);
             }
 
-            $candidateTypes = [
-                WorkflowApproval::APPROVER_TYPE_MEMBER,
-                WorkflowApproval::APPROVER_TYPE_DYNAMIC,
-            ];
-            if ($memberScope['roleNames'] !== []) {
-                $candidateTypes[] = WorkflowApproval::APPROVER_TYPE_ROLE;
-            }
-            if ($memberScope['permissionNames'] !== []) {
-                $candidateTypes[] = WorkflowApproval::APPROVER_TYPE_PERMISSION;
-            }
-            $candidateTypes[] = WorkflowApproval::APPROVER_TYPE_POLICY;
-
-            $query->where([
-                'OR' => [
-                    ['WorkflowApprovals.current_approver_id' => $memberId],
-                    ['WorkflowApprovals.approver_type IN' => $candidateTypes],
-                ],
-            ]);
+            self::applyPendingApprovalCandidateScope($query, $memberId, $memberScope);
 
             $approvals = $query->all()->toArray();
             $awardBranchIdsByRun = self::getAwardBranchIdsByApprovalRun($approvals);
@@ -448,12 +506,337 @@ class WorkflowApprovalsTable extends BaseTable
                 }
             }
 
-            return $eligible;
+            return self::$pendingApprovalEligibilityCache[$cacheKey] = $eligible;
         } catch (Exception $e) {
             Log::error("Error fetching pending approvals for member {$memberId}: {$e->getMessage()}");
 
             return [];
         }
+    }
+
+    /**
+     * Normalize optional workflow instance scoping for cache keys and queries.
+     *
+     * @param array<int>|null $workflowInstanceIds Optional workflow instance IDs.
+     * @return array<int>|null
+     */
+    private static function normalizeWorkflowInstanceIds(?array $workflowInstanceIds): ?array
+    {
+        if ($workflowInstanceIds === null) {
+            return null;
+        }
+
+        $workflowInstanceIds = array_map('intval', $workflowInstanceIds);
+        $workflowInstanceIds = array_values(array_unique(array_filter($workflowInstanceIds)));
+        sort($workflowInstanceIds);
+
+        return $workflowInstanceIds;
+    }
+
+    /**
+     * Build a stable cache key for a member/scoped pending approval lookup.
+     *
+     * @param int $memberId Member ID.
+     * @param array<int>|null $workflowInstanceIds Optional workflow instance IDs.
+     * @return string
+     */
+    private static function pendingApprovalEligibilityCacheKey(int $memberId, ?array $workflowInstanceIds): string
+    {
+        return $memberId . '|' . ($workflowInstanceIds === null ? '*' : implode(',', $workflowInstanceIds));
+    }
+
+    /**
+     * Narrow pending approvals to rows that could match the member's current scope.
+     *
+     * The PHP eligibility pass remains authoritative for branch scoping, policies,
+     * and current approver fallback values in JSON config.
+     *
+     * @param \Cake\ORM\Query\SelectQuery $query Pending approvals query.
+     * @param int $memberId Current member ID.
+     * @param array<string, mixed> $memberScope Current member approval scope.
+     * @return void
+     */
+    private static function applyPendingApprovalCandidateScope(
+        SelectQuery $query,
+        int $memberId,
+        array $memberScope,
+    ): void {
+        $roleIds = self::approvalScopeNestedIds($memberScope['roleIdsByBranch'] ?? []);
+        $permissionIds = array_keys($memberScope['permissionsById'] ?? []);
+        $officeIds = self::approvalScopeNestedIds($memberScope['officeIdsByBranch'] ?? []);
+
+        $query->where([
+            'OR' => [
+                ['WorkflowApprovals.current_approver_id' => $memberId],
+                [
+                    'AND' => [
+                        [
+                            'OR' => [
+                                ['WorkflowApprovals.current_approver_id IS' => null],
+                                ['WorkflowApprovals.current_approver_id' => 0],
+                            ],
+                        ],
+                        [
+                            'OR' => self::pendingApprovalTypeCandidateConditions(
+                                $memberId,
+                                $memberScope,
+                                $roleIds,
+                                $permissionIds,
+                                $officeIds,
+                            ),
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+    }
+
+    /**
+     * @param int $memberId Current member ID.
+     * @param array<string, mixed> $memberScope Current member approval scope.
+     * @param array<int> $roleIds Active role IDs from the member scope.
+     * @param array<int> $permissionIds Active permission IDs from the member scope.
+     * @param array<int> $officeIds Active office IDs from the member scope.
+     * @return array<array<string, mixed>>
+     */
+    private static function pendingApprovalTypeCandidateConditions(
+        int $memberId,
+        array $memberScope,
+        array $roleIds,
+        array $permissionIds,
+        array $officeIds,
+    ): array {
+        $conditions = [
+            [
+                'WorkflowApprovals.approver_lookup_type' => WorkflowApproval::APPROVER_TYPE_MEMBER,
+                'WorkflowApprovals.approver_lookup_id' => $memberId,
+            ],
+            [
+                'WorkflowApprovals.approver_lookup_type' => WorkflowApproval::APPROVER_TYPE_POLICY,
+            ],
+        ];
+
+        $permissionConditions = [];
+        if ($permissionIds !== []) {
+            $permissionConditions[] = ['WorkflowApprovals.approver_lookup_id IN' => $permissionIds];
+        }
+        if ($memberScope['permissionNames'] !== []) {
+            $permissionConditions[] = ['WorkflowApprovals.approver_lookup_name IN' => $memberScope['permissionNames']];
+        }
+        if ($permissionConditions !== []) {
+            $conditions[] = [
+                'WorkflowApprovals.approver_lookup_type' => WorkflowApproval::APPROVER_TYPE_PERMISSION,
+                'OR' => $permissionConditions,
+            ];
+        }
+
+        $roleConditions = [];
+        if ($roleIds !== []) {
+            $roleConditions[] = ['WorkflowApprovals.approver_lookup_id IN' => $roleIds];
+        }
+        if ($memberScope['roleNames'] !== []) {
+            $roleConditions[] = ['WorkflowApprovals.approver_lookup_name IN' => $memberScope['roleNames']];
+        }
+        if ($roleConditions !== []) {
+            $conditions[] = [
+                'WorkflowApprovals.approver_lookup_type' => WorkflowApproval::APPROVER_TYPE_ROLE,
+                'OR' => $roleConditions,
+            ];
+        }
+
+        if ($officeIds !== []) {
+            $conditions[] = [
+                'WorkflowApprovals.approver_lookup_type' => 'office',
+                'WorkflowApprovals.approver_lookup_id IN' => $officeIds,
+            ];
+        }
+
+        return $conditions;
+    }
+
+    /**
+     * @param array<int, array<int, bool>> $idsByBranch Scope IDs keyed by branch.
+     * @return array<int>
+     */
+    private static function approvalScopeNestedIds(array $idsByBranch): array
+    {
+        $ids = [];
+        foreach ($idsByBranch as $branchIds) {
+            foreach (array_keys($branchIds) as $id) {
+                $id = (int)$id;
+                if ($id > 0) {
+                    $ids[$id] = true;
+                }
+            }
+        }
+
+        return array_keys($ids);
+    }
+
+    /**
+     * Populate lookup fields used by member-centric approval queries.
+     *
+     * @param \Cake\Datasource\EntityInterface $entity Approval entity.
+     * @return void
+     */
+    private function syncApprovalLookupFields(EntityInterface $entity): void
+    {
+        $config = $entity->approver_config ?? [];
+        if (!is_array($config)) {
+            $config = [];
+        }
+
+        if (array_key_exists('current_approver_id', $config)) {
+            $entity->current_approver_id = self::positiveIntOrNull($config['current_approver_id']);
+        }
+
+        foreach ($this->approvalLookupFromConfig((string)$entity->approver_type, $config) as $field => $value) {
+            $entity->set($field, $value);
+        }
+    }
+
+    /**
+     * @param string $approverType Approval type.
+     * @param array<string, mixed> $config Approval config snapshot.
+     * @return array<string, mixed>
+     */
+    private function approvalLookupFromConfig(string $approverType, array $config): array
+    {
+        $lookup = [
+            'approver_lookup_type' => null,
+            'approver_lookup_id' => null,
+            'approver_lookup_name' => null,
+            'approver_lookup_branch_id' => self::positiveIntOrNull($config['award_approval_branch_id'] ?? null),
+            'approver_lookup_branch_mode' => self::stringOrNull($config['award_approval_branch_mode'] ?? null),
+            'approver_lookup_branch_type' => self::stringOrNull($config['award_approval_branch_type'] ?? null),
+            'approver_lookup_context_id' => self::positiveIntOrNull($config['award_approval_run_id'] ?? null),
+        ];
+
+        switch ($approverType) {
+            case WorkflowApproval::APPROVER_TYPE_MEMBER:
+                $lookup['approver_lookup_type'] = WorkflowApproval::APPROVER_TYPE_MEMBER;
+                $lookup['approver_lookup_id'] = self::positiveIntOrNull($config['member_id'] ?? null);
+                break;
+            case WorkflowApproval::APPROVER_TYPE_ROLE:
+                [$roleId, $roleName] = $this->resolveRoleLookup(
+                    self::positiveIntOrNull($config['role_id'] ?? null),
+                    self::stringOrNull($config['role'] ?? null),
+                );
+                $lookup['approver_lookup_type'] = WorkflowApproval::APPROVER_TYPE_ROLE;
+                $lookup['approver_lookup_id'] = $roleId;
+                $lookup['approver_lookup_name'] = $roleName;
+                break;
+            case WorkflowApproval::APPROVER_TYPE_PERMISSION:
+                [$permissionId, $permissionName] = $this->resolvePermissionLookup(
+                    self::positiveIntOrNull($config['permission_id'] ?? null),
+                    self::stringOrNull($config['permission'] ?? null),
+                );
+                $lookup['approver_lookup_type'] = WorkflowApproval::APPROVER_TYPE_PERMISSION;
+                $lookup['approver_lookup_id'] = $permissionId;
+                $lookup['approver_lookup_name'] = $permissionName;
+                break;
+            case WorkflowApproval::APPROVER_TYPE_DYNAMIC:
+                $lookup['approver_lookup_type'] = self::stringOrNull($config['award_approval_approver_type'] ?? null);
+                $lookup['approver_lookup_id'] = self::positiveIntOrNull(
+                    $config['award_approval_approver_source_id'] ?? $config['member_id'] ?? null,
+                );
+                break;
+            case WorkflowApproval::APPROVER_TYPE_POLICY:
+                $lookup['approver_lookup_type'] = WorkflowApproval::APPROVER_TYPE_POLICY;
+                $lookup['approver_lookup_name'] = self::stringOrNull($config['policyClass'] ?? null);
+                break;
+        }
+
+        return $lookup;
+    }
+
+    /**
+     * @param int|null $roleId Configured role ID.
+     * @param string|null $roleName Configured role name.
+     * @return array{0:int|null,1:string|null}
+     */
+    private function resolveRoleLookup(?int $roleId, ?string $roleName): array
+    {
+        $roles = TableRegistry::getTableLocator()->get('Roles');
+        if ($roleId !== null) {
+            $role = $roles->find()
+                ->select(['id', 'name'])
+                ->where(['Roles.id' => $roleId])
+                ->first();
+
+            return [$roleId, $role?->name ?? $roleName];
+        }
+        if ($roleName !== null) {
+            $role = $roles->find()
+                ->select(['id', 'name'])
+                ->where(['Roles.name' => $roleName])
+                ->first();
+
+            return [$role?->id === null ? null : (int)$role->id, $role?->name ?? $roleName];
+        }
+
+        return [null, null];
+    }
+
+    /**
+     * @param int|null $permissionId Configured permission ID.
+     * @param string|null $permissionName Configured permission name.
+     * @return array{0:int|null,1:string|null}
+     */
+    private function resolvePermissionLookup(?int $permissionId, ?string $permissionName): array
+    {
+        $permissions = TableRegistry::getTableLocator()->get('Permissions');
+        if ($permissionId !== null) {
+            $permission = $permissions->find()
+                ->select(['id', 'name'])
+                ->where(['Permissions.id' => $permissionId])
+                ->first();
+
+            return [$permissionId, $permission?->name ?? $permissionName];
+        }
+        if ($permissionName !== null) {
+            $permission = $permissions->find()
+                ->select(['id', 'name'])
+                ->where(['Permissions.name' => $permissionName])
+                ->first();
+
+            return [$permission?->id === null ? null : (int)$permission->id, $permission?->name ?? $permissionName];
+        }
+
+        return [null, null];
+    }
+
+    /**
+     * @param mixed $value Raw value.
+     * @return int|null
+     */
+    private static function positiveIntOrNull(mixed $value): ?int
+    {
+        if (is_string($value)) {
+            $value = trim($value);
+        }
+        if (is_int($value) || (is_string($value) && ctype_digit($value))) {
+            $value = (int)$value;
+
+            return $value > 0 ? $value : null;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param mixed $value Raw value.
+     * @return string|null
+     */
+    private static function stringOrNull(mixed $value): ?string
+    {
+        if (!is_scalar($value)) {
+            return null;
+        }
+
+        $value = trim((string)$value);
+
+        return $value === '' ? null : $value;
     }
 
     /**
@@ -480,16 +863,8 @@ class WorkflowApprovalsTable extends BaseTable
         }
 
         return match ($approval->approver_type) {
-            WorkflowApproval::APPROVER_TYPE_PERMISSION => in_array(
-                (string)($config['permission'] ?? ''),
-                $memberScope['permissionNames'],
-                true,
-            ),
-            WorkflowApproval::APPROVER_TYPE_ROLE => in_array(
-                (string)($config['role'] ?? ''),
-                $memberScope['roleNames'],
-                true,
-            ),
+            WorkflowApproval::APPROVER_TYPE_PERMISSION => self::memberHasConfiguredPermission($config, $memberScope),
+            WorkflowApproval::APPROVER_TYPE_ROLE => self::memberHasConfiguredRole($config, $memberScope),
             WorkflowApproval::APPROVER_TYPE_MEMBER => $memberId === (int)($config['member_id'] ?? 0),
             WorkflowApproval::APPROVER_TYPE_DYNAMIC => self::dynamicConfigIncludesMember(
                 $config,
@@ -501,6 +876,50 @@ class WorkflowApprovalsTable extends BaseTable
             WorkflowApproval::APPROVER_TYPE_POLICY => self::memberPassesPolicy($approval, $memberId),
             default => false,
         };
+    }
+
+    /**
+     * Check direct permission approver config against the member scope.
+     *
+     * @param array<string, mixed> $config Approval config.
+     * @param array<string, mixed> $memberScope Current member approval scope.
+     * @return bool
+     */
+    private static function memberHasConfiguredPermission(array $config, array $memberScope): bool
+    {
+        $permissionId = (int)($config['permission_id'] ?? 0);
+        if ($permissionId > 0) {
+            return isset($memberScope['permissionsById'][$permissionId]);
+        }
+
+        $permissionName = (string)($config['permission'] ?? '');
+
+        return $permissionName !== '' && in_array($permissionName, $memberScope['permissionNames'], true);
+    }
+
+    /**
+     * Check direct role approver config against the member scope.
+     *
+     * @param array<string, mixed> $config Approval config.
+     * @param array<string, mixed> $memberScope Current member approval scope.
+     * @return bool
+     */
+    private static function memberHasConfiguredRole(array $config, array $memberScope): bool
+    {
+        $roleId = (int)($config['role_id'] ?? 0);
+        if ($roleId > 0) {
+            foreach ($memberScope['roleIdsByBranch'] as $roleIds) {
+                if (isset($roleIds[$roleId])) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        $roleName = (string)($config['role'] ?? '');
+
+        return $roleName !== '' && in_array($roleName, $memberScope['roleNames'], true);
     }
 
     /**
@@ -601,10 +1020,37 @@ class WorkflowApprovalsTable extends BaseTable
 
         return match ($approverType) {
             'role' => isset($memberScope['roleIdsByBranch'][$branchId][$sourceId]),
-            'permission' => isset($memberScope['permissionIdsByBranch'][$branchId][$sourceId]),
+            'permission' => self::memberPermissionCoversBranch(
+                $memberScope['permissionsById'][$sourceId] ?? null,
+                $branchId,
+            ),
             'office' => isset($memberScope['officeIdsByBranch'][$branchId][$sourceId]),
             default => false,
         };
+    }
+
+    /**
+     * Check whether a loader permission object covers the given branch.
+     *
+     * Permission scope is resolved by {@see \App\KMP\PermissionsLoader::getPermissions()}:
+     * `branch_ids === null` denotes a Global permission (covers every branch),
+     * otherwise it is the explicit list of branches the member holds it in
+     * (including descendants for branch-and-children scoping).
+     *
+     * @param object|null $permission Loader permission object, or null if not held.
+     * @param int $branchId Branch ID to test coverage for.
+     * @return bool
+     */
+    private static function memberPermissionCoversBranch(?object $permission, int $branchId): bool
+    {
+        if ($permission === null) {
+            return false;
+        }
+        if ($permission->branch_ids === null) {
+            return true;
+        }
+
+        return in_array($branchId, $permission->branch_ids, true);
     }
 
     /**
@@ -689,56 +1135,39 @@ class WorkflowApprovalsTable extends BaseTable
             return self::$memberApprovalScopeCache[$memberId];
         }
 
-        $memberRolesTable = TableRegistry::getTableLocator()->get('MemberRoles');
         $now = DateTime::now();
 
+        // Source roles and permissions through the canonical cached loader so the
+        // approval scope honours warrant/membership validation and permission
+        // scoping rules (Global vs branch) instead of querying member_roles directly.
         $roleNamesByName = [];
         $roleIdsByBranch = [];
-        $roleRows = $memberRolesTable->find('current')
-            ->innerJoinWith('Roles')
-            ->select([
-                'role_id' => 'MemberRoles.role_id',
-                'branch_id' => 'MemberRoles.branch_id',
-                'role_name' => 'Roles.name',
-            ])
-            ->where(['MemberRoles.member_id' => $memberId])
-            ->enableHydration(false)
-            ->all()
-            ->toList();
-        foreach ($roleRows as $row) {
-            $roleName = (string)($row['role_name'] ?? '');
+        foreach (PermissionsLoader::getRoles($memberId) as $role) {
+            $roleName = (string)$role->name;
             if ($roleName !== '') {
                 $roleNamesByName[$roleName] = true;
             }
-            $branchId = (int)($row['branch_id'] ?? 0);
-            $roleId = (int)($row['role_id'] ?? 0);
-            if ($branchId > 0 && $roleId > 0) {
-                $roleIdsByBranch[$branchId][$roleId] = true;
+            $roleId = (int)$role->id;
+            foreach ($role->branch_ids as $branchId) {
+                $branchId = (int)$branchId;
+                if ($branchId > 0 && $roleId > 0) {
+                    $roleIdsByBranch[$branchId][$roleId] = true;
+                }
             }
         }
 
+        // Permissions keep their full scoping-aware objects (branch_ids === null
+        // means Global / all branches) for the dynamic branch-coverage check below.
         $permissionNamesByName = [];
-        $permissionIdsByBranch = [];
-        $permissionRows = $memberRolesTable->find('current')
-            ->select([
-                'branch_id' => 'MemberRoles.branch_id',
-                'permission_id' => 'Permissions.id',
-                'permission_name' => 'Permissions.name',
-            ])
-            ->matching('Roles.Permissions')
-            ->where(['MemberRoles.member_id' => $memberId])
-            ->enableHydration(false)
-            ->all()
-            ->toList();
-        foreach ($permissionRows as $row) {
-            $permissionName = (string)($row['permission_name'] ?? '');
+        $permissionsById = [];
+        foreach (PermissionsLoader::getPermissions($memberId) as $permission) {
+            $permissionName = (string)$permission->name;
             if ($permissionName !== '') {
                 $permissionNamesByName[$permissionName] = true;
             }
-            $branchId = (int)($row['branch_id'] ?? 0);
-            $permissionId = (int)($row['permission_id'] ?? 0);
-            if ($branchId > 0 && $permissionId > 0) {
-                $permissionIdsByBranch[$branchId][$permissionId] = true;
+            $permissionId = (int)$permission->id;
+            if ($permissionId > 0) {
+                $permissionsById[$permissionId] = $permission;
             }
         }
 
@@ -768,7 +1197,7 @@ class WorkflowApprovalsTable extends BaseTable
             'permissionNames' => array_keys($permissionNamesByName),
             'roleNames' => array_keys($roleNamesByName),
             'roleIdsByBranch' => $roleIdsByBranch,
-            'permissionIdsByBranch' => $permissionIdsByBranch,
+            'permissionsById' => $permissionsById,
             'officeIdsByBranch' => $officeIdsByBranch,
         ];
     }
@@ -784,6 +1213,7 @@ class WorkflowApprovalsTable extends BaseTable
     public static function clearApprovalScopeCache(): void
     {
         self::$memberApprovalScopeCache = [];
+        self::clearPendingApprovalEligibilityCache();
     }
 
     /**

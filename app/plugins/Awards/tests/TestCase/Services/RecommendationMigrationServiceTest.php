@@ -5,6 +5,9 @@ namespace Awards\Test\TestCase\Services;
 
 use App\Model\Entity\Member;
 use App\Model\Entity\WorkflowInstance;
+use App\Services\ServiceResult;
+use App\Services\WorkflowEngine\TriggerDispatcher;
+use App\Services\WorkflowEngine\WorkflowEngineInterface;
 use App\Test\TestCase\BaseTestCase;
 use Awards\Model\Entity\ApprovalProcess;
 use Awards\Model\Entity\ApprovalProcessStep;
@@ -17,6 +20,7 @@ use Awards\Services\RecommendationBestowalStatePolicyService;
 use Awards\Services\RecommendationMigrationService;
 use Cake\I18n\DateTime;
 use Cake\ORM\Table;
+use ReflectionMethod;
 
 /**
  * RecommendationMigrationService tests.
@@ -118,6 +122,17 @@ class RecommendationMigrationServiceTest extends BaseTestCase
         }
     }
 
+    public function testClassifiesApprovalStateWithRecipientNameAndNoMemberId(): void
+    {
+        $recommendation = $this->approvalReadyRecommendation('Submitted');
+        $recommendation->member_id = null;
+        $recommendation->member_sca_name = 'Sam of Hellsgate';
+
+        $classification = $this->service->classify($recommendation);
+
+        $this->assertSame(RecommendationMigrationResult::TARGET_APPROVAL_WORKFLOW, $classification['target']);
+    }
+
     public function testClassifiesOutOfScopeAndIncompleteRecommendationsForManualReview(): void
     {
         $grouped = new Recommendation([
@@ -133,6 +148,9 @@ class RecommendationMigrationServiceTest extends BaseTestCase
             'award_id' => null,
             'member_id' => self::ADMIN_MEMBER_ID,
         ]);
+        $missingRecipient = $this->approvalReadyRecommendation('Submitted');
+        $missingRecipient->member_id = null;
+        $missingRecipient->member_sca_name = '';
         $unknownState = new Recommendation();
         $unknownState->patch([
             'id' => 123458,
@@ -148,6 +166,10 @@ class RecommendationMigrationServiceTest extends BaseTestCase
         $this->assertSame(
             RecommendationMigrationResult::TARGET_MANUAL_REVIEW,
             $this->service->classify($missingData)['target'],
+        );
+        $this->assertSame(
+            RecommendationMigrationResult::TARGET_MANUAL_REVIEW,
+            $this->service->classify($missingRecipient)['target'],
         );
         $this->assertSame(
             RecommendationMigrationResult::TARGET_MANUAL_REVIEW,
@@ -249,6 +271,36 @@ class RecommendationMigrationServiceTest extends BaseTestCase
         $this->assertSame(RecommendationMigrationResult::STATUS_SKIPPED, $migrationResult->result_status);
     }
 
+    public function testApprovalWorkflowStartFailureWithoutApproversFallsBackToManualReview(): void
+    {
+        $recommendation = $this->recommendationsTable->get($this->createRecommendation('Submitted'));
+        $runs = $this->getTableLocator()->get('Awards.RecommendationMigrationRuns');
+        $run = $runs->saveOrFail($runs->newEntity([
+            'mode' => RecommendationMigrationRun::MODE_APPLY,
+            'status' => RecommendationMigrationRun::STATUS_RUNNING,
+            'started' => DateTime::now(),
+        ]));
+        $service = new RecommendationMigrationService(
+            triggerDispatcher: $this->dispatcherReturningFailure('The approval step resolved zero eligible approvers.'),
+            approvalResolver: $this->resolverReturningApprover(),
+        );
+
+        $migrationResult = $this->invokePrivate($service, 'applyClassification', [
+            (int)$run->id,
+            $recommendation,
+            [
+                'target' => RecommendationMigrationResult::TARGET_APPROVAL_WORKFLOW,
+                'reason' => 'State needs approval workflow ownership.',
+            ],
+            RecommendationMigrationRun::MODE_APPLY,
+            self::ADMIN_MEMBER_ID,
+        ]);
+
+        $this->assertSame(RecommendationMigrationResult::TARGET_MANUAL_REVIEW, $migrationResult->target_action);
+        $this->assertSame(RecommendationMigrationResult::STATUS_SKIPPED, $migrationResult->result_status);
+        $this->assertStringContainsString('resolved zero eligible approvers', $migrationResult->reason);
+    }
+
     /**
      * @param array<string, mixed> $overrides Field overrides
      */
@@ -347,6 +399,7 @@ class RecommendationMigrationServiceTest extends BaseTestCase
             'state' => $state,
             'award_id' => 1,
             'member_id' => self::ADMIN_MEMBER_ID,
+            'member_sca_name' => 'Admin von Admin',
             'award' => new Award([
                 'id' => 1,
                 'branch_id' => self::KINGDOM_BRANCH_ID,
@@ -393,5 +446,70 @@ class RecommendationMigrationServiceTest extends BaseTestCase
                 return [];
             }
         };
+    }
+
+    private function dispatcherReturningFailure(string $message): TriggerDispatcher
+    {
+        return new TriggerDispatcher(new class ($message) implements WorkflowEngineInterface {
+            public function __construct(private string $message)
+            {
+            }
+
+            public function startWorkflow(
+                string $workflowSlug,
+                array $triggerData = [],
+                ?int $startedBy = null,
+                ?string $entityType = null,
+                ?int $entityId = null,
+            ): ServiceResult {
+                return new ServiceResult(false, 'Not implemented for this test.');
+            }
+
+            public function resumeWorkflow(
+                int $instanceId,
+                string $nodeId,
+                string $outputPort,
+                array $additionalData = [],
+            ): ServiceResult {
+                return new ServiceResult(false, 'Not implemented for this test.');
+            }
+
+            public function cancelWorkflow(int $instanceId, ?string $reason = null): ServiceResult
+            {
+                return new ServiceResult(false, 'Not implemented for this test.');
+            }
+
+            public function getInstanceState(int $instanceId): ?array
+            {
+                return null;
+            }
+
+            public function dispatchTrigger(
+                string $eventName,
+                array $eventData = [],
+                ?int $triggeredBy = null,
+            ): array {
+                return [new ServiceResult(false, $this->message)];
+            }
+
+            public function fireIntermediateApprovalActions(
+                int $instanceId,
+                string $nodeId,
+                array $approvalData,
+            ): ServiceResult {
+                return new ServiceResult(false, 'Not implemented for this test.');
+            }
+        });
+    }
+
+    /**
+     * @param array<int, mixed> $args
+     */
+    private function invokePrivate(object $object, string $methodName, array $args): mixed
+    {
+        $method = new ReflectionMethod($object, $methodName);
+        $method->setAccessible(true);
+
+        return $method->invokeArgs($object, $args);
     }
 }

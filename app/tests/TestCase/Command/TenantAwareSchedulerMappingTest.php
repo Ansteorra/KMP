@@ -22,7 +22,10 @@ class TenantAwareSchedulerMappingTest extends TestCase
     {
         $migration = $this->readAppFile('config/PlatformMigrations/20260516012000_SeedTenantAwareCommandSchedules.php');
 
-        $this->assertStringContainsString("'tenant_scope' => 'all_active_tenants'", $migration);
+        // Schedules default to the all-active-tenants scope and bind that scope into
+        // each seeded row (the literal is now expressed via a parameterized helper).
+        $this->assertStringContainsString("\$tenantScope = 'all_active_tenants'", $migration);
+        $this->assertStringContainsString("'tenant_scope' => \$tenantScope", $migration);
         $this->assertStringContainsString("'requires_tenant_connection' => true", $migration);
     }
 

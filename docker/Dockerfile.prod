@@ -10,8 +10,8 @@
 # Expected app-image build time: 5-10 min (vs ~90 min previously).
 
 # Base image with all PHP extensions pre-compiled.
-# Falls back to php:8.3-apache-bookworm if the base image hasn't been built yet.
-ARG BASE_IMAGE=ghcr.io/jhandel/kmp-base:php83
+# Falls back to the prebuilt PHP 8.4 base image when no override is supplied.
+ARG BASE_IMAGE=ghcr.io/jhandel/kmp-base:php84
 ARG APP_VERSION=dev
 ARG NODE_VERSION=24.15.0
 

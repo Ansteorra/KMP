@@ -47,19 +47,6 @@ class BestowalPolicy extends BasePolicy
     }
 
     /**
-     * Authorize bulk bestowal state updates.
-     *
-     * @param \App\KMP\KmpIdentityInterface $user The authenticated user
-     * @param \App\Model\Entity\BaseEntity $entity The bestowal entity
-     * @param mixed ...$optionalArgs Additional authorization context
-     * @return bool True if authorized
-     */
-    public function canUpdateStates(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
-    {
-        return $this->canEdit($user, $entity, ...$optionalArgs);
-    }
-
-    /**
      * Authorize single bestowal edit modal loading.
      *
      * @param \App\KMP\KmpIdentityInterface $user The authenticated user
@@ -68,19 +55,6 @@ class BestowalPolicy extends BasePolicy
      * @return bool True if authorized
      */
     public function canTurboEditForm(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
-    {
-        return $this->canEdit($user, $entity, ...$optionalArgs);
-    }
-
-    /**
-     * Authorize bulk bestowal edit modal loading.
-     *
-     * @param \App\KMP\KmpIdentityInterface $user The authenticated user
-     * @param \App\Model\Entity\BaseEntity $entity The bestowal entity
-     * @param mixed ...$optionalArgs Additional authorization context
-     * @return bool True if authorized
-     */
-    public function canTurboBulkEditForm(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         return $this->canEdit($user, $entity, ...$optionalArgs);
     }
@@ -107,22 +81,6 @@ class BestowalPolicy extends BasePolicy
      * @return bool True if authorized
      */
     public function canGatheringsForBestowalAutoComplete(
-        KmpIdentityInterface $user,
-        BaseEntity $entity,
-        ...$optionalArgs,
-    ): bool {
-        return $this->canEdit($user, $entity, ...$optionalArgs);
-    }
-
-    /**
-     * Authorize gathering autocomplete used by bulk bestowal edit forms.
-     *
-     * @param \App\KMP\KmpIdentityInterface $user The authenticated user
-     * @param \App\Model\Entity\BaseEntity $entity The bestowal entity
-     * @param mixed ...$optionalArgs Additional authorization context
-     * @return bool True if authorized
-     */
-    public function canGatheringsForBestowalBulkAutoComplete(
         KmpIdentityInterface $user,
         BaseEntity $entity,
         ...$optionalArgs,

@@ -30,8 +30,6 @@ class BackfillAuthorizationApprovalsToWorkflowEngine extends AbstractMigration
         // migrations via the UpdateDatabaseCommand, so the table may be
         // absent when this migration runs.
         if (!$this->tableExistsInDb('activities_authorizations')) {
-            echo "Skipping backfill: activities_authorizations table does not exist (fresh install).\n";
-
             return;
         }
 
@@ -42,8 +40,6 @@ class BackfillAuthorizationApprovalsToWorkflowEngine extends AbstractMigration
             "WHERE entity_type = 'Activities.Authorizations' AND $ctxText LIKE '%\"migrated\":true%'",
         );
         if ($existing && (int)$existing['cnt'] > 0) {
-            echo "Backfill already applied ({$existing['cnt']} migrated instances found). Skipping.\n";
-
             return;
         }
 
@@ -52,8 +48,6 @@ class BackfillAuthorizationApprovalsToWorkflowEngine extends AbstractMigration
             "SELECT id FROM workflow_definitions WHERE slug = 'activities-authorization-request'",
         );
         if (!$defRow) {
-            echo "Workflow definition 'activities-authorization-request' not found. Skipping backfill.\n";
-
             return;
         }
         $defId = (int)$defRow['id'];
@@ -64,8 +58,6 @@ class BackfillAuthorizationApprovalsToWorkflowEngine extends AbstractMigration
             'ORDER BY version_number DESC LIMIT 1',
         );
         if (!$versionRow) {
-            echo "No published workflow version found. Skipping backfill.\n";
-
             return;
         }
         $versionId = (int)$versionRow['id'];
@@ -80,8 +72,6 @@ class BackfillAuthorizationApprovalsToWorkflowEngine extends AbstractMigration
             'ORDER BY aa.id',
         );
         if (empty($authorizations)) {
-            echo "No authorizations to migrate.\n";
-
             return;
         }
 
@@ -340,8 +330,10 @@ class BackfillAuthorizationApprovalsToWorkflowEngine extends AbstractMigration
         $instTotal = $instanceCount ? (int)$instanceCount['cnt'] : 0;
         $respTotal = $approvalCount ? (int)$approvalCount['cnt'] : 0;
 
-        echo "Backfill complete: {$authTotal} authorizations -> " .
-            "{$instTotal} workflow instances, {$respTotal} approval responses.\n";
+        $this->getOutput()?->writeln(
+            "Backfill complete: {$authTotal} authorizations -> "
+            . "{$instTotal} workflow instances, {$respTotal} approval responses.",
+        );
     }
 
     /**

@@ -8,7 +8,9 @@ class SeedDefaultAwardApprovalProcesses extends BaseMigration
 {
     private const SINGLE_CROWN_PROCESS = 'Single Approver - Crown';
     private const SINGLE_LOCAL_PROCESS = 'Single Approver - Local';
+    private const SINGLE_PRINCIPALITY_PROCESS = 'Single Approver - Principality Coronet';
     private const LOCAL_THEN_CROWN_PROCESS = 'Dual Approver - Local then Crown';
+    private const PRINCIPALITY_DOMAIN_ID = 11;
 
     /**
      * Seed the default award approval process assignments.
@@ -29,16 +31,21 @@ class SeedDefaultAwardApprovalProcesses extends BaseMigration
             'officers_offices',
             "name = 'Crown'",
         );
-        $localLandedOfficeId = $this->lookupOptionalId(
+        $landedNobilityOfficeId = $this->lookupOptionalId(
             'officers_offices',
-            "name = 'Local Landed'",
+            "name = 'Landed Nobility'",
+        );
+        $principalityCoronetOfficeId = $this->lookupOptionalId(
+            'officers_offices',
+            "name = 'Principality Coronet'",
         );
 
         if (
             $ansteorraBranchId === null
             || $nonArmigerousLevelId === null
             || $crownOfficeId === null
-            || $localLandedOfficeId === null
+            || $landedNobilityOfficeId === null
+            || $principalityCoronetOfficeId === null
         ) {
             return;
         }
@@ -50,6 +57,10 @@ class SeedDefaultAwardApprovalProcesses extends BaseMigration
         $singleLocalProcessId = $this->upsertProcess(
             self::SINGLE_LOCAL_PROCESS,
             'Single local approval queue for non-armigerous local awards.',
+        );
+        $singlePrincipalityProcessId = $this->upsertProcess(
+            self::SINGLE_PRINCIPALITY_PROCESS,
+            'Single approval queue for principality awards. Any current Coronet office holder may approve.',
         );
         $localThenCrownProcessId = $this->upsertProcess(
             self::LOCAL_THEN_CROWN_PROCESS,
@@ -72,7 +83,18 @@ class SeedDefaultAwardApprovalProcesses extends BaseMigration
                 'step_key' => 'local',
                 'label' => 'Local Approval',
                 'sequence' => 1,
-                'approver_source_id' => $localLandedOfficeId,
+                'approver_source_id' => $landedNobilityOfficeId,
+                'branch_mode' => 'award_branch',
+                'branch_type' => null,
+                'threshold_mode' => 'all',
+            ],
+        ]);
+        $this->replaceSteps($singlePrincipalityProcessId, [
+            [
+                'step_key' => 'principality',
+                'label' => 'Principality Coronet Approval',
+                'sequence' => 1,
+                'approver_source_id' => $principalityCoronetOfficeId,
                 'branch_mode' => 'award_branch',
                 'branch_type' => null,
                 'threshold_mode' => 'all',
@@ -83,7 +105,7 @@ class SeedDefaultAwardApprovalProcesses extends BaseMigration
                 'step_key' => 'local',
                 'label' => 'Local Approval',
                 'sequence' => 1,
-                'approver_source_id' => $localLandedOfficeId,
+                'approver_source_id' => $landedNobilityOfficeId,
                 'branch_mode' => 'award_branch',
                 'branch_type' => null,
                 'threshold_mode' => 'all',
@@ -104,6 +126,7 @@ class SeedDefaultAwardApprovalProcesses extends BaseMigration
             $nonArmigerousLevelId,
             $singleCrownProcessId,
             $singleLocalProcessId,
+            $singlePrincipalityProcessId,
             $localThenCrownProcessId,
         );
     }
@@ -223,6 +246,7 @@ class SeedDefaultAwardApprovalProcesses extends BaseMigration
      * @param int $nonArmigerousLevelId Non-armigerous award level ID.
      * @param int $singleCrownProcessId Crown process ID.
      * @param int $singleLocalProcessId Local process ID.
+     * @param int $singlePrincipalityProcessId Principality process ID.
      * @param int $localThenCrownProcessId Local then Crown process ID.
      * @return void
      */
@@ -231,6 +255,7 @@ class SeedDefaultAwardApprovalProcesses extends BaseMigration
         int $nonArmigerousLevelId,
         int $singleCrownProcessId,
         int $singleLocalProcessId,
+        int $singlePrincipalityProcessId,
         int $localThenCrownProcessId,
     ): void {
         $this->execute(
@@ -238,12 +263,21 @@ class SeedDefaultAwardApprovalProcesses extends BaseMigration
                 . "WHERE branch_id = {$ansteorraBranchId} AND deleted IS NULL",
         );
         $this->execute(
+            "UPDATE awards_awards SET approval_process_id = {$singlePrincipalityProcessId} "
+                . 'WHERE domain_id = ' . self::PRINCIPALITY_DOMAIN_ID . ' '
+                . 'AND deleted IS NULL',
+        );
+        $this->execute(
             "UPDATE awards_awards SET approval_process_id = {$singleLocalProcessId} "
-                . "WHERE branch_id <> {$ansteorraBranchId} AND level_id = {$nonArmigerousLevelId} AND deleted IS NULL",
+                . "WHERE branch_id <> {$ansteorraBranchId} "
+                . 'AND (domain_id IS NULL OR domain_id <> ' . self::PRINCIPALITY_DOMAIN_ID . ') '
+                . "AND level_id = {$nonArmigerousLevelId} AND deleted IS NULL",
         );
         $this->execute(
             "UPDATE awards_awards SET approval_process_id = {$localThenCrownProcessId} "
-                . "WHERE branch_id <> {$ansteorraBranchId} AND level_id <> {$nonArmigerousLevelId} AND deleted IS NULL",
+                . "WHERE branch_id <> {$ansteorraBranchId} "
+                . 'AND (domain_id IS NULL OR domain_id <> ' . self::PRINCIPALITY_DOMAIN_ID . ') '
+                . "AND level_id <> {$nonArmigerousLevelId} AND deleted IS NULL",
         );
     }
 
@@ -257,6 +291,7 @@ class SeedDefaultAwardApprovalProcesses extends BaseMigration
             [
                 self::SINGLE_CROWN_PROCESS,
                 self::SINGLE_LOCAL_PROCESS,
+                self::SINGLE_PRINCIPALITY_PROCESS,
                 self::LOCAL_THEN_CROWN_PROCESS,
             ],
         ));

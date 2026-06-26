@@ -193,6 +193,66 @@ describe('GridViewController', () => {
         expect(controller.state).toBeNull();
     });
 
+    test('mergeStateWithPrevious preserves source-derived filter options on table-only refresh', () => {
+        controller.state = {
+            filters: {
+                active: { todos_summary: ['open:has_scroll'] },
+                available: {
+                    lifecycle_status: { label: 'Lifecycle', options: [{ value: 'open', label: 'Open' }] },
+                    todos_summary: {
+                        label: 'To-Dos',
+                        options: [
+                            { value: '__remaining', label: 'Has remaining required checks' },
+                            { value: 'open:has_scroll', label: 'Open: Has scroll' },
+                        ],
+                    },
+                },
+            },
+        };
+
+        // A table-only refresh re-sends inline-option dropdowns and fresh active
+        // values but omits filterOptionsSource-derived dropdowns (todos_summary).
+        const nextState = {
+            filters: {
+                active: { todos_summary: ['open:has_scroll'] },
+                available: {
+                    lifecycle_status: { label: 'Lifecycle', options: [{ value: 'open', label: 'Open' }] },
+                },
+            },
+        };
+
+        const merged = controller.mergeStateWithPrevious(nextState);
+
+        expect(merged.filters.available.todos_summary).toBeDefined();
+        expect(merged.filters.available.todos_summary.options).toHaveLength(2);
+        expect(merged.filters.available.lifecycle_status).toBeDefined();
+        expect(merged.filters.active).toEqual({ todos_summary: ['open:has_scroll'] });
+    });
+
+    test('mergeStateWithPrevious lets a full refresh override stale filter options', () => {
+        controller.state = {
+            filters: {
+                active: {},
+                available: {
+                    todos_summary: { label: 'To-Dos', options: [{ value: '__remaining', label: 'Old' }] },
+                },
+            },
+        };
+
+        const nextState = {
+            filters: {
+                active: {},
+                available: {
+                    todos_summary: { label: 'To-Dos', options: [{ value: '__complete', label: 'New' }] },
+                },
+            },
+        };
+
+        const merged = controller.mergeStateWithPrevious(nextState);
+
+        expect(merged.filters.available.todos_summary.options).toEqual([{ value: '__complete', label: 'New' }]);
+    });
+
     test('handlePopState refreshes table frame without pushing history', () => {
         const tableFrame = controller.element.querySelector('turbo-frame');
         tableFrame.setAttribute('src', '/members/grid-data');

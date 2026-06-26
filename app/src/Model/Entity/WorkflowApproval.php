@@ -16,6 +16,13 @@ namespace App\Model\Entity;
  * @property string $approver_type
  * @property array|null $approver_config
  * @property int|null $current_approver_id
+ * @property string|null $approver_lookup_type
+ * @property int|null $approver_lookup_id
+ * @property string|null $approver_lookup_name
+ * @property int|null $approver_lookup_branch_id
+ * @property string|null $approver_lookup_branch_mode
+ * @property string|null $approver_lookup_branch_type
+ * @property int|null $approver_lookup_context_id
  * @property string|null $request_title
  * @property int $required_count
  * @property int $approved_count
@@ -60,6 +67,13 @@ class WorkflowApproval extends BaseEntity
         'approver_type' => true,
         'approver_config' => true,
         'current_approver_id' => true,
+        'approver_lookup_type' => true,
+        'approver_lookup_id' => true,
+        'approver_lookup_name' => true,
+        'approver_lookup_branch_id' => true,
+        'approver_lookup_branch_mode' => true,
+        'approver_lookup_branch_type' => true,
+        'approver_lookup_context_id' => true,
         'request_title' => true,
         'required_count' => true,
         'approved_count' => true,

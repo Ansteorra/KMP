@@ -25,7 +25,6 @@ class BestowalRecommendationSyncServiceTest extends BaseTestCase
         $this->skipIfPostgres();
 
         Recommendation::clearCache();
-        Bestowal::clearCache();
 
         $this->bestowalsTable = $this->getTableLocator()->get('Awards.Bestowals');
         $this->recommendationsTable = $this->getTableLocator()->get('Awards.Recommendations');
@@ -36,7 +35,6 @@ class BestowalRecommendationSyncServiceTest extends BaseTestCase
     protected function tearDown(): void
     {
         Recommendation::clearCache();
-        Bestowal::clearCache();
         parent::tearDown();
     }
 
@@ -53,7 +51,6 @@ class BestowalRecommendationSyncServiceTest extends BaseTestCase
         $gatheringId = $this->getFirstGatheringId();
 
         $bestowal = $this->bestowalsTable->get($bestowalId);
-        $bestowal->state = 'Court Pending';
         $bestowal->gathering_id = $gatheringId;
         $bestowal->modified_by = self::ADMIN_MEMBER_ID;
         $this->bestowalsTable->saveOrFail($bestowal);
@@ -111,7 +108,7 @@ class BestowalRecommendationSyncServiceTest extends BaseTestCase
         $bestowalId = (int)$createResult['data']['bestowalId'];
         $bestowal = $this->bestowalsTable->get($bestowalId);
         $bestowal->gathering_id = $this->getFirstGatheringId();
-        $bestowal->state = 'Given';
+        $bestowal->lifecycle_status = Bestowal::LIFECYCLE_GIVEN;
         $bestowal->bestowed_at = new DateTime('2026-06-15 00:00:00', new DateTimeZone('UTC'));
         $bestowal->modified_by = self::ADMIN_MEMBER_ID;
         $this->bestowalsTable->saveOrFail($bestowal);

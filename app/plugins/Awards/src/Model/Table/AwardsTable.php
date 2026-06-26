@@ -64,6 +64,12 @@ class AwardsTable extends BaseTable
             'className' => 'Awards.ApprovalProcesses',
         ]);
 
+        $this->belongsTo('BestowalTodoTemplates', [
+            'foreignKey' => 'bestowal_todo_template_id',
+            'joinType' => 'LEFT',
+            'className' => 'Awards.BestowalTodoTemplates',
+        ]);
+
         // Aliased association for Awards->Branches to avoid conflicts
         // when Recommendations also has a Branches association (member's branch)
         $this->belongsTo('AwardBranch', [
@@ -159,6 +165,10 @@ class AwardsTable extends BaseTable
             ->allowEmptyString('approval_process_id');
 
         $validator
+            ->integer('bestowal_todo_template_id')
+            ->allowEmptyString('bestowal_todo_template_id');
+
+        $validator
             ->boolean('is_active')
             ->notEmptyString('is_active');
 
@@ -191,6 +201,9 @@ class AwardsTable extends BaseTable
         $rules->add($rules->existsIn(['branch_id'], 'Branches'), ['errorField' => 'branch_id']);
         $rules->add($rules->existsIn(['approval_process_id'], 'ApprovalProcesses'), [
             'errorField' => 'approval_process_id',
+        ]);
+        $rules->add($rules->existsIn(['bestowal_todo_template_id'], 'BestowalTodoTemplates'), [
+            'errorField' => 'bestowal_todo_template_id',
         ]);
 
         return $rules;

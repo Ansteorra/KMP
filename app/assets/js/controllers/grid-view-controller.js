@@ -192,6 +192,25 @@ class GridViewController extends Controller {
             merged.view = { ...nextView, available: previousView.available }
         }
 
+        // Table-only refreshes (e.g. applying a filter) omit filterOptionsSource-derived
+        // dropdown options because filter metadata is only loaded on full page loads.
+        // Forward-merge the previously known available filters so source-based dropdowns
+        // (which would otherwise disappear and never return) keep their options; fresh
+        // active values and any re-sent definitions still win.
+        const previousFilters = this.state.filters || {}
+        const nextFilters = merged.filters || {}
+        const previousAvailable = previousFilters.available
+        if (previousAvailable && typeof previousAvailable === 'object') {
+            const nextAvailable =
+                nextFilters.available && typeof nextFilters.available === 'object'
+                    ? nextFilters.available
+                    : {}
+            merged.filters = {
+                ...nextFilters,
+                available: { ...previousAvailable, ...nextAvailable },
+            }
+        }
+
         return merged
     }
 

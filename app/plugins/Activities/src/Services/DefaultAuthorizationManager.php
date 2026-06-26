@@ -302,7 +302,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         int $requesterId,
         int $approverId,
         string $status,
-        int $nextApproverId = null,
+        ?int $nextApproverId = null,
     ): bool {
         $authTypesTable = TableRegistry::getTableLocator()->get(
             "Activities.Activities",

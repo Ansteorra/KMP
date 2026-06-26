@@ -59,12 +59,29 @@ class UpdateDatabaseCommand extends Command
         }
         //sort
         asort($pluginsToMigrate);
-        $this->executeCommand(SchemacacheClearCommand::class, ['--connection', 'default'], $io);
+        $exitCode = $this->executeCommand(SchemacacheClearCommand::class, ['--connection', 'default'], $io);
+        if ($exitCode !== null && $exitCode !== Command::CODE_SUCCESS) {
+            $io->err('Schema cache clear failed.');
+
+            return Command::CODE_ERROR;
+        }
+
         $frameworkMigration = new Migrate();
-        $this->executeCommand($frameworkMigration, ['migrate']);
+        $exitCode = $this->executeCommand($frameworkMigration, ['migrate'], $io);
+        if ($exitCode !== null && $exitCode !== Command::CODE_SUCCESS) {
+            $io->err('Application migrations failed.');
+
+            return Command::CODE_ERROR;
+        }
+
         foreach ($pluginsToMigrate as $name => $order) {
             $pluginMigration = new Migrate();
-            $this->executeCommand($pluginMigration, ['migrate', '-p', $name]);
+            $exitCode = $this->executeCommand($pluginMigration, ['migrate', '-p', $name], $io);
+            if ($exitCode !== null && $exitCode !== Command::CODE_SUCCESS) {
+                $io->err(sprintf('Plugin migrations failed for %s.', $name));
+
+                return Command::CODE_ERROR;
+            }
         }
         $io->out('Platform migrations are managed separately with: bin/cake platform_migrate');
 

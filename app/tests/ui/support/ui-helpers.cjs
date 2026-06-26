@@ -146,6 +146,33 @@ const dbQuery = (sql, { timeoutMs = 20000 } = {}) => {
 
 const clearActivityAuthorizationFixtures = () => {
     dbQuery(`
+        DELETE FROM workflow_approval_responses war
+        USING workflow_approvals wa, workflow_instances wi, activities_authorizations az, members m, activities_activities act
+        WHERE war.workflow_approval_id = wa.id
+          AND wa.workflow_instance_id = wi.id
+          AND wi.entity_type = 'Activities.Authorizations'
+          AND wi.entity_id = az.id
+          AND az.member_id = m.id
+          AND az.activity_id = act.id
+          AND m.email_address = 'iris@ampdemo.com'
+          AND act.name = 'Armored';
+        DELETE FROM workflow_approvals wa
+        USING workflow_instances wi, activities_authorizations az, members m, activities_activities act
+        WHERE wa.workflow_instance_id = wi.id
+          AND wi.entity_type = 'Activities.Authorizations'
+          AND wi.entity_id = az.id
+          AND az.member_id = m.id
+          AND az.activity_id = act.id
+          AND m.email_address = 'iris@ampdemo.com'
+          AND act.name = 'Armored';
+        DELETE FROM workflow_instances wi
+        USING activities_authorizations az, members m, activities_activities act
+        WHERE wi.entity_type = 'Activities.Authorizations'
+          AND wi.entity_id = az.id
+          AND az.member_id = m.id
+          AND az.activity_id = act.id
+          AND m.email_address = 'iris@ampdemo.com'
+          AND act.name = 'Armored';
         DELETE FROM activities_authorization_approvals aa
         USING activities_authorizations az, members m, activities_activities act
         WHERE aa.authorization_id = az.id

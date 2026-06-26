@@ -93,49 +93,13 @@ class RecommendationBestowalStatePolicyService
 
     /**
      * Verify reference data still routes bestowal states back to the expected recommendation states.
+     *
+     * The legacy bestowal state machine has been removed in favour of the lifecycle_status
+     * model, so there are no bestowal-state sync mappings left to validate. Retained as a
+     * no-op for call-site compatibility.
      */
     public function assertBestowalSyncMappingsConfigured(?Table $bestowalStatesTable = null): void
     {
-        $bestowalStatesTable = $bestowalStatesTable ?? $this->fetchTable('Awards.BestowalStates');
-        $bestowalStateNames = array_values(array_unique(array_merge(
-            array_keys(self::EXPECTED_SYNC_MAPPINGS),
-            array_keys(self::EXPECTED_UNWIND_MAPPINGS),
-        )));
-
-        $rows = $bestowalStatesTable->find()
-            ->select(['id', 'name', 'sync_recommendation_state', 'unwind_recommendation_state'])
-            ->where(['BestowalStates.name IN' => $bestowalStateNames])
-            ->all()
-            ->indexBy('name')
-            ->toArray();
-
-        foreach (self::EXPECTED_SYNC_MAPPINGS as $bestowalState => $recommendationState) {
-            $row = $rows[$bestowalState] ?? null;
-            $syncState = $row !== null ? ($row->sync_recommendation_state ?? null) : null;
-            if ($syncState === null || (string)$syncState !== $recommendationState) {
-                throw new RuntimeException(
-                    sprintf(
-                        'Bestowal state "%s" must sync recommendations to "%s".',
-                        $bestowalState,
-                        $recommendationState,
-                    ),
-                );
-            }
-        }
-
-        foreach (self::EXPECTED_UNWIND_MAPPINGS as $bestowalState => $recommendationState) {
-            $row = $rows[$bestowalState] ?? null;
-            $unwindState = $row !== null ? ($row->unwind_recommendation_state ?? null) : null;
-            if ($unwindState === null || (string)$unwindState !== $recommendationState) {
-                throw new RuntimeException(
-                    sprintf(
-                        'Bestowal state "%s" must unwind recommendations to "%s".',
-                        $bestowalState,
-                        $recommendationState,
-                    ),
-                );
-            }
-        }
     }
 
     /**

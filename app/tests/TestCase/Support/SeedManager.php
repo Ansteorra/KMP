@@ -9,7 +9,6 @@ use Cake\Datasource\ConnectionManager;
 use Cake\TestSuite\Fixture\SchemaLoader;
 use Exception;
 use InitWorkflowDefinitionsSeed;
-use Migrations\Migrations;
 use RuntimeException;
 
 /**
@@ -151,7 +150,6 @@ final class SeedManager
             );
             $conn->getDriver()->exec($sql);
             self::seedPostgresWorkflowDefinitions($conn);
-            self::seedPostgresBestowalReference($conn);
 
             return;
         }
@@ -159,7 +157,6 @@ final class SeedManager
         $conn = ConnectionManager::get($connection);
         $conn->getDriver()->exec($sql);
         self::seedPostgresWorkflowDefinitions($conn);
-        self::seedPostgresBestowalReference($conn);
     }
 
     /**
@@ -239,25 +236,5 @@ final class SeedManager
                 [$versionId, $definitionId],
             );
         }
-    }
-
-    /**
-     * Seed Awards bestowal state-machine configuration for PostgreSQL tests.
-     *
-     * @param \Cake\Database\Connection $conn Test database connection.
-     * @return void
-     */
-    private static function seedPostgresBestowalReference(Connection $conn): void
-    {
-        $count = (int)$conn->execute('SELECT count(*) FROM awards_bestowal_statuses')->fetchColumn(0);
-        if ($count > 0) {
-            return;
-        }
-
-        (new Migrations())->seed([
-            'connection' => $conn->configName(),
-            'plugin' => 'Awards',
-            'seed' => 'InitBestowalReferenceSeed',
-        ]);
     }
 }

@@ -47,8 +47,10 @@ echo $this->KMP->startBlock('modals');
 if ($user->checkCan('edit', 'Awards.Bestowals')) {
     echo $this->element('ad_hoc_bestowal_modal', ['modalId' => 'adHocBestowalModal']);
     echo $this->element('bestowalEditModal', ['modalId' => 'editBestowalModal']);
-    if (isset($rules) && isset($statusList)) {
-        echo $this->element('bestowalsBulkEditModal', ['modalId' => 'bulkEditBestowalModal']);
-    }
 }
+echo $this->element('bestowalTodosModal', ['modalId' => 'bestowalTodosModal']);
+echo $this->element('bestowalBulkTodoModal', [
+    'modalId' => 'bestowalBulkTodoModal',
+    'checkOptions' => $bestowalCheckOptions ?? [],
+]);
 $this->KMP->endBlock();

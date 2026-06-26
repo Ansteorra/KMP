@@ -22,6 +22,7 @@ use App\Model\Entity\BaseEntity;
  * @property int $level_id
  * @property int $branch_id
  * @property int|null $approval_process_id
+ * @property int|null $bestowal_todo_template_id
  * @property bool $is_active
  * @property bool $disabled
  * @property string $disabled_label
@@ -37,6 +38,7 @@ use App\Model\Entity\BaseEntity;
  * @property \Awards\Model\Entity\Level $awards_level
  * @property \App\Model\Entity\Branch $branch
  * @property \Awards\Model\Entity\ApprovalProcess|null $approval_process
+ * @property \Awards\Model\Entity\BestowalTodoTemplate|null $bestowal_todo_template
  * @property \App\Model\Entity\GatheringActivity[] $gathering_activities
  */
 class Award extends BaseEntity
@@ -56,6 +58,7 @@ class Award extends BaseEntity
         'level_id' => true,
         'branch_id' => true,
         'approval_process_id' => true,
+        'bestowal_todo_template_id' => true,
         'is_active' => true,
         'modified' => true,
         'created' => true,
@@ -66,6 +69,7 @@ class Award extends BaseEntity
         'awards_level' => true,
         'branch' => true,
         'approval_process' => true,
+        'bestowal_todo_template' => true,
         'gathering_activities' => true,
     ];
 

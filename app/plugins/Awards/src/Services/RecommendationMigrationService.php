@@ -282,10 +282,17 @@ class RecommendationMigrationService
             ];
         }
 
-        if ($recommendation->award_id === null || $recommendation->member_id === null) {
+        if ($recommendation->award_id === null) {
             return [
                 'target' => RecommendationMigrationResult::TARGET_MANUAL_REVIEW,
-                'reason' => 'Recommendation is missing award or member data required for migration.',
+                'reason' => 'Recommendation is missing award data required for migration.',
+            ];
+        }
+
+        if ($recommendation->member_id === null && trim((string)$recommendation->member_sca_name) === '') {
+            return [
+                'target' => RecommendationMigrationResult::TARGET_MANUAL_REVIEW,
+                'reason' => 'Recommendation is missing recipient name required for migration.',
             ];
         }
 
@@ -550,11 +557,36 @@ class RecommendationMigrationService
                 $resultData['result_status'] = RecommendationMigrationResult::STATUS_SKIPPED;
             }
         } catch (Throwable $e) {
-            $resultData['result_status'] = RecommendationMigrationResult::STATUS_ERROR;
-            $resultData['reason'] = $e->getMessage();
+            if (
+                $classification['target'] === RecommendationMigrationResult::TARGET_APPROVAL_WORKFLOW
+                && $this->isManualReviewableApprovalWorkflowFailure($e)
+            ) {
+                $resultData['target_action'] = RecommendationMigrationResult::TARGET_MANUAL_REVIEW;
+                $resultData['result_status'] = RecommendationMigrationResult::STATUS_SKIPPED;
+                $resultData['reason'] = 'Approval workflow could not start during migration: ' . $e->getMessage();
+                $resultData['details'] = [
+                    'originalTarget' => RecommendationMigrationResult::TARGET_APPROVAL_WORKFLOW,
+                    'workflowError' => $e->getMessage(),
+                ];
+            } else {
+                $resultData['result_status'] = RecommendationMigrationResult::STATUS_ERROR;
+                $resultData['reason'] = $e->getMessage();
+            }
         }
 
         return $this->saveResult($resultData);
+    }
+
+    /**
+     * Return true when an approval workflow failure should leave the recommendation for manual review.
+     */
+    private function isManualReviewableApprovalWorkflowFailure(Throwable $exception): bool
+    {
+        $message = $exception->getMessage();
+
+        return str_contains($message, 'resolved zero eligible approvers')
+            || str_contains($message, 'has no eligible approvers')
+            || str_contains($message, 'did not create a pending approval gate');
     }
 
     /**
@@ -660,13 +692,22 @@ class RecommendationMigrationService
             $actorId,
         );
         $started = null;
+        $failureReasons = [];
         foreach ($results as $dispatchResult) {
             if ($dispatchResult instanceof ServiceResult && $dispatchResult->isSuccess()) {
                 $started = $dispatchResult->getData();
                 break;
             }
+            if ($dispatchResult instanceof ServiceResult && $dispatchResult->getError() !== null) {
+                $failureReasons[] = (string)$dispatchResult->getError();
+            }
         }
         if ($started === null) {
+            $failureReasons = array_values(array_unique(array_filter($failureReasons)));
+            if ($failureReasons !== []) {
+                throw new RuntimeException(implode('; ', $failureReasons));
+            }
+
             throw new RuntimeException('Existing recommendation approval workflow did not start.');
         }
 

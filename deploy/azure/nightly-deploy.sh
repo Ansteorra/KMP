@@ -321,7 +321,7 @@ build_local_image() {
     docker buildx build \
         --platform "${LOCAL_BUILD_PLATFORM:-linux/amd64}" \
         --file docker/Dockerfile.prod \
-        --build-arg BASE_IMAGE="${BASE_IMAGE:-ghcr.io/ansteorra/kmp-base:php83}" \
+        --build-arg BASE_IMAGE="${BASE_IMAGE:-ghcr.io/ansteorra/kmp-base:php84}" \
         --build-arg APP_VERSION="$app_version" \
         --build-arg RELEASE_CHANNEL="${RELEASE_CHANNEL:-nightly-local}" \
         --tag "$image_ref" \

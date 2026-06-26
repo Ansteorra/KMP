@@ -325,7 +325,7 @@ class RecommendationGroupingServiceTest extends BaseTestCase
     {
         $rec1 = $this->createTestRecommendation(['state' => 'Need to Schedule']);
         $rec2 = $this->createTestRecommendation(['state' => 'Submitted']);
-        $this->createBestowalForRecommendation($rec1, 'Given');
+        $this->createBestowalForRecommendation($rec1, Bestowal::LIFECYCLE_GIVEN);
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Archived recommendations cannot be grouped.');
@@ -394,7 +394,7 @@ class RecommendationGroupingServiceTest extends BaseTestCase
         return (int)$this->approvalRunsTable->saveOrFail($entity)->id;
     }
 
-    private function createBestowalForRecommendation(Recommendation $recommendation, string $state): Bestowal
+    private function createBestowalForRecommendation(Recommendation $recommendation, string $lifecycleStatus): Bestowal
     {
         $bestowals = $this->getTableLocator()->get('Awards.Bestowals');
         $rankResult = $bestowals->find()
@@ -406,8 +406,7 @@ class RecommendationGroupingServiceTest extends BaseTestCase
             'member_id' => $recommendation->member_id,
             'award_id' => $recommendation->award_id,
             'primary_recommendation_id' => $recommendation->id,
-            'state' => $state,
-            'status' => 'Planning',
+            'lifecycle_status' => $lifecycleStatus,
             'source' => Bestowal::SOURCE_RECOMMENDATION,
             'stack_rank' => (int)($rankResult['max_rank'] ?? 0) + 1,
             'created_by' => self::ADMIN_MEMBER_ID,

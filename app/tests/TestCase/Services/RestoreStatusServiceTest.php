@@ -161,6 +161,20 @@ class RestoreStatusServiceTest extends BaseTestCase
         $this->assertFalse($this->service->isLocked());
     }
 
+    public function testAppendLogAddsBoundedStatusEntries(): void
+    {
+        $this->service->acquireLock();
+        $this->service->appendLog('Decrypting backup file.');
+        $this->service->appendLog('Validating backup payload.');
+
+        $status = $this->service->getStatus();
+
+        $this->assertCount(2, $status['log']);
+        $this->assertSame('Decrypting backup file.', $status['log'][0]['message']);
+        $this->assertSame('Validating backup payload.', $status['log'][1]['message']);
+        $this->assertNotEmpty($status['log'][0]['timestamp']);
+    }
+
     public function testGetStatusAfterLockReleasedWithRunningStateDetectsInterrupted(): void
     {
         $this->service->acquireLock();
@@ -209,6 +223,7 @@ class RestoreStatusServiceTest extends BaseTestCase
             'source', 'backup_id', 'actor',
             'table_count', 'tables_processed',
             'row_count', 'rows_processed', 'current_table',
+            'queue_job_id', 'maintenance_required', 'log',
         ];
 
         foreach ($expectedKeys as $key) {
@@ -234,5 +249,17 @@ class RestoreStatusServiceTest extends BaseTestCase
         $status = $this->service->getStatus();
         $this->assertEquals('completed', $status['status']);
         $this->assertFalse($status['locked']);
+    }
+
+    public function testMarkFailedCanRequireMaintenanceScreenAfterUnsafeRestoreFailure(): void
+    {
+        $this->service->acquireLock();
+        $this->service->markFailed('Schema reset failed', ['maintenance_required' => true]);
+
+        $status = $this->service->getStatus();
+
+        $this->assertFalse($status['locked']);
+        $this->assertEquals('failed', $status['status']);
+        $this->assertTrue($status['maintenance_required']);
     }
 }

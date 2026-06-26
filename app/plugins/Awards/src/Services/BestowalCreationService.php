@@ -5,7 +5,6 @@ namespace Awards\Services;
 
 use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\Recommendation;
-use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\ORM\Locator\LocatorAwareTrait;
 use Cake\ORM\Table;
@@ -25,25 +24,25 @@ class BestowalCreationService
     private Table $bestowalsTable;
     private Table $recommendationsTable;
     private Table $bestowalRecommendationsTable;
-    private BestowalStateLogService $stateLogService;
+    private BestowalTodoMaterializationService $todoMaterializationService;
 
     /**
      * @param \Cake\ORM\Table|null $bestowalsTable Optional injected bestowals table.
      * @param \Cake\ORM\Table|null $recommendationsTable Optional injected recommendations table.
      * @param \Cake\ORM\Table|null $bestowalRecommendationsTable Optional injected join table.
-     * @param \Awards\Services\BestowalStateLogService|null $stateLogService Optional injected state-log service.
+     * @param \Awards\Services\BestowalTodoMaterializationService|null $todoMaterializationService Optional to-do service.
      */
     public function __construct(
         ?Table $bestowalsTable = null,
         ?Table $recommendationsTable = null,
         ?Table $bestowalRecommendationsTable = null,
-        ?BestowalStateLogService $stateLogService = null,
+        ?BestowalTodoMaterializationService $todoMaterializationService = null,
     ) {
         $this->bestowalsTable = $bestowalsTable ?? $this->fetchTable('Awards.Bestowals');
         $this->recommendationsTable = $recommendationsTable ?? $this->fetchTable('Awards.Recommendations');
         $this->bestowalRecommendationsTable = $bestowalRecommendationsTable
             ?? $this->fetchTable('Awards.BestowalRecommendations');
-        $this->stateLogService = $stateLogService ?? new BestowalStateLogService();
+        $this->todoMaterializationService = $todoMaterializationService ?? new BestowalTodoMaterializationService();
     }
 
     /**
@@ -228,10 +227,11 @@ class BestowalCreationService
         if (!$bestowal instanceof Bestowal) {
             throw new RuntimeException('Bestowal entity could not be initialized.');
         }
-        $bestowal->member_id = (int)$head->member_id;
+        $bestowal->member_id = $head->member_id !== null ? (int)$head->member_id : null;
+        $bestowal->member_sca_name = (string)$head->member_sca_name;
         $bestowal->primary_recommendation_id = (int)$head->id;
         $bestowal->source = Bestowal::SOURCE_RECOMMENDATION;
-        $this->applyInitialBestowalState($bestowal, $resolvedGatheringId !== null ? 'Gathering Assigned' : 'Created');
+        $bestowal->lifecycle_status = Bestowal::LIFECYCLE_OPEN;
         $bestowal->gathering_id = $resolvedGatheringId;
         $bestowal->call_into_court = $head->call_into_court;
         $bestowal->court_availability = $head->court_availability;
@@ -252,14 +252,8 @@ class BestowalCreationService
         if (!$savedBestowal instanceof Bestowal) {
             throw new RuntimeException('Saved bestowal did not return a bestowal entity.');
         }
-        $this->stateLogService->logStateTransition(
-            (int)$savedBestowal->id,
-            'New',
-            (string)$savedBestowal->state,
-            'New',
-            $savedBestowal->status !== null ? (string)$savedBestowal->status : null,
-            $actorId,
-        );
+
+        $this->materializeTodos($savedBestowal);
 
         $recommendationIds = [];
         foreach ($recommendations as $groupRecommendation) {
@@ -349,20 +343,23 @@ class BestowalCreationService
     }
 
     /**
-     * Apply the initial bestowal state without requiring pre-cached state machine data.
+     * Materialize the bestowal's to-do checklist from its award's template.
      *
-     * @param \Awards\Model\Entity\Bestowal $bestowal Bestowal entity being created.
-     * @param string $state Initial workflow state name.
+     * Failures are logged but never abort bestowal creation: the checklist is
+     * supplemental and can be re-materialized idempotently later.
+     *
+     * @param \Awards\Model\Entity\Bestowal $bestowal Saved bestowal entity.
      * @return void
      */
-    private function applyInitialBestowalState(Bestowal $bestowal, string $state): void
+    private function materializeTodos(Bestowal $bestowal): void
     {
         try {
-            $bestowal->state = $state;
-        } catch (Throwable) {
-            $bestowal->set('status', 'Planning', ['guard' => false]);
-            $bestowal->set('state', $state, ['guard' => false]);
-            $bestowal->state_date = new DateTime();
+            $result = $this->todoMaterializationService->materializeForBestowal($bestowal);
+            if (!$result->success) {
+                Log::warning('Bestowal to-do materialization reported failure: ' . (string)$result->reason);
+            }
+        } catch (Throwable $e) {
+            Log::error('Bestowal to-do materialization failed: ' . $e->getMessage());
         }
     }
 
@@ -380,11 +377,10 @@ class BestowalCreationService
             'bestowalId' => (int)$bestowal->id,
             'recommendationIds' => $recommendationIds,
             'primaryRecommendationId' => (int)$head->id,
-            'memberId' => (int)$bestowal->member_id,
-            'memberScaName' => (string)$head->member_sca_name,
+            'memberId' => $bestowal->member_id !== null ? (int)$bestowal->member_id : null,
+            'memberScaName' => (string)$bestowal->member_sca_name,
             'gatheringId' => $bestowal->gathering_id !== null ? (int)$bestowal->gathering_id : null,
-            'status' => (string)$bestowal->status,
-            'state' => (string)$bestowal->state,
+            'lifecycleStatus' => (string)($bestowal->lifecycle_status ?? Bestowal::LIFECYCLE_OPEN),
             'source' => (string)$bestowal->source,
         ];
     }

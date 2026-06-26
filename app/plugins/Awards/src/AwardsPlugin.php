@@ -5,11 +5,14 @@ namespace Awards;
 
 use App\KMP\KMPPluginInterface;
 use App\KMP\StaticHelpers;
+use App\Services\ActionItems\ActionItemService;
 use App\Services\ApprovalContext\ApprovalContextRendererRegistry;
 use App\Services\NavigationRegistry;
 use App\Services\ViewCellRegistry;
 use App\Services\WorkflowEngine\TriggerDispatcher;
+use Awards\Command\MaterializeBestowalTodosCommand;
 use Awards\Command\MigrateAwardRecommendationsCommand;
+use Awards\Event\BestowalTodoCompletionListener;
 use Awards\Event\RecommendationFeedbackApprovalListener;
 use Awards\Services\AdHocBestowalService;
 use Awards\Services\AwardApprovalResolverService;
@@ -19,14 +22,14 @@ use Awards\Services\AwardsWorkflowActions;
 use Awards\Services\AwardsWorkflowConditions;
 use Awards\Services\BestowalCancellationService;
 use Awards\Services\BestowalCreationService;
+use Awards\Services\BestowalFinalizationService;
 use Awards\Services\BestowalFormService;
 use Awards\Services\BestowalGatheringLookupService;
 use Awards\Services\BestowalNotificationVarsService;
 use Awards\Services\BestowalQueryService;
 use Awards\Services\BestowalRecommendationLinkService;
 use Awards\Services\BestowalRecommendationSyncService;
-use Awards\Services\BestowalStateLogService;
-use Awards\Services\BestowalTransitionService;
+use Awards\Services\BestowalTodoMaterializationService;
 use Awards\Services\BestowalUpdateService;
 use Awards\Services\CourtAgendaService;
 use Awards\Services\RecommendationApprovalContextRenderer;
@@ -116,6 +119,7 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
         );
 
         EventManager::instance()->on(new RecommendationFeedbackApprovalListener());
+        EventManager::instance()->on(new BestowalTodoCompletionListener());
 
         $currentConfigVersion = '26.02.22.a'; // Removed Awards.ViewConfig.* settings (unused)
 
@@ -307,6 +311,7 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
     {
         $commands = parent::console($commands);
         $commands->add('awards migrate_award_recommendations', MigrateAwardRecommendationsCommand::class);
+        $commands->add('awards materialize_bestowal_todos', MaterializeBestowalTodosCommand::class);
 
         return $commands;
     }
@@ -319,6 +324,10 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
     {
         $container->add(MigrateAwardRecommendationsCommand::class)
             ->addArgument(TriggerDispatcher::class);
+        $container->add(BestowalTodoMaterializationService::class)
+            ->addArgument(ActionItemService::class);
+        $container->add(MaterializeBestowalTodosCommand::class)
+            ->addArgument(BestowalTodoMaterializationService::class);
         $container->add(RecommendationFormService::class);
         $container->add(AwardApprovalResolverService::class);
         $container->add(RecommendationApprovalProcessService::class);
@@ -332,11 +341,12 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
         $container->add(RecommendationGroupingService::class);
         $container->add(RecommendationStateLogService::class);
         $container->add(BestowalCreationService::class);
-        $container->add(BestowalTransitionService::class);
         $container->add(BestowalRecommendationSyncService::class);
+        $container->add(BestowalFinalizationService::class)
+            ->addArgument(ActionItemService::class)
+            ->addArgument(BestowalRecommendationSyncService::class);
         $container->add(BestowalCancellationService::class);
         $container->add(AdHocBestowalService::class);
-        $container->add(BestowalStateLogService::class);
         $container->add(BestowalQueryService::class);
         $container->add(CourtAgendaService::class);
         $container->add(BestowalNotificationVarsService::class);

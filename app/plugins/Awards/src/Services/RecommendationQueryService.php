@@ -6,6 +6,7 @@ namespace Awards\Services;
 use App\Model\Entity\WorkflowApprovalResponse;
 use App\Model\Table\WorkflowApprovalsTable;
 use Awards\KMP\GridColumns\RecommendationsGridColumns;
+use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\RecommendationApprovalRun;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\Table;
@@ -14,13 +15,12 @@ use Cake\ORM\Table;
  * Builds configured ORM queries and grid-processing option arrays for recommendation grids.
  *
  * Centralises the query-construction and option-building logic shared by the main grid,
- * member-submitted, recs-for-member, and gathering-awards grid endpoints. The controller
+ * member-submitted, and recs-for-member grid endpoints. The controller
  * retains responsibility for authorization, view-variable assignment, and template rendering.
  *
  * @see \Awards\Controller\RecommendationsController::gridData()
  * @see \Awards\Controller\RecommendationsController::memberSubmittedRecsGridData()
  * @see \Awards\Controller\RecommendationsController::recsForMemberGridData()
- * @see \Awards\Controller\RecommendationsController::gatheringAwardsGridData()
  */
 class RecommendationQueryService
 {
@@ -68,7 +68,7 @@ class RecommendationQueryService
                 return $q->select(['id', 'name', 'type']);
             },
             'Bestowals' => function ($q) {
-                return $q->select(['id', 'state']);
+                return $q->select(['id', 'lifecycle_status']);
             },
         ];
         if ($includeGatherings) {
@@ -238,7 +238,7 @@ class RecommendationQueryService
             if ($viewId === 'sys-recs-converted') {
                 return $query->where([
                     'Recommendations.bestowal_id IS NOT' => null,
-                    'Bestowals.state !=' => 'Given',
+                    'Bestowals.lifecycle_status !=' => Bestowal::LIFECYCLE_GIVEN,
                 ]);
             }
 
@@ -251,7 +251,7 @@ class RecommendationQueryService
                             'Recommendations.state IN' => $archivedStates,
                             'Recommendations.bestowal_id IS' => null,
                         ],
-                        'Bestowals.state' => 'Given',
+                        'Bestowals.lifecycle_status' => Bestowal::LIFECYCLE_GIVEN,
                         sprintf(
                             "EXISTS (
                                 SELECT 1
@@ -347,7 +347,7 @@ class RecommendationQueryService
                 return $q->select(['id', 'name', 'type']);
             },
             'Bestowals' => function ($q) {
-                return $q->select(['id', 'state']);
+                return $q->select(['id', 'lifecycle_status']);
             },
         ];
         if ($includeGatherings) {
@@ -475,133 +475,6 @@ class RecommendationQueryService
             'canAddViews' => false,
             'canFilter' => true,
             'canExportCsv' => false,
-        ];
-
-        return ['query' => $baseQuery, 'gridOptions' => $gridOptions];
-    }
-
-    /**
-     * Build the base query and grid options for the gathering-awards grid.
-     *
-     * @param \Cake\ORM\Table $recommendationsTable The Recommendations ORM table.
-     * @param int $gatheringId The gathering ID to filter by.
-     * @param bool $canEdit Whether the current user can edit recommendations (enables bulk actions).
-     * @param array<int,string>|null $visibleColumns Resolved visible columns, or null when all display data is required.
-     * @return array{query: \Cake\ORM\Query\SelectQuery, gridOptions: array} Base query and processDataverseGrid options.
-     */
-    public function buildGatheringAwardsQuery(
-        Table $recommendationsTable,
-        int $gatheringId,
-        bool $canEdit,
-        ?array $visibleColumns = null,
-    ): array {
-        $includeNotes = $this->shouldLoadDisplayColumn('notes', $visibleColumns);
-        $includeGatherings = $this->shouldLoadDisplayColumn('gatherings', $visibleColumns);
-        $includeAssignedGathering = $this->shouldLoadDisplayColumn('assigned_gathering', $visibleColumns);
-        $selectFields = $this->recommendationSelectFields($visibleColumns);
-
-        $contain = [
-            'Requesters' => function ($q) {
-                return $q->select(['id', 'sca_name']);
-            },
-            'Members' => function ($q) {
-                return $q->select(['id', 'sca_name', 'title', 'pronouns', 'pronunciation', 'additional_info']);
-            },
-            'Branches' => function ($q) {
-                return $q->select(['id', 'name', 'type']);
-            },
-            'Awards' => function ($q) {
-                return $q->select(['id', 'abbreviation', 'branch_id', 'level_id']);
-            },
-            'Awards.Domains' => function ($q) {
-                return $q->select(['id', 'name']);
-            },
-            'Awards.Levels' => function ($q) {
-                return $q->select(['id', 'name']);
-            },
-            'Awards.AwardBranch' => function ($q) {
-                return $q->select(['id', 'name', 'type']);
-            },
-        ];
-        if ($includeGatherings) {
-            $contain['Gatherings'] = function ($q) {
-                return $q->select(['id', 'name', 'start_date', 'end_date']);
-            };
-        }
-        if ($includeNotes) {
-            $contain['Notes'] = function ($q) {
-                return $q->select(['id', 'entity_id', 'subject', 'body', 'created']);
-            };
-            $contain['Notes.Authors'] = function ($q) {
-                return $q->select(['id', 'sca_name']);
-            };
-        }
-        if ($includeAssignedGathering) {
-            $contain['AssignedGathering'] = function ($q) {
-                return $q->select(['id', 'name', 'cancelled_at']);
-            };
-        }
-        $contain['CurrentApprovalRun'] = function ($q) {
-            return $q->select([
-                'id',
-                'recommendation_id',
-                'workflow_instance_id',
-                'status',
-                'current_step_key',
-                'current_step_label',
-            ]);
-        };
-
-        $baseQuery = $recommendationsTable->find()
-            ->where(['Recommendations.gathering_id' => $gatheringId])
-            ->innerJoinWith('Awards.AwardBranch')
-            ->leftJoinWith('Awards.Domains')
-            ->leftJoinWith('CurrentApprovalRun')
-            ->innerJoinWith('Awards.Levels');
-        if ($selectFields !== null) {
-            $baseQuery->select($selectFields);
-        }
-        $baseQuery->contain($contain);
-
-        $systemViews = RecommendationsGridColumns::getSystemViews(['context' => 'gatheringAwards']);
-
-        $gridOptions = [
-            'gridKey' => 'Awards.Recommendations.gathering.' . $gatheringId,
-            'gridColumnsClass' => RecommendationsGridColumns::class,
-            'baseQuery' => $baseQuery,
-            'tableName' => 'Recommendations',
-            'defaultSort' => ['Recommendations.member_sca_name' => 'asc'],
-            'defaultPageSize' => 25,
-            'systemViews' => $systemViews,
-            'defaultSystemView' => 'sys-recs-gathering',
-            'showAllTab' => false,
-            'showViewTabs' => true,
-            'canAddViews' => true,
-            'canFilter' => true,
-            'canExportCsv' => true,
-            'enableBulkSelection' => true,
-            'bulkSelectionDataFields' => [
-                'member-id' => 'member_id',
-                'bestowal-id' => 'bestowal_id',
-                'pending-approval-id' => 'pending_approval_id',
-                'can-workflow-decide' => 'can_workflow_decide',
-            ],
-            'bulkSelection' => $this->recommendationBulkSelectionConfig(),
-            'bulkActions' => [
-                [
-                    'key' => 'workflow-decision',
-                    'label' => 'Approval Decision',
-                    'icon' => 'bi-check2-circle',
-                    'modalTarget' => '#recommendationWorkflowDecisionModal',
-                    'requiresSelectionField' => 'canWorkflowDecide',
-                ],
-                [
-                    'key' => 'request-feedback',
-                    'label' => 'Request Feedback',
-                    'icon' => 'bi-chat-left-text',
-                    'modalTarget' => '#requestRecommendationFeedbackModal',
-                ],
-            ],
         ];
 
         return ['query' => $baseQuery, 'gridOptions' => $gridOptions];

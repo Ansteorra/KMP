@@ -4,7 +4,6 @@ Feature: Hotwire grid and modal partial updates
     I want grid filters and modal saves to preserve my place on the list
     So that I can continue working without losing context
 
-    @fixme
     Scenario: Browser back restores grid URL after filter search
         Given I am logged in as awards admin for hotwire tests
         When I navigate to "/awards/recommendations"

@@ -6,6 +6,8 @@ namespace Awards\Controller;
 use App\Controller\DataverseGridTrait;
 use App\Controller\WorkflowDispatchTrait;
 use App\KMP\GridRowDomId;
+use App\Model\Entity\ActionItem;
+use App\Services\ActionItems\ActionItemService;
 use App\Services\CsvExportService;
 use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\TriggerDispatcher;
@@ -14,6 +16,7 @@ use Awards\Model\Entity\Bestowal;
 use Awards\Services\BestowalCancellationService;
 use Awards\Services\BestowalCourtSlotService;
 use Awards\Services\BestowalCreationService;
+use Awards\Services\BestowalFinalizationService;
 use Awards\Services\BestowalFormService;
 use Awards\Services\BestowalGatheringLookupService;
 use Awards\Services\BestowalQueryService;
@@ -21,6 +24,7 @@ use Cake\Datasource\Exception\RecordNotFoundException;
 use Cake\Http\Exception\BadRequestException;
 use Cake\Http\Exception\NotFoundException;
 use Cake\Http\Response;
+use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\ORM\TableRegistry;
 use Cake\Routing\Router;
@@ -60,12 +64,11 @@ class BestowalsController extends AppController
         $user = $this->request->getAttribute('identity');
         if ($user->checkCan('edit', $emptyBestowal)) {
             $formService = new BestowalFormService();
-            $statusList = $formService->buildStatusList();
-            $rules = $formService->buildFormRules();
-            $gatheringList = [];
             $adHocFormData = $formService->prepareAdHocFormData($user);
-            $this->set(compact('rules', 'statusList', 'gatheringList', 'adHocFormData'));
+            $this->set(compact('adHocFormData'));
         }
+
+        $this->set('bestowalCheckOptions', $this->bestowalTodoCheckOptions());
 
         return null;
     }
@@ -102,9 +105,23 @@ class BestowalsController extends AppController
         $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
         $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
         $built['gridOptions']['baseQuery'] = $baseQuery;
+        $built['gridOptions']['enableBulkSelection'] = true;
+        $built['gridOptions']['bulkSelection'] = [
+            'selectAllLabel' => __('Select all bestowals on this page'),
+            'rowLabelTemplate' => __('Select bestowal: {member_sca_name}'),
+            'disabledLabel' => __('Cancelled bestowals cannot be selected for bulk to-do completion.'),
+        ];
+        $built['gridOptions']['bulkActions'] = [
+            [
+                'key' => 'bestowal-todo-complete',
+                'label' => __('Complete Check'),
+                'icon' => 'bi-check2-square',
+                'modalTarget' => '#bestowalBulkTodoModal',
+            ],
+        ];
+        $built['gridOptions']['bulkSelectionDisabledField'] = 'bulk_todo_disabled';
 
         $result = $this->processDataverseGrid($built['gridOptions']);
-        $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
 
         if (!empty($result['isCsvExport'])) {
             $exportData = $this->prepareBestowalsForDisplay($result['query']->all(), null);
@@ -168,7 +185,6 @@ class BestowalsController extends AppController
         $built['gridOptions']['baseQuery'] = $baseQuery;
 
         $result = $this->processDataverseGrid($built['gridOptions']);
-        $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
 
         if (!empty($result['isCsvExport'])) {
             $exportData = $this->prepareBestowalsForDisplay($result['query']->all(), null);
@@ -243,7 +259,7 @@ class BestowalsController extends AppController
      * @param string|null $id Bestowal ID
      * @return \Cake\Http\Response|null|void
      */
-    public function view(?string $id = null): ?Response
+    public function view(ActionItemService $actionItemService, ?string $id = null): ?Response
     {
         $bestowal = $this->Bestowals->get($id, contain: [
             'Members',
@@ -255,89 +271,103 @@ class BestowalsController extends AppController
         ]);
         $this->Authorization->authorize($bestowal, 'view');
 
+        $user = $this->request->getAttribute('identity');
+        $memberId = (int)$user->getIdentifier();
+        $todoContext = $this->buildBestowalTodoContext(
+            $bestowal,
+            $actionItemService,
+            $memberId,
+            $user->isSuperUser(),
+        );
+
         $this->set(compact('bestowal'));
+        $this->set($todoContext);
 
         return null;
     }
 
     /**
-     * Transition a bestowal to a new state via workflow dispatch.
+     * Render a single bestowal's to-do checklist for the quick To-Dos modal.
      *
-     * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher Workflow dispatcher
+     * Returns the parallel preparation checks with per-item eligibility so the
+     * grid modal can offer the same gated Complete / Reopen actions as the
+     * bestowal view tab, without a full page load.
+     *
+     * @param \App\Services\ActionItems\ActionItemService $actionItemService To-do service
+     * @param string|null $id Bestowal ID
      * @return \Cake\Http\Response|null
      */
-    public function updateState(TriggerDispatcher $triggerDispatcher): ?Response
+    public function bestowalTodos(ActionItemService $actionItemService, ?string $id = null): ?Response
     {
-        $this->request->allowMethod(['post']);
+        $bestowal = $this->Bestowals->get($id, contain: ['Members', 'Awards']);
+        $this->Authorization->authorize($bestowal, 'view');
 
         $user = $this->request->getAttribute('identity');
-        $emptyBestowal = $this->Bestowals->newEmptyEntity();
-        $this->Authorization->authorize($emptyBestowal, 'updateState');
+        $memberId = (int)$user->getIdentifier();
+        $todoContext = $this->buildBestowalTodoContext(
+            $bestowal,
+            $actionItemService,
+            $memberId,
+            $user->isSuperUser(),
+        );
 
-        $bestowalId = $this->request->getData('bestowalId') ?? $this->request->getData('id');
-        $newState = $this->request->getData('newState') ?? $this->request->getData('targetState');
-        $pageContext = $this->getPageContextUrl();
+        $this->set(compact('bestowal'));
+        $this->set($todoContext);
+        $this->viewBuilder()->disableAutoLayout();
 
-        if (empty($bestowalId) || empty($newState)) {
-            $this->Flash->error(__('Bestowal ID and new state are required.'));
-        } else {
-            $transitionData = [
-                'bestowalId' => $bestowalId,
-                'targetState' => $newState,
-                'newState' => $newState,
-                'gathering_id' => $this->request->getData('gathering_id'),
-                'gathering_scheduled_activity_id' => $this->request->getData('gathering_scheduled_activity_id'),
-                'bestowed_at' => $this->request->getData('bestowed_at'),
-                'specialty' => $this->request->getData('specialty'),
-                'noble_notes' => $this->request->getData('noble_notes'),
-                'herald_notes' => $this->request->getData('herald_notes'),
-                'reason_summary' => $this->request->getData('reason_summary'),
-                'note' => $this->request->getData('note'),
-                'close_reason' => $this->request->getData('close_reason'),
-            ];
+        return null;
+    }
 
-            $result = $this->dispatchBestowalMutation(
-                $triggerDispatcher,
-                'awards-bestowal-transition',
-                'Awards.BestowalTransitionRequested',
-                [
-                    'bestowalId' => (int)$bestowalId,
-                    'targetState' => $newState,
-                    'data' => $transitionData,
-                    'actorId' => (int)$user->id,
-                ],
-            );
-
-            if ($result['success']) {
-                $this->dispatchWorkflowEvent(
-                    $triggerDispatcher,
-                    'Awards.BestowalStateChanged',
-                    $this->buildBestowalStateChangedPayload($result, (int)$user->id),
-                );
-                $stream = $this->tryBestowalsGridTurboResponse(
-                    $pageContext,
-                    true,
-                    null,
-                    (int)$bestowalId,
-                );
-                if ($stream !== null) {
-                    return $stream;
+    /**
+     * Build the shared bestowal to-do view context: items, per-item eligibility,
+     * gating counts, progress percentage, the all-gating-complete flag and the
+     * current-page return URL used by the gated Complete / Reopen links.
+     *
+     * @param \Awards\Model\Entity\Bestowal $bestowal Bestowal entity
+     * @param \App\Services\ActionItems\ActionItemService $actionItemService To-do service
+     * @param int $memberId Current member id
+     * @param bool $isSuperUser Whether the current member can bypass to-do assignment
+     * @return array<string, mixed>
+     */
+    protected function buildBestowalTodoContext(
+        Bestowal $bestowal,
+        ActionItemService $actionItemService,
+        int $memberId,
+        bool $isSuperUser = false,
+    ): array {
+        $todoItems = $actionItemService->getItemsForEntity(
+            Bestowal::ACTION_ITEM_ENTITY_TYPE,
+            (int)$bestowal->id,
+        );
+        $todoEligibility = [];
+        $todoGatingTotal = 0;
+        $todoGatingDone = 0;
+        foreach ($todoItems as $todoItem) {
+            $todoEligibility[$todoItem->id] = $isSuperUser
+                || $actionItemService->isMemberEligible($todoItem, $memberId);
+            if ($todoItem->is_gating) {
+                $todoGatingTotal++;
+                if ($todoItem->isCompleted()) {
+                    $todoGatingDone++;
                 }
-                $this->Flash->success(__('The bestowal has been updated.'));
-            } else {
-                $this->Flash->error($result['error'] ?? __('The bestowal could not be updated.'));
             }
         }
+        $allGatingComplete = $actionItemService->allGatingComplete(
+            Bestowal::ACTION_ITEM_ENTITY_TYPE,
+            (int)$bestowal->id,
+        );
+        $gatingPercent = $todoGatingTotal > 0
+            ? (int)round($todoGatingDone / $todoGatingTotal * 100)
+            : 0;
 
-        $redirect = $this->request->getData('current_page');
-        if ($redirect) {
-            return $this->redirect($redirect);
-        }
-        if ($pageContext !== null) {
-            return $this->redirect($pageContext);
-        }
-
-        return $this->redirect(['action' => 'view', $bestowalId ?? null]);
+        return compact(
+            'todoItems',
+            'todoEligibility',
+            'todoGatingTotal',
+            'todoGatingDone',
+            'gatingPercent',
+            'allGatingComplete',
+        );
     }
 
     /**
@@ -370,11 +400,6 @@ class BestowalsController extends AppController
             $pageContext = $this->getPageContextUrl();
 
             if ($result['success']) {
-                $this->dispatchWorkflowEvent(
-                    $triggerDispatcher,
-                    'Awards.BestowalStateChanged',
-                    $this->buildBestowalStateChangedPayload($result, (int)$user->id),
-                );
                 $stream = $this->tryBestowalsGridTurboResponse(
                     $pageContext,
                     true,
@@ -410,103 +435,6 @@ class BestowalsController extends AppController
     }
 
     /**
-     * Bulk update bestowal states via workflow dispatch.
-     *
-     * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher Workflow dispatcher
-     * @return \Cake\Http\Response|null
-     */
-    public function updateStates(TriggerDispatcher $triggerDispatcher): ?Response
-    {
-        $this->request->allowMethod(['post']);
-
-        $user = $this->request->getAttribute('identity');
-        $emptyBestowal = $this->Bestowals->newEmptyEntity();
-        $this->Authorization->authorize($emptyBestowal, 'updateStates');
-
-        $ids = explode(',', (string)$this->request->getData('ids'));
-        $ids = array_values(array_filter(array_map('intval', $ids)));
-        $newState = $this->request->getData('newState');
-
-        $result = ['success' => false];
-        if ($ids === [] || empty($newState)) {
-            $this->Flash->error(__('No bestowals selected or new state not specified.'));
-        } else {
-            $transitionData = [
-                'ids' => $ids,
-                'bestowalIds' => $ids,
-                'newState' => $newState,
-                'targetState' => $newState,
-                'gathering_id' => $this->request->getData('gathering_id'),
-                'bestowed_at' => $this->request->getData('bestowed_at'),
-                'note' => $this->request->getData('note'),
-                'close_reason' => $this->request->getData('close_reason'),
-            ];
-            $result = $this->dispatchBestowalMutation(
-                $triggerDispatcher,
-                'awards-bestowal-bulk-transition',
-                'Awards.BestowalBulkTransitionRequested',
-                [
-                    'bestowalIds' => $ids,
-                    'targetState' => $newState,
-                    'data' => $transitionData,
-                    'actorId' => (int)$user->id,
-                ],
-            );
-
-            if (!$this->request->getHeader('Turbo-Frame') && !$this->wantsTurboStreamRequest()) {
-                if ($result['success']) {
-                    $this->Flash->success(__('The bestowals have been updated.'));
-                } else {
-                    $this->Flash->error(
-                        $result['error'] ?? __('The bestowals could not be updated. Please, try again.'),
-                    );
-                }
-            }
-
-            if ($result['success']) {
-                foreach ($ids as $bestowalId) {
-                    $this->dispatchWorkflowEvent(
-                        $triggerDispatcher,
-                        'Awards.BestowalStateChanged',
-                        [
-                            'bestowalId' => (int)$bestowalId,
-                            'newState' => $newState,
-                            'actorId' => (int)$user->id,
-                        ],
-                    );
-                }
-            }
-        }
-
-        $pageContext = $this->getPageContextUrl();
-        if (
-            $ids !== []
-            && !empty($newState)
-            && ($result['success'] ?? false)
-            && $this->wantsTurboStreamRequest()
-            && $this->isGridOriginRequest($pageContext)
-        ) {
-            $this->Flash->success(__('The bestowals have been updated.'));
-
-            return $this->renderTurboCloseModal(
-                'bestowals-grid-table',
-                ['plugin' => 'Awards', 'controller' => 'Bestowals', 'action' => 'gridData'],
-                $pageContext,
-            );
-        }
-
-        $redirect = $this->request->getData('current_page');
-        if ($redirect) {
-            return $this->redirect($redirect);
-        }
-        if ($pageContext !== null) {
-            return $this->redirect($pageContext);
-        }
-
-        return $this->redirect(['action' => 'index']);
-    }
-
-    /**
      * Render a populated edit form for Turbo Frame partial updates.
      *
      * @param \Awards\Services\BestowalFormService $formService Form preparation service
@@ -535,21 +463,6 @@ class BestowalsController extends AppController
         } catch (RecordNotFoundException) {
             throw new NotFoundException(__('Bestowal not found'));
         }
-    }
-
-    /**
-     * Render the bulk edit form for Turbo Frame partial updates.
-     *
-     * @param \Awards\Services\BestowalFormService $formService Form preparation service
-     * @return \Cake\Http\Response|null
-     */
-    public function turboBulkEditForm(BestowalFormService $formService): ?Response
-    {
-        $emptyBestowal = $this->Bestowals->newEmptyEntity();
-        $this->Authorization->authorize($emptyBestowal, 'turboBulkEditForm');
-        $this->set($formService->prepareBulkEditFormData());
-
-        return null;
     }
 
     /**
@@ -697,67 +610,6 @@ class BestowalsController extends AppController
     }
 
     /**
-     * Return gathering autocomplete options for bulk bestowal edit modal.
-     *
-     * Returns Ajax HTML list items consumed by the shared auto-complete controller.
-     *
-     * @param \Awards\Services\BestowalGatheringLookupService $lookupService Gathering lookup service
-     * @return void
-     */
-    public function gatheringsForBestowalBulkAutoComplete(
-        BestowalGatheringLookupService $lookupService,
-    ): void {
-        $this->request->allowMethod(['get']);
-        $emptyBestowal = $this->Bestowals->newEmptyEntity();
-        $this->Authorization->authorize($emptyBestowal, 'gatheringsForBestowalBulkAutoComplete');
-        $this->viewBuilder()->setClassName('Ajax');
-        $this->viewBuilder()->setTemplate('/Recommendations/gatherings_auto_complete');
-
-        $q = trim((string)$this->request->getQuery('q', ''));
-        $status = (string)$this->request->getQuery('status', '');
-        $futureOnly = ($status !== 'Given');
-        $selectedId = $this->request->getQuery('selected_id');
-        $selectedId = is_numeric((string)$selectedId) ? (int)$selectedId : null;
-
-        $idsQuery = $this->request->getQuery('ids', []);
-        if (is_string($idsQuery)) {
-            $ids = array_filter(array_map('intval', explode(',', $idsQuery)));
-        } elseif (is_array($idsQuery)) {
-            $ids = array_filter(array_map('intval', $idsQuery));
-        } else {
-            $ids = [];
-        }
-
-        $gatherings = [];
-        $cancelledGatheringIds = [];
-
-        try {
-            if ($ids !== []) {
-                $gatheringData = $lookupService->getFilteredGatheringsForBestowalIds(
-                    $ids,
-                    $futureOnly,
-                    $selectedId,
-                );
-                $gatherings = $gatheringData['gatherings'] ?? [];
-                $cancelledGatheringIds = $gatheringData['cancelledGatheringIds'] ?? [];
-            }
-
-            if ($q !== '') {
-                $gatherings = array_filter(
-                    $gatherings,
-                    fn($display) => mb_stripos((string)$display, $q) !== false,
-                );
-            }
-        } catch (Throwable $e) {
-            Log::error('Error in gatheringsForBestowalBulkAutoComplete: ' . $e->getMessage());
-            $gatherings = [];
-            $cancelledGatheringIds = [];
-        }
-
-        $this->set(compact('gatherings', 'q', 'cancelledGatheringIds', 'selectedId'));
-    }
-
-    /**
      * Cancel a bestowal via workflow dispatch.
      *
      * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher Workflow dispatcher
@@ -820,6 +672,214 @@ class BestowalsController extends AppController
     }
 
     /**
+     * Mark a bestowal as Given, gated on completion of all gating to-dos.
+     *
+     * This is the one-click finalize action: it refuses to finalize until every
+     * gating action item for the bestowal is complete, then sets the bestowal's
+     * `lifecycle_status` to "given" (recording the bestowed timestamp) and syncs
+     * any linked recommendations to their "Given" state so recommendation
+     * notifications still fire. Completing the gating "Given" to-do directly also
+     * finalizes the bestowal automatically via BestowalTodoCompletionListener;
+     * this action covers the explicit button path.
+     *
+     * @param \Awards\Services\BestowalFinalizationService $finalizationService Bestowal finalize service
+     * @return \Cake\Http\Response|null
+     */
+    public function markGiven(BestowalFinalizationService $finalizationService): ?Response
+    {
+        $this->request->allowMethod(['post']);
+
+        $user = $this->request->getAttribute('identity');
+        $emptyBestowal = $this->Bestowals->newEmptyEntity();
+        $this->Authorization->authorize($emptyBestowal, 'updateState');
+
+        $bestowalId = $this->request->getData('bestowalId') ?? $this->request->getData('id');
+        $pageContext = $this->getPageContextUrl();
+
+        if (empty($bestowalId)) {
+            $this->Flash->error(__('Bestowal ID is required.'));
+
+            return $this->redirectAfterBestowalMutation($pageContext, $bestowalId);
+        }
+
+        $bestowedAt = $this->request->getData('bestowed_at') ?? new DateTime();
+        $result = $finalizationService->markGiven((int)$bestowalId, (int)$user->id, $bestowedAt);
+
+        if ($result->success) {
+            $this->Flash->success(__('The bestowal has been marked given.'));
+        } else {
+            $this->Flash->error($result->reason ?? __('The bestowal could not be marked given.'));
+        }
+
+        return $this->redirectAfterBestowalMutation($pageContext, $bestowalId);
+    }
+
+    /**
+     * Complete a single named check across many selected bestowals.
+     *
+     * Drives the grid "Complete Check" bulk action: for each selected bestowal the
+     * matching open to-do (by template item key) is completed, but only where the
+     * current member is an eligible doer for that check. Bestowals outside the
+     * member's authorization scope, without the check open, or where the member is
+     * not the assigned doer are skipped and reported in the summary.
+     *
+     * @param \App\Services\ActionItems\ActionItemService $actionItemService To-do service
+     * @return \Cake\Http\Response|null
+     */
+    public function bulkCompleteTodo(ActionItemService $actionItemService): ?Response
+    {
+        $this->request->allowMethod(['post']);
+
+        $emptyBestowal = $this->Bestowals->newEmptyEntity();
+        $this->Authorization->authorize($emptyBestowal, 'index');
+
+        $user = $this->request->getAttribute('identity');
+        $actorId = (int)$user->getIdentifier();
+        $pageContext = $this->getPageContextUrl() ?? $this->request->getData('current_page');
+
+        $checkKey = trim((string)$this->request->getData('check_key'));
+        $bestowalIds = $this->parseBulkBestowalIds($this->request->getData('bestowal_ids'));
+
+        if ($checkKey === '' || $bestowalIds === []) {
+            $this->Flash->error(__('Select at least one bestowal and a check to complete.'));
+
+            return $this->redirectAfterBestowalMutation($pageContext, null);
+        }
+
+        $query = $this->Bestowals->find()
+            ->select(['Bestowals.id'])
+            ->where(['Bestowals.id IN' => $bestowalIds]);
+        $query = $this->Authorization->applyScope($query, 'index');
+        $scopedIds = $query->all()->extract('id')->toList();
+
+        $completed = 0;
+        $skipped = 0;
+        $notApplicable = 0;
+
+        foreach ($scopedIds as $bestowalId) {
+            $items = $actionItemService->getItemsForEntity(
+                Bestowal::ACTION_ITEM_ENTITY_TYPE,
+                (int)$bestowalId,
+            );
+            $match = null;
+            foreach ($items as $item) {
+                if ($item->source_ref === $checkKey && $item->isOpen()) {
+                    $match = $item;
+                    break;
+                }
+            }
+
+            if ($match === null) {
+                $notApplicable++;
+                continue;
+            }
+
+            $result = $actionItemService->complete((int)$match->id, $actorId);
+            if ($result->success) {
+                $completed++;
+            } else {
+                $skipped++;
+            }
+        }
+
+        $unscoped = count($bestowalIds) - count($scopedIds);
+        $notApplicable += $unscoped;
+
+        $this->flashBulkTodoSummary($completed, $skipped, $notApplicable);
+
+        return $this->redirectAfterBestowalMutation($pageContext, null);
+    }
+
+    /**
+     * Normalize the bulk bestowal id payload (CSV string or array) to unique ints.
+     *
+     * @param mixed $raw The submitted bestowal_ids value
+     * @return list<int>
+     */
+    private function parseBulkBestowalIds(mixed $raw): array
+    {
+        if (is_string($raw)) {
+            $raw = explode(',', $raw);
+        }
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_filter(array_map('intval', $raw))));
+    }
+
+    /**
+     * Flash a human-readable summary of a bulk check completion.
+     *
+     * @param int $completed Items completed
+     * @param int $skipped Items the actor was not eligible to complete
+     * @param int $notApplicable Bestowals without the check open or out of scope
+     * @return void
+     */
+    private function flashBulkTodoSummary(int $completed, int $skipped, int $notApplicable): void
+    {
+        if ($completed > 0) {
+            $message = __n(
+                'Completed the check on {0} bestowal.',
+                'Completed the check on {0} bestowals.',
+                $completed,
+                $completed,
+            );
+            $extras = [];
+            if ($skipped > 0) {
+                $extras[] = __n('{0} skipped (not your check)', '{0} skipped (not your check)', $skipped, $skipped);
+            }
+            if ($notApplicable > 0) {
+                $extras[] = __n('{0} had no open check', '{0} had no open check', $notApplicable, $notApplicable);
+            }
+            if ($extras !== []) {
+                $message .= ' (' . implode('; ', $extras) . ')';
+            }
+            $this->Flash->success($message);
+
+            return;
+        }
+
+        if ($skipped > 0) {
+            $this->Flash->error(__('You are not assigned to complete that check on the selected bestowals.'));
+
+            return;
+        }
+
+        $this->Flash->error(__('None of the selected bestowals have that check open.'));
+    }
+
+    /**
+     * Distinct (item_key => label) pairs from active bestowal to-do templates, used
+     * to populate the grid "Complete Check" bulk-action dropdown.
+     *
+     * @return array<string, string>
+     */
+    protected function bestowalTodoCheckOptions(): array
+    {
+        $items = TableRegistry::getTableLocator()
+            ->get('Awards.BestowalTodoTemplateItems')
+            ->find()
+            ->select(['item_key', 'label'])
+            ->innerJoinWith('BestowalTodoTemplates', function ($q) {
+                return $q->where(['BestowalTodoTemplates.is_active' => true]);
+            })
+            ->where(['BestowalTodoTemplateItems.item_key IS NOT' => null])
+            ->orderBy(['BestowalTodoTemplateItems.sort_order' => 'ASC', 'BestowalTodoTemplateItems.label' => 'ASC'])
+            ->all();
+
+        $options = [];
+        foreach ($items as $item) {
+            $key = (string)$item->item_key;
+            if ($key !== '' && !isset($options[$key])) {
+                $options[$key] = (string)$item->label;
+            }
+        }
+
+        return $options;
+    }
+
+    /**
      * Record an ad-hoc bestowal via workflow dispatch.
      *
      * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher Workflow dispatcher
@@ -873,29 +933,6 @@ class BestowalsController extends AppController
     }
 
     /**
-     * Inject state filter options into grid result metadata.
-     *
-     * @param array<string, mixed> $result Grid result
-     * @param bool $canViewHidden Whether hidden states are visible
-     * @return array<string, mixed>
-     */
-    protected function applyStateFilterOptionsToGridResult(array $result, bool $canViewHidden): array
-    {
-        $stateFilterOptions = BestowalsGridColumns::getStateFilterOptions($canViewHidden);
-        $result['filterOptions']['state'] = $stateFilterOptions;
-
-        if (isset($result['columnsMetadata']['state'])) {
-            $result['columnsMetadata']['state']['filterOptions'] = $stateFilterOptions;
-            $result['gridState']['filters']['available']['state'] = [
-                'label' => $result['columnsMetadata']['state']['label'] ?? 'State',
-                'options' => $stateFilterOptions,
-            ];
-        }
-
-        return $result;
-    }
-
-    /**
      * Add computed display fields to bestowal entities in place.
      *
      * @param iterable<\Awards\Model\Entity\Bestowal> $bestowals Paginated bestowal entities
@@ -904,12 +941,31 @@ class BestowalsController extends AppController
      */
     protected function prepareBestowalsForDisplay(iterable $bestowals, ?array $visibleColumns = null): iterable
     {
+        $loadTodoSummary = $this->shouldLoadBestowalDisplayColumn('todos_summary', $visibleColumns);
+        $todoSummaryMap = [];
+        if ($loadTodoSummary) {
+            $ids = [];
+            foreach ($bestowals as $bestowal) {
+                if (!empty($bestowal->id)) {
+                    $ids[] = (int)$bestowal->id;
+                }
+            }
+            $todoSummaryMap = $this->loadBestowalTodoSummaries($ids);
+        }
+
         foreach ($bestowals as $bestowal) {
+            $bestowal->bulk_todo_disabled =
+                ($bestowal->lifecycle_status ?? Bestowal::LIFECYCLE_OPEN) === Bestowal::LIFECYCLE_CANCELLED;
             if ($this->shouldLoadBestowalDisplayColumn('member_sca_name', $visibleColumns)) {
-                $bestowal->member_sca_name = $bestowal->member->sca_name ?? '';
+                $bestowal->member_sca_name = $bestowal->member->sca_name ?? $bestowal->member_sca_name ?? '';
             }
             if ($this->shouldLoadBestowalDisplayColumn('awards', $visibleColumns)) {
                 $bestowal->awards = $this->buildAwardsHtml($bestowal);
+            }
+            if ($loadTodoSummary) {
+                $bestowal->todos_summary = $this->buildBestowalTodoSummaryHtml(
+                    $todoSummaryMap[(int)$bestowal->id] ?? [],
+                );
             }
             if ($this->shouldLoadBestowalDisplayColumn('court_slot', $visibleColumns)) {
                 $bestowal->court_slot = $this->buildCourtSlotHtml($bestowal);
@@ -926,6 +982,116 @@ class BestowalsController extends AppController
         }
 
         return $bestowals;
+    }
+
+    /**
+     * Batch-load preparation-check (to-do) action items for the given bestowal ids,
+     * grouped by bestowal id, ordered for checklist display.
+     *
+     * @param list<int> $bestowalIds Displayed bestowal ids
+     * @return array<int, list<\App\Model\Entity\ActionItem>>
+     */
+    protected function loadBestowalTodoSummaries(array $bestowalIds): array
+    {
+        $bestowalIds = array_values(array_unique(array_filter($bestowalIds)));
+        if ($bestowalIds === []) {
+            return [];
+        }
+
+        $items = TableRegistry::getTableLocator()->get('ActionItems')->find()
+            ->where([
+                'ActionItems.entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
+                'ActionItems.entity_id IN' => $bestowalIds,
+            ])
+            ->orderBy([
+                'ActionItems.entity_id' => 'ASC',
+                'ActionItems.sort_order' => 'ASC',
+                'ActionItems.id' => 'ASC',
+            ])
+            ->all();
+
+        $map = [];
+        foreach ($items as $item) {
+            $map[(int)$item->entity_id][] = $item;
+        }
+
+        return $map;
+    }
+
+    /**
+     * Render the compact to-do progress badge with a popover listing each check
+     * and its state. The badge's accessible name conveys the gating progress so
+     * the information is available without opening the popover.
+     *
+     * @param list<\App\Model\Entity\ActionItem> $items Action items for one bestowal
+     * @return string
+     */
+    protected function buildBestowalTodoSummaryHtml(array $items): string
+    {
+        if ($items === []) {
+            return '<span class="text-muted small">' . h(__('No checks')) . '</span>';
+        }
+
+        $gatingTotal = 0;
+        $gatingDone = 0;
+        $rows = [];
+        foreach ($items as $item) {
+            $isGating = (bool)$item->is_gating;
+            $completed = $item->isCompleted();
+            $cancelled = $item->status === ActionItem::STATUS_CANCELLED;
+            if ($isGating) {
+                $gatingTotal++;
+                if ($completed) {
+                    $gatingDone++;
+                }
+            }
+
+            if ($completed) {
+                $icon = 'bi-check-circle-fill text-success';
+            } elseif ($cancelled) {
+                $icon = 'bi-slash-circle text-muted';
+            } else {
+                $icon = 'bi-circle text-warning';
+            }
+            $required = $isGating
+                ? ' <span class="text-danger" aria-hidden="true">*</span>'
+                : '';
+            $rows[] = '<li class="d-flex align-items-start gap-2 mb-1">'
+                . '<i class="bi ' . $icon . '" aria-hidden="true"></i>'
+                . '<span>' . h($item->title) . $required . '</span>'
+                . '</li>';
+        }
+
+        $allGatingDone = $gatingTotal === 0 || $gatingDone >= $gatingTotal;
+        if ($gatingTotal === 0) {
+            $badgeClass = 'bg-secondary';
+            $progressLabel = (string)count($items);
+            $ariaLabel = __n(
+                'To-Dos: {0} optional check',
+                'To-Dos: {0} optional checks',
+                count($items),
+                count($items),
+            );
+        } else {
+            $badgeClass = $allGatingDone ? 'bg-success' : 'bg-warning text-dark';
+            $progressLabel = $gatingDone . '/' . $gatingTotal;
+            $ariaLabel = __('To-Do progress: {0} of {1} required checks complete', $gatingDone, $gatingTotal);
+        }
+
+        $content = '<ul class="list-unstyled mb-0 small text-start">' . implode('', $rows) . '</ul>';
+
+        return '<button type="button" class="btn btn-sm p-0 border-0 bg-transparent" '
+            . 'data-controller="popover" '
+            . 'data-bs-toggle="popover" '
+            . 'data-popover-trigger-value="hover focus" '
+            . 'data-popover-placement-value="left" '
+            . 'data-bs-title="' . h(__('Preparation checks')) . '" '
+            . 'data-bs-content="' . h($content) . '" '
+            . 'aria-label="' . h($ariaLabel) . '">'
+            . '<span class="badge ' . $badgeClass . '">'
+            . '<i class="bi bi-check2-square me-1" aria-hidden="true"></i>' . h($progressLabel)
+            . '</span>'
+            . '</button>';
     }
 
     /**
@@ -1129,23 +1295,27 @@ class BestowalsController extends AppController
     }
 
     /**
-     * @param array<string, mixed> $result Normalized mutation result
-     * @param int $actorId Current user ID
-     * @return array<string, mixed>
+     * Resolve the post-mutation redirect target consistently with the other
+     * bestowal mutation actions.
+     *
+     * @param string|null $pageContext Optional grid page-context URL.
+     * @param string|int|null $bestowalId Bestowal id for the view fallback.
+     * @return \Cake\Http\Response|null
      */
-    protected function buildBestowalStateChangedPayload(array $result, int $actorId): array
+    private function redirectAfterBestowalMutation($pageContext, $bestowalId): ?Response
     {
-        $data = $result['data'];
-        $transition = $data['result'] ?? ($data['results'][0] ?? $data);
+        $redirect = $this->request->getData('current_page');
+        if ($redirect) {
+            return $this->redirect($redirect);
+        }
+        if ($pageContext !== null) {
+            return $this->redirect($pageContext);
+        }
+        if (!empty($bestowalId)) {
+            return $this->redirect(['action' => 'view', $bestowalId]);
+        }
 
-        return [
-            'bestowalId' => (int)($transition['bestowalId'] ?? $data['bestowalId'] ?? 0),
-            'previousState' => $transition['previousState'] ?? null,
-            'newState' => $transition['newState'] ?? null,
-            'previousStatus' => $transition['previousStatus'] ?? null,
-            'newStatus' => $transition['newStatus'] ?? null,
-            'actorId' => $actorId,
-        ];
+        return $this->redirect(['action' => 'index']);
     }
 
     /**
@@ -1385,7 +1555,6 @@ class BestowalsController extends AppController
             $built['gridOptions']['baseQuery'] = $baseQuery;
 
             $result = $this->processDataverseGrid($built['gridOptions']);
-            $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
 
             $gridData = $result['data'];
             if (is_array($gridData)) {

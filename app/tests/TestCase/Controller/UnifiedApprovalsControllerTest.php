@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
 
+use App\Controller\AppController;
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowApprovalResponse;
 use App\Model\Entity\WorkflowApprovalTriageState;
@@ -71,6 +72,69 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
         $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
         $this->get('/approvals');
         $this->assertResponseOk();
+    }
+
+    public function testMobileApprovalsRedirectsWhenNoPendingApprovals(): void
+    {
+        TableRegistry::getTableLocator()->get('WorkflowApprovals')->updateAll(
+            ['status' => WorkflowApproval::STATUS_CANCELLED],
+            ['status' => WorkflowApproval::STATUS_PENDING],
+        );
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+
+        $this->get('/approvals/mobile');
+
+        $this->assertRedirectContains('/members/view-mobile-card');
+    }
+
+    public function testMobileApprovalsReturnsOkWhenPendingApprovalsExist(): void
+    {
+        $this->authenticateAsSuperUser();
+        [$instanceId, $executionLogId] = $this->createWorkflowContext();
+        $this->createApproval($instanceId, $executionLogId);
+
+        $this->get('/approvals/mobile');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('mobile-approvals');
+        $this->assertResponseContains('Approvals');
+        $this->assertResponseContains(
+            'data-mobile-approvals-per-page-value="' . AppController::MOBILE_QUEUE_DEFAULT_PER_PAGE . '"',
+        );
+    }
+
+    public function testMobileApprovalsDataPaginatesPendingApprovals(): void
+    {
+        $this->authenticateAsSuperUser();
+        [$instanceId, $executionLogId] = $this->createWorkflowContext();
+        for ($i = 0; $i < 3; $i++) {
+            $this->createApproval($instanceId, $executionLogId, 'Mobile Approval ' . $i);
+        }
+        $this->configRequest([
+            'headers' => [
+                'Accept' => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ],
+        ]);
+
+        $this->get('/approvals/mobile-data?per_page=2&page=1');
+
+        $this->assertResponseOk();
+        $this->assertContentType('application/json');
+        $pageOne = json_decode((string)$this->_response->getBody(), true);
+        $this->assertCount(2, $pageOne['approvals'] ?? []);
+        $this->assertSame(3, $pageOne['pagination']['total'] ?? null);
+        $this->assertTrue($pageOne['pagination']['hasNextPage'] ?? false);
+
+        $this->get('/approvals/mobile-data?per_page=2&page=2');
+
+        $this->assertResponseOk();
+        $pageTwo = json_decode((string)$this->_response->getBody(), true);
+        $this->assertCount(1, $pageTwo['approvals'] ?? []);
+        $this->assertFalse($pageTwo['pagination']['hasNextPage'] ?? true);
+        $pageOneIds = array_column($pageOne['approvals'], 'id');
+        $pageTwoIds = array_column($pageTwo['approvals'], 'id');
+        $this->assertSame([], array_values(array_intersect($pageOneIds, $pageTwoIds)));
     }
 
     public function testAuthenticatedGridDataReturnsOk(): void
@@ -444,6 +508,29 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
             ->firstOrFail();
         $this->assertSame(WorkflowApprovalTriageState::STATE_READY_TO_DECIDE, $triage->get('state'));
         $this->assertSame('Checked the private context.', $triage->get('note'));
+    }
+
+    public function testRecordApprovalAjaxFailureIncludesErrorField(): void
+    {
+        $this->authenticateAsSuperUser();
+        $this->configRequest([
+            'headers' => [
+                'Accept' => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ],
+        ]);
+
+        $this->post('/approvals/record', [
+            'approvalId' => 999999,
+            'decision' => WorkflowApprovalResponse::DECISION_APPROVE,
+            'comment' => '',
+        ]);
+
+        $this->assertResponseOk();
+        $this->assertContentType('application/json');
+        $payload = json_decode((string)$this->_response->getBody(), true);
+        $this->assertSame(false, $payload['success'] ?? null);
+        $this->assertSame('Approval not found.', $payload['error'] ?? null);
     }
 
     public function testBulkRecordApprovalRecordsSameTypeResponses(): void

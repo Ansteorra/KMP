@@ -21,21 +21,21 @@ class BackfillBestowalsFromRecommendations extends BaseMigration
         $now = date('Y-m-d H:i:s');
         $nowLiteral = $this->quoteString($now);
         $parentCondition = $this->parentRecommendationCondition('r');
-        $stateExpression = $this->bestowalStateExpression('r');
+        $lifecycleExpression = $this->bestowalLifecycleExpression('r');
 
         $this->execute(
             "INSERT INTO awards_bestowals (
-                member_id, gathering_id, primary_recommendation_id, status, state,
+                member_id, member_sca_name, gathering_id, primary_recommendation_id, lifecycle_status,
                 stack_rank, bestowed_at, source, noble_notes, herald_notes,
                 call_into_court, court_availability, person_to_notify, created, modified,
                 created_by, modified_by
             )
             SELECT
                 r.member_id,
+                r.member_sca_name,
                 r.gathering_id,
                 r.id,
-                COALESCE(bs.name, 'Planning'),
-                {$stateExpression},
+                {$lifecycleExpression},
                 0,
                 r.given,
                 'recommendation',
@@ -49,8 +49,6 @@ class BackfillBestowalsFromRecommendations extends BaseMigration
                 r.created_by,
                 r.modified_by
             FROM awards_recommendations AS r
-            LEFT JOIN awards_bestowal_states AS s ON s.name = {$stateExpression}
-            LEFT JOIN awards_bestowal_statuses AS bs ON bs.id = s.status_id
             WHERE {$parentCondition}",
         );
 
@@ -143,20 +141,19 @@ class BackfillBestowalsFromRecommendations extends BaseMigration
     }
 
     /**
-     * SQL expression mapping legacy recommendation states to bestowal states.
+     * SQL expression mapping a recommendation's state to a bestowal lifecycle status.
+     *
+     * Already-given recommendations onboard as `given`; everything still in flight
+     * onboards as `open` (parallel to-do checklist drives the rest of the work).
      *
      * @param string $alias Table alias for awards_recommendations.
      * @return string SQL CASE expression.
      */
-    private function bestowalStateExpression(string $alias): string
+    private function bestowalLifecycleExpression(string $alias): string
     {
         return "CASE
-            WHEN {$alias}.state = 'Need to Schedule' AND {$alias}.gathering_id IS NOT NULL THEN 'Gathering Assigned'
-            WHEN {$alias}.state = 'Need to Schedule' THEN 'Created'
-            WHEN {$alias}.state = 'Scheduled' THEN 'Court Scheduled'
-            WHEN {$alias}.state = 'Given' THEN 'Given'
-            WHEN {$alias}.state = 'Announced Not Given' THEN 'Announced Not Given'
-            ELSE 'Created'
+            WHEN {$alias}.state = 'Given' THEN 'given'
+            ELSE 'open'
         END";
     }
 

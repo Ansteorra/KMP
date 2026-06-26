@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Model\Table\ActionItemsTable;
 use App\Model\Table\WorkflowApprovalsTable;
 use Cake\ORM\TableRegistry;
 use Exception;
@@ -70,29 +71,68 @@ class CoreViewCellProvider
             'authCallback' => fn($urlParams, $user) => $user !== null,
         ];
 
-        // Approvals - Mobile menu item
-        $cells[] = [
-            'type' => ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU,
-            'label' => 'Approvals',
-            'icon' => 'bi-check2-square',
-            'url' => ['controller' => 'Approvals', 'action' => 'mobileApprovals', 'plugin' => null],
-            'order' => 30,
-            'color' => 'approvals',
-            'badge' => (function () use ($user) {
-                try {
-                    $count = WorkflowApprovalsTable::getPendingApprovalCountForMember($user->id);
+        $approvalCount = self::countPendingApprovals((int)$user->id);
+        if ($approvalCount > 0) {
+            // Approvals - Mobile menu item
+            $cells[] = [
+                'type' => ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU,
+                'label' => 'My Approvals',
+                'icon' => 'bi-check2-square',
+                'url' => ['controller' => 'Approvals', 'action' => 'mobileApprovals', 'plugin' => null],
+                'order' => 32,
+                'color' => 'approvals',
+                'badge' => $approvalCount,
+                'validRoutes' => [],
+                'authCallback' => function ($urlParams, $user) {
+                    return $user !== null;
+                },
+            ];
+        }
 
-                    return $count > 0 ? $count : null;
-                } catch (Exception $e) {
-                    return null;
-                }
-            })(),
-            'validRoutes' => [],
-            'authCallback' => function ($urlParams, $user) {
-                return $user !== null;
-            },
-        ];
+        $todoCount = self::countOpenTodos((int)$user->id);
+        if ($todoCount > 0) {
+            // My To-Dos - Mobile menu item
+            $cells[] = [
+                'type' => ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU,
+                'label' => 'My To-Dos',
+                'icon' => 'bi-check2-all',
+                'url' => ['controller' => 'ActionItems', 'action' => 'mobileMyTasks', 'plugin' => null],
+                'order' => 33,
+                'color' => 'todos',
+                'badge' => $todoCount,
+                'validRoutes' => [],
+                'authCallback' => function ($urlParams, $user) {
+                    return $user !== null;
+                },
+            ];
+        }
 
         return $cells;
+    }
+
+    /**
+     * @param int $memberId Current member ID
+     * @return int Pending approval count
+     */
+    private static function countPendingApprovals(int $memberId): int
+    {
+        try {
+            return WorkflowApprovalsTable::getPendingApprovalCountForMember($memberId);
+        } catch (Exception $e) {
+            return 0;
+        }
+    }
+
+    /**
+     * @param int $memberId Current member ID
+     * @return int Open to-do count
+     */
+    private static function countOpenTodos(int $memberId): int
+    {
+        try {
+            return ActionItemsTable::getOpenTaskCountForMember($memberId);
+        } catch (Exception $e) {
+            return 0;
+        }
     }
 }

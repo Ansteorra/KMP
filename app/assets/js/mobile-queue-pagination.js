@@ -1,0 +1,1 @@
+export const MOBILE_QUEUE_DEFAULT_PER_PAGE = 25

@@ -11,6 +11,7 @@ use App\Services\GatheringCloneService;
 use App\Services\GatheringScheduleService;
 use App\Services\ICalendarService;
 use Cake\Event\EventInterface;
+use Cake\Http\Exception\ForbiddenException;
 use Cake\Http\Exception\NotFoundException;
 use Cake\I18n\DateTime as CakeDateTime;
 use Cake\Routing\Router;
@@ -923,7 +924,7 @@ class GatheringsController extends AppController
         // Group scheduled activities by date
         $scheduleByDate = [];
         foreach ($gathering->gathering_scheduled_activities as $scheduledActivity) {
-            $localStart = \App\KMP\TimezoneHelper::toUserTimezone(
+            $localStart = TimezoneHelper::toUserTimezone(
                 $scheduledActivity->start_datetime,
                 null,
                 null,
@@ -1070,7 +1071,7 @@ class GatheringsController extends AppController
                 'text' => $t->name,
                 'data-description' => $t->description ?? '',
             ],
-            $gatheringTypesRaw
+            $gatheringTypesRaw,
         );
 
         $this->set(compact('gathering', 'branches', 'gatheringTypes', 'lockBranch', 'branchCount'));
@@ -1186,7 +1187,7 @@ class GatheringsController extends AppController
                 'text' => $t->name,
                 'data-description' => $t->description ?? '',
             ],
-            $gatheringTypesRaw
+            $gatheringTypesRaw,
         );
 
         $this->set(compact('gathering', 'branches', 'gatheringTypes', 'lockBranch', 'branchCount'));
@@ -1394,7 +1395,10 @@ class GatheringsController extends AppController
             $waiverAuthorization->gathering_id = $gathering->id;
             $waiverAuthorization->gathering = $gathering;
 
-            if (!$this->Authentication->getIdentity()->checkCan('removeGatheringActivity', $waiverAuthorization, (int)$activityId)) {
+            if (
+                !$this->Authentication->getIdentity()
+                    ->checkCan('removeGatheringActivity', $waiverAuthorization, (int)$activityId)
+            ) {
                 $this->Flash->error(__(
                     'Cannot remove this activity because it is the last one supporting submitted waivers.',
                 ));
@@ -1599,7 +1603,18 @@ class GatheringsController extends AppController
 
         $gathering = $this->Gatherings->find('byPublicId', [$gatheringPublicId])->firstOrFail();
         $scheduledActivity = $this->fetchTable('GatheringScheduledActivities')->get((int)$id);
-        $this->Authorization->authorize($gathering, 'editScheduledActivity', $scheduledActivity);
+        // The AuthorizationComponent::authorize() cannot forward extra arguments to
+        // the policy, so resolve the service directly to pass the scheduled activity
+        // (required for the ownership check in GatheringPolicy::canEditScheduledActivity).
+        $this->Authorization->skipAuthorization();
+        $authorizationService = $this->request->getAttribute('authorization');
+        $identity = $this->Authentication->getIdentity();
+        if (
+            $authorizationService === null
+            || !$authorizationService->can($identity, 'editScheduledActivity', $gathering, $scheduledActivity)
+        ) {
+            throw new ForbiddenException(__('You are not authorized to edit this scheduled activity.'));
+        }
 
         $result = $scheduleService->edit(
             (int)$id,
@@ -1631,7 +1646,15 @@ class GatheringsController extends AppController
         $this->request->allowMethod(['post', 'delete']);
 
         $gathering = $this->Gatherings->find('byPublicId', [$gatheringPublicId])->firstOrFail();
-        $this->Authorization->authorize($gathering, 'edit');
+        // Deleting a scheduled activity requires full gathering edit rights. Delegated
+        // court schedule managers can add/edit their own rows but cannot delete, so a
+        // denial here returns a 403 rather than the silent redirect used for web forms.
+        $this->Authorization->skipAuthorization();
+        $authorizationService = $this->request->getAttribute('authorization');
+        $identity = $this->Authentication->getIdentity();
+        if ($authorizationService === null || !$authorizationService->can($identity, 'edit', $gathering)) {
+            throw new ForbiddenException(__('You are not authorized to delete this scheduled activity.'));
+        }
 
         $result = $scheduleService->delete((int)$id, $gathering);
 
@@ -1713,7 +1736,7 @@ class GatheringsController extends AppController
         // Group scheduled activities by date
         $scheduleByDate = [];
         foreach ($gathering->gathering_scheduled_activities as $scheduledActivity) {
-            $localStart = \App\KMP\TimezoneHelper::toUserTimezone(
+            $localStart = TimezoneHelper::toUserTimezone(
                 $scheduledActivity->start_datetime,
                 null,
                 null,

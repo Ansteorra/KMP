@@ -77,11 +77,22 @@ class RecommendationsTablePolicy extends BasePolicy
         }
 
         $scopeConditions = [];
-        if (!empty($branchIds) && $branchIds[0] !== -10000000) {
-            $scopeConditions['Awards.branch_id IN'] = $branchIds;
-        }
-        if (!empty($approvalLevels)) {
-            $scopeConditions['Levels.name IN'] = $approvalLevels;
+        $hasBranchScope = !empty($branchIds) && $branchIds[0] !== -10000000;
+        if ($hasBranchScope || !empty($approvalLevels)) {
+            // Express the branch/level scope as an award_id subquery so the
+            // condition is self-sufficient and does not depend on the caller
+            // having joined Awards/Levels onto the recommendation query.
+            $awardsTable = TableRegistry::getTableLocator()->get('Awards.Awards');
+            $awardIdQuery = $awardsTable->find()->select(['Awards.id']);
+            if ($hasBranchScope) {
+                $awardIdQuery->where(['Awards.branch_id IN' => $branchIds]);
+            }
+            if (!empty($approvalLevels)) {
+                $awardIdQuery
+                    ->innerJoinWith('Levels')
+                    ->where(['Levels.name IN' => $approvalLevels]);
+            }
+            $scopeConditions['Recommendations.award_id IN'] = $awardIdQuery;
         }
 
         $pendingRecommendationIds = $this->pendingApprovalRecommendationIds($user);
@@ -174,16 +185,19 @@ class RecommendationsTablePolicy extends BasePolicy
         $recommendationIds = $pendingRecommendationIds;
         $activeWorkflowInstanceIds = $this->activeApprovalWorkflowInstanceIds();
         $responses = TableRegistry::getTableLocator()->get('WorkflowApprovalResponses');
-        $activeResponses = $responses->find()
-            ->select([
-                'approval_instance_id' => 'WorkflowApprovals.workflow_instance_id',
-            ])
-            ->innerJoinWith('WorkflowApprovals', function ($q) use ($activeWorkflowInstanceIds) {
-                return $q->where(['WorkflowApprovals.workflow_instance_id IN' => $activeWorkflowInstanceIds]);
-            })
-            ->where(['WorkflowApprovalResponses.member_id' => $memberId])
-            ->enableHydration(false)
-            ->all();
+        $activeResponses = [];
+        if ($activeWorkflowInstanceIds !== []) {
+            $activeResponses = $responses->find()
+                ->select([
+                    'approval_instance_id' => 'WorkflowApprovals.workflow_instance_id',
+                ])
+                ->innerJoinWith('WorkflowApprovals', function ($q) use ($activeWorkflowInstanceIds) {
+                    return $q->where(['WorkflowApprovals.workflow_instance_id IN' => $activeWorkflowInstanceIds]);
+                })
+                ->where(['WorkflowApprovalResponses.member_id' => $memberId])
+                ->enableHydration(false)
+                ->all();
+        }
 
         $activeResponseWorkflowInstanceIds = [];
         foreach ($activeResponses as $response) {

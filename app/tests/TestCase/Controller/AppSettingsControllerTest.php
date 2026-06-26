@@ -199,7 +199,14 @@ class AppSettingsControllerTest extends HttpIntegrationTestCase
         $this->get('/app-settings/asset/' . $name);
 
         $this->assertResponseOk();
-        $this->assertSession(['/members/view/1'], 'pageStack');
+        // Asset (fragment) requests must not record themselves in the navigation
+        // history. The controller leaves pageStack untouched for these requests, so
+        // the asset URL must never appear in it.
+        $this->assertNotContains(
+            '/app-settings/asset/' . $name,
+            (array)$this->_requestSession->read('pageStack'),
+            'Asset requests must not be recorded in navigation history.',
+        );
     }
 
     /**

@@ -879,161 +879,6 @@ class RecommendationsController extends AppController
     }
 
     /**
-     * Grid Data for "Gathering Awards" context
-     *
-     * Provides recommendation data for recommendations scheduled at a specific gathering.
-     * Used in the gathering detail's "Awards" tab.
-     *
-     * @param CsvExportService $csvExportService Injected CSV export service
-     * @param int|null $gatheringId The gathering ID whose scheduled recommendations to show
-     * @return \Cake\Http\Response|null|void Renders view or returns CSV response
-     */
-    public function gatheringAwardsGridData(CsvExportService $csvExportService, RecommendationQueryService $queryService, ?int $gatheringId = null)
-    {
-        if ($gatheringId === null) {
-            throw new \Cake\Http\Exception\BadRequestException(__('Gathering ID is required.'));
-        }
-
-        $user = $this->request->getAttribute('identity');
-
-        // Load gathering for permission check
-        $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
-        $gathering = $gatheringsTable->get($gatheringId);
-
-        // blank recommendation for authorization
-        $recommendation = $this->Recommendations->newEmptyEntity();
-        $recommendation->gathering_id = $gatheringId;
-        $recommendation->gathering = $gathering;
-
-        $this->Authorization->authorize($recommendation, 'ViewGatheringRecommendations');
-        $canViewHidden = $user->checkCan('ViewHidden', $recommendation);
-
-        // Build via service
-        $systemViews = RecommendationsGridColumns::getSystemViews(['context' => 'gatheringAwards']);
-        $queryContext = $this->resolveDataverseGridQueryContext([
-            'gridKey' => 'Awards.Recommendations.gathering.' . $gatheringId,
-            'gridColumnsClass' => RecommendationsGridColumns::class,
-            'systemViews' => $systemViews,
-            'defaultSystemView' => 'sys-recs-gathering',
-            'defaultSort' => ['Recommendations.member_sca_name' => 'asc'],
-        ]);
-        $built = $queryService->buildGatheringAwardsQuery(
-            $this->Recommendations,
-            $gatheringId,
-            $user->checkCan('edit', $recommendation),
-            $queryContext->queryVisibleColumns(),
-        );
-        $baseQuery = $built['query'];
-        $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
-        $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
-        $built['gridOptions']['baseQuery'] = $baseQuery;
-
-        // Use unified trait for grid processing
-        $result = $this->processDataverseGrid($built['gridOptions']);
-        $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
-
-        // Handle CSV export using trait's unified method with data mode
-        if (!empty($result['isCsvExport'])) {
-            $exportData = $this->prepareRecommendationsForExport($result['query'], ['includeGroupedChildren' => true]);
-            return $this->handleCsvExport($result, $csvExportService, 'gathering-awards', 'Awards.Recommendations', $exportData);
-        }
-
-        // Post-process paginated data to add computed fields for display
-        $recommendations = $result['data'];
-
-        // Add group children count for each recommendation
-        $recIds = [];
-        foreach ($recommendations as $r) {
-            $recIds[] = $r->id;
-        }
-        $groupCounts = [];
-        if (!empty($recIds)) {
-            $countQuery = $this->Recommendations->find()
-                ->select([
-                    'recommendation_group_id',
-                    'child_count' => $this->Recommendations->find()->func()->count('*'),
-                ])
-                ->where(['recommendation_group_id IN' => $recIds])
-                ->groupBy(['recommendation_group_id'])
-                ->disableHydration()
-                ->all();
-            foreach ($countQuery as $row) {
-                $groupCounts[(int)$row['recommendation_group_id']] = (int)$row['child_count'];
-            }
-        }
-
-        foreach ($recommendations as $recommendation) {
-            $recommendation->group_children_count = isset($groupCounts[$recommendation->id])
-                ? $groupCounts[$recommendation->id] + 1  // +1 to include the parent/head recommendation
-                : 0;
-            // Build OP links HTML
-            $recommendation->op_links = $this->buildOpLinksHtml($recommendation);
-
-            // Build gatherings HTML (member attendance)
-            $recommendation->gatherings = $this->buildGatheringsHtml($recommendation);
-
-            // Build notes HTML
-            $recommendation->notes = $this->buildNotesHtml($recommendation);
-
-            // Build reason HTML with truncation
-            $recommendation->reason = $this->buildReasonHtml($recommendation);
-        }
-
-        // Set view variables
-        $this->set([
-            'recommendations' => $recommendations,
-            'data' => $recommendations,
-            'rowActions' => RecommendationsGridColumns::getRowActions(),
-            'gridState' => $result['gridState'],
-            'columns' => $result['columnsMetadata'],
-            'visibleColumns' => $result['visibleColumns'],
-            'searchableColumns' => RecommendationsGridColumns::getSearchableColumns(),
-            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
-            'filterOptions' => $result['filterOptions'],
-            'currentFilters' => $result['currentFilters'],
-            'currentSearch' => $result['currentSearch'],
-            'currentView' => $result['currentView'],
-            'availableViews' => $result['availableViews'],
-            'gridKey' => $result['gridKey'],
-            'currentSort' => $result['currentSort'],
-            'currentMember' => $result['currentMember'],
-        ]);
-
-        // Render grid content
-        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
-        $frameId = 'gathering-awards-grid-' . $gatheringId;
-
-        // Build URLs for grid
-        $queryParams = $this->request->getQueryParams();
-        $dataUrl = Router::url([
-            'plugin' => 'Awards',
-            'controller' => 'Recommendations',
-            'action' => 'gatheringAwardsGridData',
-            $gatheringId,
-        ]);
-        $tableDataUrl = $dataUrl;
-        if (!empty($queryParams)) {
-            $tableDataUrl .= '?' . http_build_query($queryParams);
-        }
-
-        if ($turboFrame === $frameId . '-table') {
-            $this->set('tableFrameId', $frameId . '-table');
-            $this->viewBuilder()->setPlugin(null);
-            $this->viewBuilder()->disableAutoLayout();
-            $this->viewBuilder()->setTemplatePath('element');
-            $this->viewBuilder()->setTemplate('dv_grid_table');
-        } else {
-            $this->set('frameId', $frameId);
-            $this->set('dataUrl', $dataUrl);
-            $this->set('tableDataUrl', $tableDataUrl);
-            $this->viewBuilder()->setPlugin(null);
-            $this->viewBuilder()->disableAutoLayout();
-            $this->viewBuilder()->setTemplatePath('element');
-            $this->viewBuilder()->setTemplate('dv_grid_content');
-        }
-    }
-
-    /**
      * Request feedback on selected recommendations or recommendation groups.
      */
     public function requestFeedback(RecommendationFeedbackService $feedbackService): ?\Cake\Http\Response
@@ -3293,29 +3138,6 @@ class RecommendationsController extends AppController
             return null;
         }
 
-        if (preg_match('#/gatherings/view/([^/]+)/?$#', $path, $matches)) {
-            if ($tab !== null && $tab !== 'gathering-awards') {
-                return null;
-            }
-
-            $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
-            try {
-                $gathering = $gatheringsTable->find()
-                    ->where(['public_id' => $matches[1]])
-                    ->firstOrFail();
-            } catch (\Cake\Datasource\Exception\RecordNotFoundException) {
-                return null;
-            }
-
-            $gatheringId = (int)$gathering->id;
-
-            return [
-                'contextKey' => 'gatheringAwards',
-                'tableFrameId' => 'gathering-awards-grid-' . $gatheringId . '-table',
-                'gatheringId' => $gatheringId,
-            ];
-        }
-
         return null;
     }
 
@@ -3326,41 +3148,6 @@ class RecommendationsController extends AppController
     {
         if ($contextKey === 'main') {
             $this->enrichRecommendationsForGrid($recommendations);
-
-            return;
-        }
-
-        if ($contextKey === 'gatheringAwards') {
-            $recIds = array_map(fn($r) => $r->id, $recommendations);
-            $groupCounts = [];
-            if ($recIds !== []) {
-                $countQuery = $this->Recommendations->find()
-                    ->select([
-                        'recommendation_group_id',
-                        'child_count' => $this->Recommendations->find()->func()->count('*'),
-                    ])
-                    ->where(['recommendation_group_id IN' => $recIds])
-                    ->groupBy(['recommendation_group_id'])
-                    ->disableHydration()
-                    ->all();
-                foreach ($countQuery as $row) {
-                    $groupCounts[(int)$row['recommendation_group_id']] = (int)$row['child_count'];
-                }
-            }
-            $this->decoratePendingWorkflowApprovals($recommendations);
-            $identity = $this->request->getAttribute('identity');
-
-            foreach ($recommendations as $recommendation) {
-                $recommendation->bestowal_linked = !empty($recommendation->bestowal_id);
-                $recommendation->bestowal_viewable = $this->canViewLinkedBestowal($recommendation, $identity);
-                $recommendation->group_children_count = isset($groupCounts[$recommendation->id])
-                    ? $groupCounts[$recommendation->id] + 1
-                    : 0;
-                $recommendation->op_links = $this->buildOpLinksHtml($recommendation);
-                $recommendation->gatherings = $this->buildGatheringsHtml($recommendation);
-                $recommendation->notes = $this->buildNotesHtml($recommendation);
-                $recommendation->reason = $this->buildReasonHtml($recommendation);
-            }
 
             return;
         }
@@ -3424,30 +3211,13 @@ class RecommendationsController extends AppController
                 $baseQuery = $built['query'];
                 $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
                 $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
-            } else {
-                $gatheringId = $syncContext['gatheringId'];
-                $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
-                $gathering = $gatheringsTable->get($gatheringId);
-                $recommendation = $this->Recommendations->newEmptyEntity();
-                $recommendation->gathering_id = $gatheringId;
-                $recommendation->gathering = $gathering;
-                $this->Authorization->authorize($recommendation, 'ViewGatheringRecommendations');
-                $canViewHidden = $user->checkCan('ViewHidden', $recommendation);
-                $built = $queryService->buildGatheringAwardsQuery(
-                    $this->Recommendations,
-                    $gatheringId,
-                    $user->checkCan('edit', $recommendation),
-                );
-                $baseQuery = $built['query'];
-                $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
-                $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
             }
 
             $baseQuery = $baseQuery->where(['Recommendations.id' => $recommendationId]);
             $built['gridOptions']['baseQuery'] = $baseQuery;
 
             $result = $this->processDataverseGrid($built['gridOptions']);
-            if ($contextKey === 'main' || $contextKey === 'gatheringAwards') {
+            if ($contextKey === 'main') {
                 $canViewHidden = $canViewHidden ?? $user->checkCan('ViewHidden', $emptyRecommendation);
                 $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
             } elseif ($contextKey === 'memberSubmitted') {
@@ -3473,7 +3243,7 @@ class RecommendationsController extends AppController
 
             $this->enrichRecommendationsForGridContext($recommendations, $contextKey);
             $recommendation = $recommendations[0];
-            $rowActions = $contextKey === 'main' || $contextKey === 'gatheringAwards'
+            $rowActions = $contextKey === 'main'
                 ? $this->filterRecommendationRowActionsForGridResult(
                     RecommendationsGridColumns::getRowActions(),
                     $result,

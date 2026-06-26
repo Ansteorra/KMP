@@ -19,9 +19,9 @@ RUN apt-get update && \
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive && \
     apt-get -y install --no-install-recommends \
     cron supervisor \
-    php8.3 php8.3-bcmath php8.3-bz2 php8.3-intl php8.3-gd php8.3-mbstring \
-    php8.3-mysql php8.3-pgsql php8.3-zip php8.3-dom php8.3-yaml php8.3-curl php8.3-sqlite \
-    php8.3-apcu php8.3-xdebug \
+    php8.4 php8.4-bcmath php8.4-bz2 php8.4-intl php8.4-gd php8.4-mbstring \
+    php8.4-mysql php8.4-pgsql php8.4-zip php8.4-dom php8.4-yaml php8.4-curl php8.4-sqlite \
+    php8.4-apcu php8.4-xdebug \
     mariadb-server apache2 \
     patch python3-pip ruby-full build-essential zlib1g-dev \
     default-jdk libnet-ssleay-perl perl-modules libwhisker2-perl git \
@@ -77,19 +77,19 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 RUN echo "Listen 8080" >> /etc/apache2/ports.conf && \
     a2enmod rewrite
 
-# Configure PHP 8.3 (APCu, assertions, and file upload limits)
-RUN echo "extension=apcu.so" >> /etc/php/8.3/cli/php.ini && \
-    echo "extension=apcu.so" >> /etc/php/8.3/apache2/php.ini && \
-    echo "apc.enable_cli=1" >> /etc/php/8.3/cli/php.ini && \
-    echo "zend.assertions=1" >> /etc/php/8.3/apache2/php.ini && \
-    echo "zend.assertions=1" >> /etc/php/8.3/cli/php.ini && \
-    sed -i 's/^upload_max_filesize = 2M/upload_max_filesize = 5M/' /etc/php/8.3/cli/php.ini && \
-    sed -i 's/^upload_max_filesize = 2M/upload_max_filesize = 5M/' /etc/php/8.3/apache2/php.ini && \
-    sed -i 's/^post_max_size = 8M/post_max_size = 20M/' /etc/php/8.3/cli/php.ini && \
-    sed -i 's/^post_max_size = 8M/post_max_size = 20M/' /etc/php/8.3/apache2/php.ini
+# Configure PHP 8.4 (APCu, assertions, and file upload limits)
+RUN echo "extension=apcu.so" >> /etc/php/8.4/cli/php.ini && \
+    echo "extension=apcu.so" >> /etc/php/8.4/apache2/php.ini && \
+    echo "apc.enable_cli=1" >> /etc/php/8.4/cli/php.ini && \
+    echo "zend.assertions=1" >> /etc/php/8.4/apache2/php.ini && \
+    echo "zend.assertions=1" >> /etc/php/8.4/cli/php.ini && \
+    sed -i 's/^upload_max_filesize = 2M/upload_max_filesize = 5M/' /etc/php/8.4/cli/php.ini && \
+    sed -i 's/^upload_max_filesize = 2M/upload_max_filesize = 5M/' /etc/php/8.4/apache2/php.ini && \
+    sed -i 's/^post_max_size = 8M/post_max_size = 20M/' /etc/php/8.4/cli/php.ini && \
+    sed -i 's/^post_max_size = 8M/post_max_size = 20M/' /etc/php/8.4/apache2/php.ini
 
 # Copy and configure Xdebug
-COPY init_env/20-xdebug.ini /etc/php/8.3/cli/conf.d/20-xdebug.ini
+COPY init_env/20-xdebug.ini /etc/php/8.4/cli/conf.d/20-xdebug.ini
 
 # Set up supervisor and logging
 RUN mkdir -p /var/log/supervisor && \

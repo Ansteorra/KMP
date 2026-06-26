@@ -23,25 +23,25 @@ class AdHocBestowalService
 
     private Table $bestowalsTable;
     private Table $membersTable;
-    private BestowalStateLogService $bestowalStateLogService;
     private BestowalCourtSlotService $courtSlotService;
+    private BestowalTodoMaterializationService $todoMaterializationService;
 
     /**
      * @param \Cake\ORM\Table|null $bestowalsTable Optional injected bestowals table.
      * @param \Cake\ORM\Table|null $membersTable Optional injected members table.
-     * @param \Awards\Services\BestowalStateLogService|null $bestowalStateLogService Optional injected bestowal state-log service.
      * @param \Awards\Services\BestowalCourtSlotService|null $courtSlotService Optional injected court slot service.
+     * @param \Awards\Services\BestowalTodoMaterializationService|null $todoMaterializationService Optional to-do service.
      */
     public function __construct(
         ?Table $bestowalsTable = null,
         ?Table $membersTable = null,
-        ?BestowalStateLogService $bestowalStateLogService = null,
         ?BestowalCourtSlotService $courtSlotService = null,
+        ?BestowalTodoMaterializationService $todoMaterializationService = null,
     ) {
         $this->bestowalsTable = $bestowalsTable ?? $this->fetchTable('Awards.Bestowals');
         $this->membersTable = $membersTable ?? $this->fetchTable('Members');
-        $this->bestowalStateLogService = $bestowalStateLogService ?? new BestowalStateLogService();
         $this->courtSlotService = $courtSlotService ?? new BestowalCourtSlotService();
+        $this->todoMaterializationService = $todoMaterializationService ?? new BestowalTodoMaterializationService();
     }
 
     /**
@@ -63,10 +63,6 @@ class AdHocBestowalService
             ?? $data['gathering_scheduled_activity_id']
             ?? null;
         $bestowedAt = $this->normalizeDateTime($data['bestowedAt'] ?? $data['bestowed_at'] ?? null);
-        $state = trim((string)($data['state'] ?? 'Created'));
-        if ($state === '') {
-            $state = 'Created';
-        }
 
         if ($memberId === null || $memberId <= 0) {
             return $this->failureResult('Member is required for ad-hoc bestowal entry.');
@@ -94,17 +90,19 @@ class AdHocBestowalService
                     $gatheringId,
                     $courtSessionId,
                     $bestowedAt,
-                    $state,
                     $data,
                     $actorId,
                 ): array {
                     $bestowal = $this->bestowalsTable->newEmptyEntity();
                     $bestowal->member_id = (int)$member->id;
+                    $bestowal->member_sca_name = (string)$member->sca_name;
                     $bestowal->award_id = $awardId;
                     $bestowal->gathering_id = $gatheringId;
                     $bestowal->source = Bestowal::SOURCE_AD_HOC;
                     $bestowal->stack_rank = (int)($data['stackRank'] ?? $data['stack_rank'] ?? 0);
-                    $bestowal->state = $state;
+                    $bestowal->lifecycle_status = $bestowedAt !== null
+                        ? Bestowal::LIFECYCLE_GIVEN
+                        : Bestowal::LIFECYCLE_OPEN;
                     $bestowal->bestowed_at = $bestowedAt;
                     $bestowal->call_into_court = $this->normalizeOptionalString(
                         $data['callIntoCourt'] ?? $data['call_into_court'] ?? null,
@@ -132,14 +130,10 @@ class AdHocBestowalService
                     $bestowal->modified_by = $actorId;
 
                     $savedBestowal = $this->bestowalsTable->saveOrFail($bestowal);
-                    $this->bestowalStateLogService->logStateTransition(
-                        (int)$savedBestowal->id,
-                        'New',
-                        (string)$savedBestowal->state,
-                        'New',
-                        $savedBestowal->status !== null ? (string)$savedBestowal->status : null,
-                        $actorId,
-                    );
+
+                    if ($savedBestowal instanceof Bestowal) {
+                        $this->materializeTodos($savedBestowal);
+                    }
 
                     return [
                         'success' => true,
@@ -154,8 +148,8 @@ class AdHocBestowalService
                                 'memberId' => (int)$member->id,
                                 'memberScaName' => (string)$member->sca_name,
                                 'gatheringId' => $gatheringId,
-                                'status' => (string)$savedBestowal->status,
-                                'state' => (string)$savedBestowal->state,
+                                'lifecycleStatus' => (string)($savedBestowal->lifecycle_status
+                                    ?? Bestowal::LIFECYCLE_OPEN),
                                 'source' => Bestowal::SOURCE_AD_HOC,
                                 'bestowedAt' => $bestowedAt?->format(DATE_ATOM),
                             ],
@@ -167,6 +161,27 @@ class AdHocBestowalService
             Log::error('Ad-hoc bestowal failed: ' . $e->getMessage());
 
             return $this->failureResult($e->getMessage());
+        }
+    }
+
+    /**
+     * Materialize the bestowal's to-do checklist from its award's template.
+     *
+     * Failures are logged but never abort the ad-hoc bestowal: the checklist is
+     * supplemental and can be re-materialized idempotently later.
+     *
+     * @param \Awards\Model\Entity\Bestowal $bestowal Saved bestowal entity.
+     * @return void
+     */
+    private function materializeTodos(Bestowal $bestowal): void
+    {
+        try {
+            $result = $this->todoMaterializationService->materializeForBestowal($bestowal);
+            if (!$result->success) {
+                Log::warning('Ad-hoc bestowal to-do materialization reported failure: ' . (string)$result->reason);
+            }
+        } catch (Throwable $e) {
+            Log::error('Ad-hoc bestowal to-do materialization failed: ' . $e->getMessage());
         }
     }
 

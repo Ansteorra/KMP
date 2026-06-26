@@ -1,5 +1,7 @@
 import MobileControllerBase from "./mobile-controller-base.js"
 
+import { MOBILE_QUEUE_DEFAULT_PER_PAGE } from "../mobile-queue-pagination.js"
+
 /**
  * Mobile Approvals Controller
  *
@@ -10,7 +12,8 @@ import MobileControllerBase from "./mobile-controller-base.js"
 class MobileApprovalsController extends MobileControllerBase {
     static targets = [
         "list", "loading", "empty", "error", "errorMessage",
-        "countBadge", "refreshBtn", "toast", "toastBody"
+        "countBadge", "refreshBtn", "loadMore", "loadMoreBtn", "status",
+        "toast", "toastBody"
     ]
 
     static values = {
@@ -19,6 +22,7 @@ class MobileApprovalsController extends MobileControllerBase {
         triageUrl: String,
         eligibleUrl: String,
         detailUrl: String,
+        perPage: { type: Number, default: MOBILE_QUEUE_DEFAULT_PER_PAGE },
     }
 
     initialize() {
@@ -26,6 +30,10 @@ class MobileApprovalsController extends MobileControllerBase {
         this._approvals = []
         this._expandedId = null
         this._submitting = false
+        this._page = 1
+        this._perPage = this._configuredPerPage()
+        this._totalCount = 0
+        this._hasNextPage = false
     }
 
     onConnect() {
@@ -46,13 +54,27 @@ class MobileApprovalsController extends MobileControllerBase {
         this.refreshBtnTarget.disabled = false
     }
 
-    async loadApprovals() {
-        this._showState('loading')
+    async loadApprovals({ append = false } = {}) {
+        if (!append) {
+            this._page = 1
+            this._approvals = []
+            this._expandedId = null
+            this._showState('loading')
+        } else {
+            this._setLoadMoreBusy(true)
+        }
 
         try {
-            const response = await this.fetchWithRetry(this.dataUrlValue)
+            const response = await this.fetchWithRetry(this._pageUrl(this._page))
             const data = await response.json()
-            this._approvals = data.approvals || []
+            const pagination = data.pagination || {}
+            this._totalCount = parseInt(pagination.total ?? (data.approvals || []).length, 10) || 0
+            this._perPage = parseInt(pagination.perPage ?? this._perPage, 10) || this._perPage
+            this._hasNextPage = pagination.hasNextPage === true
+            this._page = parseInt(pagination.page ?? this._page, 10) || this._page
+            this._approvals = append
+                ? this._mergeApprovals(this._approvals, data.approvals || [])
+                : data.approvals || []
 
             if (this._approvals.length === 0) {
                 this._showState('empty')
@@ -62,13 +84,25 @@ class MobileApprovalsController extends MobileControllerBase {
             }
 
             this._updateBadge()
+            this._updateLoadMore()
+            if (append) {
+                this._announce(`Loaded ${this._approvals.length} of ${this._totalCount} pending approvals.`)
+            }
         } catch (error) {
             console.error('Failed to load approvals:', error)
             if (this.hasErrorMessageTarget) {
                 this.errorMessageTarget.textContent = error.message || 'Failed to load approvals.'
             }
             this._showState('error')
+        } finally {
+            this._setLoadMoreBusy(false)
         }
+    }
+
+    async loadMore() {
+        if (!this._hasNextPage) return
+        this._page += 1
+        await this.loadApprovals({ append: true })
     }
 
     // --- Card Rendering ---
@@ -652,7 +686,7 @@ class MobileApprovalsController extends MobileControllerBase {
             const result = await this._readJsonResponse(response, 'Failed to submit response. Please refresh the page and try again.')
 
             if (result.success === false) {
-                throw new Error(result.error || 'Failed to record response')
+                throw new Error(result.error || result.reason || 'Failed to record response')
             }
 
             // Success — animate card out and remove from list
@@ -663,8 +697,10 @@ class MobileApprovalsController extends MobileControllerBase {
             }
 
             this._approvals = this._approvals.filter(a => a.id !== id)
+            this._totalCount = Math.max(0, this._totalCount - 1)
             this._expandedId = null
             this._updateBadge()
+            this._updateLoadMore()
 
             const message = cfg.feedbackResponse === true
                 ? 'Feedback sent successfully.'
@@ -672,7 +708,9 @@ class MobileApprovalsController extends MobileControllerBase {
             this._showToast(message, 'success')
 
             // Show empty state if none left
-            if (this._approvals.length === 0) {
+            if (this._approvals.length === 0 && this._hasNextPage) {
+                await this.loadMore()
+            } else if (this._approvals.length === 0) {
                 setTimeout(() => this._showState('empty'), 500)
             }
         } catch (error) {
@@ -696,13 +734,69 @@ class MobileApprovalsController extends MobileControllerBase {
         if (this.hasEmptyTarget) this.emptyTarget.hidden = state !== 'empty'
         if (this.hasErrorTarget) this.errorTarget.hidden = state !== 'error'
         if (this.hasListTarget) this.listTarget.hidden = state !== 'list'
+        if (this.hasLoadMoreTarget) this.loadMoreTarget.hidden = state !== 'list' || !this._hasNextPage
     }
 
     _updateBadge() {
         if (!this.hasCountBadgeTarget) return
-        const count = this._approvals.length
-        this.countBadgeTarget.textContent = `${count} pending`
-        this.countBadgeTarget.hidden = count === 0
+        const loaded = this._approvals.length
+        const total = this._totalCount || loaded
+        this.countBadgeTarget.textContent = loaded === total
+            ? `${total} pending`
+            : `${loaded} of ${total} pending`
+        this.countBadgeTarget.hidden = total === 0
+    }
+
+    _updateLoadMore() {
+        if (this.hasLoadMoreTarget) {
+            this.loadMoreTarget.hidden = !this._hasNextPage || this._approvals.length === 0
+        }
+        if (this.hasLoadMoreBtnTarget) {
+            this.loadMoreBtnTarget.disabled = !this._hasNextPage
+            const remaining = Math.max(0, this._totalCount - this._approvals.length)
+            this.loadMoreBtnTarget.textContent = remaining > 0
+                ? `Load more (${remaining} remaining)`
+                : 'Load more'
+        }
+    }
+
+    _setLoadMoreBusy(isBusy) {
+        if (!this.hasLoadMoreBtnTarget) return
+        this.loadMoreBtnTarget.disabled = isBusy || !this._hasNextPage
+        this.loadMoreBtnTarget.setAttribute('aria-busy', isBusy ? 'true' : 'false')
+        if (isBusy) {
+            this.loadMoreBtnTarget.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>Loading...'
+        } else {
+            this._updateLoadMore()
+        }
+    }
+
+    _mergeApprovals(existing, incoming) {
+        const seen = new Set(existing.map(approval => approval.id))
+        return existing.concat(incoming.filter(approval => {
+            if (seen.has(approval.id)) return false
+            seen.add(approval.id)
+            return true
+        }))
+    }
+
+    _pageUrl(page) {
+        const url = new URL(this.dataUrlValue, window.location.origin)
+        url.searchParams.set('page', page)
+        url.searchParams.set('per_page', this._perPage)
+        return url.toString()
+    }
+
+    _configuredPerPage() {
+        const perPage = parseInt(this.perPageValue, 10)
+        return perPage > 0 ? perPage : MOBILE_QUEUE_DEFAULT_PER_PAGE
+    }
+
+    _announce(message) {
+        if (this.hasStatusTarget) {
+            this.statusTarget.textContent = message
+        }
+        window.KMP_accessibility?.announce?.(message)
     }
 
     _showToast(message, type) {

@@ -41,9 +41,9 @@ class RestoreStagingServiceTest extends TestCase
     }
 
     /**
-     * Verify staged payloads round-trip once and are deleted after consumption.
+     * Verify staged payloads round-trip and remain available until explicit discard.
      */
-    public function testStageAndConsumeRoundTripDeletesPayload(): void
+    public function testStageAndConsumeRoundTripRetainsPayloadUntilDiscard(): void
     {
         $service = new RestoreStagingService($this->directory);
         $token = $service->stage('encrypted-bytes', 'restore-key', [
@@ -62,9 +62,29 @@ class RestoreStagingServiceTest extends TestCase
         $this->assertSame('restore-key', $payload['encryption_key']);
         $this->assertSame('backup.kmpbackup', $payload['context']['source']);
         $this->assertFileDoesNotExist($payloadPath);
+        $this->assertCount(1, glob($payloadPath . '.*.claimed') ?: []);
 
+        $retryPayload = $service->consume($token);
+        $this->assertSame('encrypted-bytes', $retryPayload['encrypted_data']);
+
+        $service->discard($token);
+        $this->assertCount(0, glob($payloadPath . '.*.claimed') ?: []);
         $this->expectException(RuntimeException::class);
         $service->consume($token);
+    }
+
+    public function testDefaultDirectoryUsesSharedAppTmpPath(): void
+    {
+        $service = new RestoreStagingService();
+        $token = $service->stage('encrypted-bytes', 'restore-key');
+        $payloadPath = TMP . 'restore_staging' . DIRECTORY_SEPARATOR . $token . '.json';
+
+        $this->assertFileExists($payloadPath);
+
+        $service->consume($token);
+        $this->assertFileDoesNotExist($payloadPath);
+        $this->assertCount(1, glob($payloadPath . '.*.claimed') ?: []);
+        $service->discard($token);
     }
 
     /**

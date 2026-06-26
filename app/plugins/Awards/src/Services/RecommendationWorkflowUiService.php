@@ -7,7 +7,7 @@ use App\KMP\KmpIdentityInterface;
 use App\KMP\WorkflowApprovalDecisionOptions;
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowApprovalResponse;
-use App\Services\WorkflowEngine\DefaultWorkflowApprovalManager;
+use App\Model\Table\WorkflowApprovalsTable;
 use Awards\Model\Entity\Recommendation;
 use Awards\Model\Entity\RecommendationApprovalRun;
 use Cake\ORM\Locator\LocatorAwareTrait;
@@ -160,27 +160,14 @@ class RecommendationWorkflowUiService
             return null;
         }
 
-        $approvals = $this->fetchTable('WorkflowApprovals')->find()
-            ->contain(['CurrentApprover'])
-            ->where([
-                'WorkflowApprovals.workflow_instance_id IN' => $workflowInstanceIds,
-                'WorkflowApprovals.status' => WorkflowApproval::STATUS_PENDING,
-            ])
-            ->orderByDesc('WorkflowApprovals.modified')
-            ->all();
+        $approvals = WorkflowApprovalsTable::getPendingApprovalsForMember(
+            $memberId,
+            ['CurrentApprover'],
+            $workflowInstanceIds,
+            1,
+        );
 
-        $approvalManager = new DefaultWorkflowApprovalManager();
-        foreach ($approvals as $approval) {
-            $eligibleIds = array_map(
-                static fn($member): int => (int)$member->id,
-                $approvalManager->getEligibleApprovers((int)$approval->id),
-            );
-            if (in_array($memberId, $eligibleIds, true)) {
-                return $approval;
-            }
-        }
-
-        return null;
+        return $approvals[0] ?? null;
     }
 
     /**

@@ -4,7 +4,6 @@ declare(strict_types=1);
 namespace Awards\Test\TestCase\Services;
 
 use App\Test\TestCase\BaseTestCase;
-use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\Recommendation;
 use Awards\Services\BestowalCreationService;
 use Awards\Services\BestowalUpdateService;
@@ -25,7 +24,6 @@ class BestowalUpdateServiceTest extends BaseTestCase
         $this->skipIfPostgres();
 
         Recommendation::clearCache();
-        Bestowal::clearCache();
 
         $this->recommendationsTable = $this->getTableLocator()->get('Awards.Recommendations');
         $this->bestowalsTable = $this->getTableLocator()->get('Awards.Bestowals');
@@ -36,20 +34,17 @@ class BestowalUpdateServiceTest extends BaseTestCase
     protected function tearDown(): void
     {
         Recommendation::clearCache();
-        Bestowal::clearCache();
         parent::tearDown();
     }
 
     public function testUpdateRequiresAwardId(): void
     {
         $bestowalId = $this->createBestowalFromRecommendation();
-        $bestowal = $this->bestowalsTable->get($bestowalId);
 
         $result = $this->updateService->update(
             $this->bestowalsTable,
             $bestowalId,
             [
-                'state' => $bestowal->state,
                 'award_id' => '',
             ],
             self::ADMIN_MEMBER_ID,
@@ -72,14 +67,12 @@ class BestowalUpdateServiceTest extends BaseTestCase
         $this->assertTrue($createResult['success'], $createResult['error'] ?? json_encode($createResult));
 
         $bestowalId = (int)$createResult['data']['bestowalId'];
-        $bestowal = $this->bestowalsTable->get($bestowalId);
         $replacementAwardId = $this->getAlternateAwardId($originalRecommendationAwardId);
 
         $result = $this->updateService->update(
             $this->bestowalsTable,
             $bestowalId,
             [
-                'state' => $bestowal->state,
                 'award_id' => $replacementAwardId,
             ],
             self::ADMIN_MEMBER_ID,
@@ -107,7 +100,6 @@ class BestowalUpdateServiceTest extends BaseTestCase
             $this->bestowalsTable,
             $bestowalId,
             [
-                'state' => $bestowal->state,
                 'award_id' => (int)$bestowal->award_id,
                 'specialty' => 'Scribal Arts',
             ],

@@ -80,7 +80,7 @@ class BranchScopedAuthorizationTest extends BaseTestCase
 
     /**
      * Test Devon has Regional Officer Management role at Southern (13) region
-     * and Local Landed roles at branches 33 and 38
+     * and Landed Nobility roles at branches 33 and 38
      *
      * @return void
      */

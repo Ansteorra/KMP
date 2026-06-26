@@ -6,6 +6,7 @@ namespace App\Test\TestCase\Middleware;
 use App\Middleware\TenantResolutionMiddleware;
 use App\Services\Platform\PlatformHealthCheckerInterface;
 use App\Services\Platform\PlatformHealthStatus;
+use App\Services\Platform\TenantHostResolver;
 use App\Services\Secrets\SecretStoreInterface;
 use App\Services\Secrets\SensitiveString;
 use App\Services\TenantConnectionManager;
@@ -34,10 +35,16 @@ class TenantResolutionMiddlewareTest extends TestCase
         parent::setUp();
         $this->platformConfig = ConnectionManager::getConfig('platform');
         $this->previousPortalConfig = (array)Configure::read('Platform.adminPortal', []);
+        // The tenant host map is cached in a shared, persistent (file/redis) store
+        // with a long duration. Clear it so each test resolves against the platform
+        // database it configures rather than a stale map left by the running app or
+        // a prior test.
+        TenantHostResolver::clearCache();
     }
 
     protected function tearDown(): void
     {
+        TenantHostResolver::clearCache();
         ConnectionManager::drop('platform');
         if ($this->platformConfig !== null) {
             ConnectionManager::setConfig('platform', $this->platformConfig);

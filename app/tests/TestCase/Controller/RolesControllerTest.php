@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Controller;
 
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
+use DOMDocument;
 
 /**
  * Tests for RolesController, focusing on grid sorting.
@@ -66,7 +67,7 @@ class RolesControllerTest extends HttpIntegrationTestCase
         $this->assertResponseOk();
 
         $body = (string)$this->_response->getBody();
-        $dom = new \DOMDocument();
+        $dom = new DOMDocument();
         $previousLibxmlSetting = libxml_use_internal_errors(true);
         $dom->loadHTML($body);
         libxml_clear_errors();
@@ -102,7 +103,58 @@ class RolesControllerTest extends HttpIntegrationTestCase
         $this->assertTrue(
             $hasSortedNextPageLink,
             'Expected at least one page=2 pagination link to preserve sort=name and direction=asc. '
-            . 'Found links: ' . implode(', ', $hrefs)
+            . 'Found links: ' . implode(', ', $hrefs),
+        );
+    }
+
+    public function testTableFramePaginationLinksAdvanceFromCurrentPage(): void
+    {
+        $this->configRequest([
+            'headers' => [
+                'Turbo-Frame' => 'roles-grid-table',
+            ],
+        ]);
+        $this->get('/roles/grid-data?ignore_default=1&sort=name&direction=asc&limit=1&page=2');
+        $this->assertResponseOk();
+
+        $body = (string)$this->_response->getBody();
+        $dom = new DOMDocument();
+        $previousLibxmlSetting = libxml_use_internal_errors(true);
+        $dom->loadHTML($body);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousLibxmlSetting);
+        $links = $dom->getElementsByTagName('a');
+
+        $hrefs = [];
+        $hasSortedNextPageLink = false;
+        foreach ($links as $link) {
+            $href = (string)$link->getAttribute('href');
+            if ($href === '') {
+                continue;
+            }
+
+            $decodedHref = html_entity_decode($href, ENT_QUOTES | ENT_HTML5);
+            $hrefs[] = $decodedHref;
+            $queryString = parse_url($decodedHref, PHP_URL_QUERY);
+            if (!is_string($queryString)) {
+                continue;
+            }
+
+            parse_str($queryString, $params);
+            if (
+                (string)($params['page'] ?? '') === '3'
+                && (string)($params['sort'] ?? '') === 'name'
+                && (string)($params['direction'] ?? '') === 'asc'
+            ) {
+                $hasSortedNextPageLink = true;
+                break;
+            }
+        }
+
+        $this->assertTrue(
+            $hasSortedNextPageLink,
+            'Expected table-frame pagination from page=2 to include a page=3 link while preserving sort=name '
+            . 'and direction=asc. Found links: ' . implode(', ', $hrefs),
         );
     }
 }

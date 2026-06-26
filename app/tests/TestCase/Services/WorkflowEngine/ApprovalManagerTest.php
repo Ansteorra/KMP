@@ -5,6 +5,7 @@ namespace App\Test\TestCase\Services\WorkflowEngine;
 
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowApprovalResponse;
+use App\Model\Table\WorkflowApprovalsTable;
 use App\Services\WorkflowEngine\DefaultWorkflowApprovalManager;
 use App\Test\TestCase\BaseTestCase;
 use Cake\Core\ContainerInterface;
@@ -129,6 +130,11 @@ class ApprovalManagerTest extends BaseTestCase
             'approverType' => WorkflowApproval::APPROVER_TYPE_MEMBER,
             'approverConfig' => ['member_id' => self::ADMIN_MEMBER_ID],
         ]);
+        $pendingApprovalIds = array_map(
+            static fn(WorkflowApproval $approval): int => (int)$approval->id,
+            WorkflowApprovalsTable::getPendingApprovalsForMember(self::ADMIN_MEMBER_ID),
+        );
+        $this->assertContains($approvalId, $pendingApprovalIds);
 
         $result = $this->manager->recordResponse(
             $approvalId,
@@ -156,7 +162,7 @@ class ApprovalManagerTest extends BaseTestCase
     }
 
     // =====================================================
-    // Approver type: dynamic (not implemented → always false)
+    // Approver type: dynamic
     // =====================================================
 
     public function testDynamicApproverTypeRejectsEveryone(): void
@@ -173,6 +179,31 @@ class ApprovalManagerTest extends BaseTestCase
             WorkflowApprovalResponse::DECISION_APPROVE,
         );
         $this->assertFalse($result->isSuccess());
+    }
+
+    public function testDynamicMemberApproverCanRecordWhenEligible(): void
+    {
+        [, $instanceId, $logId] = $this->createWorkflowContext();
+        $approvalId = $this->createApproval($instanceId, $logId, [
+            'approverType' => WorkflowApproval::APPROVER_TYPE_DYNAMIC,
+            'approverConfig' => [
+                'award_approval_approver_type' => 'member',
+                'award_approval_approver_source_id' => self::ADMIN_MEMBER_ID,
+            ],
+        ]);
+        $pendingApprovalIds = array_map(
+            static fn(WorkflowApproval $approval): int => (int)$approval->id,
+            WorkflowApprovalsTable::getPendingApprovalsForMember(self::ADMIN_MEMBER_ID),
+        );
+        $this->assertContains($approvalId, $pendingApprovalIds);
+
+        $result = $this->manager->recordResponse(
+            $approvalId,
+            self::ADMIN_MEMBER_ID,
+            WorkflowApprovalResponse::DECISION_APPROVE,
+        );
+
+        $this->assertTrue($result->isSuccess(), $result->getError() ?? 'Dynamic member approval should succeed.');
     }
 
     public function testDynamicApproverCanOnlyCountOncePerWorkflowInstance(): void

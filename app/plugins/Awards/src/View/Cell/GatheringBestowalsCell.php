@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace Awards\View\Cell;
 
-use Awards\Model\Entity\Bestowal;
 use Awards\Services\BestowalFormService;
 use Cake\Log\Log;
 use Cake\ORM\TableRegistry;
@@ -52,16 +51,8 @@ class GatheringBestowalsCell extends Cell
         $emptyBestowal->gathering = $gathering;
         $canManage = $currentUser->can('edit', $emptyBestowal);
 
-        $statusList = Bestowal::getStatuses();
-        foreach ($statusList as $key => $value) {
-            $states = $value;
-            $statusList[$key] = [];
-            foreach ($states as $state) {
-                $statusList[$key][$state] = $state;
-            }
-        }
-
-        $rules = Bestowal::getStateRules();
+        $statusList = [];
+        $rules = [];
         $gatheringList = [];
         $adHocFormData = (new BestowalFormService())->prepareAdHocFormData($currentUser);
 

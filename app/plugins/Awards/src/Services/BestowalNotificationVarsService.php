@@ -76,10 +76,11 @@ class BestowalNotificationVarsService
             $vars = [
                 'bestowalId' => (int)$bestowal->id,
                 'eventType' => $eventType,
-                'memberId' => (int)$bestowal->member_id,
-                'memberScaName' => $member !== null ? (string)$member->sca_name : '',
-                'status' => (string)$bestowal->status,
-                'state' => (string)$bestowal->state,
+                'memberId' => $bestowal->member_id !== null ? (int)$bestowal->member_id : null,
+                'memberScaName' => $member !== null
+                    ? (string)$member->sca_name
+                    : (string)$bestowal->member_sca_name,
+                'lifecycleStatus' => (string)$bestowal->lifecycle_status,
                 'source' => (string)$bestowal->source,
                 'gatheringId' => $bestowal->gathering_id !== null ? (int)$bestowal->gathering_id : null,
                 'gatheringName' => $gathering !== null ? (string)$gathering->name : '',

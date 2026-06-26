@@ -14,7 +14,7 @@ If `app/config/.env` does not exist yet, `./dev-up.sh` creates it from `app/conf
 
 | Service | Container | Purpose | Default host access |
 |---------|-----------|---------|---------------------|
-| `app` | `kmp-app` | PHP 8.3, Apache, Composer, Node, Xdebug | http://kmp.localhost:8080 |
+| `app` | `kmp-app` | PHP 8.4, Apache, Composer, Node, Xdebug | http://kmp.localhost:8080 |
 | `worker` | `kmp-worker` | Queue worker using the same app image and database config | Docker logs |
 | `scheduler` | `kmp-scheduler` | Local scheduled-task loop using the same app image and database config | Docker logs |
 | `db` | `kmp-db` | PostgreSQL 16 | `127.0.0.1:5432` |

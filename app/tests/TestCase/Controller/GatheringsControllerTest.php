@@ -5,9 +5,7 @@ namespace App\Test\TestCase\Controller;
 
 use App\KMP\TimezoneHelper;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
-use Awards\Model\Entity\Recommendation;
 use Cake\Cache\Cache;
-use Cake\I18n\DateTime;
 use Waivers\Policy\GatheringWaiverPolicy;
 
 /**
@@ -56,195 +54,6 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         }
         $this->get('/gatherings/view/' . $gathering->public_id);
         $this->assertResponseOk();
-    }
-
-    public function testGatheringAwardsTabRendersQuickEditModalWhenRecommendationsExist(): void
-    {
-        $gatherings = $this->getTableLocator()->get('Gatherings');
-        $awards = $this->getTableLocator()->get('Awards.Awards');
-        $branches = $this->getTableLocator()->get('Branches');
-        $members = $this->getTableLocator()->get('Members');
-        $recommendations = $this->getTableLocator()->get('Awards.Recommendations');
-
-        $gathering = $gatherings->find()->first();
-        $award = $awards->find()->first();
-        $branch = $branches->find()->first();
-        $member = $members->find()->first();
-        if (!$gathering || !$award || !$member || !$branch) {
-            $this->markTestSkipped('Required seed data for gathering award recommendation test is unavailable.');
-        }
-
-        $branchId = $award->branch_id ?? $member->branch_id ?? $branch->id ?? null;
-        if ($branchId === null) {
-            $this->markTestSkipped('No branch available for recommendation test data.');
-        }
-
-        $status = $this->statusForState('Scheduled');
-        if ($status === null) {
-            $this->markTestSkipped('Scheduled recommendation state is unavailable.');
-        }
-
-        $recommendation = $recommendations->newEntity([
-            'requester_id' => (int)$member->id,
-            'member_id' => (int)$member->id,
-            'branch_id' => (int)$branchId,
-            'award_id' => (int)$award->id,
-            'gathering_id' => (int)$gathering->id,
-            'status' => $status,
-            'state' => 'Scheduled',
-            'state_date' => DateTime::now(),
-            'requester_sca_name' => (string)($member->sca_name ?? 'Requester'),
-            'member_sca_name' => (string)($member->sca_name ?? 'Member'),
-            'contact_email' => (string)($member->email_address ?? 'test@example.com'),
-            'contact_number' => (string)($member->phone_number ?? ''),
-            'reason' => 'Quick edit modal regression test recommendation.',
-            'call_into_court' => 'No',
-            'court_availability' => 'Anytime',
-        ]);
-        $savedRecommendation = $recommendations->save($recommendation);
-        $this->assertNotFalse($savedRecommendation);
-
-        $this->get('/gatherings/view/' . $gathering->public_id);
-
-        $this->assertResponseOk();
-        $this->assertResponseContains('id="editRecommendationModal"');
-    }
-
-    public function testEditClearsGatheringWhenMovedToUnsupportedState(): void
-    {
-        $gatherings = $this->getTableLocator()->get('Gatherings');
-        $awards = $this->getTableLocator()->get('Awards.Awards');
-        $branches = $this->getTableLocator()->get('Branches');
-        $members = $this->getTableLocator()->get('Members');
-        $recommendations = $this->getTableLocator()->get('Awards.Recommendations');
-
-        $gathering = $gatherings->find()->first();
-        $award = $awards->find()->first();
-        $branch = $branches->find()->first();
-        $member = $members->find()->first();
-        if (!$gathering || !$award || !$member || !$branch) {
-            $this->markTestSkipped('Required seed data for gathering state transition test is unavailable.');
-        }
-
-        $scheduledStatus = $this->statusForState('Scheduled');
-        $closedStatus = $this->statusForState('No Action');
-        if ($scheduledStatus === null || $closedStatus === null) {
-            $this->markTestSkipped('Required recommendation states are unavailable.');
-        }
-
-        $branchId = $award->branch_id ?? $member->branch_id ?? $branch->id ?? null;
-        if ($branchId === null) {
-            $this->markTestSkipped('No branch available for recommendation test data.');
-        }
-
-        $recommendation = $recommendations->newEntity([
-            'requester_id' => (int)$member->id,
-            'member_id' => (int)$member->id,
-            'branch_id' => (int)$branchId,
-            'award_id' => (int)$award->id,
-            'gathering_id' => (int)$gathering->id,
-            'status' => $scheduledStatus,
-            'state' => 'Scheduled',
-            'state_date' => DateTime::now(),
-            'requester_sca_name' => (string)($member->sca_name ?? 'Requester'),
-            'member_sca_name' => (string)($member->sca_name ?? 'Member'),
-            'contact_email' => (string)($member->email_address ?? 'test@example.com'),
-            'contact_number' => (string)($member->phone_number ?? ''),
-            'reason' => 'State transition should clear gathering assignment.',
-            'call_into_court' => 'No',
-            'court_availability' => 'Anytime',
-        ]);
-        $savedRecommendation = $recommendations->save($recommendation);
-        $this->assertNotFalse($savedRecommendation);
-
-        $this->post('/awards/recommendations/edit/' . $savedRecommendation->id, [
-            'state' => 'No Action',
-            'gathering_id' => (string)$gathering->id,
-            'close_reason' => 'No action needed',
-            'current_page' => '/gatherings/view/' . $gathering->public_id,
-        ]);
-
-        $this->assertRedirectContains('/gatherings/view/' . $gathering->public_id);
-
-        $updated = $recommendations->get($savedRecommendation->id);
-        $this->assertSame('No Action', $updated->state);
-        $this->assertSame($closedStatus, $updated->status);
-        $this->assertNull($updated->gathering_id);
-    }
-
-    public function testBulkUpdateClearsGatheringWhenMovedToUnsupportedState(): void
-    {
-        $gatherings = $this->getTableLocator()->get('Gatherings');
-        $awards = $this->getTableLocator()->get('Awards.Awards');
-        $branches = $this->getTableLocator()->get('Branches');
-        $members = $this->getTableLocator()->get('Members');
-        $recommendations = $this->getTableLocator()->get('Awards.Recommendations');
-
-        $gathering = $gatherings->find()->first();
-        $award = $awards->find()->first();
-        $branch = $branches->find()->first();
-        $member = $members->find()->first();
-        if (!$gathering || !$award || !$member || !$branch) {
-            $this->markTestSkipped('Required seed data for gathering bulk transition test is unavailable.');
-        }
-
-        $scheduledStatus = $this->statusForState('Scheduled');
-        $closedStatus = $this->statusForState('No Action');
-        if ($scheduledStatus === null || $closedStatus === null) {
-            $this->markTestSkipped('Required recommendation states are unavailable.');
-        }
-
-        $branchId = $award->branch_id ?? $member->branch_id ?? $branch->id ?? null;
-        if ($branchId === null) {
-            $this->markTestSkipped('No branch available for recommendation test data.');
-        }
-
-        $recommendation = $recommendations->newEntity([
-            'requester_id' => (int)$member->id,
-            'member_id' => (int)$member->id,
-            'branch_id' => (int)$branchId,
-            'award_id' => (int)$award->id,
-            'gathering_id' => (int)$gathering->id,
-            'status' => $scheduledStatus,
-            'state' => 'Scheduled',
-            'state_date' => DateTime::now(),
-            'requester_sca_name' => (string)($member->sca_name ?? 'Requester'),
-            'member_sca_name' => (string)($member->sca_name ?? 'Member'),
-            'contact_email' => (string)($member->email_address ?? 'test@example.com'),
-            'contact_number' => (string)($member->phone_number ?? ''),
-            'reason' => 'Bulk state transition should clear gathering assignment.',
-            'call_into_court' => 'No',
-            'court_availability' => 'Anytime',
-        ]);
-        $savedRecommendation = $recommendations->save($recommendation);
-        $this->assertNotFalse($savedRecommendation);
-
-        $this->post('/awards/recommendations/update-states', [
-            'ids' => (string)$savedRecommendation->id,
-            'newState' => 'No Action',
-            'gathering_id' => (string)$gathering->id,
-            'close_reason' => 'No action needed',
-            'view' => 'Index',
-            'status' => 'All',
-        ]);
-
-        $this->assertRedirect();
-
-        $updated = $recommendations->get($savedRecommendation->id);
-        $this->assertSame('No Action', $updated->state);
-        $this->assertSame($closedStatus, $updated->status);
-        $this->assertNull($updated->gathering_id);
-    }
-
-    private function statusForState(string $state): ?string
-    {
-        foreach (Recommendation::getStatuses() as $status => $states) {
-            if (in_array($state, $states, true)) {
-                return $status;
-            }
-        }
-
-        return null;
     }
 
     /**
@@ -933,19 +742,22 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $roles->saveOrFail($role);
 
         $connection->execute(
-            'INSERT INTO roles_permissions (role_id, permission_id, created, modified, created_by, modified_by)
-             VALUES (?, ?, NOW(), NOW(), 1, 1)',
+            'INSERT INTO roles_permissions (role_id, permission_id, created, created_by)
+             VALUES (?, ?, NOW(), 1)',
             [(int)$role->id, (int)$permission->id],
         );
         $connection->execute(
             'INSERT INTO member_roles
              (member_id, role_id, branch_id, start_on, expires_on, approver_id, entity_type, created, modified, created_by, modified_by)
-             VALUES (?, ?, ?, NOW(), ?, 1, ?, NOW(), NOW(), 1, 1)',
-            [$memberId, (int)$role->id, $branchId, '2100-01-01', 'Direct Grant'],
+             VALUES (?, ?, ?, ?, ?, 1, ?, NOW(), NOW(), 1, 1)',
+            [$memberId, (int)$role->id, $branchId, '2020-01-01 00:00:00', '2100-01-01', 'Direct Grant'],
         );
 
-        Cache::delete('permissions_policies' . $memberId, 'member_permissions');
-        Cache::delete('member_permissions' . $memberId, 'member_permissions');
+        // The role/permission rows above are inserted via raw SQL, bypassing the ORM
+        // afterSave hooks that normally clear the security cache. The member_permissions
+        // cache config belongs to the 'security' group, so clear that group directly
+        // (clearGroup('member_permissions') would be a no-op — no such group exists).
+        Cache::clearGroup('security');
     }
 
     private function createScheduledActivity($gathering, int $createdBy, string $title)

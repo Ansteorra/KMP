@@ -2,10 +2,10 @@
 
 /**
  * Dataverse Table Element
- * 
+ *
  * Renders a data table with sortable headers, custom cell renderers,
  * row actions, and integration with the grid-view Stimulus controller.
- * 
+ *
  * @var \App\View\AppView $this
  * @var array $columns Column metadata from GridColumns class
  * @var array $visibleColumns Currently visible column keys
@@ -20,8 +20,6 @@
  * @var array $bulkSelection Bulk selection label configuration (optional)
  * @var string|null $bulkSelectionDisabledLabel Disabled row checkbox title (optional)
  */
-
-use App\KMP\StaticHelpers;
 
 $controllerName = $controllerName ?? 'grid-view';
 $primaryKey = $primaryKey ?? 'id';
@@ -43,7 +41,7 @@ if ($rowDomIdPrefix === null && !empty($tableFrameId)) {
 }
 
 $getRowValue = function ($row, string $path) use (&$getRowValue, $columns) {
-    if (isset($columns[$path]['renderField'])) {
+    if (isset($columns[$path]['renderField']) && $columns[$path]['renderField'] !== $path) {
         return $getRowValue($row, $columns[$path]['renderField']);
     }
 
@@ -111,7 +109,7 @@ $totalColumns = count($visibleColumns) + ($showActionsColumn ? 1 : 0) + ($enable
     <table class="table table-striped table-hover" data-<?= h($controllerName) ?>-target="gridTable">
         <thead class="table-light">
             <tr>
-                <?php if ($enableBulkSelection): ?>
+                <?php if ($enableBulkSelection) : ?>
                     <th scope="col" style="width: 40px; text-align: center;">
                         <input type="checkbox" 
                                class="form-check-input" 
@@ -120,42 +118,49 @@ $totalColumns = count($visibleColumns) + ($showActionsColumn ? 1 : 0) + ($enable
                                aria-label="<?= h($selectAllBulkSelectionLabel) ?>">
                     </th>
                 <?php endif; ?>
-                <?php foreach ($visibleColumns as $columnKey): ?>
-                    <?php if (!isset($columns[$columnKey])) continue; ?>
+                <?php foreach ($visibleColumns as $columnKey) : ?>
+                    <?php if (!isset($columns[$columnKey])) {
+                        continue;
+                    } ?>
                     <?php $column = $columns[$columnKey]; ?>
                     <?php
                     $isSorted = isset($currentSort['field']) && $currentSort['field'] === $columnKey;
                     $sortDirection = $isSorted ? $currentSort['direction'] : null;
                     $sortable = $column['sortable'] ?? true;
+                    $thClasses = trim(
+                        ($sortable ? 'sortable-header' : '')
+                        . ' '
+                        . ($isSorted ? 'sorted-' . $sortDirection : ''),
+                    );
                     ?>
                     <th scope="col"
-                        class="<?= $sortable ? 'sortable-header' : '' ?> <?= $isSorted ? 'sorted-' . $sortDirection : '' ?>"
+                        class="<?= h($thClasses) ?>"
                         style="<?= !empty($column['width']) ? 'width: ' . h($column['width']) . ';' : '' ?> 
                                text-align: <?= h($column['alignment'] ?? 'left') ?>;"
-                        <?php if ($sortable): ?>
+                        <?php if ($sortable) : ?>
                         data-action="click-><?= h($controllerName) ?>#applySort"
                         data-column-key="<?= h($columnKey) ?>"
                         style="cursor: pointer;"
                         <?php endif; ?>>
                         <?= h($column['label']) ?>
-                        <?php if ($sortable): ?>
+                        <?php if ($sortable) : ?>
                             <span class="sort-indicator ms-1">
-                                <?php if ($isSorted): ?>
-                                    <?php if ($sortDirection === 'asc'): ?>
+                                <?php if ($isSorted) : ?>
+                                    <?php if ($sortDirection === 'asc') : ?>
                                         <i class="bi bi-caret-up-fill"></i>
-                                    <?php else: ?>
+                                    <?php else : ?>
                                         <i class="bi bi-caret-down-fill"></i>
                                     <?php endif; ?>
-                                <?php else: ?>
+                                <?php else : ?>
                                     <i class="bi bi-caret-down text-muted"></i>
                                 <?php endif; ?>
                             </span>
                         <?php endif; ?>
                     </th>
                 <?php endforeach; ?>
-                <?php if ($showActionsColumn): ?>
+                <?php if ($showActionsColumn) : ?>
                     <th scope="col" class="text-end" style="width: 70px;">
-                        <?php if ($enableColumnPicker): ?>
+                        <?php if ($enableColumnPicker) : ?>
                             <button type="button"
                                 class="btn btn-sm btn-outline-secondary"
                                 data-bs-toggle="modal"
@@ -168,14 +173,14 @@ $totalColumns = count($visibleColumns) + ($showActionsColumn ? 1 : 0) + ($enable
             </tr>
         </thead>
         <tbody>
-            <?php if (empty($data)): ?>
+            <?php if (empty($data)) : ?>
                 <tr>
                     <td colspan="<?= $totalColumns ?>" class="text-center text-muted py-4">
                         No records found.
                     </td>
                 </tr>
-            <?php else: ?>
-                <?php foreach ($data as $row): ?>
+            <?php else : ?>
+                <?php foreach ($data as $row) : ?>
                     <?php
                     $rowId = is_array($row) ? ($row[$primaryKey] ?? null) : ($row->{$primaryKey} ?? null);
                     $bulkSelectionLabel = $rowBulkSelectionLabelTemplate

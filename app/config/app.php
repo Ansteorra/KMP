@@ -20,6 +20,7 @@ declare(strict_types=1);
 use App\Services\Security\SessionCookieConfig;
 use App\KMP\Telemetry\SqlRedactor;
 use App\Log\Engine\ApplicationInsightsLog;
+use App\Log\Formatter\QueryLogFormatter;
 use Cake\Cache\Engine\ApcuEngine;
 use Cake\Cache\Engine\ArrayEngine;
 use Cake\Cache\Engine\FileEngine;
@@ -91,7 +92,7 @@ $localHttpEnvironment = in_array(
     ['dev', 'development', 'local', 'test'],
     true,
 );
-$restoreStatusPath = env('RESTORE_STATUS_CACHE_PATH', sys_get_temp_dir() . DS . 'kmp_restore_status_shared' . DS);
+$restoreStatusPath = env('RESTORE_STATUS_CACHE_PATH', TMP . 'restore_status' . DS);
 if (!is_dir($restoreStatusPath)) {
     @mkdir($restoreStatusPath, 0777, true);
 }
@@ -650,6 +651,11 @@ return [
         "queries" => [
             /** @var string Log engine class */
             "className" => FileLog::class,
+
+            /** @var array Formatter that adds HTTP request correlation details */
+            "formatter" => [
+                "className" => QueryLogFormatter::class,
+            ],
 
             /** @var string Log file directory path */
             "path" => LOGS,

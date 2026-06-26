@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -12,7 +11,6 @@ use Cake\Validation\Validator;
  *
  * @property \App\Model\Table\WorkflowApprovalsTable&\Cake\ORM\Association\BelongsTo $WorkflowApprovals
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Members
- *
  * @method \App\Model\Entity\WorkflowApprovalResponse newEmptyEntity()
  * @method \App\Model\Entity\WorkflowApprovalResponse newEntity(array $data, array $options = [])
  * @method \App\Model\Entity\WorkflowApprovalResponse patchEntity(\Cake\Datasource\EntityInterface $entity, array $data, array $options = [])
@@ -89,9 +87,37 @@ class WorkflowApprovalResponsesTable extends BaseTable
         ]);
         $rules->add($rules->isUnique(
             ['workflow_approval_id', 'member_id'],
-            'A member can only respond once per approval gate.'
+            'A member can only respond once per approval gate.',
         ));
 
         return $rules;
+    }
+
+    /**
+     * Clear pending approval eligibility caches when a member responds.
+     *
+     * @param mixed $event Event object.
+     * @param mixed $entity Saved entity.
+     * @param mixed $options Save options.
+     * @return void
+     */
+    public function afterSave($event, $entity, $options): void
+    {
+        parent::afterSave($event, $entity, $options);
+        WorkflowApprovalsTable::clearPendingApprovalEligibilityCache();
+    }
+
+    /**
+     * Clear pending approval eligibility caches when a response is deleted.
+     *
+     * @param mixed $event Event object.
+     * @param mixed $entity Deleted entity.
+     * @param mixed $options Delete options.
+     * @return void
+     */
+    public function afterDelete($event, $entity, $options): void
+    {
+        parent::afterDelete($event, $entity, $options);
+        WorkflowApprovalsTable::clearPendingApprovalEligibilityCache();
     }
 }

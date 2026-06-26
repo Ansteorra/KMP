@@ -43,8 +43,240 @@ class BackupServiceTest extends TestCase
 
         $this->assertSame(['platform_values'], $payload['meta']['tables']);
         $this->assertSame('Example', $payload['tables']['platform_values'][0]['name']);
+        $this->assertArrayHasKey('platform_values', $payload['schema']['tables']);
         $this->assertSame(1, $result['meta']['table_count']);
         $this->assertSame(1, $result['meta']['row_count']);
+    }
+
+    public function testValidateImportPayloadRejectsWrongKeyBeforeRestore(): void
+    {
+        ConnectionManager::setConfig('backup_scope_test', [
+            'className' => 'Cake\Database\Connection',
+            'driver' => 'Cake\Database\Driver\Sqlite',
+            'database' => ':memory:',
+        ]);
+        $connection = ConnectionManager::get('backup_scope_test');
+        $connection->execute('CREATE TABLE platform_values (id INTEGER PRIMARY KEY, name TEXT NOT NULL)');
+        $connection->insert('platform_values', ['id' => 1, 'name' => 'Example']);
+
+        $service = new BackupService('backup_scope_test');
+        $result = $service->export('correct-key');
+
+        $service->validateImportPayload($result['data'], 'correct-key');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Decryption failed');
+
+        $service->validateImportPayload($result['data'], 'wrong-key');
+    }
+
+    public function testExportPreservesOperationalSchemasWithoutTransientRows(): void
+    {
+        ConnectionManager::setConfig('backup_scope_test', [
+            'className' => 'Cake\Database\Connection',
+            'driver' => 'Cake\Database\Driver\Sqlite',
+            'database' => ':memory:',
+        ]);
+        $connection = ConnectionManager::get('backup_scope_test');
+        $connection->execute(
+            'CREATE TABLE backups (
+                id INTEGER PRIMARY KEY,
+                filename TEXT NOT NULL,
+                status TEXT NOT NULL
+            )',
+        );
+        $connection->execute('CREATE TABLE sessions (id TEXT PRIMARY KEY)');
+        $connection->execute(
+            'CREATE TABLE queued_jobs (
+                id INTEGER PRIMARY KEY,
+                job_task TEXT NOT NULL,
+                status TEXT NOT NULL
+            )',
+        );
+        $connection->execute(
+            'CREATE TABLE queue_processes (
+                id INTEGER PRIMARY KEY,
+                pid INTEGER NOT NULL
+            )',
+        );
+        $connection->insert('backups', [
+            'id' => 1,
+            'filename' => 'transient.kmpbackup',
+            'status' => 'completed',
+        ]);
+        $connection->insert('queued_jobs', [
+            'id' => 1,
+            'job_task' => 'BackupRestore',
+            'status' => 'Failed',
+        ]);
+
+        $service = new BackupService('backup_scope_test');
+        $result = $service->export('test-key');
+
+        $method = new ReflectionMethod(BackupService::class, 'decrypt');
+        $method->setAccessible(true);
+        $compressed = $method->invoke($service, $result['data'], 'test-key');
+        $json = gzdecode($compressed);
+        $payload = json_decode((string)$json, true);
+
+        $this->assertSame([], $payload['meta']['tables']);
+        $this->assertArrayNotHasKey('backups', $payload['tables']);
+        $this->assertArrayNotHasKey('queued_jobs', $payload['tables']);
+        $this->assertArrayHasKey('backups', $payload['schema']['tables']);
+        $this->assertArrayHasKey('queued_jobs', $payload['schema']['tables']);
+        $this->assertArrayHasKey('queue_processes', $payload['schema']['tables']);
+        $this->assertArrayHasKey('sessions', $payload['schema']['tables']);
+        $this->assertArrayHasKey('filename', $payload['schema']['tables']['backups']['columns']);
+        $this->assertArrayHasKey('job_task', $payload['schema']['tables']['queued_jobs']['columns']);
+    }
+
+    public function testImportAddsOperationalSchemasForOlderPayloadsThatOmittedThem(): void
+    {
+        ConnectionManager::setConfig('backup_scope_test', [
+            'className' => 'Cake\Database\Connection',
+            'driver' => 'Cake\Database\Driver\Sqlite',
+            'database' => ':memory:',
+        ]);
+        $connection = ConnectionManager::get('backup_scope_test');
+        $connection->execute(
+            'CREATE TABLE backups (
+                id INTEGER PRIMARY KEY,
+                filename TEXT NOT NULL,
+                status TEXT NOT NULL
+            )',
+        );
+        $connection->execute('CREATE TABLE sessions (id TEXT PRIMARY KEY)');
+        $connection->execute(
+            'CREATE TABLE queued_jobs (
+                id INTEGER PRIMARY KEY,
+                job_task TEXT NOT NULL,
+                status TEXT NOT NULL
+            )',
+        );
+        $connection->execute(
+            'CREATE TABLE queue_processes (
+                id INTEGER PRIMARY KEY,
+                pid INTEGER NOT NULL
+            )',
+        );
+
+        $service = new BackupService('backup_scope_test');
+        $method = new ReflectionMethod(BackupService::class, 'ensureOperationalSchemaTables');
+        $method->setAccessible(true);
+        $payload = $method->invoke($service, [
+            'meta' => ['version' => 2],
+            'schema' => [
+                'version' => 1,
+                'tables' => [],
+            ],
+            'tables' => [],
+        ]);
+
+        $this->assertArrayHasKey('backups', $payload['schema']['tables']);
+        $this->assertArrayHasKey('queued_jobs', $payload['schema']['tables']);
+        $this->assertArrayHasKey('queue_processes', $payload['schema']['tables']);
+        $this->assertArrayHasKey('sessions', $payload['schema']['tables']);
+        $this->assertArrayHasKey('filename', $payload['schema']['tables']['backups']['columns']);
+        $this->assertArrayHasKey('job_task', $payload['schema']['tables']['queued_jobs']['columns']);
+        $this->assertArrayNotHasKey('backups', $payload['tables']);
+        $this->assertArrayNotHasKey('queued_jobs', $payload['tables']);
+    }
+
+    public function testExportUsesDirectQueriesForLongTableColumnAliases(): void
+    {
+        ConnectionManager::setConfig('backup_scope_test', [
+            'className' => 'Cake\Database\Connection',
+            'driver' => 'Cake\Database\Driver\Sqlite',
+            'database' => ':memory:',
+        ]);
+        $connection = ConnectionManager::get('backup_scope_test');
+        $connection->execute(
+            'CREATE TABLE AwardsRecommendationFeedbackRequestRecipients (
+                id INTEGER PRIMARY KEY,
+                feedback_request_id INTEGER NOT NULL
+            )',
+        );
+        $connection->insert('AwardsRecommendationFeedbackRequestRecipients', [
+            'id' => 1,
+            'feedback_request_id' => 42,
+        ]);
+
+        $service = new BackupService('backup_scope_test');
+        $result = $service->export('test-key');
+
+        $method = new ReflectionMethod(BackupService::class, 'decrypt');
+        $method->setAccessible(true);
+        $compressed = $method->invoke($service, $result['data'], 'test-key');
+        $json = gzdecode($compressed);
+        $payload = json_decode((string)$json, true);
+
+        $this->assertSame(['AwardsRecommendationFeedbackRequestRecipients'], $payload['meta']['tables']);
+        $this->assertSame(
+            42,
+            $payload['tables']['AwardsRecommendationFeedbackRequestRecipients'][0]['feedback_request_id'],
+        );
+    }
+
+    public function testExportPreservesMainAndPluginPhinxLogs(): void
+    {
+        ConnectionManager::setConfig('backup_scope_test', [
+            'className' => 'Cake\Database\Connection',
+            'driver' => 'Cake\Database\Driver\Sqlite',
+            'database' => ':memory:',
+        ]);
+        $connection = ConnectionManager::get('backup_scope_test');
+        $connection->execute(
+            'CREATE TABLE phinxlog (
+                version INTEGER PRIMARY KEY,
+                migration_name TEXT,
+                start_time TEXT,
+                end_time TEXT,
+                breakpoint INTEGER
+            )',
+        );
+        $connection->execute(
+            'CREATE TABLE awards_phinxlog (
+                version INTEGER PRIMARY KEY,
+                migration_name TEXT,
+                start_time TEXT,
+                end_time TEXT,
+                breakpoint INTEGER
+            )',
+        );
+        $connection->execute('CREATE TABLE queued_jobs (id INTEGER PRIMARY KEY)');
+        $connection->execute('CREATE TABLE sessions (id TEXT PRIMARY KEY)');
+        $connection->insert('phinxlog', [
+            'version' => 20260622141930,
+            'migration_name' => 'Init',
+            'start_time' => '2026-06-22 14:19:30',
+            'end_time' => '2026-06-22 14:19:31',
+            'breakpoint' => 0,
+        ]);
+        $connection->insert('awards_phinxlog', [
+            'version' => 20260617172000,
+            'migration_name' => 'CreateCourtAgendaTables',
+            'start_time' => '2026-06-17 17:20:00',
+            'end_time' => '2026-06-17 17:20:01',
+            'breakpoint' => 0,
+        ]);
+
+        $service = new BackupService('backup_scope_test');
+        $result = $service->export('test-key');
+
+        $method = new ReflectionMethod(BackupService::class, 'decrypt');
+        $method->setAccessible(true);
+        $compressed = $method->invoke($service, $result['data'], 'test-key');
+        $json = gzdecode($compressed);
+        $payload = json_decode((string)$json, true);
+
+        $this->assertSame(['awards_phinxlog', 'phinxlog'], $payload['meta']['tables']);
+        $this->assertSame('Init', $payload['tables']['phinxlog'][0]['migration_name']);
+        $this->assertSame(
+            'CreateCourtAgendaTables',
+            $payload['tables']['awards_phinxlog'][0]['migration_name'],
+        );
+        $this->assertArrayHasKey('phinxlog', $payload['meta']['migration_fingerprint']);
+        $this->assertArrayHasKey('awards_phinxlog', $payload['meta']['migration_fingerprint']);
     }
 
     public function testRestorePostgresForeignKeysUsesSavepointForValidateFailures(): void
@@ -173,10 +405,14 @@ class BackupServiceTest extends TestCase
                 ['id' => 1, 'name' => 'Restored Member'],
             ],
             'phinxlog' => [
-                ['version' => 20260622141930],
+                ['version' => 20260622141930, 'migration_name' => 'Init'],
+            ],
+            'awards_phinxlog' => [
+                ['version' => 20260617172000, 'migration_name' => 'CreateCourtAgendaTables'],
             ],
         ], [
             'awards_bestowals',
+            'awards_phinxlog',
             'members',
             'phinxlog',
             'workflow_definitions',
@@ -184,8 +420,14 @@ class BackupServiceTest extends TestCase
 
         $this->assertSame([
             'awards_bestowals' => [],
+            'awards_phinxlog' => [
+                ['version' => 20260617172000, 'migration_name' => 'CreateCourtAgendaTables'],
+            ],
             'members' => [
                 ['id' => 1, 'name' => 'Restored Member'],
+            ],
+            'phinxlog' => [
+                ['version' => 20260622141930, 'migration_name' => 'Init'],
             ],
             'workflow_definitions' => [],
         ], $tables);

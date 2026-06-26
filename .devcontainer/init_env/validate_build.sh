@@ -57,7 +57,7 @@ check_command "playwright" "no-version"
 
 echo ""
 echo "--- Configuration Files ---"
-check_file "/etc/php/8.3/cli/conf.d/20-xdebug.ini"
+check_file "/etc/php/8.4/cli/conf.d/20-xdebug.ini"
 check_file "/opt/templates/apache-vhost.template"
 check_file "/etc/init.d/mailpit"
 

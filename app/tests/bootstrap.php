@@ -406,10 +406,12 @@ if (SeedManager::isPostgres('test')) {
         [2875, 'Eirik Kingdom Seneschal Demoer', 'Eirik', 'Demoer', 'eirik@ampdemo.com', 'verified', '2100-01-01', 'true', 2004],
     ];
     foreach ($members as [$id, $scaName, $firstName, $lastName, $email, $status, $membershipExpiresOn, $warrantable, $birthYear]) {
+        $publicId = sprintf('TST%05d', $id);
         $conn->execute(
-            "INSERT INTO members (id, password, sca_name, first_name, last_name, email_address, status, membership_expires_on, warrantable, birth_month, birth_year, created, modified, created_by, modified_by)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, 1, 1)
+            "INSERT INTO members (id, public_id, password, sca_name, first_name, last_name, email_address, status, membership_expires_on, warrantable, birth_month, birth_year, created, modified, created_by, modified_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, 1, 1)
              ON CONFLICT (id) DO UPDATE SET
+                public_id = EXCLUDED.public_id,
                 sca_name = EXCLUDED.sca_name,
                 first_name = EXCLUDED.first_name,
                 last_name = EXCLUDED.last_name,
@@ -421,7 +423,7 @@ if (SeedManager::isPostgres('test')) {
                 birth_year = EXCLUDED.birth_year,
                 modified = EXCLUDED.modified,
                 modified_by = EXCLUDED.modified_by",
-            [$id, '$2y$10$test-test-test-test-test-test-test-test-test', $scaName, $firstName, $lastName, $email, $status, $membershipExpiresOn, $warrantable, $birthYear, $now, $now],
+            [$id, $publicId, '$2y$10$test-test-test-test-test-test-test-test-test', $scaName, $firstName, $lastName, $email, $status, $membershipExpiresOn, $warrantable, $birthYear, $now, $now],
         );
     }
 

@@ -787,11 +787,15 @@ class RecommendationsControllerWorkflowDispatchTest extends HttpIntegrationTestC
 
     private function createActiveApprovalRun(int $recommendationId): RecommendationApprovalRun
     {
-        $approvalProcess = $this->getTableLocator()
-            ->get('Awards.ApprovalProcesses')
-            ->find()
-            ->select(['id'])
-            ->firstOrFail();
+        $approvalProcesses = $this->getTableLocator()->get('Awards.ApprovalProcesses');
+        $approvalProcess = $approvalProcesses->find()->select(['id'])->first();
+        if ($approvalProcess === null) {
+            $approvalProcess = $approvalProcesses->saveOrFail($approvalProcesses->newEntity([
+                'name' => 'Workflow Dispatch Test Process',
+                'description' => 'Seeded by workflow dispatch integration test.',
+                'is_active' => true,
+            ]));
+        }
         $runs = $this->getTableLocator()->get('Awards.RecommendationApprovalRuns');
 
         return $runs->saveOrFail($runs->newEntity([

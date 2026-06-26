@@ -412,6 +412,24 @@ class CoreNavigationProvider
             ],
             [
                 'type' => 'link',
+                'mergePath' => ['Action Items'],
+                'label' => 'My To-Dos',
+                'order' => 11,
+                'url' => [
+                    'controller' => 'ActionItems',
+                    'action' => 'myTasks',
+                ],
+                'skipAuthorization' => true,
+                'icon' => 'bi-check2-all',
+                'badgeClass' => 'bg-danger',
+                'badgeValue' => [
+                    'class' => "App\Model\Table\ActionItemsTable",
+                    'method' => 'getOpenTaskCountForMember',
+                    'argument' => $user->id,
+                ],
+            ],
+            [
+                'type' => 'link',
                 'mergePath' => ['Workflows'],
                 'label' => 'Instances',
                 'order' => 20,

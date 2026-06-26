@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Awards\Services;
 
+use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\Recommendation;
 use Awards\Model\Entity\RecommendationApprovalRun;
 use Cake\ORM\Locator\LocatorAwareTrait;
@@ -495,7 +496,7 @@ class RecommendationGroupingService
     {
         $archivedStates = Recommendation::getStatuses()['Closed'] ?? [];
         $archiveConditions = [
-            'Bestowals.state' => 'Given',
+            'Bestowals.lifecycle_status' => Bestowal::LIFECYCLE_GIVEN,
         ];
         if ($archivedStates !== []) {
             $archiveConditions[] = ['Recommendations.state IN' => $archivedStates];

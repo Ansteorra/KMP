@@ -48,18 +48,6 @@ class BestowalQueryService
             'canAddViews' => true,
             'canFilter' => true,
             'canExportCsv' => true,
-            'enableBulkSelection' => $canEdit,
-            'bulkSelectionDataFields' => [
-                'member-id' => 'member_id',
-            ],
-            'bulkActions' => [
-                [
-                    'key' => 'bulk-edit',
-                    'label' => 'Bulk Edit',
-                    'icon' => 'bi-pencil-square',
-                    'modalTarget' => '#bulkEditBestowalModal',
-                ],
-            ],
         ];
 
         return ['query' => $baseQuery, 'gridOptions' => $gridOptions];
@@ -105,7 +93,6 @@ class BestowalQueryService
             'canAddViews' => true,
             'canFilter' => true,
             'canExportCsv' => true,
-            'enableBulkSelection' => $canEdit,
         ];
 
         return ['query' => $baseQuery, 'gridOptions' => $gridOptions];
@@ -114,26 +101,20 @@ class BestowalQueryService
     /**
      * Apply hidden-state visibility constraints to a bestowals query.
      *
+     * Lifecycle bestowals have no hidden states, so this is a pass-through retained
+     * for call-site compatibility.
+     *
      * @param \Cake\ORM\Query\SelectQuery $query Bestowals query.
      * @param bool $canViewHidden Whether hidden rows may be included.
      * @return \Cake\ORM\Query\SelectQuery
      */
     public function applyHiddenStateVisibility(SelectQuery $query, bool $canViewHidden): SelectQuery
     {
-        if ($canViewHidden) {
-            return $query;
-        }
-
-        $hiddenStates = Bestowal::getHiddenStates();
-        if ($hiddenStates !== []) {
-            $query->where(['Bestowals.state NOT IN' => $hiddenStates]);
-        }
-
         return $query;
     }
 
     /**
-     * Exclude terminal closed bestowals from an active-work queue query.
+     * Exclude terminal (given/cancelled) bestowals from an active-work queue query.
      *
      * @param \Cake\ORM\Query\SelectQuery $query Bestowals query.
      * @return \Cake\ORM\Query\SelectQuery
@@ -141,7 +122,10 @@ class BestowalQueryService
     public function applyActiveOnlyFilter(SelectQuery $query): SelectQuery
     {
         return $query->where([
-            'Bestowals.state NOT IN' => ['Given', 'Cancelled', 'Announced Not Given'],
+            'Bestowals.lifecycle_status NOT IN' => [
+                Bestowal::LIFECYCLE_GIVEN,
+                Bestowal::LIFECYCLE_CANCELLED,
+            ],
         ]);
     }
 
@@ -247,9 +231,7 @@ class BestowalQueryService
             'Bestowals.gathering_scheduled_activity_id',
             'Bestowals.primary_recommendation_id',
             'Bestowals.award_id',
-            'Bestowals.status',
-            'Bestowals.state',
-            'Bestowals.state_date',
+            'Bestowals.lifecycle_status',
             'Bestowals.stack_rank',
             'Bestowals.bestowed_at',
             'Bestowals.source',

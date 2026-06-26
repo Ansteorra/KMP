@@ -277,21 +277,6 @@ class RecommendationPolicy extends BasePolicy
     }
 
     /**
-     * Check if user can view recommendations for a specific gathering.
-     *
-     * @param \App\KMP\KmpIdentityInterface $user The authenticated user
-     * @param \App\Model\Entity\BaseEntity $entity The recommendation entity
-     * @param mixed ...$args Additional authorization context (typically gathering entity)
-     * @return bool True if authorized
-     */
-    public function canViewGatheringRecommendations(KmpIdentityInterface $user, BaseEntity $entity, ...$args): bool
-    {
-        $method = __FUNCTION__;
-
-        return $this->_hasPolicy($user, $method, $entity);
-    }
-
-    /**
      * Check if user can export recommendation data.
      *
      * @param \App\KMP\KmpIdentityInterface $user The authenticated user

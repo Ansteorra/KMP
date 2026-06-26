@@ -310,7 +310,7 @@ class RecommendationsGridTest extends HttpIntegrationTestCase
         $givenRecommendation = $this->createRecommendation($award->id, $givenReason, ['state' => 'Need to Schedule']);
         $this->createRecommendation($award->id, $unlinkedReason, ['state' => 'Need to Schedule']);
         $linkedBestowal = $this->createBestowalForRecommendation($linkedRecommendation);
-        $givenBestowal = $this->createBestowalForRecommendation($givenRecommendation, 'Given');
+        $givenBestowal = $this->createBestowalForRecommendation($givenRecommendation, Bestowal::LIFECYCLE_GIVEN);
 
         $url = '/awards/recommendations/grid-data?' . http_build_query([
             'view_id' => 'sys-recs-converted',
@@ -344,7 +344,7 @@ class RecommendationsGridTest extends HttpIntegrationTestCase
             'close_reason' => 'Grid archive test',
         ]);
         $givenRecommendation = $this->createRecommendation($award->id, $givenReason, ['state' => 'Need to Schedule']);
-        $givenBestowal = $this->createBestowalForRecommendation($givenRecommendation, 'Given');
+        $givenBestowal = $this->createBestowalForRecommendation($givenRecommendation, Bestowal::LIFECYCLE_GIVEN);
         $declinedRecommendation = $this->createRecommendation($award->id, $declinedReason, ['state' => 'Submitted']);
         $declinedRun = $this->createApprovalRun(
             (int)$declinedRecommendation->id,
@@ -469,15 +469,14 @@ class RecommendationsGridTest extends HttpIntegrationTestCase
         return $saved;
     }
 
-    private function createBestowalForRecommendation(Recommendation $recommendation, string $state = 'Created'): Bestowal
+    private function createBestowalForRecommendation(Recommendation $recommendation, string $lifecycleStatus = Bestowal::LIFECYCLE_OPEN): Bestowal
     {
         $bestowals = $this->getTableLocator()->get('Awards.Bestowals');
         $bestowal = $bestowals->newEntity([
             'member_id' => $recommendation->member_id,
             'award_id' => $recommendation->award_id,
             'primary_recommendation_id' => $recommendation->id,
-            'state' => $state,
-            'status' => 'Planning',
+            'lifecycle_status' => $lifecycleStatus,
             'source' => Bestowal::SOURCE_RECOMMENDATION,
             'stack_rank' => 0,
         ]);

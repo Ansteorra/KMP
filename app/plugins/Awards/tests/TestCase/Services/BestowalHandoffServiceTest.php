@@ -4,7 +4,6 @@ declare(strict_types=1);
 namespace Awards\Test\TestCase\Services;
 
 use App\Test\TestCase\BaseTestCase;
-use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\Recommendation;
 use Awards\Model\Entity\RecommendationApprovalRun;
 use Awards\Services\BestowalHandoffService;
@@ -28,7 +27,6 @@ class BestowalHandoffServiceTest extends BaseTestCase
         $this->skipIfPostgres();
 
         Recommendation::clearCache();
-        Bestowal::clearCache();
 
         $this->recommendationsTable = $this->getTableLocator()->get('Awards.Recommendations');
         $this->bestowalsTable = $this->getTableLocator()->get('Awards.Bestowals');
@@ -45,7 +43,6 @@ class BestowalHandoffServiceTest extends BaseTestCase
     protected function tearDown(): void
     {
         Recommendation::clearCache();
-        Bestowal::clearCache();
         parent::tearDown();
     }
 

@@ -10,8 +10,6 @@ use Cake\Database\Schema\TableSchemaInterface;
 use Cake\Datasource\ConnectionManager;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
-use Cake\ORM\Locator\LocatorAwareTrait;
-use Cake\Utility\Inflector;
 use DateTimeImmutable;
 use Exception;
 use RuntimeException;
@@ -20,13 +18,11 @@ use Throwable;
 /**
  * Database-agnostic backup and restore service.
  *
- * Exports all application tables via the ORM as JSON, compresses with gzip,
+ * Exports all application tables via direct database reads as JSON, compresses with gzip,
  * and encrypts with AES-256-GCM. Restore reverses the process.
  */
 class BackupService
 {
-    use LocatorAwareTrait;
-
     private const FORMAT_VERSION = 2;
     private const CIPHER = 'aes-256-gcm';
     private const PBKDF2_ITERATIONS = 100000;
@@ -36,19 +32,26 @@ class BackupService
     private const TAG_LENGTH = 16;
 
     /**
-     * Tables excluded from backup (transient or migration-tracking data).
+     * Tables excluded from backup because they contain transient runtime state.
      *
-     * Transient runtime state (queue, backup metadata) shouldn't cross
-     * environments. Session tokens are per-environment and must not leak
-     * across. Migration history (`phinxlog` + `*_phinxlog`) is excluded
-     * via matching in isExcludedTable(); restoring it would replace the
-     * target DB's migration state with the backup's state and cause
-     * mis-skipped/re-run migrations on next startup.
+     * Queue state, backup metadata, and session tokens should not cross
+     * environments. Phinx migration logs are intentionally preserved so a
+     * restored database keeps accurate main/plugin migration history.
      */
     private const EXCLUDED_TABLES = [
         'queued_jobs',
         'queue_processes',
         'backups',
+        'sessions',
+    ];
+
+    /**
+     * Runtime tables whose rows are excluded but schemas must be preserved.
+     */
+    private const OPERATIONAL_SCHEMA_TABLES = [
+        'backups',
+        'queued_jobs',
+        'queue_processes',
         'sessions',
     ];
 
@@ -61,17 +64,10 @@ class BackupService
 
     /**
      * Return true when the table should never appear in a backup payload.
-     * Matches exact names in EXCLUDED_TABLES plus any phinxlog-style
-     * migration tracking tables ("phinxlog" and "<plugin>_phinxlog").
      */
     private static function isExcludedTable(string $tableName): bool
     {
-        if (in_array($tableName, self::EXCLUDED_TABLES, true)) {
-            return true;
-        }
-        // Matches the core `phinxlog` table and every plugin-scoped variant
-        // (e.g. `activities_phinxlog`, `awards_phinxlog`, `officers_phinxlog`).
-        return (bool)preg_match('/(?:^|_)phinxlog$/i', $tableName);
+        return in_array($tableName, self::EXCLUDED_TABLES, true);
     }
 
     /**
@@ -133,7 +129,7 @@ class BackupService
         $schemaCollection = $connection->getSchemaCollection();
         $allTables = $schemaCollection->listTables();
 
-        // Filter out excluded tables (queue jobs are transient)
+        // Filter out transient tables while preserving migration history.
         $tables = array_values(array_filter($allTables, function (string $table) {
             return !self::isExcludedTable($table);
         }));
@@ -141,7 +137,7 @@ class BackupService
         sort($tables);
 
         $migrationFingerprint = $this->getMigrationFingerprint();
-        $schemaManifest = (new BackupSchemaManifestService())->export(self::EXCLUDED_TABLES);
+        $schemaManifest = (new BackupSchemaManifestService())->export([], $this->connectionName);
         $payload = [
             'meta' => [
                 'version' => self::FORMAT_VERSION,
@@ -157,28 +153,9 @@ class BackupService
         $totalRows = 0;
 
         foreach ($tables as $tableName) {
-            try {
-                $tableObj = $this->connectionName === 'default'
-                    ? $this->fetchTable(ucfirst(Inflector::camelize($tableName)))
-                    : null;
-            } catch (Exception $e) {
-                // Fallback: query directly
-                $tableObj = null;
-            }
-
-            $rows = [];
-            if ($tableObj !== null) {
-                // Include soft-deleted rows so backups are complete
-                $finder = $tableObj->hasBehavior('Trash') ? 'withTrashed' : 'all';
-                $query = $tableObj->find($finder)->disableHydration();
-                foreach ($query as $row) {
-                    $rows[] = $row;
-                }
-            } else {
-                // Direct query fallback for tables without a Table class
-                $stmt = $connection->execute("SELECT * FROM {$connection->getDriver()->quoteIdentifier($tableName)}");
-                $rows = $stmt->fetchAll('assoc') ?: [];
-            }
+            $quotedTable = $connection->getDriver()->quoteIdentifier($tableName);
+            $stmt = $connection->execute("SELECT * FROM {$quotedTable}");
+            $rows = $stmt->fetchAll('assoc') ?: [];
 
             $payload['tables'][$tableName] = $rows;
             $totalRows += count($rows);
@@ -210,12 +187,23 @@ class BackupService
     }
 
     /**
+     * Validate that an encrypted backup can be opened before starting restore side effects.
+     *
+     * This decrypts, decompresses, and validates the payload structure only; it
+     * does not reset schema, write rows, queue work, or mutate restore status.
+     */
+    public function validateImportPayload(string $encryptedData, string $encryptionKey): void
+    {
+        $this->decodePayload($encryptedData, $encryptionKey);
+    }
+
+    /**
      * Import (restore) from an encrypted backup.
      *
      * @param string $encryptedData Raw encrypted backup bytes
      * @param string $encryptionKey User-provided encryption key
      * @param callable(array<string, mixed>):void|null $progressReporter Restore progress callback
-     * @param array{ignoreSchemaMismatch?: bool}|callable|null $options Restore options, or migration runner for BC
+     * @param callable|array{ignoreSchemaMismatch?: bool}|null $options Restore options, or migration runner for BC
      * @param callable():void|null $migrationRunner Post-import migration callback
      * @return array{table_count: int, row_count: int, constraints_not_valid?: int,
      *   payload_upgrade?: array<string, mixed>, post_restore?: array<string, int>} Import statistics
@@ -234,6 +222,7 @@ class BackupService
         $ignoreSchemaMismatch = (bool)(is_array($options) ? ($options['ignoreSchemaMismatch'] ?? false) : false);
 
         $payload = $this->decodePayload($encryptedData, $encryptionKey, $progressReporter);
+        $payload = $this->ensureOperationalSchemaTables($payload);
 
         $this->reportSchemaMismatch($payload, $ignoreSchemaMismatch, $progressReporter);
 
@@ -271,6 +260,47 @@ class BackupService
         $stats['post_restore'] = $postRestoreStats;
 
         return $stats;
+    }
+
+    /**
+     * Add operational table definitions that older backup manifests omitted.
+     *
+     * The rows remain excluded from the restore payload, but preserving table
+     * shapes keeps runtime services usable after schema reset.
+     *
+     * @param array{meta: array<string, mixed>, schema: array<string, mixed>, tables: array<string, mixed>} $payload
+     * @return array{meta: array<string, mixed>, schema: array<string, mixed>, tables: array<string, mixed>}
+     */
+    private function ensureOperationalSchemaTables(array $payload): array
+    {
+        $schemaTables = $payload['schema']['tables'] ?? [];
+        if (!is_array($schemaTables)) {
+            return $payload;
+        }
+
+        $missingTables = array_values(array_diff(self::OPERATIONAL_SCHEMA_TABLES, array_keys($schemaTables)));
+        if ($missingTables === []) {
+            return $payload;
+        }
+
+        $connection = $this->connection();
+        $currentTables = $connection->getSchemaCollection()->listTables();
+        $availableMissingTables = array_values(array_intersect($missingTables, $currentTables));
+        if ($availableMissingTables === []) {
+            return $payload;
+        }
+
+        $preservedSchema = (new BackupSchemaManifestService())->export(
+            array_values(array_diff($currentTables, $availableMissingTables)),
+            $this->connectionName,
+        );
+        foreach ($availableMissingTables as $tableName) {
+            if (isset($preservedSchema['tables'][$tableName])) {
+                $payload['schema']['tables'][$tableName] = $preservedSchema['tables'][$tableName];
+            }
+        }
+
+        return $payload;
     }
 
     /**
@@ -772,22 +802,30 @@ class BackupService
             $constraintDefinition = stripos($foreignKey['definition'], 'NOT VALID') === false
                 ? $foreignKey['definition'] . ' NOT VALID'
                 : $foreignKey['definition'];
-            $connection->execute(
-                "ALTER TABLE {$quotedTable} ADD CONSTRAINT {$quotedConstraint} {$constraintDefinition}",
-            );
-
+            $savepoint = sprintf('kmp_fk_validate_%d', $index);
             $savepoint = sprintf('kmp_fk_validate_%d', $index);
             $connection->execute("SAVEPOINT {$savepoint}");
             try {
                 $connection->execute(
+                    "ALTER TABLE {$quotedTable} ADD CONSTRAINT {$quotedConstraint} {$constraintDefinition}",
+                );
+                $constraintAdded = true;
+                $connection->execute(
                     "ALTER TABLE {$quotedTable} VALIDATE CONSTRAINT {$quotedConstraint}",
                 );
                 $connection->execute("RELEASE SAVEPOINT {$savepoint}");
-            } catch (Exception $e) {
-                // Postgres marks the transaction failed after VALIDATE errors; rollback to savepoint
-                // so remaining constraints can still be recreated as NOT VALID.
+            } catch (Throwable $e) {
+                // Roll back the add/validate attempt so validation errors do not leave
+                // the restore transaction aborted before final sequence/reset work runs.
                 $connection->execute("ROLLBACK TO SAVEPOINT {$savepoint}");
                 $connection->execute("RELEASE SAVEPOINT {$savepoint}");
+                if (!$constraintAdded) {
+                    throw $e;
+                }
+
+                $connection->execute(
+                    "ALTER TABLE {$quotedTable} ADD CONSTRAINT {$quotedConstraint} {$constraintDefinition}",
+                );
                 // Keep the constraint as NOT VALID when legacy/orphaned rows are present.
                 $notValidatedConstraintCount++;
                 Log::warning(sprintf(

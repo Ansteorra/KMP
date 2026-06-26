@@ -1,5 +1,6 @@
 <?php
 
+use Awards\Model\Entity\Bestowal;
 use Awards\Services\BestowalCourtSlotService;
 
 /**
@@ -9,7 +10,7 @@ use Awards\Services\BestowalCourtSlotService;
 
 $this->extend('/layout/TwitterBootstrap/view_record');
 
-$memberName = $bestowal->member->sca_name ?? __('Unknown Member');
+$memberName = $bestowal->member->sca_name ?? $bestowal->member_sca_name ?? __('Unknown Member');
 
 echo $this->KMP->startBlock('title');
 echo $this->KMP->getAppSetting('KMP.ShortSiteTitle') . ': ' . __('View Bestowal') . ' - ' . h($memberName);
@@ -86,12 +87,8 @@ echo $this->KMP->startBlock('recordDetails');
     </td>
 </tr>
 <tr>
-    <th scope="row"><?= __('Status') ?></th>
-    <td><?= h($bestowal->status) ?></td>
-</tr>
-<tr>
-    <th scope="row"><?= __('State') ?></th>
-    <td><?= h($bestowal->state) ?></td>
+    <th scope="row"><?= __('Lifecycle Status') ?></th>
+    <td><?= h(ucfirst((string)($bestowal->lifecycle_status ?? Bestowal::LIFECYCLE_OPEN))) ?></td>
 </tr>
 <tr>
     <th scope="row"><?= __('Source') ?></th>
@@ -185,3 +182,72 @@ if ($courtSlotLabel !== '') :
 </tr>
 <?php
 $this->KMP->endBlock();
+
+$todoItems = $todoItems ?? [];
+$todoEligibility = $todoEligibility ?? [];
+$todoGatingTotal = $todoGatingTotal ?? 0;
+$todoGatingDone = $todoGatingDone ?? 0;
+$allGatingComplete = $allGatingComplete ?? false;
+$lifecycleStatus = (string)($bestowal->lifecycle_status ?? '');
+$alreadyGiven = $lifecycleStatus === Bestowal::LIFECYCLE_GIVEN;
+$currentPageUrl = $this->Url->build([
+    'plugin' => 'Awards',
+    'controller' => 'Bestowals',
+    'action' => 'view',
+    $bestowal->id,
+]);
+$gatingPercent = $todoGatingTotal > 0 ? (int)round($todoGatingDone / $todoGatingTotal * 100) : 0;
+?>
+<?php $this->KMP->startBlock('tabButtons'); ?>
+<button class="nav-link" id="nav-bestowalTodos-tab" data-bs-toggle="tab" data-bs-target="#nav-bestowalTodos"
+    type="button" role="tab" aria-controls="nav-bestowalTodos" aria-selected="false"
+    data-detail-tabs-target="tabBtn" data-tab-order="5" style="order: 5;"><?= __('To-Dos') ?>
+    <?php if ($todoGatingTotal > 0) : ?>
+        <span class="badge bg-secondary ms-1"><?= h($todoGatingDone . '/' . $todoGatingTotal) ?></span>
+    <?php endif; ?>
+</button>
+<?php $this->KMP->endBlock(); ?>
+<?php $this->KMP->startBlock('tabContent'); ?>
+<div class="related tab-pane fade m-3" id="nav-bestowalTodos" role="tabpanel"
+    aria-labelledby="nav-bestowalTodos-tab" data-detail-tabs-target="tabContent" tabindex="0"
+    style="order: 5;">
+    <h4 class="h5"><?= __('Preparation checks') ?></h4>
+    <?= $this->element('bestowal_todo_checklist', [
+        'todoItems' => $todoItems,
+        'todoEligibility' => $todoEligibility,
+        'todoGatingTotal' => $todoGatingTotal,
+        'todoGatingDone' => $todoGatingDone,
+        'gatingPercent' => $gatingPercent,
+        'currentPageUrl' => $currentPageUrl,
+    ]) ?>
+
+    <?php if ($user->checkCan('updateState', $bestowal)) : ?>
+        <div class="border-top pt-3">
+            <?php if ($alreadyGiven) : ?>
+                <p class="mb-0">
+                    <i class="bi bi-award-fill text-success me-1" aria-hidden="true"></i>
+                    <?= __('This bestowal has been marked given.') ?>
+                </p>
+            <?php elseif ($allGatingComplete) : ?>
+                <?= $this->Form->postLink(
+                    '<i class="bi bi-award me-1" aria-hidden="true"></i>' . __('Mark Given'),
+                    ['plugin' => 'Awards', 'controller' => 'Bestowals', 'action' => 'markGiven'],
+                    [
+                        'escapeTitle' => false,
+                        'class' => 'btn btn-primary',
+                        'data' => ['bestowalId' => $bestowal->id, 'current_page' => $currentPageUrl],
+                        'confirm' => __('Mark this bestowal as given?'),
+                    ],
+                ) ?>
+                <p class="form-text mb-0"><?= __('All required checks are complete.') ?></p>
+            <?php else : ?>
+                <button type="button" class="btn btn-primary" disabled
+                    aria-describedby="mark-given-help"><?= __('Mark Given') ?></button>
+                <p class="form-text mb-0" id="mark-given-help">
+                    <?= __('Complete all required checks before the bestowal can be marked given.') ?>
+                </p>
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
+</div>
+<?php $this->KMP->endBlock(); ?>

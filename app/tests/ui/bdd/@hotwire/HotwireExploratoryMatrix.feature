@@ -13,7 +13,6 @@ Feature: Hotwire exploratory matrix
         When I open the recommendations grid with search "matrix-smoke"
         Then the recommendations URL should include search "matrix-smoke"
 
-    @fixme
     Scenario: Matrix grid back navigation after filter
         Given I am logged in as awards admin for hotwire tests
         When I navigate to "/awards/recommendations"

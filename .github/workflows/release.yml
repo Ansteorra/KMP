@@ -11,7 +11,7 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ansteorra/kmp
-  BASE_IMAGE: ghcr.io/ansteorra/kmp-base:php83
+  BASE_IMAGE: ghcr.io/ansteorra/kmp-base:php84
 
 jobs:
   # Ensure the pre-compiled PHP base image exists (build it if not).

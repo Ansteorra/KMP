@@ -257,17 +257,19 @@ class MemberMobileCardMenu extends MobileControllerBase {
                               (this.authCardUrl && itemUrl && itemUrl.includes('viewMobileCard'));
             
             if (!this.online && !isAllowedOffline) {
-                // Offline and not allowed - disable
+                // Offline and not allowed - hide online-only destinations
                 item.classList.add('disabled');
                 item.style.opacity = '0.5';
                 item.style.pointerEvents = 'none';
                 item.setAttribute('aria-disabled', 'true');
+                item.hidden = true;
             } else {
                 // Online or allowed offline - enable
                 item.classList.remove('disabled');
                 item.style.opacity = '1';
                 item.style.pointerEvents = 'auto';
                 item.removeAttribute('aria-disabled');
+                item.hidden = false;
             }
         });
     }

@@ -284,6 +284,24 @@ return function (RouteBuilder $routes): void {
         });
 
         /**
+         * Action Item Routes
+         */
+        $builder->scope('/action-items', function (RouteBuilder $builder): void {
+            $builder->connect('/mobile', ['controller' => 'ActionItems', 'action' => 'mobileMyTasks']);
+            $builder->connect('/mobile-data', ['controller' => 'ActionItems', 'action' => 'mobileMyTasksData']);
+            $builder->connect('/my-tasks', ['controller' => 'ActionItems', 'action' => 'myTasks']);
+            $builder->connect('/my-tasks-data', ['controller' => 'ActionItems', 'action' => 'myTasksGridData']);
+            $builder->connect('/complete', ['controller' => 'ActionItems', 'action' => 'complete']);
+            $builder->connect('/reopen', ['controller' => 'ActionItems', 'action' => 'reopen']);
+            $builder->connect('/complete/{id}', ['controller' => 'ActionItems', 'action' => 'complete'])
+                ->setPatterns(['id' => '\d+'])
+                ->setPass(['id']);
+            $builder->connect('/reopen/{id}', ['controller' => 'ActionItems', 'action' => 'reopen'])
+                ->setPatterns(['id' => '\d+'])
+                ->setPass(['id']);
+        });
+
+        /**
          * Workflow Engine Routes
          */
         $builder->scope('/workflows', function (RouteBuilder $builder) {

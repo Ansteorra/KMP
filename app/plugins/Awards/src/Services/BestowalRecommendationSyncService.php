@@ -11,35 +11,40 @@ use Cake\ORM\Locator\LocatorAwareTrait;
 use Cake\ORM\Table;
 use DateTimeInterface;
 use DateTimeZone;
-use RuntimeException;
 use Throwable;
 
 /**
- * Synchronizes linked recommendation states from the active bestowal state mapping.
+ * Synchronizes linked recommendation states from the bestowal lifecycle status.
  */
 class BestowalRecommendationSyncService
 {
     use LocatorAwareTrait;
 
+    /**
+     * Recommendation state a linked recommendation moves to when its bestowal is given.
+     */
+    public const RECOMMENDATION_GIVEN_STATE = 'Given';
+
+    /**
+     * Recommendation state a linked recommendation unwinds to when its bestowal is cancelled or unlinked.
+     */
+    public const RECOMMENDATION_UNWIND_STATE = 'King Approved';
+
     private Table $bestowalsTable;
-    private Table $bestowalStatesTable;
     private Table $recommendationsTable;
     private RecommendationStateLogService $recommendationStateLogService;
 
     /**
      * @param \Cake\ORM\Table|null $bestowalsTable Optional injected bestowals table.
-     * @param \Cake\ORM\Table|null $bestowalStatesTable Optional injected bestowal states table.
      * @param \Cake\ORM\Table|null $recommendationsTable Optional injected recommendations table.
      * @param \Awards\Services\RecommendationStateLogService|null $recommendationStateLogService Optional injected rec state-log service.
      */
     public function __construct(
         ?Table $bestowalsTable = null,
-        ?Table $bestowalStatesTable = null,
         ?Table $recommendationsTable = null,
         ?RecommendationStateLogService $recommendationStateLogService = null,
     ) {
         $this->bestowalsTable = $bestowalsTable ?? $this->fetchTable('Awards.Bestowals');
-        $this->bestowalStatesTable = $bestowalStatesTable ?? $this->fetchTable('Awards.BestowalStates');
         $this->recommendationsTable = $recommendationsTable ?? $this->fetchTable('Awards.Recommendations');
         $this->recommendationStateLogService = $recommendationStateLogService
             ?? new RecommendationStateLogService();
@@ -84,7 +89,9 @@ class BestowalRecommendationSyncService
                         ];
                     }
 
-                    $targetStateName = $this->resolveSyncTargetStateName((string)$bestowal->state);
+                    $targetStateName = $this->resolveSyncTargetStateName(
+                        (string)($bestowal->lifecycle_status ?? ''),
+                    );
                     $syncedIds = [];
                     foreach ($recommendations as $recommendation) {
                         $updated = false;
@@ -145,55 +152,28 @@ class BestowalRecommendationSyncService
     }
 
     /**
-     * Resolve the recommendation state name mapped to a bestowal state.
+     * Resolve the recommendation state name a linked recommendation should move to
+     * for the supplied bestowal lifecycle status.
      *
-     * @param string $bestowalState Current bestowal state name.
-     * @return string|null Recommendation state name or null when no sync is configured.
+     * @param string $lifecycleStatus Bestowal lifecycle status (open|given|cancelled).
+     * @return string|null Recommendation state name or null when no sync applies.
      */
-    public function resolveSyncTargetStateName(string $bestowalState): ?string
+    public function resolveSyncTargetStateName(string $lifecycleStatus): ?string
     {
-        $stateRow = $this->bestowalStatesTable->find()
-            ->select(['id', 'sync_recommendation_state'])
-            ->where(['BestowalStates.name' => $bestowalState])
-            ->first();
-
-        if ($stateRow === null || $stateRow->sync_recommendation_state === null) {
-            return null;
-        }
-
-        $syncState = $stateRow->sync_recommendation_state;
-        if ($syncState === null || $syncState === '') {
-            throw new RuntimeException(
-                'Configured sync recommendation state could not be resolved for bestowal state '
-                . $bestowalState . '.',
-            );
-        }
-
-        return (string)$syncState;
+        return $lifecycleStatus === Bestowal::LIFECYCLE_GIVEN
+            ? self::RECOMMENDATION_GIVEN_STATE
+            : null;
     }
 
     /**
-     * Resolve the recommendation state name mapped to the Cancelled bestowal state unwind column.
+     * Resolve the recommendation state name a linked recommendation unwinds to when its
+     * bestowal is cancelled or the link is removed.
      *
-     * @return string|null Recommendation state name or null when no unwind is configured.
+     * @return string|null Recommendation state name to unwind to.
      */
     public function resolveUnwindTargetStateName(): ?string
     {
-        $stateRow = $this->bestowalStatesTable->find()
-            ->select(['id', 'unwind_recommendation_state'])
-            ->where(['BestowalStates.name' => 'Cancelled'])
-            ->first();
-
-        if ($stateRow === null || $stateRow->unwind_recommendation_state === null) {
-            return null;
-        }
-
-        $unwindState = $stateRow->unwind_recommendation_state;
-        if ($unwindState === null || $unwindState === '') {
-            throw new RuntimeException('Configured unwind recommendation state could not be resolved.');
-        }
-
-        return (string)$unwindState;
+        return self::RECOMMENDATION_UNWIND_STATE;
     }
 
     /**

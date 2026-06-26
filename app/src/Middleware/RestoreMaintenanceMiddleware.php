@@ -26,7 +26,7 @@ class RestoreMaintenanceMiddleware implements MiddlewareInterface
     {
         $statusService = new RestoreStatusService();
         $status = $statusService->getStatus();
-        if (empty($status['locked']) && ($status['status'] ?? null) !== 'running') {
+        if (!$this->shouldShowMaintenance($status)) {
             return $handler->handle($request);
         }
 
@@ -69,16 +69,40 @@ class RestoreMaintenanceMiddleware implements MiddlewareInterface
     /**
      * @param array<string, mixed> $status
      */
+    private function shouldShowMaintenance(array $status): bool
+    {
+        return !empty($status['locked'])
+            || ($status['status'] ?? null) === 'running'
+            || !empty($status['maintenance_required']);
+    }
+
+    /**
+     * @param array<string, mixed> $status
+     */
     private function htmlBody(array $status): string
     {
+        $failed = ($status['status'] ?? null) === 'failed';
+        $title = $failed ? 'Restore failed' : 'Restore in progress';
+        $headingClass = $failed ? ' class="failed"' : '';
+        $refreshText = $failed
+            ? 'The restore did not complete. This page remains available so the restore log can be reviewed.'
+            : 'This page will refresh automatically.';
         $message = htmlspecialchars(
             (string)($status['message'] ?? 'Restore is in progress.'),
             ENT_QUOTES | ENT_SUBSTITUTE,
             'UTF-8',
         );
+        $phase = htmlspecialchars((string)($status['phase'] ?? 'running'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $source = htmlspecialchars((string)($status['source'] ?? 'backup'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $jobId = htmlspecialchars((string)($status['queue_job_id'] ?? 'pending'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $logItems = $this->restoreLogItems($status);
 
         $style = 'body{font-family:system-ui,sans-serif;margin:3rem;line-height:1.5;color:#222}'
-            . '.card{max-width:42rem;padding:1.5rem;border:1px solid #ddd;border-radius:.5rem}';
+            . '.card{max-width:48rem;padding:1.5rem;border:1px solid #ddd;border-radius:.5rem}'
+            . '.meta{color:#555}.log{max-height:20rem;overflow:auto;border:1px solid #ddd;'
+            . 'border-radius:.375rem;padding:1rem;background:#f8f9fa}.log ol{margin:0;padding-left:1.5rem}'
+            . '.log li{margin-bottom:.5rem}.timestamp{display:block;color:#555;font-size:.875rem}'
+            . '.failed{color:#842029}';
 
         return <<<HTML
 <!doctype html>
@@ -87,17 +111,53 @@ class RestoreMaintenanceMiddleware implements MiddlewareInterface
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="refresh" content="10">
-    <title>Restore in progress</title>
+    <title>{$title}</title>
     <style>{$style}</style>
 </head>
 <body>
     <main class="card">
-        <h1>Restore in progress</h1>
+        <h1{$headingClass}>{$title}</h1>
         <p>{$message}</p>
-        <p>This page will refresh automatically.</p>
+        <p class="meta">Phase: {$phase}<br>Source: {$source}<br>Queue job: {$jobId}</p>
+        <section aria-labelledby="restore-log-heading">
+            <h2 id="restore-log-heading">Restore log</h2>
+            <div class="log" role="log" aria-live="polite" aria-relevant="additions text">
+                {$logItems}
+            </div>
+        </section>
+        <p>{$refreshText}</p>
     </main>
 </body>
 </html>
 HTML;
+    }
+
+    /**
+     * Render restore log lines for the maintenance page.
+     *
+     * @param array<string, mixed> $status
+     */
+    private function restoreLogItems(array $status): string
+    {
+        $log = $status['log'] ?? [];
+        if (!is_array($log) || $log === []) {
+            return '<p>No restore log entries have been written yet.</p>';
+        }
+
+        $items = [];
+        foreach ($log as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+            $timestamp = htmlspecialchars((string)($entry['timestamp'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $message = htmlspecialchars((string)($entry['message'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $items[] = sprintf('<li><span class="timestamp">%s</span>%s</li>', $timestamp, $message);
+        }
+
+        if ($items === []) {
+            return '<p>No restore log entries have been written yet.</p>';
+        }
+
+        return '<ol>' . implode('', $items) . '</ol>';
     }
 }

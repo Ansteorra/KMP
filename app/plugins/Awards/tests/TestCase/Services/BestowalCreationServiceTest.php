@@ -23,7 +23,6 @@ class BestowalCreationServiceTest extends BaseTestCase
         $this->skipIfPostgres();
 
         Recommendation::clearCache();
-        Bestowal::clearCache();
 
         $this->recommendationsTable = $this->getTableLocator()->get('Awards.Recommendations');
         $this->bestowalsTable = $this->getTableLocator()->get('Awards.Bestowals');
@@ -33,7 +32,6 @@ class BestowalCreationServiceTest extends BaseTestCase
     protected function tearDown(): void
     {
         Recommendation::clearCache();
-        Bestowal::clearCache();
         parent::tearDown();
     }
 
@@ -49,7 +47,7 @@ class BestowalCreationServiceTest extends BaseTestCase
 
         $bestowalId = (int)$result['data']['bestowalId'];
         $bestowal = $this->bestowalsTable->get($bestowalId);
-        $this->assertSame('Created', $bestowal->state);
+        $this->assertSame(Bestowal::LIFECYCLE_OPEN, $bestowal->lifecycle_status);
         $this->assertSame($recommendationId, (int)$bestowal->primary_recommendation_id);
 
         $recommendation = $this->recommendationsTable->get($recommendationId);

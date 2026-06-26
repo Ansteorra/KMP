@@ -52,12 +52,13 @@ use App\Controller\ApprovalsController;
 use App\Controller\WorkflowDefinitionsController;
 use App\Controller\WorkflowInstancesController;
 use App\KMP\KmpIdentityInterface;
-use App\KMP\StaticHelpers;
+use App\KMP\Telemetry\RequestQueryCounter;
 use App\Middleware\RestoreMaintenanceMiddleware;
 use App\Middleware\TenantResolutionMiddleware;
-use App\KMP\Telemetry\RequestQueryCounter;
 // Authorization usings
 use App\Policy\ControllerResolver;
+use App\Services\ActionItems\ActionItemAssigneeResolver;
+use App\Services\ActionItems\ActionItemService;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use App\Services\ActiveWindowManager\DefaultActiveWindowManager;
 use App\Services\ApprovalContext\ApprovalContextRendererRegistry;
@@ -372,7 +373,29 @@ class Application extends BaseApplication implements
             // Converts exceptions to appropriate HTTP error responses
             ->add(new ErrorHandlerMiddleware(Configure::read('Error'), $this))
 
-            // 2. Request performance logging (optional via env flags)
+            // 2. Request query log context for correlating SQL entries to HTTP requests.
+            ->add(function ($request, $handler) {
+                $requestId = bin2hex(random_bytes(8));
+                $queryCounter = RequestQueryCounter::instance();
+                $queryCounter->beginRequest(
+                    $requestId,
+                    $request->getMethod(),
+                    $request->getUri()->getHost(),
+                    $request->getUri()->getPath(),
+                    $request->getRequestTarget(),
+                    $request->getHeaderLine('Turbo-Frame'),
+                    strtolower($request->getHeaderLine('X-Requested-With')) === 'xmlhttprequest',
+                );
+                $request = $request->withAttribute('kmp_request_id', $requestId);
+
+                try {
+                    return $handler->handle($request);
+                } finally {
+                    $queryCounter->clearRequest();
+                }
+            })
+
+            // 3. Request performance logging (optional via env flags)
             ->add(function ($request, $handler) {
                 if (!filter_var((string)env('PERF_REQUEST_LOG_ENABLED', false), FILTER_VALIDATE_BOOLEAN)) {
                     return $handler->handle($request);
@@ -419,6 +442,7 @@ class Application extends BaseApplication implements
                 $context = [
                     'scope' => ['app.performance'],
                     'method' => $request->getMethod(),
+                    'request_id' => (string)$request->getAttribute('kmp_request_id', 'unknown'),
                     'host' => $request->getUri()->getHost(),
                     'path' => $request->getUri()->getPath(),
                     'route_template' => $routeTemplate,
@@ -441,13 +465,14 @@ class Application extends BaseApplication implements
                     $level,
                     sprintf(
                         '[request_timing] method=%s host=%s path=%s route=%s status=%d'
-                        . ' duration_ms=%.2f memory_peak_mb=%.2f cpu_user_ms=%.2f cpu_sys_ms=%.2f'
+                        . ' request_id=%s duration_ms=%.2f memory_peak_mb=%.2f cpu_user_ms=%.2f cpu_sys_ms=%.2f'
                         . ' query_count=%d db_total_ms=%.2f response_bytes=%d kingdom=%s',
                         $context['method'],
                         $context['host'],
                         $context['path'],
                         $context['route_template'],
                         $context['status'],
+                        $context['request_id'],
                         $context['duration_ms'],
                         $context['memory_peak_mb'],
                         $context['cpu_user_ms'],
@@ -726,6 +751,11 @@ class Application extends BaseApplication implements
         $container->add(
             ImpersonationService::class,
         );
+
+        // Reusable to-do / action-item subsystem (My To-Dos surface + entity checklists)
+        $container->add(ActionItemAssigneeResolver::class);
+        $container->add(ActionItemService::class)
+            ->addArgument(ActionItemAssigneeResolver::class);
 
         // Member services extracted from MembersController
         $container->add(MemberAuthenticationService::class);

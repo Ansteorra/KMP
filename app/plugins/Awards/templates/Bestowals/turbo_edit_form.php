@@ -1,4 +1,6 @@
 <?php
+use Awards\Model\Entity\Bestowal;
+
 $formUrl = $this->Url->build(['plugin' => 'Awards', 'controller' => 'Bestowals', 'action' => 'edit', $bestowal->id]);
 $submitAction = implode(' ', [
     'submit->turbo-modal#submitAsTurboStream',
@@ -22,12 +24,6 @@ $submitAction = implode(' ', [
     <?= $this->Form->hidden('page_context_url', [
         'value' => $this->request->getRequestTarget(),
     ]) ?>
-    <script type="application/json" data-awards-bestowal-edit-target="stateRulesBlock" class="d-none">
-        <?= json_encode($rules) ?>
-    </script>
-    <script type="application/json" data-awards-bestowal-edit-status-map-json class="d-none">
-        <?= json_encode($statusMap ?? []) ?>
-    </script>
     <script type="application/json" data-awards-bestowal-edit-target="bestowedDateHints" class="d-none">
         <?= json_encode([
             'gatheringStartDate' => $gatheringStartDateYmd ?? null,
@@ -56,7 +52,7 @@ $submitAction = implode(' ', [
         <div class="mb-3">
             <p class="form-label mb-1"><?= __('Member') ?></p>
             <div class="form-control-plaintext">
-                <?= h($bestowal->member->sca_name ?? __('Unknown Member')) ?>
+                <?= h($bestowal->member->sca_name ?? $bestowal->member_sca_name ?? __('Unknown Member')) ?>
             </div>
         </div>
         <?php
@@ -122,19 +118,12 @@ $submitAction = implode(' ', [
         );
         ?>
         <div class="mb-3">
-            <p class="form-label mb-1"><?= __('Status') ?></p>
-            <div class="form-control-plaintext" data-awards-bestowal-edit-target="statusDisplay">
-                <?= h($bestowal->status) ?>
+            <p class="form-label mb-1"><?= __('Lifecycle Status') ?></p>
+            <div class="form-control-plaintext">
+                <?= h(ucfirst((string)($bestowal->lifecycle_status ?? Bestowal::LIFECYCLE_OPEN))) ?>
             </div>
         </div>
         <?php
-        echo $this->Form->control('state', [
-            'label' => __('State'),
-            'options' => $statusList,
-            'value' => $bestowal->state,
-            'data-awards-bestowal-edit-target' => 'state',
-            'data-action' => 'change->awards-bestowal-edit#setFieldRules change->awards-bestowal-edit#updateStatusDisplay',
-        ]);
         echo $this->Form->control('close_reason', [
             'label' => __('Reason for Cancellation'),
             'value' => $bestowal->close_reason,
@@ -193,7 +182,6 @@ $submitAction = implode(' ', [
             $selectedGatheringText = $gatheringList[$bestowal->gathering_id];
         }
         $gatheringLookupQuery = array_filter([
-            'status' => $bestowal->state,
             'selected_id' => $bestowal->gathering_id,
             'award_id' => $bestowal->award_id ?? ($selectedAward->id ?? null),
         ], fn($value) => $value !== null && $value !== '');

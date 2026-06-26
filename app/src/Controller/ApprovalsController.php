@@ -107,9 +107,20 @@ class ApprovalsController extends AppController
      */
     public function mobileApprovals()
     {
+        $currentUser = $this->request->getAttribute('identity');
+        $pendingCount = $currentUser
+            ? WorkflowApprovalsTable::getPendingApprovalCountForMember((int)$currentUser->id)
+            : 0;
+        if ($pendingCount === 0) {
+            $this->Flash->info(__('You have no pending approvals right now.'));
+
+            return $this->redirect(['controller' => 'Members', 'action' => 'viewMobileCard']);
+        }
+
         $this->set('mobileTitle', 'Approvals');
         $this->set('mobileSection', 'approvals');
         $this->set('mobileIcon', 'bi-check2-square');
+        $this->set('mobileQueuePerPage', self::MOBILE_QUEUE_DEFAULT_PER_PAGE);
 
         $this->viewBuilder()->setLayout('mobile_app');
     }
@@ -125,9 +136,11 @@ class ApprovalsController extends AppController
         $this->Authorization->skipAuthorization();
 
         $currentUser = $this->request->getAttribute('identity');
+        $total = WorkflowApprovalsTable::getPendingApprovalCountForMember((int)$currentUser->id);
+        $pagination = $this->mobileQueuePagination($total);
         $eligible = WorkflowApprovalsTable::getPendingApprovalsForMember((int)$currentUser->id, [
             'WorkflowInstances' => ['WorkflowDefinitions'],
-        ]);
+        ], null, (int)$pagination['perPage'], (int)$pagination['offset']);
         $triageByApprovalId = $this->getTriagePayloads(
             array_map(static fn($approval): int => (int)$approval->id, $eligible),
             (int)$currentUser->id,
@@ -189,7 +202,10 @@ class ApprovalsController extends AppController
 
         $this->response = $this->response
             ->withType('application/json')
-            ->withStringBody(json_encode(['approvals' => $approvals]));
+            ->withStringBody(json_encode([
+                'approvals' => $approvals,
+                'pagination' => $this->mobileQueuePaginationPayload($pagination),
+            ]));
 
         return $this->response;
     }
@@ -924,10 +940,12 @@ class ApprovalsController extends AppController
         }
 
         if ($this->request->is('ajax') && !$this->wantsTurboStreamRequest()) {
-            $this->set('result', $result);
-            $this->viewBuilder()->setOption('serialize', 'result');
-            $this->response = $this->response->withType('application/json');
-            $this->viewBuilder()->setClassName('Json');
+            return $this->jsonResponse([
+                'success' => $result->isSuccess(),
+                'error' => $result->isSuccess() ? null : $result->getError(),
+                'reason' => $result->getError(),
+                'data' => $result->getData(),
+            ]);
         } else {
             if ($result->isSuccess()) {
                 $this->Flash->success(__('Approval response recorded.'));

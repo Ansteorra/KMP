@@ -6,10 +6,6 @@ namespace Awards\Test\TestCase\Policy;
 
 use Awards\Policy\AwardPolicy;
 use Awards\Policy\AwardsTablePolicy;
-use Awards\Policy\BestowalStatePolicy;
-use Awards\Policy\BestowalStatesTablePolicy;
-use Awards\Policy\BestowalStatusPolicy;
-use Awards\Policy\BestowalStatusesTablePolicy;
 use Awards\Policy\DomainPolicy;
 use Awards\Policy\DomainsTablePolicy;
 use Awards\Policy\EventPolicy;
@@ -350,14 +346,6 @@ class AwardsPoliciesTest extends BaseTestCase
         $this->assertFalse($policy->canViewEventRecommendations($user, $entity));
     }
 
-    public function testCanViewGatheringRecommendationsDenied(): void
-    {
-        $user = $this->loadMember(self::TEST_MEMBER_AGATHA_ID);
-        $policy = new RecommendationPolicy();
-        $entity = $this->getTableLocator()->get('Awards.Recommendations')->newEmptyEntity();
-        $this->assertFalse($policy->canViewGatheringRecommendations($user, $entity));
-    }
-
     public function testCanExportDenied(): void
     {
         $user = $this->loadMember(self::TEST_MEMBER_AGATHA_ID);
@@ -439,43 +427,5 @@ class AwardsPoliciesTest extends BaseTestCase
         $entity = $this->getTableLocator()->get('Awards.Recommendations')->newEmptyEntity();
 
         $this->assertTrue($policy->canEdit($admin, $entity));
-    }
-
-    // =========================================================================
-    // Bestowal workflow config policies
-    // =========================================================================
-
-    public function testBestowalStatusPolicyExtendsBasePolicy(): void
-    {
-        $policy = new BestowalStatusPolicy();
-        $this->assertInstanceOf(BasePolicy::class, $policy);
-        $this->assertInstanceOf(BeforePolicyInterface::class, $policy);
-    }
-
-    public function testBestowalStatusesTablePolicyExtendsBasePolicy(): void
-    {
-        $policy = new BestowalStatusesTablePolicy();
-        $this->assertInstanceOf(BasePolicy::class, $policy);
-    }
-
-    public function testBestowalStatePolicyExtendsBasePolicy(): void
-    {
-        $policy = new BestowalStatePolicy();
-        $this->assertInstanceOf(BasePolicy::class, $policy);
-        $this->assertInstanceOf(BeforePolicyInterface::class, $policy);
-    }
-
-    public function testBestowalStatesTablePolicyExtendsBasePolicy(): void
-    {
-        $policy = new BestowalStatesTablePolicy();
-        $this->assertInstanceOf(BasePolicy::class, $policy);
-    }
-
-    public function testBestowalStatusPolicySuperUserBypass(): void
-    {
-        $admin = $this->loadMember(self::ADMIN_MEMBER_ID);
-        $policy = new BestowalStatusPolicy();
-        $entity = $this->getTableLocator()->get('Awards.BestowalStatuses')->newEmptyEntity();
-        $this->assertTrue($policy->before($admin, $entity, 'view'));
     }
 }

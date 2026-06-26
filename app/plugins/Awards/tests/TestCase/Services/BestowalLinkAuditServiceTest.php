@@ -27,7 +27,6 @@ class BestowalLinkAuditServiceTest extends BaseTestCase
         $this->skipIfPostgres();
 
         Recommendation::clearCache();
-        Bestowal::clearCache();
 
         $this->recommendationsTable = $this->getTableLocator()->get('Awards.Recommendations');
         $this->bestowalsTable = $this->getTableLocator()->get('Awards.Bestowals');
@@ -40,7 +39,6 @@ class BestowalLinkAuditServiceTest extends BaseTestCase
     protected function tearDown(): void
     {
         Recommendation::clearCache();
-        Bestowal::clearCache();
         parent::tearDown();
     }
 
@@ -88,7 +86,7 @@ class BestowalLinkAuditServiceTest extends BaseTestCase
         $bestowalId = $this->createBestowalWithRecommendations(1);
 
         $this->bestowalsTable->updateAll(
-            ['state' => 'Cancelled'],
+            ['lifecycle_status' => Bestowal::LIFECYCLE_CANCELLED],
             ['id' => $bestowalId],
         );
 

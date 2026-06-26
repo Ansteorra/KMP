@@ -5,11 +5,14 @@ namespace Awards\Test\TestCase\Services;
 
 use App\Model\Entity\WorkflowInstance;
 use App\Test\TestCase\BaseTestCase;
+use Awards\AwardsPlugin;
 use Awards\Model\Entity\RecommendationFeedbackRequest;
 use Awards\Services\RecommendationApprovalContextRenderer;
 use Awards\Services\RecommendationFeedbackContextRenderer;
 use Cake\I18n\DateTime;
 use Cake\ORM\Table;
+use Cake\Routing\Route\DashedRoute;
+use Cake\Routing\Router;
 
 class RecommendationFeedbackContextRendererTest extends BaseTestCase
 {
@@ -96,6 +99,11 @@ class RecommendationFeedbackContextRendererTest extends BaseTestCase
 
     public function testRecommendationApprovalContextIncludesRecommendationDetailsAndSourceUrl(): void
     {
+        Router::reload();
+        $builder = Router::createRouteBuilder('/');
+        $builder->setRouteClass(DashedRoute::class);
+        (new AwardsPlugin())->routes($builder);
+
         $recommendation = $this->getTableLocator()->get('Awards.Recommendations')
             ->find()
             ->contain(['Awards', 'Branches'])

@@ -17,7 +17,7 @@ For managed multi-tenant production operations, review the deployment runbooks u
 For a production deployment, the following server configuration is recommended:
 
 - **Web Server**: Apache 2.4+ or Nginx 1.18+
-- **PHP**: PHP 8.3+ with required extensions (see [System Requirements](1-introduction.md#13-system-requirements))
+- **PHP**: PHP 8.4+ with required extensions (see [System Requirements](1-introduction.md#13-system-requirements))
 - **Database**: MySQL 5.7+ or MariaDB 10.2+
 - **Memory**: Minimum 2GB RAM (4GB+ recommended)
 - **Storage**: 10GB+ disk space (more if storing many attachments)
@@ -43,7 +43,7 @@ The recommended production directory structure separates public and non-public f
 
 /etc/apache2/sites-available/  # Apache configuration
 /etc/nginx/sites-available/    # Nginx configuration
-/etc/php/8.3/                  # PHP configuration
+/etc/php/8.4/                  # PHP configuration
 /etc/mysql/                    # MySQL configuration
 ```
 
@@ -131,7 +131,7 @@ server {
     
     location ~ \.php$ {
         include snippets/fastcgi-php.conf;
-        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
+        fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
         include fastcgi_params;
     }

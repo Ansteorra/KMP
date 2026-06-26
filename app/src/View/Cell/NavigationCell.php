@@ -45,6 +45,13 @@ class NavigationCell extends Cell
     protected array $_validCellOptions = [];
 
     /**
+     * Request-local badge lookup memo keyed by badge configuration.
+     *
+     * @var array<string, int>
+     */
+    protected array $badgeStatusMemo = [];
+
+    /**
      * Initialization logic run at the end of object construction.
      *
      * Currently no initialization required, but maintained for
@@ -367,7 +374,20 @@ class NavigationCell extends Cell
             is_array($badgeConfig)
             && isset($badgeConfig['class'], $badgeConfig['method'], $badgeConfig['argument'])
         ) {
-            return call_user_func(
+            $argument = $badgeConfig['argument'];
+            $argumentKey = is_scalar($argument) || $argument === null
+                ? (string)$argument
+                : md5((string)json_encode($argument));
+            $memoKey = implode('|', [
+                (string)$badgeConfig['class'],
+                (string)$badgeConfig['method'],
+                $argumentKey,
+            ]);
+            if (array_key_exists($memoKey, $this->badgeStatusMemo)) {
+                return $this->badgeStatusMemo[$memoKey];
+            }
+
+            return $this->badgeStatusMemo[$memoKey] = (int)call_user_func(
                 [$badgeConfig['class'], $badgeConfig['method']],
                 $badgeConfig['argument'],
             );

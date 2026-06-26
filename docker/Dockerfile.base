@@ -3,7 +3,7 @@
 # Contains all PHP extensions pre-compiled. Built infrequently (only when
 # PHP extensions or base OS packages change). Rebuilt via .github/workflows/base.yml.
 #
-# Published to: ghcr.io/jhandel/kmp-base:php83
+# Published to: ghcr.io/jhandel/kmp-base:php84
 # Used by: docker/Dockerfile.prod as the production runtime base
 #
 # Uses mlocati/php-extension-installer — the industry-standard PHP extension
@@ -11,10 +11,10 @@
 # itself, and uses pre-built packages wherever available instead of make.
 # See: https://github.com/mlocati/docker-php-extension-installer
 
-FROM php:8.3-apache-bookworm
+FROM php:8.4-apache-bookworm
 
 LABEL org.opencontainers.image.source="https://github.com/jhandel/KMP"
-LABEL org.opencontainers.image.description="KMP base image - PHP 8.3 + Apache + all extensions"
+LABEL org.opencontainers.image.description="KMP base image - PHP 8.4 + Apache + all extensions"
 
 # Install mlocati/php-extension-installer — handles deps, compilation, and
 # cleanup automatically. Uses pre-built packages when available.

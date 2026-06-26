@@ -59,6 +59,12 @@ $this->KMP->endBlock(); ?>
             'label' => __('Approval Process'),
             'help' => __('Choose the configured approval queue process for new recommendations for this award.'),
         ]);
+        echo $this->Form->control('bestowal_todo_template_id', [
+            'options' => $bestowalTodoTemplates,
+            'empty' => __('Use default bestowal to-do template'),
+            'label' => __('Bestowal To-Do Template'),
+            'help' => __('Choose the checklist of parallel to-do checks created for new bestowals of this award.'),
+        ]);
         ?>
     </fieldset>
     <?= $this->Form->button(__('Submit')) ?>

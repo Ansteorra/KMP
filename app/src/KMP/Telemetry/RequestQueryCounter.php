@@ -26,11 +26,21 @@ final class RequestQueryCounter extends AbstractLogger
 {
     private static ?self $instance = null;
 
+    /**
+     * @var array<string, string|bool>
+     */
+    private static array $currentRequestContext = [];
+
     private int $count = 0;
 
     private float $totalMs = 0.0;
 
     private ?LoggerInterface $inner;
+
+    /**
+     * @var array<string, string|bool>
+     */
+    private array $requestContext = [];
 
     /**
      * @param \Psr\Log\LoggerInterface|null $inner Optional inner logger to forward to (e.g. Cake QueryLogger).
@@ -60,6 +70,7 @@ final class RequestQueryCounter extends AbstractLogger
     public static function setInstance(self $instance): void
     {
         self::$instance = $instance;
+        self::$currentRequestContext = [];
     }
 
     /**
@@ -70,6 +81,59 @@ final class RequestQueryCounter extends AbstractLogger
     {
         $this->count = 0;
         $this->totalMs = 0.0;
+    }
+
+    /**
+     * Starts a new HTTP request logging scope for subsequent query log entries.
+     *
+     * @param string $requestId Short correlation ID for this HTTP request.
+     * @param string $method HTTP method.
+     * @param string $host Request host without credentials.
+     * @param string $path Request path without query string.
+     * @param string $target Request path and query string, for diagnostics.
+     * @param string $turboFrame Turbo Frame header value, or empty string when absent.
+     * @param bool $isAjax Whether the request is an XMLHttpRequest.
+     * @return void
+     */
+    public function beginRequest(
+        string $requestId,
+        string $method,
+        string $host,
+        string $path,
+        string $target,
+        string $turboFrame,
+        bool $isAjax,
+    ): void {
+        $this->reset();
+        $this->requestContext = [
+            'request_id' => $requestId,
+            'request_method' => strtoupper($method),
+            'request_host' => $host,
+            'request_path' => $path,
+            'request_target' => $target,
+            'turbo_frame' => $turboFrame,
+            'is_ajax' => $isAjax,
+        ];
+        self::$currentRequestContext = $this->requestContext;
+    }
+
+    /**
+     * Clears request-specific query log context for long-lived workers.
+     *
+     * @return void
+     */
+    public function clearRequest(): void
+    {
+        $this->requestContext = [];
+        self::$currentRequestContext = [];
+    }
+
+    /**
+     * @return array<string, string|bool> Current HTTP request context for log formatters.
+     */
+    public static function currentRequestContext(): array
+    {
+        return self::$currentRequestContext;
     }
 
     /**
@@ -111,7 +175,35 @@ final class RequestQueryCounter extends AbstractLogger
         }
 
         if ($this->inner !== null) {
-            $this->inner->log($level, $message, $context);
+            $context += $this->requestContext;
+            $context['request_query_number'] = $this->count;
+            $this->inner->log($level, $this->formatQueryLogMessage($message), $context);
         }
+    }
+
+    /**
+     * Adds compact request metadata to the rendered query log line.
+     *
+     * @param \Stringable|string $message Original query log message.
+     * @return string Query log message with request correlation details.
+     */
+    private function formatQueryLogMessage(string|Stringable $message): string
+    {
+        if ($this->requestContext === []) {
+            return (string)$message;
+        }
+
+        return sprintf(
+            '[request_id=%s query_number=%d method=%s host=%s path=%s target=%s turbo_frame=%s ajax=%s] %s',
+            $this->requestContext['request_id'],
+            $this->count,
+            $this->requestContext['request_method'],
+            $this->requestContext['request_host'],
+            $this->requestContext['request_path'],
+            $this->requestContext['request_target'],
+            $this->requestContext['turbo_frame'] !== '' ? $this->requestContext['turbo_frame'] : '-',
+            $this->requestContext['is_ajax'] ? '1' : '0',
+            (string)$message,
+        );
     }
 }

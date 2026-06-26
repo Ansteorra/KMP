@@ -4,7 +4,10 @@ declare(strict_types=1);
 namespace Awards\KMP\GridColumns;
 
 use App\KMP\GridColumns\BaseGridColumns;
+use App\Model\Entity\ActionItem;
 use Awards\Model\Entity\Bestowal;
+use Cake\ORM\Query\SelectQuery;
+use Cake\ORM\TableRegistry;
 
 /**
  * Grid column metadata for award bestowal Dataverse-style grids.
@@ -49,6 +52,22 @@ class BestowalsGridColumns extends BaseGridColumns
                     ],
                 ],
             ],
+            'todos' => [
+                'key' => 'todos',
+                'type' => 'modal',
+                'label' => '',
+                'icon' => 'bi-check2-square',
+                'class' => 'btn-sm btn btn-outline-secondary todos-bestowal',
+                'modalTarget' => '#bestowalTodosModal',
+                'permission' => 'view',
+                'dataAttributes' => [
+                    'controller' => 'outlet-btn',
+                    'action' => 'click->outlet-btn#fireNotice',
+                    'outlet-btn-btn-data-value' => [
+                        'id' => 'id',
+                    ],
+                ],
+            ],
         ];
     }
 
@@ -78,8 +97,8 @@ class BestowalsGridColumns extends BaseGridColumns
                 'defaultVisible' => true,
                 'width' => '180px',
                 'alignment' => 'left',
-                'renderField' => 'member.sca_name',
-                'queryField' => 'Members.sca_name',
+                'renderField' => 'member_sca_name',
+                'queryField' => 'Bestowals.member_sca_name',
                 'clickAction' => 'navigate:/members/view/:member_id',
                 'clickActionPermission' => static function ($row, $identity): bool {
                     $memberId = is_array($row) ? ($row['member_id'] ?? null) : ($row->member_id ?? null);
@@ -104,25 +123,39 @@ class BestowalsGridColumns extends BaseGridColumns
                 'alignment' => 'left',
                 'description' => __('Award selected for this bestowal'),
             ],
-            'status' => [
-                'key' => 'status',
-                'label' => __('Status'),
-                'type' => 'string',
-                'sortable' => true,
-                'filterable' => true,
-                'defaultVisible' => false,
-                'width' => '120px',
-                'alignment' => 'left',
-            ],
-            'state' => [
-                'key' => 'state',
-                'label' => __('State'),
+            'lifecycle_status' => [
+                'key' => 'lifecycle_status',
+                'label' => __('Lifecycle'),
                 'type' => 'string',
                 'sortable' => true,
                 'filterable' => true,
                 'defaultVisible' => true,
-                'width' => '140px',
+                'width' => '120px',
                 'alignment' => 'left',
+                'queryField' => 'Bestowals.lifecycle_status',
+                'description' => __('Open, given, or cancelled lifecycle of the bestowal'),
+            ],
+            'todos_summary' => [
+                'key' => 'todos_summary',
+                'label' => __('To-Dos'),
+                'type' => 'html',
+                'sortable' => false,
+                'searchable' => false,
+                'filterable' => true,
+                'filterType' => 'dropdown',
+                'filterOptionsSource' => [
+                    'method' => 'getTodoRemainingFilterOptions',
+                    'class' => self::class,
+                ],
+                'customFilterHandler' => [
+                    'method' => 'applyTodoRemainingFilter',
+                    'class' => self::class,
+                ],
+                'exportable' => false,
+                'defaultVisible' => true,
+                'width' => '150px',
+                'alignment' => 'left',
+                'description' => __('Preparation checks (to-dos) and their completion state'),
             ],
             'court_slot' => [
                 'key' => 'court_slot',
@@ -219,7 +252,8 @@ class BestowalsGridColumns extends BaseGridColumns
         $gatheringColumns = [
             'member_sca_name',
             'awards',
-            'state',
+            'lifecycle_status',
+            'todos_summary',
             'court_slot',
             'herald_notes_preview',
             'recommendation_reasons',
@@ -244,13 +278,11 @@ class BestowalsGridColumns extends BaseGridColumns
             'sys-bestowals-active' => [
                 'id' => 'sys-bestowals-active',
                 'name' => __('Active Bestowals'),
-                'description' => __(
-                    'Bestowals still moving through planning, preparation, scheduling, or court readiness',
-                ),
+                'description' => __('Open bestowals that have not yet been given or cancelled'),
                 'canManage' => false,
                 'config' => [
                     'filters' => [
-                        ['field' => 'status', 'operator' => 'in', 'value' => self::activeStatusNames()],
+                        ['field' => 'lifecycle_status', 'operator' => 'eq', 'value' => Bestowal::LIFECYCLE_OPEN],
                     ],
                     'columns' => array_merge($gatheringColumns, ['gathering_name', 'source']),
                 ],
@@ -258,57 +290,36 @@ class BestowalsGridColumns extends BaseGridColumns
             'sys-bestowals-all' => [
                 'id' => 'sys-bestowals-all',
                 'name' => __('All / Audit'),
-                'description' => __('All bestowals, including archival state and status data'),
+                'description' => __('All bestowals across every lifecycle status'),
                 'canManage' => false,
                 'config' => [
                     'filters' => [],
-                    'columns' => array_merge($gatheringColumns, ['status', 'gathering_name', 'source']),
+                    'columns' => array_merge($gatheringColumns, ['gathering_name', 'source']),
                 ],
             ],
-        ];
-
-        foreach (Bestowal::getStatuses() as $statusName => $states) {
-            $key = 'sys-bestowals-' . strtolower(preg_replace('/[^a-z0-9]+/i', '-', $statusName));
-            $views[$key] = [
-                'id' => $key,
-                'name' => __($statusName),
-                'description' => __('Bestowals in the {0} workflow queue', $statusName),
+            'sys-bestowals-completed' => [
+                'id' => 'sys-bestowals-completed',
+                'name' => __('Completed'),
+                'description' => __('Bestowals marked as given'),
                 'canManage' => false,
                 'config' => [
                     'filters' => [
-                        ['field' => 'status', 'operator' => 'eq', 'value' => $statusName],
+                        ['field' => 'lifecycle_status', 'operator' => 'eq', 'value' => Bestowal::LIFECYCLE_GIVEN],
                     ],
-                    'columns' => array_merge($gatheringColumns, ['status']),
+                    'columns' => array_merge($gatheringColumns, ['gathering_name', 'source', 'created']),
                 ],
-            ];
-        }
-
-        $views['sys-bestowals-completed'] = [
-            'id' => 'sys-bestowals-completed',
-            'name' => __('Completed'),
-            'description' => __('Bestowals marked as given'),
-            'canManage' => false,
-            'config' => [
-                'filters' => [
-                    ['field' => 'state', 'operator' => 'in', 'value' => self::configuredStates(['Given'])],
-                ],
-                'columns' => array_merge($gatheringColumns, ['status', 'gathering_name', 'source', 'created']),
             ],
-        ];
-
-        $views['sys-bestowals-cancelled'] = [
-            'id' => 'sys-bestowals-cancelled',
-            'name' => __('Cancelled / Not Given'),
-            'description' => __('Bestowals that were cancelled or announced as not given'),
-            'canManage' => false,
-            'config' => [
-                'filters' => [
-                    ['field' => 'state', 'operator' => 'in', 'value' => self::configuredStates([
-                        'Cancelled',
-                        'Announced Not Given',
-                    ])],
+            'sys-bestowals-cancelled' => [
+                'id' => 'sys-bestowals-cancelled',
+                'name' => __('Cancelled'),
+                'description' => __('Bestowals that were cancelled'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'lifecycle_status', 'operator' => 'eq', 'value' => Bestowal::LIFECYCLE_CANCELLED],
+                    ],
+                    'columns' => array_merge($gatheringColumns, ['gathering_name', 'source', 'created']),
                 ],
-                'columns' => array_merge($gatheringColumns, ['status', 'gathering_name', 'source', 'created']),
             ],
         ];
 
@@ -316,50 +327,114 @@ class BestowalsGridColumns extends BaseGridColumns
     }
 
     /**
-     * @return array<int, string>
+     * Dropdown filter options for the to-do summary column.
+     *
+     * Because different awards can carry different to-do templates (e.g. kingdom vs
+     * baronial), the options combine path-agnostic states ("remaining" / "complete")
+     * with per-check options keyed on the shared template item key, so a single
+     * "Open: Has scroll" filter matches that check across every path that defines it.
+     *
+     * @return list<array{value: string, label: string}>
      */
-    private static function activeStatusNames(): array
+    public static function getTodoRemainingFilterOptions(): array
     {
-        return array_values(array_filter(
-            array_keys(Bestowal::getStatuses()),
-            static fn(string $status): bool => $status !== 'Closed',
-        ));
-    }
+        $options = [
+            ['value' => '__remaining_any', 'label' => __('Has any remaining To Dos')],
+            ['value' => '__remaining', 'label' => __('Has any required remaining To Dos')],
+            ['value' => '__complete', 'label' => __('Has Completed All To Dos')],
+        ];
 
-    /**
-     * @param array<int, string> $preferredStates
-     * @return array<int, string>
-     */
-    private static function configuredStates(array $preferredStates): array
-    {
-        $availableStates = array_flip(Bestowal::getStates());
-        $states = [];
-        foreach ($preferredStates as $state) {
-            if (isset($availableStates[$state])) {
-                $states[] = $state;
+        $items = TableRegistry::getTableLocator()
+            ->get('Awards.BestowalTodoTemplateItems')
+            ->find()
+            ->select(['item_key', 'label'])
+            ->innerJoinWith('BestowalTodoTemplates', function ($q) {
+                return $q->where(['BestowalTodoTemplates.is_active' => true]);
+            })
+            ->where(['BestowalTodoTemplateItems.item_key IS NOT' => null])
+            ->orderBy(['BestowalTodoTemplateItems.sort_order' => 'ASC', 'BestowalTodoTemplateItems.label' => 'ASC'])
+            ->all();
+
+        $seen = [];
+        foreach ($items as $item) {
+            $key = (string)$item->item_key;
+            if ($key === '' || isset($seen[$key])) {
+                continue;
             }
-        }
-
-        return $states !== [] ? $states : $preferredStates;
-    }
-
-    /**
-     * @param bool $canViewHidden Whether hidden states should be included
-     * @return array<string, string>
-     */
-    public static function getStateFilterOptions(bool $canViewHidden = false): array
-    {
-        $states = Bestowal::getStates();
-        if (!$canViewHidden) {
-            $hidden = Bestowal::getHiddenStates();
-            $states = array_values(array_diff($states, $hidden));
-        }
-
-        $options = [];
-        foreach ($states as $state) {
-            $options[$state] = $state;
+            $seen[$key] = true;
+            $options[] = ['value' => 'open:' . $key, 'label' => __('Open: {0}', (string)$item->label)];
         }
 
         return $options;
+    }
+
+    /**
+     * Custom filter handler narrowing bestowals by their open/remaining to-do checks.
+     *
+     * Supported values:
+     * - `__remaining_any`: bestowals with at least one open to-do (required or optional).
+     * - `__remaining`: bestowals with at least one open gating (required) to-do.
+     * - `__complete`: bestowals with no open to-do at all (every to-do done/cancelled).
+     * - `open:<item_key>`: bestowals with that specific check still open.
+     *
+     * @param \Cake\ORM\Query\SelectQuery $query The bestowals query to filter
+     * @param array|string $filterValue Selected filter value
+     * @param array<string, mixed> $context Trait-supplied context (unused)
+     * @return \Cake\ORM\Query\SelectQuery The filtered query
+     */
+    public static function applyTodoRemainingFilter($query, $filterValue, array $context = []): SelectQuery
+    {
+        $value = is_array($filterValue) ? (string)reset($filterValue) : (string)$filterValue;
+        if ($value === '') {
+            return $query;
+        }
+
+        $actionItems = TableRegistry::getTableLocator()->get('ActionItems');
+        $entityType = Bestowal::ACTION_ITEM_ENTITY_TYPE;
+
+        $openSubquery = function (bool $gatingOnly) use ($actionItems, $entityType): SelectQuery {
+            $conditions = [
+                'ActionItems.entity_type' => $entityType,
+                'ActionItems.status' => ActionItem::STATUS_OPEN,
+            ];
+            if ($gatingOnly) {
+                $conditions['ActionItems.is_gating'] = true;
+            }
+
+            return $actionItems->find()
+                ->select(['ActionItems.entity_id'])
+                ->where($conditions);
+        };
+
+        if ($value === '__remaining_any') {
+            return $query->where(['Bestowals.id IN' => $openSubquery(false)]);
+        }
+
+        if ($value === '__remaining') {
+            return $query->where(['Bestowals.id IN' => $openSubquery(true)]);
+        }
+
+        if ($value === '__complete') {
+            return $query->where(['Bestowals.id NOT IN' => $openSubquery(false)]);
+        }
+
+        if (str_starts_with($value, 'open:')) {
+            $checkKey = substr($value, 5);
+            if ($checkKey === '') {
+                return $query;
+            }
+
+            $subquery = $actionItems->find()
+                ->select(['ActionItems.entity_id'])
+                ->where([
+                    'ActionItems.entity_type' => $entityType,
+                    'ActionItems.status' => ActionItem::STATUS_OPEN,
+                    'ActionItems.source_ref' => $checkKey,
+                ]);
+
+            return $query->where(['Bestowals.id IN' => $subquery]);
+        }
+
+        return $query;
     }
 }

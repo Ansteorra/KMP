@@ -293,6 +293,9 @@ if [ "$LOAD_SEED" != true ] || { [ "$DB_DRIVER" != "postgres" ] && [ "$DB_DRIVER
 fi
 
 if [ "$LOAD_SEED" = true ]; then
+    echo "[post] Ensuring bestowal to-do demo users..."
+    "${COMPOSE[@]}" exec -T app bin/cake migrations seed --seed DevLoadBestowalTodoUsersSeed
+
     AWARD_RECOMMENDATION_MIGRATION="$(env_or_file KMP_DEV_RESET_MIGRATE_RECOMMENDATIONS 1)"
     if [ "$AWARD_RECOMMENDATION_MIGRATION" = "1" ]; then
         if [ "$DB_DRIVER" = "postgres" ] || [ "$DB_DRIVER" = "pgsql" ]; then
@@ -313,13 +316,9 @@ WITH eligible_recommendations AS (
         r.created_by,
         r.modified_by,
         CASE
-            WHEN r.state = 'Need to Schedule' AND r.gathering_id IS NOT NULL THEN 'Gathering Assigned'
-            WHEN r.state = 'Need to Schedule' THEN 'Created'
-            WHEN r.state = 'Scheduled' THEN 'Court Scheduled'
-            WHEN r.state = 'Given' THEN 'Given'
-            WHEN r.state = 'Announced Not Given' THEN 'Announced Not Given'
-            ELSE 'Created'
-        END AS bestowal_state
+            WHEN r.state = 'Given' THEN 'given'
+            ELSE 'open'
+        END AS bestowal_lifecycle_status
     FROM awards_recommendations r
     WHERE r.deleted IS NULL
       AND r.recommendation_group_id IS NULL
@@ -332,8 +331,7 @@ inserted_bestowals AS (
         gathering_id,
         award_id,
         primary_recommendation_id,
-        status,
-        state,
+        lifecycle_status,
         stack_rank,
         bestowed_at,
         source,
@@ -352,8 +350,7 @@ inserted_bestowals AS (
         r.gathering_id,
         r.award_id,
         r.id,
-        COALESCE(bs.name, 'Planning'),
-        r.bestowal_state,
+        r.bestowal_lifecycle_status,
         0,
         r.given,
         'recommendation',
@@ -367,8 +364,6 @@ inserted_bestowals AS (
         r.created_by,
         r.modified_by
     FROM eligible_recommendations r
-    LEFT JOIN awards_bestowal_states s ON s.name = r.bestowal_state
-    LEFT JOIN awards_bestowal_statuses bs ON bs.id = s.status_id
     RETURNING id, primary_recommendation_id
 ),
 updated_recommendations AS (
@@ -401,6 +396,9 @@ SQL
 
         echo "[post] Migrating award recommendations into lifecycle ownership..."
         "${COMPOSE[@]}" exec -T app bin/cake awards migrate_award_recommendations --apply --allow-open-manual-review
+
+        echo "[post] Materializing bestowal to-do checklists..."
+        "${COMPOSE[@]}" exec -T app bin/cake awards materialize_bestowal_todos
     else
         echo "[post] Skipping seeded award recommendation lifecycle reconciliation."
     fi

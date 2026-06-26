@@ -5,10 +5,24 @@ namespace App\Services;
 
 use App\KMP\StaticHelpers;
 use App\Model\Entity\WorkflowApproval;
+use App\Model\Entity\WorkflowApprovalResponse;
 use App\Model\Entity\WorkflowExecutionLog;
 use App\Model\Entity\WorkflowInstance;
+use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
+use App\Services\ActiveWindowManager\DefaultActiveWindowManager;
+use App\Services\WorkflowEngine\Actions\CoreActions;
+use App\Services\WorkflowEngine\Conditions\CoreConditions;
+use App\Services\WorkflowEngine\DefaultWorkflowEngine;
+use App\Services\WorkflowEngine\ExpressionEvaluator;
+use App\Services\WorkflowEngine\StateMachine\StateMachineHandler;
+use App\Services\WorkflowEngine\TriggerDispatcher;
+use Awards\Model\Entity\RecommendationMigrationRun;
+use Awards\Services\AwardsWorkflowActions;
 use Awards\Services\RecommendationApprovalProcessService;
+use Awards\Services\RecommendationMigrationService;
+use Cake\Core\Container;
 use Cake\Database\Connection;
+use Cake\Database\Driver\Postgres;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\ORM\Locator\LocatorAwareTrait;
@@ -32,7 +46,8 @@ class BackupRestoreCompatibilityService
     private const AWARDS_EXISTING_RECOMMENDATION_WORKFLOW_SLUG = 'awards-existing-recommendation-approval';
     private const AWARDS_RECOMMENDATION_ENTITY_TYPE = 'Awards.Recommendations';
     private const AWARDS_APPROVAL_NODE_ID = 'award-approval-gate';
-    private const AWARDS_RESTORE_MIGRATION_MARKER = 'BackupRestoreCompatibilityService';
+    private const RESTORE_MIGRATION_MARKER = 'BackupRestoreCompatibilityService';
+    private const PRINCIPALITY_AWARD_DOMAIN_ID = 11;
 
     /**
      * @param array<string, mixed> $payload Decoded backup payload.
@@ -59,6 +74,13 @@ class BackupRestoreCompatibilityService
             'bestowal_specialties_backfilled' => 0,
             'award_approval_processes_seeded' => 0,
             'award_approval_workflows_backfilled' => 0,
+            'warrant_roster_approval_workflows_backfilled' => 0,
+            'award_recommendation_migration_closed' => 0,
+            'award_recommendation_migration_bestowal' => 0,
+            'award_recommendation_migration_approval_workflow' => 0,
+            'award_recommendation_migration_manual_review' => 0,
+            'award_recommendation_migration_skipped' => 0,
+            'award_recommendation_migration_error' => 0,
         ];
 
         $stats = array_merge($stats, $this->syncWorkflowDefinitions($connection));
@@ -68,6 +90,8 @@ class BackupRestoreCompatibilityService
         $stats = array_merge($stats, $this->backfillBestowalReasonSummaries($connection));
         $stats = array_merge($stats, $this->backfillBestowalSpecialties($connection));
         $stats = array_merge($stats, $this->backfillSubmittedRecommendationApprovalWorkflows($connection));
+        $stats = array_merge($stats, $this->backfillWarrantRosterApprovalWorkflows($connection));
+        $stats = array_merge($stats, $this->runAwardRecommendationLifecycleMigration($connection));
 
         $this->reportProgress(
             $progressReporter,
@@ -304,7 +328,6 @@ class BackupRestoreCompatibilityService
             ELSE 'Created'
         END";
         $parentCondition = "r.deleted IS NULL
-              AND r.member_id IS NOT NULL
               AND r.recommendation_group_id IS NULL
               AND r.state IN ('Need to Schedule', 'Scheduled', 'Given', 'Announced Not Given')
               AND r.bestowal_id IS NULL";
@@ -314,13 +337,14 @@ class BackupRestoreCompatibilityService
 
         $connection->execute(
             "INSERT INTO awards_bestowals (
-                member_id, gathering_id, primary_recommendation_id, status, state,
+                member_id, member_sca_name, gathering_id, primary_recommendation_id, status, state,
                 stack_rank, bestowed_at, source, noble_notes, herald_notes,
                 call_into_court, court_availability, person_to_notify, created, modified,
                 created_by, modified_by
             )
             SELECT
                 r.member_id,
+                r.member_sca_name,
                 r.gathering_id,
                 r.id,
                 COALESCE(bs.name, 'Planning'),
@@ -471,17 +495,27 @@ class BackupRestoreCompatibilityService
             'SELECT id FROM officers_offices WHERE name = ? AND deleted IS NULL LIMIT 1',
             ['Crown'],
         );
-        $localLandedOfficeId = $this->lookupOptionalId(
+        $landedNobilityOfficeId = $this->lookupOptionalId(
             $connection,
-            'SELECT id FROM officers_offices WHERE name = ? AND deleted IS NULL LIMIT 1',
-            ['Local Landed'],
+            'SELECT id FROM officers_offices
+             WHERE name = ? AND deleted IS NULL
+             LIMIT 1',
+            ['Landed Nobility'],
+        );
+        $principalityCoronetOfficeId = $this->lookupOptionalId(
+            $connection,
+            'SELECT id FROM officers_offices
+             WHERE name = ? AND deleted IS NULL
+             LIMIT 1',
+            ['Principality Coronet'],
         );
 
         if (
             $ansteorraBranchId === null
             || $nonArmigerousLevelId === null
             || $crownOfficeId === null
-            || $localLandedOfficeId === null
+            || $landedNobilityOfficeId === null
+            || $principalityCoronetOfficeId === null
         ) {
             return ['award_approval_processes_seeded' => 0];
         }
@@ -495,6 +529,11 @@ class BackupRestoreCompatibilityService
             $connection,
             'Single Approver - Local',
             'Single local approval queue for non-armigerous local awards.',
+        );
+        $singlePrincipalityProcessId = $this->upsertAwardApprovalProcess(
+            $connection,
+            'Single Approver - Principality Coronet',
+            'Single approval queue for principality awards. Any current Coronet office holder may approve.',
         );
         $localThenCrownProcessId = $this->upsertAwardApprovalProcess(
             $connection,
@@ -515,7 +554,16 @@ class BackupRestoreCompatibilityService
             'step_key' => 'local',
             'label' => 'Local Approval',
             'sequence' => 1,
-            'approver_source_id' => $localLandedOfficeId,
+            'approver_source_id' => $landedNobilityOfficeId,
+            'branch_mode' => 'award_branch',
+            'branch_type' => null,
+            'threshold_mode' => 'all',
+        ]]);
+        $this->replaceAwardApprovalProcessSteps($connection, $singlePrincipalityProcessId, [[
+            'step_key' => 'principality',
+            'label' => 'Principality Coronet Approval',
+            'sequence' => 1,
+            'approver_source_id' => $principalityCoronetOfficeId,
             'branch_mode' => 'award_branch',
             'branch_type' => null,
             'threshold_mode' => 'all',
@@ -525,7 +573,7 @@ class BackupRestoreCompatibilityService
                 'step_key' => 'local',
                 'label' => 'Local Approval',
                 'sequence' => 1,
-                'approver_source_id' => $localLandedOfficeId,
+                'approver_source_id' => $landedNobilityOfficeId,
                 'branch_mode' => 'award_branch',
                 'branch_type' => null,
                 'threshold_mode' => 'all',
@@ -546,17 +594,27 @@ class BackupRestoreCompatibilityService
             [$singleCrownProcessId, $ansteorraBranchId],
         );
         $connection->execute(
-            'UPDATE awards_awards SET approval_process_id = ? '
-                . 'WHERE branch_id <> ? AND level_id = ? AND deleted IS NULL',
-            [$singleLocalProcessId, $ansteorraBranchId, $nonArmigerousLevelId],
+            'UPDATE awards_awards SET approval_process_id = ?
+             WHERE domain_id = ?
+               AND deleted IS NULL',
+            [$singlePrincipalityProcessId, self::PRINCIPALITY_AWARD_DOMAIN_ID],
         );
         $connection->execute(
             'UPDATE awards_awards SET approval_process_id = ? '
-                . 'WHERE branch_id <> ? AND level_id <> ? AND deleted IS NULL',
-            [$localThenCrownProcessId, $ansteorraBranchId, $nonArmigerousLevelId],
+                . 'WHERE branch_id <> ? '
+               . 'AND (domain_id IS NULL OR domain_id <> ?) '
+                . 'AND level_id = ? AND deleted IS NULL',
+            [$singleLocalProcessId, $ansteorraBranchId, self::PRINCIPALITY_AWARD_DOMAIN_ID, $nonArmigerousLevelId],
+        );
+        $connection->execute(
+            'UPDATE awards_awards SET approval_process_id = ? '
+                . 'WHERE branch_id <> ? '
+               . 'AND (domain_id IS NULL OR domain_id <> ?) '
+                . 'AND level_id <> ? AND deleted IS NULL',
+            [$localThenCrownProcessId, $ansteorraBranchId, self::PRINCIPALITY_AWARD_DOMAIN_ID, $nonArmigerousLevelId],
         );
 
-        return ['award_approval_processes_seeded' => 3];
+        return ['award_approval_processes_seeded' => 4];
     }
 
     /**
@@ -649,7 +707,7 @@ class BackupRestoreCompatibilityService
                 'recommendationId' => $recommendationId,
                 'actorId' => $actorId,
                 'restoreCompatibility' => true,
-                'migration' => self::AWARDS_RESTORE_MIGRATION_MARKER,
+                'migration' => self::RESTORE_MIGRATION_MARKER,
             ];
 
             $instance = $instances->newEntity([
@@ -663,7 +721,7 @@ class BackupRestoreCompatibilityService
                     'triggeredBy' => $actorId,
                     'nodes' => [],
                     'migrated' => true,
-                    'migration' => self::AWARDS_RESTORE_MIGRATION_MARKER,
+                    'migration' => self::RESTORE_MIGRATION_MARKER,
                 ],
                 'active_nodes' => [],
                 'started_by' => $actorId,
@@ -693,7 +751,7 @@ class BackupRestoreCompatibilityService
                 $instance->status = WorkflowInstance::STATUS_FAILED;
                 $instance->completed_at = DateTime::now();
                 $instance->error_info = [
-                    'migration' => self::AWARDS_RESTORE_MIGRATION_MARKER,
+                    'migration' => self::RESTORE_MIGRATION_MARKER,
                     'error' => $result->getError(),
                 ];
                 $instances->saveOrFail($instance);
@@ -764,7 +822,7 @@ class BackupRestoreCompatibilityService
                 ],
                 'awardApprovalCurrentStep' => $currentStepContext,
                 'migrated' => true,
-                'migration' => self::AWARDS_RESTORE_MIGRATION_MARKER,
+                'migration' => self::RESTORE_MIGRATION_MARKER,
                 'migratedAt' => DateTime::now()->toDateTimeString(),
             ];
             $instance->context = $context;
@@ -804,6 +862,305 @@ class BackupRestoreCompatibilityService
         }
 
         return ['award_approval_workflows_backfilled' => $count];
+    }
+
+    /**
+     * Recreate workflow approval rows for legacy warrant roster approvals.
+     *
+     * The original migration drops warrant_roster_approvals after copying it to
+     * workflow tables. During logical restore, Phinx can see the migration as
+     * already applied while the restored payload still contains the legacy
+     * source table, so restore must replay the data move idempotently.
+     *
+     * @return array{warrant_roster_approval_workflows_backfilled: int}
+     */
+    private function backfillWarrantRosterApprovalWorkflows(Connection $connection): array
+    {
+        if (
+            !$this->hasTables($connection, [
+                'warrant_rosters',
+                'warrant_roster_approvals',
+                'workflow_definitions',
+                'workflow_versions',
+                'workflow_instances',
+                'workflow_execution_logs',
+                'workflow_approvals',
+                'workflow_approval_responses',
+            ])
+        ) {
+            return ['warrant_roster_approval_workflows_backfilled' => 0];
+        }
+
+        $connection->execute(
+            "UPDATE workflow_definitions
+                SET entity_type = 'WarrantRosters'
+              WHERE slug = 'warrants-roster-approval' AND entity_type = 'Warrants'",
+        );
+        $connection->execute(
+            "UPDATE workflow_instances
+                SET entity_type = 'WarrantRosters'
+              WHERE entity_type = 'Warrants'
+                AND workflow_definition_id IN (
+                    SELECT id FROM workflow_definitions WHERE slug = 'warrants-roster-approval'
+                )",
+        );
+
+        $contextSql = $connection->getDriver() instanceof Postgres ? 'context::text' : 'context';
+        $existing = (int)$connection->execute(
+            "SELECT COUNT(*)
+               FROM workflow_instances
+              WHERE entity_type = 'WarrantRosters'
+                AND {$contextSql} LIKE ?",
+            ['%"migrated":true%'],
+        )->fetchColumn(0);
+        if ($existing > 0) {
+            return ['warrant_roster_approval_workflows_backfilled' => 0];
+        }
+
+        $workflow = $connection->execute(
+            "SELECT wd.id AS definition_id, wd.current_version_id AS version_id
+               FROM workflow_definitions wd
+              WHERE wd.slug = 'warrants-roster-approval'
+              LIMIT 1",
+        )->fetch('assoc');
+        if (!is_array($workflow)) {
+            return ['warrant_roster_approval_workflows_backfilled' => 0];
+        }
+
+        $versionId = !empty($workflow['version_id']) ? (int)$workflow['version_id'] : null;
+        if ($versionId === null) {
+            $versionId = $this->workflowVersionId(
+                $connection,
+                (int)$workflow['definition_id'],
+                $this->nextWorkflowVersionNumber($connection, (int)$workflow['definition_id']) - 1,
+            );
+        }
+        if ($versionId === null) {
+            return ['warrant_roster_approval_workflows_backfilled' => 0];
+        }
+
+        $rosters = $connection->execute(
+            'SELECT * FROM warrant_rosters ORDER BY id',
+        )->fetchAll('assoc') ?: [];
+        if ($rosters === []) {
+            return ['warrant_roster_approval_workflows_backfilled' => 0];
+        }
+
+        $instances = $this->fetchTable('WorkflowInstances');
+        $logs = $this->fetchTable('WorkflowExecutionLogs');
+        $approvals = $this->fetchTable('WorkflowApprovals');
+        $responses = $this->fetchTable('WorkflowApprovalResponses');
+        $now = DateTime::now();
+        $count = 0;
+
+        foreach ($rosters as $roster) {
+            $rosterId = (int)$roster['id'];
+            $status = strtolower((string)($roster['status'] ?? ''));
+            $isPending = $status === 'pending';
+            $isDeclined = $status === 'declined';
+            $isTerminal = in_array($status, ['approved', 'declined'], true);
+            $created = !empty($roster['created']) ? new DateTime((string)$roster['created']) : $now;
+            $completedAt = null;
+            if ($isTerminal) {
+                $lastApproved = $connection->execute(
+                    'SELECT MAX(approved_on) FROM warrant_roster_approvals
+                      WHERE warrant_roster_id = ? AND approved_on IS NOT NULL',
+                    [$rosterId],
+                )->fetchColumn(0);
+                $completedAt = !empty($lastApproved)
+                    ? new DateTime((string)$lastApproved)
+                    : (!empty($roster['modified']) ? new DateTime((string)$roster['modified']) : $now);
+            }
+
+            $approvedCount = (int)$connection->execute(
+                'SELECT COUNT(DISTINCT approver_id) FROM warrant_roster_approvals
+                  WHERE warrant_roster_id = ? AND approved_on IS NOT NULL',
+                [$rosterId],
+            )->fetchColumn(0);
+            $rejectedCount = $isDeclined ? 1 : 0;
+
+            $trigger = [
+                'rosterId' => $rosterId,
+                'rosterName' => (string)($roster['name'] ?? ''),
+                'approvalsRequired' => (int)($roster['approvals_required'] ?? 1),
+            ];
+            $instance = $instances->newEntity([
+                'workflow_definition_id' => (int)$workflow['definition_id'],
+                'workflow_version_id' => $versionId,
+                'entity_type' => 'WarrantRosters',
+                'entity_id' => $rosterId,
+                'status' => $isPending ? WorkflowInstance::STATUS_WAITING : WorkflowInstance::STATUS_COMPLETED,
+                'context' => [
+                    'trigger' => $trigger,
+                    'migrated' => true,
+                    'migratedAt' => $now->toDateTimeString(),
+                    'migration' => self::RESTORE_MIGRATION_MARKER,
+                ],
+                'active_nodes' => $isPending ? ['approval-gate'] : [],
+                'started_by' => $roster['created_by'] !== null ? (int)$roster['created_by'] : null,
+                'started_at' => $created,
+                'completed_at' => $completedAt,
+                'created' => $created,
+                'modified' => $now,
+            ]);
+            $instances->saveOrFail($instance);
+
+            $approvalLog = $this->createWorkflowExecutionLog(
+                $logs,
+                (int)$instance->id,
+                'approval-gate',
+                'approval',
+                $isPending ? WorkflowInstance::STATUS_WAITING : WorkflowInstance::STATUS_COMPLETED,
+                $trigger,
+                null,
+                $created,
+                $completedAt,
+            );
+            $approval = $approvals->newEntity([
+                'workflow_instance_id' => (int)$instance->id,
+                'node_id' => 'approval-gate',
+                'execution_log_id' => (int)$approvalLog->id,
+                'approver_type' => WorkflowApproval::APPROVER_TYPE_POLICY,
+                'approver_config' => [
+                    'permission' => 'Can Approve Warrant Rosters',
+                    'policyClass' => 'App\\Policy\\WarrantRosterPolicy',
+                    'policyAction' => 'canApprove',
+                    'entityTable' => 'WarrantRosters',
+                    'entityIdKey' => 'trigger.rosterId',
+                ],
+                'current_approver_id' => null,
+                'request_title' => mb_substr(
+                    'Warrant Roster: ' . trim((string)($roster['name'] ?? '')),
+                    0,
+                    255,
+                ),
+                'required_count' => (int)($roster['approvals_required'] ?? 1),
+                'approved_count' => $approvedCount,
+                'rejected_count' => $rejectedCount,
+                'status' => $isPending
+                    ? WorkflowApproval::STATUS_PENDING
+                    : ($isDeclined ? WorkflowApproval::STATUS_REJECTED : WorkflowApproval::STATUS_APPROVED),
+                'allow_parallel' => true,
+                'deadline' => null,
+                'escalation_config' => null,
+                'version' => 1,
+                'approval_token' => StaticHelpers::generateToken(32),
+                'created' => $created,
+                'modified' => $now,
+            ]);
+            $approvals->saveOrFail($approval);
+
+            $responseRows = $connection->execute(
+                'SELECT approver_id, MAX(approved_on) AS approved_on
+                   FROM warrant_roster_approvals
+                  WHERE warrant_roster_id = ? AND approved_on IS NOT NULL
+                  GROUP BY approver_id
+                  ORDER BY approved_on',
+                [$rosterId],
+            )->fetchAll('assoc') ?: [];
+            foreach ($responseRows as $responseRow) {
+                $respondedAt = new DateTime((string)$responseRow['approved_on']);
+                $response = $responses->newEntity([
+                    'workflow_approval_id' => (int)$approval->id,
+                    'member_id' => (int)$responseRow['approver_id'],
+                    'decision' => WorkflowApprovalResponse::DECISION_APPROVE,
+                    'comment' => null,
+                    'responded_at' => $respondedAt,
+                    'created' => $respondedAt,
+                ]);
+                $responses->saveOrFail($response);
+            }
+
+            $count++;
+        }
+
+        return ['warrant_roster_approval_workflows_backfilled' => $count];
+    }
+
+    /**
+     * Mirror the dev seeded reset lifecycle migration after restore.
+     *
+     * This replays `awards migrate_award_recommendations --apply
+     * --allow-open-manual-review` so restored legacy recommendations are moved
+     * into closed, bestowal, approval-workflow, or manual-review ownership even
+     * when that work was originally captured outside a Phinx migration.
+     *
+     * @return array<string, int>
+     */
+    private function runAwardRecommendationLifecycleMigration(Connection $connection): array
+    {
+        $defaultStats = [
+            'award_recommendation_migration_closed' => 0,
+            'award_recommendation_migration_bestowal' => 0,
+            'award_recommendation_migration_approval_workflow' => 0,
+            'award_recommendation_migration_manual_review' => 0,
+            'award_recommendation_migration_skipped' => 0,
+            'award_recommendation_migration_error' => 0,
+        ];
+        if (
+            !$this->hasTables($connection, [
+                'awards_recommendations',
+                'awards_recommendation_migration_runs',
+                'awards_recommendation_migration_results',
+                'awards_recommendation_approval_runs',
+                'awards_recommendation_feedback_requests',
+                'awards_recommendation_feedback_request_items',
+                'awards_awards',
+                'workflow_definitions',
+                'workflow_instances',
+                'workflow_approvals',
+            ])
+        ) {
+            return $defaultStats;
+        }
+
+        $result = (new RecommendationMigrationService($this->createWorkflowTriggerDispatcher()))->run(
+            RecommendationMigrationRun::MODE_APPLY,
+            [],
+            1,
+            true,
+        );
+        if (!$result->isSuccess()) {
+            throw new RuntimeException('Award recommendation lifecycle migration failed: ' . $result->getError());
+        }
+
+        $summary = (array)($result->getData()['summary'] ?? []);
+        if ((int)($summary['error'] ?? 0) > 0) {
+            throw new RuntimeException(sprintf(
+                'Award recommendation lifecycle migration completed with %d record-level errors.',
+                (int)$summary['error'],
+            ));
+        }
+
+        return [
+            'award_recommendation_migration_closed' => (int)($summary['closed'] ?? 0),
+            'award_recommendation_migration_bestowal' => (int)($summary['bestowal'] ?? 0),
+            'award_recommendation_migration_approval_workflow' => (int)($summary['approval_workflow'] ?? 0),
+            'award_recommendation_migration_manual_review' => (int)($summary['manual_review'] ?? 0),
+            'award_recommendation_migration_skipped' => (int)($summary['skipped'] ?? 0),
+            'award_recommendation_migration_error' => (int)($summary['error'] ?? 0),
+        ];
+    }
+
+    /**
+     * Create a workflow trigger dispatcher for restore-time lifecycle replays.
+     */
+    private function createWorkflowTriggerDispatcher(): TriggerDispatcher
+    {
+        $container = new Container();
+        $container->add(ActiveWindowManagerInterface::class, DefaultActiveWindowManager::class);
+        $container->add(ExpressionEvaluator::class);
+        $container->add(CoreActions::class)
+            ->addArguments([
+                ActiveWindowManagerInterface::class,
+                ExpressionEvaluator::class,
+            ]);
+        $container->add(CoreConditions::class)
+            ->addArgument(ExpressionEvaluator::class);
+        $container->add(StateMachineHandler::class);
+        $container->add(AwardsWorkflowActions::class);
+
+        return new TriggerDispatcher(new DefaultWorkflowEngine($container));
     }
 
     /**

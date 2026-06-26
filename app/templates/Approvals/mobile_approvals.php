@@ -8,6 +8,7 @@
  * to fetch approvals and submit responses.
  *
  * @var \App\View\AppView $this
+ * @var int $mobileQueuePerPage
  */
 $mobileApprovalsDataUrl = $this->Url->build(['controller' => 'Approvals', 'action' => 'mobileApprovalsData']);
 $recordApprovalUrl = $this->Url->build(['controller' => 'Approvals', 'action' => 'recordApproval']);
@@ -20,6 +21,7 @@ $approvalDetailUrl = $this->Url->build(['controller' => 'Approvals', 'action' =>
      data-controller="mobile-approvals"
      data-section="approvals"
      data-mobile-approvals-data-url-value="<?= h($mobileApprovalsDataUrl) ?>"
+     data-mobile-approvals-per-page-value="<?= h((string)$mobileQueuePerPage) ?>"
      data-mobile-approvals-record-url-value="<?= h($recordApprovalUrl) ?>"
      data-mobile-approvals-triage-url-value="<?= h($triageUrl) ?>"
      data-mobile-approvals-eligible-url-value="<?= h($eligibleApproversUrl) ?>"
@@ -32,9 +34,10 @@ $approvalDetailUrl = $this->Url->build(['controller' => 'Approvals', 'action' =>
             0 pending
         </span>
         <button class="btn btn-sm btn-outline-secondary"
+                type="button"
                 data-action="click->mobile-approvals#refresh"
                 data-mobile-approvals-target="refreshBtn">
-            <i class="bi bi-arrow-clockwise me-1"></i><?= __('Refresh') ?>
+            <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i><?= __('Refresh') ?>
         </button>
     </div>
 
@@ -68,15 +71,27 @@ $approvalDetailUrl = $this->Url->build(['controller' => 'Approvals', 'action' =>
                 <p class="text-muted mb-3" data-mobile-approvals-target="errorMessage">
                     <?= __('Failed to load approvals.') ?>
                 </p>
-                <button class="btn btn-outline-danger" data-action="click->mobile-approvals#refresh">
-                    <i class="bi bi-arrow-clockwise me-1"></i><?= __('Try Again') ?>
+                <button class="btn btn-outline-danger" type="button" data-action="click->mobile-approvals#refresh">
+                    <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i><?= __('Try Again') ?>
                 </button>
             </div>
         </div>
     </div>
 
+    <div class="visually-hidden" role="status" aria-live="polite" data-mobile-approvals-target="status"></div>
+
     <!-- Approvals List (populated by JS) -->
     <div data-mobile-approvals-target="list" class="approval-cards-list"></div>
+
+    <div class="text-center my-3" data-mobile-approvals-target="loadMore" hidden>
+        <button class="btn btn-outline-secondary mobile-approvals-load-more"
+                type="button"
+                data-action="click->mobile-approvals#loadMore"
+                data-mobile-approvals-target="loadMoreBtn"
+                aria-busy="false">
+            <?= __('Load more') ?>
+        </button>
+    </div>
 
     <!-- Toast for success/error feedback -->
     <div class="position-fixed bottom-0 start-50 translate-middle-x p-3" style="z-index: 1080;">
@@ -84,7 +99,8 @@ $approvalDetailUrl = $this->Url->build(['controller' => 'Approvals', 'action' =>
              data-mobile-approvals-target="toast" data-bs-delay="3000">
             <div class="d-flex">
                 <div class="toast-body" data-mobile-approvals-target="toastBody"></div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                        data-bs-dismiss="toast" aria-label="Close"></button>
             </div>
         </div>
     </div>
@@ -316,12 +332,21 @@ $approvalDetailUrl = $this->Url->build(['controller' => 'Approvals', 'action' =>
     font-weight: 600;
     border-radius: 6px;
     margin-top: 0.75rem;
-    background: linear-gradient(180deg, var(--section-approvals), color-mix(in srgb, var(--section-approvals) 70%, black));
+    background: linear-gradient(
+        180deg,
+        var(--section-approvals),
+        color-mix(in srgb, var(--section-approvals) 70%, black)
+    );
     color: var(--medieval-parchment, #f4efe4);
     border: none;
 }
 .approval-submit-btn:hover { opacity: 0.9; color: #fff; }
 .approval-submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.mobile-approvals-load-more {
+    min-height: 44px;
+    padding-inline: 1.25rem;
+}
 
 /* Comment warning */
 .approval-comment-warning {

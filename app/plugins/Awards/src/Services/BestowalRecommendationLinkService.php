@@ -266,7 +266,7 @@ class BestowalRecommendationLinkService
             $updated = true;
         }
 
-        $targetState = $this->syncService->resolveSyncTargetStateName((string)$bestowal->state);
+        $targetState = $this->syncService->resolveSyncTargetStateName((string)$bestowal->lifecycle_status);
         if ($targetState !== null && (string)$recommendation->state !== $targetState) {
             $recommendation = $this->syncService->applySystemRecommendationState(
                 $recommendation,
@@ -297,8 +297,16 @@ class BestowalRecommendationLinkService
             throw new RuntimeException('Grouped child recommendations cannot be linked directly.');
         }
 
-        if ((int)$recommendation->member_id !== (int)$bestowal->member_id) {
+        $recommendationMemberId = $recommendation->member_id !== null ? (int)$recommendation->member_id : null;
+        $bestowalMemberId = $bestowal->member_id !== null ? (int)$bestowal->member_id : null;
+        if ($recommendationMemberId !== $bestowalMemberId) {
             throw new RuntimeException('Recommendation member must match the bestowal member.');
+        }
+        if (
+            $recommendationMemberId === null
+            && (string)$recommendation->member_sca_name !== (string)$bestowal->member_sca_name
+        ) {
+            throw new RuntimeException('Recommendation recipient name must match the bestowal recipient name.');
         }
 
         if (

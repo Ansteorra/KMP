@@ -125,13 +125,13 @@ class BestowalLinkAuditService
             ->select([
                 'bestowal_id' => 'Bestowals.id',
                 'recommendation_id' => 'BestowalRecommendations.recommendation_id',
-                'state' => 'Bestowals.state',
+                'lifecycle_status' => 'Bestowals.lifecycle_status',
             ])
             ->innerJoin(
                 ['BestowalRecommendations' => 'awards_bestowal_recommendations'],
                 ['BestowalRecommendations.bestowal_id = Bestowals.id'],
             )
-            ->where(['Bestowals.state' => 'Cancelled']);
+            ->where(['Bestowals.lifecycle_status' => Bestowal::LIFECYCLE_CANCELLED]);
     }
 
     /**
@@ -162,7 +162,7 @@ class BestowalLinkAuditService
         return $this->bestowalsTable->find()
             ->select([
                 'bestowal_id' => 'Bestowals.id',
-                'state' => 'Bestowals.state',
+                'lifecycle_status' => 'Bestowals.lifecycle_status',
                 'primary_recommendation_id' => 'Bestowals.primary_recommendation_id',
             ])
             ->leftJoin(
@@ -171,7 +171,7 @@ class BestowalLinkAuditService
             )
             ->where([
                 'Bestowals.source' => Bestowal::SOURCE_RECOMMENDATION,
-                'Bestowals.state !=' => 'Cancelled',
+                'Bestowals.lifecycle_status !=' => Bestowal::LIFECYCLE_CANCELLED,
                 'BestowalRecommendations.id IS' => null,
             ]);
     }

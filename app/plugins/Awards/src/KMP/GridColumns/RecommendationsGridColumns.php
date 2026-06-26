@@ -593,7 +593,7 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'filterable' => false,
                 'defaultVisible' => false,
                 'exportable' => false,
-                'queryField' => 'Bestowals.state',
+                'queryField' => 'Bestowals.lifecycle_status',
                 'description' => 'Whether the linked bestowal has already been given',
             ],
 
@@ -688,7 +688,6 @@ class RecommendationsGridColumns extends BaseGridColumns
      * - index (default): main recommendations grid
      * - memberSubmitted: member profile "Submitted Award Recs" tab
      * - recsForMember: member profile "Recs For Member" tab
-     * - gatheringAwards: gathering detail "Awards" tab
      *
      * @return array<string, array<string, mixed>>
      */
@@ -737,32 +736,6 @@ class RecommendationsGridColumns extends BaseGridColumns
                             'close_reason',
                             'assigned_gathering',
                             'given',
-                        ],
-                    ],
-                ],
-            ];
-        }
-
-        if ($context === 'gatheringAwards') {
-            return [
-                'sys-recs-gathering' => [
-                    'id' => 'sys-recs-gathering',
-                    'name' => __('Gathering Awards'),
-                    'description' => __('Awards scheduled for this gathering'),
-                    'canManage' => false,
-                    'config' => [
-                        'filters' => [],
-                        'columns' => [
-                            'group_children_count',
-                            'member_sca_name',
-                            'op_links',
-                            'branch_id',
-                            'domain_name',
-                            'award_name',
-                            'specialty',
-                            'reason',
-                            'status',
-                            'state',
                         ],
                     ],
                 ],

@@ -109,7 +109,7 @@ require 'config/bootstrap.php';
     (array)\\Cake\\Core\\Configure::read('Queue.plugins'),
     ['Queue'],
 ))));
-$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 $locator = \\Cake\\ORM\\TableRegistry::getTableLocator();
 $recommendations = $locator->get('Awards.Recommendations');
 $members = $locator->get('Members');
@@ -398,7 +398,7 @@ require 'config/bootstrap.php';
     (array)\\Cake\\Core\\Configure::read('Queue.plugins'),
     ['Queue'],
 ))));
-$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 $recommendations = \\Cake\\ORM\\TableRegistry::getTableLocator()->get('Awards.Recommendations');
 $ids = array_values(array_unique(array_map('intval', $input['ids'] ?? [])));
 rsort($ids);
@@ -423,7 +423,7 @@ require 'config/bootstrap.php';
     (array)\\Cake\\Core\\Configure::read('Queue.plugins'),
     ['Queue'],
 ))));
-$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 $recommendations = \\Cake\\ORM\\TableRegistry::getTableLocator()->get('Awards.Recommendations');
 $recommendation = $recommendations->get((int)$input['recommendationId'], contain: ['Bestowals']);
 
@@ -438,7 +438,7 @@ const GET_RECOMMENDATION_WORKFLOW_STATE_PHP = `
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';
 
-$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 $locator = \\Cake\\ORM\\TableRegistry::getTableLocator();
 $runs = $locator->get('Awards.RecommendationApprovalRuns');
 $recommendations = $locator->get('Awards.Recommendations');
@@ -493,7 +493,7 @@ const RESPOND_TO_RECOMMENDATION_APPROVAL_PHP = `
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';
 
-$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 \\Awards\\Services\\AwardsWorkflowProvider::register();
 $locator = \\Cake\\ORM\\TableRegistry::getTableLocator();
 $runs = $locator->get('Awards.RecommendationApprovalRuns');
@@ -624,7 +624,7 @@ require 'config/bootstrap.php';
     (array)\\Cake\\Core\\Configure::read('Queue.plugins'),
     ['Queue'],
 ))));
-$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 $locator = \\Cake\\ORM\\TableRegistry::getTableLocator();
 $awards = $locator->get('Awards.Awards');
 $members = $locator->get('Members');
@@ -796,6 +796,12 @@ const normalizeText = (value) => value.replace(/\s+/g, ' ').trim();
 const runPhpJson = (script, payload) => {
     const fixtureJson = JSON.stringify(payload);
     const useDockerPhp = shouldUseDockerPhp();
+    const options = {
+        cwd: useDockerPhp ? REPO_ROOT : APP_ROOT,
+        encoding: 'utf8',
+        input: fixtureJson,
+        maxBuffer: 32 * 1024 * 1024,
+    };
     const output = useDockerPhp
         ? execFileSync(
             'docker',
@@ -803,8 +809,6 @@ const runPhpJson = (script, payload) => {
                 'compose',
                 'exec',
                 '-T',
-                '-e',
-                `FIXTURE_JSON=${fixtureJson}`,
                 'app',
                 'php',
                 '-d',
@@ -812,21 +816,14 @@ const runPhpJson = (script, payload) => {
                 '-r',
                 script,
             ],
-            {
-                cwd: REPO_ROOT,
-                encoding: 'utf8',
-            },
+            options,
         ).trim()
         : execFileSync(
             'php',
             ['-d', 'xdebug.mode=off', '-r', script],
             {
-                cwd: APP_ROOT,
-                env: {
-                    ...process.env,
-                    FIXTURE_JSON: fixtureJson,
-                },
-                encoding: 'utf8',
+                ...options,
+                env: process.env,
             },
         ).trim();
 
@@ -1109,9 +1106,10 @@ When('I open the {string} recommendation edit modal from the grid', async ({ pag
     await expect(row).toBeVisible();
     await row.locator('button.edit-rec').click();
     await page.waitForSelector('#editRecommendationModal.show', { state: 'visible', timeout: 10000 });
-    await expect(page.locator('#editRecommendationModal form#recommendation_form')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('#editRecommendationModal button[type="submit"][form="recommendation_form"]'))
+    await expect(page.locator('form#recommendation_form')).toBeAttached({ timeout: 10000 });
+    await expect(page.locator('#editRecommendationModal turbo-frame#editRecommendation textarea[name="note"]'))
         .toBeVisible({ timeout: 10000 });
+    await expect(page.locator('#editRecommendationModal button#recommendation_submit')).toBeVisible({ timeout: 10000 });
 });
 
 When('I change the open recommendation state to {string}', async ({ page }, state) => {
@@ -1384,7 +1382,7 @@ After(async ({ page }) => {
             runPhpJson(`
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';
-$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 $awards = \\Cake\\ORM\\TableRegistry::getTableLocator()->get('Awards.Awards');
 foreach (array_values(array_unique(array_map('intval', $input['awardIds'] ?? []))) as $id) {
     if ($awards->exists(['id' => $id])) {
@@ -1404,7 +1402,7 @@ echo json_encode(['deleted' => true], JSON_THROW_ON_ERROR);
         runPhpJson(`
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';
-$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 $awards = \\Cake\\ORM\\TableRegistry::getTableLocator()->get('Awards.Awards');
 foreach (array_values(array_unique(array_map('intval', $input['awardIds'] ?? []))) as $id) {
     if ($awards->exists(['id' => $id])) {
@@ -1529,7 +1527,7 @@ Then('the public feedback-lane recommendation should have a workflow run', async
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';
 
-$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 $locator = \\Cake\\ORM\\TableRegistry::getTableLocator();
 $recommendation = $locator->get('Awards.Recommendations')->find()
     ->select(['id', 'reason'])
@@ -1717,7 +1715,7 @@ const CREATE_HANDOFF_FIXTURE_PHP = `
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';
 
-$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 $locator = \\Cake\\ORM\\TableRegistry::getTableLocator();
 $recommendations = $locator->get('Awards.Recommendations');
 $members = $locator->get('Members');
@@ -1771,7 +1769,7 @@ const CREATE_HANDOFF_WITH_BESTOWAL_PHP = `
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';
 
-$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 $locator = \\Cake\\ORM\\TableRegistry::getTableLocator();
 $recommendations = $locator->get('Awards.Recommendations');
 $members = $locator->get('Members');
@@ -1858,7 +1856,7 @@ const CLEANUP_BESTOWAL_FIXTURE_PHP = `
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';
 
-$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 $bestowals = \\Cake\\ORM\\TableRegistry::getTableLocator()->get('Awards.Bestowals');
 $recommendations = \\Cake\\ORM\\TableRegistry::getTableLocator()->get('Awards.Recommendations');
 
@@ -1881,7 +1879,7 @@ const LOOKUP_BESTOWAL_AWARD_IDS_PHP = `
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';
 
-$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 $recommendations = \\Cake\\ORM\\TableRegistry::getTableLocator()->get('Awards.Recommendations');
 $bestowals = \\Cake\\ORM\\TableRegistry::getTableLocator()->get('Awards.Bestowals');
 
@@ -2076,7 +2074,7 @@ Then('the handoff recommendation should have a linked bestowal', async ({ page }
     const lookup = runPhpJson(`
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';
-$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 $rec = \\Cake\\ORM\\TableRegistry::getTableLocator()->get('Awards.Recommendations')->get((int)$input['recommendationId']);
 if ((int)($rec->bestowal_id ?? 0) <= 0) {
     throw new \\RuntimeException('Expected recommendation to be linked to a bestowal.');
@@ -2107,7 +2105,7 @@ When('I open the bestowal detail for the handoff fixture', async ({ page }) => {
         const lookup = runPhpJson(`
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';
-$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 $rec = \\Cake\\ORM\\TableRegistry::getTableLocator()->get('Awards.Recommendations')->get((int)$input['recommendationId']);
 echo json_encode(['bestowalId' => (int)$rec->bestowal_id], JSON_THROW_ON_ERROR);
 `, { recommendationId: fixture.recommendationId });
@@ -2134,7 +2132,9 @@ When('I open the bestowal detail linked to recommendation {string}', async ({ pa
 });
 
 Then('the bestowal detail page should show {string} in the state row', async ({ page }, text) => {
-    const stateRow = page.locator('tr').filter({ has: page.locator('th', { hasText: 'State' }) }).locator('td');
+    const stateRow = page.locator('tr')
+        .filter({ has: page.locator('th').filter({ hasText: /^(State|Lifecycle Status)$/ }) })
+        .locator('td');
     await expect(stateRow).toContainText(text);
 });
 
@@ -2151,6 +2151,35 @@ When('I cancel the open bestowal from the detail page', async ({ page }) => {
     await page.waitForLoadState('networkidle');
 });
 
+When('I open the bestowal to-dos tab', async ({ page }) => {
+    const tab = page.getByRole('tab', { name: /^To-Dos/ });
+    const panel = page.locator('#nav-bestowalTodos');
+    await tab.click();
+    await expect(tab).toHaveClass(/active/, { timeout: 10000 });
+    await expect(panel).toBeVisible({ timeout: 10000 });
+});
+
+Then('the bestowal to-dos should include {string}', async ({ page }, title) => {
+    const todoPanel = page.locator('#nav-bestowalTodos');
+    await expect(todoPanel.locator('.list-group-item').filter({ hasText: title })).toBeVisible({ timeout: 15000 });
+});
+
+Then('the bestowal mark-given action should be disabled', async ({ page }) => {
+    const todoPanel = page.locator('#nav-bestowalTodos');
+    await expect(todoPanel.getByRole('button', { name: 'Mark Given' })).toBeDisabled();
+    await expect(todoPanel).toContainText('Complete all required checks before the bestowal can be marked given.');
+});
+
+When('I complete the bestowal to-do {string}', async ({ page }, title) => {
+    const item = page.locator('#nav-bestowalTodos .list-group-item').filter({ hasText: title });
+    await expect(item).toBeVisible({ timeout: 15000 });
+    await item.getByRole('link', { name: /Complete|Mark complete:/ }).click();
+    const confirmDialog = page.getByRole('dialog', { name: 'Confirm action' });
+    await expect(confirmDialog).toBeVisible({ timeout: 10000 });
+    await confirmDialog.getByRole('button', { name: 'Confirm' }).click();
+    await page.waitForLoadState('networkidle');
+});
+
 When('I open the bestowal edit modal', async ({ page }) => {
     const fixture = ensureBestowalFixture(page);
     let bestowalId = fixture.bestowalId;
@@ -2158,7 +2187,7 @@ When('I open the bestowal edit modal', async ({ page }) => {
         const lookup = runPhpJson(`
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';
-$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 $rec = \\Cake\\ORM\\TableRegistry::getTableLocator()->get('Awards.Recommendations')->get((int)$input['recommendationId']);
 echo json_encode(['bestowalId' => (int)$rec->bestowal_id], JSON_THROW_ON_ERROR);
 `, { recommendationId: fixture.recommendationId });
@@ -2271,7 +2300,7 @@ When('I select the handoff bestowal in the grid', async ({ page }) => {
         const lookup = runPhpJson(`
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';
-$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
+$input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 $rec = \\Cake\\ORM\\TableRegistry::getTableLocator()->get('Awards.Recommendations')->get((int)$input['recommendationId']);
 echo json_encode(['bestowalId' => (int)$rec->bestowal_id], JSON_THROW_ON_ERROR);
 `, { recommendationId: fixture.recommendationId });
@@ -2285,18 +2314,6 @@ echo json_encode(['bestowalId' => (int)$rec->bestowal_id], JSON_THROW_ON_ERROR);
     await expect.poll(async () => row.isVisible(), { timeout: 15000 }).toBe(true);
     const checkbox = row.locator('input[data-grid-view-target="rowCheckbox"]');
     await checkbox.check();
-});
-
-When('I open the bestowal bulk edit modal', async ({ page }) => {
-    await page.locator('button[data-bulk-action-key="bulk-edit"]').click();
-    await page.waitForSelector('#bulkEditBestowalModal.show', { state: 'visible', timeout: 10000 });
-    await page.locator('#bulkEditBestowalModal select[name="newState"]').waitFor({ state: 'visible', timeout: 10000 });
-});
-
-When('I change the bestowal bulk edit state to {string}', async ({ page }, state) => {
-    const modal = page.locator('#bulkEditBestowalModal');
-    await modal.locator('select[name="newState"]').selectOption({ label: state });
-    await page.waitForTimeout(500);
 });
 
 Then('the bestowal edit modal submit button should be enabled', async ({ page }) => {
@@ -2348,113 +2365,14 @@ Then('the bestowal should have the alternate award', async ({ page }) => {
     expect(lookup.recommendationAwardId).not.toBe(fixture.alternateAwardId);
 });
 
-Then('the bestowal bulk edit submit button should be disabled', async ({ page }) => {
-    const modal = page.locator('#bulkEditBestowalModal');
-    await expect(modal.locator('#bestowal_bulk_submit')).toBeDisabled();
-});
-
-Then('the bestowal bulk edit submit button should be enabled', async ({ page }) => {
-    const modal = page.locator('#bulkEditBestowalModal');
-    await expect.poll(async () => modal.locator('#bestowal_bulk_submit').isEnabled(), {
-        timeout: 15000,
-    }).toBe(true);
-});
-
-const waitForConfigGrid = async (page, frameId) => {
-    const gridFrame = page.locator(`turbo-frame#${frameId}`);
-    await gridFrame.waitFor({ state: 'attached', timeout: 30000 });
-    await expect(page.locator('body')).not.toContainText('Database Error');
-    await expect(page.locator('body')).not.toContainText('Forbidden');
-    await page.waitForSelector(`turbo-frame#${frameId} table.table tbody tr`, {
-        state: 'visible',
-        timeout: 30000,
-    });
-};
-
-Then('the bestowal statuses grid should load successfully', async ({ page }) => {
-    await waitForConfigGrid(page, 'bestowal-statuses-grid');
-});
-
-Then('the bestowal states grid should load successfully', async ({ page }) => {
-    await waitForConfigGrid(page, 'bestowal-states-grid');
-});
-
-When('the bestowal states grid should load successfully', async ({ page }) => {
-    await waitForConfigGrid(page, 'bestowal-states-grid');
-});
-
-When('I open the bestowal state named {string} from the grid', async ({ page }, stateName) => {
-    const row = page.locator('turbo-frame#bestowal-states-grid table.table tbody tr', {
-        hasText: stateName,
-    }).first();
-    await expect(row).toBeVisible({ timeout: 30000 });
-    await row.locator('a').first().click();
-    await page.waitForLoadState('networkidle');
-});
-
-Then('the bestowal state detail should show the {string} tab', async ({ page }, tabLabel) => {
-    await expect(page.locator('#nav-field-rules-tab, button.nav-link', { hasText: tabLabel }).first()).toBeVisible();
-});
-
-When('I navigate to the bestowal state view for {string}', async ({ page }, stateName) => {
-    await page.goto('/awards/bestowal-states');
-    await waitForConfigGrid(page, 'bestowal-states-grid');
-    const row = page.locator('turbo-frame#bestowal-states-grid table.table tbody tr', {
-        hasText: stateName,
-    }).first();
-    await expect(row).toBeVisible({ timeout: 30000 });
-    await row.locator('a').first().click();
-    await page.waitForLoadState('networkidle');
-    page.__bestowalWorkflowStateName = stateName;
-});
-
-When('I add a visible field rule for {string} on the current bestowal state', async ({ page }, fieldTarget) => {
-    runPhpJson(`
-require 'vendor/autoload.php';
-require 'config/bootstrap.php';
-$input = json_decode((string)getenv('FIXTURE_JSON'), true, 512, JSON_THROW_ON_ERROR);
-$states = \\Cake\\ORM\\TableRegistry::getTableLocator()->get('Awards.BestowalStates');
-$rules = \\Cake\\ORM\\TableRegistry::getTableLocator()->get('Awards.BestowalStateFieldRules');
-$state = $states->find()
-    ->select(['id', 'name'])
-    ->where(['name' => $input['stateName']])
-    ->firstOrFail();
-$deleted = $rules->deleteAll([
-    'state_id' => (int)$state->id,
-    'field_target' => $input['fieldTarget'],
-    'rule_type' => 'Visible',
-]);
-echo json_encode(['deleted' => $deleted], JSON_THROW_ON_ERROR);
-`, {
-        stateName: page.__bestowalWorkflowStateName,
-        fieldTarget,
-    });
-    await page.locator('#nav-field-rules-tab').click();
-    await page.locator('[data-bs-target="#addFieldRuleModal"]').click();
-    const modal = page.locator('#addFieldRuleModal');
-    await expect(modal).toBeVisible();
-    await modal.locator('select[name="field_target"]').selectOption(fieldTarget);
-    await modal.locator('select[name="rule_type"]').selectOption('Visible');
-    await modal.getByRole('button', { name: 'Add Rule', exact: true }).click();
-    await expect(page.getByRole('alert').first()).toContainText('Field rule added.', { timeout: 15000 });
-});
-
-When('I submit the bestowal state transitions form on the current state', async ({ page }) => {
-    await page.locator('#nav-transitions-tab').click();
-    const form = page.locator('#nav-transitions form');
-    await expect(form).toBeVisible();
-    await form.getByRole('button', { name: 'Save Transitions', exact: true }).click();
-    await expect(page.getByRole('alert').first()).toContainText('Transitions updated.', { timeout: 15000 });
-});
-
 When('I submit the open recommendation edit with a turbo stream response', async ({ page }) => {
     const modal = page.locator('#editRecommendationModal');
     await expect(modal).toBeVisible();
-    const form = modal.locator('turbo-frame#editRecommendation form').first();
-    await expect(form).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('form#recommendation_form')).toBeAttached({ timeout: 15000 });
+    await expect(modal.locator('turbo-frame#editRecommendation textarea[name="note"]')).toBeVisible({ timeout: 15000 });
 
     await waitForTurboStreamResponse(page, async () => {
-        await modal.locator('button[type="submit"][form="recommendation_form"]').click();
+        await modal.locator('button#recommendation_submit').click();
     });
 
     await expect(modal).toBeHidden({ timeout: 15000 });

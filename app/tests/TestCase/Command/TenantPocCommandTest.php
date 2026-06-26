@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Command;
 
+use App\Services\Platform\TenantHostResolver;
 use Cake\Console\TestSuite\ConsoleIntegrationTestTrait;
 use Cake\Core\Configure;
 use Cake\Database\Driver\Sqlite;
@@ -40,10 +41,17 @@ class TenantPocCommandTest extends TestCase
         $this->configureSecrets();
         $this->configureDefaultSqlite();
         $this->configurePlatform();
+        // The tenant host map is backed by a persistent, process-shared cache.
+        // Other tests (and the running app) can populate it with an unrelated map,
+        // so clear it here to force the command's resolver to read this test's
+        // freshly configured platform database.
+        TenantHostResolver::clearCache();
     }
 
     protected function tearDown(): void
     {
+        // Avoid leaking this test's host map into the shared cache for later tests.
+        TenantHostResolver::clearCache();
         foreach (['platform', 'default', 'tenant'] as $connection) {
             if (in_array($connection, ConnectionManager::configured(), true)) {
                 ConnectionManager::drop($connection);

@@ -415,7 +415,7 @@ class OfficersController extends AppController
                 return $q->select(['id', 'start_on', 'expires_on', 'entity_id']);
             };
         }
-        if ($queryContext->loadsColumn('branch_name') && $context !== 'branch') {
+        if ($queryContext->loadsColumn('branch_name') || $context === 'branch') {
             $contain['Branches'] = function ($q) {
                 return $q->select(['id', 'name']);
             };

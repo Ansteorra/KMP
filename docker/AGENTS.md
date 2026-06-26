@@ -16,7 +16,7 @@ Own container image definitions, entrypoints, Apache configuration, local app co
 - Do not bake secrets or environment-specific credentials into images.
 - Keep entrypoints explicit about side effects such as migrations, seeds, cache clears, scheduler loops, and health behavior.
 - Keep reset/seed scripts idempotent when possible because local and test workflows may call them repeatedly.
-- Changes to base dependencies must be compatible with PHP 8.3, CakePHP, Vite builds, and Playwright/test workflows.
+- Changes to base dependencies must be compatible with PHP 8.4, CakePHP, Vite builds, and Playwright/test workflows.
 
 ## Work Guidance
 

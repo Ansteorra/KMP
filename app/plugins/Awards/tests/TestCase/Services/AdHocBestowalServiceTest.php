@@ -21,7 +21,6 @@ class AdHocBestowalServiceTest extends BaseTestCase
         $this->skipIfPostgres();
 
         Recommendation::clearCache();
-        Bestowal::clearCache();
 
         $this->bestowalsTable = $this->getTableLocator()->get('Awards.Bestowals');
         $this->recommendationsTable = $this->getTableLocator()->get('Awards.Recommendations');
@@ -31,7 +30,6 @@ class AdHocBestowalServiceTest extends BaseTestCase
     protected function tearDown(): void
     {
         Recommendation::clearCache();
-        Bestowal::clearCache();
         parent::tearDown();
     }
 
@@ -44,7 +42,6 @@ class AdHocBestowalServiceTest extends BaseTestCase
         $result = $this->service->record([
             'member_public_id' => $member->public_id,
             'award_id' => $awardId,
-            'state' => 'Given',
             'bestowed_at' => '2026-06-14',
             'noble_notes' => 'Given at court without prior recommendation.',
             'herald_notes' => 'Read from court list.',
@@ -60,7 +57,7 @@ class AdHocBestowalServiceTest extends BaseTestCase
         $this->assertSame(self::ADMIN_MEMBER_ID, (int)$bestowal->member_id);
         $this->assertSame($awardId, (int)$bestowal->award_id);
         $this->assertSame(Bestowal::SOURCE_AD_HOC, $bestowal->source);
-        $this->assertSame('Given', $bestowal->state);
+        $this->assertSame(Bestowal::LIFECYCLE_GIVEN, $bestowal->lifecycle_status);
         $this->assertNull($bestowal->primary_recommendation_id);
         $this->assertSame($recommendationCount, $this->recommendationsTable->find()->count());
 

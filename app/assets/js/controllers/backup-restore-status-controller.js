@@ -20,6 +20,7 @@ class BackupRestoreStatusController extends Controller {
         "modalBadge",
         "modalMessage",
         "modalDetails",
+        "modalLog",
         "modalSpinner",
         "modalClose"
     ]
@@ -29,6 +30,8 @@ class BackupRestoreStatusController extends Controller {
         this.hasSeenRunningState = false
         this.awaitingFreshRunningState = false
         this.restoreRequestInFlight = false
+        this.clientTerminalStatus = null
+        this.clientTerminalStatusExpiresAt = 0
         this.currentStatus = null
         this.statusRequestInFlight = false
         this.modalInstance = this.hasModalTarget ? new bootstrap.Modal(this.modalTarget) : null
@@ -96,12 +99,18 @@ class BackupRestoreStatusController extends Controller {
         this.restoreRequestInFlight = true
         this.showModal({
             state: 'running',
-            badgeLabel: 'starting',
+            badgeLabel: 'validating',
             badgeClass: 'bg-info',
-            message: 'Restore request submitted. Waiting for status updates...',
-            details: 'Preparing restore...',
+            message: 'Validating backup file and encryption key...',
+            details: 'Checking the backup before starting restore.',
             panelClass: 'alert-warning',
             showSpinner: true,
+            log: [
+                {
+                    timestamp: new Date().toISOString(),
+                    message: 'Validating backup file and encryption key.',
+                },
+            ],
         })
         this.setModalClosable(false)
 
@@ -128,18 +137,30 @@ class BackupRestoreStatusController extends Controller {
                 phase: 'queued',
                 message: payload?.message || 'Restore started.',
             }
+            this.clientTerminalStatus = null
+            this.clientTerminalStatusExpiresAt = 0
             this.render(startedStatus)
             this.awaitingFreshRunningState = false
             await this.pollStatus(true)
         } catch (error) {
+            const message = error instanceof Error ? error.message : 'Restore request failed.'
             const failedStatus = {
                 locked: false,
                 status: 'failed',
                 phase: 'failed',
-                message: error instanceof Error ? error.message : 'Restore request failed.',
+                message,
                 completed_at: new Date().toISOString(),
+                log: [
+                    {
+                        timestamp: new Date().toISOString(),
+                        message,
+                    },
+                ],
             }
+            this.clientTerminalStatus = failedStatus
+            this.clientTerminalStatusExpiresAt = Date.now() + (this.terminalWindowValue * 1000)
             this.render(failedStatus)
+            window.KMP_accessibility.announce(message, { assertive: true })
         } finally {
             this.restoreRequestInFlight = false
             this.setModalClosable(true)
@@ -187,12 +208,12 @@ class BackupRestoreStatusController extends Controller {
         return fileInput instanceof HTMLInputElement ? fileInput : null
     }
 
-    async pollStatus() {
+    async pollStatus(force = false) {
         if (!this.hasUrlValue) {
             return
         }
 
-        if (this.statusRequestInFlight) {
+        if (this.statusRequestInFlight || (!force && this.restoreRequestInFlight)) {
             return
         }
         this.statusRequestInFlight = true
@@ -207,6 +228,9 @@ class BackupRestoreStatusController extends Controller {
             }
 
             const status = await response.json()
+            if (this.shouldKeepClientTerminalStatus(status)) {
+                return
+            }
             this.currentStatus = status
             this.render(status)
             this.reloadOnCompletion(status)
@@ -215,6 +239,20 @@ class BackupRestoreStatusController extends Controller {
         } finally {
             this.statusRequestInFlight = false
         }
+    }
+
+    shouldKeepClientTerminalStatus(status) {
+        if (this.clientTerminalStatus == null || Date.now() > this.clientTerminalStatusExpiresAt) {
+            this.clientTerminalStatus = null
+            this.clientTerminalStatusExpiresAt = 0
+
+            return false
+        }
+
+        const locked = Boolean(status?.locked)
+        const state = status?.status || 'idle'
+
+        return !locked && state === 'idle'
     }
 
     render(status) {
@@ -279,6 +317,7 @@ class BackupRestoreStatusController extends Controller {
         const rowsProcessed = Number(status?.rows_processed || 0)
         const source = status?.source || ''
         const currentTable = status?.current_table || ''
+        const log = Array.isArray(status?.log) ? status.log : []
         const message = state === 'idle'
             ? 'No restore currently running.'
             : (status?.message || 'No restore currently running.')
@@ -306,6 +345,7 @@ class BackupRestoreStatusController extends Controller {
             badgeClass: this.badgeClass(locked, state),
             panelClass: this.panelClass(locked, state),
             showSpinner: locked || state === 'running',
+            log,
         }
     }
 
@@ -369,6 +409,9 @@ class BackupRestoreStatusController extends Controller {
         if (this.hasModalDetailsTarget) {
             this.modalDetailsTarget.textContent = normalizedStatus.details
         }
+        if (this.hasModalLogTarget) {
+            this.renderLog(this.modalLogTarget, normalizedStatus.log)
+        }
         if (this.hasModalSpinnerTarget) {
             this.modalSpinnerTarget.classList.toggle('d-none', !normalizedStatus.showSpinner)
         }
@@ -376,6 +419,25 @@ class BackupRestoreStatusController extends Controller {
         if (this.restoreRequestInFlight || normalizedStatus.showSpinner) {
             this.modalInstance.show()
         }
+    }
+
+    renderLog(target, log) {
+        const entries = Array.isArray(log) ? log.slice(-20) : []
+        if (entries.length === 0) {
+            const item = document.createElement('li')
+            item.textContent = 'No restore log entries have been written yet.'
+            target.replaceChildren(item)
+
+            return
+        }
+
+        target.replaceChildren(...entries.map((entry) => {
+            const item = document.createElement('li')
+            const timestamp = entry?.timestamp ? `${entry.timestamp}: ` : ''
+            item.textContent = `${timestamp}${entry?.message || ''}`
+
+            return item
+        }))
     }
 
     showModal(normalizedStatus) {

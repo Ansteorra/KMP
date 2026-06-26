@@ -29,6 +29,7 @@ describe('BackupRestoreStatusController', () => {
                     <span data-backup-restore-status-target="modalBadge" class="badge"></span>
                     <span data-backup-restore-status-target="modalMessage"></span>
                     <span data-backup-restore-status-target="modalDetails"></span>
+                    <ol data-backup-restore-status-target="modalLog"></ol>
                     <div data-backup-restore-status-target="modalSpinner" class="d-none"></div>
                     <button data-backup-restore-status-target="modalClose">Close</button>
                 </div>
@@ -61,6 +62,8 @@ describe('BackupRestoreStatusController', () => {
         controller.hasModalMessageTarget = true;
         controller.modalDetailsTarget = document.querySelector('[data-backup-restore-status-target="modalDetails"]');
         controller.hasModalDetailsTarget = true;
+        controller.modalLogTarget = document.querySelector('[data-backup-restore-status-target="modalLog"]');
+        controller.hasModalLogTarget = true;
         controller.modalSpinnerTarget = document.querySelector('[data-backup-restore-status-target="modalSpinner"]');
         controller.hasModalSpinnerTarget = true;
         controller.modalCloseTargets = Array.from(document.querySelectorAll('[data-backup-restore-status-target="modalClose"]'));
@@ -86,7 +89,7 @@ describe('BackupRestoreStatusController', () => {
     test('has correct static targets', () => {
         expect(BackupRestoreStatusController.targets).toEqual(expect.arrayContaining([
             'panel', 'badge', 'message', 'details', 'modal',
-            'modalBadge', 'modalMessage', 'modalDetails', 'modalSpinner', 'modalClose'
+            'modalBadge', 'modalMessage', 'modalDetails', 'modalLog', 'modalSpinner', 'modalClose'
         ]));
     });
 
@@ -211,6 +214,25 @@ describe('BackupRestoreStatusController', () => {
         expect(controller.panelTarget.className).toContain('alert-success');
     });
 
+    test('render updates modal restore log entries', () => {
+        controller.modalInstance = mockModalInstance;
+        controller.restoreRequestInFlight = false;
+
+        controller.render({
+            status: 'failed',
+            completed_at: new Date().toISOString(),
+            message: 'Restore failed.',
+            log: [
+                { timestamp: '2026-06-23T00:00:00+00:00', message: 'Decrypting backup file.' },
+                { timestamp: '2026-06-23T00:00:01+00:00', message: 'Restore failed: bad key.' }
+            ]
+        });
+
+        expect(controller.modalLogTarget.children).toHaveLength(2);
+        expect(controller.modalLogTarget.textContent).toContain('Decrypting backup file.');
+        expect(controller.modalLogTarget.textContent).toContain('Restore failed: bad key.');
+    });
+
     // --- requestHeaders ---
 
     test('requestHeaders includes CSRF token', () => {
@@ -306,6 +328,37 @@ describe('BackupRestoreStatusController', () => {
         );
     });
 
+    test('submitRestore displays server preflight errors and announces them', async () => {
+        const form = document.createElement('form');
+        form.action = '/backups/restore';
+        form.dataset.restoreConfirmMessage = '';
+        document.body.appendChild(form);
+
+        window.KMP_accessibility.prompt.mockResolvedValue('wrong-key');
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: false,
+            text: () => Promise.resolve(JSON.stringify({
+                success: false,
+                message: 'The backup file could not be opened: Decryption failed.',
+            })),
+        });
+        jest.spyOn(controller, 'pollStatus').mockResolvedValue(undefined);
+        controller.modalInstance = mockModalInstance;
+
+        await controller.submitRestore({
+            preventDefault: jest.fn(),
+            currentTarget: form,
+        });
+
+        expect(controller.modalBadgeTarget.textContent).toBe('failed');
+        expect(controller.modalMessageTarget.textContent).toBe('The backup file could not be opened: Decryption failed.');
+        expect(controller.modalLogTarget.textContent).toContain('The backup file could not be opened: Decryption failed.');
+        expect(window.KMP_accessibility.announce).toHaveBeenCalledWith(
+            'The backup file could not be opened: Decryption failed.',
+            { assertive: true }
+        );
+    });
+
     // --- parseJson ---
 
     test('parseJson returns parsed JSON', async () => {
@@ -372,6 +425,33 @@ describe('BackupRestoreStatusController', () => {
         await controller.pollStatus();
 
         expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    test('pollStatus does not overwrite validating restore request with idle status', async () => {
+        controller.restoreRequestInFlight = true;
+        global.fetch = jest.fn();
+
+        await controller.pollStatus();
+
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    test('pollStatus keeps recent client-side failure visible when server remains idle', async () => {
+        controller.clientTerminalStatus = {
+            status: 'failed',
+            message: 'The backup file could not be opened.',
+        };
+        controller.clientTerminalStatusExpiresAt = Date.now() + 30000;
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve({ status: 'idle', locked: false })
+        });
+        const renderSpy = jest.spyOn(controller, 'render').mockImplementation(() => {});
+
+        await controller.pollStatus();
+
+        expect(global.fetch).toHaveBeenCalled();
+        expect(renderSpy).not.toHaveBeenCalled();
     });
 
     // --- startPolling / stopPolling ---

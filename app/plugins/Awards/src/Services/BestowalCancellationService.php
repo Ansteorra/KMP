@@ -23,7 +23,6 @@ class BestowalCancellationService
     private Table $bestowalsTable;
     private Table $recommendationsTable;
     private Table $bestowalRecommendationsTable;
-    private BestowalTransitionService $transitionService;
     private BestowalRecommendationSyncService $syncService;
     private RecommendationApprovalWorkflowLifecycleService $approvalLifecycleService;
 
@@ -31,7 +30,6 @@ class BestowalCancellationService
      * @param \Cake\ORM\Table|null $bestowalsTable Optional injected bestowals table.
      * @param \Cake\ORM\Table|null $recommendationsTable Optional injected recommendations table.
      * @param \Cake\ORM\Table|null $bestowalRecommendationsTable Optional injected join table.
-     * @param \Awards\Services\BestowalTransitionService|null $transitionService Optional injected transition service.
      * @param \Awards\Services\BestowalRecommendationSyncService|null $syncService Optional injected sync service.
      * @param \Awards\Services\RecommendationApprovalWorkflowLifecycleService|null $approvalLifecycleService Optional lifecycle service.
      */
@@ -39,7 +37,6 @@ class BestowalCancellationService
         ?Table $bestowalsTable = null,
         ?Table $recommendationsTable = null,
         ?Table $bestowalRecommendationsTable = null,
-        ?BestowalTransitionService $transitionService = null,
         ?BestowalRecommendationSyncService $syncService = null,
         ?RecommendationApprovalWorkflowLifecycleService $approvalLifecycleService = null,
     ) {
@@ -47,7 +44,6 @@ class BestowalCancellationService
         $this->recommendationsTable = $recommendationsTable ?? $this->fetchTable('Awards.Recommendations');
         $this->bestowalRecommendationsTable = $bestowalRecommendationsTable
             ?? $this->fetchTable('Awards.BestowalRecommendations');
-        $this->transitionService = $transitionService ?? new BestowalTransitionService();
         $this->syncService = $syncService ?? new BestowalRecommendationSyncService();
         $this->approvalLifecycleService = $approvalLifecycleService
             ?? new RecommendationApprovalWorkflowLifecycleService(
@@ -77,27 +73,19 @@ class BestowalCancellationService
             return $this->bestowalsTable->getConnection()->transactional(
                 function () use ($bestowalId, $actorId, $normalizedReason): array {
                     $bestowal = $this->bestowalsTable->get($bestowalId, contain: ['Recommendations']);
-                    if ((string)$bestowal->state === 'Given') {
+                    $lifecycleStatus = (string)($bestowal->lifecycle_status ?? Bestowal::LIFECYCLE_OPEN);
+                    if ($lifecycleStatus === Bestowal::LIFECYCLE_GIVEN) {
                         throw new RuntimeException('Given bestowals cannot be cancelled.');
                     }
-                    if (!$bestowal->isActiveBestowal() && (string)$bestowal->state === 'Cancelled') {
+                    if ($lifecycleStatus === Bestowal::LIFECYCLE_CANCELLED) {
                         throw new RuntimeException('Bestowal is already cancelled.');
                     }
 
-                    $transitionResult = $this->transitionService->transition(
-                        $this->bestowalsTable,
-                        $bestowalId,
-                        [
-                            'targetState' => 'Cancelled',
-                            'closeReason' => $normalizedReason,
-                        ],
-                        $actorId,
-                    );
-                    if (!($transitionResult['success'] ?? false)) {
-                        throw new RuntimeException(
-                            (string)($transitionResult['error'] ?? 'Failed to transition bestowal to Cancelled.'),
-                        );
-                    }
+                    $previousLifecycleStatus = $lifecycleStatus;
+                    $bestowal->lifecycle_status = Bestowal::LIFECYCLE_CANCELLED;
+                    $bestowal->close_reason = $normalizedReason;
+                    $bestowal->modified_by = $actorId;
+                    $this->bestowalsTable->saveOrFail($bestowal);
 
                     $unwindState = $this->syncService->resolveUnwindTargetStateName();
                     $recommendations = $this->resolveLinkedRecommendations($bestowal);
@@ -153,9 +141,9 @@ class BestowalCancellationService
                                 'recommendationIds' => $recommendationIds,
                                 'closeReason' => $normalizedReason,
                                 'unwindState' => $unwindState,
-                                'memberId' => (int)$bestowal->member_id,
-                                'previousState' => $transitionResult['data']['result']['previousState'] ?? null,
-                                'newState' => 'Cancelled',
+                                'memberId' => $bestowal->member_id !== null ? (int)$bestowal->member_id : null,
+                                'previousState' => $previousLifecycleStatus,
+                                'newState' => Bestowal::LIFECYCLE_CANCELLED,
                             ],
                         ],
                     ];

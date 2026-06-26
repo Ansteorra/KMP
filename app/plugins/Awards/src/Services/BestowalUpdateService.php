@@ -10,27 +10,23 @@ use RuntimeException;
 use Throwable;
 
 /**
- * Applies bestowal edit form updates including link changes and state transitions.
+ * Applies bestowal edit form updates including link changes and field updates.
  */
 class BestowalUpdateService
 {
     use LocatorAwareTrait;
 
-    private BestowalTransitionService $transitionService;
     private BestowalRecommendationSyncService $syncService;
     private BestowalRecommendationLinkService $linkService;
 
     /**
-     * @param \Awards\Services\BestowalTransitionService|null $transitionService Optional transition service.
      * @param \Awards\Services\BestowalRecommendationSyncService|null $syncService Optional sync service.
      * @param \Awards\Services\BestowalRecommendationLinkService|null $linkService Optional link service.
      */
     public function __construct(
-        ?BestowalTransitionService $transitionService = null,
         ?BestowalRecommendationSyncService $syncService = null,
         ?BestowalRecommendationLinkService $linkService = null,
     ) {
-        $this->transitionService = $transitionService ?? new BestowalTransitionService();
         $this->syncService = $syncService ?? new BestowalRecommendationSyncService();
         $this->linkService = $linkService ?? new BestowalRecommendationLinkService(
             syncService: $this->syncService,
@@ -72,47 +68,33 @@ class BestowalUpdateService
                         $this->linkService->unlinkRecommendations($bestowalId, $unlinkIds, $actorId);
                     }
 
-                    $targetState = trim((string)(
-                        $data['state']
-                        ?? $data['newState']
-                        ?? $data['targetState']
-                        ?? $bestowal->state
-                    ));
-                    if ($targetState === '') {
-                        throw new RuntimeException('Target state is required.');
-                    }
-
                     $awardId = $data['award_id'] ?? null;
                     if ($awardId === null || $awardId === '') {
                         throw new RuntimeException('Award to Bestow is required.');
                     }
 
-                    $transitionData = [
-                        'targetState' => $targetState,
-                        'newState' => $targetState,
-                        'award_id' => (int)$awardId,
-                        'gathering_id' => $data['gathering_id'] ?? null,
-                        'gathering_scheduled_activity_id' => $data['gathering_scheduled_activity_id'] ?? null,
-                        'bestowed_at' => $data['bestowed_at'] ?? null,
-                        'specialty' => $data['specialty'] ?? null,
-                        'noble_notes' => $data['noble_notes'] ?? null,
-                        'herald_notes' => $data['herald_notes'] ?? null,
-                        'reason_summary' => $data['reason_summary'] ?? null,
-                        'close_reason' => $data['close_reason'] ?? null,
-                        'note' => $data['note'] ?? null,
-                    ];
+                    $bestowal->set('award_id', (int)$awardId, ['guard' => false]);
+                    $bestowal->setDirty('award_id', true);
 
-                    $transitionResult = $this->transitionService->transition(
-                        $bestowalsTable,
-                        $bestowalId,
-                        $transitionData,
-                        $actorId,
-                    );
-                    if (!($transitionResult['success'] ?? false)) {
-                        throw new RuntimeException(
-                            (string)($transitionResult['error'] ?? 'Bestowal transition failed.'),
-                        );
+                    $editableFields = [
+                        'gathering_id',
+                        'gathering_scheduled_activity_id',
+                        'bestowed_at',
+                        'specialty',
+                        'noble_notes',
+                        'herald_notes',
+                        'reason_summary',
+                        'close_reason',
+                    ];
+                    foreach ($editableFields as $field) {
+                        if (array_key_exists($field, $data)) {
+                            $value = $data[$field];
+                            $bestowal->set($field, $value === '' ? null : $value, ['guard' => false]);
+                            $bestowal->setDirty($field, true);
+                        }
                     }
+                    $bestowal->set('modified_by', $actorId, ['guard' => false]);
+                    $bestowalsTable->saveOrFail($bestowal);
 
                     $syncResult = $this->syncService->syncFromBestowal($bestowalId, $actorId);
                     if (!($syncResult['success'] ?? false)) {
@@ -125,7 +107,7 @@ class BestowalUpdateService
                         'success' => true,
                         'data' => [
                             'bestowalId' => $bestowalId,
-                            'result' => $transitionResult['data']['result'] ?? null,
+                            'result' => ['lifecycleStatus' => $bestowal->lifecycle_status],
                             'unlinkedRecommendationIds' => $unlinkIds,
                             'linkedRecommendationIds' => $linkIds,
                             'sync' => $syncResult['data'] ?? [],
@@ -135,50 +117,6 @@ class BestowalUpdateService
             );
         } catch (Throwable $e) {
             Log::error('Bestowal update failed: ' . $e->getMessage());
-
-            return $this->failureResult($e->getMessage());
-        }
-    }
-
-    /**
-     * Bulk transition bestowals and sync linked recommendations.
-     *
-     * @param \Cake\ORM\Table $bestowalsTable Bestowals table.
-     * @param array<string, mixed> $data Bulk transition data including ids and target state.
-     * @param int $actorId Actor performing the update.
-     * @return array<string, mixed>
-     */
-    public function bulkTransition(Table $bestowalsTable, array $data, int $actorId): array
-    {
-        try {
-            return $bestowalsTable->getConnection()->transactional(
-                function () use ($bestowalsTable, $data, $actorId): array {
-                    $transitionResult = $this->transitionService->transitionMany(
-                        $bestowalsTable,
-                        $data,
-                        $actorId,
-                    );
-                    if (!($transitionResult['success'] ?? false)) {
-                        throw new RuntimeException(
-                            (string)($transitionResult['error'] ?? 'Bulk bestowal transition failed.'),
-                        );
-                    }
-
-                    $bestowalIds = $transitionResult['data']['bestowalIds'] ?? [];
-                    foreach ($bestowalIds as $bestowalId) {
-                        $syncResult = $this->syncService->syncFromBestowal((int)$bestowalId, $actorId);
-                        if (!($syncResult['success'] ?? false)) {
-                            throw new RuntimeException(
-                                (string)($syncResult['error'] ?? 'Recommendation sync failed.'),
-                            );
-                        }
-                    }
-
-                    return $transitionResult;
-                },
-            );
-        } catch (Throwable $e) {
-            Log::error('Bestowal bulk transition failed: ' . $e->getMessage());
 
             return $this->failureResult($e->getMessage());
         }

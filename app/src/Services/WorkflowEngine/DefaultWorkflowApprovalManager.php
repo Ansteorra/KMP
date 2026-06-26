@@ -1,24 +1,30 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services\WorkflowEngine;
 
+use App\KMP\StaticHelpers;
 use App\KMP\WorkflowApprovalDecisionOptions;
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowApprovalResponse;
+use App\Model\Table\WorkflowApprovalsTable;
 use App\Services\ServiceResult;
 use App\Services\WorkflowRegistry\WorkflowApproverResolverRegistry;
 use Cake\Datasource\ConnectionManager;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\ORM\TableRegistry;
+use Exception;
+use RuntimeException;
 
 /**
  * Default implementation of WorkflowApprovalManagerInterface.
  *
- * Manages approval gate lifecycle: creation, response recording,
- * eligibility checks, and resolution detection.
+ * Manages approval gate lifecycle: creation, transactional response recording,
+ * candidate discovery for picker UIs, and resolution detection.
+ *
+ * Current-user pending eligibility is owned by WorkflowApprovalsTable so queues,
+ * badges, and response recording use one canonical decision path.
  */
 class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
 {
@@ -33,33 +39,35 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
     private const RETRY_DELAY_US = 50000;
 
     /**
-     * @inheritDoc
+     * Record a member's approval decision with optimistic-locking retries.
      *
      * Uses a three-layer concurrency defense:
      *  1. FOR UPDATE row lock — serialises concurrent transactions
      *  2. Atomic SQL increment — prevents lost count updates
      *  3. Optimistic version check — detects any out-of-band modification
      */
-    public function recordResponse(int $approvalId, int $memberId, string $decision, ?string $comment = null, ?int $nextApproverId = null): ServiceResult
-    {
-        $lastException = null;
-
+    public function recordResponse(
+        int $approvalId,
+        int $memberId,
+        string $decision,
+        ?string $comment = null,
+        ?int $nextApproverId = null,
+    ): ServiceResult {
         for ($attempt = 1; $attempt <= self::MAX_OPTIMISTIC_RETRIES; $attempt++) {
             try {
                 $result = $this->attemptRecordResponse($approvalId, $memberId, $decision, $comment, $nextApproverId);
 
                 return $result;
             } catch (OptimisticLockException $e) {
-                $lastException = $e;
                 Log::warning(
                     "Optimistic lock conflict on approval {$approvalId}, attempt {$attempt}/"
-                    . self::MAX_OPTIMISTIC_RETRIES . ": {$e->getMessage()}"
+                    . self::MAX_OPTIMISTIC_RETRIES . ": {$e->getMessage()}",
                 );
 
                 if ($attempt < self::MAX_OPTIMISTIC_RETRIES) {
                     usleep(self::RETRY_DELAY_US * $attempt);
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 Log::error("Error recording approval response: {$e->getMessage()}");
 
                 return new ServiceResult(false, 'An unexpected error occurred.');
@@ -68,7 +76,7 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
 
         Log::error(
             "Optimistic lock retries exhausted for approval {$approvalId} after "
-            . self::MAX_OPTIMISTIC_RETRIES . " attempts"
+            . self::MAX_OPTIMISTIC_RETRIES . ' attempts',
         );
 
         return new ServiceResult(false, 'Approval was modified concurrently. Please retry.');
@@ -77,14 +85,25 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
     /**
      * Single transactional attempt to record an approval response.
      *
-     * @throws OptimisticLockException When the version check fails.
+     * @throws \App\Services\WorkflowEngine\OptimisticLockException When the version check fails.
      */
-    private function attemptRecordResponse(int $approvalId, int $memberId, string $decision, ?string $comment, ?int $nextApproverId): ServiceResult
-    {
+    private function attemptRecordResponse(
+        int $approvalId,
+        int $memberId,
+        string $decision,
+        ?string $comment,
+        ?int $nextApproverId,
+    ): ServiceResult {
         $connection = ConnectionManager::get('default');
 
-        /** @var ServiceResult $result */
-        $result = $connection->transactional(function () use ($approvalId, $memberId, $decision, $comment, $nextApproverId) {
+        /** @var \App\Services\ServiceResult $result */
+        $result = $connection->transactional(function () use (
+            $approvalId,
+            $memberId,
+            $decision,
+            $comment,
+            $nextApproverId,
+        ) {
             $approvalsTable = TableRegistry::getTableLocator()->get('WorkflowApprovals');
             $responsesTable = TableRegistry::getTableLocator()->get('WorkflowApprovalResponses');
 
@@ -107,7 +126,7 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
             $currentVersion = (int)($approval->version ?? 1);
 
             // Check eligibility before accepting the response
-            if (!$this->isMemberEligible($approval, $memberId)) {
+            if (!WorkflowApprovalsTable::isPendingApprovalForMember($approvalId, $memberId)) {
                 return new ServiceResult(false, 'You are not eligible to respond to this approval.');
             }
 
@@ -139,6 +158,7 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
 
             if (!$responsesTable->save($response)) {
                 Log::error("Failed to save approval response for approval {$approvalId}");
+
                 return new ServiceResult(false, 'Failed to save response.');
             }
 
@@ -147,24 +167,24 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
             if ($decision === WorkflowApprovalResponse::DECISION_APPROVE) {
                 $affectedRows = $approvalsTable->updateAll(
                     ['approved_count = approved_count + 1', 'version' => $currentVersion + 1],
-                    ['id' => $approval->id, 'version' => $currentVersion]
+                    ['id' => $approval->id, 'version' => $currentVersion],
                 );
             } elseif ($decision === WorkflowApprovalResponse::DECISION_REJECT) {
                 $affectedRows = $approvalsTable->updateAll(
                     ['rejected_count = rejected_count + 1', 'version' => $currentVersion + 1],
-                    ['id' => $approval->id, 'version' => $currentVersion]
+                    ['id' => $approval->id, 'version' => $currentVersion],
                 );
             } else {
                 // Non-counted decision (e.g. abstain) — still bump version
                 $affectedRows = $approvalsTable->updateAll(
                     ['version' => $currentVersion + 1],
-                    ['id' => $approval->id, 'version' => $currentVersion]
+                    ['id' => $approval->id, 'version' => $currentVersion],
                 );
             }
 
             if ($affectedRows === 0) {
                 throw new OptimisticLockException(
-                    "Approval {$approvalId} was modified concurrently (expected version {$currentVersion})."
+                    "Approval {$approvalId} was modified concurrently (expected version {$currentVersion}).",
                 );
             }
 
@@ -253,7 +273,7 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
      * Increments the version on save and verifies the row was updated.
      * Must be called within a transaction that already holds the FOR UPDATE lock.
      *
-     * @throws OptimisticLockException When the version has been changed by another process.
+     * @throws \App\Services\WorkflowEngine\OptimisticLockException When the version has been changed by another process.
      */
     private function saveWithVersionCheck($approvalsTable, WorkflowApproval $approval): void
     {
@@ -262,7 +282,7 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
         if (!$approvalsTable->save($approval)) {
             Log::error("Failed to save approval {$approval->id} with version check");
             throw new OptimisticLockException(
-                "Failed to save approval {$approval->id} — possible concurrent modification."
+                "Failed to save approval {$approval->id} — possible concurrent modification.",
             );
         }
     }
@@ -300,69 +320,38 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
                 'allow_parallel' => $allowParallel,
                 'deadline' => $deadline,
                 'version' => 1,
-                'approval_token' => \App\KMP\StaticHelpers::generateToken(32),
+                'approval_token' => StaticHelpers::generateToken(32),
             ]);
 
             if (!$approvalsTable->save($approval)) {
                 Log::error("Failed to create approval for instance {$instanceId}, node {$nodeId}");
+
                 return new ServiceResult(false, 'Failed to create approval.');
             }
 
             return new ServiceResult(true, null, ['approvalId' => $approval->id]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error("Error creating approval: {$e->getMessage()}");
+
             return new ServiceResult(false, 'An unexpected error occurred.');
         }
     }
 
     /**
-     * @inheritDoc
+     * List the approvals currently pending the given member's action.
      *
-     * Optimized to pre-fetch member permissions/roles in two queries,
-     * then filter approvals in-memory instead of N+1 per-approval DB lookups.
+     * Uses the same canonical eligibility logic as badges, mobile queues, and
+     * controller response guards so listed approvals remain actionable.
      */
     public function getPendingApprovalsForMember(int $memberId): array
     {
         try {
-            $approvalsTable = TableRegistry::getTableLocator()->get('WorkflowApprovals');
-            $responsesTable = TableRegistry::getTableLocator()->get('WorkflowApprovalResponses');
-
-            // Get IDs of approvals this member already responded to
-            $respondedIds = $responsesTable->find()
-                ->select(['workflow_approval_id'])
-                ->where(['member_id' => $memberId])
-                ->all()
-                ->extract('workflow_approval_id')
-                ->toArray();
-
-            $query = $approvalsTable->find()
-                ->contain(['WorkflowInstances.WorkflowDefinitions'])
-                ->where(['WorkflowApprovals.status' => WorkflowApproval::STATUS_PENDING]);
-
-            if (!empty($respondedIds)) {
-                $query->where(['WorkflowApprovals.id NOT IN' => $respondedIds]);
-            }
-
-            // Pre-fetch member's active permissions and roles (2 queries total)
-            $memberPermissions = $this->getMemberActivePermissions($memberId);
-            $memberRoles = $this->getMemberActiveRoles($memberId);
-
-            $pendingApprovals = $query->all()->toArray();
-
-            // Filter using cached permission/role sets — no per-approval DB queries
-            $eligible = [];
-            foreach ($pendingApprovals as $approval) {
-                if (
-                    !$this->hasPriorDynamicWorkflowResponse($approval, $memberId)
-                    && $this->isMemberEligibleCached($approval, $memberId, $memberPermissions, $memberRoles)
-                ) {
-                    $eligible[] = $approval;
-                }
-            }
-
-            return $eligible;
-        } catch (\Exception $e) {
+            return WorkflowApprovalsTable::getPendingApprovalsForMember($memberId, [
+                'WorkflowInstances' => ['WorkflowDefinitions'],
+            ]);
+        } catch (Exception $e) {
             Log::error("Error fetching pending approvals for member {$memberId}: {$e->getMessage()}");
+
             return [];
         }
     }
@@ -380,8 +369,9 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
                 ->where(['WorkflowApprovals.workflow_instance_id' => $instanceId])
                 ->all()
                 ->toArray();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error("Error fetching approvals for instance {$instanceId}: {$e->getMessage()}");
+
             return [];
         }
     }
@@ -404,8 +394,9 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
             }
 
             return $approval->isResolved();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error("Error checking approval resolution for {$approvalId}: {$e->getMessage()}");
+
             return false;
         }
     }
@@ -433,8 +424,9 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
             }
 
             return new ServiceResult(true);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error("Error cancelling approvals for instance {$instanceId}: {$e->getMessage()}");
+
             return new ServiceResult(false, 'Failed to cancel approvals.');
         }
     }
@@ -446,10 +438,14 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
      * @param int $newApproverId Member ID of the new approver
      * @param int $adminMemberId Member ID of the admin performing the reassignment
      * @param string|null $reason Optional reason for reassignment
-     * @return ServiceResult Contains approvalId, instanceId, nodeId, previousApproverId, newApproverId on success
+     * @return \App\Services\ServiceResult Contains approvalId, instanceId, nodeId, previousApproverId, newApproverId on success
      */
-    public function reassignApproval(int $approvalId, int $newApproverId, int $adminMemberId, ?string $reason = null): ServiceResult
-    {
+    public function reassignApproval(
+        int $approvalId,
+        int $newApproverId,
+        int $adminMemberId,
+        ?string $reason = null,
+    ): ServiceResult {
         try {
             $approvalsTable = TableRegistry::getTableLocator()->get('WorkflowApprovals');
 
@@ -490,8 +486,9 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
                 'previousApproverId' => $previousApproverId,
                 'newApproverId' => $newApproverId,
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error("Error reassigning approval {$approvalId}: {$e->getMessage()}");
+
             return new ServiceResult(false, 'An unexpected error occurred.');
         }
     }
@@ -514,8 +511,9 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
             }
 
             return $this->findEligibleMembers($approval);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error("Error fetching eligible approvers for {$approvalId}: {$e->getMessage()}");
+
             return [];
         }
     }
@@ -528,7 +526,7 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
      *
      * @param int $approvalId Workflow approval ID
      * @param int|null $currentMemberId Current user ID to exclude (they're approving now)
-     * @return int[] Member IDs eligible to be picked as next approver
+     * @return array<int> Member IDs eligible to be picked as next approver
      */
     public function getNextApproverCandidates(int $approvalId, ?int $currentMemberId = null): array
     {
@@ -589,11 +587,11 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
                 WorkflowApproval::APPROVER_TYPE_DYNAMIC => $this->resolveDynamicApproverIds($clonedApproval),
                 WorkflowApproval::APPROVER_TYPE_PERMISSION => array_map(
                     fn($m) => $m->id,
-                    $this->findMembersByPermission($config['permission'] ?? '')
+                    $this->findMembersByPermission($config['permission'] ?? ''),
                 ),
                 WorkflowApproval::APPROVER_TYPE_ROLE => array_map(
                     fn($m) => $m->id,
-                    $this->findMembersByRole($config['role'] ?? '')
+                    $this->findMembersByRole($config['role'] ?? ''),
                 ),
                 default => [],
             };
@@ -607,71 +605,20 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
 
             // Remove excluded IDs
             return array_values(array_unique(array_diff($candidateIds, $excludeIds)));
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error("Error fetching next approver candidates for {$approvalId}: {$e->getMessage()}");
+
             return [];
         }
     }
 
     /**
-     * Check if a member is eligible to respond to an approval based on approver_type.
-     */
-    private function isMemberEligible(WorkflowApproval $approval, int $memberId): bool
-    {
-        $config = $approval->approver_config ?? [];
-
-        // Serial pick-next: when current_approver_id is set, only that member is eligible.
-        // For permission/role-based approvals, also verify the member still holds the
-        // underlying permission/role (e.g. warrant not expired).
-        if (!empty($config['serial_pick_next']) && !empty($config['current_approver_id'])) {
-            if ($memberId !== (int)$config['current_approver_id']) {
-                return false;
-            }
-            // Member-type approvals are person-to-person — no permission check needed
-            if ($approval->approver_type === WorkflowApproval::APPROVER_TYPE_MEMBER) {
-                return true;
-            }
-            // Fall through to the approver_type switch to validate active permission/role
-        }
-
-        switch ($approval->approver_type) {
-            case WorkflowApproval::APPROVER_TYPE_PERMISSION:
-                $permissionName = $config['permission'] ?? null;
-                if (!$permissionName) {
-                    return false;
-                }
-                return $this->memberHasPermission($memberId, $permissionName);
-
-            case WorkflowApproval::APPROVER_TYPE_ROLE:
-                $roleName = $config['role'] ?? null;
-                if (!$roleName) {
-                    return false;
-                }
-                return $this->memberHasRole($memberId, $roleName);
-
-            case WorkflowApproval::APPROVER_TYPE_MEMBER:
-                // Person-to-person: ID match only, no permission required
-                $targetMemberId = (int)($config['member_id'] ?? 0);
-                return $memberId === $targetMemberId;
-
-            case WorkflowApproval::APPROVER_TYPE_DYNAMIC:
-                if ($this->hasPriorDynamicWorkflowResponse($approval, $memberId)) {
-                    return false;
-                }
-                return $this->resolveDynamicEligibility($approval, $memberId);
-
-            case WorkflowApproval::APPROVER_TYPE_POLICY:
-                return $this->memberPassesPolicy($approval, $memberId);
-
-            default:
-                return false;
-        }
-    }
-
-    /**
-     * Find all members eligible to respond to an approval.
+     * Find members who are potential candidates for an approval picker.
      *
-     * @return \App\Model\Entity\Member[]
+     * This is not the final current-user response eligibility check. Response
+     * recording delegates to WorkflowApprovalsTable::isPendingApprovalForMember().
+     *
+     * @return array<\App\Model\Entity\Member>
      */
     private function findEligibleMembers(WorkflowApproval $approval): array
     {
@@ -683,6 +630,7 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
                 if (!$permissionName) {
                     return [];
                 }
+
                 return $this->findMembersByPermission($permissionName);
 
             case WorkflowApproval::APPROVER_TYPE_ROLE:
@@ -690,6 +638,7 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
                 if (!$roleName) {
                     return [];
                 }
+
                 return $this->findMembersByRole($roleName);
 
             case WorkflowApproval::APPROVER_TYPE_MEMBER:
@@ -701,6 +650,7 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
                 $member = $membersTable->find()
                     ->where(['Members.id' => $targetMemberId])
                     ->first();
+
                 return $member ? [$member] : [];
 
             case WorkflowApproval::APPROVER_TYPE_DYNAMIC:
@@ -715,6 +665,7 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
                 if ($permissionName) {
                     return $this->findMembersByPermission($permissionName);
                 }
+
                 return [];
 
             default:
@@ -723,67 +674,9 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
     }
 
     /**
-     * Check if a member has a specific permission via their active (unexpired) roles.
-     */
-    private function memberHasPermission(int $memberId, string $permissionName): bool
-    {
-        $memberRolesTable = TableRegistry::getTableLocator()->get('MemberRoles');
-        $now = DateTime::now();
-
-        $count = $memberRolesTable->find()
-            ->innerJoinWith('Roles.Permissions')
-            ->where([
-                'MemberRoles.member_id' => $memberId,
-                'Permissions.name' => $permissionName,
-                'OR' => [
-                    'MemberRoles.start_on IS' => null,
-                    'MemberRoles.start_on <=' => $now,
-                ],
-            ])
-            ->where([
-                'OR' => [
-                    'MemberRoles.expires_on IS' => null,
-                    'MemberRoles.expires_on >=' => $now,
-                ],
-            ])
-            ->count();
-
-        return $count > 0;
-    }
-
-    /**
-     * Check if a member has a specific active (unexpired) role.
-     */
-    private function memberHasRole(int $memberId, string $roleName): bool
-    {
-        $memberRolesTable = TableRegistry::getTableLocator()->get('MemberRoles');
-        $now = DateTime::now();
-
-        $count = $memberRolesTable->find()
-            ->innerJoinWith('Roles')
-            ->where([
-                'MemberRoles.member_id' => $memberId,
-                'Roles.name' => $roleName,
-                'OR' => [
-                    'MemberRoles.start_on IS' => null,
-                    'MemberRoles.start_on <=' => $now,
-                ],
-            ])
-            ->where([
-                'OR' => [
-                    'MemberRoles.expires_on IS' => null,
-                    'MemberRoles.expires_on >=' => $now,
-                ],
-            ])
-            ->count();
-
-        return $count > 0;
-    }
-
-    /**
      * Find all members who have an active (unexpired) role granting the specified permission.
      *
-     * @return \App\Model\Entity\Member[]
+     * @return array<\App\Model\Entity\Member>
      */
     private function findMembersByPermission(string $permissionName): array
     {
@@ -813,7 +706,7 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
     /**
      * Find all members who have the specified active (unexpired) role.
      *
-     * @return \App\Model\Entity\Member[]
+     * @return array<\App\Model\Entity\Member>
      */
     private function findMembersByRole(string $roleName): array
     {
@@ -841,147 +734,12 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
     }
 
     /**
-     * Get all active permission names for a member in a single query.
-     *
-     * @return string[]
-     */
-    private function getMemberActivePermissions(int $memberId): array
-    {
-        $memberRolesTable = TableRegistry::getTableLocator()->get('MemberRoles');
-        $now = DateTime::now();
-
-        return $memberRolesTable->find()
-            ->innerJoinWith('Roles.Permissions')
-            ->select(['permission_name' => 'Permissions.name'])
-            ->where([
-                'MemberRoles.member_id' => $memberId,
-                'OR' => [
-                    'MemberRoles.start_on IS' => null,
-                    'MemberRoles.start_on <=' => $now,
-                ],
-            ])
-            ->where([
-                'OR' => [
-                    'MemberRoles.expires_on IS' => null,
-                    'MemberRoles.expires_on >=' => $now,
-                ],
-            ])
-            ->distinct()
-            ->all()
-            ->extract('permission_name')
-            ->toArray();
-    }
-
-    /**
-     * Get all active role names for a member in a single query.
-     *
-     * @return string[]
-     */
-    private function getMemberActiveRoles(int $memberId): array
-    {
-        $memberRolesTable = TableRegistry::getTableLocator()->get('MemberRoles');
-        $now = DateTime::now();
-
-        return $memberRolesTable->find()
-            ->innerJoinWith('Roles')
-            ->select(['role_name' => 'Roles.name'])
-            ->where([
-                'MemberRoles.member_id' => $memberId,
-                'OR' => [
-                    'MemberRoles.start_on IS' => null,
-                    'MemberRoles.start_on <=' => $now,
-                ],
-            ])
-            ->where([
-                'OR' => [
-                    'MemberRoles.expires_on IS' => null,
-                    'MemberRoles.expires_on >=' => $now,
-                ],
-            ])
-            ->distinct()
-            ->all()
-            ->extract('role_name')
-            ->toArray();
-    }
-
-    /**
-     * Check eligibility using pre-fetched permission/role sets to avoid N+1 queries.
-     */
-    private function isMemberEligibleCached(
-        WorkflowApproval $approval,
-        int $memberId,
-        array $memberPermissions,
-        array $memberRoles,
-    ): bool {
-        $config = $approval->approver_config ?? [];
-
-        // If a specific approver is assigned, only they are eligible.
-        // For permission/role-based approvals, also verify the member still holds
-        // the underlying permission/role (e.g. warrant not expired).
-        $currentApproverId = $approval->current_approver_id
-            ?? (!empty($config['current_approver_id']) ? (int)$config['current_approver_id'] : null);
-
-        if ($currentApproverId !== null) {
-            if ($memberId !== $currentApproverId) {
-                return false;
-            }
-            // Member-type approvals are person-to-person — no permission check needed
-            if ($approval->approver_type === WorkflowApproval::APPROVER_TYPE_MEMBER) {
-                return true;
-            }
-            // Fall through to the approver_type switch to validate active permission/role
-        }
-
-        // No specific assignee or assigned + needs permission/role validation
-        switch ($approval->approver_type) {
-            case WorkflowApproval::APPROVER_TYPE_PERMISSION:
-                $permissionName = $config['permission'] ?? null;
-                return $permissionName && in_array($permissionName, $memberPermissions, true);
-
-            case WorkflowApproval::APPROVER_TYPE_ROLE:
-                $roleName = $config['role'] ?? null;
-                return $roleName && in_array($roleName, $memberRoles, true);
-
-            case WorkflowApproval::APPROVER_TYPE_MEMBER:
-                // Person-to-person: ID match only, no permission required
-                $targetMemberId = (int)($config['member_id'] ?? 0);
-                return $memberId === $targetMemberId;
-
-            case WorkflowApproval::APPROVER_TYPE_DYNAMIC:
-                if ($this->hasPriorDynamicWorkflowResponse($approval, $memberId)) {
-                    return false;
-                }
-                return $this->resolveDynamicEligibility($approval, $memberId);
-
-            case WorkflowApproval::APPROVER_TYPE_POLICY:
-                return $this->memberPassesPolicy($approval, $memberId);
-
-            default:
-                return false;
-        }
-    }
-
-    /**
-     * Check if a member is eligible via the dynamic callback approver.
-     */
-    private function resolveDynamicEligibility(WorkflowApproval $approval, int $memberId): bool
-    {
-        try {
-            $eligibleIds = $this->resolveDynamicApproverIds($approval);
-            return in_array($memberId, $eligibleIds, true);
-        } catch (\RuntimeException $e) {
-            Log::error("Dynamic approver resolution failed: {$e->getMessage()}");
-            return false;
-        }
-    }
-
-    /**
      * Resolve eligible member IDs via configured callback service.
      *
      * Expects approver_config: {"service": "App\\Services\\MyService", "method": "getEligibleApprovers"}
      * The callback receives the WorkflowApproval and must return int[] of member IDs.
      *
-     * @return int[]
+     * @return array<int>
      * @throws \RuntimeException If config is missing or callback is invalid
      */
     private function resolveDynamicApproverIds(WorkflowApproval $approval): array
@@ -1001,24 +759,25 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
         }
 
         if (!$serviceClass || !$method) {
-            throw new \RuntimeException(
+            throw new RuntimeException(
                 "Dynamic approver type requires 'service' and 'method' in approver_config. "
-                . "Approval ID: {$approval->id}"
+                . "Approval ID: {$approval->id}",
             );
         }
 
         if (!class_exists($serviceClass)) {
-            throw new \RuntimeException("Dynamic approver service class '{$serviceClass}' not found.");
+            throw new RuntimeException("Dynamic approver service class '{$serviceClass}' not found.");
         }
 
         $service = new $serviceClass();
         if (!method_exists($service, $method)) {
-            throw new \RuntimeException("Method '{$method}' not found on '{$serviceClass}'.");
+            throw new RuntimeException("Method '{$method}' not found on '{$serviceClass}'.");
         }
 
         $result = $service->$method($approval);
         if (!is_array($result)) {
             Log::warning("Dynamic approver {$serviceClass}::{$method} did not return an array");
+
             return [];
         }
 
@@ -1067,7 +826,7 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
     /**
      * Find Member entities eligible via the dynamic callback approver.
      *
-     * @return \App\Model\Entity\Member[]
+     * @return array<\App\Model\Entity\Member>
      */
     private function findDynamicApprovers(WorkflowApproval $approval): array
     {
@@ -1078,12 +837,14 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
             }
 
             $membersTable = TableRegistry::getTableLocator()->get('Members');
+
             return $membersTable->find()
                 ->where(['Members.id IN' => $memberIds])
                 ->all()
                 ->toArray();
-        } catch (\RuntimeException $e) {
+        } catch (RuntimeException $e) {
             Log::error("Dynamic approver resolution failed: {$e->getMessage()}");
+
             return [];
         }
     }
@@ -1109,86 +870,5 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
 
         // Fallback: try parsing as a date string
         return new DateTime($deadline);
-    }
-
-    /**
-     * Check if a member passes a CakePHP policy check for the approval's entity.
-     *
-     * Resolves the entity from the workflow instance context, loads the member
-     * as an identity, instantiates the policy class, and calls the action method.
-     */
-    private function memberPassesPolicy(WorkflowApproval $approval, int $memberId): bool
-    {
-        $config = $approval->approver_config ?? [];
-        $policyClass = $config['policyClass'] ?? null;
-        $policyAction = $config['policyAction'] ?? null;
-        $entityTable = $config['entityTable'] ?? null;
-        $entityIdKey = $config['entityIdKey'] ?? null;
-
-        if (!$policyClass || !$policyAction || !$entityTable || !$entityIdKey) {
-            Log::warning("Policy approver type missing config: policyClass={$policyClass}, policyAction={$policyAction}, entityTable={$entityTable}, entityIdKey={$entityIdKey}");
-            return false;
-        }
-
-        // Load the workflow instance to get context
-        $instancesTable = TableRegistry::getTableLocator()->get('WorkflowInstances');
-        $instance = $instancesTable->get($approval->workflow_instance_id);
-        $context = $instance->context ?? [];
-
-        // Resolve entity ID from context using dot-path key
-        $entityId = $this->resolveContextValue($context, $entityIdKey);
-        if (!$entityId) {
-            Log::warning("Policy check: could not resolve entity ID from context key '{$entityIdKey}'");
-            return false;
-        }
-
-        // Load the target entity
-        $table = TableRegistry::getTableLocator()->get($entityTable);
-        $entity = $table->find()->where([$table->getAlias() . '.id' => $entityId])->first();
-        if (!$entity) {
-            Log::warning("Policy check: entity {$entityTable}#{$entityId} not found");
-            return false;
-        }
-
-        // Load the member as an identity (has getPolicies() via KmpIdentityInterface)
-        $membersTable = TableRegistry::getTableLocator()->get('Members');
-        $member = $membersTable->get($memberId);
-
-        // Instantiate the policy and call the action method
-        if (!class_exists($policyClass)) {
-            Log::warning("Policy check: class {$policyClass} not found");
-            return false;
-        }
-
-        $policy = new $policyClass();
-        $methodName = $policyAction;
-        if (!method_exists($policy, $methodName)) {
-            Log::warning("Policy check: method {$methodName} not found on {$policyClass}");
-            return false;
-        }
-
-        try {
-            return $policy->$methodName($member, $entity);
-        } catch (\Exception $e) {
-            Log::error("Policy check failed: {$e->getMessage()}");
-            return false;
-        }
-    }
-
-    /**
-     * Resolve a dot-path value from a nested context array.
-     * E.g., "trigger.rosterId" resolves $context['trigger']['rosterId'].
-     */
-    private function resolveContextValue(array $context, string $key): mixed
-    {
-        $parts = explode('.', $key);
-        $current = $context;
-        foreach ($parts as $part) {
-            if (!is_array($current) || !array_key_exists($part, $current)) {
-                return null;
-            }
-            $current = $current[$part];
-        }
-        return $current;
     }
 }

@@ -116,6 +116,7 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
         --section-events: #1e6f50;      /* Forest Green */
         --section-rsvps: #1e4976;       /* Royal Blue */
         --section-approvals: #8b6914;   /* Heraldic Gold */
+        --section-todos: #946200;       /* Amber */
         --section-request: #1a5f5f;     /* Teal */
         --section-waivers: #8b2252;     /* Burgundy */
 
@@ -396,6 +397,7 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
     body[data-section="events"] { --current-section-color: var(--section-events); }
     body[data-section="rsvps"] { --current-section-color: var(--section-rsvps); }
     body[data-section="approvals"] { --current-section-color: var(--section-approvals); }
+    body[data-section="todos"] { --current-section-color: var(--section-todos); }
     body[data-section="request"] { --current-section-color: var(--section-request); }
     body[data-section="waivers"] { --current-section-color: var(--section-waivers); }
     
@@ -676,6 +678,15 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
     }
     .mobile-menu-item.btn-approvals:hover {
         background: linear-gradient(180deg, var(--btn-dark), color-mix(in srgb, var(--section-approvals) 60%, black));
+    }
+
+    .mobile-menu-item.btn-todos {
+        --btn-base: var(--section-todos);
+        --btn-dark: color-mix(in srgb, var(--section-todos) 75%, black);
+        background: linear-gradient(180deg, var(--btn-base), var(--btn-dark));
+    }
+    .mobile-menu-item.btn-todos:hover {
+        background: linear-gradient(180deg, var(--btn-dark), color-mix(in srgb, var(--section-todos) 60%, black));
     }
 
     .mobile-menu-item.btn-waivers {

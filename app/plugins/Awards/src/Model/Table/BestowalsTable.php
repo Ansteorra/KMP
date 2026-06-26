@@ -22,7 +22,6 @@ use Cake\Validation\Validator;
  * @property \Awards\Model\Table\AwardsTable&\Cake\ORM\Association\BelongsTo $Awards
  * @property \Awards\Model\Table\RecommendationsTable&\Cake\ORM\Association\BelongsToMany $Recommendations
  * @property \Awards\Model\Table\BestowalRecommendationsTable&\Cake\ORM\Association\HasMany $BestowalRecommendations
- * @property \Awards\Model\Table\BestowalsStatesLogsTable&\Cake\ORM\Association\HasMany $BestowalStateLogs
  * @property \Awards\Model\Table\RecommendationApprovalRunsTable&\Cake\ORM\Association\BelongsTo $SourceApprovalRun
  * @method \Awards\Model\Entity\Bestowal newEmptyEntity()
  * @method \Awards\Model\Entity\Bestowal newEntity(array $data, array $options = [])
@@ -54,7 +53,7 @@ class BestowalsTable extends BaseTable
 
         $this->belongsTo('Members', [
             'foreignKey' => 'member_id',
-            'joinType' => 'INNER',
+            'joinType' => 'LEFT',
             'className' => 'Members',
         ]);
         $this->belongsTo('Gatherings', [
@@ -89,10 +88,6 @@ class BestowalsTable extends BaseTable
             'dependent' => true,
             'cascadeCallbacks' => true,
         ]);
-        $this->hasMany('BestowalStateLogs', [
-            'foreignKey' => 'bestowal_id',
-            'className' => 'Awards.BestowalsStatesLogs',
-        ]);
         $this->belongsTo('SourceApprovalRun', [
             'foreignKey' => 'source_approval_run_id',
             'className' => 'Awards.RecommendationApprovalRuns',
@@ -109,8 +104,13 @@ class BestowalsTable extends BaseTable
     {
         $validator
             ->integer('member_id')
-            ->requirePresence('member_id', 'create')
-            ->notEmptyString('member_id');
+            ->allowEmptyString('member_id');
+
+        $validator
+            ->scalar('member_sca_name')
+            ->maxLength('member_sca_name', 255)
+            ->requirePresence('member_sca_name', 'create')
+            ->notEmptyString('member_sca_name');
 
         $validator
             ->integer('gathering_id')
@@ -140,20 +140,11 @@ class BestowalsTable extends BaseTable
             ->allowEmptyString('specialty');
 
         $validator
-            ->scalar('status')
-            ->maxLength('status', 100)
-            ->requirePresence('status', 'create')
-            ->notEmptyString('status');
-
-        $validator
-            ->scalar('state')
-            ->maxLength('state', 255)
-            ->requirePresence('state', 'create')
-            ->notEmptyString('state');
-
-        $validator
-            ->dateTime('state_date')
-            ->allowEmptyDateTime('state_date');
+            ->scalar('lifecycle_status')
+            ->maxLength('lifecycle_status', 20)
+            ->requirePresence('lifecycle_status', 'create')
+            ->notEmptyString('lifecycle_status')
+            ->inList('lifecycle_status', Bestowal::LIFECYCLE_STATUSES);
 
         $validator
             ->integer('stack_rank')
@@ -251,6 +242,43 @@ class BestowalsTable extends BaseTable
     }
 
     /**
+     * Derive the recipient display name from the linked member when it is omitted.
+     *
+     * `member_sca_name` is the required display source of truth for a bestowal, but
+     * member-linked bestowals (recommendation-sourced or member-selected ad-hoc) do not
+     * resubmit the recipient name. Backfill it from the member record so direct saves and
+     * recommendation/court flows remain valid without forcing every caller to repeat it.
+     * Ad-hoc bestowals without a member keep supplying the name explicitly.
+     *
+     * @param \Cake\Event\EventInterface $event The beforeMarshal event.
+     * @param \ArrayObject $data Inbound marshalling data.
+     * @param \ArrayObject $options Marshalling options.
+     * @return void
+     */
+    public function beforeMarshal(EventInterface $event, ArrayObject $data, ArrayObject $options): void
+    {
+        $existing = trim((string)($data['member_sca_name'] ?? ''));
+        if (
+            $existing === '' && ($data['member_id'] ?? null) !== null
+            && $data['member_id'] !== '' && is_numeric($data['member_id'])
+        ) {
+            $member = $this->Members->find()
+                ->select(['sca_name'])
+                ->where(['id' => (int)$data['member_id']])
+                ->first();
+
+            $scaName = $member !== null ? trim((string)$member->sca_name) : '';
+            if ($scaName !== '') {
+                $data['member_sca_name'] = $scaName;
+            }
+        }
+
+        if (!isset($data['lifecycle_status']) || trim((string)$data['lifecycle_status']) === '') {
+            $data['lifecycle_status'] = Bestowal::LIFECYCLE_OPEN;
+        }
+    }
+
+    /**
      * Enforce bestowal workflow constraints before persisting changes.
      *
      * @param \Cake\Event\EventInterface $event The beforeSave event.
@@ -264,13 +292,6 @@ class BestowalsTable extends BaseTable
             return;
         }
 
-        $state = (string)($entity->state ?? '');
-        if ($state !== '' && !Bestowal::supportsGatheringAssignmentForState($state)) {
-            $entity->gathering_id = null;
-            $entity->gathering_scheduled_activity_id = null;
-            $entity->roaming_court = false;
-        }
-
         if ($entity->roaming_court) {
             $entity->gathering_scheduled_activity_id = null;
         } elseif ($entity->gathering_scheduled_activity_id !== null) {
@@ -279,10 +300,10 @@ class BestowalsTable extends BaseTable
     }
 
     /**
-     * Apply branch-based filtering to a bestowals query via member branch.
+     * Apply branch-based filtering to a bestowals query via member or award branch.
      *
      * @param \Cake\ORM\Query\SelectQuery $query The query to modify.
-     * @param int[] $branchIDs Branch IDs to restrict member branch to.
+     * @param array<int> $branchIDs Branch IDs to restrict bestowals to.
      * @return \Cake\ORM\Query\SelectQuery
      */
     public function addBranchScopeQuery($query, $branchIDs): SelectQuery
@@ -291,8 +312,14 @@ class BestowalsTable extends BaseTable
             return $query;
         }
 
-        return $query->matching('Members', function ($q) use ($branchIDs) {
-            return $q->where(['Members.branch_id IN' => $branchIDs]);
-        });
+        return $query
+            ->leftJoinWith('Members')
+            ->leftJoinWith('Awards')
+            ->where([
+                'OR' => [
+                    'Members.branch_id IN' => $branchIDs,
+                    'Awards.branch_id IN' => $branchIDs,
+                ],
+            ]);
     }
 }

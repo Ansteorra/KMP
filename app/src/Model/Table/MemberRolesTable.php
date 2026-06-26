@@ -89,6 +89,8 @@ class MemberRolesTable extends BaseTable
         $memberId = $entity->member_id;
         Cache::delete(TenantAwareCache::tenantScopedKey('permissions_policies' . $memberId), 'member_permissions');
         Cache::delete(TenantAwareCache::tenantScopedKey('member_permissions' . $memberId), 'member_permissions');
+        Cache::delete(TenantAwareCache::tenantScopedKey('member_roles' . $memberId), 'member_permissions');
+        WorkflowApprovalsTable::clearApprovalScopeCache();
     }
 
     /**
@@ -105,6 +107,8 @@ class MemberRolesTable extends BaseTable
         $memberId = $entity->member_id;
         Cache::delete(TenantAwareCache::tenantScopedKey('permissions_policies' . $memberId), 'member_permissions');
         Cache::delete(TenantAwareCache::tenantScopedKey('member_permissions' . $memberId), 'member_permissions');
+        Cache::delete(TenantAwareCache::tenantScopedKey('member_roles' . $memberId), 'member_permissions');
+        WorkflowApprovalsTable::clearApprovalScopeCache();
     }
 
     /**

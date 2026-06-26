@@ -123,7 +123,7 @@ body {
         transition: transform 0.3s ease, visibility 0.3s ease;
     }
 
-    main[role="main"] {
+    #main-content {
         transition: width 0.3s ease, max-width 0.3s ease, flex 0.3s ease, margin-left 0.3s ease;
     }
 
@@ -136,7 +136,7 @@ body {
         visibility: hidden;
     }
 
-    body.sidebar-collapsed main[role="main"] {
+    body.sidebar-collapsed #main-content {
         width: 100% !important;
         max-width: 100% !important;
         flex: 0 0 100% !important;
@@ -151,7 +151,7 @@ body {
 
     /* Suppress transitions on initial page load */
     body.sidebar-no-transition .sidebar,
-    body.sidebar-no-transition main[role="main"],
+    body.sidebar-no-transition #main-content,
     body.sidebar-no-transition .navbar-brand {
         transition: none !important;
     }

@@ -41,6 +41,75 @@ describe('MobileApprovalsController', () => {
         expect(button).not.toBeDisabled();
     });
 
+    test('loads approvals one page at a time and exposes load-more status', async () => {
+        Object.defineProperty(controller, 'perPageValue', { value: 25 });
+        controller.initialize();
+        document.body.innerHTML = `
+            <div data-mobile-approvals-target="loading"></div>
+            <div data-mobile-approvals-target="empty"></div>
+            <div data-mobile-approvals-target="error"></div>
+            <div data-mobile-approvals-target="list"></div>
+            <span data-mobile-approvals-target="countBadge"></span>
+            <div data-mobile-approvals-target="loadMore" hidden>
+                <button type="button" data-mobile-approvals-target="loadMoreBtn"></button>
+            </div>
+            <div data-mobile-approvals-target="status"></div>
+        `;
+        const targets = {
+            loading: document.querySelector('[data-mobile-approvals-target="loading"]'),
+            empty: document.querySelector('[data-mobile-approvals-target="empty"]'),
+            error: document.querySelector('[data-mobile-approvals-target="error"]'),
+            list: document.querySelector('[data-mobile-approvals-target="list"]'),
+            countBadge: document.querySelector('[data-mobile-approvals-target="countBadge"]'),
+            loadMore: document.querySelector('[data-mobile-approvals-target="loadMore"]'),
+            loadMoreBtn: document.querySelector('[data-mobile-approvals-target="loadMoreBtn"]'),
+            status: document.querySelector('[data-mobile-approvals-target="status"]'),
+        };
+        for (const [name, target] of Object.entries(targets)) {
+            Object.defineProperty(controller, `${name}Target`, { value: target });
+            Object.defineProperty(controller, `has${name.charAt(0).toUpperCase()}${name.slice(1)}Target`, { value: true });
+        }
+        Object.defineProperty(controller, 'dataUrlValue', { value: '/approvals/mobile-data' });
+        const approval = (id) => ({
+            id,
+            title: `Approval ${id}`,
+            requester: 'Requester',
+            icon: 'bi-check2-square',
+            progress: { required: 1, approved: 0, rejected: 0 },
+            approverConfig: {},
+            triage: {},
+        });
+        controller.fetchWithRetry = jest.fn()
+            .mockResolvedValueOnce({
+                json: jest.fn().mockResolvedValue({
+                    approvals: [approval(1)],
+                    pagination: { page: 1, perPage: 25, total: 3, pageCount: 2, hasNextPage: true },
+                }),
+            })
+            .mockResolvedValueOnce({
+                json: jest.fn().mockResolvedValue({
+                    approvals: [approval(2), approval(3)],
+                    pagination: { page: 2, perPage: 25, total: 3, pageCount: 2, hasNextPage: false },
+                }),
+            });
+
+        await controller.loadApprovals();
+
+        expect(controller.fetchWithRetry.mock.calls[0][0]).toContain('page=1');
+        expect(controller.fetchWithRetry.mock.calls[0][0]).toContain('per_page=25');
+        expect(targets.countBadge).toHaveTextContent('1 of 3 pending');
+        expect(targets.loadMore).not.toHaveAttribute('hidden');
+        expect(targets.loadMoreBtn).toHaveTextContent('Load more (2 remaining)');
+
+        await controller.loadMore();
+
+        expect(controller.fetchWithRetry.mock.calls[1][0]).toContain('page=2');
+        expect(controller.fetchWithRetry.mock.calls[1][0]).toContain('per_page=25');
+        expect(targets.countBadge).toHaveTextContent('3 pending');
+        expect(targets.loadMore).toHaveAttribute('hidden');
+        expect(targets.status).toHaveTextContent('Loaded 3 of 3 pending approvals.');
+    });
+
     test('renders feedback requests without approve or reject buttons', () => {
         const html = controller._renderResponseForm({
             id: 42,
@@ -220,5 +289,40 @@ describe('MobileApprovalsController', () => {
 
         expect(controller.element.querySelector('[data-bestowal-gathering-error="49"]')).not.toHaveAttribute('hidden');
         expect(controller.element.querySelector('[data-bestowal-gathering-select="49"]')).toHaveAttribute('aria-invalid', 'true');
+    });
+
+    test('submitResponse shows service reason when approval response fails', async () => {
+        document.head.innerHTML = '<meta name="csrf-token" content="csrf-token">';
+        controller.element = document.createElement('div');
+        Object.defineProperty(controller, 'listTarget', { value: document.createElement('div') });
+        controller._approvals = [{
+            id: 50,
+            progress: { required: 1, approved: 0 },
+            approverConfig: {},
+        }];
+        controller.element.innerHTML = controller._renderResponseForm(controller._approvals[0]);
+        controller._showToast = jest.fn();
+        Object.defineProperty(controller, 'online', { value: true });
+        Object.defineProperty(controller, 'recordUrlValue', { value: '/approvals/record' });
+        const approve = controller.element.querySelector('.btn-approve');
+        controller.selectDecision({ preventDefault: jest.fn(), currentTarget: approve });
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: true,
+            headers: { get: () => 'application/json' },
+            json: jest.fn().mockResolvedValue({
+                success: false,
+                reason: 'You are not eligible to respond to this approval.',
+            }),
+        });
+
+        await controller.submitResponse({
+            preventDefault: jest.fn(),
+            currentTarget: controller.element.querySelector('[data-submit-btn="50"]'),
+        });
+
+        expect(controller._showToast).toHaveBeenCalledWith(
+            'You are not eligible to respond to this approval.',
+            'danger',
+        );
     });
 });

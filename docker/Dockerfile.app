@@ -1,4 +1,4 @@
-# KMP Application Container - PHP 8.3 + Apache
+# KMP Application Container - PHP 8.4 + Apache
 # Slimmed version of .devcontainer/Dockerfile for multi-container setup
 #
 # This container expects:
@@ -6,7 +6,7 @@
 #   - Code mounted at /var/www/html
 #   - Environment variables for configuration
 
-FROM php:8.3-apache-bookworm
+FROM php:8.4-apache-bookworm
 
 ARG NODE_VERSION=24.15.0
 

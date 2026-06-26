@@ -45,13 +45,11 @@ $frameId = 'gathering-bestowals-grid-' . $gatheringId;
     <?php if ($canManage): ?>
         <?= $this->element('ad_hoc_bestowal_modal', ['modalId' => 'adHocBestowalModal']) ?>
         <?= $this->element('bestowalEditModal', ['modalId' => 'editBestowalModal']) ?>
-        <?= $this->element('bestowalsBulkEditModal', ['modalId' => 'bulkEditBestowalModal']) ?>
     <?php endif; ?>
 <?php else: ?>
     <p class="text-muted"><?= __('No Award Bestowals for this gathering') ?></p>
     <?php if ($canManage): ?>
         <?= $this->element('ad_hoc_bestowal_modal', ['modalId' => 'adHocBestowalModal']) ?>
         <?= $this->element('bestowalEditModal', ['modalId' => 'editBestowalModal']) ?>
-        <?= $this->element('bestowalsBulkEditModal', ['modalId' => 'bulkEditBestowalModal']) ?>
     <?php endif; ?>
 <?php endif; ?>

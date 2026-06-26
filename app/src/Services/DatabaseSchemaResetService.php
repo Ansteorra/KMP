@@ -85,6 +85,11 @@ class DatabaseSchemaResetService
         ];
     }
 
+    /**
+     * Drop all existing base tables from the current schema/database.
+     *
+     * @param mixed $connection Database connection
+     */
     private function dropExistingTables($connection, Mysql|Postgres $driver): void
     {
         if ($driver instanceof Mysql) {
@@ -106,7 +111,7 @@ class DatabaseSchemaResetService
         }
 
         $rows = $connection->execute(
-            "SELECT tablename FROM pg_tables WHERE schemaname = ANY(current_schemas(false))",
+            'SELECT tablename FROM pg_tables WHERE schemaname = ANY(current_schemas(false))',
         )->fetchAll(PDO::FETCH_COLUMN) ?: [];
         foreach ($rows as $table) {
             $connection->execute('DROP TABLE IF EXISTS ' . $driver->quoteIdentifier((string)$table) . ' CASCADE');
@@ -193,6 +198,7 @@ class DatabaseSchemaResetService
 
         return match ($type) {
             'biginteger' => 'BIGINT',
+            'smallinteger' => 'SMALLINT',
             'tinyinteger' => $driver instanceof Mysql ? 'TINYINT' : 'SMALLINT',
             'integer' => $limit !== null && $limit > 0 && $driver instanceof Mysql ? "INT({$limit})" : 'INTEGER',
             'boolean' => $driver instanceof Mysql ? 'TINYINT(1)' : 'BOOLEAN',
@@ -201,6 +207,10 @@ class DatabaseSchemaResetService
             'date' => 'DATE',
             'time' => 'TIME',
             'datetime', 'timestamp' => $driver instanceof Mysql ? 'DATETIME' : 'TIMESTAMP',
+            'datetimefractional', 'timestampfractional' => $driver instanceof Mysql
+                ? 'DATETIME(6)'
+                : 'TIMESTAMP(6)',
+            'timefractional' => 'TIME(6)',
             'float' => $driver instanceof Mysql ? 'DOUBLE' : 'DOUBLE PRECISION',
             'decimal' => $this->decimalTypeSql($definition),
             'json' => $driver instanceof Mysql ? 'JSON' : 'JSONB',
@@ -219,10 +229,16 @@ class DatabaseSchemaResetService
         return sprintf('DECIMAL(%d,%d)', max(1, $precision), max(0, $scale));
     }
 
+    /**
+     * Format a column default expression for the target database.
+     */
     private function defaultSql(Mysql|Postgres $driver, mixed $default, string $type): string
     {
         if (is_bool($default)) {
             return $driver instanceof Mysql ? ($default ? '1' : '0') : ($default ? 'TRUE' : 'FALSE');
+        }
+        if ($type === 'boolean' && $driver instanceof Postgres) {
+            return in_array($default, [1, '1', 'true', 'TRUE'], true) ? 'TRUE' : 'FALSE';
         }
         if (is_int($default) || is_float($default)) {
             return (string)$default;
@@ -230,8 +246,44 @@ class DatabaseSchemaResetService
         if (is_string($default) && strtoupper($default) === 'CURRENT_TIMESTAMP') {
             return 'CURRENT_TIMESTAMP';
         }
+        if (is_string($default)) {
+            $default = $this->normalizeMysqlStringLiteralDefault($default);
+        }
+        if ($type === 'json' && $driver instanceof Postgres) {
+            $jsonDefault = (string)$default;
+            json_decode($jsonDefault);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                throw new InvalidArgumentException(sprintf(
+                    'Unsupported JSON default for PostgreSQL restore: %s',
+                    json_last_error_msg(),
+                ));
+            }
+
+            return "'" . str_replace("'", "''", $jsonDefault) . "'::jsonb";
+        }
 
         return "'" . str_replace("'", "''", (string)$default) . "'";
+    }
+
+    /**
+     * Strip MySQL character-set introducers captured by schema manifests.
+     */
+    private function normalizeMysqlStringLiteralDefault(string $default): string
+    {
+        $value = trim($default);
+        if (!preg_match('/^_[A-Za-z0-9]+/', $value, $matches)) {
+            return $default;
+        }
+
+        $literal = substr($value, strlen($matches[0]));
+        if (str_starts_with($literal, "\\'") && str_ends_with($literal, "\\'")) {
+            return str_replace("\\'", "'", substr($literal, 2, -2));
+        }
+        if (str_starts_with($literal, "'") && str_ends_with($literal, "'")) {
+            return str_replace("\\'", "'", substr($literal, 1, -1));
+        }
+
+        return $default;
     }
 
     /**
@@ -259,7 +311,7 @@ class DatabaseSchemaResetService
                 }
                 $sql[] = sprintf(
                     'CREATE UNIQUE INDEX %s ON %s (%s)',
-                    $driver->quoteIdentifier($constraintName),
+                    $driver->quoteIdentifier($this->indexIdentifier($driver, $tableName, $constraintName)),
                     $driver->quoteIdentifier($tableName),
                     $columnsSql,
                 );
@@ -276,7 +328,7 @@ class DatabaseSchemaResetService
                 $sql[] = sprintf(
                     'CREATE %sINDEX %s ON %s (%s)',
                     $unique,
-                    $driver->quoteIdentifier($indexName),
+                    $driver->quoteIdentifier($this->indexIdentifier($driver, $tableName, $indexName)),
                     $driver->quoteIdentifier($tableName),
                     $columnsSql,
                 );
@@ -284,6 +336,20 @@ class DatabaseSchemaResetService
         }
 
         return $sql;
+    }
+
+    private function indexIdentifier(Mysql|Postgres $driver, string $tableName, string $indexName): string
+    {
+        if (!$driver instanceof Postgres) {
+            return $indexName;
+        }
+
+        $identifier = $tableName . '_' . $indexName;
+        if (strlen($identifier) <= 63) {
+            return $identifier;
+        }
+
+        return substr($identifier, 0, 54) . '_' . substr(sha1($identifier), 0, 8);
     }
 
     /**
@@ -341,6 +407,12 @@ class DatabaseSchemaResetService
     private function referentialActionSql(mixed $action): string
     {
         $normalized = strtoupper(trim(preg_replace('/\s+/', ' ', (string)$action) ?? ''));
+        $normalized = match ($normalized) {
+            'NOACTION' => 'NO ACTION',
+            'SETNULL' => 'SET NULL',
+            'SETDEFAULT' => 'SET DEFAULT',
+            default => $normalized,
+        };
         $allowed = ['CASCADE', 'SET NULL', 'SET DEFAULT', 'RESTRICT', 'NO ACTION'];
         if (!in_array($normalized, $allowed, true)) {
             throw new InvalidArgumentException("Unsupported foreign key referential action: {$normalized}");

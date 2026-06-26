@@ -8,6 +8,7 @@ use App\Services\WorkflowEngine\TriggerDispatcher;
 use App\Test\TestCase\BaseTestCase;
 use ArrayAccess;
 use Awards\Controller\RecommendationsController;
+use Awards\Services\RecommendationTransitionService;
 use Cake\I18n\DateTime;
 use Cake\ORM\Locator\LocatorAwareTrait;
 use Cake\ORM\TableRegistry;

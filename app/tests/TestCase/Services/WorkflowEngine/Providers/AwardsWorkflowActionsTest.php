@@ -225,7 +225,10 @@ class AwardsWorkflowActionsTest extends BaseTestCase
         $this->assertEquals($recommendation->id, $result['data']['recommendationId']);
         $this->assertSame(self::TEST_MEMBER_AGATHA_ID, $result['data']['memberId']);
         $this->assertNotNull($result['data']['noteId']);
-        $this->assertSame('2026-05-01', $result['data']['given']);
+        // Generic recommendation updates intentionally do not mutate lifecycle
+        // fields (given/state/status/etc.); those flow through dedicated workflow
+        // transitions, so a supplied "given" is ignored here.
+        $this->assertNull($result['data']['given']);
     }
 
     public function testGroupAndRemoveRecommendationActionsUseGroupingService(): void

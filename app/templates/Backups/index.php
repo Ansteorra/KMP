@@ -266,6 +266,12 @@ $restoreIsLocked = !empty($restoreStatus['locked']);
                     </div>
                     <div class="fw-semibold" data-backup-restore-status-target="modalMessage"><?= __('Waiting to start restore...') ?></div>
                     <div class="small text-muted mt-2" data-backup-restore-status-target="modalDetails"><?= __('No active restore.') ?></div>
+                    <section class="mt-3" aria-labelledby="restore-progress-log-heading">
+                        <h6 id="restore-progress-log-heading"><?= __('Restore Log') ?></h6>
+                        <ol class="small mb-0 ps-3" data-backup-restore-status-target="modalLog" aria-live="polite" aria-relevant="additions text">
+                            <li><?= __('No restore log entries have been written yet.') ?></li>
+                        </ol>
+                    </section>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-backup-restore-status-target="modalClose"><?= __('Close') ?></button>

@@ -44,7 +44,7 @@ Deliver small, correct, verified changes that match the existing CakePHP 5, Stim
 
 ## Current stack
 
-- PHP 8.3, CakePHP 5, CakePHP Authentication and Authorization plugins.
+- PHP 8.4, CakePHP 5, CakePHP Authentication and Authorization plugins.
 - JavaScript bundled with Vite.
 - Stimulus controllers registered through `window.Controllers`.
 - Bootstrap 5 UI components.

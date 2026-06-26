@@ -141,33 +141,18 @@ class AwardsNavigationProvider
             [
                 'type' => 'link',
                 'mergePath' => ['Config'],
-                'label' => 'Bestowal Statuses',
-                'order' => 36,
+                'label' => 'Bestowal To-Do Templates',
+                'order' => 34,
                 'url' => [
-                    'controller' => 'BestowalStatuses',
+                    'controller' => 'BestowalTodoTemplates',
                     'plugin' => 'Awards',
                     'action' => 'index',
-                    'model' => 'Awards.BestowalStatuses',
+                    'model' => 'Awards.BestowalTodoTemplates',
                 ],
-                'icon' => 'bi-diagram-3-fill',
+                'icon' => 'bi-list-check',
                 'activePaths' => [
-                    'awards/bestowal-statuses/view/*',
-                ],
-            ],
-            [
-                'type' => 'link',
-                'mergePath' => ['Config'],
-                'label' => 'Bestowal States',
-                'order' => 37,
-                'url' => [
-                    'controller' => 'BestowalStates',
-                    'plugin' => 'Awards',
-                    'action' => 'index',
-                    'model' => 'Awards.BestowalStates',
-                ],
-                'icon' => 'bi-signpost-2-fill',
-                'activePaths' => [
-                    'awards/bestowal-states/view/*',
+                    'awards/bestowal-todo-templates/view/*',
+                    'awards/bestowal-todo-templates/index*',
                 ],
             ],
             [
