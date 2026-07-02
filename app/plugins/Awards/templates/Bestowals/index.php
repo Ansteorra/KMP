@@ -22,8 +22,8 @@ $this->KMP->endBlock();
         <p class="text-muted small mb-0">
             <?=
             __(
-                'For mass updates, select bestowals in the first grid column, then use Mass Complete Check or ' .
-                'Mass Assign Gathering in the grid toolbar.',
+                'For mass updates, select bestowals in the first grid column, then use Mass Complete Check in ' .
+                'the grid toolbar.',
             )
             ?>
         </p>
@@ -59,9 +59,5 @@ if ($user->checkCan('edit', 'Awards.Bestowals')) {
 echo $this->element('bestowalTodosModal', ['modalId' => 'bestowalTodosModal']);
 echo $this->element('bestowalBulkTodoModal', [
     'modalId' => 'bestowalBulkTodoModal',
-    'checkOptions' => $bestowalCheckOptions ?? [],
-]);
-echo $this->element('bestowalBulkGatheringModal', [
-    'modalId' => 'bestowalBulkGatheringModal',
 ]);
 $this->KMP->endBlock();

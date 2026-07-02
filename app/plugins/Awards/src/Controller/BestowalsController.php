@@ -70,8 +70,6 @@ class BestowalsController extends AppController
             $this->set(compact('adHocFormData'));
         }
 
-        $this->set('bestowalCheckOptions', $this->bestowalTodoCheckOptions());
-
         return null;
     }
 
@@ -120,12 +118,9 @@ class BestowalsController extends AppController
                 'icon' => 'bi-check2-square',
                 'modalTarget' => '#bestowalBulkTodoModal',
             ],
-            [
-                'key' => 'bestowal-assign-gathering',
-                'label' => __('Mass Assign Gathering'),
-                'icon' => 'bi-calendar-event',
-                'modalTarget' => '#bestowalBulkGatheringModal',
-            ],
+        ];
+        $built['gridOptions']['bulkSelectionDataFields'] = [
+            'bulk-todo-options' => 'bulk_todo_options',
         ];
         $built['gridOptions']['bulkSelectionDisabledField'] = 'bulk_todo_disabled';
 
@@ -803,6 +798,11 @@ class BestowalsController extends AppController
 
         $checkKey = trim((string)$this->request->getData('check_key'));
         $bestowalIds = $this->parseBulkBestowalIds($this->request->getData('bestowal_ids'));
+        $completionData = [];
+        $gatheringId = $this->positiveIntOrNull($this->request->getData('bestowal_gathering_id'));
+        if ($gatheringId !== null) {
+            $completionData['bestowal_gathering_id'] = $gatheringId;
+        }
 
         if ($checkKey === '' || $bestowalIds === []) {
             $this->Flash->error(__('Select at least one bestowal and a check to complete.'));
@@ -838,7 +838,14 @@ class BestowalsController extends AppController
                 continue;
             }
 
-            $result = $actionItemService->complete((int)$match->id, $actorId);
+            $result = $actionItemService->complete(
+                (int)$match->id,
+                $actorId,
+                null,
+                !$user->isSuperUser(),
+                $completionData,
+                $user,
+            );
             if ($result->success) {
                 $completed++;
             } else {
@@ -1131,36 +1138,6 @@ class BestowalsController extends AppController
     }
 
     /**
-     * Distinct (item_key => label) pairs from active bestowal to-do templates, used
-     * to populate the grid "Complete Check" bulk-action dropdown.
-     *
-     * @return array<string, string>
-     */
-    protected function bestowalTodoCheckOptions(): array
-    {
-        $items = TableRegistry::getTableLocator()
-            ->get('Awards.BestowalTodoTemplateItems')
-            ->find()
-            ->select(['item_key', 'label'])
-            ->innerJoinWith('BestowalTodoTemplates', function ($q) {
-                return $q->where(['BestowalTodoTemplates.is_active' => true]);
-            })
-            ->where(['BestowalTodoTemplateItems.item_key IS NOT' => null])
-            ->orderBy(['BestowalTodoTemplateItems.sort_order' => 'ASC', 'BestowalTodoTemplateItems.label' => 'ASC'])
-            ->all();
-
-        $options = [];
-        foreach ($items as $item) {
-            $key = (string)$item->item_key;
-            if ($key !== '' && !isset($options[$key])) {
-                $options[$key] = (string)$item->label;
-            }
-        }
-
-        return $options;
-    }
-
-    /**
      * Record an ad-hoc bestowal via workflow dispatch.
      *
      * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher Workflow dispatcher
@@ -1222,21 +1199,24 @@ class BestowalsController extends AppController
      */
     protected function prepareBestowalsForDisplay(iterable $bestowals, ?array $visibleColumns = null): iterable
     {
+        $ids = [];
+        foreach ($bestowals as $bestowal) {
+            if (!empty($bestowal->id)) {
+                $ids[] = (int)$bestowal->id;
+            }
+        }
+
         $loadTodoSummary = $this->shouldLoadBestowalDisplayColumn('todos_summary', $visibleColumns);
         $todoSummaryMap = [];
         if ($loadTodoSummary) {
-            $ids = [];
-            foreach ($bestowals as $bestowal) {
-                if (!empty($bestowal->id)) {
-                    $ids[] = (int)$bestowal->id;
-                }
-            }
             $todoSummaryMap = $this->loadBestowalTodoSummaries($ids);
         }
+        $bulkTodoOptionsMap = $this->loadBestowalBulkTodoOptions($ids);
 
         foreach ($bestowals as $bestowal) {
             $bestowal->bulk_todo_disabled =
                 ($bestowal->lifecycle_status ?? Bestowal::LIFECYCLE_OPEN) === Bestowal::LIFECYCLE_CANCELLED;
+            $bestowal->bulk_todo_options = $bulkTodoOptionsMap[(int)$bestowal->id] ?? '[]';
             if ($this->shouldLoadBestowalDisplayColumn('member_sca_name', $visibleColumns)) {
                 $bestowal->member_sca_name = $bestowal->member->sca_name ?? $bestowal->member_sca_name ?? '';
             }
@@ -1263,6 +1243,106 @@ class BestowalsController extends AppController
         }
 
         return $bestowals;
+    }
+
+    /**
+     * Build per-row bulk completion options for open checks the current user may complete.
+     *
+     * @param list<int> $bestowalIds Displayed bestowal ids
+     * @return array<int, string> JSON-encoded option lists by bestowal id
+     */
+    protected function loadBestowalBulkTodoOptions(array $bestowalIds): array
+    {
+        $bestowalIds = array_values(array_unique(array_filter($bestowalIds)));
+        if ($bestowalIds === []) {
+            return [];
+        }
+
+        $user = $this->request->getAttribute('identity');
+        if ($user === null) {
+            return [];
+        }
+
+        $memberId = (int)$user->getIdentifier();
+        $actionItemService = new ActionItemService();
+        $items = TableRegistry::getTableLocator()->get('ActionItems')
+            ->find()
+            ->where([
+                'ActionItems.entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
+                'ActionItems.entity_id IN' => $bestowalIds,
+                'ActionItems.status' => ActionItem::STATUS_OPEN,
+                'ActionItems.source_ref IS NOT' => null,
+            ])
+            ->order([
+                'ActionItems.entity_id' => 'ASC',
+                'ActionItems.sort_order' => 'ASC',
+                'ActionItems.id' => 'ASC',
+            ])
+            ->all();
+
+        $optionsByBestowal = [];
+        foreach ($items as $item) {
+            if (!$user->isSuperUser() && !$actionItemService->isMemberEligible($item, $memberId)) {
+                continue;
+            }
+
+            $option = $this->bulkTodoOptionForItem($item);
+            if ($option === null) {
+                continue;
+            }
+
+            $bestowalId = (int)$item->entity_id;
+            $optionsByBestowal[$bestowalId][$option['key']] = $option;
+        }
+
+        $encoded = [];
+        foreach ($optionsByBestowal as $bestowalId => $options) {
+            $encoded[(int)$bestowalId] = json_encode(array_values($options), JSON_UNESCAPED_SLASHES) ?: '[]';
+        }
+
+        return $encoded;
+    }
+
+    /**
+     * @param \App\Model\Entity\ActionItem $item Action item.
+     * @return array<string, mixed>|null
+     */
+    private function bulkTodoOptionForItem(ActionItem $item): ?array
+    {
+        $key = trim((string)$item->source_ref);
+        if ($key === '') {
+            return null;
+        }
+
+        $option = [
+            'key' => $key,
+            'label' => (string)$item->title,
+            'requiresGathering' => false,
+            'gatheringLabel' => __('Bestowal Gathering'),
+            'gatheringHelp' => __(
+                'Choose a future event or court using the same options available on the bestowal edit form.',
+            ),
+        ];
+
+        $fieldConfigs = $item->getRequiredFieldConfigs();
+        $defaultConfig = BestowalTodoTemplateItem::getDefaultRequiredFieldConfigForSourceRef($item->source_ref);
+        if ($fieldConfigs === [] && $defaultConfig !== null) {
+            $fieldConfigs[] = $defaultConfig;
+        }
+
+        foreach ($fieldConfigs as $fieldConfig) {
+            if (($fieldConfig['field'] ?? null) !== BestowalTodoTemplateItem::REQUIRED_FIELD_GATHERING) {
+                continue;
+            }
+
+            $option['requiresGathering'] = true;
+            $option['gatheringLabel'] = (string)($fieldConfig['label'] ?? $option['gatheringLabel']);
+            $option['gatheringHelp'] = (string)($fieldConfig['help'] ?? $option['gatheringHelp']);
+
+            break;
+        }
+
+        return $option;
     }
 
     /**

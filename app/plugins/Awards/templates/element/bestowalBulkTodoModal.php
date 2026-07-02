@@ -10,23 +10,27 @@
  *
  * @var \App\View\AppView $this
  * @var string $modalId
- * @var array<string, string> $checkOptions
  */
 
 use Cake\Routing\Router;
 
 $modalId = $modalId ?? 'bestowalBulkTodoModal';
-$checkOptions = $checkOptions ?? [];
-$formUrl = $this->URL->build([
+$formUrl = $this->Url->build([
     'plugin' => 'Awards',
     'controller' => 'Bestowals',
     'action' => 'bulkCompleteTodo',
+]);
+$lookupUrl = $this->Url->build([
+    'plugin' => 'Awards',
+    'controller' => 'Bestowals',
+    'action' => 'gatheringsForBestowalAutoComplete',
 ]);
 $currentPage = Router::url(null, true);
 ?>
 <div class="modal fade" id="<?= h($modalId) ?>" tabindex="-1"
     aria-labelledby="<?= h($modalId) ?>Label" aria-hidden="true"
-    data-controller="awards-bestowal-bulk-todo">
+    data-controller="awards-bestowal-bulk-todo"
+    data-awards-bestowal-bulk-todo-lookup-url-value="<?= h($lookupUrl) ?>">
     <div class="modal-dialog">
         <div class="modal-content">
             <?= $this->Form->create(null, ['url' => $formUrl, 'id' => 'bestowal_bulk_todo_form']) ?>
@@ -46,16 +50,39 @@ $currentPage = Router::url(null, true);
                 <input type="hidden" name="current_page" value="<?= h($currentPage) ?>">
                 <div class="mb-2">
                     <label for="bulkCheckKey" class="form-label"><?= __('Check to complete') ?></label>
-                    <select id="bulkCheckKey" name="check_key" class="form-select" required>
-                        <option value=""><?= __('— Select a check —') ?></option>
-                        <?php foreach ($checkOptions as $key => $label) : ?>
-                            <option value="<?= h($key) ?>"><?= h($label) ?></option>
-                        <?php endforeach; ?>
+                    <select id="bulkCheckKey" name="check_key" class="form-select" required
+                        data-awards-bestowal-bulk-todo-target="checkSelect"
+                        aria-describedby="bulkCheckKeyHelp">
+                        <option value=""><?= __('Select bestowals first') ?></option>
                     </select>
-                    <div class="form-text">
+                    <div class="form-text" id="bulkCheckKeyHelp">
                         <?= __(
-                            'Only completes bestowals where you are the assigned doer and the check is still open.',
+                            'The list only includes open checks assigned to you on the selected bestowals.',
                         ) ?>
+                    </div>
+                </div>
+                <div class="mt-3" data-awards-bestowal-bulk-todo-target="gatheringSection" hidden>
+                    <?= $this->KMP->autoCompleteControl(
+                        $this->Form,
+                        'bulk_bestowal_gathering_name',
+                        'bestowal_gathering_id',
+                        $lookupUrl,
+                        __('Bestowal Gathering'),
+                        true,
+                        false,
+                        2,
+                        [
+                            'data-awards-bestowal-bulk-todo-target' => 'gatheringControl',
+                            'data-ac-show-on-focus-value' => 'true',
+                        ],
+                    ) ?>
+                    <div class="form-text" data-awards-bestowal-bulk-todo-target="gatheringHelp">
+                        <?=
+                        __(
+                            'Gatherings are filtered with the same rules used by the bestowal edit form. ' .
+                            'Only gatherings selectable for the matching selected bestowals are offered.',
+                        )
+                        ?>
                     </div>
                 </div>
             </div>

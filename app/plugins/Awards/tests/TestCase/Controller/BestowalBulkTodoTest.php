@@ -172,7 +172,7 @@ class BestowalBulkTodoTest extends HttpIntegrationTestCase
         $this->assertFlashMessage('None of the selected bestowals have that check open.');
     }
 
-    public function testBulkAssignGatheringCompletesMatchingRequiredTodo(): void
+    public function testBulkCompleteAssignsGatheringForMatchingRequiredTodo(): void
     {
         $bestowal = $this->makeBestowal();
         $gathering = $this->makeSelectableGatheringForAward((int)$bestowal->award_id);
@@ -189,10 +189,10 @@ class BestowalBulkTodoTest extends HttpIntegrationTestCase
             ],
         ]);
 
-        $this->post('/awards/bestowals/bulk-assign-gathering', [
+        $this->post('/awards/bestowals/bulk-complete-todo', [
             'bestowal_ids' => (string)$bestowal->id,
+            'check_key' => 'event_scheduled',
             'bestowal_gathering_id' => (string)$gathering->id,
-            'complete_required_todo' => '1',
         ]);
 
         $this->assertResponseCode(302);
@@ -202,7 +202,7 @@ class BestowalBulkTodoTest extends HttpIntegrationTestCase
         $this->assertTrue($reloadedTodo->isCompleted());
     }
 
-    public function testBulkAssignGatheringCompletesUnbackfilledEventScheduledTodo(): void
+    public function testBulkCompleteAssignsGatheringForUnbackfilledEventScheduledTodo(): void
     {
         $bestowal = $this->makeBestowal();
         $gathering = $this->makeSelectableGatheringForAward((int)$bestowal->award_id);
@@ -210,10 +210,10 @@ class BestowalBulkTodoTest extends HttpIntegrationTestCase
             'title' => 'Event Scheduled',
         ]);
 
-        $this->post('/awards/bestowals/bulk-assign-gathering', [
+        $this->post('/awards/bestowals/bulk-complete-todo', [
             'bestowal_ids' => (string)$bestowal->id,
+            'check_key' => 'event_scheduled',
             'bestowal_gathering_id' => (string)$gathering->id,
-            'complete_required_todo' => '1',
         ]);
 
         $this->assertResponseCode(302);
@@ -245,7 +245,7 @@ class BestowalBulkTodoTest extends HttpIntegrationTestCase
         $this->assertTrue($reloadedTodo->isCompleted());
     }
 
-    public function testBulkAssignGatheringHonorsConditionalCompleteFlag(): void
+    public function testBulkCompleteAssignsGatheringEvenWhenConditionalCompleteFlagIsFalse(): void
     {
         $bestowal = $this->makeBestowal();
         $gathering = $this->makeSelectableGatheringForAward((int)$bestowal->award_id);
@@ -262,17 +262,17 @@ class BestowalBulkTodoTest extends HttpIntegrationTestCase
             ],
         ]);
 
-        $this->post('/awards/bestowals/bulk-assign-gathering', [
+        $this->post('/awards/bestowals/bulk-complete-todo', [
             'bestowal_ids' => (string)$bestowal->id,
+            'check_key' => 'event_scheduled',
             'bestowal_gathering_id' => (string)$gathering->id,
-            'complete_required_todo' => '1',
         ]);
 
         $this->assertResponseCode(302);
         $reloadedBestowal = TableRegistry::getTableLocator()->get('Awards.Bestowals')->get($bestowal->id);
         $this->assertSame((int)$gathering->id, (int)$reloadedBestowal->gathering_id);
         $reloadedTodo = TableRegistry::getTableLocator()->get('ActionItems')->get($todo->id);
-        $this->assertTrue($reloadedTodo->isOpen());
+        $this->assertTrue($reloadedTodo->isCompleted());
     }
 
     private function makeSelectableGatheringForAward(int $awardId)
