@@ -13,6 +13,7 @@ use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use Awards\KMP\GridColumns\BestowalsGridColumns;
 use Awards\Model\Entity\Bestowal;
+use Awards\Model\Entity\BestowalTodoTemplateItem;
 use Awards\Services\BestowalCancellationService;
 use Awards\Services\BestowalCourtSlotService;
 use Awards\Services\BestowalCreationService;
