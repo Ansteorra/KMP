@@ -29,8 +29,8 @@ class ActivitiesRequestAuthorization extends Controller {
                     });
                 });
                 this.setComboBoxOptions(this.approversTarget, list);
-                this.submitBtnTarget.disabled = true;
                 this.setComboBoxDisabled(this.approversTarget, false);
+                this.checkReadyToSubmit();
 
                 if (list.length === 1) {
                     this.setComboBoxValue(this.approversTarget, list[0].value);
@@ -78,7 +78,11 @@ class ActivitiesRequestAuthorization extends Controller {
     }
 
     getComboBoxController(element) {
-        return window.Stimulus?.getControllerForElementAndIdentifier(element, "ac");
+        const getController = window.Stimulus?.getControllerForElementAndIdentifier;
+
+        return typeof getController === "function"
+            ? getController.call(window.Stimulus, element, "ac")
+            : null;
     }
 
     getComboBoxValue(element) {

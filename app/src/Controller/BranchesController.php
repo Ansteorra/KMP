@@ -341,10 +341,30 @@ class BranchesController extends AppController
     {
         $branch = $this->Branches->newEmptyEntity();
         if ($this->request->is('post')) {
+            $parentId = $this->request->getData('parent_id');
+            $identity = $this->Authentication->getIdentity();
+            if ($parentId) {
+                $parent = $this->Branches->find()->where(['id' => (int)$parentId])->first();
+                if ($parent === null) {
+                    $this->Flash->error(__('The parent branch could not be found.'));
+
+                    return $this->redirect($this->referer());
+                }
+                if (!$identity->checkCan('add', $parent)) {
+                    $this->Flash->error(__('You are not authorized to add a branch under the selected parent.'));
+
+                    return $this->redirect($this->referer());
+                }
+            } elseif (!$identity->isSuperUser()) {
+                $this->Flash->error(__('You are not authorized to create a top-level branch.'));
+
+                return $this->redirect($this->referer());
+            }
             $branch = $this->Branches->patchEntity(
                 $branch,
                 $this->request->getData(),
             );
+            $branch->parent_id = $parentId ? (int)$parentId : null;
             $links = json_decode($this->request->getData('branch_links'), true);
             $branch->links = $links;
             if ($this->Branches->save($branch)) {

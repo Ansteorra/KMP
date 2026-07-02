@@ -1,6 +1,7 @@
 <?php
-
 declare(strict_types=1);
+
+// phpcs:disable Generic.Files.LineLength.TooLong
 
 namespace App\Services\WorkflowEngine;
 
@@ -12,6 +13,8 @@ use App\Services\WorkflowRegistry\WorkflowConditionRegistry;
 use Cake\Datasource\ConnectionManager;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
+use RuntimeException;
+use Throwable;
 
 /**
  * Manages workflow version lifecycle: drafting, publishing, archiving,
@@ -42,7 +45,7 @@ class DefaultWorkflowVersionManager implements WorkflowVersionManagerInterface
             ->where(['workflow_definition_id' => $definitionId])
             ->select(['max_version' => $versionsTable->find()->func()->max('version_number')])
             ->first();
-        $nextVersion = ($maxVersion && $maxVersion->max_version) ? (int)$maxVersion->max_version + 1 : 1;
+        $nextVersion = $maxVersion && $maxVersion->max_version ? (int)$maxVersion->max_version + 1 : 1;
 
         $version = $versionsTable->newEntity([
             'workflow_definition_id' => $definitionId,
@@ -122,44 +125,48 @@ class DefaultWorkflowVersionManager implements WorkflowVersionManagerInterface
             return new ServiceResult(false, 'Definition validation failed: ' . implode('; ', $errors));
         }
 
-        $result = ConnectionManager::get('default')->transactional(function () use ($versionsTable, $definitionsTable, $version, $versionId, $publishedBy) {
-            // Archive any existing published version for this definition
-            $currentPublished = $versionsTable->find()
-                ->where([
-                    'workflow_definition_id' => $version->workflow_definition_id,
-                    'status' => WorkflowVersion::STATUS_PUBLISHED,
-                ])
-                ->first();
-            if ($currentPublished) {
-                $currentPublished->status = WorkflowVersion::STATUS_ARCHIVED;
-                if (!$versionsTable->save($currentPublished)) {
-                    return new ServiceResult(false, 'Failed to archive existing published version.');
+        try {
+            $result = ConnectionManager::get('default')->transactional(function () use ($versionsTable, $definitionsTable, $version, $versionId, $publishedBy) {
+                // Archive any existing published version for this definition
+                $currentPublished = $versionsTable->find()
+                    ->where([
+                        'workflow_definition_id' => $version->workflow_definition_id,
+                        'status' => WorkflowVersion::STATUS_PUBLISHED,
+                    ])
+                    ->first();
+                if ($currentPublished) {
+                    $currentPublished->status = WorkflowVersion::STATUS_ARCHIVED;
+                    if (!$versionsTable->save($currentPublished)) {
+                        throw new RuntimeException('Failed to archive existing published version.');
+                    }
                 }
-            }
 
-            // Publish this version
-            $version->status = WorkflowVersion::STATUS_PUBLISHED;
-            $version->published_at = DateTime::now();
-            $version->published_by = $publishedBy;
-            if (!$versionsTable->save($version)) {
-                return new ServiceResult(false, 'Failed to publish version.');
-            }
+                // Publish this version
+                $version->status = WorkflowVersion::STATUS_PUBLISHED;
+                $version->published_at = DateTime::now();
+                $version->published_by = $publishedBy;
+                if (!$versionsTable->save($version)) {
+                    throw new RuntimeException('Failed to publish version.');
+                }
 
-            // Update definition to point to this version
-            $defEntity = $definitionsTable->get($version->workflow_definition_id);
-            $definitionsTable->patchEntity($defEntity, [
-                'current_version_id' => $versionId,
-                'is_active' => true,
-            ]);
-            if (!$definitionsTable->save($defEntity)) {
-                return new ServiceResult(false, 'Failed to update workflow definition.');
-            }
+                // Update definition to point to this version
+                $defEntity = $definitionsTable->get($version->workflow_definition_id);
+                $definitionsTable->patchEntity($defEntity, [
+                    'current_version_id' => $versionId,
+                    'is_active' => true,
+                ]);
+                if (!$definitionsTable->save($defEntity)) {
+                    throw new RuntimeException('Failed to update workflow definition.');
+                }
 
-            return new ServiceResult(true, null, [
-                'versionId' => $version->id,
-                'versionNumber' => $version->version_number,
-            ]);
-        });
+                return new ServiceResult(true, null, [
+                    'versionId' => $version->id,
+                    'versionNumber' => $version->version_number,
+                ]);
+            });
+        } catch (Throwable $e) {
+            return new ServiceResult(false, $e->getMessage());
+        }
 
         return $result;
     }
@@ -168,7 +175,7 @@ class DefaultWorkflowVersionManager implements WorkflowVersionManagerInterface
      * Validate a workflow definition structure.
      *
      * @param array $definition Workflow graph to validate
-     * @return string[] Array of error messages; empty if valid
+     * @return array<string> Array of error messages; empty if valid
      */
     protected function validateDefinition(array $definition): array
     {
@@ -237,7 +244,7 @@ class DefaultWorkflowVersionManager implements WorkflowVersionManagerInterface
         if ($triggerKey !== null) {
             $cycles = $this->detectCycles($triggerKey, $nodes);
             foreach ($cycles as $cycle) {
-                $errors[] = "Cycle detected in graph: " . implode(' -> ', $cycle) . ".";
+                $errors[] = 'Cycle detected in graph: ' . implode(' -> ', $cycle) . '.';
             }
         }
 
@@ -312,7 +319,7 @@ class DefaultWorkflowVersionManager implements WorkflowVersionManagerInterface
      *
      * @param string $startKey Starting node key
      * @param array $nodes All nodes in the definition
-     * @return string[] Keys of reachable nodes
+     * @return array<string> Keys of reachable nodes
      */
     private function findReachableNodes(string $startKey, array $nodes): array
     {
@@ -465,7 +472,7 @@ class DefaultWorkflowVersionManager implements WorkflowVersionManagerInterface
      * Get all versions for a definition, ordered newest first.
      *
      * @param int $definitionId Workflow definition ID
-     * @return \App\Model\Entity\WorkflowVersion[]
+     * @return array<\App\Model\Entity\WorkflowVersion>
      */
     public function getVersionHistory(int $definitionId): array
     {
@@ -530,51 +537,55 @@ class DefaultWorkflowVersionManager implements WorkflowVersionManagerInterface
             }
         }
 
-        $result = ConnectionManager::get('default')->transactional(function () use ($instancesTable, $migrationsTable, $instance, $targetVersionId, $oldVersionId, $nodeMapping, $migratedBy, $activeNodes) {
-            // Remap active nodes
-            $remappedNodes = [];
-            foreach ($activeNodes as $activeNode) {
-                if (is_array($activeNode)) {
-                    $key = $activeNode['node_key'] ?? $activeNode['key'] ?? null;
-                    if ($key !== null && isset($nodeMapping[$key])) {
-                        $activeNode['node_key'] = $nodeMapping[$key];
-                        if (isset($activeNode['key'])) {
-                            $activeNode['key'] = $nodeMapping[$key];
+        try {
+            $result = ConnectionManager::get('default')->transactional(function () use ($instancesTable, $migrationsTable, $instance, $targetVersionId, $oldVersionId, $nodeMapping, $migratedBy, $activeNodes) {
+                // Remap active nodes
+                $remappedNodes = [];
+                foreach ($activeNodes as $activeNode) {
+                    if (is_array($activeNode)) {
+                        $key = $activeNode['node_key'] ?? $activeNode['key'] ?? null;
+                        if ($key !== null && isset($nodeMapping[$key])) {
+                            $activeNode['node_key'] = $nodeMapping[$key];
+                            if (isset($activeNode['key'])) {
+                                $activeNode['key'] = $nodeMapping[$key];
+                            }
                         }
+                        $remappedNodes[] = $activeNode;
+                    } else {
+                        $remappedNodes[] = $nodeMapping[$activeNode] ?? $activeNode;
                     }
-                    $remappedNodes[] = $activeNode;
-                } else {
-                    $remappedNodes[] = $nodeMapping[$activeNode] ?? $activeNode;
                 }
-            }
 
-            // Update instance
-            $instancesTable->patchEntity($instance, [
-                'workflow_version_id' => $targetVersionId,
-                'active_nodes' => $remappedNodes,
-            ]);
-            if (!$instancesTable->save($instance)) {
-                return new ServiceResult(false, 'Failed to update workflow instance.');
-            }
+                // Update instance
+                $instancesTable->patchEntity($instance, [
+                    'workflow_version_id' => $targetVersionId,
+                    'active_nodes' => $remappedNodes,
+                ]);
+                if (!$instancesTable->save($instance)) {
+                    throw new RuntimeException('Failed to update workflow instance.');
+                }
 
-            // Create migration audit record
-            $migration = $migrationsTable->newEntity([
-                'workflow_instance_id' => $instance->id,
-                'from_version_id' => $oldVersionId,
-                'to_version_id' => $targetVersionId,
-                'migration_type' => WorkflowInstanceMigration::MIGRATION_TYPE_MANUAL,
-                'node_mapping' => $nodeMapping,
-                'migrated_by' => $migratedBy,
-            ]);
-            if (!$migrationsTable->save($migration)) {
-                return new ServiceResult(false, 'Failed to create migration record.');
-            }
+                // Create migration audit record
+                $migration = $migrationsTable->newEntity([
+                    'workflow_instance_id' => $instance->id,
+                    'from_version_id' => $oldVersionId,
+                    'to_version_id' => $targetVersionId,
+                    'migration_type' => WorkflowInstanceMigration::MIGRATION_TYPE_MANUAL,
+                    'node_mapping' => $nodeMapping,
+                    'migrated_by' => $migratedBy,
+                ]);
+                if (!$migrationsTable->save($migration)) {
+                    throw new RuntimeException('Failed to create migration record.');
+                }
 
-            return new ServiceResult(true, null, [
-                'instanceId' => $instance->id,
-                'migrationId' => $migration->id,
-            ]);
-        });
+                return new ServiceResult(true, null, [
+                    'instanceId' => $instance->id,
+                    'migrationId' => $migration->id,
+                ]);
+            });
+        } catch (Throwable $e) {
+            return new ServiceResult(false, $e->getMessage());
+        }
 
         return $result;
     }

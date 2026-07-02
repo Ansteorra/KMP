@@ -193,6 +193,8 @@ class WarrantsTable extends BaseTable
      */
     public function afterSave($event, $entity, $options): void
     {
+        parent::afterSave($event, $entity, $options);
+
         $memberId = $entity->member_id;
 
         // Invalidate permission policies cache for affected member

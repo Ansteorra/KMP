@@ -29,6 +29,7 @@ $offices = $locator->get('Officers.Offices');
 $officers = $locator->get('Officers.Officers');
 $members = $locator->get('Members');
 $roles = $locator->get('Roles');
+$warrantPeriods = $locator->get('WarrantPeriods');
 
 foreach ([
     'officers-release' => true,
@@ -122,6 +123,13 @@ if (!$members->save($member)) {
 }
 
 $role = $roles->get($selectedOffice->grants_role_id, ['fields' => ['id', 'name']]);
+$today = new \Cake\I18n\DateTime('today');
+$fixturePeriod = $warrantPeriods->newEntity([
+    'start_date' => (clone $today)->modify('-90 days'),
+    'end_date' => (clone $today)->modify('+180 days'),
+    'created_by' => 1,
+], ['accessibleFields' => ['*' => true]]);
+$warrantPeriods->saveOrFail($fixturePeriod);
 
 echo json_encode([
     'branchId' => (int)$selectedBranch->id,
@@ -134,7 +142,7 @@ echo json_encode([
     'memberId' => (int)$member->id,
     'memberName' => (string)$member->sca_name,
     'memberEmail' => (string)$member->email_address,
-    'startDate' => (new \Cake\I18n\Date('today'))->format('Y-m-d'),
+    'startDate' => $today->format('Y-m-d'),
 ], JSON_THROW_ON_ERROR);
 `;
 

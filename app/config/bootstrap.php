@@ -28,8 +28,14 @@ require __DIR__ . DIRECTORY_SEPARATOR . "paths.php";
  * Location headers which violates CSP `form-action 'self'` after POST
  * redirects.
  */
+$trustedProxies = array_values(array_filter(array_map(
+    'trim',
+    explode(",", (string)(getenv("TRUSTED_PROXY_IPS") ?: ($_ENV["TRUSTED_PROXY_IPS"] ?? ""))),
+)));
+$remoteAddr = (string)($_SERVER["REMOTE_ADDR"] ?? "");
 if (
     (getenv("TRUST_PROXY") === "true" || ($_ENV["TRUST_PROXY"] ?? null) === "true")
+    && ($trustedProxies === [] || in_array($remoteAddr, $trustedProxies, true))
     && empty($_SERVER["HTTPS"])
     && (($_SERVER["HTTP_X_FORWARDED_PROTO"] ?? "") === "https")
 ) {

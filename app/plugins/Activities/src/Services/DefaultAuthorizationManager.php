@@ -1,14 +1,16 @@
 <?php
-
 declare(strict_types=1);
+
+// phpcs:disable Generic.Files.LineLength.TooLong
 
 namespace Activities\Services;
 
 use Activities\Model\Entity\Authorization;
-use Activities\Services\AuthorizationManagerInterface;
 use App\KMP\StaticHelpers;
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowInstance;
+use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
+use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
@@ -16,8 +18,8 @@ use Cake\Mailer\MailerAwareTrait;
 use Cake\ORM\TableRegistry;
 use Cake\Routing\Exception\MissingRouteException;
 use Cake\Routing\Router;
-use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
-use App\Services\ServiceResult;
+use Exception;
+use Throwable;
 
 /**
  * Default Authorization Manager Service
@@ -47,8 +49,8 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
     /**
      * Constructor.
      *
-     * @param ActiveWindowManagerInterface $activeWindowManager
-     * @param TriggerDispatcher $triggerDispatcher
+     * @param \App\Services\ActiveWindowManager\ActiveWindowManagerInterface $activeWindowManager
+     * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher
      */
     public function __construct(ActiveWindowManagerInterface $activeWindowManager, TriggerDispatcher $triggerDispatcher)
     {
@@ -57,6 +59,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
     }
 
     #region public methods
+
     /**
      * Create a new authorization request in pending status.
      *
@@ -68,43 +71,42 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
      * @param int $activityId Activity ID for authorization request
      * @param int $approverId Member ID of designated approver
      * @param bool $isRenewal Whether this is a renewal of existing authorization
-     * @return ServiceResult Success/failure result with error details
+     * @return \App\Services\ServiceResult Success/failure result with error details
      */
     public function request(
         int $requesterId,
         int $activityId,
         int $approverId,
-        bool $isRenewal
+        bool $isRenewal,
     ): ServiceResult {
-        $table = TableRegistry::getTableLocator()->get("Activities.Authorizations");
+        $table = TableRegistry::getTableLocator()->get('Activities.Authorizations');
         // If its a renewal we will only create the auth if there is an existing auth that has not expired
         if ($isRenewal) {
             $existingAuths = $table
                 ->find()
                 ->where([
-                    "member_id" => $requesterId,
-                    "activity_id" => $activityId,
-                    "status" => Authorization::APPROVED_STATUS,
-                    "expires_on >" => DateTime::now(),
+                    'member_id' => $requesterId,
+                    'activity_id' => $activityId,
+                    'status' => Authorization::APPROVED_STATUS,
+                    'expires_on >' => DateTime::now(),
                 ])
                 ->count();
             if ($existingAuths == 0) {
-                return new ServiceResult(false, "There is no existing authorization to renew");
+                return new ServiceResult(false, 'There is no existing authorization to renew');
             }
         }
         //Checking for existing pending requests
         $existingRequests = $table
             ->find()
             ->where([
-                "member_id" => $requesterId,
-                "activity_id" => $activityId,
-                "status" => Authorization::PENDING_STATUS
+                'member_id' => $requesterId,
+                'activity_id' => $activityId,
+                'status' => Authorization::PENDING_STATUS,
             ])
             ->count();
         if ($existingRequests > 0) {
-            return new ServiceResult(false, "There is already a pending request for this activity");
+            return new ServiceResult(false, 'There is already a pending request for this activity');
         }
-
 
         $auth = $table->newEmptyEntity();
         $auth->member_id = $requesterId;
@@ -113,7 +115,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         $auth->status = Authorization::PENDING_STATUS;
         $auth->is_renewal = $isRenewal;
         if (!$table->save($auth)) {
-            return new ServiceResult(false, "Failed to save authorization");
+            return new ServiceResult(false, 'Failed to save authorization');
         }
 
         return new ServiceResult(true);
@@ -121,10 +123,10 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
 
     /**
      * Process Authorization Revocation
-     * 
+     *
      * Handles revocation of active authorizations with ActiveWindow integration
      * and comprehensive audit trail maintenance.
-     * 
+     *
      * **Revocation Workflow**:
      * - Validates authorization exists and is revocable
      * - Integrates with ActiveWindowManager to stop temporal validation
@@ -132,76 +134,90 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
      * - Records revoker ID and revocation reason
      * - Automatically removes associated role assignments
      * - Sends notification to affected member
-     * 
+     *
      * **ActiveWindow Integration**:
      * Uses ActiveWindowManager.stop() to:
      * - End temporal validation window immediately
      * - Remove role assignments granted by authorization
      * - Update authorization status to revoked
      * - Create complete audit trail of revocation
-     * 
+     *
      * **Role Management**:
      * Revocation automatically removes any roles that were granted by the
      * authorization, ensuring immediate cessation of elevated permissions
      * and maintaining security compliance.
-     * 
+     *
      * **Audit Requirements**:
      * - Records revoker identity for accountability
      * - Captures revocation reason for compliance
      * - Timestamps revocation for temporal tracking
      * - Maintains complete authorization lifecycle history
-     * 
+     *
      * **Notification Process**:
      * Automatically notifies affected member of revocation with:
      * - Revocation reason and revoker identity
      * - Effective date of revocation
      * - Impact on permissions and roles
      * - Appeal or reauthorization process information
-     * 
+     *
      * @param int $authorizationId Authorization record ID to revoke
      * @param int $revokerId Member ID of person performing revocation
      * @param string $revokedReason Reason for revocation (required for audit)
-     * @return ServiceResult Success/failure result with revocation confirmation
+     * @return \App\Services\ServiceResult Success/failure result with revocation confirmation
      */
     public function revoke(
         int $authorizationId,
         int $revokerId,
         string $revokedReason,
     ): ServiceResult {
-        $table = TableRegistry::getTableLocator()->get("Activities.Authorizations");
-        $table->getConnection()->begin();
+        $table = TableRegistry::getTableLocator()->get('Activities.Authorizations');
+        try {
+            $authorization = $table->get($authorizationId);
+        } catch (Throwable) {
+            return new ServiceResult(false, 'Authorization not found');
+        }
 
+        if ($authorization->status !== Authorization::APPROVED_STATUS) {
+            Log::warning("Revoke: authorization {$authorizationId} is not approved (status: {$authorization->status})");
+
+            return new ServiceResult(false, 'Authorization is not approved');
+        }
+
+        $table->getConnection()->begin();
 
         // revoke the member_role if it was granted
         $awResult = $this->activeWindowManager->stop(
-            "Activities.Authorizations",
+            'Activities.Authorizations',
             $authorizationId,
             $revokerId,
             Authorization::REVOKED_STATUS,
             $revokedReason,
-            DateTime::now()
+            DateTime::now(),
         );
         if (!$awResult->success) {
             $table->getConnection()->rollback();
-            return new ServiceResult(false, "Failed to revoke member role");
+
+            return new ServiceResult(false, 'Failed to revoke member role');
         }
-        $authorization = $table->get($authorizationId);
-        if (!$this->sendAuthorizationStatusToRequester(
-            $authorization->activity_id,
-            $authorization->member_id,
-            $revokerId,
-            $authorization->status,
-            null,
-        )) {
+        if (
+            !$this->sendAuthorizationStatusToRequester(
+                $authorization->activity_id,
+                $authorization->member_id,
+                $revokerId,
+                $authorization->status,
+                null,
+            )
+        ) {
             $table->getConnection()->rollback();
 
-            return new ServiceResult(false, "Failed to send authorization status to requester");
+            return new ServiceResult(false, 'Failed to send authorization status to requester');
         }
 
         // Cancel any linked workflow engine approvals/instances for this authorization
         $workflowCancelResult = $this->cancelWorkflowApprovalsForEntity($authorizationId, 'Authorization revoked');
         if (!$workflowCancelResult->success) {
             $table->getConnection()->rollback();
+
             return $workflowCancelResult;
         }
 
@@ -218,22 +234,28 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
      *
      * @param int $authorizationId Authorization ID to activate
      * @param int $approverId Member ID of the final approver
-     * @return ServiceResult Success with activated and memberRoleId data
+     * @return \App\Services\ServiceResult Success with activated and memberRoleId data
      */
     public function activate(
         int $authorizationId,
         int $approverId,
     ): ServiceResult {
-        $table = TableRegistry::getTableLocator()->get("Activities.Authorizations");
-        $authorization = $table->get($authorizationId, contain: ['Activities']);
+        $table = TableRegistry::getTableLocator()->get('Activities.Authorizations');
+        try {
+            $authorization = $table->get($authorizationId, contain: ['Activities']);
+        } catch (Throwable) {
+            return new ServiceResult(false, 'Authorization not found');
+        }
 
-        if (!$authorization) {
-            return new ServiceResult(false, "Authorization not found");
+        if ($authorization->status !== Authorization::PENDING_STATUS) {
+            Log::warning("Activate: authorization {$authorizationId} is not pending (status: {$authorization->status})");
+
+            return new ServiceResult(false, 'Authorization is not pending');
         }
 
         $activity = $authorization->activity;
         if (!$activity) {
-            return new ServiceResult(false, "Activity not found for authorization");
+            return new ServiceResult(false, 'Activity not found for authorization');
         }
 
         $table->getConnection()->begin();
@@ -241,11 +263,12 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         $authorization->status = Authorization::APPROVED_STATUS;
         if (!$table->save($authorization)) {
             $table->getConnection()->rollback();
-            return new ServiceResult(false, "Failed to save authorization");
+
+            return new ServiceResult(false, 'Failed to save authorization');
         }
 
         $awResult = $this->activeWindowManager->start(
-            "Activities.Authorizations",
+            'Activities.Authorizations',
             $authorization->id,
             $approverId,
             DateTime::now(),
@@ -256,7 +279,8 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
 
         if (!$awResult->success) {
             $table->getConnection()->rollback();
-            return new ServiceResult(false, "Failed to start active window");
+
+            return new ServiceResult(false, 'Failed to start active window');
         }
 
         $table->getConnection()->commit();
@@ -268,28 +292,30 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
             'memberRoleId' => $memberRoleId,
         ]);
     }
+
     #endregion
 
     #region notifications
+
     /**
      * Send Authorization Status Notification to Requester
-     * 
+     *
      * Sends status update notifications to authorization requesters with comprehensive
      * workflow context and next steps information.
-     * 
+     *
      * **Notification Context**:
      * - Activity name and details
      * - Current authorization status
      * - Approver identity for transparency
      * - Next approver in chain (if applicable)
      * - Requester personalization
-     * 
+     *
      * **Status Types Handled**:
      * - Approved: Final approval with role assignment details
      * - Denied: Denial reason and appeal process
      * - Pending: Forward to next approver information
      * - Revoked: Revocation details and impact
-     * 
+     *
      * @param int $activityId Activity ID for context
      * @param int $requesterId Member ID of requester
      * @param int $approverId Member ID of current approver
@@ -305,32 +331,32 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         ?int $nextApproverId = null,
     ): bool {
         $authTypesTable = TableRegistry::getTableLocator()->get(
-            "Activities.Activities",
+            'Activities.Activities',
         );
-        $membersTable = TableRegistry::getTableLocator()->get("Members");
+        $membersTable = TableRegistry::getTableLocator()->get('Members');
         $activity = $authTypesTable
             ->find()
-            ->where(["id" => $activityId])
-            ->select(["name"])
+            ->where(['id' => $activityId])
+            ->select(['name'])
             ->all()
             ->first();
         $member = $membersTable
             ->find()
-            ->where(["id" => $requesterId])
-            ->select(["sca_name", "email_address"])
+            ->where(['id' => $requesterId])
+            ->select(['sca_name', 'email_address'])
             ->all()
             ->first();
         $approver = $membersTable
             ->find()
-            ->where(["id" => $approverId])
-            ->select(["sca_name"])
+            ->where(['id' => $approverId])
+            ->select(['sca_name'])
             ->all()
             ->first();
         if ($nextApproverId) {
             $nextApprover = $membersTable
                 ->find()
-                ->where(["id" => $nextApproverId])
-                ->select(["sca_name"])
+                ->where(['id' => $nextApproverId])
+                ->select(['sca_name'])
                 ->all()
                 ->first();
             $nextApproverScaName = $nextApprover->sca_name;
@@ -359,49 +385,49 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
 
     /**
      * Retract Pending Authorization Request
-     * 
+     *
      * Allows a member to retract their own pending authorization request. This provides
      * member autonomy to cancel requests sent to wrong approvers or no longer needed.
-     * 
+     *
      * **Business Logic**:
      * - Validates authorization is in pending status
      * - Ensures requester owns the authorization
      * - Updates status to retracted
      * - Maintains audit trail
      * - Optionally notifies approver of retraction
-     * 
+     *
      * **Validation Rules**:
      * - Authorization must exist
      * - Authorization must be in PENDING status
      * - Requester must match authorization member_id
      * - Authorization cannot have been approved/denied
-     * 
+     *
      * **Transaction Management**:
      * Uses database transactions to ensure consistency:
      * - Status update to RETRACTED
      * - Optional notification sending
      * - Rollback on any failure
-     * 
+     *
      * **Success Result Data**:
      * Returns ServiceResult with:
      * - success: true
      * - data: ['authorization' => retracted authorization entity]
-     * 
+     *
      * **Error Scenarios**:
      * - Authorization not found: "Authorization not found"
      * - Not pending: "Only pending authorizations can be retracted"
      * - Wrong owner: "You can only retract your own authorization requests"
      * - Status update failure: "Failed to update authorization status"
-     * 
+     *
      * @param int $authorizationId Authorization record ID to retract
      * @param int $requesterId Member ID of person retracting (must be authorization owner)
-     * @return ServiceResult Success/failure result with retraction confirmation
+     * @return \App\Services\ServiceResult Success/failure result with retraction confirmation
      */
     public function retract(
         int $authorizationId,
-        int $requesterId
+        int $requesterId,
     ): ServiceResult {
-        $table = TableRegistry::getTableLocator()->get("Activities.Authorizations");
+        $table = TableRegistry::getTableLocator()->get('Activities.Authorizations');
 
         // Get the authorization
         $authorization = $table->find()
@@ -409,36 +435,37 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
             ->first();
 
         if (!$authorization) {
-            return new ServiceResult(false, "Authorization not found");
+            return new ServiceResult(false, 'Authorization not found');
         }
 
         // Validate authorization is pending
         if ($authorization->status !== Authorization::PENDING_STATUS) {
-            return new ServiceResult(false, "Only pending authorizations can be retracted");
+            return new ServiceResult(false, 'Only pending authorizations can be retracted');
         }
 
         // Validate requester owns this authorization
         if ($authorization->member_id !== $requesterId) {
-            return new ServiceResult(false, "You can only retract your own authorization requests");
+            return new ServiceResult(false, 'You can only retract your own authorization requests');
         }
 
         // Begin transaction
         $table->getConnection()->begin();
 
         // Use ActiveWindowManager to stop the authorization (same as revoke)
-        $retractedReason = "Retracted by requester on " . DateTime::now()->format('Y-m-d H:i:s');
+        $retractedReason = 'Retracted by requester on ' . DateTime::now()->format('Y-m-d H:i:s');
         $awResult = $this->activeWindowManager->stop(
-            "Activities.Authorizations",
+            'Activities.Authorizations',
             $authorizationId,
             $requesterId,
             Authorization::RETRACTED_STATUS,
             $retractedReason,
-            DateTime::now()
+            DateTime::now(),
         );
 
         if (!$awResult->success) {
             $table->getConnection()->rollback();
-            return new ServiceResult(false, "Failed to retract authorization");
+
+            return new ServiceResult(false, 'Failed to retract authorization');
         }
 
         // Reload the authorization to get updated status
@@ -451,6 +478,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         );
         if (!$workflowCancelResult->success) {
             $table->getConnection()->rollback();
+
             return $workflowCancelResult;
         }
 
@@ -462,15 +490,15 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
 
     /**
      * Send Retraction Notification to Approver
-     * 
+     *
      * Notifies the approver that an authorization request they were reviewing
      * has been retracted by the requester.
-     * 
+     *
      * **Notification Context**:
      * - Activity name
      * - Requester name
      * - Retraction timestamp
-     * 
+     *
      * @param int $activityId Activity ID for context
      * @param int $requesterId Member ID of requester who retracted
      * @param int $approverId Member ID of approver to notify
@@ -479,10 +507,10 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
     private function sendRetractedNotificationToApprover(
         int $activityId,
         int $requesterId,
-        int $approverId
+        int $approverId,
     ): bool {
-        $activitiesTable = TableRegistry::getTableLocator()->get("Activities.Activities");
-        $membersTable = TableRegistry::getTableLocator()->get("Members");
+        $activitiesTable = TableRegistry::getTableLocator()->get('Activities.Activities');
+        $membersTable = TableRegistry::getTableLocator()->get('Members');
 
         $activity = $activitiesTable->get($activityId);
         $requester = $membersTable->get($requesterId);
@@ -497,13 +525,20 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
                 'requesterScaName' => $requester->sca_name,
                 'siteAdminSignature' => StaticHelpers::getAppSetting('Email.SiteAdminSignature', '', null, true),
             ]);
+
             return true;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Log but don't fail on notification errors
             return false;
         }
     }
 
+    /**
+     * Build a member card URL.
+     *
+     * @param int $memberId Member ID
+     * @return string URL to the member card
+     */
     private function buildMemberCardUrl(int $memberId): string
     {
         try {

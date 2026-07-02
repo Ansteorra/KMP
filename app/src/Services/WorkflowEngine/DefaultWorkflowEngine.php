@@ -1,8 +1,11 @@
 <?php
 declare(strict_types=1);
 
+// phpcs:disable Generic.Files.LineLength.TooLong
+
 namespace App\Services\WorkflowEngine;
 
+use App\KMP\StaticHelpers;
 use App\Model\Behavior\WorkflowTriggerBehavior;
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowExecutionLog;
@@ -18,6 +21,8 @@ use Cake\Datasource\ConnectionManager;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\ORM\TableRegistry;
+use Exception;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -78,10 +83,16 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
      */
     private bool $ephemeral = false;
 
+    /**
+     * Constructor.
+     *
+     * @param \Cake\Core\ContainerInterface $container Service container
+     */
     public function __construct(ContainerInterface $container)
     {
         $this->container = $container;
     }
+
     /**
      * @inheritDoc
      */
@@ -146,7 +157,7 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
                     Log::warning(
                         "WorkflowEngine: Duplicate instance prevented for definition '{$workflowSlug}'"
                         . " entity_type={$resolvedEntityType} entity_id={$entityId}"
-                        . " — existing instance #{$existingInstance->id} is '{$existingInstance->status}'."
+                        . " — existing instance #{$existingInstance->id} is '{$existingInstance->status}'.",
                     );
 
                     return new ServiceResult(
@@ -454,7 +465,7 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
         // Cycle detection: check depth limit
         $this->executionDepth++;
         if ($this->executionDepth > self::MAX_EXECUTION_DEPTH) {
-            $msg = "Workflow execution exceeded max depth (" . self::MAX_EXECUTION_DEPTH
+            $msg = 'Workflow execution exceeded max depth (' . self::MAX_EXECUTION_DEPTH
                 . ") at node '{$nodeId}'. Possible cycle in workflow graph.";
             Log::error("WorkflowEngine: {$msg}");
             $instance->status = WorkflowInstance::STATUS_FAILED;
@@ -462,7 +473,7 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
             $instance->error_info = ['failed_node' => $nodeId, 'error' => $msg];
             $this->updateInstance($instance, []);
 
-            throw new \RuntimeException($msg);
+            throw new RuntimeException($msg);
         }
 
         // Cycle detection: visited-node set (skip for join/loop which are legitimately revisited)
@@ -478,11 +489,9 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
             $instance->error_info = ['failed_node' => $nodeId, 'error' => $msg];
             $this->updateInstance($instance, []);
 
-            throw new \RuntimeException($msg);
+            throw new RuntimeException($msg);
         }
         $this->visitedNodes[$nodeId] = true;
-
-        $logsTable = TableRegistry::getTableLocator()->get('WorkflowExecutionLogs');
 
         if (!$node) {
             Log::error("WorkflowEngine: Node '{$nodeId}' not found in definition.");
@@ -501,9 +510,9 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
 
         // Ephemeral workflows cannot use async node types
         if ($this->ephemeral && in_array($nodeType, ['approval', 'humanTask', 'delay', 'subworkflow'], true)) {
-            throw new \RuntimeException(
+            throw new RuntimeException(
                 "Ephemeral workflow cannot execute async node type '{$nodeType}' at node '{$nodeId}'. "
-                . "Change the workflow's execution_mode to 'durable' to use {$nodeType} nodes."
+                . "Change the workflow's execution_mode to 'durable' to use {$nodeType} nodes.",
             );
         }
 
@@ -598,7 +607,7 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
                     $backoffSeconds = (int)pow(2, $attempt - 1);
                     Log::warning(
                         "WorkflowEngine: Node '{$nodeId}' attempt {$attempt}/{$maxAttempts} failed, "
-                        . "retrying in {$backoffSeconds}s: {$e->getMessage()}"
+                        . "retrying in {$backoffSeconds}s: {$e->getMessage()}",
                     );
                     sleep($backoffSeconds);
                 }
@@ -633,12 +642,12 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
         $actionName = $node['config']['action'] ?? null;
 
         if (!$actionName) {
-            throw new \RuntimeException("Action node '{$nodeId}' has no action configured.");
+            throw new RuntimeException("Action node '{$nodeId}' has no action configured.");
         }
 
         $actionConfig = WorkflowActionRegistry::getAction($actionName);
         if (!$actionConfig) {
-            throw new \RuntimeException("Action '{$actionName}' not found in registry.");
+            throw new RuntimeException("Action '{$actionName}' not found in registry.");
         }
 
         // Async execution: queue the action instead of running inline
@@ -673,9 +682,9 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
         $serviceMethod = $actionConfig['serviceMethod'];
 
         if (!$this->container->has($serviceClass)) {
-            throw new \RuntimeException(
+            throw new RuntimeException(
                 "Workflow action service '{$serviceClass}' is not registered in the DI container. "
-                . "Register it in Application::services() or your plugin's services() method."
+                . "Register it in Application::services() or your plugin's services() method.",
             );
         }
         $service = $this->container->get($serviceClass);
@@ -732,9 +741,9 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
                 $evaluatorClass = $conditionConfig['evaluatorClass'];
                 $evaluatorMethod = $conditionConfig['evaluatorMethod'];
                 if (!$this->container->has($evaluatorClass)) {
-                    throw new \RuntimeException(
+                    throw new RuntimeException(
                         "Workflow condition evaluator '{$evaluatorClass}' is not registered in the DI container. "
-                        . "Register it in Application::services() or your plugin's services() method."
+                        . "Register it in Application::services() or your plugin's services() method.",
                     );
                 }
                 $evaluator = $this->container->get($evaluatorClass);
@@ -752,7 +761,7 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
                 }
                 $result = (bool)$evaluator->{$evaluatorMethod}($context, $nodeConfig);
             } else {
-                throw new \RuntimeException("Condition '{$conditionName}' not found in registry.");
+                throw new RuntimeException("Condition '{$conditionName}' not found in registry.");
             }
         } else {
             // Handle inline expression evaluation
@@ -901,13 +910,17 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
             'allow_parallel' => !empty($config['parallel'] ?? $config['allowParallel'] ?? false),
             'deadline' => $deadline,
             'escalation_config' => $config['escalationConfig'] ?? null,
-            'approval_token' => \App\KMP\StaticHelpers::generateToken(32),
+            'approval_token' => StaticHelpers::generateToken(32),
         ]);
         if ($approval->getErrors()) {
             Log::error('Approval entity validation errors: ' . json_encode($approval->getErrors()));
         }
         if (!$approvalsTable->save($approval)) {
             Log::error('Failed to save workflow approval for node ' . $nodeId . ': ' . json_encode($approval->getErrors()));
+
+            throw new RuntimeException(
+                "Failed to persist approval for node '{$nodeId}': " . json_encode($approval->getErrors()),
+            );
         }
 
         if ($log) {
@@ -993,6 +1006,10 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
         }
         if (!$tasksTable->save($task)) {
             Log::error('Failed to save workflow task for node ' . $nodeId . ': ' . json_encode($task->getErrors()));
+
+            throw new RuntimeException(
+                "Failed to persist human task for node '{$nodeId}': " . json_encode($task->getErrors()),
+            );
         }
 
         // Store task ID in context for later reference
@@ -1174,8 +1191,6 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
     ): void {
         $context = $instance->context ?? [];
 
-        // Track join state
-        $joinKey = "_internal.joinState.{$nodeId}";
         $joinState = $context['_internal']['joinState'][$nodeId] ?? [];
         $completedInputs = $joinState['completedInputs'] ?? [];
 
@@ -1222,7 +1237,6 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
         $config = $node['config'] ?? [];
 
         $maxIterations = (int)($config['maxIterations'] ?? 10);
-        $iterationKey = "_internal.loopState.{$nodeId}.iteration";
         $currentIteration = $context['_internal']['loopState'][$nodeId]['iteration'] ?? 0;
         $currentIteration++;
 
@@ -1485,7 +1499,7 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
             if ($parentInstanceId !== null && $parentNodeId !== null) {
                 Log::info(
                     "WorkflowEngine: Child instance #{$instance->id} completed, "
-                    . "resuming parent instance #{$parentInstanceId} at node '{$parentNodeId}'."
+                    . "resuming parent instance #{$parentInstanceId} at node '{$parentNodeId}'.",
                 );
 
                 $this->resumeWorkflow(
@@ -1512,16 +1526,26 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
         $childSlug = $config['workflowSlug'] ?? null;
 
         if (!$childSlug) {
-            throw new \RuntimeException("Subworkflow node '{$nodeId}' has no workflowSlug configured.");
+            throw new RuntimeException("Subworkflow node '{$nodeId}' has no workflowSlug configured.");
         }
 
-        $childResult = $this->startWorkflow(
-            $childSlug,
-            $instance->context['trigger'] ?? [],
-            $instance->started_by,
-            $instance->entity_type,
-            $instance->entity_id,
-        );
+        $savedVisitedNodes = $this->visitedNodes;
+        $savedExecutionDepth = $this->executionDepth;
+        $savedEphemeral = $this->ephemeral;
+
+        try {
+            $childResult = $this->startWorkflow(
+                $childSlug,
+                $instance->context['trigger'] ?? [],
+                $instance->started_by,
+                $instance->entity_type,
+                $instance->entity_id,
+            );
+        } finally {
+            $this->visitedNodes = $savedVisitedNodes;
+            $this->executionDepth = $savedExecutionDepth;
+            $this->ephemeral = $savedEphemeral;
+        }
 
         // Store parent info in the child instance's context so it can call back
         $childInstanceId = $childResult->data['instanceId'] ?? null;
@@ -1569,10 +1593,6 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
         $handler = $this->container->has(StateMachineHandler::class)
             ? $this->container->get(StateMachineHandler::class)
             : new StateMachineHandler();
-
-        // Read current and target states from context
-        $stateField = $config['stateField'] ?? 'state';
-        $statusField = $config['statusField'] ?? 'status';
 
         $targetState = $this->resolveParamValue(
             $config['targetState'] ?? '$.trigger.targetState',
@@ -1807,8 +1827,9 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
         // Try parsing as a standard datetime string
         try {
             return new DateTime($deadline);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::warning("Could not parse deadline: {$deadline}");
+
             return null;
         }
     }
@@ -1899,6 +1920,7 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
             $b = 'default';
         }
         $defaultAliases = ['default', 'next'];
+
         return in_array($a, $defaultAliases) && in_array($b, $defaultAliases);
     }
 
@@ -2248,9 +2270,9 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
                 $instancesTable = TableRegistry::getTableLocator()->get('WorkflowInstances');
                 $instance = $instancesTable->get($instanceId, contain: ['WorkflowVersions']);
 
-                if ($instance->status !== WorkflowInstance::STATUS_WAITING) {
-                    return new ServiceResult(false, "Instance {$instanceId} is not in waiting state.");
-                }
+            if ($instance->status !== WorkflowInstance::STATUS_WAITING) {
+                return new ServiceResult(false, "Instance {$instanceId} is not in waiting state.");
+            }
 
                 $definition = $instance->workflow_version->definition;
 
@@ -2267,9 +2289,9 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
                 // Inject approval progress into context for intermediate action nodes.
                 // Use values from approvalData when present; fall back to DB approval record.
                 $context = $instance->context ?? [];
-                if (!isset($context['nodes'])) {
-                    $context['nodes'] = [];
-                }
+            if (!isset($context['nodes'])) {
+                $context['nodes'] = [];
+            }
                 $context['nodes'][$nodeId] = [
                     'approvedCount' => $approvalData['approvedCount'] ?? ($approval ? $approval->approved_count : 0),
                     'requiredCount' => $approvalData['requiredCount'] ?? ($approval ? $approval->required_count : 1),
@@ -2337,9 +2359,9 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
                         $serviceMethod = $actionConfig['serviceMethod'];
 
                         if (!$this->container->has($serviceClass)) {
-                            throw new \RuntimeException(
+                            throw new RuntimeException(
                                 "Workflow action service '{$serviceClass}' is not registered in the DI container. "
-                                . "Register it in Application::services() or your plugin's services() method."
+                                . "Register it in Application::services() or your plugin's services() method.",
                             );
                         }
                         $service = $this->container->get($serviceClass);
@@ -2536,7 +2558,7 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
         } catch (Throwable $inner) {
             Log::error(
                 "WorkflowEngine: Failed to mark instance #{$instanceId} as FAILED "
-                . "after rollback: {$inner->getMessage()}"
+                . "after rollback: {$inner->getMessage()}",
             );
         }
     }

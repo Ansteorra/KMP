@@ -42,7 +42,7 @@ class PermissionsLoader
         // 1. Cache Strategy - Check for cached permissions first
         $cacheKey = TenantAwareCache::tenantScopedKey('member_permissions' . $memberId);
         $cache = Cache::read($cacheKey, 'member_permissions');
-        if ($cache) {
+        if (is_array($cache)) {
             return $cache; // Return cached result if available
         }
 
@@ -177,7 +177,7 @@ class PermissionsLoader
         // 1. Cache Strategy - Check for cached roles first
         $cacheKey = TenantAwareCache::tenantScopedKey('member_roles' . $memberId);
         $cache = Cache::read($cacheKey, 'member_permissions');
-        if ($cache) {
+        if (is_array($cache)) {
             return $cache;
         }
 
@@ -251,7 +251,7 @@ class PermissionsLoader
         $cacheKey = TenantAwareCache::tenantScopedKey('permissions_policies' . $id);
         if ($useCache) {
             $cache = Cache::read($cacheKey, 'member_permissions');
-            if ($cache) {
+            if (is_array($cache)) {
                 return $cache; // Return cached result if available
             }
         }
@@ -753,7 +753,7 @@ class PermissionsLoader
         // 1. Cache Strategy - Check for cached permissions first
         $cacheKey = TenantAwareCache::tenantScopedKey('sp_permissions_' . $servicePrincipalId);
         $cache = Cache::read($cacheKey, 'member_permissions');
-        if ($cache) {
+        if (is_array($cache)) {
             return $cache;
         }
 
@@ -878,7 +878,7 @@ class PermissionsLoader
         $cacheKey = TenantAwareCache::tenantScopedKey('sp_policies_' . $servicePrincipalId);
         if ($useCache) {
             $cache = Cache::read($cacheKey, 'member_permissions');
-            if ($cache) {
+            if (is_array($cache)) {
                 return $cache;
             }
         }

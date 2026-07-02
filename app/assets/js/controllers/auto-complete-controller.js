@@ -101,6 +101,16 @@ class AutoComplete extends Controller {
     }
     static uniqOptionId = 0
 
+    static escapeHtml(text) {
+        const div = document.createElement("div")
+        div.textContent = text == null ? "" : String(text)
+        return div.innerHTML
+    }
+
+    static escapeRegExp(text) {
+        return String(text).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    }
+
     initialize() {
         this._selectOptions = [];
         this._datalistLoaded = false;
@@ -712,10 +722,14 @@ class AutoComplete extends Controller {
 
                         //add a span around matching string to highlight it
                         if (query != "") {
-                            let filteredOptions = item.text;
-                            itemHtml.innerHTML = filteredOptions.replace(new RegExp(query, 'gi'), match => `<span class="text-primary">${match}</span>`);
+                            const escapedText = AutoComplete.escapeHtml(item.text);
+                            const escapedQuery = AutoComplete.escapeRegExp(AutoComplete.escapeHtml(query));
+                            itemHtml.innerHTML = escapedText.replace(
+                                new RegExp(escapedQuery, 'gi'),
+                                match => `<span class="text-primary">${match}</span>`
+                            );
                         } else {
-                            itemHtml.innerHTML = item.text;
+                            itemHtml.textContent = item.text;
                         }
                         this.resultsTarget.appendChild(itemHtml);
                     }

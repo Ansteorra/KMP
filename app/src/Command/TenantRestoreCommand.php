@@ -41,7 +41,7 @@ class TenantRestoreCommand extends Command
                 'help' => 'Target tenant slug. Required for cross-tenant restores.',
             ])
             ->addOption('confirm-destructive', [
-                'help' => 'Required for destructive same-tenant restores.',
+                'help' => 'Required for any destructive (non-dry-run) restore.',
                 'boolean' => true,
                 'default' => false,
             ])

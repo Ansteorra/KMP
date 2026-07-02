@@ -60,6 +60,26 @@ class EmailTemplateRendererService
     }
 
     /**
+     * Render a template for the HTML pipeline, escaping substituted values only.
+     *
+     * @param string $template Template string with variable placeholders
+     * @param array $vars Variable values
+     * @return string Rendered template with HTML-escaped values
+     */
+    protected function renderTemplateHtmlEscaped(string $template, array $vars): string
+    {
+        $rendered = $this->processConditionals($template, $vars);
+
+        foreach ($vars as $key => $value) {
+            $escaped = htmlspecialchars($this->formatValue($value), ENT_QUOTES, 'UTF-8');
+            $rendered = str_replace('{{' . $key . '}}', $escaped, $rendered);
+            $rendered = str_replace('${' . $key . '}', $escaped, $rendered);
+        }
+
+        return $rendered;
+    }
+
+    /**
      * Render subject template
      *
      * @param \App\Model\Entity\EmailTemplate $emailTemplate
@@ -93,7 +113,7 @@ class EmailTemplateRendererService
         $vars = $this->normalizeTemplateVars($template, $vars);
 
         // Step 1: Replace variables in the markdown template
-        $markdown = $this->renderTemplate($template->html_template, $vars);
+        $markdown = $this->renderTemplateHtmlEscaped($template->html_template, $vars);
 
         // Step 2: Convert markdown to HTML
         $htmlBody = $this->parsedown->text($markdown);
@@ -130,7 +150,7 @@ class EmailTemplateRendererService
         $vars = $this->normalizeTemplateVars($template, $vars);
 
         // Replace variables in the markdown template
-        $markdown = $this->renderTemplate($template->html_template, $vars);
+        $markdown = $this->renderTemplateHtmlEscaped($template->html_template, $vars);
 
         // Convert markdown to HTML (body only, no wrapper)
         return $this->parsedown->text($markdown);

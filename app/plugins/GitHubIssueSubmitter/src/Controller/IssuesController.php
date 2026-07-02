@@ -1,11 +1,10 @@
 <?php
-
 declare(strict_types=1);
 
 namespace GitHubIssueSubmitter\Controller;
 
-use GitHubIssueSubmitter\Controller\AppController;
 use App\KMP\StaticHelpers;
+use App\Services\Security\RequestRateLimiter;
 use Cake\Event\EventInterface;
 
 /**
@@ -29,7 +28,7 @@ class IssuesController extends AppController
         parent::beforeFilter($event);
 
         $this->Authentication->allowUnauthenticated([
-            "submit",
+            'submit',
         ]);
     }
 
@@ -41,12 +40,24 @@ class IssuesController extends AppController
      *
      * @return \Cake\Http\Response JSON response with issue data or error
      */
-    public function submit()
+    public function submit(RequestRateLimiter $rateLimiter)
     {
         $this->Authorization->skipAuthorization();
-        $owner = StaticHelpers::getAppSetting("KMP.GitHub.Owner");
-        $repo = StaticHelpers::getAppSetting("KMP.GitHub.Project");
-        $token = StaticHelpers::getAppSetting("KMP.GitHub", "")["Token"];
+        $clientIp = $this->request->clientIp() ?? 'unknown';
+        $rate = $rateLimiter->attempt(RequestRateLimiter::BUCKET_GITHUB_ISSUE, $clientIp);
+        if (!$rate->allowed) {
+            $this->viewBuilder()->setClassName('Ajax');
+            $this->response = $this->response
+                ->withStatus(429)
+                ->withType('application/json')
+                ->withHeader('Retry-After', (string)$rate->retryAfterSeconds)
+                ->withStringBody(json_encode(['message' => 'Too many requests. Please try again later.']));
+
+            return $this->response;
+        }
+        $owner = StaticHelpers::getAppSetting('KMP.GitHub.Owner');
+        $repo = StaticHelpers::getAppSetting('KMP.GitHub.Project');
+        $token = StaticHelpers::getAppSetting('KMP.GitHub', '')['Token'];
         $body = $this->request->getData('body');
         $title = $this->request->getData('title');
         $category = $this->request->getData('feedbackType');
@@ -81,14 +92,14 @@ class IssuesController extends AppController
         }
         $responseJson = [];
         if (isset($decoded['message'])) {
-            $responseJson["message"] = $decoded['message'];
+            $responseJson['message'] = $decoded['message'];
         } else {
-            $responseJson = ["url" => $decoded["html_url"], "number" => $decoded["number"]];
+            $responseJson = ['url' => $decoded['html_url'], 'number' => $decoded['number']];
         }
         //set to ajax response
-        $this->viewBuilder()->setClassName("Ajax");
+        $this->viewBuilder()->setClassName('Ajax');
         $this->response = $this->response
-            ->withType("application/json")
+            ->withType('application/json')
             ->withStringBody(json_encode($responseJson));
 
         return $this->response;

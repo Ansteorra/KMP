@@ -3,6 +3,7 @@ const { expect } = require('@playwright/test');
 const {
     clickTabAndWait,
     runAndWaitForNetworkIdle,
+    runPhpJson,
     waitForGridRows,
 } = require('../../support/ui-helpers.cjs');
 
@@ -52,6 +53,15 @@ const MEMBER_AUTH_VIEW_IDS = {
     pending: 'pending',
     previous: 'previous',
 };
+
+Given('the Activities plugin is enabled for UI tests', async () => {
+    runPhpJson(`
+require 'vendor/autoload.php';
+require 'config/bootstrap.php';
+\\App\\KMP\\StaticHelpers::setAppSetting('Plugin.Activities.Active', 'yes', 'string', true);
+echo json_encode(['success' => true], JSON_THROW_ON_ERROR);
+`);
+});
 
 const openMemberAuthorizationView = async (page, viewName) => {
     const section = authorizationSection(page);

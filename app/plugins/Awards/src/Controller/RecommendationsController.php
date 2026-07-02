@@ -1,62 +1,65 @@
 <?php
-
 declare(strict_types=1);
+
+// phpcs:disable Generic.Files.LineLength.TooLong
 
 namespace Awards\Controller;
 
-use Awards\Controller\AppController;
-use Awards\Model\Entity\Recommendation;
-use Awards\KMP\GridColumns\RecommendationsGridColumns;
-use Awards\Services\RecommendationGroupingService;
-use Cake\I18n\DateTime;
-use Cake\Routing\Router;
-use App\KMP\StaticHelpers;
-use App\KMP\GridViewConfig;
-use App\Model\Entity\Member;
-use App\Model\Table\GridViewsTable;
 use App\Controller\DataverseGridTrait;
-use App\Services\ServiceResult;
+use App\Controller\WorkflowDispatchTrait;
+use App\KMP\GridRowDomId;
+use App\KMP\GridViewConfig;
+use App\KMP\StaticHelpers;
+use App\KMP\WorkflowApprovalDecisionOptions;
+use App\Model\Entity\Member;
+use App\Model\Entity\WorkflowApproval;
+use App\Model\Entity\WorkflowApprovalResponse;
+use App\Model\Table\GridViewsTable;
+use App\Services\CsvExportService;
 use App\Services\GridViewService;
-use Authorization\Exception\ForbiddenException;
+use App\Services\ServiceResult;
+use App\Services\WorkflowEngine\DefaultWorkflowApprovalManager;
+use App\Services\WorkflowEngine\TriggerDispatcher;
+use Awards\KMP\GridColumns\RecommendationsGridColumns;
+use Awards\Model\Entity\Recommendation;
+use Awards\Services\BestowalGatheringLookupService;
+use Awards\Services\RecommendationFeedbackService;
+use Awards\Services\RecommendationFormService;
+use Awards\Services\RecommendationGroupingService;
+use Awards\Services\RecommendationQueryService;
+use Awards\Services\RecommendationSubmissionService;
+use Awards\Services\RecommendationUiModeService;
+use Awards\Services\RecommendationUpdateService;
+use Awards\Services\RecommendationWorkflowUiService;
+use Cake\Datasource\Exception\RecordNotFoundException;
+use Cake\Event\EventInterface;
+use Cake\Http\Exception\NotFoundException;
+use Cake\Http\Response;
+use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\TableRegistry;
+use Cake\Routing\Router;
 use Exception;
-use PhpParser\Node\Stmt\TryCatch;
-use App\KMP\GridRowDomId;
-use App\KMP\WorkflowApprovalDecisionOptions;
-use App\Model\Entity\WorkflowApproval;
-use App\Model\Entity\WorkflowApprovalResponse;
-use App\Services\CsvExportService;
-use App\Services\WorkflowEngine\DefaultWorkflowApprovalManager;
-use App\Services\WorkflowEngine\TriggerDispatcher;
-use Awards\Services\BestowalGatheringLookupService;
-use Awards\Services\RecommendationFormService;
-use Awards\Services\RecommendationFeedbackService;
-use Awards\Services\RecommendationUiModeService;
-use Awards\Services\RecommendationSubmissionService;
-use Awards\Services\RecommendationQueryService;
-use Awards\Services\RecommendationUpdateService;
-use Awards\Services\RecommendationWorkflowUiService;
-use Cake\Error\Debugger;
-
+use Throwable;
+use Traversable;
 
 /**
  * Recommendations Controller
- * 
+ *
  * Manages the complete award recommendation lifecycle from submission through final
  * disposition. Implements state machine-based workflow with table views.
  * Supports authenticated and public submission workflows.
- * 
+ *
  * Uses DataverseGridTrait for table-based data display.
- * 
+ *
  * @property \Awards\Model\Table\RecommendationsTable $Recommendations
  * @package Awards\Controller
  */
 class RecommendationsController extends AppController
 {
     use DataverseGridTrait;
-    use \App\Controller\WorkflowDispatchTrait;
+    use WorkflowDispatchTrait;
 
     private const BESTOWAL_GATHERING_REQUIRED_KEY = 'requires_bestowal_gathering';
     private const BESTOWAL_GATHERING_WORKFLOW_SLUGS = [
@@ -66,11 +69,11 @@ class RecommendationsController extends AppController
 
     /**
      * Configure authentication for public recommendation submission helpers.
-     * 
+     *
      * @param \Cake\Event\EventInterface $event The beforeFilter event instance
      * @return \Cake\Http\Response|null|void
      */
-    public function beforeFilter(\Cake\Event\EventInterface $event): ?\Cake\Http\Response
+    public function beforeFilter(EventInterface $event): ?Response
     {
         parent::beforeFilter($event);
 
@@ -84,13 +87,13 @@ class RecommendationsController extends AppController
 
     /**
      * Recommendation system landing page.
-     * 
+     *
      * Primary entry point rendering the Dataverse grid interface.
      * Grid data is loaded lazily via gridData() action.
-     * 
+     *
      * @return \Cake\Http\Response|null|void
      */
-    public function index(): ?\Cake\Http\Response
+    public function index(): ?Response
     {
         $emptyRecommendation = $this->Recommendations->newEmptyEntity();
         $user = $this->request->getAttribute('identity');
@@ -107,7 +110,6 @@ class RecommendationsController extends AppController
                     $statusList[$key][$state] = $state;
                 }
             }
-
 
             // Get explicit UI mode rules for form field visibility
             $rules = (new RecommendationUiModeService())->buildStateRules();
@@ -130,7 +132,7 @@ class RecommendationsController extends AppController
      * recommendation data with proper filtering, sorting, pagination, and authorization.
      * It supports status-based system views and permission-based state filtering.
      *
-     * @param CsvExportService $csvExportService Injected CSV export service
+     * @param \App\Services\CsvExportService $csvExportService Injected CSV export service
      * @return \Cake\Http\Response|null|void Renders view or returns CSV response
      */
     public function gridData(CsvExportService $csvExportService, RecommendationQueryService $queryService)
@@ -172,6 +174,7 @@ class RecommendationsController extends AppController
         if (!empty($result['isCsvExport'])) {
             // Fetch all data from query (not paginated) and process computed fields
             $exportData = $this->prepareRecommendationsForExport($result['query'], ['includeAttendance' => true, 'includeGroupedChildren' => true]);
+
             return $this->handleCsvExport($result, $csvExportService, 'recommendations', 'Awards.Recommendations', $exportData);
         }
 
@@ -290,7 +293,7 @@ class RecommendationsController extends AppController
             ->contain([
                 'Gatherings' => function ($q) {
                     return $q->select(['id', 'name', 'start_date', 'end_date']);
-                }
+                },
             ])
             ->where([
                 'GatheringAttendances.member_id IN' => $memberIds,
@@ -688,7 +691,7 @@ class RecommendationsController extends AppController
      * Provides recommendation data for recommendations submitted by a specific member.
      * Used in the member profile's "Submitted Award Recs" tab.
      *
-     * @param CsvExportService $csvExportService Injected CSV export service
+     * @param \App\Services\CsvExportService $csvExportService Injected CSV export service
      * @param int|null $memberId The member ID whose submissions to show (-1 for current user)
      * @return \Cake\Http\Response|null|void Renders view or returns CSV response
      */
@@ -698,8 +701,6 @@ class RecommendationsController extends AppController
         if ($memberId === null || $memberId === -1) {
             $memberId = $this->request->getAttribute('identity')->id;
         }
-
-        $user = $this->request->getAttribute('identity');
         $emptyRecommendation = $this->Recommendations->newEmptyEntity();
         $emptyRecommendation->requester_id = $memberId;
 
@@ -740,6 +741,7 @@ class RecommendationsController extends AppController
         // Handle CSV export using trait's unified method with data mode
         if (!empty($result['isCsvExport'])) {
             $exportData = $this->prepareRecommendationsForExport($result['query']);
+
             return $this->handleCsvExport($result, $csvExportService, 'recommendations-submitted', 'Awards.Recommendations', $exportData);
         }
 
@@ -788,7 +790,7 @@ class RecommendationsController extends AppController
      * Provides recommendation data for recommendations about a specific member.
      * Used in the member profile's "Recs For Member" tab.
      *
-     * @param CsvExportService $csvExportService Injected CSV export service
+     * @param \App\Services\CsvExportService $csvExportService Injected CSV export service
      * @param int|null $memberId The member ID whose received recommendations to show
      * @return \Cake\Http\Response|null|void Renders view or returns CSV response
      */
@@ -798,11 +800,7 @@ class RecommendationsController extends AppController
         if ($memberId === null || $memberId === -1) {
             $memberId = $this->request->getAttribute('identity')->id;
         }
-
-        $user = $this->request->getAttribute('identity');
         $emptyRecommendation = $this->Recommendations->newEmptyEntity();
-
-
 
         $this->Authorization->authorize($emptyRecommendation, 'ViewSubmittedForMember');
         // If the user can see this tab at all, they should see all states
@@ -882,7 +880,7 @@ class RecommendationsController extends AppController
     /**
      * Request feedback on selected recommendations or recommendation groups.
      */
-    public function requestFeedback(RecommendationFeedbackService $feedbackService): ?\Cake\Http\Response
+    public function requestFeedback(RecommendationFeedbackService $feedbackService): ?Response
     {
         $this->request->allowMethod(['post']);
         $recommendation = $this->Recommendations->newEmptyEntity();
@@ -923,7 +921,7 @@ class RecommendationsController extends AppController
     /**
      * Retract a pending recommendation feedback request.
      */
-    public function retractFeedback(RecommendationFeedbackService $feedbackService): ?\Cake\Http\Response
+    public function retractFeedback(RecommendationFeedbackService $feedbackService): ?Response
     {
         $this->request->allowMethod(['post', 'delete']);
         $recommendation = $this->Recommendations->newEmptyEntity();
@@ -953,7 +951,7 @@ class RecommendationsController extends AppController
      * @return \Cake\Http\Response|null The response for the rendered view, or null if the controller does not return a response.
      * @throws \Cake\Http\Exception\NotFoundException If the recommendation does not exist or is inaccessible.
      */
-    public function view(?string $id = null): ?\Cake\Http\Response
+    public function view(?string $id = null): ?Response
     {
         try {
             $workflowUiService = new RecommendationWorkflowUiService();
@@ -979,7 +977,7 @@ class RecommendationsController extends AppController
                 ],
             ]);
             if (!$recommendation) {
-                throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
+                throw new NotFoundException(__('Recommendation not found'));
             }
 
             $this->Authorization->authorize($recommendation, 'view');
@@ -1004,7 +1002,7 @@ class RecommendationsController extends AppController
                     ->contain([
                         'Gatherings' => function ($q) {
                             return $q->select(['id', 'name', 'start_date', 'end_date', 'public_id']);
-                        }
+                        },
                     ])
                     ->where([
                         'GatheringAttendances.member_id' => $recommendation->member_id,
@@ -1026,8 +1024,8 @@ class RecommendationsController extends AppController
             $this->set(compact('recommendation', 'memberAttendanceGatherings', 'workflowContext'));
 
             return null;
-        } catch (\Cake\Datasource\Exception\RecordNotFoundException $e) {
-            throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
+        } catch (RecordNotFoundException $e) {
+            throw new NotFoundException(__('Recommendation not found'));
         }
     }
 
@@ -1041,10 +1039,10 @@ class RecommendationsController extends AppController
     public function workflowDecision(
         TriggerDispatcher $triggerDispatcher,
         ?string $id = null,
-    ): ?\Cake\Http\Response {
+    ): ?Response {
         $this->request->allowMethod(['post']);
         if ($id === null) {
-            throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
+            throw new NotFoundException(__('Recommendation not found'));
         }
 
         $recommendation = $this->Recommendations->get($id, contain: ['Awards']);
@@ -1113,7 +1111,7 @@ class RecommendationsController extends AppController
      * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher Trigger dispatcher.
      * @return \Cake\Http\Response|null
      */
-    public function workflowDecisionFromGrid(TriggerDispatcher $triggerDispatcher): ?\Cake\Http\Response
+    public function workflowDecisionFromGrid(TriggerDispatcher $triggerDispatcher): ?Response
     {
         $this->request->allowMethod(['post']);
         $this->Authorization->authorize($this->Recommendations->newEmptyEntity(), 'index');
@@ -1182,7 +1180,7 @@ class RecommendationsController extends AppController
      * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher Trigger dispatcher.
      * @return \Cake\Http\Response|null
      */
-    public function bulkWorkflowDecision(TriggerDispatcher $triggerDispatcher): ?\Cake\Http\Response
+    public function bulkWorkflowDecision(TriggerDispatcher $triggerDispatcher): ?Response
     {
         $this->request->allowMethod(['post']);
         $this->Authorization->authorize($this->Recommendations->newEmptyEntity(), 'index');
@@ -1508,10 +1506,12 @@ class RecommendationsController extends AppController
         $approvalIdSet = array_flip(array_map('intval', $approvalIds));
         $approvals = [];
         $workflowApprovalsTable = TableRegistry::getTableLocator()->get('WorkflowApprovals');
-        foreach ($workflowApprovalsTable::getPendingApprovalsForMember(
-            $memberId,
-            ['WorkflowInstances' => ['WorkflowDefinitions']],
-        ) as $approval) {
+        foreach (
+            $workflowApprovalsTable::getPendingApprovalsForMember(
+                $memberId,
+                ['WorkflowInstances' => ['WorkflowDefinitions']],
+            ) as $approval
+        ) {
             $approvalId = (int)$approval->id;
             if (isset($approvalIdSet[$approvalId])) {
                 $approvals[$approvalId] = $approval;
@@ -1611,10 +1611,10 @@ class RecommendationsController extends AppController
     public function startApprovalWorkflow(
         TriggerDispatcher $triggerDispatcher,
         ?string $id = null,
-    ): ?\Cake\Http\Response {
+    ): ?Response {
         $this->request->allowMethod(['post']);
         if ($id === null) {
-            throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
+            throw new NotFoundException(__('Recommendation not found'));
         }
 
         $recommendation = $this->Recommendations->get($id, contain: ['Awards']);
@@ -1655,7 +1655,7 @@ class RecommendationsController extends AppController
     public function add(
         RecommendationSubmissionService $submissionService,
         TriggerDispatcher $triggerDispatcher,
-    ): ?\Cake\Http\Response {
+    ): ?Response {
         try {
             $user = $this->request->getAttribute('identity');
             $recommendation = $this->Recommendations->newEmptyEntity();
@@ -1728,10 +1728,12 @@ class RecommendationsController extends AppController
             $gatherings = [];
 
             $this->set(compact('recommendation', 'branches', 'awards', 'gatherings', 'awardsDomains', 'awardsLevels'));
+
             return null;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Error in add recommendation: ' . $e->getMessage());
             $this->Flash->error(__('An unexpected error occurred. Please try again.'));
+
             return $this->redirect(['action' => 'index']);
         }
     }
@@ -1750,7 +1752,7 @@ class RecommendationsController extends AppController
     public function submitRecommendation(
         RecommendationSubmissionService $submissionService,
         TriggerDispatcher $triggerDispatcher,
-    ): ?\Cake\Http\Response {
+    ): ?Response {
         $this->Authorization->skipAuthorization();
         $user = $this->request->getAttribute('identity');
 
@@ -1786,7 +1788,7 @@ class RecommendationsController extends AppController
                         return $this->response;
                     }
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 Log::error('Error submitting recommendation: ' . $e->getMessage());
                 $this->Flash->error(__('An error occurred while submitting the recommendation. Please try again.'));
             }
@@ -1818,8 +1820,9 @@ class RecommendationsController extends AppController
             'gatherings',
             'awardsDomains',
             'awardsLevels',
-            'headerImage'
+            'headerImage',
         ));
+
         return null;
     }
 
@@ -1838,16 +1841,16 @@ class RecommendationsController extends AppController
         TriggerDispatcher $triggerDispatcher,
         RecommendationQueryService $queryService,
         ?string $id = null,
-    ): ?\Cake\Http\Response {
+    ): ?Response {
         $id = $id ?? $this->request->getData('id');
         if (!$id || is_array($id)) {
-            throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
+            throw new NotFoundException(__('Recommendation not found'));
         }
 
         try {
             $recommendation = $this->Recommendations->get($id, contain: ['Gatherings']);
             if (!$recommendation) {
-                throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
+                throw new NotFoundException(__('Recommendation not found'));
             }
 
             $this->Authorization->authorize($recommendation, 'edit');
@@ -1887,10 +1890,6 @@ class RecommendationsController extends AppController
                         $this->Flash->success(__('The recommendation has been saved.'));
                     }
                 } else {
-                    if ($result['recommendation'] instanceof Recommendation) {
-                        $recommendation = $result['recommendation'];
-                    }
-
                     $this->Flash->error($result['error'] ?? __('The recommendation could not be saved. Please, try again.'));
 
                     if ($result['errorCode'] === 'member_public_id_not_found') {
@@ -1914,11 +1913,12 @@ class RecommendationsController extends AppController
             }
 
             return $this->redirect(['action' => 'view', $id]);
-        } catch (\Cake\Datasource\Exception\RecordNotFoundException $e) {
-            throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
-        } catch (\Exception $e) {
+        } catch (RecordNotFoundException $e) {
+            throw new NotFoundException(__('Recommendation not found'));
+        } catch (Exception $e) {
             Log::error('Error in edit recommendation: ' . $e->getMessage());
             $this->Flash->error(__('An error occurred while editing the recommendation.'));
+
             return $this->redirect(['action' => 'index']);
         }
     }
@@ -1932,14 +1932,14 @@ class RecommendationsController extends AppController
      * @return \Cake\Http\Response|null Redirects to index page after deletion
      * @throws \Cake\Http\Exception\NotFoundException When recommendation not found
      */
-    public function delete(TriggerDispatcher $triggerDispatcher, ?string $id = null): ?\Cake\Http\Response
+    public function delete(TriggerDispatcher $triggerDispatcher, ?string $id = null): ?Response
     {
         try {
             $this->request->allowMethod(['post', 'delete']);
 
             $recommendation = $this->Recommendations->get($id);
             if (!$recommendation) {
-                throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
+                throw new NotFoundException(__('Recommendation not found'));
             }
 
             $this->Authorization->authorize($recommendation);
@@ -1961,12 +1961,13 @@ class RecommendationsController extends AppController
             }
 
             return $this->redirect(['action' => 'index']);
-        } catch (\Cake\Datasource\Exception\RecordNotFoundException $e) {
-            throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
+        } catch (RecordNotFoundException $e) {
+            throw new NotFoundException(__('Recommendation not found'));
         }
     }
 
     #region JSON calls
+
     /**
      * Render a populated edit form for a recommendation intended for Turbo Frame partial updates.
      *
@@ -1977,7 +1978,7 @@ class RecommendationsController extends AppController
      * @throws \Cake\Http\Exception\NotFoundException If the recommendation cannot be found
      * @see edit() For form submission handling
      */
-    public function turboEditForm(RecommendationFormService $formService, ?string $id = null): ?\Cake\Http\Response
+    public function turboEditForm(RecommendationFormService $formService, ?string $id = null): ?Response
     {
         try {
             $recommendation = $this->Recommendations->get($id, contain: [
@@ -1990,7 +1991,7 @@ class RecommendationsController extends AppController
             ]);
 
             if (!$recommendation) {
-                throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
+                throw new NotFoundException(__('Recommendation not found'));
             }
 
             $this->Authorization->authorize($recommendation, 'view');
@@ -1999,9 +2000,10 @@ class RecommendationsController extends AppController
                 $recommendation,
             );
             $this->set($viewVars);
+
             return null;
-        } catch (\Cake\Datasource\Exception\RecordNotFoundException $e) {
-            throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
+        } catch (RecordNotFoundException $e) {
+            throw new NotFoundException(__('Recommendation not found'));
         }
     }
 
@@ -2022,11 +2024,11 @@ class RecommendationsController extends AppController
         ?int $memberId = null,
         bool $futureOnly = true,
         ?int $includeGatheringId = null,
-        array $includeGatheringIds = []
+        array $includeGatheringIds = [],
     ): array {
         $includeGatheringIds = array_values(array_unique(array_filter(array_map('intval', array_merge(
             $includeGatheringIds,
-            $includeGatheringId ? [$includeGatheringId] : []
+            $includeGatheringId ? [$includeGatheringId] : [],
         )))));
 
         // Get all gathering activities linked to this award
@@ -2047,7 +2049,7 @@ class RecommendationsController extends AppController
                 ->contain([
                     'Branches' => function ($q) {
                         return $q->select(['id', 'name']);
-                    }
+                    },
                 ])
                 ->select(['id', 'name', 'start_date', 'end_date', 'Gatherings.branch_id', 'Gatherings.cancelled_at'])
                 ->orderBy(['start_date' => 'DESC']);
@@ -2073,7 +2075,7 @@ class RecommendationsController extends AppController
             $attendances = $attendanceTable->find()
                 ->where([
                     'member_id' => $memberId,
-                    'deleted IS' => null
+                    'deleted IS' => null,
                 ])
                 ->select(['gathering_id', 'share_with_crown'])
                 ->toArray();
@@ -2178,7 +2180,7 @@ class RecommendationsController extends AppController
 
             // Get the award to verify it exists
             $awardsTable = $this->fetchTable('Awards.Awards');
-            $award = $awardsTable->get($awardId);
+            $awardsTable->get($awardId);
 
             // Get all gathering activities linked to this award
             $awardGatheringActivitiesTable = $this->fetchTable('Awards.AwardGatheringActivities');
@@ -2197,7 +2199,7 @@ class RecommendationsController extends AppController
                 ->contain([
                     'Branches' => function ($q) {
                         return $q->select(['id', 'name']);
-                    }
+                    },
                 ])
                 ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date', 'Gatherings.end_date', 'Gatherings.branch_id', 'Gatherings.cancelled_at']);
 
@@ -2218,9 +2220,10 @@ class RecommendationsController extends AppController
                 // If no activities are linked to the award, return empty array
                 $this->set([
                     'gatherings' => [],
-                    '_serialize' => ['gatherings']
+                    '_serialize' => ['gatherings'],
                 ]);
                 $this->viewBuilder()->setOption('serialize', ['gatherings']);
+
                 return;
             }
 
@@ -2238,7 +2241,7 @@ class RecommendationsController extends AppController
                     $attendances = $attendanceTable->find()
                         ->where([
                             'member_id' => $member->id,
-                            'deleted IS' => null
+                            'deleted IS' => null,
                         ])
                         ->select(['gathering_id', 'share_with_crown'])
                         ->toArray();
@@ -2275,21 +2278,21 @@ class RecommendationsController extends AppController
                     'display' => $displayName,
                     'has_attendance' => $hasAttendance,
                     'share_with_crown' => $shareWithCrown,
-                    'cancelled' => $isCancelled
+                    'cancelled' => $isCancelled,
                 ];
             }
 
             $this->set([
                 'gatherings' => $gatherings,
-                '_serialize' => ['gatherings']
+                '_serialize' => ['gatherings'],
             ]);
             $this->viewBuilder()->setClassName('Json');
             $this->viewBuilder()->setOption('serialize', ['gatherings']);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Error in gatheringsForAward: ' . $e->getMessage());
             $this->set([
                 'error' => 'An error occurred while fetching gatherings',
-                '_serialize' => ['error']
+                '_serialize' => ['error'],
             ]);
             $this->viewBuilder()->setClassName('Json');
             $this->viewBuilder()->setOption('serialize', ['error']);
@@ -2360,7 +2363,7 @@ class RecommendationsController extends AppController
                     $memberId,
                     $futureOnly,
                     $selectedId,
-                    $includeGatheringIds
+                    $includeGatheringIds,
                 );
                 $gatherings = $gatheringData['gatherings'] ?? [];
                 $cancelledGatheringIds = $gatheringData['cancelledGatheringIds'] ?? [];
@@ -2368,7 +2371,7 @@ class RecommendationsController extends AppController
 
             $stickyGatheringIds = array_values(array_unique(array_filter(array_map('intval', array_merge(
                 $includeGatheringIds,
-                $selectedId ? [$selectedId] : []
+                $selectedId ? [$selectedId] : [],
             )))));
             $stickyLookup = array_fill_keys($stickyGatheringIds, true);
 
@@ -2381,7 +2384,7 @@ class RecommendationsController extends AppController
                     return isset($stickyLookup[(int)$id]) || mb_stripos((string)$display, $q) !== false;
                 }, ARRAY_FILTER_USE_BOTH);
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Error in gatheringsAutoComplete: ' . $e->getMessage());
             $gatherings = [];
             $cancelledGatheringIds = [];
@@ -2403,7 +2406,7 @@ class RecommendationsController extends AppController
     public function groupRecommendations(
         RecommendationGroupingService $groupingService,
         TriggerDispatcher $triggerDispatcher,
-    ): ?\Cake\Http\Response {
+    ): ?Response {
         $this->request->allowMethod(['post']);
         $emptyRecommendation = $this->Recommendations->newEmptyEntity();
         $this->Authorization->authorize($emptyRecommendation, 'group');
@@ -2419,6 +2422,22 @@ class RecommendationsController extends AppController
 
         $ids = array_map('intval', $ids);
         $identity = $this->request->getAttribute('identity');
+        $uniqueIds = array_values(array_unique($ids));
+        $scopedRecommendations = $this->Authorization->applyScope(
+            $this->Recommendations->find()
+                ->where(['Recommendations.id IN' => $uniqueIds])
+                ->contain(['Awards' => fn($q) => $q->select(['id', 'branch_id'])]),
+            'index',
+        )->all();
+        if (
+            $scopedRecommendations->count() !== count($uniqueIds)
+            || !$scopedRecommendations->every(fn($recommendation) => $identity->checkCan('group', $recommendation))
+        ) {
+            $this->Flash->error(__('You are not authorized to group one or more of the selected recommendations.'));
+
+            return $this->recommendationsGridRefreshResponse($pageContext)
+                ?? $this->redirect($pageContext ?: ['action' => 'index']);
+        }
         $result = $this->dispatchRecommendationMutation(
             $triggerDispatcher,
             'awards-recommendations-group',
@@ -2449,12 +2468,22 @@ class RecommendationsController extends AppController
     public function ungroupRecommendations(
         RecommendationGroupingService $groupingService,
         TriggerDispatcher $triggerDispatcher,
-    ): ?\Cake\Http\Response {
+    ): ?Response {
         $this->request->allowMethod(['post']);
-        $emptyRecommendation = $this->Recommendations->newEmptyEntity();
-        $this->Authorization->authorize($emptyRecommendation, 'group');
-
         $headId = (int)$this->request->getData('recommendation_id');
+        $recommendation = $this->Authorization->applyScope(
+            $this->Recommendations->find()
+                ->where(['Recommendations.id' => $headId])
+                ->contain(['Awards' => fn($q) => $q->select(['id', 'branch_id'])]),
+            'index',
+        )->first();
+        if ($recommendation === null) {
+            $this->Flash->error(__('You are not authorized to modify this recommendation.'));
+
+            return $this->redirect(['action' => 'view', $headId]);
+        }
+        $this->Authorization->authorize($recommendation, 'group');
+
         $identity = $this->request->getAttribute('identity');
         $result = $this->dispatchRecommendationMutation(
             $triggerDispatcher,
@@ -2485,12 +2514,22 @@ class RecommendationsController extends AppController
     public function removeFromGroup(
         RecommendationGroupingService $groupingService,
         TriggerDispatcher $triggerDispatcher,
-    ): ?\Cake\Http\Response {
+    ): ?Response {
         $this->request->allowMethod(['post']);
-        $emptyRecommendation = $this->Recommendations->newEmptyEntity();
-        $this->Authorization->authorize($emptyRecommendation, 'group');
-
         $childId = (int)$this->request->getData('recommendation_id');
+        $recommendation = $this->Authorization->applyScope(
+            $this->Recommendations->find()
+                ->where(['Recommendations.id' => $childId])
+                ->contain(['Awards' => fn($q) => $q->select(['id', 'branch_id'])]),
+            'index',
+        )->first();
+        if ($recommendation === null) {
+            $this->Flash->error(__('You are not authorized to modify this recommendation.'));
+
+            return $this->redirect(['action' => 'view', $childId]);
+        }
+        $this->Authorization->authorize($recommendation, 'group');
+
         $identity = $this->request->getAttribute('identity');
         $result = $this->dispatchRecommendationMutation(
             $triggerDispatcher,
@@ -2566,7 +2605,7 @@ class RecommendationsController extends AppController
             return $this->normalizeRecommendationMutationResult(
                 $this->dispatchWorkflowOrFail($triggerDispatcher, $slug, $triggerEvent, $context),
             );
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error("Recommendation workflow dispatch failed for {$slug}: " . $e->getMessage());
 
             return [
@@ -3341,7 +3380,7 @@ class RecommendationsController extends AppController
             $gridData = $result['data'];
             if (is_array($gridData)) {
                 $recommendations = $gridData;
-            } elseif ($gridData instanceof \Traversable) {
+            } elseif ($gridData instanceof Traversable) {
                 $recommendations = iterator_to_array($gridData, false);
             } else {
                 $recommendations = [];
@@ -3401,7 +3440,7 @@ class RecommendationsController extends AppController
         ?int $reloadQuickEditId = null,
         ?int $updatedRecommendationId = null,
         ?RecommendationQueryService $queryService = null,
-    ): ?\Cake\Http\Response {
+    ): ?Response {
         if (!$this->wantsTurboStreamRequest() || $pageContext === null) {
             return null;
         }
@@ -3455,7 +3494,7 @@ class RecommendationsController extends AppController
     /**
      * Turbo-stream table refresh for recommendation grid actions.
      */
-    private function recommendationsGridRefreshResponse(?string $pageContext): ?\Cake\Http\Response
+    private function recommendationsGridRefreshResponse(?string $pageContext): ?Response
     {
         if (!$this->wantsTurboStreamRequest() || $pageContext === null) {
             return null;

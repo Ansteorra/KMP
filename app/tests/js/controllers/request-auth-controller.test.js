@@ -84,6 +84,32 @@ describe('ActivitiesRequestAuthorization', () => {
         expect(controller.approversTarget.disabled).toBe(false);
     });
 
+    test('getApprovers preserves enabled submit for an already selected valid approver', async () => {
+        let resolveApprovers;
+        global.fetch = jest.fn(() => Promise.resolve({
+            ok: true,
+            json: () => new Promise((resolve) => {
+                resolveApprovers = resolve;
+            })
+        }));
+
+        controller.activityTarget.value = '5';
+        controller.memberIdTarget.value = '100';
+        controller.getApprovers({});
+        await new Promise(r => setTimeout(r, 0));
+        controller.approversTarget.value = '2';
+        controller.submitBtnTarget.disabled = false;
+        resolveApprovers([
+            { id: 1, sca_name: 'Sir Alpha' },
+            { id: 2, sca_name: 'Lady Beta' },
+        ]);
+        await new Promise(r => setTimeout(r, 0));
+
+        expect(controller.approversTarget.options.length).toBe(2);
+        expect(controller.approversTarget.value).toBe('2');
+        expect(controller.submitBtnTarget.disabled).toBe(false);
+    });
+
     test('getApprovers auto-selects when single approver', async () => {
         global.fetch = jest.fn(() => Promise.resolve({
             ok: true,

@@ -641,7 +641,7 @@ class WaiverUploadWizardController extends Controller {
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div>
                                         <strong>Page ${page.number}</strong><br>
-                                        ${pageInfo}<small class="text-muted">${page.name}</small><br>
+                                        ${pageInfo}<small class="text-muted">${this.escapeHtml(page.name)}</small><br>
                                         <small class="text-muted">${this.formatFileSize(page.size)}</small>
                                     </div>
                                     <button type="button" 
@@ -1046,6 +1046,7 @@ class WaiverUploadWizardController extends Controller {
 
     // Error Handling
     showError(message) {
+        const escapedMessage = this.escapeHtml(message)
         // Check if we're showing the processing screen (wizard container innerHTML was replaced)
         const container = this.element.querySelector('.wizard-container') || this.element
         const isProcessing = container.querySelector('h2') &&
@@ -1079,7 +1080,7 @@ class WaiverUploadWizardController extends Controller {
             <div class="toast align-items-center text-white bg-danger border-0" role="alert">
                 <div class="d-flex">
                     <div class="toast-body">
-                        <i class="bi bi-exclamation-triangle me-2"></i>${message}
+                        <i class="bi bi-exclamation-triangle me-2"></i>${escapedMessage}
                     </div>
                     <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
                 </div>

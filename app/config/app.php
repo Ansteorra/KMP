@@ -94,14 +94,14 @@ $localHttpEnvironment = in_array(
 );
 $restoreStatusPath = env('RESTORE_STATUS_CACHE_PATH', TMP . 'restore_status' . DS);
 if (!is_dir($restoreStatusPath)) {
-    @mkdir($restoreStatusPath, 0777, true);
+    @mkdir($restoreStatusPath, 0770, true);
 }
-@chmod($restoreStatusPath, 0777);
+@chmod($restoreStatusPath, 0770);
 $tenantHostMapCachePath = env('TENANT_HOST_MAP_CACHE_PATH', CACHE . 'tenant_host_map' . DS);
 if (!is_dir($tenantHostMapCachePath)) {
-    @mkdir($tenantHostMapCachePath, 0777, true);
+    @mkdir($tenantHostMapCachePath, 0770, true);
 }
-@chmod($tenantHostMapCachePath, 0777);
+@chmod($tenantHostMapCachePath, 0770);
 $tenantHostMapCacheConfig = $cacheEngine === RedisEngine::class
     ? $redisConfig + [
         "className" => RedisEngine::class,
@@ -319,7 +319,7 @@ return [
             "prefix" => "kmp_restore_",
             "path" => $restoreStatusPath,
             "mask" => 0666,
-            "dirMask" => 0777,
+            "dirMask" => 0770,
         ],
 
         /**

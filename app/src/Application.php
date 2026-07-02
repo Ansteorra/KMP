@@ -515,7 +515,7 @@ class Application extends BaseApplication implements
                 // Build CSP policy
                 $csp = "default-src 'self'; "
                     // Allow CDN scripts, Leaflet (unpkg), and Google Maps
-                    . "script-src 'self' 'unsafe-inline' 'unsafe-eval' "
+                    . "script-src 'self' 'unsafe-inline' "
                     . 'https://cdn.jsdelivr.net https://unpkg.com '
                     . 'https://maps.googleapis.com; '
                     // Allow Google Fonts and Leaflet CSS

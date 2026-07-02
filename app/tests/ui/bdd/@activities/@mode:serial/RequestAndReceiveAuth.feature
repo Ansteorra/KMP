@@ -6,6 +6,7 @@ Feature: User Requests an Authorization and it is Approved
 
     Scenario: Request authorization for an activity
         Given I delete all test emails
+        And the Activities plugin is enabled for UI tests
         And I am logged in as "iris@ampdemo.com"
         And I navigate to my profile page
         And I click on the "Request Authorization" button

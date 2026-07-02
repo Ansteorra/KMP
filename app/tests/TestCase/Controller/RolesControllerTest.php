@@ -5,6 +5,7 @@ namespace App\Test\TestCase\Controller;
 
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use DOMDocument;
+use DOMXPath;
 
 /**
  * Tests for RolesController, focusing on grid sorting.
@@ -59,6 +60,28 @@ class RolesControllerTest extends HttpIntegrationTestCase
     {
         $this->get('/roles/grid-data?ignore_default=1&sort=bogus_field&direction=asc');
         $this->assertResponseOk();
+    }
+
+    public function testViewLinksAssignedPermissionsWhenViewerCanViewPermissions(): void
+    {
+        $this->get('/roles/view/' . self::ADMIN_ROLE_ID);
+        $this->assertResponseOk();
+
+        $body = (string)$this->_response->getBody();
+        $dom = new DOMDocument();
+        $previousLibxmlSetting = libxml_use_internal_errors(true);
+        $dom->loadHTML($body);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousLibxmlSetting);
+
+        $xpath = new DOMXPath($dom);
+        $permissionLinks = $xpath->query(sprintf(
+            '//a[@href="/permissions/view/%d" and normalize-space(.)="Is Super User"]',
+            self::SUPER_USER_PERMISSION_ID,
+        ));
+
+        $this->assertNotFalse($permissionLinks);
+        $this->assertGreaterThan(0, $permissionLinks->length);
     }
 
     public function testGridDataPaginationLinksPreserveSort(): void

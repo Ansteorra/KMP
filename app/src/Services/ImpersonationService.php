@@ -66,17 +66,20 @@ class ImpersonationService
             return null;
         }
 
+        $impersonatorId = (int)($state['impersonator_id'] ?? 0);
+        $impersonatedId = (int)($state['impersonated_member_id'] ?? 0);
+
         try {
             $impersonator = TableRegistry::getTableLocator()->get('Members')
-                ->get((int)($state['impersonator_id'] ?? 0));
+                ->get($impersonatorId);
             $impersonated = TableRegistry::getTableLocator()->get('Members')
-                ->get((int)($state['impersonated_member_id'] ?? 0));
+                ->get($impersonatedId);
             $this->logSessionEvent('stop', $impersonator, $impersonated);
         } catch (Throwable $exception) {
             Log::warning('Failed to record impersonation session stop: ' . $exception->getMessage());
         }
 
-        $this->clearIdentityCaches($session, $impersonator->id, $impersonated->id);
+        $this->clearIdentityCaches($session, $impersonatorId, $impersonatedId);
 
         return $state;
     }

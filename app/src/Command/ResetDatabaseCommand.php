@@ -3,11 +3,11 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\KMP\StaticHelpers;
 use Cake\Command\Command;
 use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
+use Cake\Core\Configure;
 use Cake\Datasource\ConnectionManager;
 use Exception;
 use PDO;
@@ -41,8 +41,8 @@ class ResetDatabaseCommand extends Command
     public function execute(Arguments $args, ConsoleIo $io): ?int
     {
         //Database reset is only valid in Dev.. SUPER dangerous in production!!!
-        $isDebug = StaticHelpers::getAppSetting('debug', 'false');
-        if (!$isDebug && $isDebug !== 'false') {
+        $isDebug = (bool)Configure::read('debug');
+        if (!$isDebug) {
             $io->error('Cannot reset database when not in debug.');
 
             return Command::CODE_ERROR;

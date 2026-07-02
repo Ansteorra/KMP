@@ -14,7 +14,7 @@
 <turbo-frame id="warrants-grid-table" data-grid-view-target="tableFrame">
     <!-- Complete Grid State - Single Source of Truth -->
     <script type="application/json" data-grid-state>
-        <?= json_encode($gridState, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?>
+        <?= json_encode($gridState, JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
     </script>
 
     <?= $this->element('dataverse_table', [

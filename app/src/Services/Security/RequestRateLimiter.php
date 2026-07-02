@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Services\Security;
 
 use App\Services\Cache\TenantAwareCache;
+use InvalidArgumentException;
 
 /**
  * Fixed-window request rate limiter backed by tenant-aware cache.
@@ -14,6 +15,8 @@ class RequestRateLimiter
 
     public const BUCKET_SEARCH_MEMBERS = 'members.search_members';
 
+    public const BUCKET_GITHUB_ISSUE = 'github.issue_submit';
+
     /** @var array<string, array{max: int, window: int}> */
     private const LIMITS = [
         self::BUCKET_EMAIL_TAKEN => [
@@ -23,6 +26,10 @@ class RequestRateLimiter
         self::BUCKET_SEARCH_MEMBERS => [
             'max' => 15,
             'window' => 900,
+        ],
+        self::BUCKET_GITHUB_ISSUE => [
+            'max' => 5,
+            'window' => 3600,
         ],
     ];
 
@@ -48,7 +55,7 @@ class RequestRateLimiter
      */
     public function attempt(string $bucket, string $clientKey): RateLimitResult
     {
-        $limits = self::LIMITS[$bucket] ?? throw new \InvalidArgumentException("Unknown rate limit bucket: {$bucket}");
+        $limits = self::LIMITS[$bucket] ?? throw new InvalidArgumentException("Unknown rate limit bucket: {$bucket}");
         $maxAttempts = $limits['max'];
         $windowSeconds = $limits['window'];
         $now = time();

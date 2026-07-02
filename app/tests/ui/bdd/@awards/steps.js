@@ -2164,10 +2164,42 @@ Then('the bestowal to-dos should include {string}', async ({ page }, title) => {
     await expect(todoPanel.locator('.list-group-item').filter({ hasText: title })).toBeVisible({ timeout: 15000 });
 });
 
+Then('the bestowal to-do {string} should require a gathering', async ({ page }, title) => {
+    const item = page.locator('#nav-bestowalTodos .list-group-item').filter({ hasText: title });
+    await expect(item).toBeVisible({ timeout: 15000 });
+    await expect(item).toContainText('Gathering required');
+    await expect(item.getByLabel('Bestowal Gathering')).toBeVisible({ timeout: 15000 });
+    await expect(item.getByRole('button', { name: 'Assign Gathering and Complete' })).toBeVisible();
+});
+
+Then('the bestowal to-do {string} should show a gathering assigned', async ({ page }, title) => {
+    const item = page.locator('#nav-bestowalTodos .list-group-item').filter({ hasText: title });
+    await expect(item).toBeVisible({ timeout: 15000 });
+    await expect(item).toContainText('Gathering assigned');
+});
+
 Then('the bestowal mark-given action should be disabled', async ({ page }) => {
     const todoPanel = page.locator('#nav-bestowalTodos');
     await expect(todoPanel.getByRole('button', { name: 'Mark Given' })).toBeDisabled();
     await expect(todoPanel).toContainText('Complete all required checks before the bestowal can be marked given.');
+});
+
+When('I assign the first available gathering and complete the bestowal to-do {string}', async ({ page }, title) => {
+    const item = page.locator('#nav-bestowalTodos .list-group-item').filter({ hasText: title });
+    await expect(item).toBeVisible({ timeout: 15000 });
+
+    const input = item.getByLabel('Bestowal Gathering');
+    const combo = input.locator('xpath=ancestor::div[@data-controller="ac"][1]');
+    await expect(input).toBeVisible({ timeout: 15000 });
+    await expect(input).toBeEnabled({ timeout: 10000 });
+    await input.fill('Scale Future Gathering');
+    const option = combo.locator('[data-ac-target="results"] [role="option"]:not([aria-disabled="true"])').first();
+    await expect(option).toBeVisible({ timeout: 15000 });
+    await option.click();
+    await expect(item.locator('input[name="bestowal_gathering_id"]')).not.toHaveValue('', { timeout: 5000 });
+
+    await item.getByRole('button', { name: 'Assign Gathering and Complete' }).click();
+    await page.waitForLoadState('networkidle');
 });
 
 When('I complete the bestowal to-do {string}', async ({ page }, title) => {

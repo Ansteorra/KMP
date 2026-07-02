@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Waivers\Policy;
@@ -31,8 +30,12 @@ class GatheringActivityWaiversTablePolicy extends BasePolicy
      * @param mixed ...$optionalArgs Optional arguments.
      * @return bool
      */
-    public function canAvailableWaiverTypes(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
-    {
-        return $this->_hasPolicy($user, __FUNCTION__, $entity, ...$optionalArgs);
+    public function canAvailableWaiverTypes(
+        KmpIdentityInterface $user,
+        BaseEntity|Table $entity,
+        ...$optionalArgs,
+    ): bool {
+        return $this->_getBranchIdsForPolicy($user, __FUNCTION__) === null
+            && $this->_hasPolicy($user, __FUNCTION__, $entity, ...$optionalArgs);
     }
 }

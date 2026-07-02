@@ -141,6 +141,9 @@ class Branch extends BaseEntity
     protected array $_accessible = [
         '*' => true,
         'id' => false,
+        'parent_id' => false,
+        'lft' => false,
+        'rght' => false,
     ];
 
     /**

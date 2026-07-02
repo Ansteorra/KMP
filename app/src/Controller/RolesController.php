@@ -199,6 +199,7 @@ class RolesController extends AppController
 
         // Determine if role has never been assigned (for deletion safety)
         $isEmpty = ($currentMembersCount + $upcomingMembersCount + $previousMembersCount) == 0;
+        $canViewPermissions = $this->Authentication->getIdentity()->checkCan('view', 'Permissions');
 
         // Build list of permissions not currently assigned to this role
         // This provides the interface for adding new permission assignments
@@ -231,6 +232,7 @@ class RolesController extends AppController
             'branches',
             'branch_required',
             'branchTree',
+            'canViewPermissions',
         ));
     }
 
@@ -252,7 +254,9 @@ class RolesController extends AppController
 
         if ($this->request->is('post')) {
             // Patch entity with submitted data
-            $role = $this->Roles->patchEntity($role, $this->request->getData());
+            $data = $this->request->getData();
+            unset($data['permissions'], $data['Members']);
+            $role = $this->Roles->patchEntity($role, $data);
 
             // Security control: new roles are never system roles
             $role->is_system = false;
@@ -308,7 +312,9 @@ class RolesController extends AppController
 
         if ($this->request->is(['patch', 'post', 'put'])) {
             // Apply submitted changes to role entity
-            $role = $this->Roles->patchEntity($role, $this->request->getData());
+            $data = $this->request->getData();
+            unset($data['permissions'], $data['Members']);
+            $role = $this->Roles->patchEntity($role, $data);
 
             if ($this->Roles->save($role)) {
                 $this->Flash->success(__('The role has been saved.'));

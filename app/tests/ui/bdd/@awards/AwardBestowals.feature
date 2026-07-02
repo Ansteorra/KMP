@@ -30,8 +30,14 @@ Feature: Award Bestowals
         Then the "wf-crown" recommendation should be linked to a bestowal
         When I open the bestowal detail linked to recommendation "wf-crown"
         And I open the bestowal to-dos tab
+        Then the bestowal to-dos should include "Event Scheduled"
+        And the bestowal to-do "Event Scheduled" should require a gathering
         Then the bestowal to-dos should include "Given"
         And the bestowal mark-given action should be disabled
+        When I assign the first available gathering and complete the bestowal to-do "Event Scheduled"
+        Then I should see the flash message "Marked complete."
+        When I open the bestowal to-dos tab
+        Then the bestowal to-do "Event Scheduled" should show a gathering assigned
         When I complete the bestowal to-do "Given"
         Then I should see the flash message "Marked complete."
         And the bestowal detail page should show "Given" in the state row

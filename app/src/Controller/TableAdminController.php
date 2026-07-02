@@ -7,6 +7,8 @@ use App\KMP\KmpIdentityInterface;
 use Cake\Database\Connection;
 use Cake\Datasource\ConnectionManager;
 use Cake\Http\Exception\ForbiddenException;
+use Cake\I18n\DateTime;
+use Cake\Log\Log;
 use Exception;
 
 /**
@@ -69,6 +71,17 @@ class TableAdminController extends AppController
                         if ($mutationType !== null) {
                             $connection->begin();
                         }
+
+                        $auditIdentity = $this->request->getAttribute('identity');
+                        $auditMemberId = $auditIdentity instanceof KmpIdentityInterface
+                            ? $auditIdentity->getIdentifier()
+                            : null;
+                        Log::write('warning', sprintf(
+                            'TableAdmin raw SQL executed by member_id=%s at %s: %s',
+                            is_scalar($auditMemberId) ? (string)$auditMemberId : json_encode($auditMemberId),
+                            DateTime::now('UTC')->format('c'),
+                            mb_substr($sqlInput, 0, 500),
+                        ), ['scope' => ['audit']]);
 
                         $statement = $connection->execute($sqlInput);
 

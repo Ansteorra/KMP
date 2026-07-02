@@ -119,7 +119,7 @@ class MemberRolesTable extends BaseTable
      */
     public function validationDefault(Validator $validator): Validator
     {
-        $validator->integer('Member_id')->notEmptyString('Member_id');
+        $validator->integer('member_id')->notEmptyString('member_id');
 
         $validator->integer('role_id')->notEmptyString('role_id');
 
@@ -141,8 +141,8 @@ class MemberRolesTable extends BaseTable
      */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
-        $rules->add($rules->existsIn(['Member_id'], 'Members'), [
-            'errorField' => 'Member_id',
+        $rules->add($rules->existsIn(['member_id'], 'Members'), [
+            'errorField' => 'member_id',
         ]);
         $rules->add($rules->existsIn(['role_id'], 'Roles'), [
             'errorField' => 'role_id',
