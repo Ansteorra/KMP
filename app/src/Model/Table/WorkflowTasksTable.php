@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -18,7 +17,6 @@ use Cake\Validation\Validator;
  * @property \App\Model\Table\WorkflowInstancesTable&\Cake\ORM\Association\BelongsTo $WorkflowInstances
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $AssignedMembers
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $CompletingMembers
- *
  * @method \App\Model\Entity\WorkflowTask newEmptyEntity()
  * @method \App\Model\Entity\WorkflowTask newEntity(array $data, array $options = [])
  * @method \App\Model\Entity\WorkflowTask patchEntity(\Cake\Datasource\EntityInterface $entity, array $data, array $options = [])
@@ -54,8 +52,7 @@ class WorkflowTasksTable extends BaseTable
         $this->addBehavior('Timestamp');
 
         // MariaDB stores JSON as longtext; explicitly map JSON columns
-        $this->getSchema()->setColumnType('form_definition', 'json');
-        $this->getSchema()->setColumnType('form_data', 'json');
+        $this->setJsonColumnTypesIfPresent(['form_definition', 'form_data']);
     }
 
     /**

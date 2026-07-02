@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -12,7 +11,6 @@ use Cake\Validation\Validator;
  * WorkflowExecutionLogs Model
  *
  * @property \App\Model\Table\WorkflowInstancesTable&\Cake\ORM\Association\BelongsTo $WorkflowInstances
- *
  * @method \App\Model\Entity\WorkflowExecutionLog newEmptyEntity()
  * @method \App\Model\Entity\WorkflowExecutionLog newEntity(array $data, array $options = [])
  * @method \App\Model\Entity\WorkflowExecutionLog patchEntity(\Cake\Datasource\EntityInterface $entity, array $data, array $options = [])
@@ -38,8 +36,7 @@ class WorkflowExecutionLogsTable extends BaseTable
         $this->addBehavior('Timestamp');
 
         // MariaDB stores JSON as longtext; explicitly map JSON columns
-        $this->getSchema()->setColumnType('input_data', 'json');
-        $this->getSchema()->setColumnType('output_data', 'json');
+        $this->setJsonColumnTypesIfPresent(['input_data', 'output_data']);
     }
 
     /**

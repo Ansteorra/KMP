@@ -63,10 +63,7 @@ class ActionItemsTable extends BaseTable
         $this->addBehavior('Muffin/Trash.Trash');
 
         // MariaDB stores JSON as longtext; explicitly map JSON columns.
-        $this->getSchema()->setColumnType('assignee_config', 'json');
-        if ($this->getSchema()->hasColumn('completion_config')) {
-            $this->getSchema()->setColumnType('completion_config', 'json');
-        }
+        $this->setJsonColumnTypesIfPresent(['assignee_config', 'completion_config']);
     }
 
     /**

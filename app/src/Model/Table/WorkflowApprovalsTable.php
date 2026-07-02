@@ -84,8 +84,7 @@ class WorkflowApprovalsTable extends BaseTable
         $this->addBehavior('Timestamp');
 
         // MariaDB stores JSON as longtext; explicitly map JSON columns
-        $this->getSchema()->setColumnType('approver_config', 'json');
-        $this->getSchema()->setColumnType('escalation_config', 'json');
+        $this->setJsonColumnTypesIfPresent(['approver_config', 'escalation_config']);
     }
 
     /**

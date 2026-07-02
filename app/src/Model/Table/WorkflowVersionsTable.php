@@ -1,11 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
 
 use App\Model\Entity\WorkflowVersion;
-use Cake\Database\Schema\TableSchemaInterface;
 use Cake\ORM\RulesChecker;
 use Cake\Validation\Validator;
 
@@ -13,7 +11,6 @@ use Cake\Validation\Validator;
  * WorkflowVersions Model
  *
  * @property \App\Model\Table\WorkflowDefinitionsTable&\Cake\ORM\Association\BelongsTo $WorkflowDefinitions
- *
  * @method \App\Model\Entity\WorkflowVersion newEmptyEntity()
  * @method \App\Model\Entity\WorkflowVersion newEntity(array $data, array $options = [])
  * @method \App\Model\Entity\WorkflowVersion patchEntity(\Cake\Datasource\EntityInterface $entity, array $data, array $options = [])
@@ -39,8 +36,7 @@ class WorkflowVersionsTable extends BaseTable
         $this->addBehavior('Timestamp');
         $this->addBehavior('Muffin/Footprint.Footprint');
 
-        $this->getSchema()->setColumnType('definition', 'json');
-        $this->getSchema()->setColumnType('canvas_layout', 'json');
+        $this->setJsonColumnTypesIfPresent(['definition', 'canvas_layout']);
     }
 
     /**
@@ -97,7 +93,7 @@ class WorkflowVersionsTable extends BaseTable
         ]);
         $rules->add($rules->isUnique(
             ['workflow_definition_id', 'version_number'],
-            'This version number already exists for this workflow definition.'
+            'This version number already exists for this workflow definition.',
         ));
 
         return $rules;

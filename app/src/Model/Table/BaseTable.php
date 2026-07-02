@@ -17,6 +17,7 @@ namespace App\Model\Table;
 use App\Services\Cache\TenantAwareCache;
 use App\Services\ImpersonationService;
 use Cake\Cache\Cache;
+use Cake\Database\Exception\DatabaseException;
 use Cake\Datasource\EntityInterface;
 use Cake\I18n\FrozenTime;
 use Cake\Log\Log;
@@ -36,6 +37,37 @@ class BaseTable extends Table
 
     /** @var array<string> Cache groups to clear entirely on save */
     protected const CACHE_GROUPS_TO_CLEAR = [];
+
+    /**
+     * Mark JSON columns when the table schema is available.
+     *
+     * Some reset/migration flows instantiate table classes before every table
+     * exists. JSON type mapping is optional metadata, so skip it until the schema
+     * can be described instead of failing application bootstrap.
+     *
+     * @param array<int, string> $columns JSON column names.
+     * @return void
+     */
+    protected function setJsonColumnTypesIfPresent(array $columns): void
+    {
+        try {
+            $schema = $this->getSchema();
+        } catch (DatabaseException $exception) {
+            Log::debug(sprintf(
+                'Skipping JSON column type mapping for %s: %s',
+                $this->getTable(),
+                $exception->getMessage(),
+            ));
+
+            return;
+        }
+
+        foreach ($columns as $column) {
+            if ($schema->hasColumn($column)) {
+                $schema->setColumnType($column, 'json');
+            }
+        }
+    }
 
     /**
      * After-save handler for automatic cache invalidation.

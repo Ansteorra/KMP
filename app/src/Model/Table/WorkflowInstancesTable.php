@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -15,7 +14,6 @@ use Cake\Validation\Validator;
  * @property \App\Model\Table\WorkflowVersionsTable&\Cake\ORM\Association\BelongsTo $WorkflowVersions
  * @property \App\Model\Table\WorkflowExecutionLogsTable&\Cake\ORM\Association\HasMany $WorkflowExecutionLogs
  * @property \App\Model\Table\WorkflowApprovalsTable&\Cake\ORM\Association\HasMany $WorkflowApprovals
- *
  * @method \App\Model\Entity\WorkflowInstance newEmptyEntity()
  * @method \App\Model\Entity\WorkflowInstance newEntity(array $data, array $options = [])
  * @method \App\Model\Entity\WorkflowInstance patchEntity(\Cake\Datasource\EntityInterface $entity, array $data, array $options = [])
@@ -58,9 +56,7 @@ class WorkflowInstancesTable extends BaseTable
         $this->addBehavior('Timestamp');
 
         // MariaDB stores JSON as longtext; explicitly map JSON columns
-        $this->getSchema()->setColumnType('context', 'json');
-        $this->getSchema()->setColumnType('active_nodes', 'json');
-        $this->getSchema()->setColumnType('error_info', 'json');
+        $this->setJsonColumnTypesIfPresent(['context', 'active_nodes', 'error_info']);
     }
 
     /**
