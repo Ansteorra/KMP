@@ -1237,8 +1237,40 @@ class ApprovalsController extends AppController
 
         $approverConfig[self::BESTOWAL_GATHERING_REQUIRED_KEY] = true;
         $approverConfig['bestowal_gathering_options'] = $this->getBestowalGatheringOptions();
+        $recommendationId = $this->getAwardsRecommendationIdForApproval($approval);
+        if ($recommendationId !== null) {
+            $lookupUrl = Router::url([
+                'plugin' => 'Awards',
+                'controller' => 'Bestowals',
+                'action' => 'gatheringsForBestowalAutoComplete',
+                '?' => ['recommendation_id' => $recommendationId],
+            ]);
+            $approverConfig['bestowal_gathering_url'] = $lookupUrl;
+            $approverConfig['bestowalGatheringUrl'] = $lookupUrl;
+        }
 
         return $approverConfig;
+    }
+
+    /**
+     * Resolve the Awards recommendation context for approval responses, when present.
+     *
+     * @param \App\Model\Entity\WorkflowApproval|null $approval Approval entity.
+     * @return int|null
+     */
+    private function getAwardsRecommendationIdForApproval(?WorkflowApproval $approval): ?int
+    {
+        if ($approval === null || empty($approval->workflow_instance_id)) {
+            return null;
+        }
+
+        $run = TableRegistry::getTableLocator()->get('Awards.RecommendationApprovalRuns')->find()
+            ->select(['recommendation_id'])
+            ->where(['workflow_instance_id' => (int)$approval->workflow_instance_id])
+            ->first();
+        $recommendationId = (int)($run?->recommendation_id ?? 0);
+
+        return $recommendationId > 0 ? $recommendationId : null;
     }
 
     /**

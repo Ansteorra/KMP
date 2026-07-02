@@ -8,6 +8,9 @@ use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowApprovalResponse;
 use App\Model\Entity\WorkflowApprovalTriageState;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
+use Awards\Model\Entity\Recommendation;
+use Awards\Model\Entity\RecommendationApprovalRun;
+use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 
 /**
@@ -289,8 +292,43 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseOk();
         $rows = array_values(iterator_to_array($this->viewVariable('data')));
         $this->assertNotEmpty($rows);
-        $payload = json_decode((string)$rows[0]->bulk_response_payload, true);
+        $targetRows = array_values(array_filter(
+            $rows,
+            static fn($row): bool => (string)($row->request ?? '') === 'Award Recommendation: Needs Gathering',
+        ));
+        $this->assertNotEmpty($targetRows);
+        $payload = json_decode((string)$targetRows[0]->bulk_response_payload, true);
         $this->assertTrue($payload['approver_config']['requires_bestowal_gathering'] ?? false);
+    }
+
+    public function testAwardApprovalGridPayloadUsesAwardsRecommendationGatheringLookup(): void
+    {
+        $this->authenticateAsSuperUser();
+        [$instanceId, $executionLogId] = $this->createWorkflowContext('awards-recommendation-submitted');
+        $this->createApproval(
+            $instanceId,
+            $executionLogId,
+            'Award Recommendation: Ranked Gathering Lookup',
+            ['member_id' => self::ADMIN_MEMBER_ID],
+        );
+        $recommendation = $this->createExistingRecommendation();
+        $this->createRecommendationApprovalRun((int)$recommendation->id, $instanceId);
+
+        $this->get('/approvals/grid-data');
+
+        $this->assertResponseOk();
+        $rows = array_values(iterator_to_array($this->viewVariable('data')));
+        $this->assertNotEmpty($rows);
+        $targetRows = array_values(array_filter(
+            $rows,
+            static fn($row): bool => (string)($row->request ?? '') === 'Award Recommendation: Ranked Gathering Lookup',
+        ));
+        $this->assertNotEmpty($targetRows);
+        $payload = json_decode((string)$targetRows[0]->bulk_response_payload, true);
+        $this->assertSame(
+            '/awards/bestowals/gatherings-for-bestowal-auto-complete?recommendation_id=' . (int)$recommendation->id,
+            $payload['approver_config']['bestowal_gathering_url'] ?? null,
+        );
     }
 
     public function testAwardApprovalKanbanPayloadRequiresGatheringFromWorkflowSlug(): void
@@ -726,6 +764,61 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
         $approvalsTable->saveOrFail($approval);
 
         return (int)$approval->id;
+    }
+
+    private function createExistingRecommendation(): Recommendation
+    {
+        $member = TableRegistry::getTableLocator()->get('Members')->get(self::ADMIN_MEMBER_ID);
+        $award = TableRegistry::getTableLocator()->get('Awards.Awards')->find()->select(['id'])->firstOrFail();
+        $statuses = Recommendation::getStatuses();
+        $status = array_key_first($statuses);
+
+        $recommendations = TableRegistry::getTableLocator()->get('Awards.Recommendations');
+        $recommendation = $recommendations->newEntity([
+            'requester_id' => (int)$member->id,
+            'member_id' => (int)$member->id,
+            'branch_id' => (int)$member->branch_id,
+            'award_id' => (int)$award->id,
+            'status' => $status,
+            'state' => $statuses[$status][0],
+            'state_date' => DateTime::now(),
+            'requester_sca_name' => (string)$member->sca_name,
+            'member_sca_name' => (string)$member->sca_name,
+            'contact_email' => (string)$member->email_address,
+            'contact_number' => (string)($member->phone_number ?? ''),
+            'reason' => 'Unified approval gathering lookup test',
+            'call_into_court' => 'Not Set',
+            'court_availability' => 'Not Set',
+            'person_to_notify' => '',
+            'not_found' => false,
+        ]);
+
+        return $recommendations->saveOrFail($recommendation);
+    }
+
+    private function createRecommendationApprovalRun(int $recommendationId, int $workflowInstanceId): RecommendationApprovalRun
+    {
+        $approvalProcesses = TableRegistry::getTableLocator()->get('Awards.ApprovalProcesses');
+        $approvalProcess = $approvalProcesses->find()->select(['id'])->first();
+        if ($approvalProcess === null) {
+            $approvalProcess = $approvalProcesses->saveOrFail($approvalProcesses->newEntity([
+                'name' => 'Unified Approval Lookup Test',
+                'description' => 'Seeded by unified approval controller test.',
+                'is_active' => true,
+            ]));
+        }
+
+        $runs = TableRegistry::getTableLocator()->get('Awards.RecommendationApprovalRuns');
+
+        return $runs->saveOrFail($runs->newEntity([
+            'recommendation_id' => $recommendationId,
+            'approval_process_id' => (int)$approvalProcess->id,
+            'workflow_instance_id' => $workflowInstanceId,
+            'status' => RecommendationApprovalRun::STATUS_IN_PROGRESS,
+            'current_step_key' => 'approval',
+            'current_step_label' => 'Approval',
+            'started' => DateTime::now(),
+        ]));
     }
 
     private function createGathering(string $name, string $startModifier): int
