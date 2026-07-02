@@ -3062,7 +3062,7 @@ class BackupRestoreStatusController extends _hotwired_stimulus__WEBPACK_IMPORTED
       default: 30
     }
   };
-  static targets = ["panel", "badge", "message", "details", "modal", "modalBadge", "modalMessage", "modalDetails", "modalSpinner", "modalClose"];
+  static targets = ["panel", "badge", "message", "details", "modal", "modalBadge", "modalMessage", "modalDetails", "modalLog", "modalSpinner", "modalClose"];
   connect() {
     this.reloadScheduled = false;
     this.hasSeenRunningState = false;
@@ -3135,21 +3135,14 @@ class BackupRestoreStatusController extends _hotwired_stimulus__WEBPACK_IMPORTED
       if (!response.ok || payload?.success === false) {
         throw new Error(payload?.message || 'Restore request failed.');
       }
-      this.awaitingFreshRunningState = false;
-      this.hasSeenRunningState = true;
-      const completedStatus = {
-        locked: false,
-        status: 'completed',
-        phase: 'completed',
-        message: payload?.message || 'Restore/import completed.',
-        table_count: payload?.stats?.table_count,
-        tables_processed: payload?.stats?.table_count,
-        row_count: payload?.stats?.row_count,
-        rows_processed: payload?.stats?.row_count,
-        completed_at: new Date().toISOString()
+      const startedStatus = payload?.status || {
+        locked: true,
+        status: 'running',
+        phase: 'queued',
+        message: payload?.message || 'Restore started.'
       };
-      this.render(completedStatus);
-      this.scheduleReload();
+      this.render(startedStatus);
+      this.awaitingFreshRunningState = false;
       await this.pollStatus(true);
     } catch (error) {
       const failedStatus = {
@@ -3242,6 +3235,7 @@ class BackupRestoreStatusController extends _hotwired_stimulus__WEBPACK_IMPORTED
     const rowsProcessed = Number(status?.rows_processed || 0);
     const source = status?.source || '';
     const currentTable = status?.current_table || '';
+    const log = Array.isArray(status?.log) ? status.log : [];
     const message = state === 'idle' ? 'No restore currently running.' : status?.message || 'No restore currently running.';
     const details = [];
     if (state !== 'idle' && source) {
@@ -3264,7 +3258,8 @@ class BackupRestoreStatusController extends _hotwired_stimulus__WEBPACK_IMPORTED
       badgeLabel: locked ? phase : state,
       badgeClass: this.badgeClass(locked, state),
       panelClass: this.panelClass(locked, state),
-      showSpinner: locked || state === 'running'
+      showSpinner: locked || state === 'running',
+      log
     };
   }
   isTerminalState(state) {
@@ -3318,12 +3313,30 @@ class BackupRestoreStatusController extends _hotwired_stimulus__WEBPACK_IMPORTED
     if (this.hasModalDetailsTarget) {
       this.modalDetailsTarget.textContent = normalizedStatus.details;
     }
+    if (this.hasModalLogTarget) {
+      this.renderLog(this.modalLogTarget, normalizedStatus.log);
+    }
     if (this.hasModalSpinnerTarget) {
       this.modalSpinnerTarget.classList.toggle('d-none', !normalizedStatus.showSpinner);
     }
     if (this.restoreRequestInFlight || normalizedStatus.showSpinner) {
       this.modalInstance.show();
     }
+  }
+  renderLog(target, log) {
+    const entries = Array.isArray(log) ? log.slice(-20) : [];
+    if (entries.length === 0) {
+      const item = document.createElement('li');
+      item.textContent = 'No restore log entries have been written yet.';
+      target.replaceChildren(item);
+      return;
+    }
+    target.replaceChildren(...entries.map(entry => {
+      const item = document.createElement('li');
+      const timestamp = entry?.timestamp ? `${entry.timestamp}: ` : '';
+      item.textContent = `${timestamp}${entry?.message || ''}`;
+      return item;
+    }));
   }
   showModal(normalizedStatus) {
     if (!this.hasModalTarget || !this.modalInstance) {
