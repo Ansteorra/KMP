@@ -194,6 +194,15 @@ $submitAction = implode(' ', [
         ]);
         ?>
         <div data-awards-bestowal-edit-target="planToGiveBlock">
+            <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" id="bestowalIncludePastGatherings"
+                    name="include_past" value="1"
+                    data-awards-bestowal-edit-target="includePastGatherings"
+                    data-action="change->awards-bestowal-edit#onIncludePastGatheringsChange">
+                <label class="form-check-label" for="bestowalIncludePastGatherings">
+                    <?= __('Include past gatherings') ?>
+                </label>
+            </div>
             <?= $this->KMP->autoCompleteControl(
                 $this->Form,
                 'gathering_name',

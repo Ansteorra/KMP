@@ -132,17 +132,23 @@ class BestowalUpdateService
      * @param int $bestowalId Bestowal ID.
      * @param int $gatheringId Gathering ID.
      * @param int $actorId Actor performing the update.
+     * @param bool $futureOnly When true, only future gatherings are selectable.
      * @return array<string, mixed>
      */
-    public function assignGathering(Table $bestowalsTable, int $bestowalId, int $gatheringId, int $actorId): array
-    {
+    public function assignGathering(
+        Table $bestowalsTable,
+        int $bestowalId,
+        int $gatheringId,
+        int $actorId,
+        bool $futureOnly = true,
+    ): array {
         if ($bestowalId <= 0 || $gatheringId <= 0) {
             return $this->failureResult('A valid bestowal and gathering are required.');
         }
 
         try {
             return $bestowalsTable->getConnection()->transactional(
-                function () use ($bestowalsTable, $bestowalId, $gatheringId, $actorId): array {
+                function () use ($bestowalsTable, $bestowalId, $gatheringId, $actorId, $futureOnly): array {
                     $bestowal = $bestowalsTable->find()
                         ->where(['Bestowals.id' => $bestowalId])
                         ->contain([
@@ -164,10 +170,13 @@ class BestowalUpdateService
                         !$this->gatheringLookupService->isGatheringSelectableForBestowal(
                             $bestowal,
                             $gatheringId,
-                            true,
+                            $futureOnly,
                         )
                     ) {
-                        throw new RuntimeException('Select a valid future gathering for this bestowal.');
+                        $message = $futureOnly
+                            ? 'Select a valid future gathering for this bestowal.'
+                            : 'Select a valid gathering for this bestowal.';
+                        throw new RuntimeException($message);
                     }
 
                     $currentGatheringId = $bestowal->gathering_id !== null ? (int)$bestowal->gathering_id : null;

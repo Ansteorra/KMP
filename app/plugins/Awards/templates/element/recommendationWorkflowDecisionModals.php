@@ -17,9 +17,9 @@ $bulkDecisionUrl = $this->Url->build([
     'action' => 'bulkWorkflowDecision',
 ]);
 $bestowalGatheringLookupUrl = $this->Url->build([
-    'plugin' => null,
-    'controller' => 'Approvals',
-    'action' => 'bestowalGatheringsAutoComplete',
+    'plugin' => 'Awards',
+    'controller' => 'Bestowals',
+    'action' => 'gatheringsForBestowalAutoComplete',
 ]);
 ?>
 
@@ -55,6 +55,7 @@ $bestowalGatheringLookupUrl = $this->Url->build([
             </div>
             <div class="modal-body bg-light-subtle">
                 <input type="hidden" name="approvalId" id="recommendationWorkflowDecisionApprovalId" value="">
+                <input type="hidden" name="recommendation_id" id="recommendationWorkflowDecisionRecommendationId" value="">
                 <?= $this->Form->hidden('page_context_url', ['value' => '']) ?>
                 <div id="recommendationWorkflowDecisionBulkApprovalIds"></div>
                 <div class="alert alert-info" id="recommendationWorkflowDecisionSelectionNotice" role="status" hidden></div>
@@ -113,12 +114,12 @@ $bestowalGatheringLookupUrl = $this->Url->build([
                         ],
                     ) ?>
                     <div class="form-text" id="recommendationApprovalBestowalGatheringHelp">
-                        <?= __('Choose a future event or court where the approved bestowal should be scheduled.') ?>
+                        <?= __('Optional: choose a future event or court if you already know where the bestowal should be scheduled.') ?>
                     </div>
                     <div class="text-danger small" id="recommendationApprovalBestowalGatheringError"
                         data-approval-response-target="bestowalGatheringError" hidden>
                         <i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>
-                        <?= __('Select the gathering where the bestowal will be presented.') ?>
+                        <?= __('Select a valid gathering or leave this field blank.') ?>
                     </div>
                 </div>
 
@@ -229,6 +230,7 @@ document.addEventListener('DOMContentLoaded', function() {
         form.dataset.workflowDecisionMode = 'bulk';
         form.dataset.workflowDecisionBulkCount = String(approvalIds.length);
         document.getElementById('recommendationWorkflowDecisionApprovalId').value = '';
+        document.getElementById('recommendationWorkflowDecisionRecommendationId').value = '';
         renderBulkApprovalInputs(approvalIds);
         document.getElementById('recommendationWorkflowDecisionModalTitle').textContent =
             '<?= __('Respond to Selected Recommendations') ?>';
@@ -261,6 +263,7 @@ document.addEventListener('DOMContentLoaded', function() {
             defaultDecision: null,
             requiresBestowalGathering: false,
             bestowalGatheringOptions: [],
+            bestowalGatheringUrl: '',
         });
     };
 
@@ -273,6 +276,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const approvalId = btnData.approvalId || btnData.id || 0;
+        const recommendationId = btnData.id || 0;
         const approverConfig = btnData.approverConfig || btnData.approver_config || {};
         const requiredCount = btnData.requiredCount || btnData.required_count || 1;
         const approvedCount = btnData.approvedCount || btnData.approved_count || 0;
@@ -285,6 +289,7 @@ document.addEventListener('DOMContentLoaded', function() {
         form.dataset.workflowDecisionMode = 'single';
         form.dataset.workflowDecisionBulkCount = '0';
         document.getElementById('recommendationWorkflowDecisionApprovalId').value = approvalId;
+        document.getElementById('recommendationWorkflowDecisionRecommendationId').value = recommendationId;
         renderBulkApprovalInputs([]);
         document.getElementById('recommendationWorkflowDecisionModalTitle').textContent =
             '<?= __('Respond to Recommendation Approval') ?>';
@@ -315,6 +320,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 : (Array.isArray(approverConfig.bestowalGatheringOptions)
                     ? approverConfig.bestowalGatheringOptions
                     : []),
+            bestowalGatheringUrl: approverConfig.bestowal_gathering_url
+                || approverConfig.bestowalGatheringUrl
+                || '',
         });
     };
 

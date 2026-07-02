@@ -14,6 +14,7 @@ describe('AwardsBestowalBulkTodo', () => {
     let input;
     let hiddenText;
     let clearBtn;
+    let includePast;
 
     beforeEach(() => {
         document.body.replaceChildren();
@@ -36,8 +37,10 @@ describe('AwardsBestowalBulkTodo', () => {
         hiddenText.setAttribute('data-ac-target', 'hiddenText');
         clearBtn = document.createElement('button');
         clearBtn.setAttribute('data-ac-target', 'clearBtn');
+        includePast = document.createElement('input');
+        includePast.type = 'checkbox';
         gatheringControl.append(input, hidden, hiddenText, clearBtn);
-        gatheringSection.append(gatheringControl);
+        gatheringSection.append(includePast, gatheringControl);
         root.append(ids, summary, checkSelect, gatheringSection, submit);
         document.body.appendChild(root);
 
@@ -49,12 +52,14 @@ describe('AwardsBestowalBulkTodo', () => {
         controller.checkSelectTarget = checkSelect;
         controller.gatheringSectionTarget = gatheringSection;
         controller.gatheringControlTarget = gatheringControl;
+        controller.includePastTarget = includePast;
         controller.hasIdsTarget = true;
         controller.hasSummaryTarget = true;
         controller.hasSubmitTarget = true;
         controller.hasCheckSelectTarget = true;
         controller.hasGatheringSectionTarget = true;
         controller.hasGatheringControlTarget = true;
+        controller.hasIncludePastTarget = true;
         controller.lookupUrlValue = '/awards/bestowals/gatherings-for-bestowal-auto-complete';
         controller.hasLookupUrlValue = true;
     });
@@ -160,6 +165,28 @@ describe('AwardsBestowalBulkTodo', () => {
         hidden.value = '5';
         controller.updateSubmitState();
         expect(submit.disabled).toBe(false);
+    });
+
+    test('include past toggle scopes gathering lookup and clears selected gathering', () => {
+        controller.applySelection(['3'], [
+            { id: '3', options: [{ key: 'event_scheduled', label: 'Event Scheduled', requiresGathering: true }] },
+        ]);
+        checkSelect.value = 'event_scheduled';
+        controller.handleCheckChange();
+        hidden.value = '5';
+        input.value = 'Past Court';
+        hiddenText.value = 'Past Court';
+        clearBtn.disabled = false;
+
+        includePast.checked = true;
+        controller.handleIncludePastChange();
+
+        expect(gatheringControl.dataset.acUrlValue)
+            .toBe('http://localhost/awards/bestowals/gatherings-for-bestowal-auto-complete?bestowal_ids=3&include_past=1');
+        expect(hidden.value).toBe('');
+        expect(input.value).toBe('');
+        expect(hiddenText.value).toBe('');
+        expect(clearBtn.disabled).toBe(true);
     });
 
     test('switching away from a gathering-required check hides and disables the gathering field', () => {

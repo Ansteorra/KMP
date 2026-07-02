@@ -50,6 +50,7 @@ class ApprovalResponseController extends Controller {
         this._bulkIds = Array.isArray(approvalData.bulkIds) ? approvalData.bulkIds : []
         this._bulkError = approvalData.bulkError || ''
         this._requiresBestowalGathering = approvalData.requiresBestowalGathering === true
+        this._bestowalGatheringUrl = approvalData.bestowalGatheringUrl || approvalData.bestowal_gathering_url || ''
         this._renderDecisionOptions()
 
         // Reset form
@@ -103,6 +104,14 @@ class ApprovalResponseController extends Controller {
             }
         }
 
+        if (this._bestowalGatheringUrl && this.hasBestowalGatheringTarget) {
+            const acEl = this.bestowalGatheringTarget.closest('[data-controller~="ac"]')
+                || (this.bestowalGatheringTarget.matches?.('[data-controller~="ac"]') ? this.bestowalGatheringTarget : null)
+            if (acEl) {
+                acEl.setAttribute('data-ac-url-value', this._bestowalGatheringUrl)
+            }
+        }
+
         if (this.hasBulkSummaryTarget) {
             this.bulkSummaryTarget.hidden = this._bulkIds.length < 2 && !this._bulkError
             this.bulkSummaryTarget.classList.toggle('alert-info', !this._bulkError)
@@ -116,13 +125,7 @@ class ApprovalResponseController extends Controller {
 
     validateSubmit(event) {
         if (this._requiresBestowalGathering && this._getSelectedDecision() === 'approve') {
-            const value = this._getBestowalGatheringValue()
-            if (!value) {
-                event.preventDefault()
-                event.stopImmediatePropagation()
-                this._setBestowalGatheringInvalid(true)
-                this._getBestowalGatheringInput()?.focus()
-            }
+            this._setBestowalGatheringInvalid(false)
         }
     }
 
@@ -149,10 +152,10 @@ class ApprovalResponseController extends Controller {
         }
         if (this.hasBestowalGatheringTarget) {
             if (showBestowalGathering) {
-                this.bestowalGatheringTarget.setAttribute('required', 'required')
-                this.bestowalGatheringTarget.setAttribute('aria-required', 'true')
-                this._getBestowalGatheringInput()?.setAttribute('required', 'required')
-                this._getBestowalGatheringInput()?.setAttribute('aria-required', 'true')
+                this.bestowalGatheringTarget.removeAttribute('required')
+                this.bestowalGatheringTarget.removeAttribute('aria-required')
+                this._getBestowalGatheringInput()?.removeAttribute('required')
+                this._getBestowalGatheringInput()?.removeAttribute('aria-required')
             } else {
                 this.bestowalGatheringTarget.removeAttribute('required')
                 this.bestowalGatheringTarget.removeAttribute('aria-required')

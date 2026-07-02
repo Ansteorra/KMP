@@ -248,7 +248,7 @@ describe('MobileApprovalsController', () => {
         expect(controller.element.querySelector('[data-comment-required="47"]')).not.toHaveAttribute('hidden');
     });
 
-    test('shows required bestowal gathering select when approving award approvals', () => {
+    test('shows optional bestowal gathering select when approving award approvals', () => {
         controller.element = document.createElement('div');
         controller._approvals = [{
             id: 48,
@@ -266,13 +266,24 @@ describe('MobileApprovalsController', () => {
         const section = controller.element.querySelector('[data-bestowal-gathering-section="48"]');
         const select = controller.element.querySelector('[data-bestowal-gathering-select="48"]');
         expect(section).not.toHaveAttribute('hidden');
-        expect(select).toBeRequired();
-        expect(select).toHaveAttribute('aria-required', 'true');
+        expect(select).not.toBeRequired();
+        expect(select).not.toHaveAttribute('aria-required');
         expect(select.querySelector('option[value="9"]')).toHaveTextContent('Spring Crown - 2026-04-12');
     });
 
-    test('submitResponse focuses missing bestowal gathering', async () => {
+    test('submitResponse allows missing optional bestowal gathering', async () => {
+        document.head.innerHTML = '<meta name="csrf-token" content="csrf-token">';
         controller.element = document.createElement('div');
+        Object.defineProperty(controller, 'listTarget', { value: document.createElement('div') });
+        global.fetch = jest.fn()
+            .mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    success: true,
+                    approvals: [],
+                    pagination: { total: 0, page: 1, perPage: 10, hasNextPage: false },
+                }),
+            });
         controller._approvals = [{
             id: 49,
             progress: { required: 1, approved: 0 },
@@ -287,8 +298,9 @@ describe('MobileApprovalsController', () => {
             currentTarget: controller.element.querySelector('[data-submit-btn="49"]'),
         });
 
-        expect(controller.element.querySelector('[data-bestowal-gathering-error="49"]')).not.toHaveAttribute('hidden');
-        expect(controller.element.querySelector('[data-bestowal-gathering-select="49"]')).toHaveAttribute('aria-invalid', 'true');
+        expect(global.fetch).toHaveBeenCalled();
+        expect(controller.element.querySelector('[data-bestowal-gathering-error="49"]')).toHaveAttribute('hidden');
+        expect(controller.element.querySelector('[data-bestowal-gathering-select="49"]')).toHaveAttribute('aria-invalid', 'false');
     });
 
     test('submitResponse shows service reason when approval response fails', async () => {

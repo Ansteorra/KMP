@@ -9,7 +9,16 @@ import { Controller } from "@hotwired/stimulus";
  * bestowals are actually flipped.
  */
 class AwardsBestowalBulkTodo extends Controller {
-    static targets = ["ids", "summary", "submit", "checkSelect", "gatheringSection", "gatheringControl", "gatheringHelp"];
+    static targets = [
+        "ids",
+        "summary",
+        "submit",
+        "checkSelect",
+        "gatheringSection",
+        "gatheringControl",
+        "gatheringHelp",
+        "includePast",
+    ];
     static values = {
         lookupUrl: String,
     };
@@ -141,6 +150,9 @@ class AwardsBestowalBulkTodo extends Controller {
         const unique = [...new Set(ids.map(String))];
         this.currentRows = rows;
         this.currentOptions = this.buildOptions(rows);
+        if (this.hasIncludePastTarget) {
+            this.includePastTarget.checked = false;
+        }
 
         if (this.hasIdsTarget) {
             this.idsTarget.value = unique.join(",");
@@ -239,6 +251,14 @@ class AwardsBestowalBulkTodo extends Controller {
         this.updateSubmitState();
     }
 
+    handleIncludePastChange() {
+        const option = this.selectedOption();
+        if (option?.requiresGathering === true) {
+            this.resetGathering();
+            this.updateLookupUrl(option.applicableIds);
+        }
+    }
+
     selectedOption() {
         if (!this.hasCheckSelectTarget || !this.checkSelectTarget.value) {
             return null;
@@ -274,6 +294,11 @@ class AwardsBestowalBulkTodo extends Controller {
 
         const url = new URL(this.lookupUrlValue, window.location.href);
         url.searchParams.set("bestowal_ids", [...new Set(ids.map(String))].join(","));
+        if (this.hasIncludePastTarget && this.includePastTarget.checked) {
+            url.searchParams.set("include_past", "1");
+        } else {
+            url.searchParams.delete("include_past");
+        }
         this.gatheringControlTarget.dataset.acUrlValue = url.toString();
     }
 

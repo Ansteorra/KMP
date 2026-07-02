@@ -78,7 +78,8 @@ class BestowalTodoCompletionFormProvider implements ActionItemCompletionFormProv
                         ? ['value' => (string)$currentGatheringId, 'text' => (string)$currentGatheringName]
                         : null,
                     'help' => __(
-                        'Choose a future event or court using the same options available on the bestowal edit form.',
+                        'Choose a gathering using the same options available on the bestowal edit form. ' .
+                        'Use Include past gatherings to backdate scheduling.',
                     ),
                 ],
             ],
@@ -107,6 +108,7 @@ class BestowalTodoCompletionFormProvider implements ActionItemCompletionFormProv
         if ($gatheringId === null) {
             return $this->validateCompletion($item);
         }
+        $includePast = filter_var($data['include_past'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
         if ($bestowal->gathering_id !== null && (int)$bestowal->gathering_id === $gatheringId) {
             return $this->validateCompletion($item);
@@ -121,6 +123,7 @@ class BestowalTodoCompletionFormProvider implements ActionItemCompletionFormProv
             (int)$bestowal->id,
             $gatheringId,
             $actorId,
+            !$includePast,
         );
         if (!($result['success'] ?? false)) {
             return new ServiceResult(false, (string)($result['error'] ?? 'Failed to assign the gathering.'));

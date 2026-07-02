@@ -62,6 +62,15 @@ $currentPage = Router::url(null, true);
                     </div>
                 </div>
                 <div class="mt-3" data-awards-bestowal-bulk-todo-target="gatheringSection" hidden>
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" id="<?= h($modalId) ?>IncludePast"
+                            name="include_past" value="1"
+                            data-awards-bestowal-bulk-todo-target="includePast"
+                            data-action="change->awards-bestowal-bulk-todo#handleIncludePastChange">
+                        <label class="form-check-label" for="<?= h($modalId) ?>IncludePast">
+                            <?= __('Include past gatherings') ?>
+                        </label>
+                    </div>
                     <?= $this->KMP->autoCompleteControl(
                         $this->Form,
                         'bulk_bestowal_gathering_name',

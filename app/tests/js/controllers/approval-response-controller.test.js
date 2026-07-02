@@ -27,7 +27,8 @@ describe('ApprovalResponseController', () => {
                     <div data-approval-response-target="infoText"></div>
                 </div>
                 <div data-approval-response-target="bestowalGatheringSection" hidden>
-                    <div data-approval-response-target="bestowalGathering">
+                    <div data-controller="ac" data-ac-url-value="/approvals/bestowal-gatherings-auto-complete"
+                        data-approval-response-target="bestowalGathering">
                         <input type="hidden" data-ac-target="hidden" name="bestowal_gathering_id">
                         <input type="hidden" data-ac-target="hiddenText">
                         <input type="text" data-ac-target="input" aria-invalid="false">
@@ -116,7 +117,7 @@ describe('ApprovalResponseController', () => {
         expect(form.querySelector('textarea')).not.toBeRequired();
     });
 
-    test('requires bestowal gathering only when approving configured approvals', () => {
+    test('shows optional bestowal gathering only when approving configured approvals', () => {
         const form = document.querySelector('form');
 
         controller.configure({
@@ -126,6 +127,7 @@ describe('ApprovalResponseController', () => {
             approvedCount: 0,
             requiresBestowalGathering: true,
             bestowalGatheringOptions: [{ id: 12, label: 'Spring Crown - 2026-04-12' }],
+            bestowalGatheringUrl: '/awards/bestowals/gatherings-for-bestowal-auto-complete?recommendation_id=7',
         });
         form.querySelector('input[value="approve"]').checked = true;
         controller.onDecisionChange();
@@ -134,10 +136,14 @@ describe('ApprovalResponseController', () => {
         const autocomplete = form.querySelector('[data-approval-response-target="bestowalGathering"]');
         const input = autocomplete.querySelector('[data-ac-target="input"]');
         expect(section).not.toHaveAttribute('hidden');
-        expect(autocomplete).toHaveAttribute('required');
-        expect(autocomplete).toHaveAttribute('aria-required', 'true');
-        expect(input).toBeRequired();
-        expect(input).toHaveAttribute('aria-required', 'true');
+        expect(autocomplete).not.toHaveAttribute('required');
+        expect(autocomplete).not.toHaveAttribute('aria-required');
+        expect(input).not.toBeRequired();
+        expect(input).not.toHaveAttribute('aria-required');
+        expect(autocomplete).toHaveAttribute(
+            'data-ac-url-value',
+            '/awards/bestowals/gatherings-for-bestowal-auto-complete?recommendation_id=7',
+        );
 
         form.querySelector('input[value="reject"]').checked = true;
         controller.onDecisionChange();
@@ -149,7 +155,7 @@ describe('ApprovalResponseController', () => {
         expect(input).not.toHaveAttribute('aria-required');
     });
 
-    test('validateSubmit focuses invalid gathering select', () => {
+    test('validateSubmit allows approving configured approvals without a gathering', () => {
         controller.configure({
             id: 19,
             feedbackResponse: false,
@@ -167,10 +173,10 @@ describe('ApprovalResponseController', () => {
 
         controller.validateSubmit(event);
 
-        expect(event.preventDefault).toHaveBeenCalled();
-        expect(event.stopImmediatePropagation).toHaveBeenCalled();
-        expect(document.querySelector('[data-ac-target="input"]')).toHaveAttribute('aria-invalid', 'true');
-        expect(document.querySelector('[data-approval-response-target="bestowalGatheringError"]')).not.toHaveAttribute('hidden');
+        expect(event.preventDefault).not.toHaveBeenCalled();
+        expect(event.stopImmediatePropagation).not.toHaveBeenCalled();
+        expect(document.querySelector('[data-ac-target="input"]')).toHaveAttribute('aria-invalid', 'false');
+        expect(document.querySelector('[data-approval-response-target="bestowalGatheringError"]')).toHaveAttribute('hidden');
     });
 
     test('stores bulk approval IDs and shows the bulk summary', () => {

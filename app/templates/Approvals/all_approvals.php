@@ -109,12 +109,12 @@ $this->KMP->endBlock(); ?>
                         ],
                     ) ?>
                     <div class="form-text" id="allApprovalBestowalGatheringHelp">
-                        <?= __('Choose a future event or court where the approved bestowal should be scheduled.') ?>
+                        <?= __('Optional: choose a future event or court if you already know where the bestowal should be scheduled.') ?>
                     </div>
                     <div class="text-danger small" id="allApprovalBestowalGatheringError"
                         data-approval-response-target="bestowalGatheringError" hidden>
                         <i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>
-                        <?= __('Select the gathering where the bestowal will be presented.') ?>
+                        <?= __('Select a valid gathering or leave this field blank.') ?>
                     </div>
                 </div>
 
@@ -335,6 +335,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         : (Array.isArray(approverConfig.bestowalGatheringOptions)
                             ? approverConfig.bestowalGatheringOptions
                             : []),
+                    bestowalGatheringUrl: approverConfig.bestowal_gathering_url
+                        || approverConfig.bestowalGatheringUrl
+                        || '',
                 });
             }
         });

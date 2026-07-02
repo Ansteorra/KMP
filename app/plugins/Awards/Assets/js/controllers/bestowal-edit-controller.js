@@ -12,6 +12,7 @@ class AwardsBestowalEditForm extends Controller {
         "state",
         "planToGiveBlock",
         "planToGiveGathering",
+        "includePastGatherings",
         "courtSlotBlock",
         "courtSlot",
         "courtSlotHelp",
@@ -1051,6 +1052,9 @@ class AwardsBestowalEditForm extends Controller {
             params.append("selected_id", currentSelection);
             this.planToGiveGatheringTarget.dataset.initialValue = currentSelection;
         }
+        if (this.hasIncludePastGatheringsTarget && this.includePastGatheringsTarget.checked) {
+            params.append("include_past", "1");
+        }
 
         let lookupUrl = this.gatheringsLookupUrlValue;
         if (bestowalId) {
@@ -1060,6 +1064,33 @@ class AwardsBestowalEditForm extends Controller {
             lookupUrl += `?${params.toString()}`;
         }
         this.planToGiveGatheringTarget.setAttribute("data-ac-url-value", lookupUrl);
+    }
+
+    /** Include or exclude past gatherings in the gathering picker. */
+    onIncludePastGatheringsChange() {
+        if (!this.hasPlanToGiveGatheringTarget) {
+            return;
+        }
+
+        const input = this.planToGiveGatheringTarget.querySelector("[data-ac-target='input']");
+        const hidden = this.planToGiveGatheringTarget.querySelector("[data-ac-target='hidden']");
+        const hiddenText = this.planToGiveGatheringTarget.querySelector("[data-ac-target='hiddenText']");
+        const clearBtn = this.planToGiveGatheringTarget.querySelector("[data-ac-target='clearBtn']");
+        if (input) {
+            input.value = "";
+            input.disabled = false;
+        }
+        if (hidden) {
+            hidden.value = "";
+        }
+        if (hiddenText) {
+            hiddenText.value = "";
+        }
+        if (clearBtn) {
+            clearBtn.disabled = true;
+        }
+        this.planToGiveGatheringTarget.dataset.initialValue = "";
+        this.updateGatherings();
     }
 
     /** Sync required state to autocomplete text input. */

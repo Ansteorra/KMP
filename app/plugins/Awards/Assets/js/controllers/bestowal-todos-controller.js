@@ -16,14 +16,20 @@ class AwardsBestowalTodos extends Controller {
     static outlets = ["outlet-btn"];
 
     connect() {
-        this.boundHandleOutletClick = this.handleOutletClick.bind(this);
-        document.addEventListener("outlet-btn:outlet-button-clicked", this.boundHandleOutletClick);
-        this.bindModalEvents();
+        if (this.hasTurboFrameUrlValue) {
+            this.boundHandleOutletClick = this.handleOutletClick.bind(this);
+            document.addEventListener("outlet-btn:outlet-button-clicked", this.boundHandleOutletClick);
+            this.bindModalEvents();
+        }
     }
 
     disconnect() {
-        document.removeEventListener("outlet-btn:outlet-button-clicked", this.boundHandleOutletClick);
-        this.unbindModalEvents();
+        if (this.boundHandleOutletClick) {
+            document.removeEventListener("outlet-btn:outlet-button-clicked", this.boundHandleOutletClick);
+        }
+        if (this.boundHandleModalShow) {
+            this.unbindModalEvents();
+        }
     }
 
     /** @return {HTMLElement|null} */
@@ -139,6 +145,46 @@ class AwardsBestowalTodos extends Controller {
             frame.appendChild(loading);
         }
         frame.src = url;
+    }
+
+    /** Include or exclude past gatherings for a required-field to-do picker. */
+    handleIncludePastChange(event) {
+        const checkbox = event.target;
+        const section = checkbox?.closest?.("[data-bestowal-gathering-requirement]");
+        const control = section?.querySelector?.("[data-bestowal-gathering-control]");
+        if (!control?.dataset?.baseUrl) {
+            return;
+        }
+
+        const url = new URL(control.dataset.baseUrl, window.location.href);
+        if (checkbox.checked) {
+            url.searchParams.set("include_past", "1");
+        } else {
+            url.searchParams.delete("include_past");
+        }
+        control.dataset.acUrlValue = url.toString();
+        this.clearGatheringControl(control);
+    }
+
+    /** @param {HTMLElement} control */
+    clearGatheringControl(control) {
+        const input = control.querySelector("[data-ac-target='input']");
+        const hidden = control.querySelector("[data-ac-target='hidden']");
+        const hiddenText = control.querySelector("[data-ac-target='hiddenText']");
+        const clearBtn = control.querySelector("[data-ac-target='clearBtn']");
+        if (input) {
+            input.value = "";
+            input.disabled = false;
+        }
+        if (hidden) {
+            hidden.value = "";
+        }
+        if (hiddenText) {
+            hiddenText.value = "";
+        }
+        if (clearBtn) {
+            clearBtn.disabled = true;
+        }
     }
 }
 

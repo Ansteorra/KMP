@@ -30,7 +30,7 @@ $gatingPercent = (int)($gatingPercent ?? 0);
 $currentPageUrl = $currentPageUrl ?? '';
 $progressId = $progressId ?? 'bestowal-todo-progress-label';
 ?>
-<div data-turbo="false">
+<div data-controller="awards-bestowal-todos" data-turbo="false">
     <?php if (empty($todoItems)) : ?>
         <p class="text-muted"><?= __('No to-do checks are configured for this award yet.') ?></p>
     <?php else : ?>
@@ -99,7 +99,8 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                             <?php endif; ?>
                         </div>
                         <?php if ($canAssignRequirement) : ?>
-                            <div class="border rounded-3 bg-light-subtle p-3 mt-3">
+                            <div class="border rounded-3 bg-light-subtle p-3 mt-3"
+                                data-bestowal-gathering-requirement>
                                 <?= $this->Form->create(null, [
                                     'url' => [
                                         'plugin' => null,
@@ -110,6 +111,16 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                                 ]) ?>
                                 <?= $this->Form->hidden('id', ['value' => $item->id]) ?>
                                 <?= $this->Form->hidden('current_page', ['value' => $currentPageUrl]) ?>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox"
+                                        id="todo-<?= h((string)$item->id) ?>-include-past"
+                                        name="include_past" value="1"
+                                        data-action="change->awards-bestowal-todos#handleIncludePastChange">
+                                    <label class="form-check-label"
+                                        for="todo-<?= h((string)$item->id) ?>-include-past">
+                                        <?= __('Include past gatherings') ?>
+                                    </label>
+                                </div>
                                 <?=
                                 $this->KMP->autoCompleteControl(
                                     $this->Form,
@@ -121,6 +132,8 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                                     false,
                                     2,
                                     [
+                                        'data-bestowal-gathering-control' => 'true',
+                                        'data-base-url' => (string)($requirement['lookupUrl'] ?? '#'),
                                         'data-ac-show-on-focus-value' => 'true',
                                     ],
                                 )
@@ -128,7 +141,8 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                                 <div class="form-text mb-3">
                                     <?=
                                     __(
-                                        'Select a future gathering using the same options as the bestowal edit form. ' .
+                                        'Select a gathering using the same options as the bestowal edit form. ' .
+                                        'Use Include past gatherings to backdate scheduling. ' .
                                         'Completing this form assigns the gathering and closes this to-do.',
                                     )
                                     ?>

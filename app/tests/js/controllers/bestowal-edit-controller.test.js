@@ -185,6 +185,46 @@ describe('AwardsBestowalEditForm', () => {
             .toBe('/awards/bestowals/gatherings-for-bestowal-auto-complete?award_id=2&member_public_id=public-member-id');
     });
 
+    test('include past toggle appends lookup flag and clears stale gathering selection', () => {
+        const gathering = document.createElement('div');
+        gathering.setAttribute('data-awards-bestowal-edit-target', 'planToGiveGathering');
+        const input = document.createElement('input');
+        input.setAttribute('data-ac-target', 'input');
+        input.value = 'Future Court';
+        input.disabled = true;
+        const hidden = document.createElement('input');
+        hidden.setAttribute('data-ac-target', 'hidden');
+        hidden.value = '7';
+        const hiddenText = document.createElement('input');
+        hiddenText.setAttribute('data-ac-target', 'hiddenText');
+        hiddenText.value = 'Future Court';
+        const clearBtn = document.createElement('button');
+        clearBtn.setAttribute('data-ac-target', 'clearBtn');
+        clearBtn.disabled = false;
+        gathering.append(input, hidden, hiddenText, clearBtn);
+        controller.element.appendChild(gathering);
+        controller.planToGiveGatheringTarget = gathering;
+        controller.hasPlanToGiveGatheringTarget = true;
+
+        const includePast = document.createElement('input');
+        includePast.type = 'checkbox';
+        includePast.checked = true;
+        includePast.setAttribute('data-awards-bestowal-edit-target', 'includePastGatherings');
+        controller.element.appendChild(includePast);
+        controller.includePastGatheringsTarget = includePast;
+        controller.hasIncludePastGatheringsTarget = true;
+
+        controller.onIncludePastGatheringsChange();
+
+        expect(gathering.getAttribute('data-ac-url-value'))
+            .toBe('/awards/bestowals/gatherings-for-bestowal-auto-complete?award_id=2&include_past=1');
+        expect(hidden.value).toBe('');
+        expect(input.value).toBe('');
+        expect(input.disabled).toBe(false);
+        expect(hiddenText.value).toBe('');
+        expect(clearBtn.disabled).toBe(true);
+    });
+
     test('extractBestowalIdFromTrigger reads outlet button payload', () => {
         const trigger = document.createElement('button');
         trigger.setAttribute('data-outlet-btn-btn-data-value', '{"id":99}');

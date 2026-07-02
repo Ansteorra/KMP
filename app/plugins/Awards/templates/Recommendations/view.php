@@ -517,6 +517,18 @@ $runStatusClass = static function (?string $status): string {
         $pendingApproval = $workflowContext['pendingApproval'];
         $approverConfig = $pendingApproval->approver_config ?? [];
         $requiresComment = !empty($approverConfig['requires_comment']);
+        $requiresBestowalGathering = !empty($approverConfig['requires_bestowal_gathering'])
+            || !empty($approverConfig['requiresBestowalGathering']);
+        $bestowalGatheringLookupUrl = (string)($approverConfig['bestowal_gathering_url']
+            ?? $approverConfig['bestowalGatheringUrl']
+            ?? $this->Url->build([
+                'plugin' => 'Awards',
+                'controller' => 'Bestowals',
+                'action' => 'gatheringsForBestowalAutoComplete',
+                '?' => [
+                    'recommendation_id' => (int)$recommendation->id,
+                ],
+            ]));
         $decisionHelpId = 'approval-decision-help-' . (int)$pendingApproval->id;
         $commentId = 'approval-comment-' . (int)$pendingApproval->id;
         ?>
@@ -545,6 +557,26 @@ $runStatusClass = static function (?string $status): string {
                             : __('Optional context for the approval history.') ?>
                 </div>
             </div>
+            <?php if ($requiresBestowalGathering) : ?>
+            <div class="mb-3">
+                <?= $this->KMP->autoCompleteControl(
+                    $this->Form,
+                    'bestowal_gathering_name',
+                    'bestowal_gathering_id',
+                    $bestowalGatheringLookupUrl,
+                    __('Bestowal Gathering'),
+                    false,
+                    false,
+                    2,
+                    [
+                        'data-ac-show-on-focus-value' => 'true',
+                    ],
+                ) ?>
+                <div class="form-text">
+                    <?= __('Optional: choose a future event or court if you already know where the bestowal should be scheduled.') ?>
+                </div>
+            </div>
+            <?php endif; ?>
             <div class="d-flex flex-wrap gap-2">
                 <button type="submit" name="decision" value="<?= h(WorkflowApprovalResponse::DECISION_APPROVE) ?>"
                     class="btn btn-success">

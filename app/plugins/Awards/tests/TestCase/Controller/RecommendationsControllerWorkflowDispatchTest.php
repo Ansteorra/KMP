@@ -460,10 +460,10 @@ class RecommendationsControllerWorkflowDispatchTest extends HttpIntegrationTestC
 
         $this->assertResponseOk();
         $this->assertResponseContains('data-approval-response-target="bestowalGatheringSection"');
-        $this->assertResponseContains('/approvals/bestowal-gatherings-auto-complete');
+        $this->assertResponseContains('/awards/bestowals/gatherings-for-bestowal-auto-complete');
     }
 
-    public function testWorkflowDecisionFromGridRequiresBestowalGatheringForAwardApprovals(): void
+    public function testWorkflowDecisionFromGridAllowsAwardApprovalWithoutBestowalGathering(): void
     {
         $instanceId = $this->createWorkflowInstance('awards-existing-recommendation-approval');
         $approvalId = $this->createPendingWorkflowApproval($instanceId, self::ADMIN_MEMBER_ID);
@@ -481,12 +481,12 @@ class RecommendationsControllerWorkflowDispatchTest extends HttpIntegrationTestC
         ]);
 
         $this->assertResponseOk();
-        $this->assertResponseContains('Select the gathering where the bestowal will be presented.');
+        $this->assertResponseContains('Approval response recorded.');
         $this->assertResponseContains(
             'src="/awards/recommendations/grid-data?search=needs-gathering"',
         );
         $responses = $this->getTableLocator()->get('WorkflowApprovalResponses');
-        $this->assertSame(0, $responses->find()->where(['workflow_approval_id' => $approvalId])->count());
+        $this->assertSame(1, $responses->find()->where(['workflow_approval_id' => $approvalId])->count());
     }
 
     public function testEditFromGridWithoutTurboAcceptRedirectsToPageContext(): void

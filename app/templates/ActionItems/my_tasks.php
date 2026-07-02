@@ -67,6 +67,13 @@ $this->KMP->endBlock(); ?>
                         <?= __('Additional Information') ?>
                     </h6>
                     <p class="text-muted small mb-3" data-todo-target="specialDescription"></p>
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" id="todoIncludePastGatherings"
+                            name="include_past" value="1" data-todo-target="includePastGatherings">
+                        <label class="form-check-label" for="todoIncludePastGatherings">
+                            <?= __('Include past gatherings') ?>
+                        </label>
+                    </div>
                     <?= $this->KMP->autoCompleteControl(
                         $this->Form,
                         'bestowal_gathering_name',
@@ -205,6 +212,18 @@ document.addEventListener('DOMContentLoaded', function () {
         }, true);
     }
 
+    const includePast = modal.querySelector('[data-todo-target="includePastGatherings"]');
+    if (includePast) {
+        includePast.addEventListener('change', function () {
+            const control = modal.querySelector('[data-todo-target="bestowalGatheringControl"]');
+            if (!control || !control.dataset.baseUrl) {
+                return;
+            }
+            resetGatheringControl();
+            control.dataset.acUrlValue = buildSpecialFormLookupUrl(control.dataset.baseUrl);
+        });
+    }
+
     function parseCompletionForm(raw) {
         try {
             const parsed = JSON.parse(raw);
@@ -226,8 +245,16 @@ document.addEventListener('DOMContentLoaded', function () {
         section.querySelectorAll('input, select, textarea, button').forEach((control) => {
             control.disabled = !hasField;
         });
+        const includePastControl = modal.querySelector('[data-todo-target="includePastGatherings"]');
+        if (includePastControl) {
+            includePastControl.checked = false;
+        }
         if (!hasField) {
             resetGatheringControl();
+            const control = modal.querySelector('[data-todo-target="bestowalGatheringControl"]');
+            if (control) {
+                delete control.dataset.baseUrl;
+            }
             return;
         }
 
@@ -242,14 +269,29 @@ document.addEventListener('DOMContentLoaded', function () {
         const helpEl = modal.querySelector('[data-todo-target="bestowalGatheringHelp"]');
         if (helpEl) {
             helpEl.textContent = field.help
-                || '<?= __('Choose the gathering where this bestowal will be presented.') ?>';
+                || '<?= __(
+                    'Choose the gathering where this bestowal will be presented. ' .
+                    'Use Include past gatherings to backdate scheduling.',
+                ) ?>';
         }
 
         const control = modal.querySelector('[data-todo-target="bestowalGatheringControl"]');
         if (control && field.url) {
-            control.dataset.acUrlValue = field.url;
+            control.dataset.baseUrl = field.url;
+            control.dataset.acUrlValue = buildSpecialFormLookupUrl(field.url);
         }
         setGatheringSelection(field.selection || null);
+    }
+
+    function buildSpecialFormLookupUrl(rawUrl) {
+        const includePastControl = modal.querySelector('[data-todo-target="includePastGatherings"]');
+        if (!includePastControl || !includePastControl.checked) {
+            return rawUrl;
+        }
+
+        const url = new URL(rawUrl, window.location.href);
+        url.searchParams.set('include_past', '1');
+        return url.toString();
     }
 
     function resetGatheringControl() {

@@ -562,7 +562,8 @@ class BestowalsController extends AppController
 
         $q = trim((string)$this->request->getQuery('q', ''));
         $status = (string)$this->request->getQuery('status', '');
-        $futureOnly = ($status !== 'Given');
+        $includePast = filter_var($this->request->getQuery('include_past', false), FILTER_VALIDATE_BOOLEAN);
+        $futureOnly = ($status !== 'Given') && !$includePast;
         $selectedId = $this->request->getQuery('selected_id');
         $selectedId = is_numeric((string)$selectedId) ? (int)$selectedId : null;
         $awardIdOverride = $this->request->getQuery('award_id');
@@ -570,9 +571,12 @@ class BestowalsController extends AppController
         $memberIdOverride = $this->request->getQuery('member_id');
         $memberIdOverride = is_numeric((string)$memberIdOverride) ? (int)$memberIdOverride : null;
         $memberPublicId = trim((string)$this->request->getQuery('member_public_id', ''));
+        $recommendationId = $this->request->getQuery('recommendation_id');
+        $recommendationId = is_numeric((string)$recommendationId) ? (int)$recommendationId : null;
         $bulkBestowalIds = $this->parseBulkBestowalIds($this->request->getQuery('bestowal_ids'));
 
         $gatherings = [];
+        $rankedGatherings = [];
         $cancelledGatheringIds = [];
         $bestowal = null;
 
@@ -589,6 +593,7 @@ class BestowalsController extends AppController
                     $selectedId,
                 );
                 $gatherings = $gatheringData['gatherings'] ?? [];
+                $rankedGatherings = $gatheringData['rankedGatherings'] ?? [];
                 $cancelledGatheringIds = $gatheringData['cancelledGatheringIds'] ?? [];
             } elseif ($bestowalId !== null && ctype_digit((string)$bestowalId)) {
                 $bestowalQuery = $this->Bestowals->find()
@@ -598,7 +603,7 @@ class BestowalsController extends AppController
                             return $query->select(['id', 'award_id', 'member_id', 'bestowal_id']);
                         },
                     ])
-                    ->select(['Bestowals.id', 'Bestowals.award_id', 'Bestowals.gathering_id']);
+                    ->select(['Bestowals.id', 'Bestowals.award_id', 'Bestowals.member_id', 'Bestowals.gathering_id']);
                 $bestowal = $this->Authorization->applyScope($bestowalQuery, 'index')->first();
                 if ($bestowal !== null) {
                     $includeGatheringId = $selectedId ?? (
@@ -611,6 +616,27 @@ class BestowalsController extends AppController
                         $awardIdOverride,
                     );
                     $gatherings = $gatheringData['gatherings'] ?? [];
+                    $rankedGatherings = $gatheringData['rankedGatherings'] ?? [];
+                    $cancelledGatheringIds = $gatheringData['cancelledGatheringIds'] ?? [];
+                }
+            } elseif ($recommendationId !== null) {
+                $recommendation = TableRegistry::getTableLocator()->get('Awards.Recommendations')->find()
+                    ->select(['id', 'award_id', 'member_id', 'bestowal_id'])
+                    ->where(['id' => $recommendationId])
+                    ->first();
+                if ($recommendation !== null) {
+                    $bestowal = $this->Bestowals->newEmptyEntity();
+                    $bestowal->award_id = $recommendation->award_id !== null ? (int)$recommendation->award_id : null;
+                    $bestowal->member_id = $recommendation->member_id !== null ? (int)$recommendation->member_id : null;
+                    $bestowal->set('recommendations', [$recommendation]);
+                    $gatheringData = $lookupService->getFilteredGatheringsForBestowal(
+                        $bestowal,
+                        $futureOnly,
+                        $selectedId,
+                        $awardIdOverride,
+                    );
+                    $gatherings = $gatheringData['gatherings'] ?? [];
+                    $rankedGatherings = $gatheringData['rankedGatherings'] ?? [];
                     $cancelledGatheringIds = $gatheringData['cancelledGatheringIds'] ?? [];
                 }
             } else {
@@ -634,6 +660,7 @@ class BestowalsController extends AppController
                     $awardIdOverride,
                 );
                 $gatherings = $gatheringData['gatherings'] ?? [];
+                $rankedGatherings = $gatheringData['rankedGatherings'] ?? [];
                 $cancelledGatheringIds = $gatheringData['cancelledGatheringIds'] ?? [];
             }
 
@@ -659,13 +686,43 @@ class BestowalsController extends AppController
                     ARRAY_FILTER_USE_BOTH,
                 );
             }
+            $rankedGatherings = $this->filterRankedGatheringsByFlatList($rankedGatherings, $gatherings);
         } catch (Throwable $e) {
             Log::error('Error in gatheringsForBestowalAutoComplete: ' . $e->getMessage());
             $gatherings = [];
+            $rankedGatherings = [];
             $cancelledGatheringIds = [];
         }
 
-        $this->set(compact('gatherings', 'q', 'cancelledGatheringIds', 'selectedId'));
+        $this->set(compact('gatherings', 'rankedGatherings', 'q', 'cancelledGatheringIds', 'selectedId'));
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $rankedGatherings Grouped ranked options.
+     * @param array<int, string> $gatherings Filtered flat option list keyed by gathering id.
+     * @return array<int, array<string, mixed>>
+     */
+    private function filterRankedGatheringsByFlatList(array $rankedGatherings, array $gatherings): array
+    {
+        if ($rankedGatherings === []) {
+            return [];
+        }
+
+        $allowed = array_fill_keys(array_map('intval', array_keys($gatherings)), true);
+        $filtered = [];
+        foreach ($rankedGatherings as $group) {
+            $items = array_values(array_filter(
+                $group['items'] ?? [],
+                static fn(array $item): bool => isset($allowed[(int)($item['id'] ?? 0)]),
+            ));
+            if ($items === []) {
+                continue;
+            }
+            $group['items'] = $items;
+            $filtered[] = $group;
+        }
+
+        return $filtered;
     }
 
     /**
@@ -803,6 +860,9 @@ class BestowalsController extends AppController
         if ($gatheringId !== null) {
             $completionData['bestowal_gathering_id'] = $gatheringId;
         }
+        if (filter_var($this->request->getData('include_past', false), FILTER_VALIDATE_BOOLEAN)) {
+            $completionData['include_past'] = true;
+        }
 
         if ($checkKey === '' || $bestowalIds === []) {
             $this->Flash->error(__('Select at least one bestowal and a check to complete.'));
@@ -883,6 +943,7 @@ class BestowalsController extends AppController
         $bestowalIds = $this->parseBulkBestowalIds($this->request->getData('bestowal_ids'));
         $gatheringId = $this->positiveIntOrNull($this->request->getData('bestowal_gathering_id'));
         $completeRequiredTodo = !empty($this->request->getData('complete_required_todo'));
+        $futureOnly = !filter_var($this->request->getData('include_past', false), FILTER_VALIDATE_BOOLEAN);
 
         if ($bestowalIds === [] || $gatheringId === null) {
             $this->Flash->error(__('Select at least one bestowal and a gathering.'));
@@ -918,6 +979,7 @@ class BestowalsController extends AppController
                 (int)$bestowal->id,
                 $gatheringId,
                 $actorId,
+                $futureOnly,
             );
             if (!($result['success'] ?? false)) {
                 $skippedInvalid++;

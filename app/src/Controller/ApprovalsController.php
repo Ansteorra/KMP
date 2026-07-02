@@ -1310,7 +1310,7 @@ class ApprovalsController extends AppController
         }
 
         if ($gatheringId === null) {
-            return (string)__('Select the gathering where the bestowal will be presented.');
+            return null;
         }
 
         if (!$this->isSelectableBestowalGathering($gatheringId)) {

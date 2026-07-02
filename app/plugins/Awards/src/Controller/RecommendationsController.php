@@ -30,6 +30,7 @@ use App\Model\Entity\WorkflowApprovalResponse;
 use App\Services\CsvExportService;
 use App\Services\WorkflowEngine\DefaultWorkflowApprovalManager;
 use App\Services\WorkflowEngine\TriggerDispatcher;
+use Awards\Services\BestowalGatheringLookupService;
 use Awards\Services\RecommendationFormService;
 use Awards\Services\RecommendationFeedbackService;
 use Awards\Services\RecommendationUiModeService;
@@ -987,6 +988,13 @@ class RecommendationsController extends AppController
                 $recommendation,
                 $this->request->getAttribute('identity'),
             );
+            if (!empty($workflowContext['pendingApproval']) && $workflowContext['pendingApproval'] instanceof WorkflowApproval) {
+                $workflowContext['pendingApproval']->approver_config = $this->augmentApproverConfigForResponse(
+                    $this->normalizeApproverConfig($workflowContext['pendingApproval']->approver_config),
+                    $workflowContext['pendingApproval'],
+                    $recommendation,
+                );
+            }
 
             // Fetch member's self-selected attendance gatherings (where they've shared with crown/kingdom)
             $memberAttendanceGatherings = [];
@@ -1053,6 +1061,7 @@ class RecommendationsController extends AppController
 
         $decision = (string)$this->request->getData('decision');
         $comment = trim((string)$this->request->getData('comment'));
+        $bestowalGatheringId = $this->getPostedBestowalGatheringId();
         $approverConfig = $approval->approver_config ?? [];
         $requiresComment = $decision === WorkflowApprovalResponse::DECISION_REJECT
             || !empty($approverConfig['requires_comment']);
@@ -1068,12 +1077,25 @@ class RecommendationsController extends AppController
             return $this->redirect(['action' => 'view', $recommendation->id]);
         }
 
+        $gatheringError = $this->validateBestowalGatheringSelection(
+            $approval,
+            $decision,
+            $bestowalGatheringId,
+            $recommendation,
+        );
+        if ($gatheringError !== null) {
+            $this->Flash->error($gatheringError);
+
+            return $this->redirect(['action' => 'view', $recommendation->id]);
+        }
+
         $result = $this->recordWorkflowApprovalDecision(
             $approval,
             (int)$identity->getAsMember()->id,
             $decision,
             $comment !== '' ? $comment : null,
             $triggerDispatcher,
+            $bestowalGatheringId,
         );
 
         if ($result->isSuccess()) {
@@ -1099,6 +1121,7 @@ class RecommendationsController extends AppController
         $pageContext = $this->getPageContextUrl();
         $identity = $this->request->getAttribute('identity');
         $approvalId = (int)$this->request->getData('approvalId');
+        $recommendationId = $this->getPostedRecommendationId();
         $decision = (string)$this->request->getData('decision');
         $comment = trim((string)$this->request->getData('comment'));
         $bestowalGatheringId = $this->getPostedBestowalGatheringId();
@@ -1120,7 +1143,13 @@ class RecommendationsController extends AppController
                 ?? $this->redirect($pageContext ?: ['action' => 'index']);
         }
 
-        $gatheringError = $this->validateBestowalGatheringSelection($approval, $decision, $bestowalGatheringId);
+        $recommendation = $this->getRecommendationForApproval($approval, $recommendationId);
+        $gatheringError = $this->validateBestowalGatheringSelection(
+            $approval,
+            $decision,
+            $bestowalGatheringId,
+            $recommendation,
+        );
         if ($gatheringError !== null) {
             $this->Flash->error($gatheringError);
 
@@ -1271,13 +1300,21 @@ class RecommendationsController extends AppController
      * @param array<string, mixed> $approverConfig Approval config.
      * @return array<string, mixed>
      */
-    private function augmentApproverConfigForResponse(array $approverConfig, ?WorkflowApproval $approval = null): array
-    {
+    private function augmentApproverConfigForResponse(
+        array $approverConfig,
+        ?WorkflowApproval $approval = null,
+        ?Recommendation $recommendation = null,
+    ): array {
         if (!$this->approvalRequiresBestowalGatheringSelection($approval, $approverConfig)) {
             return $approverConfig;
         }
 
         $approverConfig[self::BESTOWAL_GATHERING_REQUIRED_KEY] = true;
+        if ($recommendation !== null) {
+            $lookupUrl = $this->buildBestowalGatheringLookupUrl($recommendation);
+            $approverConfig['bestowal_gathering_url'] = $lookupUrl;
+            $approverConfig['bestowalGatheringUrl'] = $lookupUrl;
+        }
 
         return $approverConfig;
     }
@@ -1327,15 +1364,27 @@ class RecommendationsController extends AppController
     }
 
     /**
+     * @return int|null
+     */
+    private function getPostedRecommendationId(): ?int
+    {
+        $recommendationId = (int)$this->request->getData('recommendation_id');
+
+        return $recommendationId > 0 ? $recommendationId : null;
+    }
+
+    /**
      * @param \App\Model\Entity\WorkflowApproval|null $approval Approval.
      * @param string $decision Submitted decision.
      * @param int|null $gatheringId Selected gathering ID.
+     * @param \Awards\Model\Entity\Recommendation|null $recommendation Recommendation context.
      * @return string|null
      */
     private function validateBestowalGatheringSelection(
         ?WorkflowApproval $approval,
         string $decision,
         ?int $gatheringId,
+        ?Recommendation $recommendation = null,
     ): ?string {
         if ($approval === null || $decision !== WorkflowApprovalResponse::DECISION_APPROVE) {
             return null;
@@ -1347,10 +1396,13 @@ class RecommendationsController extends AppController
         }
 
         if ($gatheringId === null) {
-            return (string)__('Select the gathering where the bestowal will be presented.');
+            return null;
         }
 
-        if (!$this->isSelectableBestowalGathering($gatheringId)) {
+        $isSelectable = $recommendation !== null
+            ? $this->isSelectableBestowalGatheringForRecommendation($recommendation, $gatheringId)
+            : $this->isSelectableBestowalGathering($gatheringId);
+        if (!$isSelectable) {
             return (string)__('Select a valid, future gathering for the bestowal.');
         }
 
@@ -1368,6 +1420,65 @@ class RecommendationsController extends AppController
             'Gatherings.deleted IS' => null,
             'Gatherings.cancelled_at IS' => null,
             'Gatherings.start_date >' => DateTime::now(),
+        ]);
+    }
+
+    /**
+     * @param \Awards\Model\Entity\Recommendation $recommendation Recommendation context.
+     * @param int $gatheringId Gathering ID.
+     * @return bool
+     */
+    private function isSelectableBestowalGatheringForRecommendation(Recommendation $recommendation, int $gatheringId): bool
+    {
+        $bestowalsTable = TableRegistry::getTableLocator()->get('Awards.Bestowals');
+        $bestowal = $bestowalsTable->newEmptyEntity();
+        $bestowal->award_id = $recommendation->award_id !== null ? (int)$recommendation->award_id : null;
+        $bestowal->member_id = $recommendation->member_id !== null ? (int)$recommendation->member_id : null;
+        $bestowal->set('recommendations', [$recommendation]);
+
+        $gatheringData = (new BestowalGatheringLookupService())->getFilteredGatheringsForBestowal(
+            $bestowal,
+            true,
+            null,
+            $bestowal->award_id !== null ? (int)$bestowal->award_id : null,
+        );
+
+        return isset($gatheringData['gatherings'][$gatheringId]);
+    }
+
+    /**
+     * @param \App\Model\Entity\WorkflowApproval $approval Approval entity.
+     * @param int|null $recommendationId Submitted recommendation ID.
+     * @return \Awards\Model\Entity\Recommendation|null
+     */
+    private function getRecommendationForApproval(WorkflowApproval $approval, ?int $recommendationId): ?Recommendation
+    {
+        $query = TableRegistry::getTableLocator()->get('Awards.RecommendationApprovalRuns')->find()
+            ->contain(['Recommendations'])
+            ->where(['RecommendationApprovalRuns.workflow_instance_id' => (int)$approval->workflow_instance_id]);
+        if ($recommendationId !== null) {
+            $query->where(['RecommendationApprovalRuns.recommendation_id' => $recommendationId]);
+        }
+
+        $run = $query->first();
+        $recommendation = $run?->recommendation ?? null;
+
+        return $recommendation instanceof Recommendation ? $recommendation : null;
+    }
+
+    /**
+     * @param \Awards\Model\Entity\Recommendation $recommendation Recommendation context.
+     * @return string
+     */
+    private function buildBestowalGatheringLookupUrl(Recommendation $recommendation): string
+    {
+        return Router::url([
+            'plugin' => 'Awards',
+            'controller' => 'Bestowals',
+            'action' => 'gatheringsForBestowalAutoComplete',
+            '?' => [
+                'recommendation_id' => (int)$recommendation->id,
+            ],
         ]);
     }
 
@@ -2819,6 +2930,7 @@ class RecommendationsController extends AppController
             $recommendation->pending_approval_approver_config = $this->augmentApproverConfigForResponse(
                 $this->normalizeApproverConfig($approval->approver_config),
                 $approval,
+                $recommendation,
             );
             $recommendation->pending_approval_required_count = (int)($approval->required_count ?? 1);
             $recommendation->pending_approval_approved_count = (int)($approval->approved_count ?? 0);

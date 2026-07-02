@@ -582,7 +582,7 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
         $this->assertSame(0, $responseCount);
     }
 
-    public function testRecordApprovalRequiresGatheringForAwardBestowalApproval(): void
+    public function testRecordApprovalAllowsAwardBestowalApprovalWithoutGathering(): void
     {
         $this->authenticateAsSuperUser();
         [$instanceId, $executionLogId] = $this->createWorkflowContext();
@@ -608,7 +608,7 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
         $responseCount = $responsesTable->find()
             ->where(['workflow_approval_id' => $approvalId])
             ->count();
-        $this->assertSame(0, $responseCount);
+        $this->assertSame(1, $responseCount);
     }
 
     public function testRecordApprovalRejectsPastGatheringForAwardBestowalApproval(): void

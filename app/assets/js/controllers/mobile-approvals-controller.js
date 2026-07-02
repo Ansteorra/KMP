@@ -387,7 +387,7 @@ class MobileApprovalsController extends MobileControllerBase {
         const gatheringOptions = Array.isArray(cfg.bestowalGatheringOptions) ? cfg.bestowalGatheringOptions : []
         html += `<div class="mb-2" data-bestowal-gathering-section="${approval.id}" hidden>
             <label class="form-label fw-semibold" style="font-size: 0.85rem;" for="${gatheringId}">
-                Bestowal Gathering <span class="text-danger" aria-hidden="true">*</span>
+                Bestowal Gathering <span class="text-muted fw-normal">(optional)</span>
             </label>
             <select class="form-select form-select-sm" id="${gatheringId}" data-bestowal-gathering-select="${approval.id}"
                     aria-describedby="${gatheringHelpId} ${gatheringErrorId}" aria-invalid="false"
@@ -395,9 +395,9 @@ class MobileApprovalsController extends MobileControllerBase {
                 <option value="">Select a gathering...</option>
                 ${gatheringOptions.map(option => `<option value="${this._escHtml(option.id)}">${this._escHtml(option.label)}</option>`).join('')}
             </select>
-            <div class="form-text" id="${gatheringHelpId}">Choose the event or court where the bestowal should be scheduled.</div>
+            <div class="form-text" id="${gatheringHelpId}">Optional: choose the event or court if you already know where the bestowal should be scheduled.</div>
             <div class="text-danger small" id="${gatheringErrorId}" data-bestowal-gathering-error="${approval.id}" hidden>
-                <i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>Select the gathering where the bestowal will be presented.
+                <i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>Select a valid gathering or leave this field blank.
             </div>
         </div>`
 
@@ -464,8 +464,8 @@ class MobileApprovalsController extends MobileControllerBase {
             const showGathering = decision === 'approve' && cfg.requiresBestowalGathering === true
             gatheringSection.hidden = !showGathering
             if (showGathering) {
-                gatheringSelect.setAttribute('required', 'required')
-                gatheringSelect.setAttribute('aria-required', 'true')
+                gatheringSelect.removeAttribute('required')
+                gatheringSelect.removeAttribute('aria-required')
             } else {
                 gatheringSelect.removeAttribute('required')
                 gatheringSelect.removeAttribute('aria-required')
@@ -632,14 +632,6 @@ class MobileApprovalsController extends MobileControllerBase {
             return
         }
         const bestowalGatheringId = form.querySelector(`[data-bestowal-gathering-select="${id}"]`)?.value || ''
-        if (decision === 'approve' && cfg.requiresBestowalGathering === true && !bestowalGatheringId) {
-            const hint = form.querySelector(`[data-bestowal-gathering-error="${id}"]`)
-            if (hint) hint.hidden = false
-            const gatheringField = form.querySelector(`[data-bestowal-gathering-select="${id}"]`)
-            gatheringField?.setAttribute('aria-invalid', 'true')
-            gatheringField?.focus()
-            return
-        }
 
         if (!this.online) {
             this._showToast('You must be online to submit responses.', 'danger')
