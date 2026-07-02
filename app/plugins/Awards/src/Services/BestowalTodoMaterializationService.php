@@ -130,6 +130,10 @@ class BestowalTodoMaterializationService
             'sort_order' => (int)$item->sort_order,
             'source_ref' => $sourceRef,
         ];
+        $completionConfig = $item->getCompletionConfig();
+        if ($completionConfig !== null) {
+            $definition['completion_config'] = $completionConfig;
+        }
 
         if ($item->assignee_type === BestowalTodoTemplateItem::ASSIGNEE_TYPE_MEMBER) {
             $definition['assignee_type'] = ActionItem::ASSIGNEE_TYPE_MEMBER;

@@ -18,6 +18,7 @@ class BestowalUpdateService
 
     private BestowalRecommendationSyncService $syncService;
     private BestowalRecommendationLinkService $linkService;
+    private BestowalGatheringLookupService $gatheringLookupService;
 
     /**
      * @param \Awards\Services\BestowalRecommendationSyncService|null $syncService Optional sync service.
@@ -26,11 +27,13 @@ class BestowalUpdateService
     public function __construct(
         ?BestowalRecommendationSyncService $syncService = null,
         ?BestowalRecommendationLinkService $linkService = null,
+        ?BestowalGatheringLookupService $gatheringLookupService = null,
     ) {
         $this->syncService = $syncService ?? new BestowalRecommendationSyncService();
         $this->linkService = $linkService ?? new BestowalRecommendationLinkService(
             syncService: $this->syncService,
         );
+        $this->gatheringLookupService = $gatheringLookupService ?? new BestowalGatheringLookupService();
     }
 
     /**
@@ -117,6 +120,85 @@ class BestowalUpdateService
             );
         } catch (Throwable $e) {
             Log::error('Bestowal update failed: ' . $e->getMessage());
+
+            return $this->failureResult($e->getMessage());
+        }
+    }
+
+    /**
+     * Assign a gathering using the same guarded update path as the edit form.
+     *
+     * @param \Cake\ORM\Table $bestowalsTable Bestowals table.
+     * @param int $bestowalId Bestowal ID.
+     * @param int $gatheringId Gathering ID.
+     * @param int $actorId Actor performing the update.
+     * @return array<string, mixed>
+     */
+    public function assignGathering(Table $bestowalsTable, int $bestowalId, int $gatheringId, int $actorId): array
+    {
+        if ($bestowalId <= 0 || $gatheringId <= 0) {
+            return $this->failureResult('A valid bestowal and gathering are required.');
+        }
+
+        try {
+            return $bestowalsTable->getConnection()->transactional(
+                function () use ($bestowalsTable, $bestowalId, $gatheringId, $actorId): array {
+                    $bestowal = $bestowalsTable->find()
+                        ->where(['Bestowals.id' => $bestowalId])
+                        ->contain([
+                            'Recommendations' => function ($query) {
+                                return $query->select(['id', 'award_id', 'member_id', 'bestowal_id']);
+                            },
+                        ])
+                        ->first();
+                    if ($bestowal === null) {
+                        throw new RuntimeException('Bestowal not found.');
+                    }
+                    if (!$bestowal->isActiveBestowal()) {
+                        throw new RuntimeException('Only open bestowals can be assigned to a gathering.');
+                    }
+                    if ($bestowal->award_id === null) {
+                        throw new RuntimeException('Award to Bestow is required.');
+                    }
+                    if (
+                        !$this->gatheringLookupService->isGatheringSelectableForBestowal(
+                            $bestowal,
+                            $gatheringId,
+                            true,
+                        )
+                    ) {
+                        throw new RuntimeException('Select a valid future gathering for this bestowal.');
+                    }
+
+                    $currentGatheringId = $bestowal->gathering_id !== null ? (int)$bestowal->gathering_id : null;
+                    if ($currentGatheringId !== $gatheringId) {
+                        $bestowal->set('gathering_id', $gatheringId, ['guard' => false]);
+                        $bestowal->setDirty('gathering_id', true);
+                        $bestowal->set('gathering_scheduled_activity_id', null, ['guard' => false]);
+                        $bestowal->setDirty('gathering_scheduled_activity_id', true);
+                        $bestowal->set('modified_by', $actorId, ['guard' => false]);
+                        $bestowalsTable->saveOrFail($bestowal);
+                    }
+
+                    $syncResult = $this->syncService->syncFromBestowal($bestowalId, $actorId);
+                    if (!($syncResult['success'] ?? false)) {
+                        throw new RuntimeException(
+                            (string)($syncResult['error'] ?? 'Recommendation sync failed.'),
+                        );
+                    }
+
+                    return [
+                        'success' => true,
+                        'data' => [
+                            'bestowalId' => $bestowalId,
+                            'result' => ['lifecycleStatus' => $bestowal->lifecycle_status],
+                            'sync' => $syncResult['data'] ?? [],
+                        ],
+                    ];
+                },
+            );
+        } catch (Throwable $e) {
+            Log::error('Bestowal gathering assignment failed: ' . $e->getMessage());
 
             return $this->failureResult($e->getMessage());
         }

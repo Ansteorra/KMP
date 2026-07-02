@@ -6,6 +6,8 @@ class AwardsBestowalTodoItemForm extends Controller {
         "sourceGroup",
         "branchMode",
         "branchTypeGroup",
+        "requiredField",
+        "requiredFieldOptionsGroup",
     ]
 
     connect() {
@@ -17,6 +19,10 @@ class AwardsBestowalTodoItemForm extends Controller {
         this.syncOptionalGroup(
             this.hasBranchModeTarget ? this.branchModeTarget.value === "ancestor_branch_type" : false,
             this.hasBranchTypeGroupTarget ? this.branchTypeGroupTarget : null,
+        );
+        this.syncOptionalGroup(
+            this.hasRequiredFieldTarget ? this.requiredFieldTarget.value !== "" : false,
+            this.hasRequiredFieldOptionsGroupTarget ? this.requiredFieldOptionsGroupTarget : null,
         );
     }
 

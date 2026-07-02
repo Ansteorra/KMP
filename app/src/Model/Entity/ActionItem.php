@@ -26,6 +26,7 @@ namespace App\Model\Entity;
  * @property bool $is_gating
  * @property int $sort_order
  * @property string|null $source_ref
+ * @property array|null $completion_config
  * @property \Cake\I18n\DateTime|null $completed_at
  * @property int|null $completed_by
  * @property \Cake\I18n\DateTime|null $created
@@ -74,6 +75,7 @@ class ActionItem extends BaseEntity
         'is_gating' => true,
         'sort_order' => true,
         'source_ref' => true,
+        'completion_config' => true,
         'completed_at' => true,
         'completed_by' => true,
         'created' => true,
@@ -103,5 +105,38 @@ class ActionItem extends BaseEntity
     public function isCompleted(): bool
     {
         return $this->status === self::STATUS_COMPLETED;
+    }
+
+    /**
+     * Return normalized completion-time required-field metadata.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function getRequiredFieldConfigs(): array
+    {
+        $config = $this->completion_config;
+        if (!is_array($config)) {
+            return [];
+        }
+
+        $requiredFields = $config['required_fields'] ?? [];
+        if (!is_array($requiredFields)) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            $requiredFields,
+            static fn(mixed $field): bool => is_array($field) && !empty($field['field']),
+        ));
+    }
+
+    /**
+     * Whether the action item declares completion requirements.
+     *
+     * @return bool
+     */
+    public function hasCompletionRequirements(): bool
+    {
+        return $this->getRequiredFieldConfigs() !== [];
     }
 }

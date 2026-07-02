@@ -4,7 +4,9 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\KMP\GridColumns\ActionItemsGridColumns;
+use App\KMP\KmpIdentityInterface;
 use App\Model\Entity\ActionItem;
+use App\Services\ActionItems\ActionItemCompletionFormRegistry;
 use App\Services\ActionItems\ActionItemService;
 use Cake\Http\Response;
 use Cake\Routing\Router;
@@ -115,7 +117,7 @@ class ActionItemsController extends AppController
             'showSearchBox' => true,
         ]);
 
-        $this->prepareTodosForGrid($result['data'], $result['visibleColumns']);
+        $this->prepareTodosForGrid($result['data'], $result['visibleColumns'], $user);
 
         $this->set([
             'data' => $result['data'],
@@ -196,7 +198,7 @@ class ActionItemsController extends AppController
 
         return $this->jsonResponse([
             'openCount' => $total,
-            'groups' => $this->serializeMobileGroups($groups),
+            'groups' => $this->serializeMobileGroups($groups, $user),
             'pagination' => $this->mobileQueuePaginationPayload($pagination),
         ]);
     }
@@ -270,7 +272,14 @@ class ActionItemsController extends AppController
         $this->Authorization->authorize($item, $operation);
 
         $result = $operation === 'complete'
-            ? $actionItemService->complete($itemId, $actorId, $note, !$user->isSuperUser())
+            ? $actionItemService->complete(
+                $itemId,
+                $actorId,
+                $note,
+                !$user->isSuperUser(),
+                $this->request->getData(),
+                $user,
+            )
             : $actionItemService->reopen($itemId, $actorId, $note, !$user->isSuperUser());
 
         if ($this->wantsTurboStreamRequest()) {
@@ -329,9 +338,10 @@ class ActionItemsController extends AppController
      *
      * @param iterable<\App\Model\Entity\ActionItem> $items Grid rows.
      * @param array<string> $visibleColumns Visible column keys.
+     * @param \App\KMP\KmpIdentityInterface $user Current user.
      * @return void
      */
-    private function prepareTodosForGrid(iterable $items, array $visibleColumns): void
+    private function prepareTodosForGrid(iterable $items, array $visibleColumns, KmpIdentityInterface $user): void
     {
         $items = is_array($items) ? $items : iterator_to_array($items);
         $includeOwner = in_array('owner', $visibleColumns, true);
@@ -352,6 +362,9 @@ class ActionItemsController extends AppController
                     ?? $this->genericOwnerDescriptor((string)$item->entity_type, (int)$item->entity_id);
                 $item->owner = $this->buildOwnerHtml($descriptor);
             }
+
+            $completionForm = ActionItemCompletionFormRegistry::formFor($item, $user);
+            $item->completion_form_data = $completionForm?->toArray() ?? [];
         }
     }
 
@@ -551,14 +564,16 @@ class ActionItemsController extends AppController
      * Convert owner-grouped action items into the compact mobile JSON contract.
      *
      * @param array<int, array<string, mixed>> $groups Owner-grouped open items
+     * @param \App\KMP\KmpIdentityInterface $user Current user.
      * @return array<int, array<string, mixed>>
      */
-    private function serializeMobileGroups(array $groups): array
+    private function serializeMobileGroups(array $groups, KmpIdentityInterface $user): array
     {
         $payload = [];
         foreach ($groups as $group) {
             $items = [];
             foreach ($group['items'] as $item) {
+                $completionForm = ActionItemCompletionFormRegistry::formFor($item, $user);
                 $items[] = [
                     'id' => (int)$item->id,
                     'title' => (string)$item->title,
@@ -566,6 +581,7 @@ class ActionItemsController extends AppController
                     'isGating' => (bool)$item->is_gating,
                     'branchName' => (string)($item->branch->name ?? ''),
                     'modified' => $item->modified?->toIso8601String(),
+                    'completionForm' => $completionForm?->toArray(),
                 ];
             }
 

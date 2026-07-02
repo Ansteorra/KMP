@@ -12,6 +12,7 @@ use Awards\Model\Entity\BestowalTodoTemplateItem;
  * @var array $branchTypes
  * @var array $assigneeTypeOptions
  * @var array $branchModeOptions
+ * @var array $requiredFieldOptions
  */
 
 $user = $this->request->getAttribute('identity');
@@ -121,6 +122,13 @@ echo $this->KMP->startBlock('pageTitle') ?>
 
         return sprintf('%s: %s', $type, $source);
     };
+    $requiredFieldLabel = function (BestowalTodoTemplateItem $item) use ($requiredFieldOptions): string {
+        $field = (string)($item->required_field ?? '');
+
+        return $field === ''
+            ? __('None')
+            : (string)($requiredFieldOptions[$field] ?? $field);
+    };
     ?>
     <?php if (!empty($template->bestowal_todo_template_items)) : ?>
     <div class="table-responsive">
@@ -132,6 +140,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
                     <th scope="col"><?= __('Assignee') ?></th>
                     <th scope="col"><?= __('Branch Scope') ?></th>
                     <th scope="col"><?= __('Gating') ?></th>
+                    <th scope="col"><?= __('Required Field') ?></th>
                     <th scope="col" class="actions text-end"><?= __('Actions') ?></th>
                 </tr>
             </thead>
@@ -156,6 +165,13 @@ echo $this->KMP->startBlock('pageTitle') ?>
                         <?php else : ?>
                         <span class="badge bg-light text-dark"><?= __('Optional') ?></span>
                         <?php endif; ?>
+                    </td>
+                    <td>
+                       <?php if ($item->required_field) : ?>
+                       <span class="badge bg-info text-dark"><?= h($requiredFieldLabel($item)) ?></span>
+                       <?php else : ?>
+                       <span class="text-muted"><?= __('None') ?></span>
+                       <?php endif; ?>
                     </td>
                     <td class="actions text-end text-nowrap">
                         <?php if ($user->checkCan('edit', $template)) : ?>
@@ -198,12 +214,13 @@ echo $this->KMP->startBlock('pageTitle') ?>
     $renderItemFields = function ($item = null) use (
         $assigneeTypeOptions,
         $branchModeOptions,
+        $requiredFieldOptions,
         $branchTypes,
         $roles,
         $permissions,
         $offices,
         $members,
-): void {
+    ): void {
         $fieldPrefix = $item?->id ? 'item-' . $item->id : 'new-item';
         $memberSourceUrl = $this->Url->build(['action' => 'member-source-auto-complete']);
         $initSelection = function ($value, array $options): ?string {
@@ -243,6 +260,9 @@ echo $this->KMP->startBlock('pageTitle') ?>
         $selectedPermission = $selectedSourceId(BestowalTodoTemplateItem::ASSIGNEE_TYPE_PERMISSION);
         $selectedOffice = $selectedSourceId(BestowalTodoTemplateItem::ASSIGNEE_TYPE_OFFICE);
         $selectedMember = $selectedSourceId(BestowalTodoTemplateItem::ASSIGNEE_TYPE_MEMBER);
+        $selectedRequiredField = (string)($item?->required_field ?? '');
+        $requiredFieldConfig = is_array($item?->required_field_config ?? null) ? $item->required_field_config : [];
+        $conditionalComplete = (bool)($requiredFieldConfig['conditional_complete_on_assign'] ?? true);
 
         echo '<div class="row g-3">';
         echo '<div class="col-12 col-lg-6">';
@@ -372,6 +392,33 @@ echo $this->KMP->startBlock('pageTitle') ?>
         ) .
         '</div>';
         echo '</div>';
+        echo '</div>';
+        echo '</fieldset>';
+        echo '</div>';
+        echo '<div class="col-12">';
+        echo '<fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">';
+        echo '<legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">' .
+        '<i class="bi bi-ui-checks-grid text-warning me-1" aria-hidden="true"></i>' .
+        __('Completion Requirements') . '</legend>';
+        echo $this->Form->control('required_field', [
+        'options' => $requiredFieldOptions,
+        'value' => $selectedRequiredField,
+        'label' => __('Required field before completion'),
+        'help' => __(
+            'When set, users must satisfy this field before the check can be completed. ' .
+                'Specialized fields are supplied by the owning plugin.',
+        ),
+        'data-awards-bestowal-todo-item-form-target' => 'requiredField',
+        'data-action' => 'awards-bestowal-todo-item-form#sync',
+        ]);
+        echo '<div data-awards-bestowal-todo-item-form-target="requiredFieldOptionsGroup">';
+        echo $this->Form->control('conditional_complete_on_assign', [
+        'type' => 'checkbox',
+        'switch' => true,
+        'checked' => $conditionalComplete,
+        'label' => __('Allow completion when this field is assigned'),
+        'help' => __('Bulk or To-Do completion flows may complete this check in the same action that sets the field.'),
+        ]);
         echo '</div>';
         echo '</fieldset>';
         echo '</div>';

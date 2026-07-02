@@ -5,7 +5,11 @@ namespace App\Test\TestCase\Controller;
 
 use App\Controller\AppController;
 use App\Model\Entity\ActionItem;
+use App\Services\ActionItems\ActionItemCompletionFormRegistry;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
+use Awards\Model\Entity\Bestowal;
+use Awards\Model\Entity\BestowalTodoTemplateItem;
+use Awards\Services\BestowalTodoCompletionFormProvider;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 
@@ -39,6 +43,24 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
         $entity = $table->newEntity($data);
 
         return $table->saveOrFail($entity);
+    }
+
+    private function makeBestowal(): Bestowal
+    {
+        $award = TableRegistry::getTableLocator()->get('Awards.Awards')
+            ->find()
+            ->select(['id'])
+            ->firstOrFail();
+        $bestowals = TableRegistry::getTableLocator()->get('Awards.Bestowals');
+
+        return $bestowals->saveOrFail($bestowals->newEntity([
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'member_sca_name' => 'Todo Recipient',
+            'award_id' => $award->id,
+            'lifecycle_status' => Bestowal::LIFECYCLE_OPEN,
+            'source' => Bestowal::SOURCE_AD_HOC,
+            'stack_rank' => 0,
+        ]));
     }
 
     /**
@@ -83,6 +105,59 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
 
         $this->assertResponseOk();
         $this->assertResponseContains('Scroll finished');
+    }
+
+    public function testMyTasksGridDataIncludesProviderCompletionFormMetadata(): void
+    {
+        ActionItemCompletionFormRegistry::register(
+            'AwardsBestowals',
+            new BestowalTodoCompletionFormProvider(),
+        );
+        $this->authenticateAsMember(self::ADMIN_MEMBER_ID);
+        $bestowal = $this->makeBestowal();
+        $this->makeMemberItem(self::ADMIN_MEMBER_ID, [
+            'entity_id' => (int)$bestowal->id,
+            'title' => 'Event Scheduled',
+            'source_ref' => 'event_scheduled',
+            'completion_config' => [
+                'required_fields' => [
+                    [
+                        'provider' => BestowalTodoTemplateItem::COMPLETION_PROVIDER_BESTOWAL_GATHERING,
+                        'field' => BestowalTodoTemplateItem::REQUIRED_FIELD_GATHERING,
+                        'conditional_complete_on_assign' => true,
+                    ],
+                ],
+            ],
+        ]);
+
+        $this->get('/action-items/my-tasks-data');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Schedule Bestowal Event');
+        $this->assertResponseContains('bestowal_gathering_id');
+        $this->assertResponseContains('/awards/bestowals/gatherings-for-bestowal-auto-complete/' . $bestowal->id);
+    }
+
+    public function testMyTasksGridDataIncludesEventScheduledFallbackCompletionFormMetadata(): void
+    {
+        ActionItemCompletionFormRegistry::register(
+            'AwardsBestowals',
+            new BestowalTodoCompletionFormProvider(),
+        );
+        $this->authenticateAsMember(self::ADMIN_MEMBER_ID);
+        $bestowal = $this->makeBestowal();
+        $this->makeMemberItem(self::ADMIN_MEMBER_ID, [
+            'entity_id' => (int)$bestowal->id,
+            'title' => 'Event Scheduled',
+            'source_ref' => BestowalTodoTemplateItem::ITEM_KEY_EVENT_SCHEDULED,
+        ]);
+
+        $this->get('/action-items/my-tasks-data');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Schedule Bestowal Event');
+        $this->assertResponseContains('bestowal_gathering_id');
+        $this->assertResponseContains('/awards/bestowals/gatherings-for-bestowal-auto-complete/' . $bestowal->id);
     }
 
     /**

@@ -123,6 +123,11 @@ foreach ($actions as $action) :
             if (!empty($action['dataAttributes'])) {
                 foreach ($action['dataAttributes'] as $attrKey => $attrValue) {
                     if (is_array($attrValue)) {
+                        if (array_key_exists('_rowField', $attrValue)) {
+                            $dataAttrs['data-' . $attrKey] = $getNestedValue($attrValue['_rowField'], $row);
+                            continue;
+                        }
+
                         // Build JSON object with row data
                         $jsonData = [];
                         foreach ($attrValue as $jsonKey => $fieldPath) {

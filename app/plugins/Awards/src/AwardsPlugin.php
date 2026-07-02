@@ -5,6 +5,7 @@ namespace Awards;
 
 use App\KMP\KMPPluginInterface;
 use App\KMP\StaticHelpers;
+use App\Services\ActionItems\ActionItemCompletionFormRegistry;
 use App\Services\ActionItems\ActionItemService;
 use App\Services\ApprovalContext\ApprovalContextRendererRegistry;
 use App\Services\NavigationRegistry;
@@ -29,6 +30,7 @@ use Awards\Services\BestowalNotificationVarsService;
 use Awards\Services\BestowalQueryService;
 use Awards\Services\BestowalRecommendationLinkService;
 use Awards\Services\BestowalRecommendationSyncService;
+use Awards\Services\BestowalTodoCompletionFormProvider;
 use Awards\Services\BestowalTodoMaterializationService;
 use Awards\Services\BestowalUpdateService;
 use Awards\Services\CourtAgendaService;
@@ -116,6 +118,10 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
         ApprovalContextRendererRegistry::register(
             'AwardsRecommendations',
             new RecommendationApprovalContextRenderer(),
+        );
+        ActionItemCompletionFormRegistry::register(
+            'AwardsBestowals',
+            new BestowalTodoCompletionFormProvider(),
         );
 
         EventManager::instance()->on(new RecommendationFeedbackApprovalListener());
@@ -288,6 +294,24 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
             ['path' => '/awards'],
             function (RouteBuilder $builder): void {
                 $builder->setExtensions(['json', 'pdf', 'csv']);
+                $builder->scope('/bestowals', function (RouteBuilder $bestowals): void {
+                    $bestowals->connect(
+                        '/bulk-complete-todo',
+                        ['controller' => 'Bestowals', 'action' => 'bulkCompleteTodo'],
+                    );
+                    $bestowals->connect(
+                        '/bulk-assign-gathering',
+                        ['controller' => 'Bestowals', 'action' => 'bulkAssignGathering'],
+                    );
+                    $bestowals->connect(
+                        '/gatherings-for-bestowal-auto-complete',
+                        ['controller' => 'Bestowals', 'action' => 'gatheringsForBestowalAutoComplete'],
+                    );
+                    $bestowals->connect(
+                        '/gatherings-for-bestowal-auto-complete/{id}',
+                        ['controller' => 'Bestowals', 'action' => 'gatheringsForBestowalAutoComplete'],
+                    )->setPass(['id']);
+                });
                 $builder->fallbacks();
             },
         );

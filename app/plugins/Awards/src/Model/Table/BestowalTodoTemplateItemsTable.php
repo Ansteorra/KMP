@@ -36,6 +36,10 @@ class BestowalTodoTemplateItemsTable extends BaseTable
         $this->addBehavior('Timestamp');
         $this->addBehavior('Muffin/Footprint.Footprint');
         $this->addBehavior('Muffin/Trash.Trash');
+
+        if ($this->getSchema()->hasColumn('required_field_config')) {
+            $this->getSchema()->setColumnType('required_field_config', 'json');
+        }
     }
 
     /**
@@ -151,6 +155,15 @@ class BestowalTodoTemplateItemsTable extends BaseTable
         $validator
             ->boolean('is_gating')
             ->notEmptyString('is_gating');
+
+        $validator
+            ->scalar('required_field')
+            ->maxLength('required_field', 100)
+            ->allowEmptyString('required_field')
+            ->inList('required_field', array_keys(TodoItem::REQUIRED_FIELD_OPTIONS));
+
+        $validator
+            ->allowEmptyArray('required_field_config');
 
         $validator
             ->integer('sort_order')

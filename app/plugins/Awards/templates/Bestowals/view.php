@@ -215,6 +215,7 @@ $gatingPercent = $todoGatingTotal > 0 ? (int)round($todoGatingDone / $todoGating
     <?= $this->element('bestowal_todo_checklist', [
         'todoItems' => $todoItems,
         'todoEligibility' => $todoEligibility,
+        'todoRequirementStatus' => $todoRequirementStatus ?? [],
         'todoGatingTotal' => $todoGatingTotal,
         'todoGatingDone' => $todoGatingDone,
         'gatingPercent' => $gatingPercent,

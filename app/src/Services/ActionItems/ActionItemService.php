@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Services\ActionItems;
 
+use App\KMP\KmpIdentityInterface;
 use App\KMP\PermissionsLoader;
 use App\Model\Entity\ActionItem;
 use App\Services\ServiceResult;
@@ -102,6 +103,7 @@ class ActionItemService
                 'is_gating' => array_key_exists('is_gating', $definition) ? (bool)$definition['is_gating'] : true,
                 'sort_order' => $definition['sort_order'] ?? $index,
                 'source_ref' => $sourceRef,
+                'completion_config' => $definition['completion_config'] ?? null,
             ]);
 
             if (!$this->ActionItems->save($entity)) {
@@ -120,6 +122,8 @@ class ActionItemService
      * @param int $actorId The acting member id
      * @param string|null $note Optional audit note
      * @param bool $enforceEligibility When false, skips the eligibility gate (admin/backfill use)
+     * @param array<string, mixed> $completionData Submitted provider-backed completion data
+     * @param \App\KMP\KmpIdentityInterface|null $actorIdentity Current actor identity
      * @return \App\Services\ServiceResult
      */
     public function complete(
@@ -127,8 +131,18 @@ class ActionItemService
         int $actorId,
         ?string $note = null,
         bool $enforceEligibility = true,
+        array $completionData = [],
+        ?KmpIdentityInterface $actorIdentity = null,
     ): ServiceResult {
-        return $this->transition($actionItemId, $actorId, ActionItem::STATUS_COMPLETED, $note, $enforceEligibility);
+        return $this->transition(
+            $actionItemId,
+            $actorId,
+            ActionItem::STATUS_COMPLETED,
+            $note,
+            $enforceEligibility,
+            $completionData,
+            $actorIdentity,
+        );
     }
 
     /**
@@ -175,6 +189,8 @@ class ActionItemService
      * @param string $toStatus Target status
      * @param string|null $note Optional audit note
      * @param bool $enforceEligibility Whether to enforce the eligibility gate
+     * @param array<string, mixed> $completionData Submitted provider-backed completion data
+     * @param \App\KMP\KmpIdentityInterface|null $actorIdentity Current actor identity
      * @return \App\Services\ServiceResult
      */
     protected function transition(
@@ -183,6 +199,8 @@ class ActionItemService
         string $toStatus,
         ?string $note,
         bool $enforceEligibility,
+        array $completionData = [],
+        ?KmpIdentityInterface $actorIdentity = null,
     ): ServiceResult {
         /** @var \App\Model\Entity\ActionItem|null $item */
         $item = $this->ActionItems->find()->where(['ActionItems.id' => $actionItemId])->first();
@@ -199,19 +217,39 @@ class ActionItemService
             return new ServiceResult(true, 'No change.', $item);
         }
 
-        $item->status = $toStatus;
-        if ($toStatus === ActionItem::STATUS_COMPLETED) {
-            $item->completed_at = DateTime::now();
-            $item->completed_by = $actorId;
-        } else {
-            $item->completed_at = null;
-            $item->completed_by = null;
-        }
-
         $connection = $this->ActionItems->getConnection();
 
         $result = $connection->transactional(
-            function () use ($item, $fromStatus, $toStatus, $note, $actorId): ServiceResult {
+            function () use (
+                $item,
+                $fromStatus,
+                $toStatus,
+                $note,
+                $actorId,
+                $completionData,
+                $actorIdentity,
+            ): ServiceResult {
+                if ($toStatus === ActionItem::STATUS_COMPLETED) {
+                    $requirementResult = $this->prepareCompletionRequirements(
+                        $item,
+                        $completionData,
+                        $actorId,
+                        $actorIdentity,
+                    );
+                    if (!$requirementResult->success) {
+                        return $requirementResult;
+                    }
+                }
+
+                $item->status = $toStatus;
+                if ($toStatus === ActionItem::STATUS_COMPLETED) {
+                    $item->completed_at = DateTime::now();
+                    $item->completed_by = $actorId;
+                } else {
+                    $item->completed_at = null;
+                    $item->completed_by = null;
+                }
+
                 if (!$this->ActionItems->save($item)) {
                     return new ServiceResult(false, 'Failed to update the to-do item.');
                 }
@@ -234,6 +272,43 @@ class ActionItemService
         }
 
         return $result;
+    }
+
+    /**
+     * Apply and validate provider-backed completion requirements.
+     *
+     * @param \App\Model\Entity\ActionItem $item Action item.
+     * @param array<string, mixed> $completionData Submitted provider data.
+     * @param int $actorId Acting member id.
+     * @param \App\KMP\KmpIdentityInterface|null $actorIdentity Current actor identity.
+     * @return \App\Services\ServiceResult
+     */
+    private function prepareCompletionRequirements(
+        ActionItem $item,
+        array $completionData,
+        int $actorId,
+        ?KmpIdentityInterface $actorIdentity,
+    ): ServiceResult {
+        $provider = ActionItemCompletionFormRegistry::providerFor($item);
+        if (!$item->hasCompletionRequirements() && $provider === null) {
+            return new ServiceResult(true);
+        }
+
+        if ($provider === null) {
+            return new ServiceResult(false, 'This to-do requires additional information before it can be completed.');
+        }
+
+        if ($completionData !== []) {
+            if ($actorIdentity === null) {
+                return new ServiceResult(false, 'A signed-in user is required to update this to-do requirement.');
+            }
+            $applyResult = $provider->applySubmission($item, $completionData, $actorId, $actorIdentity);
+            if (!$applyResult->success) {
+                return $applyResult;
+            }
+        }
+
+        return $provider->validateCompletion($item);
     }
 
     /**

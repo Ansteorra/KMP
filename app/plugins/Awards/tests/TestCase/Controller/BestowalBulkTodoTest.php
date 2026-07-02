@@ -7,6 +7,8 @@ use App\Model\Entity\ActionItem;
 use App\Model\Entity\Member;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Model\Entity\Bestowal;
+use Awards\Model\Entity\BestowalTodoTemplateItem;
+use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 
 /**
@@ -51,13 +53,18 @@ class BestowalBulkTodoTest extends HttpIntegrationTestCase
      * @param int $bestowalId Owning bestowal id
      * @param int $assigneeMemberId Member allowed to complete the check
      * @param string $sourceRef Template item key
+     * @param array<string, mixed> $overrides Field overrides
      * @return \App\Model\Entity\ActionItem
      */
-    private function makeTodo(int $bestowalId, int $assigneeMemberId, string $sourceRef): ActionItem
-    {
+    private function makeTodo(
+        int $bestowalId,
+        int $assigneeMemberId,
+        string $sourceRef,
+        array $overrides = [],
+    ): ActionItem {
         $table = TableRegistry::getTableLocator()->get('ActionItems');
 
-        return $table->saveOrFail($table->newEntity([
+        return $table->saveOrFail($table->newEntity(array_merge([
             'entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
             'entity_id' => $bestowalId,
             'title' => 'Has scroll',
@@ -68,7 +75,7 @@ class BestowalBulkTodoTest extends HttpIntegrationTestCase
             'is_gating' => true,
             'sort_order' => 1,
             'source_ref' => $sourceRef,
-        ]));
+        ], $overrides)));
     }
 
     /**
@@ -163,5 +170,146 @@ class BestowalBulkTodoTest extends HttpIntegrationTestCase
 
         $this->assertResponseCode(302);
         $this->assertFlashMessage('None of the selected bestowals have that check open.');
+    }
+
+    public function testBulkAssignGatheringCompletesMatchingRequiredTodo(): void
+    {
+        $bestowal = $this->makeBestowal();
+        $gathering = $this->makeSelectableGatheringForAward((int)$bestowal->award_id);
+        $todo = $this->makeTodo((int)$bestowal->id, self::ADMIN_MEMBER_ID, 'event_scheduled', [
+            'title' => 'Event Scheduled',
+            'completion_config' => [
+                'required_fields' => [
+                    [
+                        'provider' => BestowalTodoTemplateItem::COMPLETION_PROVIDER_BESTOWAL_GATHERING,
+                        'field' => BestowalTodoTemplateItem::REQUIRED_FIELD_GATHERING,
+                        'conditional_complete_on_assign' => true,
+                    ],
+                ],
+            ],
+        ]);
+
+        $this->post('/awards/bestowals/bulk-assign-gathering', [
+            'bestowal_ids' => (string)$bestowal->id,
+            'bestowal_gathering_id' => (string)$gathering->id,
+            'complete_required_todo' => '1',
+        ]);
+
+        $this->assertResponseCode(302);
+        $reloadedBestowal = TableRegistry::getTableLocator()->get('Awards.Bestowals')->get($bestowal->id);
+        $this->assertSame((int)$gathering->id, (int)$reloadedBestowal->gathering_id);
+        $reloadedTodo = TableRegistry::getTableLocator()->get('ActionItems')->get($todo->id);
+        $this->assertTrue($reloadedTodo->isCompleted());
+    }
+
+    public function testBulkAssignGatheringCompletesUnbackfilledEventScheduledTodo(): void
+    {
+        $bestowal = $this->makeBestowal();
+        $gathering = $this->makeSelectableGatheringForAward((int)$bestowal->award_id);
+        $todo = $this->makeTodo((int)$bestowal->id, self::ADMIN_MEMBER_ID, 'event_scheduled', [
+            'title' => 'Event Scheduled',
+        ]);
+
+        $this->post('/awards/bestowals/bulk-assign-gathering', [
+            'bestowal_ids' => (string)$bestowal->id,
+            'bestowal_gathering_id' => (string)$gathering->id,
+            'complete_required_todo' => '1',
+        ]);
+
+        $this->assertResponseCode(302);
+        $reloadedBestowal = TableRegistry::getTableLocator()->get('Awards.Bestowals')->get($bestowal->id);
+        $this->assertSame((int)$gathering->id, (int)$reloadedBestowal->gathering_id);
+        $reloadedTodo = TableRegistry::getTableLocator()->get('ActionItems')->get($todo->id);
+        $this->assertTrue($reloadedTodo->isCompleted());
+    }
+
+    public function testAssignedEventScheduledTodoUserCanAssignGatheringWithoutSchedulePermission(): void
+    {
+        $bestowal = $this->makeBestowal();
+        $assignee = $this->makeMember('Todo Assignee ' . uniqid());
+        $gathering = $this->makeSelectableGatheringForAward((int)$bestowal->award_id);
+        $todo = $this->makeTodo((int)$bestowal->id, (int)$assignee->id, 'event_scheduled', [
+            'title' => 'Event Scheduled',
+        ]);
+        $this->authenticateAsMember((int)$assignee->id);
+
+        $this->post('/action-items/complete/' . $todo->id, [
+            'id' => (string)$todo->id,
+            'bestowal_gathering_id' => (string)$gathering->id,
+        ]);
+
+        $this->assertResponseCode(302);
+        $reloadedBestowal = TableRegistry::getTableLocator()->get('Awards.Bestowals')->get($bestowal->id);
+        $this->assertSame((int)$gathering->id, (int)$reloadedBestowal->gathering_id);
+        $reloadedTodo = TableRegistry::getTableLocator()->get('ActionItems')->get($todo->id);
+        $this->assertTrue($reloadedTodo->isCompleted());
+    }
+
+    public function testBulkAssignGatheringHonorsConditionalCompleteFlag(): void
+    {
+        $bestowal = $this->makeBestowal();
+        $gathering = $this->makeSelectableGatheringForAward((int)$bestowal->award_id);
+        $todo = $this->makeTodo((int)$bestowal->id, self::ADMIN_MEMBER_ID, 'event_scheduled', [
+            'title' => 'Event Scheduled',
+            'completion_config' => [
+                'required_fields' => [
+                    [
+                        'provider' => BestowalTodoTemplateItem::COMPLETION_PROVIDER_BESTOWAL_GATHERING,
+                        'field' => BestowalTodoTemplateItem::REQUIRED_FIELD_GATHERING,
+                        'conditional_complete_on_assign' => false,
+                    ],
+                ],
+            ],
+        ]);
+
+        $this->post('/awards/bestowals/bulk-assign-gathering', [
+            'bestowal_ids' => (string)$bestowal->id,
+            'bestowal_gathering_id' => (string)$gathering->id,
+            'complete_required_todo' => '1',
+        ]);
+
+        $this->assertResponseCode(302);
+        $reloadedBestowal = TableRegistry::getTableLocator()->get('Awards.Bestowals')->get($bestowal->id);
+        $this->assertSame((int)$gathering->id, (int)$reloadedBestowal->gathering_id);
+        $reloadedTodo = TableRegistry::getTableLocator()->get('ActionItems')->get($todo->id);
+        $this->assertTrue($reloadedTodo->isOpen());
+    }
+
+    private function makeSelectableGatheringForAward(int $awardId)
+    {
+        $suffix = uniqid('', true);
+        $gatheringActivities = TableRegistry::getTableLocator()->get('GatheringActivities');
+        $awardGatheringActivities = TableRegistry::getTableLocator()->get('Awards.AwardGatheringActivities');
+        $gatherings = TableRegistry::getTableLocator()->get('Gatherings');
+        $gatheringActivityLinks = TableRegistry::getTableLocator()->get('GatheringActivityLinks');
+
+        $activity = $gatheringActivities->saveOrFail($gatheringActivities->newEntity([
+            'name' => 'Bulk Gathering Activity ' . $suffix,
+        ]));
+        $awardGatheringActivities->saveOrFail($awardGatheringActivities->newEntity([
+            'award_id' => $awardId,
+            'gathering_activity_id' => $activity->id,
+        ]));
+
+        $gatheringType = TableRegistry::getTableLocator()->get('GatheringTypes')
+            ->find()
+            ->select(['id'])
+            ->firstOrFail();
+        $gathering = $gatherings->saveOrFail($gatherings->newEntity([
+            'branch_id' => self::KINGDOM_BRANCH_ID,
+            'gathering_type_id' => $gatheringType->id,
+            'name' => 'Bulk Assign Gathering ' . $suffix,
+            'start_date' => DateTime::now()->addDays(30),
+            'end_date' => DateTime::now()->addDays(31),
+            'created_by' => self::ADMIN_MEMBER_ID,
+        ]));
+        $gatheringActivityLinks->saveOrFail($gatheringActivityLinks->newEntity([
+            'gathering_id' => $gathering->id,
+            'gathering_activity_id' => $activity->id,
+            'sort_order' => 1,
+            'not_removable' => false,
+        ]));
+
+        return $gathering;
     }
 }

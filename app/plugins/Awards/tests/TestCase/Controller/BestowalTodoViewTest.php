@@ -6,6 +6,7 @@ namespace Awards\Test\TestCase\Controller;
 use App\Model\Entity\ActionItem;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Model\Entity\Bestowal;
+use Awards\Model\Entity\BestowalTodoTemplateItem;
 use Cake\ORM\TableRegistry;
 
 /**
@@ -90,6 +91,21 @@ class BestowalTodoViewTest extends HttpIntegrationTestCase
         $this->assertResponseContains('Scroll finished');
         $this->assertResponseContains('Required');
         $this->assertResponseContains('Complete all required checks');
+    }
+
+    public function testViewRendersGatheringRequirementForUnbackfilledEventScheduledTodo(): void
+    {
+        $bestowal = $this->makeBestowal();
+        $this->makeTodo((int)$bestowal->id, [
+            'title' => 'Event Scheduled',
+            'source_ref' => BestowalTodoTemplateItem::ITEM_KEY_EVENT_SCHEDULED,
+        ]);
+
+        $this->get('/awards/bestowals/view/' . $bestowal->id);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Gathering required');
+        $this->assertResponseContains('Assign Gathering and Complete');
     }
 
     /**

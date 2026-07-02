@@ -146,6 +146,7 @@ class ActionItemsGridColumns extends BaseGridColumns
                     'todo-id' => '{{id}}',
                     'todo-title' => '{{title}}',
                     'todo-mode' => 'complete',
+                    'todo-completion-form' => ['_rowField' => 'completion_form_data'],
                 ],
             ],
             'reopen' => [

@@ -29,6 +29,12 @@ class BestowalTodoTemplateItem extends BaseEntity
 
     public const BRANCH_MODE_ANCESTOR_TYPE = 'ancestor_branch_type';
 
+    public const ITEM_KEY_EVENT_SCHEDULED = 'event_scheduled';
+
+    public const REQUIRED_FIELD_GATHERING = 'gathering_id';
+
+    public const COMPLETION_PROVIDER_BESTOWAL_GATHERING = 'Awards.BestowalGathering';
+
     public const ASSIGNEE_TYPE_OPTIONS = [
         self::ASSIGNEE_TYPE_ROLE => 'Role',
         self::ASSIGNEE_TYPE_PERMISSION => 'Permission',
@@ -41,6 +47,32 @@ class BestowalTodoTemplateItem extends BaseEntity
         self::BRANCH_MODE_AWARD => 'Award branch',
         self::BRANCH_MODE_ANCESTOR_TYPE => 'Ancestor branch type',
     ];
+
+    public const REQUIRED_FIELD_OPTIONS = [
+        '' => 'None',
+        self::REQUIRED_FIELD_GATHERING => 'Bestowal gathering',
+    ];
+
+    /**
+     * Default required-field metadata for built-in template items.
+     *
+     * @param string|null $sourceRef Action item source reference.
+     * @return array<string, mixed>|null
+     */
+    public static function getDefaultRequiredFieldConfigForSourceRef(?string $sourceRef): ?array
+    {
+        if ($sourceRef !== self::ITEM_KEY_EVENT_SCHEDULED) {
+            return null;
+        }
+
+        return [
+            'provider' => self::COMPLETION_PROVIDER_BESTOWAL_GATHERING,
+            'field' => self::REQUIRED_FIELD_GATHERING,
+            'label' => 'Bestowal Gathering',
+            'help' => 'Choose the gathering where this bestowal will be presented.',
+            'conditional_complete_on_assign' => true,
+        ];
+    }
 
     /**
      * Maps template assignee types to the core ActionItem assignee vocabulary.
@@ -71,6 +103,8 @@ class BestowalTodoTemplateItem extends BaseEntity
         'branch_mode' => true,
         'branch_type' => true,
         'is_gating' => true,
+        'required_field' => true,
+        'required_field_config' => true,
         'sort_order' => true,
         'created' => true,
         'modified' => true,
@@ -91,5 +125,66 @@ class BestowalTodoTemplateItem extends BaseEntity
         $source = $this->assignee_source_key ?: $this->assignee_source_id;
 
         return $source ? sprintf('%s: %s', $type, (string)$source) : (string)$type;
+    }
+
+    /**
+     * Build completion metadata consumed by core ActionItems.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function getCompletionConfig(): ?array
+    {
+        $requiredField = (string)($this->required_field ?? '');
+        if ($requiredField === '') {
+            return null;
+        }
+
+        $config = $this->required_field_config;
+        if (!is_array($config)) {
+            $config = [];
+        }
+
+        $fieldConfig = [
+            'provider' => $config['provider'] ?? self::providerForRequiredField($requiredField),
+            'field' => $requiredField,
+            'label' => $config['label'] ?? self::labelForRequiredField($requiredField),
+            'help' => $config['help'] ?? self::helpForRequiredField($requiredField),
+            'conditional_complete_on_assign' => (bool)($config['conditional_complete_on_assign'] ?? true),
+        ];
+
+        return [
+            'required_fields' => [$fieldConfig],
+        ];
+    }
+
+    /**
+     * @param string $requiredField Required field key.
+     * @return string|null Completion provider key.
+     */
+    public static function providerForRequiredField(string $requiredField): ?string
+    {
+        return $requiredField === self::REQUIRED_FIELD_GATHERING
+            ? self::COMPLETION_PROVIDER_BESTOWAL_GATHERING
+            : null;
+    }
+
+    /**
+     * @param string $requiredField Required field key.
+     * @return string Label.
+     */
+    public static function labelForRequiredField(string $requiredField): string
+    {
+        return self::REQUIRED_FIELD_OPTIONS[$requiredField] ?? $requiredField;
+    }
+
+    /**
+     * @param string $requiredField Required field key.
+     * @return string Help text.
+     */
+    public static function helpForRequiredField(string $requiredField): string
+    {
+        return $requiredField === self::REQUIRED_FIELD_GATHERING
+            ? 'Choose the future event or court where this bestowal will be presented.'
+            : '';
     }
 }

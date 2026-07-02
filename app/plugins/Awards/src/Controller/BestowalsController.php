@@ -20,6 +20,7 @@ use Awards\Services\BestowalFinalizationService;
 use Awards\Services\BestowalFormService;
 use Awards\Services\BestowalGatheringLookupService;
 use Awards\Services\BestowalQueryService;
+use Awards\Services\BestowalUpdateService;
 use Cake\Datasource\Exception\RecordNotFoundException;
 use Cake\Http\Exception\BadRequestException;
 use Cake\Http\Exception\NotFoundException;
@@ -114,9 +115,15 @@ class BestowalsController extends AppController
         $built['gridOptions']['bulkActions'] = [
             [
                 'key' => 'bestowal-todo-complete',
-                'label' => __('Complete Check'),
+                'label' => __('Mass Complete Check'),
                 'icon' => 'bi-check2-square',
                 'modalTarget' => '#bestowalBulkTodoModal',
+            ],
+            [
+                'key' => 'bestowal-assign-gathering',
+                'label' => __('Mass Assign Gathering'),
+                'icon' => 'bi-calendar-event',
+                'modalTarget' => '#bestowalBulkGatheringModal',
             ],
         ];
         $built['gridOptions']['bulkSelectionDisabledField'] = 'bulk_todo_disabled';
@@ -299,7 +306,7 @@ class BestowalsController extends AppController
      */
     public function bestowalTodos(ActionItemService $actionItemService, ?string $id = null): ?Response
     {
-        $bestowal = $this->Bestowals->get($id, contain: ['Members', 'Awards']);
+        $bestowal = $this->Bestowals->get($id, contain: ['Members', 'Awards', 'Gatherings']);
         $this->Authorization->authorize($bestowal, 'view');
 
         $user = $this->request->getAttribute('identity');
@@ -356,6 +363,7 @@ class BestowalsController extends AppController
             Bestowal::ACTION_ITEM_ENTITY_TYPE,
             (int)$bestowal->id,
         );
+        $todoRequirementStatus = $this->buildTodoRequirementStatus($todoItems, $bestowal);
         $gatingPercent = $todoGatingTotal > 0
             ? (int)round($todoGatingDone / $todoGatingTotal * 100)
             : 0;
@@ -363,11 +371,52 @@ class BestowalsController extends AppController
         return compact(
             'todoItems',
             'todoEligibility',
+            'todoRequirementStatus',
             'todoGatingTotal',
             'todoGatingDone',
             'gatingPercent',
             'allGatingComplete',
         );
+    }
+
+    /**
+     * Build per-item required-field display status for bestowal checklist surfaces.
+     *
+     * @param iterable<\App\Model\Entity\ActionItem> $todoItems To-do items.
+     * @param \Awards\Model\Entity\Bestowal $bestowal Bestowal owner.
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildTodoRequirementStatus(iterable $todoItems, Bestowal $bestowal): array
+    {
+        $status = [];
+        foreach ($todoItems as $todoItem) {
+            $fieldConfigs = $todoItem->getRequiredFieldConfigs();
+            $defaultConfig = BestowalTodoTemplateItem::getDefaultRequiredFieldConfigForSourceRef($todoItem->source_ref);
+            if ($fieldConfigs === [] && $defaultConfig !== null) {
+                $fieldConfigs[] = $defaultConfig;
+            }
+            foreach ($fieldConfigs as $fieldConfig) {
+                if (($fieldConfig['field'] ?? null) !== 'gathering_id') {
+                    continue;
+                }
+                $gatheringId = $bestowal->gathering_id !== null ? (int)$bestowal->gathering_id : null;
+                $status[(int)$todoItem->id] = [
+                    'field' => 'gathering_id',
+                    'label' => __('Bestowal Gathering'),
+                    'satisfied' => $gatheringId !== null && $gatheringId > 0,
+                    'value' => $gatheringId,
+                    'text' => $bestowal->gathering->name ?? null,
+                    'lookupUrl' => Router::url([
+                        'plugin' => 'Awards',
+                        'controller' => 'Bestowals',
+                        'action' => 'gatheringsForBestowalAutoComplete',
+                        (int)$bestowal->id,
+                    ]),
+                ];
+            }
+        }
+
+        return $status;
     }
 
     /**
@@ -525,13 +574,27 @@ class BestowalsController extends AppController
         $memberIdOverride = $this->request->getQuery('member_id');
         $memberIdOverride = is_numeric((string)$memberIdOverride) ? (int)$memberIdOverride : null;
         $memberPublicId = trim((string)$this->request->getQuery('member_public_id', ''));
+        $bulkBestowalIds = $this->parseBulkBestowalIds($this->request->getQuery('bestowal_ids'));
 
         $gatherings = [];
         $cancelledGatheringIds = [];
         $bestowal = null;
 
         try {
-            if ($bestowalId !== null && ctype_digit((string)$bestowalId)) {
+            if ($bulkBestowalIds !== []) {
+                $query = $this->Bestowals->find()
+                    ->select(['Bestowals.id'])
+                    ->where(['Bestowals.id IN' => $bulkBestowalIds]);
+                $query = $this->Authorization->applyScope($query, 'index');
+                $scopedIds = array_map('intval', $query->all()->extract('id')->toList());
+                $gatheringData = $lookupService->getFilteredGatheringsForBestowalIds(
+                    $scopedIds,
+                    $futureOnly,
+                    $selectedId,
+                );
+                $gatherings = $gatheringData['gatherings'] ?? [];
+                $cancelledGatheringIds = $gatheringData['cancelledGatheringIds'] ?? [];
+            } elseif ($bestowalId !== null && ctype_digit((string)$bestowalId)) {
                 $bestowalQuery = $this->Bestowals->find()
                     ->where(['Bestowals.id' => (int)$bestowalId])
                     ->contain([
@@ -791,6 +854,100 @@ class BestowalsController extends AppController
     }
 
     /**
+     * Bulk assign selected bestowals to a gathering and optionally complete the matching required-field to-do.
+     *
+     * @param \App\Services\ActionItems\ActionItemService $actionItemService To-do service
+     * @param \Awards\Services\BestowalUpdateService $bestowalUpdateService Bestowal update service
+     * @return \Cake\Http\Response|null
+     */
+    public function bulkAssignGathering(
+        ActionItemService $actionItemService,
+        BestowalUpdateService $bestowalUpdateService,
+    ): ?Response {
+        $this->request->allowMethod(['post']);
+
+        $emptyBestowal = $this->Bestowals->newEmptyEntity();
+        $this->Authorization->authorize($emptyBestowal, 'bulkAssignGathering');
+
+        $user = $this->request->getAttribute('identity');
+        $actorId = (int)$user->getIdentifier();
+        $pageContext = $this->getPageContextUrl() ?? $this->request->getData('current_page');
+        $bestowalIds = $this->parseBulkBestowalIds($this->request->getData('bestowal_ids'));
+        $gatheringId = $this->positiveIntOrNull($this->request->getData('bestowal_gathering_id'));
+        $completeRequiredTodo = !empty($this->request->getData('complete_required_todo'));
+
+        if ($bestowalIds === [] || $gatheringId === null) {
+            $this->Flash->error(__('Select at least one bestowal and a gathering.'));
+
+            return $this->redirectAfterBestowalMutation($pageContext, null);
+        }
+
+        $query = $this->Bestowals->find()
+            ->where(['Bestowals.id IN' => $bestowalIds])
+            ->contain([
+                'Recommendations' => function ($q) {
+                    return $q->select(['id', 'award_id', 'member_id', 'bestowal_id']);
+                },
+            ]);
+        $query = $this->Authorization->applyScope($query, 'index');
+
+        $updated = 0;
+        $completed = 0;
+        $skippedUnauthorized = 0;
+        $skippedInvalid = 0;
+        $skippedTodo = 0;
+        $scopedIds = [];
+
+        foreach ($query->all() as $bestowal) {
+            $scopedIds[] = (int)$bestowal->id;
+            if (!$user->checkCan('manageCourtSchedule', $bestowal)) {
+                $skippedUnauthorized++;
+                continue;
+            }
+
+            $result = $bestowalUpdateService->assignGathering(
+                $this->Bestowals,
+                (int)$bestowal->id,
+                $gatheringId,
+                $actorId,
+            );
+            if (!($result['success'] ?? false)) {
+                $skippedInvalid++;
+                continue;
+            }
+
+            $updated++;
+            if (!$completeRequiredTodo) {
+                continue;
+            }
+
+            $todo = $this->findOpenGatheringRequiredTodo($actionItemService, (int)$bestowal->id);
+            if ($todo === null) {
+                $skippedTodo++;
+                continue;
+            }
+
+            $completeResult = $actionItemService->complete((int)$todo->id, $actorId, null, true, [], $user);
+            if ($completeResult->success) {
+                $completed++;
+            } else {
+                $skippedTodo++;
+            }
+        }
+
+        $skippedOutOfScope = count($bestowalIds) - count(array_unique($scopedIds));
+        $this->flashBulkGatheringSummary(
+            $updated,
+            $completed,
+            $skippedUnauthorized,
+            $skippedInvalid,
+            $skippedTodo + $skippedOutOfScope,
+        );
+
+        return $this->redirectAfterBestowalMutation($pageContext, null);
+    }
+
+    /**
      * Normalize the bulk bestowal id payload (CSV string or array) to unique ints.
      *
      * @param mixed $raw The submitted bestowal_ids value
@@ -806,6 +963,129 @@ class BestowalsController extends AppController
         }
 
         return array_values(array_unique(array_filter(array_map('intval', $raw))));
+    }
+
+    /**
+     * @param mixed $value Raw value.
+     * @return int|null
+     */
+    private function positiveIntOrNull(mixed $value): ?int
+    {
+        if (is_string($value)) {
+            $value = trim($value);
+        }
+        if (is_int($value) || (is_string($value) && ctype_digit($value))) {
+            $value = (int)$value;
+
+            return $value > 0 ? $value : null;
+        }
+
+        return null;
+    }
+
+    /**
+     * Find the open gathering-required to-do for a bestowal.
+     *
+     * @param \App\Services\ActionItems\ActionItemService $actionItemService To-do service.
+     * @param int $bestowalId Bestowal ID.
+     * @return \App\Model\Entity\ActionItem|null
+     */
+    private function findOpenGatheringRequiredTodo(ActionItemService $actionItemService, int $bestowalId): ?ActionItem
+    {
+        foreach ($actionItemService->getItemsForEntity(Bestowal::ACTION_ITEM_ENTITY_TYPE, $bestowalId) as $item) {
+            if (!$item->isOpen()) {
+                continue;
+            }
+            $fieldConfigs = $item->getRequiredFieldConfigs();
+            $defaultConfig = BestowalTodoTemplateItem::getDefaultRequiredFieldConfigForSourceRef($item->source_ref);
+            if ($fieldConfigs === [] && $defaultConfig !== null) {
+                $fieldConfigs[] = $defaultConfig;
+            }
+            foreach ($fieldConfigs as $fieldConfig) {
+                if (
+                    ($fieldConfig['field'] ?? null) === 'gathering_id'
+                    && ($fieldConfig['conditional_complete_on_assign'] ?? true) !== false
+                ) {
+                    return $item;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Flash a human-readable summary of a bulk gathering assignment.
+     *
+     * @param int $updated Bestowals updated
+     * @param int $completed Required to-dos completed
+     * @param int $unauthorized Unauthorized bestowals skipped
+     * @param int $invalid Invalid/locked bestowals skipped
+     * @param int $notApplicable Out-of-scope or no matching to-do rows
+     * @return void
+     */
+    private function flashBulkGatheringSummary(
+        int $updated,
+        int $completed,
+        int $unauthorized,
+        int $invalid,
+        int $notApplicable,
+    ): void {
+        if ($updated > 0) {
+            $message = __n(
+                'Assigned a gathering to {0} bestowal.',
+                'Assigned a gathering to {0} bestowals.',
+                $updated,
+                $updated,
+            );
+            if ($completed > 0) {
+                $message .= ' ' . __n(
+                    'Completed {0} matching to-do.',
+                    'Completed {0} matching to-dos.',
+                    $completed,
+                    $completed,
+                );
+            }
+            $extras = [];
+            if ($unauthorized > 0) {
+                $extras[] = __n(
+                    '{0} skipped (not authorized)',
+                    '{0} skipped (not authorized)',
+                    $unauthorized,
+                    $unauthorized,
+                );
+            }
+            if ($invalid > 0) {
+                $extras[] = __n(
+                    '{0} skipped (invalid gathering)',
+                    '{0} skipped (invalid gathering)',
+                    $invalid,
+                    $invalid,
+                );
+            }
+            if ($notApplicable > 0) {
+                $extras[] = __n(
+                    '{0} had no matching to-do',
+                    '{0} had no matching to-do',
+                    $notApplicable,
+                    $notApplicable,
+                );
+            }
+            if ($extras !== []) {
+                $message .= ' (' . implode('; ', $extras) . ')';
+            }
+            $this->Flash->success($message);
+
+            return;
+        }
+
+        if ($unauthorized > 0) {
+            $this->Flash->error(__('You are not allowed to assign gatherings for the selected bestowals.'));
+
+            return;
+        }
+
+        $this->Flash->error(__('No selected bestowals could be assigned to that gathering.'));
     }
 
     /**

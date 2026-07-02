@@ -11,6 +11,7 @@
  * @var \Awards\Model\Entity\Bestowal $bestowal
  * @var array<\App\Model\Entity\ActionItem> $todoItems
  * @var array<int, bool> $todoEligibility
+ * @var array<int, array<string, mixed>> $todoRequirementStatus
  * @var int $todoGatingTotal
  * @var int $todoGatingDone
  * @var int $gatingPercent
@@ -49,6 +50,7 @@ $viewUrl = $this->Url->build([
     <?= $this->element('bestowal_todo_checklist', [
         'todoItems' => $todoItems,
         'todoEligibility' => $todoEligibility,
+        'todoRequirementStatus' => $todoRequirementStatus ?? [],
         'todoGatingTotal' => $todoGatingTotal,
         'todoGatingDone' => $todoGatingDone,
         'gatingPercent' => $gatingPercent,

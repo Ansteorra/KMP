@@ -354,6 +354,21 @@ class BestowalTodoTemplatesController extends AppController
             $data['branch_type'] = null;
         }
 
+        $requiredField = (string)($data['required_field'] ?? '');
+        if ($requiredField === '') {
+            $data['required_field'] = null;
+            $data['required_field_config'] = null;
+        } else {
+            $data['required_field'] = $requiredField;
+            $data['required_field_config'] = [
+                'provider' => BestowalTodoTemplateItem::providerForRequiredField($requiredField),
+                'field' => $requiredField,
+                'label' => BestowalTodoTemplateItem::labelForRequiredField($requiredField),
+                'help' => BestowalTodoTemplateItem::helpForRequiredField($requiredField),
+                'conditional_complete_on_assign' => !empty($data['conditional_complete_on_assign']),
+            ];
+        }
+
         $data['is_gating'] = !empty($data['is_gating']);
 
         unset(
@@ -361,6 +376,7 @@ class BestowalTodoTemplatesController extends AppController
             $data['permission_source_id'],
             $data['office_source_id'],
             $data['member_source_id'],
+            $data['conditional_complete_on_assign'],
         );
 
         return $data;
@@ -450,6 +466,7 @@ class BestowalTodoTemplatesController extends AppController
             'branchTypes' => $branchTypes,
             'assigneeTypeOptions' => BestowalTodoTemplateItem::ASSIGNEE_TYPE_OPTIONS,
             'branchModeOptions' => BestowalTodoTemplateItem::BRANCH_MODE_OPTIONS,
+            'requiredFieldOptions' => BestowalTodoTemplateItem::REQUIRED_FIELD_OPTIONS,
         ]);
     }
 }

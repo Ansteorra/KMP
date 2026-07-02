@@ -14,6 +14,7 @@
  * @var \App\View\AppView $this
  * @var array<\App\Model\Entity\ActionItem> $todoItems
  * @var array<int, bool> $todoEligibility
+ * @var array<int, array<string, mixed>> $todoRequirementStatus
  * @var int $todoGatingTotal
  * @var int $todoGatingDone
  * @var int $gatingPercent
@@ -22,6 +23,7 @@
 
 $todoItems = $todoItems ?? [];
 $todoEligibility = $todoEligibility ?? [];
+$todoRequirementStatus = $todoRequirementStatus ?? [];
 $todoGatingTotal = (int)($todoGatingTotal ?? 0);
 $todoGatingDone = (int)($todoGatingDone ?? 0);
 $gatingPercent = (int)($gatingPercent ?? 0);
@@ -47,7 +49,13 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
         <?php endif; ?>
         <ul class="list-group mb-3" role="list">
             <?php foreach ($todoItems as $item) : ?>
-                <?php $eligible = !empty($todoEligibility[$item->id]); ?>
+                <?php
+                $eligible = !empty($todoEligibility[$item->id]);
+                $requirement = $todoRequirementStatus[(int)$item->id] ?? null;
+                $missingRequirement = $requirement !== null && empty($requirement['satisfied']);
+                $canAssignRequirement = $eligible && $item->isOpen() && $missingRequirement;
+                $canCompleteDirectly = $eligible && $item->isOpen() && !$missingRequirement;
+                ?>
                 <li class="list-group-item d-flex justify-content-between align-items-start gap-3">
                     <div class="me-auto">
                         <div class="fw-semibold">
@@ -76,10 +84,65 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                                     <i class="bi bi-flag me-1" aria-hidden="true"></i><?= __('Optional') ?>
                                 </span>
                             <?php endif; ?>
+                            <?php if ($requirement !== null) : ?>
+                                <?php if (!empty($requirement['satisfied'])) : ?>
+                                    <span class="badge bg-info text-dark">
+                                        <i class="bi bi-calendar-check me-1" aria-hidden="true"></i>
+                                        <?= __('Gathering assigned') ?>
+                                    </span>
+                                <?php else : ?>
+                                    <span class="badge bg-danger">
+                                        <i class="bi bi-calendar-x me-1" aria-hidden="true"></i>
+                                        <?= __('Gathering required') ?>
+                                    </span>
+                                <?php endif; ?>
+                            <?php endif; ?>
                         </div>
+                        <?php if ($canAssignRequirement) : ?>
+                            <div class="border rounded-3 bg-light-subtle p-3 mt-3">
+                                <?= $this->Form->create(null, [
+                                    'url' => [
+                                        'plugin' => null,
+                                        'controller' => 'ActionItems',
+                                        'action' => 'complete',
+                                        $item->id,
+                                    ],
+                                ]) ?>
+                                <?= $this->Form->hidden('id', ['value' => $item->id]) ?>
+                                <?= $this->Form->hidden('current_page', ['value' => $currentPageUrl]) ?>
+                                <?=
+                                $this->KMP->autoCompleteControl(
+                                    $this->Form,
+                                    'todo_' . (int)$item->id . '_bestowal_gathering',
+                                    'bestowal_gathering_id',
+                                    (string)($requirement['lookupUrl'] ?? '#'),
+                                    __('Bestowal Gathering'),
+                                    true,
+                                    false,
+                                    2,
+                                    [
+                                        'data-ac-show-on-focus-value' => 'true',
+                                    ],
+                                )
+                                ?>
+                                <div class="form-text mb-3">
+                                    <?=
+                                    __(
+                                        'Select a future gathering using the same options as the bestowal edit form. ' .
+                                        'Completing this form assigns the gathering and closes this to-do.',
+                                    )
+                                    ?>
+                                </div>
+                                <button type="submit" class="btn btn-sm btn-success">
+                                    <i class="bi bi-check-lg me-1" aria-hidden="true"></i>
+                                    <?= __('Assign Gathering and Complete') ?>
+                                </button>
+                                <?= $this->Form->end() ?>
+                            </div>
+                        <?php endif; ?>
                     </div>
                     <div class="flex-shrink-0">
-                        <?php if ($eligible && $item->isOpen()) : ?>
+                        <?php if ($canCompleteDirectly) : ?>
                             <?= $this->Form->postLink(
                                 '<i class="bi bi-check-lg me-1" aria-hidden="true"></i>' . __('Complete'),
                                 ['plugin' => null, 'controller' => 'ActionItems', 'action' => 'complete', $item->id],

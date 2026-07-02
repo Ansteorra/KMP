@@ -100,6 +100,36 @@ class BestowalGatheringLookupService
     }
 
     /**
+     * Validate a submitted gathering without treating the submitted value as a sticky option.
+     *
+     * @param \Awards\Model\Entity\Bestowal $bestowal Loaded bestowal with recommendations contain.
+     * @param int $gatheringId Gathering ID to validate.
+     * @param bool $futureOnly When true, only future gatherings are selectable.
+     * @return bool
+     */
+    public function isGatheringSelectableForBestowal(
+        Bestowal $bestowal,
+        int $gatheringId,
+        bool $futureOnly = true,
+    ): bool {
+        if ($gatheringId <= 0) {
+            return false;
+        }
+
+        $awardIds = $this->collectAwardIdsFromBestowal($bestowal);
+        $memberId = $bestowal->member_id !== null ? (int)$bestowal->member_id : null;
+        $result = $this->buildGatheringOptions(
+            $awardIds,
+            $memberId !== null ? [$memberId] : [],
+            $futureOnly,
+            [],
+            false,
+        );
+
+        return array_key_exists($gatheringId, $result['gatherings']);
+    }
+
+    /**
      * Gatherings the member marked as likely attendance shared with crown/kingdom.
      *
      * @param int $memberId Member ID.

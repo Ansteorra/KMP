@@ -75,6 +75,28 @@ class BestowalTodoMaterializationServiceTest extends BaseTestCase
         $this->assertFalse((bool)$permissionItem->is_gating);
     }
 
+    public function testMaterializeCopiesRequiredFieldCompletionConfig(): void
+    {
+        $templateId = $this->createTemplateWithRequiredGatheringItem();
+        $awardId = $this->assignTemplateToAward($templateId, self::KINGDOM_BRANCH_ID);
+        $bestowalId = 9000004;
+        $bestowal = $this->buildBestowal($bestowalId, $awardId);
+
+        $result = $this->service->materializeForBestowal($bestowal);
+
+        $this->assertTrue($result->success, (string)$result->reason);
+        $items = $this->loadActionItems($bestowalId);
+        $eventScheduled = $items['event_scheduled'];
+        $requiredFields = $eventScheduled->getRequiredFieldConfigs();
+        $this->assertCount(1, $requiredFields);
+        $this->assertSame(BestowalTodoTemplateItem::REQUIRED_FIELD_GATHERING, $requiredFields[0]['field']);
+        $this->assertSame(
+            BestowalTodoTemplateItem::COMPLETION_PROVIDER_BESTOWAL_GATHERING,
+            $requiredFields[0]['provider'],
+        );
+        $this->assertTrue($requiredFields[0]['conditional_complete_on_assign']);
+    }
+
     public function testMaterializeIsIdempotentOnSourceRef(): void
     {
         $templateId = $this->createTemplateWithItems();
@@ -139,6 +161,35 @@ class BestowalTodoMaterializationServiceTest extends BaseTestCase
             'sort_order' => 1,
         ]);
         $this->assertNotFalse($this->itemsTable->save($permissionItem), json_encode($permissionItem->getErrors()));
+
+        return (int)$template->id;
+    }
+
+    private function createTemplateWithRequiredGatheringItem(): int
+    {
+        $template = $this->templatesTable->newEntity([
+            'name' => 'Required Gathering Template ' . uniqid(),
+            'description' => 'Event scheduled requires a gathering.',
+            'is_active' => true,
+        ]);
+        $this->assertNotFalse($this->templatesTable->save($template), json_encode($template->getErrors()));
+
+        $item = $this->itemsTable->newEntity([
+            'template_id' => $template->id,
+            'item_key' => 'event_scheduled',
+            'label' => 'Event Scheduled',
+            'assignee_type' => BestowalTodoTemplateItem::ASSIGNEE_TYPE_MEMBER,
+            'assignee_source_id' => self::TEST_MEMBER_AGATHA_ID,
+            'branch_mode' => BestowalTodoTemplateItem::BRANCH_MODE_AWARD,
+            'is_gating' => false,
+            'required_field' => BestowalTodoTemplateItem::REQUIRED_FIELD_GATHERING,
+            'required_field_config' => [
+                'provider' => BestowalTodoTemplateItem::COMPLETION_PROVIDER_BESTOWAL_GATHERING,
+                'conditional_complete_on_assign' => true,
+            ],
+            'sort_order' => 0,
+        ]);
+        $this->assertNotFalse($this->itemsTable->save($item), json_encode($item->getErrors()));
 
         return (int)$template->id;
     }

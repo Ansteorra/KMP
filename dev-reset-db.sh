@@ -50,6 +50,32 @@ env_or_file() {
     printf '%s\n' "$value"
 }
 
+canonical_path() {
+    path="$1"
+    if [ ! -e "$path" ]; then
+        return 1
+    fi
+
+    cd "$path" >/dev/null 2>&1 && pwd -P
+}
+
+ensure_app_container_mounts_this_checkout() {
+    app_container_id="$("${COMPOSE[@]}" ps -q app)"
+    expected_mount="$(canonical_path "app")"
+    actual_mount="$(docker inspect "$app_container_id" \
+        --format '{{range .Mounts}}{{if eq .Destination "/var/www/html"}}{{.Source}}{{end}}{{end}}')"
+    actual_mount="$(canonical_path "$actual_mount" 2>/dev/null || printf '%s\n' "$actual_mount")"
+
+    if [ -n "$actual_mount" ] && [ "$actual_mount" != "$expected_mount" ]; then
+        echo "❌ Error: The running app container is mounted from a different checkout."
+        echo "   Expected: $expected_mount"
+        echo "   Actual:   $actual_mount"
+        echo ""
+        echo "Run ./dev-up.sh from this checkout to recreate the fixed-name dev containers before resetting."
+        exit 1
+    fi
+}
+
 LOAD_SEED=false
 if [ "${1:-}" == "--seed" ]; then
     LOAD_SEED=true
@@ -64,6 +90,7 @@ if ! printf '%s\n' "$RUNNING_SERVICES" | grep -x "app" >/dev/null; then
     echo "❌ Error: App container is not running. Start it with: ./dev-up.sh"
     exit 1
 fi
+ensure_app_container_mounts_this_checkout
 
 BACKGROUND_SERVICES_TO_RESTART=()
 APP_SERVICE_STOPPED=false
