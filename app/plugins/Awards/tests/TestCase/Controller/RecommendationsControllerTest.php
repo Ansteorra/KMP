@@ -44,6 +44,25 @@ class RecommendationsControllerTest extends HttpIntegrationTestCase
     protected function tearDown(): void
     {
         if ($this->createdRecommendationIds !== []) {
+            $feedbackItems = $this->getTableLocator()->get('Awards.RecommendationFeedbackRequestItems');
+            $feedbackRequestIds = $feedbackItems->find()
+                ->select(['feedback_request_id'])
+                ->where(['recommendation_id IN' => $this->createdRecommendationIds])
+                ->all()
+                ->extract('feedback_request_id')
+                ->toList();
+            if ($feedbackRequestIds !== []) {
+                $this->getTableLocator()->get('Awards.RecommendationFeedbackRequestRecipients')->deleteAll([
+                    'feedback_request_id IN' => $feedbackRequestIds,
+                ]);
+                $feedbackItems->deleteAll([
+                    'feedback_request_id IN' => $feedbackRequestIds,
+                ]);
+                $this->getTableLocator()->get('Awards.RecommendationFeedbackRequests')->deleteAll([
+                    'id IN' => $feedbackRequestIds,
+                ]);
+            }
+
             $this->getTableLocator()->get('Awards.Recommendations')->deleteAll([
                 'id IN' => $this->createdRecommendationIds,
             ]);
@@ -86,6 +105,28 @@ class RecommendationsControllerTest extends HttpIntegrationTestCase
 
         sort($ids);
         $this->assertSame([self::TEST_MEMBER_AGATHA_ID, self::TEST_MEMBER_BRYCE_ID], $ids);
+    }
+
+    public function testRequestFeedbackDetailOriginIgnoresStaleMemberPageContext(): void
+    {
+        $this->authenticateAsSuperUser();
+        $award = $this->getTableLocator()->get('Awards.Awards')->find()->select(['id'])->firstOrFail();
+        $recommendations = $this->getTableLocator()->get('Awards.Recommendations');
+        $recommendation = $recommendations->save($recommendations->newEntity(
+            $this->buildRecommendationData((int)$award->id, 'feedback-detail-origin-' . uniqid()),
+        ));
+        $this->assertNotFalse($recommendation);
+        $this->createdRecommendationIds[] = (int)$recommendation->id;
+
+        $this->post('/awards/recommendations/request-feedback', [
+            'ids' => (string)$recommendation->id,
+            'recipient_ids' => (string)self::TEST_MEMBER_BRYCE_ID,
+            'message' => 'Please provide context.',
+            'feedback_origin' => 'detail',
+            'page_context_url' => '/members/view/' . self::TEST_MEMBER_BRYCE_ID,
+        ]);
+
+        $this->assertRedirect('/awards/recommendations/view/' . $recommendation->id);
     }
 
     public function testAwardsByDomainExcludesInactiveAwardsFromNewSelections(): void
@@ -193,6 +234,30 @@ class RecommendationsControllerTest extends HttpIntegrationTestCase
 
         $this->assertNotFalse($savedExistingRecommendation);
         $this->assertSame($activeAward->id, $savedExistingRecommendation->award_id);
+    }
+
+    public function testMemberSubmittedRecsGridDataUsesAuthenticatedUserForVisibility(): void
+    {
+        $this->authenticateAsSuperUser();
+        $awards = $this->getTableLocator()->get('Awards.Awards');
+        $recommendations = $this->getTableLocator()->get('Awards.Recommendations');
+        $award = $awards->find()->select(['id'])->firstOrFail();
+        $reason = 'member-submitted-grid-' . uniqid();
+
+        $recommendation = $recommendations->save($recommendations->newEntity(
+            $this->buildRecommendationData((int)$award->id, $reason),
+        ));
+        $this->assertNotFalse($recommendation);
+        $this->createdRecommendationIds[] = (int)$recommendation->id;
+
+        $this->get('/awards/recommendations/member-submitted-recs-grid-data/' . self::ADMIN_MEMBER_ID . '?' . http_build_query([
+            'search' => $reason,
+            'limit' => 10,
+            'ignore_default' => 1,
+        ]));
+
+        $this->assertResponseOk();
+        $this->assertResponseContains($reason);
     }
 
     /**

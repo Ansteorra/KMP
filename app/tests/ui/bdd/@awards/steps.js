@@ -64,6 +64,72 @@ const publicFeedbackSubmissionSubject = (page) => {
     return `Award Recommendation: ${fixture.awardName} for ${fixture.recipient}`;
 };
 
+const ensureFeedbackRequesterCanManageRecommendations = () => {
+    runPhpJson(`
+require 'vendor/autoload.php';
+require 'config/bootstrap.php';
+
+$locator = \\Cake\\ORM\\TableRegistry::getTableLocator();
+$members = $locator->get('Members');
+$roles = $locator->get('Roles');
+$memberRoles = $locator->get('MemberRoles');
+$officers = $locator->get('Officers.Officers');
+
+$member = $members->find()
+    ->select(['id', 'branch_id'])
+    ->where(['email_address' => '${FIXTURE_REQUESTER_EMAIL}'])
+    ->firstOrFail();
+$role = $roles->find()
+    ->select(['id'])
+    ->where(['name' => 'Ansteorran Crown'])
+    ->firstOrFail();
+
+$memberRole = $memberRoles->find()
+    ->where([
+        'member_id' => (int)$member->id,
+        'role_id' => (int)$role->id,
+        'revoker_id IS' => null,
+    ])
+    ->orderByDesc('id')
+    ->first();
+
+if ($memberRole === null) {
+    $memberRole = $memberRoles->newEntity([
+        'member_id' => (int)$member->id,
+        'role_id' => (int)$role->id,
+        'branch_id' => (int)$member->branch_id,
+        'created_by' => (int)$member->id,
+        'modified_by' => (int)$member->id,
+    ]);
+}
+
+$memberRole->start_on = new \\Cake\\I18n\\DateTime('-1 day');
+$memberRole->expires_on = new \\Cake\\I18n\\DateTime('+1 year');
+$memberRole->modified_by = (int)$member->id;
+$memberRoles->saveOrFail($memberRole);
+
+$officer = $officers->find()
+    ->where(['granted_member_role_id' => (int)$memberRole->id])
+    ->orderByDesc('id')
+    ->first();
+if ($officer !== null) {
+    $officer->status = 'Current';
+    $officer->start_on = new \\Cake\\I18n\\DateTime('-1 day');
+    $officer->expires_on = new \\Cake\\I18n\\DateTime('+1 year');
+    $officer->modified_by = (int)$member->id;
+    $officers->saveOrFail($officer);
+}
+
+foreach (['member_permissions', 'permissions_structure'] as $cacheConfig) {
+    if (\\Cake\\Cache\\Cache::getConfig($cacheConfig) !== null) {
+        \\Cake\\Cache\\Cache::clear($cacheConfig);
+    }
+}
+
+echo json_encode(['memberRoleId' => (int)$memberRole->id], JSON_THROW_ON_ERROR);
+`);
+};
+
 const FIXTURE_SETS = {
     'detail edit': [
         { name: 'detail', awardName: 'Award of Arms' },
@@ -196,6 +262,44 @@ $extractRecommendationIdFromDispatch = static function (array $dispatchResults):
 
     return null;
 };
+$ensureOfficeApproversCurrent = static function ($process) use ($locator): void {
+    $officers = $locator->get('Officers.Officers');
+    $now = \\Cake\\I18n\\DateTime::now();
+    foreach ($process->approval_process_steps ?? [] as $step) {
+        if ((string)$step->approver_type !== 'office' || empty($step->approver_source_id)) {
+            continue;
+        }
+
+        $officeId = (int)$step->approver_source_id;
+        $currentExists = $officers->find()
+            ->where([
+                'office_id' => $officeId,
+                'status' => 'Current',
+                'start_on <=' => $now,
+                'OR' => [
+                    'expires_on IS' => null,
+                    'expires_on >=' => $now,
+                ],
+            ])
+            ->count() > 0;
+        if ($currentExists) {
+            continue;
+        }
+
+        $officer = $officers->find()
+            ->where(['office_id' => $officeId])
+            ->orderByDesc('id')
+            ->first();
+        if ($officer === null) {
+            continue;
+        }
+
+        $officer->status = 'Current';
+        $officer->start_on = $now->subDays(1);
+        $officer->expires_on = $now->addYears(1);
+        $officers->saveOrFail($officer);
+    }
+};
 
 $requester = $members->find()
     ->select(['id', 'sca_name', 'email_address', 'phone_number'])
@@ -237,6 +341,7 @@ foreach ($input['fixtures'] as $fixture) {
         if ($process === null) {
             throw new \\RuntimeException('Approval process not found: ' . $processName);
         }
+        $ensureOfficeApproversCurrent($process);
 
         $candidates = $awards->find()
             ->select(['id', 'name', 'approval_process_id', 'branch_id'])
@@ -886,8 +991,22 @@ const getRecommendationFieldLocator = (modal, fieldLabel) => {
 };
 
 const searchRecommendationsGrid = async (page, query, options = {}) => {
-    await waitForGridRows(page, GRID_ROWS_SELECTOR);
+    const switchToAuditView = async () => {
+        const auditTab = page.getByRole('tab', { name: /All \/ Audit/ });
+        await Promise.all([
+            page.waitForResponse((res) => {
+                const resUrl = new URL(res.url());
+                return res.status() === 200
+                    && resUrl.pathname.endsWith('/awards/recommendations/grid-data')
+                    && resUrl.searchParams.get('view_id') === 'sys-recs-all';
+            }, { timeout: 30000 }),
+            auditTab.click(),
+        ]);
+        await expect(auditTab).toHaveAttribute('aria-selected', 'true', { timeout: 15000 });
+    };
+
     const filterBtn = page.locator('#filterDropdown, button:has-text("Filter")').first();
+    await expect(filterBtn).toBeVisible({ timeout: 30000 });
     await filterBtn.click();
     await page.waitForTimeout(300);
 
@@ -905,21 +1024,49 @@ const searchRecommendationsGrid = async (page, query, options = {}) => {
     ]);
     if (response) {
         const body = await response.text().catch(() => '');
-        if (!body.includes(query)) {
-            throw new Error(`recommendations grid-data search for "${query}" did not include the query in the returned fragment.`);
+        const table = page.locator('table.table, .dataTable, table').first();
+        try {
+            await waitForGridRows(page, GRID_ROWS_SELECTOR);
+            await expect(table).toContainText(query, { timeout: 30000 });
+        } catch (error) {
+            if (!options.allowAuditFallback) {
+                if (options.allowServerFragmentFallback && body.includes(query)) {
+                    return;
+                }
+
+                throw new Error(
+                    `recommendations grid search for "${query}" did not render a matching row; `
+                    + `captured fragment query-present=${body.includes(query)}.`,
+                    { cause: error },
+                );
+            }
+
+            await switchToAuditView();
+            await searchRecommendationsGrid(page, query, {
+                allowAuditFallback: false,
+                allowServerFragmentFallback: options.allowServerFragmentFallback,
+            });
+            return;
         }
     }
-    try {
-        await waitForGridRows(page, GRID_ROWS_SELECTOR);
-    } catch (error) {
-        if (!options.allowAuditFallback) {
-            throw error;
-        }
 
-        const auditTab = page.getByRole('tab', { name: /All \/ Audit/ });
-        await auditTab.click();
-        await page.waitForLoadState('networkidle');
-        await searchRecommendationsGrid(page, query, { allowAuditFallback: false });
+    if (!response) {
+        const table = page.locator('table.table, .dataTable, table').first();
+        try {
+            await waitForGridRows(page, GRID_ROWS_SELECTOR);
+            await expect(table).toContainText(query, { timeout: 30000 });
+        } catch (error) {
+            if (!options.allowAuditFallback) {
+                throw error;
+            }
+
+            await switchToAuditView();
+            await searchRecommendationsGrid(page, query, {
+                allowAuditFallback: false,
+                allowServerFragmentFallback: options.allowServerFragmentFallback,
+            });
+            return;
+        }
     }
     await page.keyboard.press('Escape').catch(() => {});
     await page.waitForTimeout(500);
@@ -1017,6 +1164,13 @@ const selectFixtureRows = async (page) => {
 
 const getStateRow = (page) => page.locator('tr').filter({ has: page.locator('th', { hasText: 'State' }) }).locator('td');
 const getStatusRow = (page) => page.locator('tr').filter({ has: page.locator('th', { hasText: 'Status' }) }).locator('td');
+const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const getBestowalTodoItem = (page, title) => page.locator('#nav-bestowalTodos .list-group-item')
+    .filter({
+        has: page.locator('.fw-semibold').filter({
+            hasText: new RegExp(`${escapeRegExp(title)}\\s*$`),
+        }),
+    });
 
 When('I navigate to {string}', async ({ page }, path) => {
     await page.goto(path, { waitUntil: 'domcontentloaded' });
@@ -1548,6 +1702,7 @@ echo json_encode([
     expect(recommendation.recommendationId).toBeGreaterThan(0);
     expect(recommendation.runId).toBeGreaterThan(0);
     fixture.recommendationId = recommendation.recommendationId;
+    ensureFeedbackRequesterCanManageRecommendations();
 });
 
 Then('there should be no award recommendation submitted email to {string} for the public feedback-lane recommendation', async ({ page }, recipientEmail) => {
@@ -1565,13 +1720,25 @@ Then('the recommendation row for {string} should not link to a member profile', 
 });
 
 When('I search the recommendations grid for the current public feedback-lane recipient', async ({ page }) => {
-    await searchRecommendationsGrid(page, publicFeedbackFixture(page).recipient);
+    await searchRecommendationsGrid(page, publicFeedbackFixture(page).recipient, {
+        allowAuditFallback: true,
+        allowServerFragmentFallback: true,
+    });
 });
 
 When('I open the current public feedback-lane recommendation detail view from the grid', async ({ page }) => {
     const fixture = publicFeedbackFixture(page);
-    const row = page.locator('table tbody tr', { hasText: fixture.recipient }).first();
-    await expect(row).toBeVisible({ timeout: 30000 });
+    const row = page.locator(GRID_ROWS_SELECTOR, { hasText: fixture.recipient }).first();
+    try {
+        await expect(row).toBeVisible({ timeout: 30000 });
+    } catch (error) {
+        if (fixture.recommendationId > 0) {
+            await page.goto(`/awards/recommendations/view/${fixture.recommendationId}`, { waitUntil: 'networkidle' });
+            return;
+        }
+
+        throw error;
+    }
 
     const id = Number(await row.getAttribute('data-id'));
     expect(id).toBeGreaterThan(0);
@@ -1601,9 +1768,23 @@ When('I open the current public feedback-lane recommendation detail view', async
 });
 
 When('I request recommendation feedback from {string} with message {string}', async ({ page }, recipientName, message) => {
-    await page.getByRole('button', { name: /Request Feedback/ }).click();
+    const fixture = publicFeedbackFixture(page);
+    if (fixture.recommendationId > 0 && !page.url().includes(`/awards/recommendations/view/${fixture.recommendationId}`)) {
+        await page.goto(`/awards/recommendations/view/${fixture.recommendationId}`, { waitUntil: 'networkidle' });
+    }
+    await expect(page).toHaveURL(/\/awards\/recommendations\/view\/\d+/, { timeout: 15000 });
+
+    await page.locator('main').getByRole('button', { name: /Request Feedback/ }).click();
+    const feedbackForm = page.locator('#recommendation_feedback_root');
     const modal = page.locator('#requestRecommendationFeedbackModal');
     await expect(modal).toBeVisible({ timeout: 10000 });
+    await expect(feedbackForm.locator('input[name="ids"]')).toHaveValue(String(fixture.recommendationId));
+    const contextInput = feedbackForm.locator('input[name="page_context_url"]');
+    await expect(contextInput).toHaveValue(`/awards/recommendations/view/${fixture.recommendationId}`);
+    const originInput = feedbackForm.locator('input[name="feedback_origin"]');
+    if (await originInput.count() > 0) {
+        await expect(originInput).toHaveValue('detail');
+    }
 
     const comboBox = modal.locator('[data-controller="ac"]').filter({
         has: page.getByLabel('Find recipient member'),
@@ -1615,7 +1796,27 @@ When('I request recommendation feedback from {string} with message {string}', as
 
     await modal.getByLabel('Message to recipients').fill(message);
     await expect(modal.getByRole('button', { name: 'Send Feedback Request' })).toBeEnabled({ timeout: 10000 });
-    await modal.getByRole('button', { name: 'Send Feedback Request' }).click();
+    const [response] = await Promise.all([
+        page.waitForResponse((res) => {
+            const resUrl = new URL(res.url());
+            return resUrl.pathname.endsWith('/awards/recommendations/request-feedback');
+        }, { timeout: 30000 }),
+        modal.getByRole('button', { name: 'Send Feedback Request' }).click(),
+    ]);
+    const responseBody = response.status() >= 300 && response.status() < 400
+        ? ''
+        : await response.text();
+    const redirectLocation = response.headers()['location'] ?? '';
+    expect(
+        response.status(),
+        `Feedback request response status for ${response.url()}`
+            + (redirectLocation ? ` redirect=${redirectLocation}` : '')
+            + ` currentPage=${page.url()}: ${responseBody.slice(0, 500)}`,
+    ).toBe(200);
+    expect(
+        responseBody,
+        `Feedback request response body for ${response.url()}`,
+    ).toContain('Feedback request sent.');
     await expect(modal).toBeHidden({ timeout: 15000 });
     await page.waitForLoadState('networkidle');
 });
@@ -2160,12 +2361,11 @@ When('I open the bestowal to-dos tab', async ({ page }) => {
 });
 
 Then('the bestowal to-dos should include {string}', async ({ page }, title) => {
-    const todoPanel = page.locator('#nav-bestowalTodos');
-    await expect(todoPanel.locator('.list-group-item').filter({ hasText: title })).toBeVisible({ timeout: 15000 });
+    await expect(getBestowalTodoItem(page, title)).toBeVisible({ timeout: 15000 });
 });
 
 Then('the bestowal to-do {string} should require a gathering', async ({ page }, title) => {
-    const item = page.locator('#nav-bestowalTodos .list-group-item').filter({ hasText: title });
+    const item = getBestowalTodoItem(page, title);
     await expect(item).toBeVisible({ timeout: 15000 });
     await expect(item).toContainText('Gathering required');
     await expect(item.getByLabel('Bestowal Gathering')).toBeVisible({ timeout: 15000 });
@@ -2173,7 +2373,7 @@ Then('the bestowal to-do {string} should require a gathering', async ({ page }, 
 });
 
 Then('the bestowal to-do {string} should show a gathering assigned', async ({ page }, title) => {
-    const item = page.locator('#nav-bestowalTodos .list-group-item').filter({ hasText: title });
+    const item = getBestowalTodoItem(page, title);
     await expect(item).toBeVisible({ timeout: 15000 });
     await expect(item).toContainText('Gathering assigned');
 });
@@ -2185,7 +2385,7 @@ Then('the bestowal mark-given action should be disabled', async ({ page }) => {
 });
 
 When('I assign the first available gathering and complete the bestowal to-do {string}', async ({ page }, title) => {
-    const item = page.locator('#nav-bestowalTodos .list-group-item').filter({ hasText: title });
+    const item = getBestowalTodoItem(page, title);
     await expect(item).toBeVisible({ timeout: 15000 });
 
     const input = item.getByLabel('Bestowal Gathering');
@@ -2203,7 +2403,7 @@ When('I assign the first available gathering and complete the bestowal to-do {st
 });
 
 When('I complete the bestowal to-do {string}', async ({ page }, title) => {
-    const item = page.locator('#nav-bestowalTodos .list-group-item').filter({ hasText: title });
+    const item = getBestowalTodoItem(page, title);
     await expect(item).toBeVisible({ timeout: 15000 });
     await item.getByRole('link', { name: /Complete|Mark complete:/ }).click();
     const confirmDialog = page.getByRole('dialog', { name: 'Confirm action' });

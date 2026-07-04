@@ -1,20 +1,43 @@
 <?php
 $formUrl = $this->Url->build(['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'requestFeedback']);
 $memberLookupUrl = $this->Url->build(['plugin' => null, 'controller' => 'Members', 'action' => 'AutoComplete']);
+$pageContextUrl = $pageContextUrl ?? $this->request->getRequestTarget();
+$staticPageContext = $staticPageContext ?? false;
+$selectedRecommendationIds = $selectedRecommendationIds ?? '';
+$feedbackOrigin = $feedbackOrigin ?? null;
+if (is_array($selectedRecommendationIds)) {
+    $selectedRecommendationIds = implode(',', array_map('intval', $selectedRecommendationIds));
+}
 ?>
 <div id="recommendation_feedback_root" data-controller="recommendation-feedback-modal">
     <?= $this->Form->create(null, [
         'url' => $formUrl,
-        'data-turbo' => 'true',
+        'data-turbo' => 'false',
         'data-controller' => 'turbo-modal',
         'data-action' => implode(' ', [
             'submit->turbo-modal#submitAsTurboStream',
-            'turbo:submit-start->turbo-modal#closeModalBeforeSubmit',
             'input->recommendation-feedback-modal#updateSubmitState',
         ]),
     ]) ?>
-    <?= $this->Form->hidden('page_context_url', ['value' => $this->request->getRequestTarget()]) ?>
-    <?= $this->Form->hidden('ids', ['data-recommendation-feedback-modal-target' => 'ids']) ?>
+    <?php
+    $this->Form->unlockField('ids');
+    $this->Form->unlockField('page_context_url');
+    $this->Form->unlockField('recipient_ids');
+    $this->Form->unlockField('recipient_member');
+    $this->Form->unlockField('recipient_member-Disp');
+    $this->Form->unlockField('recipient_member_id');
+    ?>
+    <?= $this->Form->hidden('page_context_url', [
+        'value' => $pageContextUrl,
+        'data-page-context-static' => $staticPageContext ? 'true' : null,
+    ]) ?>
+    <?= $this->Form->hidden('ids', [
+        'value' => $selectedRecommendationIds,
+        'data-recommendation-feedback-modal-target' => 'ids',
+    ]) ?>
+    <?php if (is_string($feedbackOrigin) && $feedbackOrigin !== '') : ?>
+        <?= $this->Form->hidden('feedback_origin', ['value' => $feedbackOrigin]) ?>
+    <?php endif; ?>
     <?= $this->Modal->create(__('Request Feedback'), ['id' => $modalId, 'close' => true, 'form' => true]) ?>
     <div class="alert alert-info border-start border-info border-4" data-recommendation-feedback-modal-target="selectionSummary">
         <?= __('Select recommendations from the grid before requesting feedback.') ?>

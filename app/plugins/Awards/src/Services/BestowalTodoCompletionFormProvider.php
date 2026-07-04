@@ -39,7 +39,8 @@ class BestowalTodoCompletionFormProvider implements ActionItemCompletionFormProv
             return false;
         }
 
-        return $this->gatheringRequirementConfig($item) !== null;
+        return $this->gatheringRequirementConfig($item) !== null
+            || $this->hasPrerequisite($item);
     }
 
     /**
@@ -47,6 +48,10 @@ class BestowalTodoCompletionFormProvider implements ActionItemCompletionFormProv
      */
     public function buildForm(ActionItem $item, KmpIdentityInterface $user): ?ActionItemCompletionForm
     {
+        if ($this->gatheringRequirementConfig($item) === null) {
+            return null;
+        }
+
         $bestowal = $this->loadBestowal($item);
         if ($bestowal === null) {
             return null;
@@ -99,6 +104,10 @@ class BestowalTodoCompletionFormProvider implements ActionItemCompletionFormProv
         int $actorId,
         KmpIdentityInterface $user,
     ): ServiceResult {
+        if ($this->gatheringRequirementConfig($item) === null) {
+            return $this->validateCompletion($item);
+        }
+
         $bestowal = $this->loadBestowal($item);
         if ($bestowal === null) {
             return new ServiceResult(false, 'Bestowal not found.');
@@ -137,6 +146,15 @@ class BestowalTodoCompletionFormProvider implements ActionItemCompletionFormProv
      */
     public function validateCompletion(ActionItem $item): ServiceResult
     {
+        $prerequisiteResult = $this->validatePrerequisites($item);
+        if (!$prerequisiteResult->success) {
+            return $prerequisiteResult;
+        }
+
+        if ($this->gatheringRequirementConfig($item) === null) {
+            return new ServiceResult(true);
+        }
+
         $bestowal = $this->loadBestowal($item);
         if ($bestowal === null) {
             return new ServiceResult(false, 'Bestowal not found.');
@@ -162,6 +180,65 @@ class BestowalTodoCompletionFormProvider implements ActionItemCompletionFormProv
         }
 
         return BestowalTodoTemplateItem::getDefaultRequiredFieldConfigForSourceRef($item->source_ref);
+    }
+
+    /**
+     * @param \App\Model\Entity\ActionItem $item Action item.
+     * @return bool
+     */
+    private function hasPrerequisite(ActionItem $item): bool
+    {
+        return (string)$item->source_ref === BestowalTodoTemplateItem::ITEM_KEY_ADDED_TO_AGENDA;
+    }
+
+    /**
+     * @param \App\Model\Entity\ActionItem $item Action item.
+     * @return \App\Services\ServiceResult
+     */
+    private function validatePrerequisites(ActionItem $item): ServiceResult
+    {
+        if (!$this->hasPrerequisite($item)) {
+            return new ServiceResult(true);
+        }
+
+        $bestowal = $this->loadBestowal($item);
+        if ($bestowal === null) {
+            return new ServiceResult(false, 'Bestowal not found.');
+        }
+
+        $eventScheduled = $this->eventScheduledTodoForBestowal((int)$item->entity_id);
+        if ($eventScheduled !== null && !$eventScheduled->isCompleted()) {
+            return new ServiceResult(
+                false,
+                'Complete Event Scheduled before Added to Agenda can be completed.',
+            );
+        }
+
+        return $bestowal->gathering_id !== null && (int)$bestowal->gathering_id > 0
+            ? new ServiceResult(true)
+            : new ServiceResult(false, 'Assign a gathering before Added to Agenda can be completed.');
+    }
+
+    /**
+     * @param int $bestowalId Bestowal ID.
+     * @return \App\Model\Entity\ActionItem|null
+     */
+    private function eventScheduledTodoForBestowal(int $bestowalId): ?ActionItem
+    {
+        if ($bestowalId <= 0) {
+            return null;
+        }
+
+        /** @var \App\Model\Entity\ActionItem|null $item */
+        $item = $this->fetchTable('ActionItems')->find()
+            ->where([
+                'ActionItems.entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
+                'ActionItems.entity_id' => $bestowalId,
+                'ActionItems.source_ref' => BestowalTodoTemplateItem::ITEM_KEY_EVENT_SCHEDULED,
+            ])
+            ->first();
+
+        return $item;
     }
 
     /**

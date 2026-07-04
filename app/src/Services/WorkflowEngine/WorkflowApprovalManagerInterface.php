@@ -71,6 +71,15 @@ interface WorkflowApprovalManagerInterface
     public function getEligibleApprovers(int $approvalId): array;
 
     /**
+     * Get member IDs that can be selected as the next approver.
+     *
+     * @param int $approvalId Workflow approval ID
+     * @param int|null $currentMemberId Current responding member to exclude
+     * @return array<int>
+     */
+    public function getNextApproverCandidates(int $approvalId, ?int $currentMemberId = null): array;
+
+    /**
      * Reassign a pending approval to a different eligible member.
      *
      * @param int $approvalId Workflow approval ID

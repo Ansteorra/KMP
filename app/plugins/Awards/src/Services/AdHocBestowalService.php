@@ -47,7 +47,7 @@ class AdHocBestowalService
     /**
      * Create an ad-hoc bestowal in a single transaction.
      *
-     * Expected keys in $data: member_id or member_public_id, award_id, state.
+     * Expected keys in $data: member_sca_name plus optional member_id/member_public_id, award_id, state.
      * Optional keys: gathering_id, gathering_scheduled_activity_id, bestowed_at, notes, and court fields.
      *
      * @param array<string, mixed> $data Ad-hoc input payload.
@@ -56,7 +56,14 @@ class AdHocBestowalService
      */
     public function record(array $data, int $actorId): array
     {
-        $memberId = $this->resolveMemberId($data);
+        $memberResult = $this->resolveMemberReference($data);
+        if (!$memberResult['success']) {
+            return $this->failureResult((string)$memberResult['error']);
+        }
+        $memberId = $memberResult['memberId'];
+        $memberScaName = $this->normalizeOptionalString(
+            $data['memberScaName'] ?? $data['member_sca_name'] ?? null,
+        );
         $awardId = $this->normalizeAwardId($data['awardId'] ?? $data['award_id'] ?? null);
         $gatheringId = $this->normalizeOptionalInt($data['gatheringId'] ?? $data['gathering_id'] ?? null);
         $courtSessionId = $data['gatheringScheduledActivityId']
@@ -64,38 +71,50 @@ class AdHocBestowalService
             ?? null;
         $bestowedAt = $this->normalizeDateTime($data['bestowedAt'] ?? $data['bestowed_at'] ?? null);
 
-        if ($memberId === null || $memberId <= 0) {
-            return $this->failureResult('Member is required for ad-hoc bestowal entry.');
-        }
         if ($awardId === null || $awardId <= 0) {
             return $this->failureResult('Award to Bestow is required for ad-hoc bestowal entry.');
         }
 
-        try {
-            $member = $this->membersTable->get($memberId, select: [
-                'id',
-                'sca_name',
-            ]);
-        } catch (Throwable $e) {
-            Log::error('Ad-hoc bestowal failed loading member: ' . $e->getMessage());
+        $specialtyResult = $this->resolveSpecialtyForAward($awardId, $data['specialty'] ?? null);
+        if (!$specialtyResult['success']) {
+            return $this->failureResult((string)$specialtyResult['error']);
+        }
+        $specialty = $specialtyResult['specialty'];
 
-            return $this->failureResult($e->getMessage());
+        if ($memberId !== null) {
+            try {
+                $member = $this->membersTable->get($memberId, select: [
+                    'id',
+                    'sca_name',
+                ]);
+                $memberScaName = (string)$member->sca_name;
+            } catch (Throwable $e) {
+                Log::error('Ad-hoc bestowal failed loading member: ' . $e->getMessage());
+
+                return $this->failureResult($e->getMessage());
+            }
+        }
+
+        if ($memberScaName === null) {
+            return $this->failureResult('Recipient name is required for ad-hoc bestowal entry.');
         }
 
         try {
             return $this->bestowalsTable->getConnection()->transactional(
                 function () use (
-                    $member,
+                    $memberId,
+                    $memberScaName,
                     $awardId,
                     $gatheringId,
                     $courtSessionId,
                     $bestowedAt,
                     $data,
+                    $specialty,
                     $actorId,
                 ): array {
                     $bestowal = $this->bestowalsTable->newEmptyEntity();
-                    $bestowal->member_id = (int)$member->id;
-                    $bestowal->member_sca_name = (string)$member->sca_name;
+                    $bestowal->member_id = $memberId;
+                    $bestowal->member_sca_name = $memberScaName;
                     $bestowal->award_id = $awardId;
                     $bestowal->gathering_id = $gatheringId;
                     $bestowal->source = Bestowal::SOURCE_AD_HOC;
@@ -113,9 +132,7 @@ class AdHocBestowalService
                     $bestowal->person_to_notify = $this->normalizeOptionalString(
                         $data['personToNotify'] ?? $data['person_to_notify'] ?? null,
                     );
-                    $bestowal->specialty = $this->normalizeOptionalString(
-                        $data['specialty'] ?? null,
-                    );
+                    $bestowal->specialty = $specialty;
                     $bestowal->noble_notes = $this->normalizeOptionalString(
                         $data['nobleNotes'] ?? $data['noble_notes'] ?? null,
                     );
@@ -145,8 +162,8 @@ class AdHocBestowalService
                                 'bestowalId' => (int)$savedBestowal->id,
                                 'recommendationIds' => [],
                                 'primaryRecommendationId' => null,
-                                'memberId' => (int)$member->id,
-                                'memberScaName' => (string)$member->sca_name,
+                                'memberId' => $memberId,
+                                'memberScaName' => $memberScaName,
                                 'gatheringId' => $gatheringId,
                                 'lifecycleStatus' => (string)($savedBestowal->lifecycle_status
                                     ?? Bestowal::LIFECYCLE_OPEN),
@@ -187,18 +204,26 @@ class AdHocBestowalService
 
     /**
      * @param array<string, mixed> $data Ad-hoc input payload.
-     * @return int|null
+     * @return array{success: bool, memberId: int|null, error: string|null}
      */
-    private function resolveMemberId(array $data): ?int
+    private function resolveMemberReference(array $data): array
     {
         $memberId = $this->normalizeOptionalInt($data['memberId'] ?? $data['member_id'] ?? null);
         if ($memberId !== null && $memberId > 0) {
-            return $memberId;
+            return [
+                'success' => true,
+                'memberId' => $memberId,
+                'error' => null,
+            ];
         }
 
         $publicId = trim((string)($data['memberPublicId'] ?? $data['member_public_id'] ?? ''));
         if ($publicId === '') {
-            return null;
+            return [
+                'success' => true,
+                'memberId' => null,
+                'error' => null,
+            ];
         }
 
         $member = $this->membersTable->find()
@@ -206,7 +231,19 @@ class AdHocBestowalService
             ->where(['public_id' => $publicId])
             ->first();
 
-        return $member !== null ? (int)$member->id : null;
+        if ($member === null) {
+            return [
+                'success' => false,
+                'memberId' => null,
+                'error' => 'Member with provided public_id not found.',
+            ];
+        }
+
+        return [
+            'success' => true,
+            'memberId' => (int)$member->id,
+            'error' => null,
+        ];
     }
 
     /**
@@ -274,6 +311,81 @@ class AdHocBestowalService
         $normalized = trim((string)$value);
 
         return $normalized === '' ? null : $normalized;
+    }
+
+    /**
+     * Resolve and validate an ad-hoc bestowal specialty for the selected award.
+     *
+     * @param int $awardId Selected award ID.
+     * @param mixed $rawSpecialty Submitted specialty value.
+     * @return array{success: bool, specialty: string|null, error: string|null}
+     */
+    private function resolveSpecialtyForAward(int $awardId, mixed $rawSpecialty): array
+    {
+        try {
+            $award = $this->fetchTable('Awards.Awards')->get($awardId, select: [
+                'id',
+                'specialties',
+            ]);
+        } catch (Throwable $e) {
+            Log::error('Ad-hoc bestowal failed loading award: ' . $e->getMessage());
+
+            return [
+                'success' => false,
+                'specialty' => null,
+                'error' => $e->getMessage(),
+            ];
+        }
+
+        $configuredSpecialties = $this->normalizeConfiguredSpecialties($award->specialties ?? null);
+        if ($configuredSpecialties === []) {
+            return [
+                'success' => true,
+                'specialty' => null,
+                'error' => null,
+            ];
+        }
+
+        $specialty = $this->normalizeOptionalString($rawSpecialty);
+        if ($specialty === null) {
+            return [
+                'success' => false,
+                'specialty' => null,
+                'error' => 'Specialty is required for the selected award.',
+            ];
+        }
+
+        return [
+            'success' => true,
+            'specialty' => $specialty,
+            'error' => null,
+        ];
+    }
+
+    /**
+     * @param mixed $specialties Configured award specialty metadata.
+     * @return array<int, string>
+     */
+    private function normalizeConfiguredSpecialties(mixed $specialties): array
+    {
+        if (is_string($specialties)) {
+            $decoded = json_decode($specialties, true);
+            $specialties = is_array($decoded) ? $decoded : [$specialties];
+        }
+
+        if (!is_array($specialties)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($specialties as $specialty) {
+            $value = trim((string)$specialty);
+            if ($value !== '') {
+                $normalized[] = $value;
+            }
+        }
+
+        return array_values(array_unique($normalized));
     }
 
     /**

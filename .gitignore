@@ -39,6 +39,13 @@ app/cookies.txt
 app/tests/nav-debug.png
 app/config/secrets.local.json
 
+# Vite build output (source assets live under app/assets and app/plugins/*/assets)
+app/webroot/.vite/
+app/webroot/js/*-[A-Za-z0-9_-]*.js
+app/webroot/js/*.LICENSE.txt
+app/webroot/js/pdf.worker.min.mjs
+app/webroot/css/*-[A-Za-z0-9_-]*.css
+
 # Azure deploy local settings (never commit — contains secrets)
 deploy/azure/nightly.env
 deploy/azure/*.secret

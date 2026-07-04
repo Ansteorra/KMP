@@ -134,6 +134,8 @@ class RecommendationMigrationService
             'skipped' => 0,
             'error' => 0,
         ];
+        $classificationReport = [];
+        $classificationRows = [];
 
         try {
             $recommendations = $this->buildRecommendationQuery($filters)->all();
@@ -149,6 +151,24 @@ class RecommendationMigrationService
                     $summary['error']++;
                 } elseif ($status === RecommendationMigrationResult::STATUS_SKIPPED) {
                     $summary['skipped']++;
+                }
+                $legacyKey = sprintf(
+                    '%s / %s',
+                    (string)($recommendation->status ?? ''),
+                    (string)($recommendation->state ?? ''),
+                );
+                $reportKey = "{$target}:{$status}";
+                $classificationReport[$legacyKey][$reportKey] =
+                    ($classificationReport[$legacyKey][$reportKey] ?? 0) + 1;
+                if ($mode === RecommendationMigrationRun::MODE_DRY_RUN) {
+                    $classificationRows[] = [
+                        'recommendationId' => (int)$recommendation->id,
+                        'status' => (string)($recommendation->status ?? ''),
+                        'state' => (string)($recommendation->state ?? ''),
+                        'classification' => $target,
+                        'result' => $status,
+                        'reason' => (string)($result->reason ?? ''),
+                    ];
                 }
             }
 
@@ -167,6 +187,8 @@ class RecommendationMigrationService
             return new ServiceResult(true, null, [
                 'runId' => (int)$run->id,
                 'summary' => $summary,
+                'classificationReport' => $classificationReport,
+                'records' => $classificationRows,
             ]);
         } catch (Throwable $e) {
             $run->status = RecommendationMigrationRun::STATUS_FAILED;

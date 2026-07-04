@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services\WorkflowEngine\Providers;
@@ -11,11 +10,13 @@ use App\Model\Entity\Warrant;
 use App\Model\Entity\WarrantRoster;
 use App\Services\WarrantManager\WarrantManagerInterface;
 use App\Services\WarrantManager\WarrantRequest;
+use App\Services\WorkflowEngine\WorkflowActionTrait;
 use App\Services\WorkflowEngine\WorkflowContextAwareTrait;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\ORM\TableRegistry;
 use RuntimeException;
+use Throwable;
 
 /**
  * Workflow action implementations for warrant operations.
@@ -26,10 +27,14 @@ use RuntimeException;
 class WarrantWorkflowActions
 {
     use QueuedMailerAwareTrait;
+    use WorkflowActionTrait;
     use WorkflowContextAwareTrait;
 
     private WarrantManagerInterface $warrantManager;
 
+    /**
+     * @param \App\Services\WarrantManager\WarrantManagerInterface $warrantManager Warrant lifecycle manager
+     */
     public function __construct(WarrantManagerInterface $warrantManager)
     {
         $this->warrantManager = $warrantManager;
@@ -46,7 +51,7 @@ class WarrantWorkflowActions
      */
     public function createWarrantRoster(array $context, array $config): array
     {
-        try {
+        return $this->guard('CreateWarrantRoster', function () use ($context, $config): array {
             $name = $this->resolveValue($config['name'], $context);
             $desc = $this->resolveValue($config['description'] ?? '', $context);
             $entityType = $this->resolveValue($config['entityType'], $context);
@@ -79,12 +84,12 @@ class WarrantWorkflowActions
 
             $result = $this->warrantManager->request($name, (string)$desc, [$warrantRequest], $requestedBy);
 
-            return ['rosterId' => $result->success ? $result->data : null];
-        } catch (\Throwable $e) {
-            Log::error('Workflow CreateWarrantRoster failed: ' . $e->getMessage());
+            if (!$result->success) {
+                throw new RuntimeException($result->reason ?: 'Warrant roster creation failed.');
+            }
 
-            return ['rosterId' => null];
-        }
+            return ['rosterId' => $result->data];
+        });
     }
 
     /**
@@ -99,7 +104,7 @@ class WarrantWorkflowActions
      */
     public function activateWarrants(array $context, array $config): array
     {
-        try {
+        return $this->guard('ActivateWarrants', function () use ($context, $config): array {
             $rosterId = (int)$this->resolveValue($config['rosterId'], $context);
             // Derive approver from workflow context — whoever responded to the approval gate
             $approverId = (int)($context['resumeData']['approverId'] ?? $context['triggeredBy'] ?? 0);
@@ -167,9 +172,7 @@ class WarrantWorkflowActions
             $result = $this->warrantManager->activateApprovedRoster($rosterId, $approverId);
 
             if (!$result->success) {
-                Log::warning('Workflow ActivateWarrants: activation returned: ' . $result->reason);
-
-                return ['activated' => false, 'count' => 0];
+                throw new RuntimeException($result->reason ?: 'Warrant activation failed.');
             }
 
             $count = $warrantTable->find()
@@ -180,11 +183,7 @@ class WarrantWorkflowActions
                 ->count();
 
             return ['activated' => true, 'count' => $count];
-        } catch (\Throwable $e) {
-            Log::error('Workflow ActivateWarrants failed: ' . $e->getMessage());
-
-            return ['activated' => false, 'count' => 0];
-        }
+        });
     }
 
     /**
@@ -196,7 +195,7 @@ class WarrantWorkflowActions
      */
     public function createDirectWarrant(array $context, array $config): array
     {
-        try {
+        return $this->guard('CreateDirectWarrant', function () use ($context, $config): array {
             $warrantTable = TableRegistry::getTableLocator()->get('Warrants');
 
             $startOnRaw = $this->resolveValue($config['startOn'], $context);
@@ -223,17 +222,11 @@ class WarrantWorkflowActions
             $warrant->approved_date = new DateTime();
 
             if (!$warrantTable->save($warrant)) {
-                Log::error('Workflow CreateDirectWarrant: failed to save warrant');
-
-                return ['warrantId' => null];
+                throw new RuntimeException('Failed to save direct warrant.');
             }
 
             return ['warrantId' => $warrant->id];
-        } catch (\Throwable $e) {
-            Log::error('Workflow CreateDirectWarrant failed: ' . $e->getMessage());
-
-            return ['warrantId' => null];
-        }
+        });
     }
 
     /**
@@ -248,7 +241,7 @@ class WarrantWorkflowActions
      */
     public function declineRoster(array $context, array $config): array
     {
-        try {
+        return $this->guard('DeclineRoster', function () use ($context, $config): array {
             $rosterId = (int)$this->resolveValue($config['rosterId'], $context);
             $reason = $this->resolveValue($config['reason'] ?? '', $context);
             if (empty($reason)) {
@@ -303,11 +296,7 @@ class WarrantWorkflowActions
             }
 
             return ['declined' => true];
-        } catch (\Throwable $e) {
-            Log::error('Workflow DeclineRoster failed: ' . $e->getMessage());
-
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -321,7 +310,7 @@ class WarrantWorkflowActions
      */
     public function revokeWarrant(array $context, array $config): array
     {
-        try {
+        return $this->guard('RevokeWarrant', function () use ($context, $config): array {
             $warrantId = (int)$this->resolveValue($config['warrantId'], $context);
             $reason = $this->resolveValue($config['reason'] ?? 'Revoked via workflow', $context);
             $revokerId = $this->resolveValue($config['revokerId'] ?? null, $context);
@@ -336,13 +325,12 @@ class WarrantWorkflowActions
                 : new DateTime($expiresOnRaw ?? 'now');
 
             $result = $this->warrantManager->cancel($warrantId, (string)$reason, $revokerId, $expiresOn);
+            if (!$result->success) {
+                throw new RuntimeException($result->reason ?: 'Warrant revocation failed.');
+            }
 
-            return ['revoked' => $result->success];
-        } catch (\Throwable $e) {
-            Log::error('Workflow RevokeWarrant failed: ' . $e->getMessage());
-
-            return ['revoked' => false];
-        }
+            return ['revoked' => true];
+        });
     }
 
     /**
@@ -380,7 +368,7 @@ class WarrantWorkflowActions
             );
 
             return ['cancelled' => $result->success];
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error('Workflow CancelByEntity failed: ' . $e->getMessage());
 
             return ['cancelled' => false];
@@ -410,7 +398,7 @@ class WarrantWorkflowActions
             $result = $this->warrantManager->declineSingleWarrant($warrantId, (string)$reason, $rejecterId);
 
             return ['declined' => $result->success];
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error('Workflow DeclineSingleWarrant failed: ' . $e->getMessage());
 
             return ['declined' => false];
@@ -446,7 +434,7 @@ class WarrantWorkflowActions
             }
 
             return ['warrantable' => true, 'reason' => null];
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error('Workflow ValidateWarrantability failed: ' . $e->getMessage());
 
             return ['warrantable' => false, 'reason' => $e->getMessage()];
@@ -485,7 +473,7 @@ class WarrantWorkflowActions
                 'endDate' => $period->end_date ? $period->end_date->format('Y-m-d') : null,
                 'periodId' => $period->id,
             ];
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error('Workflow GetWarrantPeriod failed: ' . $e->getMessage());
 
             return ['startDate' => null, 'endDate' => null, 'periodId' => null];
@@ -534,13 +522,13 @@ class WarrantWorkflowActions
                         ...$vars,
                     ]);
                     $sent++;
-                } catch (\Throwable $mailErr) {
+                } catch (Throwable $mailErr) {
                     Log::error('Workflow NotifyWarrantIssued mail send failed: ' . $mailErr->getMessage());
                 }
             }
 
             return ['emailsSent' => $sent];
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error('Workflow NotifyWarrantIssued failed: ' . $e->getMessage());
 
             return ['emailsSent' => 0];

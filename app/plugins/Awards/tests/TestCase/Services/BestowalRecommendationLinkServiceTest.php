@@ -69,6 +69,8 @@ class BestowalRecommendationLinkServiceTest extends BaseTestCase
     {
         $bestowalId = $this->createBestowalWithRecommendations(2);
         $linkedIds = $this->linkService->getLinkedRecommendationIds($bestowalId);
+        $stateBeforeUnlink = (string)$this->recommendationsTable->get($linkedIds[0])->state;
+        $statusBeforeUnlink = (string)$this->recommendationsTable->get($linkedIds[0])->status;
 
         $unlinked = $this->linkService->unlinkRecommendations(
             $bestowalId,
@@ -78,6 +80,11 @@ class BestowalRecommendationLinkServiceTest extends BaseTestCase
 
         $this->assertSame([$linkedIds[0]], $unlinked);
         $this->assertSame([$linkedIds[1]], $this->linkService->getLinkedRecommendationIds($bestowalId));
+        $recommendation = $this->recommendationsTable->get($linkedIds[0]);
+        $this->assertSame($stateBeforeUnlink, $recommendation->state);
+        $this->assertSame($statusBeforeUnlink, $recommendation->status);
+        $this->assertNull($recommendation->bestowal_id);
+        $this->assertNull($recommendation->gathering_id);
     }
 
     public function testLinkRepairsExistingJoinWithMissingRecommendationShortcut(): void
@@ -133,6 +140,10 @@ class BestowalRecommendationLinkServiceTest extends BaseTestCase
         $this->assertStringContainsString('Submitted by Additional Submitter:', $summary);
         $this->assertStringContainsString('Additional reason.', $summary);
         $this->assertSame('Original Specialty, Additional Specialty', $bestowal->specialty);
+        $linkedRecommendation = $this->recommendationsTable->get($secondRecommendationId);
+        $this->assertSame('King Approved', $linkedRecommendation->state);
+        $this->assertSame($this->statusForState('King Approved'), $linkedRecommendation->status);
+        $this->assertSame($bestowalId, (int)$linkedRecommendation->bestowal_id);
     }
 
     public function testAssertMinimumLinkedRecommendationsAllowsLinkBeforeUnlinkSwap(): void

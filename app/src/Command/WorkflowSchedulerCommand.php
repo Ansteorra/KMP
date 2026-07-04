@@ -1,20 +1,23 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Application;
 use App\Model\Entity\WorkflowDefinition;
 use App\Services\WorkflowEngine\TriggerDispatcher;
-use App\Services\WorkflowEngine\WorkflowEngineInterface;
 use Cake\Command\Command;
 use Cake\Console\Arguments;
+use Cake\Console\CommandFactoryInterface;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
+use Cake\Core\Container;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\ORM\TableRegistry;
 use Cron\CronExpression;
+use LogicException;
+use Throwable;
 
 /**
  * CLI command to check and dispatch scheduled workflow triggers.
@@ -27,6 +30,18 @@ use Cron\CronExpression;
  */
 class WorkflowSchedulerCommand extends Command
 {
+    /**
+     * @param \Cake\Console\CommandFactoryInterface|null $factory Command factory
+     * @param \App\Services\WorkflowEngine\TriggerDispatcher|null $triggerDispatcher Workflow trigger dispatcher
+     */
+    public function __construct(
+        ?CommandFactoryInterface $factory = null,
+        ?TriggerDispatcher $triggerDispatcher = null,
+    ) {
+        parent::__construct($factory);
+        $this->triggerDispatcher = $triggerDispatcher;
+    }
+
     /**
      * @inheritDoc
      */
@@ -43,7 +58,7 @@ class WorkflowSchedulerCommand extends Command
         $parser = parent::buildOptionParser($parser);
 
         $parser->setDescription(
-            'Check scheduled workflows and dispatch any that are due to run.'
+            'Check scheduled workflows and dispatch any that are due to run.',
         );
 
         $parser->addOption('dry-run', [
@@ -252,7 +267,7 @@ class WorkflowSchedulerCommand extends Command
 
         // Dispatch the trigger
         try {
-            $dispatcher = $this->triggerDispatcher ?? $this->createTriggerDispatcher();
+            $dispatcher = $this->getTriggerDispatcher();
 
             $eventData = [
                 'trigger' => 'schedule',
@@ -285,7 +300,7 @@ class WorkflowSchedulerCommand extends Command
             ));
 
             return 'dispatched';
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error(sprintf(
                 'WorkflowScheduler: Failed to dispatch %s: %s',
                 $definition->slug,
@@ -329,21 +344,6 @@ class WorkflowSchedulerCommand extends Command
     }
 
     /**
-     * Create a TriggerDispatcher instance.
-     *
-     * Isolated for testability — tests can override this to inject a mock.
-     *
-     * @return \App\Services\WorkflowEngine\TriggerDispatcher
-     */
-    protected function createTriggerDispatcher(): TriggerDispatcher
-    {
-        $container = \Cake\Core\Container::create();
-        $engine = new \App\Services\WorkflowEngine\DefaultWorkflowEngine($container);
-
-        return new TriggerDispatcher($engine);
-    }
-
-    /**
      * Set a custom TriggerDispatcher (for testing).
      *
      * @param \App\Services\WorkflowEngine\TriggerDispatcher $dispatcher Dispatcher instance
@@ -355,9 +355,28 @@ class WorkflowSchedulerCommand extends Command
     }
 
     /**
-     * Injected dispatcher — null means createTriggerDispatcher() will be called.
+     * Injected dispatcher. Tests may set this manually when constructing the command directly.
      *
      * @var \App\Services\WorkflowEngine\TriggerDispatcher|null
      */
     private ?TriggerDispatcher $triggerDispatcher = null;
+
+    /**
+     * Resolve the workflow trigger dispatcher.
+     *
+     * @return \App\Services\WorkflowEngine\TriggerDispatcher
+     */
+    private function getTriggerDispatcher(): TriggerDispatcher
+    {
+        if ($this->triggerDispatcher === null) {
+            $container = new Container();
+            (new Application(CONFIG))->services($container);
+            if (!$container->has(TriggerDispatcher::class)) {
+                throw new LogicException('TriggerDispatcher service is not available.');
+            }
+            $this->triggerDispatcher = $container->get(TriggerDispatcher::class);
+        }
+
+        return $this->triggerDispatcher;
+    }
 }

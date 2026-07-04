@@ -91,6 +91,9 @@ class BestowalTodoViewTest extends HttpIntegrationTestCase
         $this->assertResponseContains('Scroll finished');
         $this->assertResponseContains('Required');
         $this->assertResponseContains('Complete all required checks');
+        $this->assertResponseContains('bi-hourglass-split');
+        $this->assertResponseContains('Open task:');
+        $this->assertResponseNotContains('bi bi-circle me-1');
     }
 
     public function testViewRendersGatheringRequirementForUnbackfilledEventScheduledTodo(): void
@@ -106,6 +109,28 @@ class BestowalTodoViewTest extends HttpIntegrationTestCase
         $this->assertResponseOk();
         $this->assertResponseContains('Gathering required');
         $this->assertResponseContains('Assign Gathering and Complete');
+    }
+
+    public function testViewBlocksAgendaTodoUntilEventScheduledIsComplete(): void
+    {
+        $bestowal = $this->makeBestowal();
+        $this->makeTodo((int)$bestowal->id, [
+            'title' => 'Event Scheduled',
+            'source_ref' => BestowalTodoTemplateItem::ITEM_KEY_EVENT_SCHEDULED,
+            'sort_order' => 10,
+        ]);
+        $this->makeTodo((int)$bestowal->id, [
+            'title' => 'Added to Agenda',
+            'source_ref' => BestowalTodoTemplateItem::ITEM_KEY_ADDED_TO_AGENDA,
+            'sort_order' => 20,
+        ]);
+
+        $this->get('/awards/bestowals/view/' . $bestowal->id);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Waiting on Event Scheduled');
+        $this->assertResponseContains('Complete Event Scheduled before Added to Agenda can be completed.');
+        $this->assertResponseNotContains('aria-label="Mark complete: Added to Agenda"');
     }
 
     /**
@@ -125,5 +150,7 @@ class BestowalTodoViewTest extends HttpIntegrationTestCase
         $this->assertResponseOk();
         $this->assertResponseContains('Mark Given');
         $this->assertResponseContains('All required checks are complete.');
+        $this->assertResponseContains('bi-check-square-fill');
+        $this->assertResponseContains('Completed task:');
     }
 }

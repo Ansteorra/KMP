@@ -13,8 +13,8 @@ use App\Services\GridViewService;
 use Cake\Cache\Cache;
 use Cake\Http\Response;
 use Cake\Log\Log;
-use DateTime;
 use Cake\Utility\Inflector;
+use DateTime;
 use DateTimeInterface;
 use DateTimeZone;
 
@@ -104,6 +104,7 @@ trait DataverseGridTrait
         $bulkActions = $config['bulkActions'] ?? [];
         $bulkSelectionDataFields = $config['bulkSelectionDataFields'] ?? [];
         $bulkSelectionDisabledField = $config['bulkSelectionDisabledField'] ?? null;
+        $bulkSelectionHideDisabledControl = $config['bulkSelectionHideDisabledControl'] ?? false;
         $metadataMode = $config['metadataMode'] ?? ($this->isDataverseTableFrameRequest() ? 'table' : 'full');
         // System-view grids (e.g. Officers warrant tabs) need view metadata even when custom views are disabled.
         $loadViewMetadata = $metadataMode === 'full' && ($canAddViews || $systemViews !== null);
@@ -843,6 +844,7 @@ trait DataverseGridTrait
             bulkActions: $bulkActions,
             bulkSelectionDataFields: $bulkSelectionDataFields,
             bulkSelectionDisabledField: $bulkSelectionDisabledField,
+            bulkSelectionHideDisabledControl: $bulkSelectionHideDisabledControl,
             includeViewMetadata: $loadViewMetadata,
             includeAllColumns: $metadataMode === 'full',
         );
@@ -1259,6 +1261,7 @@ trait DataverseGridTrait
         array $bulkActions = [],
         array $bulkSelectionDataFields = [],
         ?string $bulkSelectionDisabledField = null,
+        bool $bulkSelectionHideDisabledControl = false,
         bool $includeViewMetadata = true,
         bool $includeAllColumns = true,
     ): array {
@@ -1426,6 +1429,7 @@ trait DataverseGridTrait
                 'bulkActions' => $bulkActions,
                 'bulkSelectionDataFields' => $bulkSelectionDataFields,
                 'bulkSelectionDisabledField' => $bulkSelectionDisabledField,
+                'bulkSelectionHideDisabledControl' => $bulkSelectionHideDisabledControl,
             ],
             'dateRangeFilterColumns' => $dateRangeFilterColumns,
         ];

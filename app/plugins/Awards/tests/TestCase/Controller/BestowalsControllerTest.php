@@ -4,30 +4,25 @@ declare(strict_types=1);
 namespace Awards\Test\TestCase\Controller;
 
 use App\Services\ServiceResult;
+use App\Services\WorkflowEngine\Conditions\CoreConditions;
 use App\Services\WorkflowEngine\TriggerDispatcher;
+use App\Services\WorkflowEngine\WorkflowEngineInterface;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\Recommendation;
+use Awards\Services\AwardsWorkflowActions;
 use Awards\Services\BestowalCourtSlotService;
 use Awards\Services\BestowalCreationService;
 use Cake\Core\ContainerInterface as CakeContainerInterface;
-use Cake\Event\EventInterface;
 use Cake\ORM\TableRegistry;
 use Closure;
 use Exception;
-use Psr\Container\ContainerInterface as PsrContainerInterface;
-use ReflectionProperty;
 
 /**
  * BestowalsController integration tests.
  */
 class BestowalsControllerTest extends HttpIntegrationTestCase
 {
-    /**
-     * @var array<int, string>
-     */
-    private array $mockedServiceKeys = [];
-
     /**
      * @return void
      */
@@ -39,42 +34,23 @@ class BestowalsControllerTest extends HttpIntegrationTestCase
         $this->authenticateAsSuperUser();
 
         $this->mockServiceClean(CakeContainerInterface::class, function () {
-            return $this->createMock(CakeContainerInterface::class);
+            $container = $this->createMock(CakeContainerInterface::class);
+            $actions = new AwardsWorkflowActions();
+            $conditions = new CoreConditions();
+
+            $container->method('has')->willReturnCallback(
+                static fn($class): bool => in_array($class, [AwardsWorkflowActions::class, CoreConditions::class], true),
+            );
+            $container->method('get')->willReturnCallback(
+                static fn($class): object => match ($class) {
+                    AwardsWorkflowActions::class => $actions,
+                    CoreConditions::class => $conditions,
+                    default => throw new Exception("Unexpected workflow service {$class}"),
+                },
+            );
+
+            return $container;
         });
-    }
-
-    /**
-     * @return void
-     */
-    protected function tearDown(): void
-    {
-        $this->mockedServiceKeys = [];
-        parent::tearDown();
-    }
-
-    /**
-     * @param \Cake\Event\EventInterface $event Event
-     * @param \Psr\Container\ContainerInterface $container Container
-     * @return void
-     */
-    public function modifyContainer(EventInterface $event, PsrContainerInterface $container): void
-    {
-        parent::modifyContainer($event, $container);
-
-        foreach ($this->mockedServiceKeys as $key) {
-            if (!$container->has($key)) {
-                continue;
-            }
-
-            try {
-                $definition = $container->extend($key);
-                $arguments = new ReflectionProperty($definition, 'arguments');
-                $arguments->setAccessible(true);
-                $arguments->setValue($definition, []);
-            } catch (Exception) {
-                continue;
-            }
-        }
     }
 
     /**
@@ -110,8 +86,57 @@ class BestowalsControllerTest extends HttpIntegrationTestCase
             ->firstOrFail();
         $award = $this->getTableLocator()->get('Awards.Awards')
             ->find()
+            ->firstOrFail();
+        $award->specialties = ['Scribal Arts', 'Court Heraldry'];
+        $this->getTableLocator()->get('Awards.Awards')->saveOrFail($award);
+
+        $bestowals = $this->getTableLocator()->get('Awards.Bestowals');
+        $bestowal = $bestowals->newEntity([
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'award_id' => $award->id,
+            'gathering_id' => $gathering->id,
+            'specialty' => 'Scribal Arts',
+            'source' => Bestowal::SOURCE_AD_HOC,
+            'stack_rank' => 0,
+        ]);
+        $bestowals->saveOrFail($bestowal);
+
+        $this->configRequest([
+            'headers' => [
+                'Turbo-Frame' => 'editBestowalQuick',
+            ],
+        ]);
+        $this->get('/awards/bestowals/turbo-edit-form/' . $bestowal->id);
+        $this->assertResponseOk();
+        $this->assertResponseContains('id="bestowal_form"');
+        $this->assertResponseContains('turbo-frame id="editBestowalQuick"');
+        $this->assertResponseContains('data-awards-bestowal-edit-target="specialtyBlock"');
+        $this->assertResponseContains('name="specialty_hidden"');
+        $this->assertResponseContains('name="specialty"');
+        $this->assertResponseContains('Select a configured specialty or type the specialty to record.');
+
+        $body = (string)$this->_response->getBody();
+        $awardPosition = strpos($body, 'Award to Bestow');
+        $specialtyPosition = strpos($body, 'Specialty');
+        $courtPosition = strpos($body, 'Court Planning');
+        $this->assertNotFalse($awardPosition);
+        $this->assertNotFalse($specialtyPosition);
+        $this->assertNotFalse($courtPosition);
+        $this->assertGreaterThan($awardPosition, $specialtyPosition);
+        $this->assertLessThan($courtPosition, $specialtyPosition);
+    }
+
+    public function testTurboEditFormHandlesEmptySpecialtyCombo(): void
+    {
+        $gathering = $this->getTableLocator()->get('Gatherings')
+            ->find()
             ->select(['id'])
             ->firstOrFail();
+        $award = $this->getTableLocator()->get('Awards.Awards')
+            ->find()
+            ->firstOrFail();
+        $award->specialties = ['Scribal Arts', 'Court Heraldry'];
+        $this->getTableLocator()->get('Awards.Awards')->saveOrFail($award);
 
         $bestowals = $this->getTableLocator()->get('Awards.Bestowals');
         $bestowal = $bestowals->newEntity([
@@ -129,9 +154,11 @@ class BestowalsControllerTest extends HttpIntegrationTestCase
             ],
         ]);
         $this->get('/awards/bestowals/turbo-edit-form/' . $bestowal->id);
+
         $this->assertResponseOk();
-        $this->assertResponseContains('id="bestowal_form"');
-        $this->assertResponseContains('turbo-frame id="editBestowalQuick"');
+        $this->assertResponseContains('data-awards-bestowal-edit-target="specialtyBlock"');
+        $this->assertResponseContains('name="specialty_hidden"');
+        $this->assertResponseContains('name="specialty"');
     }
 
     /**
@@ -295,8 +322,48 @@ class BestowalsControllerTest extends HttpIntegrationTestCase
         $this->assertRedirectContains('/awards/bestowals/view/123');
     }
 
+    public function testEditUsesEphemeralWorkflowWithoutNestedTransactionFailure(): void
+    {
+        $this->ensureActiveWorkflow('awards-bestowal-update');
+
+        $award = $this->getTableLocator()->get('Awards.Awards')
+            ->find()
+            ->firstOrFail();
+        $recommendation = $this->createRecommendation((int)$award->id, 'Bestowal update test');
+        $createResult = (new BestowalCreationService())->createFromRecommendation(
+            (int)$recommendation->id,
+            self::ADMIN_MEMBER_ID,
+        );
+        $this->assertTrue($createResult['success'], $createResult['error'] ?? json_encode($createResult));
+        $bestowals = $this->getTableLocator()->get('Awards.Bestowals');
+        $bestowal = $bestowals->get((int)$createResult['data']['bestowalId']);
+        $bestowal->noble_notes = 'Original note';
+        $bestowals->saveOrFail($bestowal);
+
+        $this->configRequest([
+            'headers' => [
+                'Accept' => 'text/vnd.turbo-stream.html',
+            ],
+        ]);
+        $this->post('/awards/bestowals/edit/' . $bestowal->id, [
+            'id' => $bestowal->id,
+            'award_id' => $award->id,
+            'page_context_url' => '/awards/bestowals',
+            'gathering_scheduled_activity_id' => BestowalCourtSlotService::ROAMING_COURT_VALUE,
+            'noble_notes' => 'Updated note',
+        ]);
+
+        $this->assertResponseOk();
+        $this->assertResponseNotContains('Cannot commit transaction');
+
+        $saved = $bestowals->get($bestowal->id);
+        $this->assertSame('Updated note', $saved->noble_notes);
+        $this->assertTrue((bool)$saved->roaming_court);
+        $this->assertNull($saved->gathering_scheduled_activity_id);
+    }
+
     /**
-     * Mock a service and clear its stale DI constructor arguments.
+     * Mock a service with CakePHP's integration-test container.
      *
      * @param string $class Class name
      * @param \Closure $factory Factory
@@ -304,8 +371,23 @@ class BestowalsControllerTest extends HttpIntegrationTestCase
      */
     private function mockServiceClean(string $class, Closure $factory): void
     {
-        $this->mockService($class, $factory);
-        $this->mockedServiceKeys[] = $class;
+        if ($class !== TriggerDispatcher::class) {
+            $this->mockService($class, $factory);
+
+            return;
+        }
+
+        $dispatcher = $factory();
+        $engine = $this->createMock(WorkflowEngineInterface::class);
+        $engine->method('dispatchTrigger')
+            ->willReturnCallback(
+                fn(string $eventName, array $eventData = [], ?int $triggeredBy = null): array => $dispatcher->dispatch(
+                    $eventName,
+                    $eventData,
+                    $triggeredBy,
+                ),
+            );
+        $this->mockService(WorkflowEngineInterface::class, static fn() => $engine);
     }
 
     /**
@@ -314,8 +396,23 @@ class BestowalsControllerTest extends HttpIntegrationTestCase
      */
     private function ensureActiveWorkflow(string $slug): void
     {
-        TableRegistry::getTableLocator()->get('WorkflowDefinitions')
-            ->updateAll(['is_active' => true], ['slug' => $slug]);
+        $definitions = TableRegistry::getTableLocator()->get('WorkflowDefinitions');
+        $definition = $definitions->find()->where(['slug' => $slug])->firstOrFail();
+        if (!$definition->current_version_id) {
+            $versions = TableRegistry::getTableLocator()->get('WorkflowVersions');
+            $version = $versions->saveOrFail($versions->newEntity([
+                'workflow_definition_id' => $definition->id,
+                'version_number' => 1,
+                'status' => 'published',
+                'definition' => ['nodes' => [], 'edges' => []],
+                'created_by' => self::ADMIN_MEMBER_ID,
+                'modified_by' => self::ADMIN_MEMBER_ID,
+            ]));
+            $definition->current_version_id = $version->id;
+        }
+
+        $definition->is_active = true;
+        $definitions->saveOrFail($definition);
     }
 
     /**

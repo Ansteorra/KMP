@@ -41,14 +41,17 @@ class TenantRestoreService
         $targetTenantSlug = $targetTenantSlug === null ? null : strtolower(trim($targetTenantSlug));
         $this->assertSafeUuid($backupId, 'backup id');
         $this->assertMode($mode);
-        if (!$confirmDestructive && !$dryRun) {
-            throw new RuntimeException('Restore requires --confirm-destructive.');
+        if ($mode === self::MODE_SAME_TENANT && !$confirmDestructive && !$dryRun) {
+            throw new RuntimeException('Same-tenant restore requires --confirm-destructive.');
         }
         if ($mode === self::MODE_CROSS_TENANT && ($targetTenantSlug === null || $targetTenantSlug === '')) {
             throw new RuntimeException('Cross-tenant restore requires --target-tenant.');
         }
         if ($targetTenantSlug !== null && $targetTenantSlug !== '') {
             $this->assertSafeSlug($targetTenantSlug);
+        }
+        if (!$confirmDestructive && !$dryRun) {
+            throw new RuntimeException('Restore requires --confirm-destructive.');
         }
 
         $jobId = Text::uuid();

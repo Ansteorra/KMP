@@ -21,6 +21,7 @@ class WorkflowApprovalsTableTest extends BaseTestCase
     {
         parent::setUp();
 
+        WorkflowApprovalsTable::clearPendingApprovalEligibilityCache();
         $this->approvalsTable = TableRegistry::getTableLocator()->get('WorkflowApprovals');
         $this->responsesTable = TableRegistry::getTableLocator()->get('WorkflowApprovalResponses');
     }
@@ -161,6 +162,7 @@ class WorkflowApprovalsTableTest extends BaseTestCase
                 'award_approval_approver_type' => 'role',
                 'award_approval_approver_source_id' => $scope['role_id'],
                 'award_approval_branch_id' => $scope['branch_id'],
+                'eligible_member_ids' => [$scope['member_id']],
             ],
         ]);
 
@@ -193,6 +195,7 @@ class WorkflowApprovalsTableTest extends BaseTestCase
                 'award_approval_approver_type' => 'role',
                 'award_approval_approver_source_id' => $scope['role_id'],
                 'award_approval_branch_mode' => 'award_branch',
+                'eligible_member_ids' => [$scope['member_id']],
             ],
         ]);
 
@@ -227,6 +230,7 @@ class WorkflowApprovalsTableTest extends BaseTestCase
                 'award_approval_approver_source_id' => $scope['office_id'],
                 'award_approval_branch_mode' => 'ancestor_branch_type',
                 'award_approval_branch_type' => $branchType,
+                'eligible_member_ids' => [$scope['member_id']],
             ],
         ]);
 
@@ -272,6 +276,60 @@ class WorkflowApprovalsTableTest extends BaseTestCase
         );
     }
 
+    public function testPendingCountIgnoresStaleEligibleSnapshotForBranchScopedRoleApproval(): void
+    {
+        $scope = $this->findCurrentBranchRoleScope();
+        $otherBranchId = $this->findBranchOutsideCurrentRoleScope($scope['member_id'], $scope['role_id']);
+        $countBefore = WorkflowApprovalsTable::getPendingApprovalCountForMember($scope['member_id']);
+        [$instanceId, $executionLogId] = $this->createWorkflowContext();
+
+        $approvalId = $this->createApproval($instanceId, $executionLogId, [
+            'approver_type' => WorkflowApproval::APPROVER_TYPE_DYNAMIC,
+            'approver_config' => [
+                'service' => 'Awards.ResolveApprovalStepApprovers',
+                'method' => 'resolveConfiguredApproverIds',
+                'award_approval_approver_type' => 'role',
+                'award_approval_approver_source_id' => $scope['role_id'],
+                'award_approval_branch_id' => $otherBranchId,
+                'eligible_member_ids' => [$scope['member_id']],
+            ],
+        ]);
+
+        $this->assertSame(
+            $countBefore,
+            WorkflowApprovalsTable::getPendingApprovalCountForMember($scope['member_id']),
+        );
+        $this->assertNotContains(
+            $approvalId,
+            WorkflowApprovalsTable::getPendingApprovalIdsForMember($scope['member_id']),
+        );
+    }
+
+    public function testPendingCountIncludesCallbackDynamicApprovalForCurrentApprover(): void
+    {
+        $countBefore = WorkflowApprovalsTable::getPendingApprovalCountForMember(self::ADMIN_MEMBER_ID);
+        [$instanceId, $executionLogId] = $this->createWorkflowContext();
+
+        $approvalId = $this->createApproval($instanceId, $executionLogId, [
+            'approver_type' => WorkflowApproval::APPROVER_TYPE_DYNAMIC,
+            'current_approver_id' => self::ADMIN_MEMBER_ID,
+            'approver_config' => [
+                'service' => 'App.Test.DynamicResolver',
+                'method' => 'resolveApprovers',
+                'eligible_member_ids' => [self::TEST_MEMBER_AGATHA_ID],
+            ],
+        ]);
+
+        $this->assertSame(
+            $countBefore + 1,
+            WorkflowApprovalsTable::getPendingApprovalCountForMember(self::ADMIN_MEMBER_ID),
+        );
+        $this->assertContains(
+            $approvalId,
+            WorkflowApprovalsTable::getPendingApprovalIdsForMember(self::ADMIN_MEMBER_ID),
+        );
+    }
+
     public function testPendingCountUsesCurrentBranchScopedPermissionForAwardDynamicApproval(): void
     {
         $scope = $this->findCurrentBranchPermissionScope();
@@ -286,6 +344,7 @@ class WorkflowApprovalsTableTest extends BaseTestCase
                 'award_approval_approver_type' => 'permission',
                 'award_approval_approver_source_id' => $scope['permission_id'],
                 'award_approval_branch_id' => $scope['branch_id'],
+                'eligible_member_ids' => [$scope['member_id']],
             ],
         ]);
 
@@ -309,6 +368,7 @@ class WorkflowApprovalsTableTest extends BaseTestCase
                 'award_approval_approver_type' => 'office',
                 'award_approval_approver_source_id' => $scope['office_id'],
                 'award_approval_branch_id' => $scope['branch_id'],
+                'eligible_member_ids' => [$scope['member_id']],
             ],
         ]);
 
@@ -353,6 +413,7 @@ class WorkflowApprovalsTableTest extends BaseTestCase
             'approver_config' => [
                 'award_approval_approver_type' => 'member',
                 'award_approval_approver_source_id' => self::ADMIN_MEMBER_ID,
+                'eligible_member_ids' => [self::ADMIN_MEMBER_ID],
             ],
             'status' => WorkflowApproval::STATUS_APPROVED,
         ]);
@@ -361,6 +422,7 @@ class WorkflowApprovalsTableTest extends BaseTestCase
             'approver_config' => [
                 'award_approval_approver_type' => 'member',
                 'award_approval_approver_source_id' => self::ADMIN_MEMBER_ID,
+                'eligible_member_ids' => [self::ADMIN_MEMBER_ID],
             ],
         ]);
 

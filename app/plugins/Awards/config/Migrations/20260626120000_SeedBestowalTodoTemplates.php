@@ -16,9 +16,8 @@ use Migrations\BaseMigration;
  *   - "Principality Award" -> awards owned by a `Principality` branch (Principality perms)
  *   - "Baronial Award"     -> awards owned by a `Local Group` branch  (Baronial perms)
  *
- * Each template carries five parallel checks. Four are optional coordination
- * checks; only the final "Given" check is gating (it must be complete before a
- * bestowal can be marked given). Each check is gated by a tier-specific
+ * checks; "Event Scheduled", "Added to Agenda", and "Given" are gating (they
+ * must be complete before a bestowal can be marked given). Each check is gated by a tier-specific
  * permission so admins can wire the appropriate roles/offices later.
  */
 class SeedBestowalTodoTemplates extends BaseMigration
@@ -31,19 +30,19 @@ class SeedBestowalTodoTemplates extends BaseMigration
     private const TEMPLATES = [
         'Kingdom Award' => [
             'description' => 'Parallel coordination checklist for kingdom-level award bestowals. '
-                . 'Only the final "Given" check is required to mark the bestowal given.',
+                . 'Event Scheduled, Added to Agenda, and Given are required to mark the bestowal given.',
             'branch_types' => ['Kingdom'],
             'prefix' => 'Crown',
         ],
         'Principality Award' => [
             'description' => 'Parallel coordination checklist for principality-level award bestowals. '
-                . 'Only the final "Given" check is required to mark the bestowal given.',
+                . 'Event Scheduled, Added to Agenda, and Given are required to mark the bestowal given.',
             'branch_types' => ['Principality'],
             'prefix' => 'Principality',
         ],
         'Baronial Award' => [
             'description' => 'Parallel coordination checklist for baronial (local group) award bestowals. '
-                . 'Only the final "Given" check is required to mark the bestowal given.',
+                . 'Event Scheduled, Added to Agenda, and Given are required to mark the bestowal given.',
             'branch_types' => ['Local Group'],
             'prefix' => 'Baronial',
         ],
@@ -75,14 +74,14 @@ class SeedBestowalTodoTemplates extends BaseMigration
             'key' => 'event_scheduled',
             'label' => 'Event Scheduled',
             'permission_suffix' => 'Award Schedule Management',
-            'is_gating' => false,
+            'is_gating' => true,
             'sort' => 30,
         ],
         [
             'key' => 'added_to_agenda',
             'label' => 'Added to Agenda',
             'permission_suffix' => 'Court Management',
-            'is_gating' => false,
+            'is_gating' => true,
             'sort' => 40,
         ],
         [

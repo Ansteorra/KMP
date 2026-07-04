@@ -38,7 +38,7 @@ class BestowalRecommendationSyncServiceTest extends BaseTestCase
         parent::tearDown();
     }
 
-    public function testSyncFromBestowalCopiesGatheringWhenStateAlreadyMatches(): void
+    public function testSyncFromBestowalCopiesGatheringWithoutChangingLegacyState(): void
     {
         $recommendationId = $this->createRecommendation('Need to Schedule');
         $createResult = $this->creationService->createFromRecommendation(
@@ -65,6 +65,8 @@ class BestowalRecommendationSyncServiceTest extends BaseTestCase
 
         $reloaded = $this->recommendationsTable->get($recommendationId);
         $this->assertSame($gatheringId, $reloaded->gathering_id);
+        $this->assertSame('Need to Schedule', $reloaded->state);
+        $this->assertSame($this->statusForState('Need to Schedule'), $reloaded->status);
     }
 
     public function testSyncFromBestowalClearsGatheringWhenBestowalHasNone(): void
@@ -125,6 +127,35 @@ class BestowalRecommendationSyncServiceTest extends BaseTestCase
 
         $reloaded = $this->recommendationsTable->get($recommendationId);
         $this->assertSame('Given', $reloaded->state);
+        $this->assertNotNull($reloaded->given);
+        $this->assertSame(
+            '2026-06-15',
+            $reloaded->given->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d'),
+        );
+    }
+
+    public function testGivenBestowalDoesNotPromoteLinkedRecommendationLegacyState(): void
+    {
+        $recommendationId = $this->createRecommendation('Need to Schedule');
+        $createResult = $this->creationService->createFromRecommendation(
+            $recommendationId,
+            self::ADMIN_MEMBER_ID,
+        );
+        $this->assertTrue($createResult['success'], $createResult['error'] ?? json_encode($createResult));
+
+        $bestowalId = (int)$createResult['data']['bestowalId'];
+        $bestowal = $this->bestowalsTable->get($bestowalId);
+        $bestowal->lifecycle_status = Bestowal::LIFECYCLE_GIVEN;
+        $bestowal->bestowed_at = new DateTime('2026-06-15 00:00:00', new DateTimeZone('UTC'));
+        $bestowal->modified_by = self::ADMIN_MEMBER_ID;
+        $this->bestowalsTable->saveOrFail($bestowal);
+
+        $result = $this->syncService->syncFromBestowal($bestowalId, self::ADMIN_MEMBER_ID);
+
+        $this->assertTrue($result['success'], $result['error'] ?? json_encode($result));
+        $reloaded = $this->recommendationsTable->get($recommendationId);
+        $this->assertSame('Need to Schedule', $reloaded->state);
+        $this->assertSame($this->statusForState('Need to Schedule'), $reloaded->status);
         $this->assertNotNull($reloaded->given);
         $this->assertSame(
             '2026-06-15',

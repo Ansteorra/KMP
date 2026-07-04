@@ -11,8 +11,11 @@ use App\Services\ApprovalContext\ApprovalContextRendererRegistry;
 use App\Services\NavigationRegistry;
 use App\Services\ViewCellRegistry;
 use App\Services\WorkflowEngine\TriggerDispatcher;
+use App\Services\WorkflowEngine\WorkflowApprovalManagerInterface;
+use App\Services\WorkflowEngine\WorkflowEngineInterface;
 use Awards\Command\MaterializeBestowalTodosCommand;
 use Awards\Command\MigrateAwardRecommendationsCommand;
+use Awards\Command\ReconcileRecommendationStateCommand;
 use Awards\Event\BestowalTodoCompletionListener;
 use Awards\Event\RecommendationFeedbackApprovalListener;
 use Awards\Services\AdHocBestowalService;
@@ -35,11 +38,13 @@ use Awards\Services\BestowalTodoMaterializationService;
 use Awards\Services\BestowalUpdateService;
 use Awards\Services\CourtAgendaService;
 use Awards\Services\RecommendationApprovalContextRenderer;
+use Awards\Services\RecommendationApprovalDecisionService;
 use Awards\Services\RecommendationApprovalProcessService;
 use Awards\Services\RecommendationFeedbackContextRenderer;
 use Awards\Services\RecommendationFeedbackService;
 use Awards\Services\RecommendationFormService;
 use Awards\Services\RecommendationGroupingService;
+use Awards\Services\RecommendationMigrationService;
 use Awards\Services\RecommendationQueryService;
 use Awards\Services\RecommendationStateLogService;
 use Awards\Services\RecommendationSubmissionService;
@@ -336,6 +341,7 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
         $commands = parent::console($commands);
         $commands->add('awards migrate_award_recommendations', MigrateAwardRecommendationsCommand::class);
         $commands->add('awards materialize_bestowal_todos', MaterializeBestowalTodosCommand::class);
+        $commands->add('awards reconcile_recommendation_state', ReconcileRecommendationStateCommand::class);
 
         return $commands;
     }
@@ -350,11 +356,18 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
             ->addArgument(TriggerDispatcher::class);
         $container->add(BestowalTodoMaterializationService::class)
             ->addArgument(ActionItemService::class);
+        $container->add(RecommendationMigrationService::class)
+            ->addArgument(TriggerDispatcher::class);
         $container->add(MaterializeBestowalTodosCommand::class)
             ->addArgument(BestowalTodoMaterializationService::class);
+        $container->add(ReconcileRecommendationStateCommand::class)
+            ->addArgument(RecommendationMigrationService::class);
         $container->add(RecommendationFormService::class);
         $container->add(AwardApprovalResolverService::class);
         $container->add(RecommendationApprovalProcessService::class);
+        $container->add(RecommendationApprovalDecisionService::class)
+            ->addArgument(WorkflowApprovalManagerInterface::class)
+            ->addArgument(WorkflowEngineInterface::class);
         $container->add(RecommendationFeedbackService::class)
             ->addArgument(TriggerDispatcher::class);
         $container->add(RecommendationFeedbackContextRenderer::class);

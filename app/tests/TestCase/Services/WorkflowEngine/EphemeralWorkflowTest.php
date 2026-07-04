@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services\WorkflowEngine;
@@ -8,27 +7,9 @@ use App\Services\WorkflowEngine\DefaultWorkflowEngine;
 use App\Services\WorkflowRegistry\WorkflowActionRegistry;
 use App\Test\TestCase\BaseTestCase;
 use Cake\Core\ContainerInterface;
+use Cake\Datasource\ConnectionManager;
 use Cake\ORM\TableRegistry;
-
-/**
- * Dummy action service for ephemeral tests.
- */
-class EphemeralTestAction
-{
-    public static array $calls = [];
-
-    public function execute(array $context, array $config): array
-    {
-        self::$calls[] = ['context' => $context, 'config' => $config];
-
-        return ['executed' => true];
-    }
-
-    public static function reset(): void
-    {
-        self::$calls = [];
-    }
-}
+use RuntimeException;
 
 /**
  * Tests for ephemeral (in-memory, no persistence) workflow execution.
@@ -36,26 +17,39 @@ class EphemeralTestAction
 class EphemeralWorkflowTest extends BaseTestCase
 {
     private DefaultWorkflowEngine $engine;
+    private object $tracker;
+    private string $trackerClass;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $tracker = new EphemeralTestAction();
+        $this->tracker = new class {
+            public array $calls = [];
+            public array $inTransactions = [];
+
+            public function execute(array $context, array $config): array
+            {
+                $this->calls[] = ['context' => $context, 'config' => $config];
+                $this->inTransactions[] = ConnectionManager::get('default')->inTransaction();
+
+                return ['executed' => true];
+            }
+        };
+        $this->trackerClass = get_class($this->tracker);
+
         $container = $this->createMock(ContainerInterface::class);
         $container->method('has')->willReturnCallback(function (string $id) {
-            return $id === EphemeralTestAction::class;
+            return $id === $this->trackerClass;
         });
-        $container->method('get')->willReturnCallback(function (string $id) use ($tracker) {
-            if ($id === EphemeralTestAction::class) {
-                return $tracker;
+        $container->method('get')->willReturnCallback(function (string $id) {
+            if ($id === $this->trackerClass) {
+                return $this->tracker;
             }
-            throw new \RuntimeException("Service '{$id}' not registered.");
+            throw new RuntimeException("Service '{$id}' not registered.");
         });
 
         $this->engine = new DefaultWorkflowEngine($container);
-
-        EphemeralTestAction::reset();
 
         WorkflowActionRegistry::register('EphemeralTest', [
             [
@@ -64,7 +58,7 @@ class EphemeralWorkflowTest extends BaseTestCase
                 'description' => 'Test action for ephemeral workflows',
                 'inputSchema' => [],
                 'outputSchema' => [],
-                'serviceClass' => EphemeralTestAction::class,
+                'serviceClass' => $this->trackerClass,
                 'serviceMethod' => 'execute',
             ],
         ]);
@@ -159,7 +153,24 @@ class EphemeralWorkflowTest extends BaseTestCase
         $this->assertTrue($result->isSuccess());
 
         // Action was executed
-        $this->assertCount(1, EphemeralTestAction::$calls, 'Ephemeral workflow should still execute actions');
+        $this->assertCount(1, $this->tracker->calls, 'Ephemeral workflow should still execute actions');
+    }
+
+    public function testEphemeralWorkflowDoesNotWrapActionInEngineTransaction(): void
+    {
+        $this->disableTransactions();
+        $slug = $this->createEphemeralWorkflow([
+            'nodes' => [
+                'trigger1' => ['type' => 'trigger', 'config' => [], 'outputs' => [['target' => 'action1', 'port' => 'default']]],
+                'action1' => ['type' => 'action', 'config' => ['action' => 'EphemeralTest.Run'], 'outputs' => [['target' => 'end1', 'port' => 'default']]],
+                'end1' => ['type' => 'end', 'config' => []],
+            ],
+        ]);
+
+        $result = $this->engine->startWorkflow($slug, ['test' => true]);
+
+        $this->assertTrue($result->isSuccess());
+        $this->assertSame([false], $this->tracker->inTransactions);
     }
 
     public function testEphemeralWorkflowRejectsApprovalNode(): void
@@ -214,7 +225,7 @@ class EphemeralWorkflowTest extends BaseTestCase
         // Route = "yes" → action executes
         $result = $this->engine->startWorkflow($slug, ['route' => 'yes']);
         $this->assertTrue($result->isSuccess());
-        $this->assertCount(1, EphemeralTestAction::$calls);
+        $this->assertCount(1, $this->tracker->calls);
     }
 
     public function testDurableWorkflowStillCreatesInstances(): void

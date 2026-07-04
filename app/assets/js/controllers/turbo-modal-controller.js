@@ -56,41 +56,54 @@ class TurboModal extends Controller {
         }
 
         event.preventDefault();
+        event.stopImmediatePropagation();
         this.syncPageContext();
-        this.closeModal();
+        this.setSubmitting(true);
 
-        const response = await fetch(this.element.action, {
-            method: (this.element.method || 'POST').toUpperCase(),
-            body: new FormData(this.element),
-            headers: {
+        try {
+            const csrfToken = this.element.querySelector('input[name="_csrfToken"]')?.value
+                || document.querySelector('meta[name="csrf-token"]')?.content;
+            const headers = {
                 'Accept': 'text/vnd.turbo-stream.html',
                 'X-Requested-With': 'XMLHttpRequest',
-            },
-        });
-        const body = await response.text();
-        const contentType = response.headers.get('Content-Type') || '';
+            };
+            if (csrfToken) {
+                headers['X-CSRF-Token'] = csrfToken;
+            }
 
-        if (contentType.includes('text/vnd.turbo-stream.html') || body.includes('<turbo-stream')) {
-            this.renderTurboStream(body);
-            this.closeModal();
-            return;
-        }
+            const response = await fetch(this.element.action, {
+                method: (this.element.method || 'POST').toUpperCase(),
+                body: new FormData(this.element),
+                headers,
+                credentials: 'same-origin',
+            });
+            const body = await response.text();
+            const contentType = response.headers.get('Content-Type') || '';
 
-        if (response.redirected) {
-            window.location.assign(response.url);
-            return;
-        }
+            if (contentType.includes('text/vnd.turbo-stream.html') || body.includes('<turbo-stream')) {
+                this.renderTurboStream(body);
+                this.closeModal();
+                return;
+            }
 
-        const frame = this.element.closest('turbo-frame');
-        if (frame && body !== '') {
-            frame.innerHTML = body;
+            if (response.redirected) {
+                window.location.assign(response.url);
+                return;
+            }
+
+            const frame = this.element.closest('turbo-frame');
+            if (frame && body !== '') {
+                frame.innerHTML = body;
+            }
+        } finally {
+            this.setSubmitting(false);
         }
     }
 
     /** Sync hidden page context to the visible browser URL before posting. */
     syncPageContext() {
         const input = this.element.querySelector('input[name="page_context_url"]');
-        if (input) {
+        if (input && input.dataset.pageContextStatic !== 'true') {
             input.value = window.location.pathname + window.location.search;
         }
     }
@@ -133,6 +146,14 @@ class TurboModal extends Controller {
         }
         modalInstance.hide();
         this.dismissModalBackdrop();
+    }
+
+    /** Prevent duplicate submits while the Turbo Stream request is in-flight. */
+    setSubmitting(isSubmitting) {
+        this.element.querySelectorAll('button[type="submit"], input[type="submit"]').forEach((control) => {
+            control.disabled = isSubmitting;
+            control.setAttribute('aria-busy', isSubmitting ? 'true' : 'false');
+        });
     }
 
     /** Remove stray backdrops when Bootstrap did not fully tear down the modal. */

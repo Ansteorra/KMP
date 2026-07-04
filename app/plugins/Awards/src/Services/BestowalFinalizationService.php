@@ -10,6 +10,8 @@ use Cake\I18n\DateTime;
 use Cake\ORM\Locator\LocatorAwareTrait;
 use Cake\ORM\Table;
 use DateTimeInterface;
+use RuntimeException;
+use Throwable;
 
 /**
  * BestowalFinalizationService - shared "Mark Given" finalization for bestowals.
@@ -138,17 +140,36 @@ class BestowalFinalizationService
      */
     protected function applyGiven(Bestowal $bestowal, int $actorId, ?DateTimeInterface $bestowedAt): ServiceResult
     {
-        $bestowal->lifecycle_status = Bestowal::LIFECYCLE_GIVEN;
-        $bestowal->bestowed_at = $bestowedAt ?? DateTime::now();
-        $bestowal->modified_by = $actorId;
+        try {
+            $connection = $this->bestowals->getConnection();
+            $connection->enableSavePoints();
+            $savedBestowal = $connection->transactional(function () use (
+                $bestowal,
+                $actorId,
+                $bestowedAt,
+            ): Bestowal {
+                $bestowal->lifecycle_status = Bestowal::LIFECYCLE_GIVEN;
+                $bestowal->bestowed_at = $bestowedAt ?? DateTime::now();
+                $bestowal->modified_by = $actorId;
 
-        if (!$this->bestowals->save($bestowal)) {
-            return new ServiceResult(false, 'The bestowal could not be marked given.');
+                if (!$this->bestowals->save($bestowal)) {
+                    throw new RuntimeException('The bestowal could not be marked given.');
+                }
+
+                $syncResult = $this->syncService->syncFromBestowal((int)$bestowal->id, $actorId);
+                if (empty($syncResult['success'])) {
+                    throw new RuntimeException(
+                        (string)($syncResult['error'] ?? 'Linked recommendations could not be synchronized.'),
+                    );
+                }
+
+                return $bestowal;
+            });
+        } catch (Throwable $e) {
+            return new ServiceResult(false, $e->getMessage());
         }
 
-        $this->syncService->syncFromBestowal((int)$bestowal->id, $actorId);
-
-        return new ServiceResult(true, null, $bestowal);
+        return new ServiceResult(true, null, $savedBestowal);
     }
 
     /**

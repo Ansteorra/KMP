@@ -15,6 +15,7 @@
  * @var array<\App\Model\Entity\ActionItem> $todoItems
  * @var array<int, bool> $todoEligibility
  * @var array<int, array<string, mixed>> $todoRequirementStatus
+ * @var array<int, array<string, mixed>> $todoBlockedStatus
  * @var int $todoGatingTotal
  * @var int $todoGatingDone
  * @var int $gatingPercent
@@ -24,6 +25,7 @@
 $todoItems = $todoItems ?? [];
 $todoEligibility = $todoEligibility ?? [];
 $todoRequirementStatus = $todoRequirementStatus ?? [];
+$todoBlockedStatus = $todoBlockedStatus ?? [];
 $todoGatingTotal = (int)($todoGatingTotal ?? 0);
 $todoGatingDone = (int)($todoGatingDone ?? 0);
 $gatingPercent = (int)($gatingPercent ?? 0);
@@ -52,17 +54,21 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                 <?php
                 $eligible = !empty($todoEligibility[$item->id]);
                 $requirement = $todoRequirementStatus[(int)$item->id] ?? null;
+                $blocker = $todoBlockedStatus[(int)$item->id] ?? null;
                 $missingRequirement = $requirement !== null && empty($requirement['satisfied']);
-                $canAssignRequirement = $eligible && $item->isOpen() && $missingRequirement;
-                $canCompleteDirectly = $eligible && $item->isOpen() && !$missingRequirement;
+                $blocked = $blocker !== null && !empty($blocker['blocked']);
+                $canAssignRequirement = $eligible && $item->isOpen() && $missingRequirement && !$blocked;
+                $canCompleteDirectly = $eligible && $item->isOpen() && !$missingRequirement && !$blocked;
                 ?>
                 <li class="list-group-item d-flex justify-content-between align-items-start gap-3">
                     <div class="me-auto">
                         <div class="fw-semibold">
                             <?php if ($item->isCompleted()) : ?>
-                                <i class="bi bi-check-circle-fill text-success me-1" aria-hidden="true"></i>
+                                <i class="bi bi-check-square-fill text-success me-1" aria-hidden="true"></i>
+                                <span class="visually-hidden"><?= __('Completed task:') ?></span>
                             <?php else : ?>
-                                <i class="bi bi-circle me-1" aria-hidden="true"></i>
+                                <i class="bi bi-hourglass-split text-secondary me-1" aria-hidden="true"></i>
+                                <span class="visually-hidden"><?= __('Open task:') ?></span>
                             <?php endif; ?>
                             <?= h($item->title) ?>
                         </div>
@@ -97,7 +103,19 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                                     </span>
                                 <?php endif; ?>
                             <?php endif; ?>
+                            <?php if ($blocked) : ?>
+                                <span class="badge bg-secondary">
+                                    <i class="bi bi-lock-fill me-1" aria-hidden="true"></i>
+                                    <?= h((string)($blocker['label'] ?? __('Waiting on prerequisite'))) ?>
+                                </span>
+                            <?php endif; ?>
                         </div>
+                        <?php if ($blocked) : ?>
+                            <div class="small text-muted mt-1">
+                                <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
+                                <?= h((string)($blocker['message'] ?? __('Complete prerequisite checks first.'))) ?>
+                            </div>
+                        <?php endif; ?>
                         <?php if ($canAssignRequirement) : ?>
                             <div class="border rounded-3 bg-light-subtle p-3 mt-3"
                                 data-bestowal-gathering-requirement>
@@ -180,6 +198,10 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                                     'aria-label' => __('Reopen: {0}', $item->title),
                                 ],
                             ) ?>
+                        <?php elseif ($blocked) : ?>
+                            <span class="text-muted small">
+                                <?= h((string)($blocker['label'] ?? __('Waiting on prerequisite'))) ?>
+                            </span>
                         <?php else : ?>
                             <span class="text-muted small"><?= __('Not assigned to you') ?></span>
                         <?php endif; ?>

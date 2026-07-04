@@ -72,6 +72,11 @@ class MigrateAwardRecommendationsCommand extends Command
                 'boolean' => true,
                 'default' => false,
                 'help' => 'Allow unresolved manual-review recommendations to remain open after apply/resume.',
+            ])
+            ->addOption('report-records', [
+                'boolean' => true,
+                'default' => false,
+                'help' => 'For dry-run mode, print per-record classification rows.',
             ]);
 
         return $parser;
@@ -117,6 +122,35 @@ class MigrateAwardRecommendationsCommand extends Command
         $io->success(sprintf('Recommendation migration %s run #%d completed.', $mode, $data['runId']));
         foreach (($data['summary'] ?? []) as $key => $count) {
             $io->out(sprintf(' - %s: %d', $key, $count));
+        }
+        if (!empty($data['classificationReport']) && is_array($data['classificationReport'])) {
+            $io->out('Classification by legacy status/state:');
+            foreach ($data['classificationReport'] as $legacyState => $counts) {
+                $parts = [];
+                foreach ($counts as $classification => $count) {
+                    $parts[] = sprintf('%s=%d', $classification, $count);
+                }
+                $io->out(sprintf(' - %s: %s', $legacyState, implode(', ', $parts)));
+            }
+        }
+        if (
+            $mode === RecommendationMigrationRun::MODE_DRY_RUN
+            && (bool)$args->getOption('report-records')
+            && !empty($data['records'])
+            && is_array($data['records'])
+        ) {
+            $io->out('Recommendation ID,Status,State,Classification,Result,Reason');
+            foreach ($data['records'] as $record) {
+                $io->out(sprintf(
+                    '%d,%s,%s,%s,%s,%s',
+                    $record['recommendationId'],
+                    str_replace(',', ' ', $record['status']),
+                    str_replace(',', ' ', $record['state']),
+                    $record['classification'],
+                    $record['result'],
+                    str_replace(["\r", "\n", ','], ' ', $record['reason']),
+                ));
+            }
         }
         if (
             $mode !== RecommendationMigrationRun::MODE_DRY_RUN

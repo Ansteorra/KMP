@@ -3,24 +3,20 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Application;
 use App\KMP\StaticHelpers;
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowApprovalResponse;
 use App\Model\Entity\WorkflowExecutionLog;
 use App\Model\Entity\WorkflowInstance;
-use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
-use App\Services\ActiveWindowManager\DefaultActiveWindowManager;
-use App\Services\WorkflowEngine\Actions\CoreActions;
-use App\Services\WorkflowEngine\Conditions\CoreConditions;
 use App\Services\WorkflowEngine\DefaultWorkflowEngine;
-use App\Services\WorkflowEngine\ExpressionEvaluator;
-use App\Services\WorkflowEngine\StateMachine\StateMachineHandler;
 use App\Services\WorkflowEngine\TriggerDispatcher;
+use App\Services\WorkflowRegistry\WorkflowPluginLoader;
 use Awards\Model\Entity\RecommendationMigrationRun;
-use Awards\Services\AwardsWorkflowActions;
 use Awards\Services\RecommendationApprovalProcessService;
 use Awards\Services\RecommendationMigrationService;
 use Cake\Core\Container;
+use Cake\Core\ContainerInterface;
 use Cake\Database\Connection;
 use Cake\Database\Driver\Postgres;
 use Cake\I18n\DateTime;
@@ -48,6 +44,13 @@ class BackupRestoreCompatibilityService
     private const AWARDS_APPROVAL_NODE_ID = 'award-approval-gate';
     private const RESTORE_MIGRATION_MARKER = 'BackupRestoreCompatibilityService';
     private const PRINCIPALITY_AWARD_DOMAIN_ID = 11;
+
+    /**
+     * @param \Cake\Core\ContainerInterface|null $container Optional container for restore-time workflow execution.
+     */
+    public function __construct(private ?ContainerInterface $container = null)
+    {
+    }
 
     /**
      * @param array<string, mixed> $payload Decoded backup payload.
@@ -832,7 +835,7 @@ class BackupRestoreCompatibilityService
             $instances->saveOrFail($instance);
 
             $approverConfig = $data['approvalApproverConfig'] ?? [];
-            $approverConfig['requires_bestowal_gathering'] = true;
+            $approverConfig['requires_bestowal_gathering'] = !empty($approverConfig['award_approval_is_final_step']);
             $approval = $approvals->newEntity([
                 'workflow_instance_id' => (int)$instance->id,
                 'node_id' => self::AWARDS_APPROVAL_NODE_ID,
@@ -1126,9 +1129,14 @@ class BackupRestoreCompatibilityService
 
         $summary = (array)($result->getData()['summary'] ?? []);
         if ((int)($summary['error'] ?? 0) > 0) {
+            $errorDetails = $this->formatAwardRecommendationLifecycleErrors(
+                $connection,
+                (int)($result->getData()['runId'] ?? 0),
+            );
             throw new RuntimeException(sprintf(
-                'Award recommendation lifecycle migration completed with %d record-level errors.',
+                'Award recommendation lifecycle migration completed with %d record-level errors.%s',
                 (int)$summary['error'],
+                $errorDetails === '' ? '' : ' ' . $errorDetails,
             ));
         }
 
@@ -1143,24 +1151,70 @@ class BackupRestoreCompatibilityService
     }
 
     /**
+     * Build a concise sample of record-level lifecycle migration failures.
+     */
+    private function formatAwardRecommendationLifecycleErrors(Connection $connection, int $runId): string
+    {
+        if ($runId <= 0) {
+            return '';
+        }
+
+        $rows = $connection->execute(
+            <<<'SQL'
+SELECT recommendation_id, reason
+FROM awards_recommendation_migration_results
+WHERE migration_run_id = :runId
+  AND result_status = 'error'
+ORDER BY id ASC
+LIMIT 5
+SQL,
+            ['runId' => $runId],
+        )->fetchAll('assoc');
+        if ($rows === []) {
+            return '';
+        }
+
+        $samples = [];
+        foreach ($rows as $row) {
+            $samples[] = sprintf(
+                '#%d: %s',
+                (int)$row['recommendation_id'],
+                (string)$row['reason'],
+            );
+        }
+
+        return 'Sample: ' . implode('; ', $samples) . '.';
+    }
+
+    /**
      * Create a workflow trigger dispatcher for restore-time lifecycle replays.
      */
     private function createWorkflowTriggerDispatcher(): TriggerDispatcher
     {
-        $container = new Container();
-        $container->add(ActiveWindowManagerInterface::class, DefaultActiveWindowManager::class);
-        $container->add(ExpressionEvaluator::class);
-        $container->add(CoreActions::class)
-            ->addArguments([
-                ActiveWindowManagerInterface::class,
-                ExpressionEvaluator::class,
-            ]);
-        $container->add(CoreConditions::class)
-            ->addArgument(ExpressionEvaluator::class);
-        $container->add(StateMachineHandler::class);
-        $container->add(AwardsWorkflowActions::class);
+        $container = $this->container ?? $this->createApplicationContainer();
 
         return new TriggerDispatcher(new DefaultWorkflowEngine($container));
+    }
+
+    /**
+     * Build the minimal application service container and workflow registries needed during restore.
+     *
+     * @return \Cake\Core\ContainerInterface
+     */
+    private function createApplicationContainer(): ContainerInterface
+    {
+        $application = new Application(CONFIG);
+        $application->bootstrap();
+        $container = new Container();
+        $application->services($container);
+        foreach ($application->getPlugins() as $plugin) {
+            if (method_exists($plugin, 'services')) {
+                $plugin->services($container);
+            }
+        }
+        WorkflowPluginLoader::loadFromPlugins($application->getPlugins());
+
+        return $container;
     }
 
     /**

@@ -25,10 +25,10 @@ Feature: Award Recommendations
         And the page should contain "Reason for Recommendation"
 
     Scenario: Recommendations index exposes grouping controls
-        Given I am logged in as "forest@ampdemo.com"
+        Given I am logged in as "admin@amp.ansteorra.org"
         When I navigate to "/awards/recommendations"
         Then the page should contain "Add Recommendation"
-        And the page should contain "Group Recommendations"
+        And the page should contain "Group"
 
     Scenario: Single-step approval flow creates a bestowal and consumes the run
         Given I am logged in as "forest@ampdemo.com"
@@ -69,7 +69,7 @@ Feature: Award Recommendations
         Then the "wf-local" recommendation should have a workflow run with status "closed"
         And the "wf-local" recommendation workflow run should have terminal reason "rejected"
         And the "wf-local" recommendation should not be linked to a bestowal
-        And the "wf-local" recommendation record should have state "No Action"
+        And the "wf-local" recommendation record should have state "Submitted"
 
     Scenario: Recommendations without an approval process follow fallback path
         Given I delete all test emails

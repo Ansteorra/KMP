@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services\WorkflowEngine\Providers;
@@ -131,7 +130,8 @@ class WarrantsWorkflowActionsTest extends BaseTestCase
 
         $result = $this->actions->revokeWarrant($context, $config);
 
-        $this->assertFalse($result['revoked']);
+        $this->assertFalse($result['success']);
+        $this->assertSame('Warrant not found', $result['error']);
     }
 
     // =====================================================

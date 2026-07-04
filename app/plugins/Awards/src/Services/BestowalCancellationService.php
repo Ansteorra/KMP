@@ -87,18 +87,9 @@ class BestowalCancellationService
                     $bestowal->modified_by = $actorId;
                     $this->bestowalsTable->saveOrFail($bestowal);
 
-                    $unwindState = $this->syncService->resolveUnwindTargetStateName();
                     $recommendations = $this->resolveLinkedRecommendations($bestowal);
                     $recommendationIds = [];
                     foreach ($recommendations as $recommendation) {
-                        if ($unwindState !== null) {
-                            $this->syncService->applySystemRecommendationState(
-                                $recommendation,
-                                $unwindState,
-                                $actorId,
-                            );
-                        }
-
                         $recommendation->bestowal_id = null;
                         $recommendation->gathering_id = null;
                         $recommendation->modified_by = $actorId;
@@ -131,7 +122,7 @@ class BestowalCancellationService
                         'data' => [
                             'bestowalId' => $bestowalId,
                             'recommendationIds' => $recommendationIds,
-                            'unwindState' => $unwindState,
+                            'unwindState' => null,
                             'closeReason' => $normalizedReason,
                             'cancelledApprovalRunIds' => $cancelledRunIds,
                             'rehydratedApprovals' => $rehydrated,
@@ -140,7 +131,7 @@ class BestowalCancellationService
                                 'bestowalId' => $bestowalId,
                                 'recommendationIds' => $recommendationIds,
                                 'closeReason' => $normalizedReason,
-                                'unwindState' => $unwindState,
+                                'unwindState' => null,
                                 'memberId' => $bestowal->member_id !== null ? (int)$bestowal->member_id : null,
                                 'previousState' => $previousLifecycleStatus,
                                 'newState' => Bestowal::LIFECYCLE_CANCELLED,

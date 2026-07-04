@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Services\WorkflowEngine\WorkflowDefinitionValidator;
 use Cake\I18n\DateTime;
 use Migrations\BaseSeed;
 
@@ -306,6 +307,12 @@ class InitWorkflowDefinitionsSeed extends BaseSeed
             $decoded = json_decode($definitionJson, true);
             if ($decoded === null) {
                 throw new RuntimeException("Invalid JSON in {$meta['json_file']}: " . json_last_error_msg());
+            }
+            $definitionErrors = (new WorkflowDefinitionValidator())->validate($decoded);
+            if ($definitionErrors !== []) {
+                throw new RuntimeException(
+                    "Invalid workflow definition in {$meta['json_file']}: " . implode('; ', $definitionErrors),
+                );
             }
 
             // Insert workflow definition

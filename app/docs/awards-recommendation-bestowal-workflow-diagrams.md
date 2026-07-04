@@ -95,7 +95,22 @@ flowchart TD
     C6 --> C7["Mark consumed/superseded approval runs cancelled<br/>rehydrate approval when needed"]
 ```
 
-## 5) Data interaction map
+## 5) Bestowal preparation To-Dos
+
+```mermaid
+flowchart LR
+    A["Event Scheduled<br/>assigns bestowal gathering"] --> B["Added to Agenda"]
+    B --> C["Given"]
+    A -. "gating" .-> D["Mark Given enabled only after all gating To-Dos complete"]
+    B -. "gating" .-> D
+    C -. "gating" .-> D
+```
+
+The default bestowal checklist requires **Event Scheduled**, **Added to Agenda**, and **Given** before a bestowal can be marked given. **Added to Agenda** is blocked until **Event Scheduled** is complete because the court agenda imports bestowals from the assigned gathering.
+
+Ad-hoc bestowals may be linked to an existing member account or recorded with only the recipient SCA name, matching recommendation submission for recipients who are not registered in KMP.
+
+## 6) Data interaction map
 
 ```mermaid
 flowchart LR
@@ -126,7 +141,7 @@ flowchart LR
     L --> W
 ```
 
-## 6) Workflow definitions currently in play
+## 7) Workflow definitions currently in play
 
 | Definition file | Trigger event | Key actions in flow |
 | --- | --- | --- |
@@ -141,14 +156,14 @@ flowchart LR
 | `awards-recommendations-ungroup.json` | `Awards.RecommendationsUngroupRequested` | `UngroupRecommendations` |
 | `awards-recommendation-remove-from-group.json` | `Awards.RecommendationRemoveFromGroupRequested` | `RemoveRecommendationFromGroup` |
 
-## 7) Team test checklist by flow
+## 8) Team test checklist by flow
 
 | Flow | Primary actor | Expected owner of next action | Must verify |
 | --- | --- | --- | --- |
 | Submit recommendation | Requester | Current pending approver set | Approval run created, only current approvers see active item |
 | Active approval edit/feedback | Current approver | Current approver | Can edit + request feedback; non-current cannot |
 | Multi-step approval advance | Current approver | Next configured approver set | Pending set rotates, previous step visibility retained only when configured |
-| Approval complete -> bestowal create | Final approver/workflow action | Bestowal workflow owner(s) | Handoff blocks active runs, bestowal created with source approval provenance, approved run marked consumed |
+| Approval complete -> bestowal create | Final approver/workflow action | Bestowal workflow owner(s) | Only the final approval step selects the bestowal gathering; handoff blocks active runs, bestowal created with source approval provenance, approved run marked consumed |
 | Link recommendation to existing bestowal | Noble/admin path | Bestowal workflow owner(s) | Active approval run cancelled/superseded, member match enforced, grouped child blocked |
 | Unlink recommendation | Noble/admin path | Recommendation workflow owner(s) | Unwind state applied, shortcut cleared, join row removed, primary recomputed, approval rehydrated when prior run was consumed/superseded |
 | Group/ungroup during approval | Current approver or admin override | Same active approver set | Grouping denied for non-current approver; origin snapshot restore works |
@@ -156,7 +171,7 @@ flowchart LR
 | Bestowal cancellation | Bestowal owner(s) | Recommendation workflow owner(s) | Cancel denied for Given, unwind state applied, links and shortcuts cleared, consumed/superseded approval runs cancelled and rehydrated when needed |
 | Turnover/reassignment events | System + admins | New eligible approvers | Pending approver set reflects new eligibility without leaking old active queue access |
 
-## 8) High-risk regression points
+## 9) High-risk regression points
 
 1. Approval lifecycle must be driven by `Awards.RecommendationApprovalRuns` plus workflow runtime rows, not recommendation state/status.
 2. Active approval visibility scoping must stay limited to current pending approvers for active cycles.

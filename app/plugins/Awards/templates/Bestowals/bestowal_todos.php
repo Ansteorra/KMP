@@ -12,6 +12,7 @@
  * @var array<\App\Model\Entity\ActionItem> $todoItems
  * @var array<int, bool> $todoEligibility
  * @var array<int, array<string, mixed>> $todoRequirementStatus
+ * @var array<int, array<string, mixed>> $todoBlockedStatus
  * @var int $todoGatingTotal
  * @var int $todoGatingDone
  * @var int $gatingPercent
@@ -51,6 +52,7 @@ $viewUrl = $this->Url->build([
         'todoItems' => $todoItems,
         'todoEligibility' => $todoEligibility,
         'todoRequirementStatus' => $todoRequirementStatus ?? [],
+        'todoBlockedStatus' => $todoBlockedStatus ?? [],
         'todoGatingTotal' => $todoGatingTotal,
         'todoGatingDone' => $todoGatingDone,
         'gatingPercent' => $gatingPercent,

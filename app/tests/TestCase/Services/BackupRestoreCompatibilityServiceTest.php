@@ -163,6 +163,78 @@ class BackupRestoreCompatibilityServiceTest extends BaseTestCase
         $this->assertTrue($approval->approver_config['requires_bestowal_gathering']);
     }
 
+    public function testRestoreLifecycleMigrationHydratesLegacySubmittedRecommendationWorkflow(): void
+    {
+        $this->publishExistingRecommendationWorkflow();
+        $this->getTableLocator()->get('Awards.Recommendations')->updateAll(
+            [
+                'status' => 'Closed',
+                'state' => 'No Action',
+                'bestowal_id' => null,
+            ],
+            ['deleted IS' => null],
+        );
+
+        $process = $this->createApprovalProcess();
+        $award = $this->createAward((int)$process->id);
+        $recommendation = $this->createRecommendation((int)$award->id);
+        $connection = ConnectionManager::get('default');
+
+        $firstStats = $this->invokePrivate('runAwardRecommendationLifecycleMigration', [$connection]);
+
+        $this->assertSame(1, $firstStats['award_recommendation_migration_approval_workflow']);
+        $this->assertSame(0, $firstStats['award_recommendation_migration_error']);
+
+        $run = $this->getTableLocator()->get('Awards.RecommendationApprovalRuns')->find()
+            ->where([
+                'recommendation_id' => (int)$recommendation->id,
+                'status' => RecommendationApprovalRun::STATUS_IN_PROGRESS,
+            ])
+            ->firstOrFail();
+        $this->assertSame('approval', $run->current_step_key);
+        $this->assertSame('Approval', $run->current_step_label);
+
+        $instance = $this->getTableLocator()->get('WorkflowInstances')->get((int)$run->workflow_instance_id);
+        $this->assertSame(WorkflowInstance::STATUS_WAITING, $instance->status);
+        $this->assertSame('Awards.Recommendations', $instance->entity_type);
+        $this->assertSame((int)$recommendation->id, (int)$instance->entity_id);
+        $this->assertSame(self::ADMIN_MEMBER_ID, (int)$instance->started_by);
+        $this->assertSame(['award-approval-gate'], $instance->active_nodes);
+
+        $approval = $this->getTableLocator()->get('WorkflowApprovals')->find()
+            ->where([
+                'workflow_instance_id' => (int)$instance->id,
+                'node_id' => 'award-approval-gate',
+                'status' => WorkflowApproval::STATUS_PENDING,
+            ])
+            ->firstOrFail();
+        $this->assertSame(WorkflowApproval::APPROVER_TYPE_DYNAMIC, $approval->approver_type);
+        $this->assertSame(self::ADMIN_MEMBER_ID, (int)$approval->current_approver_id);
+        $this->assertSame('Approval Required: Awards.Recommendations', (string)$approval->request_title);
+
+        $executionLogCount = $this->getTableLocator()->get('WorkflowExecutionLogs')->find()
+            ->where([
+                'workflow_instance_id' => (int)$instance->id,
+                'node_id' => 'award-approval-gate',
+            ])
+            ->count();
+        $this->assertGreaterThanOrEqual(1, $executionLogCount);
+
+        $secondStats = $this->invokePrivate('runAwardRecommendationLifecycleMigration', [$connection]);
+        $this->assertSame(1, $secondStats['award_recommendation_migration_approval_workflow']);
+        $this->assertSame(1, $secondStats['award_recommendation_migration_skipped']);
+        $this->assertSame(0, $secondStats['award_recommendation_migration_error']);
+        $this->assertSame(
+            1,
+            $this->getTableLocator()->get('WorkflowInstances')->find()
+                ->where([
+                    'entity_type' => 'Awards.Recommendations',
+                    'entity_id' => (int)$recommendation->id,
+                ])
+                ->count(),
+        );
+    }
+
     public function testWarrantRosterApprovalWorkflowBackfillIsIdempotent(): void
     {
         $connection = ConnectionManager::get('default');

@@ -8,8 +8,6 @@ namespace App\Services\WorkflowEngine;
 use App\Model\Entity\WorkflowInstanceMigration;
 use App\Model\Entity\WorkflowVersion;
 use App\Services\ServiceResult;
-use App\Services\WorkflowRegistry\WorkflowActionRegistry;
-use App\Services\WorkflowRegistry\WorkflowConditionRegistry;
 use Cake\Datasource\ConnectionManager;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
@@ -179,128 +177,7 @@ class DefaultWorkflowVersionManager implements WorkflowVersionManagerInterface
      */
     protected function validateDefinition(array $definition): array
     {
-        $errors = [];
-
-        if (empty($definition['nodes']) || !is_array($definition['nodes'])) {
-            $errors[] = 'Definition must contain a non-empty "nodes" array.';
-
-            return $errors;
-        }
-
-        $nodes = $definition['nodes'];
-        $nodeKeys = array_keys($nodes);
-
-        // Exactly one trigger node
-        $triggerNodes = array_filter($nodes, fn($node) => ($node['type'] ?? '') === 'trigger');
-        if (count($triggerNodes) !== 1) {
-            $errors[] = 'Definition must contain exactly one trigger node.';
-        }
-
-        // At least one end node
-        $endNodes = array_filter($nodes, fn($node) => ($node['type'] ?? '') === 'end');
-        if (count($endNodes) < 1) {
-            $errors[] = 'Definition must contain at least one end node.';
-        }
-
-        // All output targets reference existing node keys
-        foreach ($nodes as $key => $node) {
-            $outputs = $node['outputs'] ?? [];
-            foreach ($outputs as $output) {
-                $target = $output['target'] ?? $output;
-                if (is_string($target) && !in_array($target, $nodeKeys, true)) {
-                    $errors[] = "Node '{$key}' references non-existent target '{$target}'.";
-                }
-            }
-        }
-
-        // No orphan nodes - every non-trigger node must be reachable from trigger
-        $triggerKey = !empty($triggerNodes) ? array_key_first($triggerNodes) : null;
-        if ($triggerKey !== null) {
-            $reachable = $this->findReachableNodes($triggerKey, $nodes);
-            foreach ($nodeKeys as $key) {
-                if ($key !== $triggerKey && !in_array($key, $reachable, true)) {
-                    $errors[] = "Node '{$key}' is not reachable from the trigger node.";
-                }
-            }
-        }
-
-        // Loop nodes must have maxIterations set
-        $loopNodes = array_filter($nodes, fn($node) => ($node['type'] ?? '') === 'loop');
-        foreach ($loopNodes as $key => $node) {
-            if (empty($node['config']['maxIterations'])) {
-                $errors[] = "Loop node '{$key}' must have maxIterations set.";
-            }
-        }
-
-        // ForEach nodes must have a collection path configured
-        $forEachNodes = array_filter($nodes, fn($node) => ($node['type'] ?? '') === 'forEach');
-        foreach ($forEachNodes as $key => $node) {
-            if (empty($node['config']['collection'])) {
-                $errors[] = "ForEach node '{$key}' must have a collection path configured.";
-            }
-        }
-
-        // Cycle detection: find back-edges via DFS (loops are allowed via 'continue' port)
-        if ($triggerKey !== null) {
-            $cycles = $this->detectCycles($triggerKey, $nodes);
-            foreach ($cycles as $cycle) {
-                $errors[] = 'Cycle detected in graph: ' . implode(' -> ', $cycle) . '.';
-            }
-        }
-
-        // Validate action and condition node required params (only when config is present)
-        foreach ($nodes as $key => $node) {
-            $type = $node['type'] ?? '';
-
-            if ($type === 'action' && isset($node['config']['action'])) {
-                $actionName = $node['config']['action'];
-
-                $actionConfig = WorkflowActionRegistry::getAction($actionName);
-                if (!$actionConfig) {
-                    $errors[] = "Action node '{$key}' references unknown action '{$actionName}'.";
-                    continue;
-                }
-
-                $inputSchema = $actionConfig['inputSchema'] ?? [];
-                $params = $node['config']['params'] ?? [];
-
-                foreach ($inputSchema as $paramKey => $paramMeta) {
-                    if ($this->isSchemaFieldHidden($paramMeta)) {
-                        continue;
-                    }
-
-                    if (!empty($paramMeta['required']) && empty($params[$paramKey]) && !isset($node['config'][$paramKey])) {
-                        $errors[] = "Action node '{$key}' ({$actionName}): required parameter '{$paramKey}' is not configured.";
-                    }
-                }
-            }
-
-            if ($type === 'condition' && isset($node['config']['condition'])) {
-                $conditionName = $node['config']['condition'];
-                if (!str_starts_with($conditionName, 'Core.')) {
-                    $condConfig = WorkflowConditionRegistry::getCondition($conditionName);
-                    if (!$condConfig) {
-                        $errors[] = "Condition node '{$key}' references unknown condition '{$conditionName}'.";
-                        continue;
-                    }
-
-                    $inputSchema = $condConfig['inputSchema'] ?? [];
-                    $params = $node['config']['params'] ?? [];
-
-                    foreach ($inputSchema as $paramKey => $paramMeta) {
-                        if ($this->isSchemaFieldHidden($paramMeta)) {
-                            continue;
-                        }
-
-                        if (!empty($paramMeta['required']) && empty($params[$paramKey]) && !isset($node['config'][$paramKey])) {
-                            $errors[] = "Condition node '{$key}' ({$conditionName}): required parameter '{$paramKey}' is not configured.";
-                        }
-                    }
-                }
-            }
-        }
-
-        return $errors;
+        return (new WorkflowDefinitionValidator())->validate($definition);
     }
 
     /**

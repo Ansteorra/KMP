@@ -1204,7 +1204,9 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
     <a class="visually-hidden-focusable position-absolute top-0 start-0 z-3 m-2 p-2 bg-body border rounded" href="#main-content">
         <?= __('Skip to main content') ?>
     </a>
-    <?= $this->Flash->render() ?>
+    <div id="flash-messages">
+        <?= $this->Flash->render() ?>
+    </div>
     <?php
     // Determine if this is the auth card page and build auth card URL
     $currentController = $this->request->getParam('controller');

@@ -1,4 +1,6 @@
 {
+    "$schema": "./schema.json",
+    "schemaVersion": "1.0",
     "nodes": {
         "trigger": {
             "type": "trigger",
@@ -85,7 +87,8 @@
                     "retain_read_visibility": "$.awardApprovalCurrentStep.approvalApproverConfig.retain_read_visibility",
                     "on_reject": "$.awardApprovalCurrentStep.approvalApproverConfig.on_reject",
                     "on_request_changes": "$.awardApprovalCurrentStep.approvalApproverConfig.on_request_changes",
-                    "requires_bestowal_gathering": true
+                    "award_approval_is_final_step": "$.awardApprovalCurrentStep.approvalApproverConfig.award_approval_is_final_step",
+                    "requires_bestowal_gathering": "$.awardApprovalCurrentStep.approvalApproverConfig.award_approval_is_final_step"
                 },
                 "requiredCount": "$.awardApprovalCurrentStep.requiredCount"
             },

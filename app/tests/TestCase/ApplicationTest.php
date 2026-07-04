@@ -125,7 +125,7 @@ class ApplicationTest extends HttpIntegrationTestCase
         try {
             $app = new Application(dirname(dirname(__DIR__)) . '/config');
             $middleware = iterator_to_array($app->middleware(new MiddlewareQueue()));
-            $performanceMiddleware = $middleware[1];
+            $performanceMiddleware = $middleware[2];
 
             $logFile = TMP . 'performance-instrumentation-test.log';
             if (file_exists($logFile)) {

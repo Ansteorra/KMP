@@ -39,7 +39,9 @@ declare(strict_types=1);
         </div>
     </header>
     <main id="main-content" class="container-fluid py-4" tabindex="-1">
-        <?= $this->Flash->render() ?>
+        <div id="flash-messages">
+            <?= $this->Flash->render() ?>
+        </div>
         <?= $this->fetch('content') ?>
     </main>
 </body>

@@ -322,7 +322,7 @@ class RecommendationTransitionServiceTest extends BaseTestCase
         $this->assertTrue($cancelResult['success'], $cancelResult['error'] ?? json_encode($cancelResult));
 
         $unwound = $this->recommendationsTable->get($recommendationId);
-        $this->assertSame('King Approved', $unwound->state);
+        $this->assertSame('Need to Schedule', $unwound->state);
         $this->assertNull($unwound->bestowal_id);
         $this->assertSame(0, $bestowalRecommendations->find()->where([
             'bestowal_id' => $firstBestowalId,

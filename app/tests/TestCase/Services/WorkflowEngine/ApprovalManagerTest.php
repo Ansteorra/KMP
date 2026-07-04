@@ -170,7 +170,7 @@ class ApprovalManagerTest extends BaseTestCase
         [, $instanceId, $logId] = $this->createWorkflowContext();
         $approvalId = $this->createApproval($instanceId, $logId, [
             'approverType' => WorkflowApproval::APPROVER_TYPE_DYNAMIC,
-            'approverConfig' => [],
+            'approverConfig' => ['eligible_member_ids' => []],
         ]);
 
         $result = $this->manager->recordResponse(
@@ -189,6 +189,7 @@ class ApprovalManagerTest extends BaseTestCase
             'approverConfig' => [
                 'award_approval_approver_type' => 'member',
                 'award_approval_approver_source_id' => self::ADMIN_MEMBER_ID,
+                'eligible_member_ids' => [self::ADMIN_MEMBER_ID],
             ],
         ]);
         $pendingApprovalIds = array_map(
@@ -204,6 +205,35 @@ class ApprovalManagerTest extends BaseTestCase
         );
 
         $this->assertTrue($result->isSuccess(), $result->getError() ?? 'Dynamic member approval should succeed.');
+    }
+
+    public function testDynamicResolverIgnoresStaleEligibleMemberSnapshotWhenRecordingResponse(): void
+    {
+        [, $instanceId, $logId] = $this->createWorkflowContext();
+        $approvalId = $this->createApproval($instanceId, $logId, [
+            'approverType' => WorkflowApproval::APPROVER_TYPE_DYNAMIC,
+            'approverConfig' => [
+                'service' => DuplicateDynamicApproverResolver::class,
+                'method' => 'resolveApprovers',
+            ],
+        ]);
+
+        $approval = $this->approvalsTable->get($approvalId);
+        $approval->approver_config = [
+            'service' => DuplicateDynamicApproverResolver::class,
+            'method' => 'resolveApprovers',
+            'eligible_member_ids' => [self::TEST_MEMBER_BRYCE_ID],
+        ];
+        $this->approvalsTable->saveOrFail($approval);
+
+        $result = $this->manager->recordResponse(
+            $approvalId,
+            self::TEST_MEMBER_BRYCE_ID,
+            WorkflowApprovalResponse::DECISION_APPROVE,
+        );
+
+        $this->assertFalse($result->isSuccess());
+        $this->assertStringContainsString('not eligible', strtolower($result->getError()));
     }
 
     public function testDynamicApproverCanOnlyCountOncePerWorkflowInstance(): void

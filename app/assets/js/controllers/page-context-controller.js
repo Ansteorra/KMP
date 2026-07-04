@@ -21,6 +21,9 @@ class PageContextController extends Controller {
     sync() {
         const url = window.location.pathname + window.location.search;
         document.querySelectorAll('input[name="page_context_url"]').forEach((input) => {
+            if (input.dataset.pageContextStatic === 'true') {
+                return;
+            }
             input.value = url;
         });
     }

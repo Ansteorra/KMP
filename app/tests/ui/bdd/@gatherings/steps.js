@@ -250,8 +250,8 @@ Given('I prepare the gatherings lifecycle fixture', async () => {
         staffRole: `BDD Steward ${token}`,
         staffEmail: `staff-${token}@example.com`,
         attendanceNote: `BDD attendance note ${token}`,
-        startDate: futureLocalDateTime(2),
-        endDate: futureLocalDateTime(3),
+        startDate: futureLocalDateTime(26),
+        endDate: futureLocalDateTime(27),
     };
 });
 

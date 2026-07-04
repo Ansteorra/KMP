@@ -88,11 +88,32 @@ interface WorkflowEngineInterface
      * @param int $instanceId The workflow instance ID
      * @param string $nodeId The approval node ID
      * @param array $approvalData Approval progress data (approverId, decision, comment, nextApproverId)
+     * @param string $outputPort Approval node output port to follow
      * @return \App\Services\ServiceResult
      */
     public function fireIntermediateApprovalActions(
         int $instanceId,
         string $nodeId,
         array $approvalData,
+        string $outputPort = 'on_each_approval',
     ): ServiceResult;
+
+    /**
+     * Complete a pending human task and resume the workflow.
+     *
+     * @param int $taskId Workflow task ID
+     * @param array $formData Submitted form data
+     * @param int $completedBy Member ID completing the task
+     * @return \App\Services\ServiceResult
+     */
+    public function completeHumanTask(int $taskId, array $formData, int $completedBy): ServiceResult;
+
+    /**
+     * Cancel a pending human task.
+     *
+     * @param int $taskId Workflow task ID
+     * @param string|null $reason Optional cancellation reason
+     * @return \App\Services\ServiceResult
+     */
+    public function cancelHumanTask(int $taskId, ?string $reason = null): ServiceResult;
 }

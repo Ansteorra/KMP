@@ -73,7 +73,7 @@ class TenantRestoreServiceTest extends TestCase
         }
 
         try {
-            $service->restoreTenantBackup($backupId, TenantRestoreService::MODE_CROSS_TENANT, 'demo', false);
+            $service->restoreTenantBackup($backupId, TenantRestoreService::MODE_CROSS_TENANT, 'demo', true);
             $this->fail('Expected same target failure.');
         } catch (RuntimeException $e) {
             $this->assertSame(
@@ -91,7 +91,7 @@ class TenantRestoreServiceTest extends TestCase
         $service = $this->restoreService($this->secrets(['demo', 'target']), $restorer);
 
         try {
-            $service->restoreTenantBackup($backupId, TenantRestoreService::MODE_CROSS_TENANT, 'target', false);
+            $service->restoreTenantBackup($backupId, TenantRestoreService::MODE_CROSS_TENANT, 'target', true);
             $this->fail('Expected unsafe target database failure.');
         } catch (RuntimeException $e) {
             $this->assertSame('Unsafe target tenant database name.', $e->getMessage());
@@ -111,7 +111,7 @@ class TenantRestoreServiceTest extends TestCase
             $backupId,
             TenantRestoreService::MODE_CROSS_TENANT,
             'target',
-            false,
+            true,
         );
 
         $this->assertSame('completed', $result->status);

@@ -35,6 +35,8 @@ class AwardsBestowalEditForm extends Controller {
         "linkRecommendationsBlock",
         "domain",
         "award",
+        "specialtyBlock",
+        "specialty",
         "member",
         "currentAwardId",
         "submitButton",
@@ -222,6 +224,7 @@ class AwardsBestowalEditForm extends Controller {
             this.setFieldRules();
             this.updateUnlinkAvailability();
             this.syncAwardFieldState();
+            this.syncSpecialtyOptions();
             this.updateSubmitState();
         });
     }
@@ -392,6 +395,7 @@ class AwardsBestowalEditForm extends Controller {
 
     /** Block submit and close modal when the form is submittable. */
     submit(event) {
+        this.syncMemberTextValue();
         this.setFieldRules();
 
         const form = event?.target?.closest?.("form")
@@ -410,6 +414,24 @@ class AwardsBestowalEditForm extends Controller {
             event.preventDefault();
             event.stopPropagation();
             form.reportValidity?.();
+        }
+    }
+
+    /** Ensure custom typed recipient names are copied into the submitted hidden text field. */
+    syncMemberTextValue() {
+        if (!this.hasMemberTarget) {
+            return;
+        }
+
+        const hiddenValue = this.getHiddenValue(this.memberTarget);
+        if (hiddenValue !== "") {
+            return;
+        }
+
+        const hiddenText = this.memberTarget.querySelector("[data-ac-target='hiddenText']");
+        const input = this.memberTarget.querySelector("[data-ac-target='input']");
+        if (hiddenText && input && typeof input.value === "string") {
+            hiddenText.value = input.value.trim();
         }
     }
 
@@ -443,7 +465,7 @@ class AwardsBestowalEditForm extends Controller {
         const memberHidden = this.memberTarget.querySelector("[data-ac-target='hidden']");
         const memberInput = this.memberTarget.querySelector("[data-ac-target='input']");
         if (memberHidden) {
-            memberHidden.required = true;
+            memberHidden.required = false;
         }
         if (memberInput) {
             memberInput.required = true;
@@ -661,6 +683,7 @@ class AwardsBestowalEditForm extends Controller {
             this._syncingAwardPair = true;
             this.clearCurrentAwardId();
             this.clearPairedAwardFields();
+            this.clearSpecialtyOptions();
             this._syncingAwardPair = false;
             this.updateGatherings();
             this.updateSubmitState();
@@ -682,6 +705,7 @@ class AwardsBestowalEditForm extends Controller {
             this.clearAutocomplete(this.getDomainComboElement());
             this.clearCurrentAwardId();
             this.clearPairedAwardFields();
+            this.clearSpecialtyOptions();
             this._syncingAwardPair = false;
             this.updateGatherings();
             this.updateSubmitState();
@@ -696,6 +720,7 @@ class AwardsBestowalEditForm extends Controller {
                 currentAwardInput.value = awardId;
             }
         }
+        this.syncSpecialtyOptions();
         this.updateGatherings();
         this.updateSubmitState();
     }
@@ -710,13 +735,13 @@ class AwardsBestowalEditForm extends Controller {
     populateAwardDescriptions(event) {
         const awardCombo = this.getAwardComboElement();
         if (!this.hasAwardListUrlValue || !awardCombo) {
-            return;
+            return null;
         }
 
         const domainId = event?.target?.value ?? this.getDomainId();
         if (!domainId) {
             this.onDomainChange(event);
-            return;
+            return null;
         }
 
         let url = `${this.awardListUrlValue}/${domainId}`;
@@ -727,7 +752,7 @@ class AwardsBestowalEditForm extends Controller {
         const requestDomainId = String(domainId);
         this.setAwardFieldEnabled(true);
 
-        fetch(url, {
+        return fetch(url, {
             headers: {
                 "X-Requested-With": "XMLHttpRequest",
                 Accept: "application/json",
@@ -740,35 +765,36 @@ class AwardsBestowalEditForm extends Controller {
                 }
 
                 const preservedAwardId = this.getAwardId();
-                awardCombo.value = "";
+                this.setAutocompleteValue(awardCombo, "");
                 const awardList = [];
                 if (data.length > 0) {
                     data.forEach((award) => {
                         awardList.push({ value: award.id, text: award.name, data: award });
                     });
-                    awardCombo.options = awardList;
+                    this.setAutocompleteOptions(awardCombo, awardList);
                     this.setAwardFieldEnabled(true);
                     if (
                         preservedAwardId
                         && awardList.some((award) => String(award.value) === String(preservedAwardId))
                     ) {
-                        awardCombo.value = preservedAwardId;
+                        this.setAutocompleteValue(awardCombo, preservedAwardId);
                         if (this.hasCurrentAwardIdTarget) {
                             this.currentAwardIdTarget.value = preservedAwardId;
                         }
                     } else if (awardCombo.dataset.acInitSelectionValue) {
                         const val = JSON.parse(awardCombo.dataset.acInitSelectionValue);
-                        awardCombo.value = val.value;
+                        this.setAutocompleteValue(awardCombo, val.value);
                         delete awardCombo.dataset.acInitSelectionValue;
                         if (this.hasCurrentAwardIdTarget) {
                             this.currentAwardIdTarget.value = val.value;
                         }
                     }
                 } else {
-                    awardCombo.options = [{ value: "", text: "No awards available" }];
-                    awardCombo.value = "";
+                    this.setAutocompleteOptions(awardCombo, [{ value: "", text: "No awards available" }]);
+                    this.setAutocompleteValue(awardCombo, "");
                     awardCombo.disabled = true;
                 }
+                this.syncSpecialtyOptions();
                 this.updateGatherings();
                 this.updateSubmitState();
             });
@@ -803,6 +829,253 @@ class AwardsBestowalEditForm extends Controller {
     /** Clear award autocomplete when domain is cleared (works before targets connect). */
     clearPairedAwardFields() {
         this.setAwardFieldEnabled(false);
+        this.clearSpecialtyOptions();
+    }
+
+    /** Normalize award specialty metadata from endpoint and embedded combo options. */
+    normalizeSpecialties(rawSpecialties) {
+        if (rawSpecialties === null || rawSpecialties === undefined || rawSpecialties === "") {
+            return [];
+        }
+
+        let specialties = rawSpecialties;
+        if (typeof specialties === "string") {
+            try {
+                specialties = JSON.parse(specialties);
+            } catch (_error) {
+                specialties = [specialties];
+            }
+        }
+
+        if (!Array.isArray(specialties)) {
+            return [];
+        }
+
+        return specialties
+            .map((specialty) => String(specialty).trim())
+            .filter((specialty) => specialty !== "");
+    }
+
+    /** Return the selected award option including custom data payloads. */
+    getSelectedAwardOption() {
+        const awardCombo = this.getAwardComboElement();
+        const awardId = this.getAwardId();
+        const options = this.getAutocompleteOptions(awardCombo);
+        if (!awardCombo || !awardId || options.length === 0) {
+            return null;
+        }
+
+        return options.find((option) => String(option.value) === String(awardId)) ?? null;
+    }
+
+    /** Return the Stimulus autocomplete controller for a wrapper when available. */
+    getAutocompleteController(target) {
+        if (!target) {
+            return null;
+        }
+
+        const getController = window.Stimulus?.getControllerForElementAndIdentifier;
+        return typeof getController === "function"
+            ? getController.call(window.Stimulus, target, "ac")
+            : null;
+    }
+
+    /** Read autocomplete options from the live controller, falling back to the wrapper. */
+    getAutocompleteOptions(target) {
+        const autocomplete = this.getAutocompleteController(target);
+        if (Array.isArray(autocomplete?.options)) {
+            return autocomplete.options;
+        }
+
+        return Array.isArray(target?.options) ? target.options : [];
+    }
+
+    /** Update autocomplete options on both the live controller and wrapper fallback. */
+    setAutocompleteOptions(target, options) {
+        if (!target) {
+            return;
+        }
+
+        const normalizedOptions = Array.isArray(options) ? options : [];
+        const autocomplete = this.getAutocompleteController(target);
+        if (autocomplete) {
+            autocomplete.options = normalizedOptions;
+        }
+        target.options = normalizedOptions;
+    }
+
+    /** Set an autocomplete value on both the live controller and hidden fallback fields. */
+    setAutocompleteValue(target, value) {
+        if (!target) {
+            return;
+        }
+
+        const normalizedValue = value === null || value === undefined ? "" : String(value);
+        const autocomplete = this.getAutocompleteController(target);
+        if (autocomplete) {
+            autocomplete.value = normalizedValue;
+        }
+        target.value = normalizedValue;
+
+        const hidden = target.querySelector("[data-ac-target='hidden']");
+        if (hidden) {
+            hidden.value = normalizedValue;
+        }
+
+        const selected = this.getAutocompleteOptions(target)
+            .find((option) => String(option.value) === normalizedValue);
+        const hiddenText = target.querySelector("[data-ac-target='hiddenText']");
+        const input = target.querySelector("[data-ac-target='input']");
+        const textValue = selected?.text ?? "";
+        if (hiddenText) {
+            hiddenText.value = textValue;
+        }
+        if (input) {
+            input.value = textValue;
+            input.disabled = normalizedValue !== "" && target.dataset.acAllowOtherValue !== "true";
+        }
+    }
+
+    /** Hide, disable, and clear the specialty selector when the selected award does not use specialties. */
+    clearSpecialtyOptions() {
+        if (this.hasSpecialtyBlockTarget) {
+            this.specialtyBlockTarget.classList.add("d-none");
+        }
+        if (!this.hasSpecialtyTarget) {
+            return;
+        }
+
+        this.setSpecialtyRequired(false);
+        this.replaceSpecialtyOptions([], { preserveCurrent: false });
+        this.setAutocompleteValue(this.specialtyTarget, "");
+        this.setAutocompleteDisabled(this.specialtyTarget, true);
+    }
+
+    /** Populate specialty selector from the selected award's configured specialties. */
+    syncSpecialtyOptions() {
+        if (!this.hasSpecialtyTarget) {
+            return;
+        }
+
+        const selectedAward = this.getSelectedAwardOption();
+        const specialties = this.normalizeSpecialties(
+            selectedAward?.data?.specialties ?? selectedAward?.specialties ?? null,
+        );
+        if (specialties.length === 0) {
+            this.clearSpecialtyOptions();
+            return;
+        }
+
+        this.replaceSpecialtyOptions(specialties);
+        this.setAutocompleteDisabled(this.specialtyTarget, false);
+        this.setSpecialtyRequired(true);
+        if (this.hasSpecialtyBlockTarget) {
+            this.specialtyBlockTarget.classList.remove("d-none");
+        }
+    }
+
+    /** Set disabled state on an autocomplete wrapper or native field. */
+    setAutocompleteDisabled(target, disabled) {
+        if (!target) {
+            return;
+        }
+
+        target.disabled = disabled;
+        const autocomplete = this.getAutocompleteController(target);
+        if (autocomplete) {
+            autocomplete.disabled = disabled;
+        }
+        target.querySelectorAll("[data-ac-target='hidden'], [data-ac-target='hiddenText'], [data-ac-target='input']")
+            .forEach((field) => {
+                field.disabled = disabled;
+            });
+    }
+
+    /** Set required state on the specialty combo text field or select. */
+    setSpecialtyRequired(required) {
+        if (!this.hasSpecialtyTarget) {
+            return;
+        }
+
+        this.specialtyTarget.required = required;
+        if (required) {
+            this.specialtyTarget.setAttribute("aria-required", "true");
+        } else {
+            this.specialtyTarget.removeAttribute("aria-required");
+        }
+
+        const hiddenText = this.specialtyTarget.querySelector("[data-ac-target='hiddenText']");
+        const input = this.specialtyTarget.querySelector("[data-ac-target='input']");
+        if (hiddenText) {
+            hiddenText.required = required;
+        }
+        if (input) {
+            input.required = required;
+            input.setAttribute("aria-required", required ? "true" : "false");
+        }
+    }
+
+    /** Read specialty value from a combo-box wrapper or native field. */
+    getSpecialtyValue() {
+        if (!this.hasSpecialtyTarget) {
+            return "";
+        }
+
+        const hiddenText = this.specialtyTarget.querySelector("[data-ac-target='hiddenText']");
+        if (hiddenText && typeof hiddenText.value === "string" && hiddenText.value.trim() !== "") {
+            return hiddenText.value.trim();
+        }
+
+        const input = this.specialtyTarget.querySelector("[data-ac-target='input']");
+        if (input && typeof input.value === "string" && input.value.trim() !== "") {
+            return input.value.trim();
+        }
+
+        return typeof this.specialtyTarget.value === "string" ? this.specialtyTarget.value.trim() : "";
+    }
+
+    /** Replace specialty options safely without innerHTML. */
+    replaceSpecialtyOptions(specialties, { preserveCurrent = true } = {}) {
+        if (!this.hasSpecialtyTarget) {
+            return;
+        }
+
+        const currentValue = this.getSpecialtyValue();
+        const options = specialties.map((specialty) => ({ value: specialty, text: specialty }));
+        if (preserveCurrent && currentValue !== "" && !specialties.includes(currentValue)) {
+            options.push({ value: currentValue, text: currentValue });
+        }
+        if (this.specialtyTarget.querySelector("[data-ac-target='input']")) {
+            this.setAutocompleteOptions(this.specialtyTarget, options);
+            if (currentValue === "") {
+                this.setAutocompleteValue(this.specialtyTarget, "");
+            }
+
+            return;
+        }
+
+        while (this.specialtyTarget.firstChild) {
+            this.specialtyTarget.removeChild(this.specialtyTarget.firstChild);
+        }
+
+        const emptyOption = document.createElement("option");
+        emptyOption.value = "";
+        emptyOption.textContent = "Select a specialty";
+        this.specialtyTarget.appendChild(emptyOption);
+
+        specialties.forEach((specialty) => {
+            const option = document.createElement("option");
+            option.value = specialty;
+            option.textContent = specialty;
+            if (specialty === currentValue) {
+                option.selected = true;
+            }
+            this.specialtyTarget.appendChild(option);
+        });
+
+        if (!specialties.includes(currentValue)) {
+            this.specialtyTarget.value = "";
+        }
     }
 
     /** Read hidden value from an autocomplete wrapper. */
@@ -838,6 +1111,31 @@ class AwardsBestowalEditForm extends Controller {
 
     /** Read selected member ID or public ID from add/edit form fields. */
     getMemberValue() {
+        if (this.hasMemberTarget) {
+            const memberValue = this.getHiddenValue(this.memberTarget);
+            if (memberValue !== "") {
+                return memberValue;
+            }
+            const hiddenText = this.memberTarget.querySelector("[data-ac-target='hiddenText']");
+            if (hiddenText && typeof hiddenText.value === "string" && hiddenText.value.trim() !== "") {
+                return hiddenText.value.trim();
+            }
+            const input = this.memberTarget.querySelector("[data-ac-target='input']");
+            if (input && typeof input.value === "string") {
+                return input.value.trim();
+            }
+        }
+        if (this.hasMemberIdTarget) {
+            return this.memberIdTarget.value ?? "";
+        }
+
+        return this.element.querySelector("input[name=\"member_id\"]")?.value
+            || this.element.querySelector("input[name=\"member_public_id\"]")?.value
+            || "";
+    }
+
+    /** Read only selected member ID/public ID values, excluding custom typed names. */
+    getSelectedMemberValue() {
         if (this.hasMemberTarget) {
             const memberValue = this.getHiddenValue(this.memberTarget);
             if (memberValue !== "") {
@@ -968,7 +1266,18 @@ class AwardsBestowalEditForm extends Controller {
 
     /** @return {boolean} */
     isFormSubmittable() {
-        return this.hasValidAwardSelection() && this.hasValidMemberSelection();
+        return this.hasValidAwardSelection()
+            && this.hasValidMemberSelection()
+            && this.hasValidSpecialtySelection();
+    }
+
+    /** @return {boolean} */
+    hasValidSpecialtySelection() {
+        if (!this.hasSpecialtyTarget || this.specialtyTarget.disabled || !this.specialtyTarget.required) {
+            return true;
+        }
+
+        return this.getSpecialtyValue() !== "";
     }
 
     /** Enable submit only when required fields are satisfied. */
@@ -990,6 +1299,9 @@ class AwardsBestowalEditForm extends Controller {
         if (this.hasAwardTarget) {
             fields.push(this.awardTarget.querySelector("[data-ac-target='input']"));
             fields.push(this.awardTarget.querySelector("[data-ac-target='hidden']"));
+        }
+        if (this.hasSpecialtyTarget) {
+            fields.push(this.specialtyTarget);
         }
 
         fields.filter(Boolean).some((field) => {
@@ -1043,7 +1355,7 @@ class AwardsBestowalEditForm extends Controller {
         if (awardId) {
             params.append("award_id", awardId);
         }
-        const memberValue = this.getMemberValue();
+        const memberValue = this.getSelectedMemberValue();
         if (memberValue) {
             const memberParam = /^\d+$/.test(String(memberValue)) ? "member_id" : "member_public_id";
             params.append(memberParam, memberValue);

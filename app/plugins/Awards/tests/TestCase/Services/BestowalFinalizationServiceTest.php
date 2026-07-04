@@ -8,6 +8,8 @@ use App\Services\ActionItems\ActionItemService;
 use App\Test\TestCase\BaseTestCase;
 use Awards\Event\BestowalTodoCompletionListener;
 use Awards\Model\Entity\Bestowal;
+use Awards\Model\Entity\BestowalTodoTemplateItem;
+use Awards\Services\BestowalRecommendationSyncService;
 use Awards\Services\BestowalFinalizationService;
 use Cake\Event\EventManager;
 use Cake\ORM\Table;
@@ -108,6 +110,35 @@ class BestowalFinalizationServiceTest extends BaseTestCase
         $this->assertSame(Bestowal::LIFECYCLE_OPEN, $reloaded->lifecycle_status);
     }
 
+    public function testMarkGivenRequiresScheduledAndAgendaGatingTodos(): void
+    {
+        $bestowal = $this->makeBestowal();
+        $this->makeTodo((int)$bestowal->id, [
+            'title' => 'Event Scheduled',
+            'source_ref' => BestowalTodoTemplateItem::ITEM_KEY_EVENT_SCHEDULED,
+            'status' => ActionItem::STATUS_COMPLETED,
+            'sort_order' => 10,
+        ]);
+        $this->makeTodo((int)$bestowal->id, [
+            'title' => 'Added to Agenda',
+            'source_ref' => BestowalTodoTemplateItem::ITEM_KEY_ADDED_TO_AGENDA,
+            'status' => ActionItem::STATUS_OPEN,
+            'sort_order' => 20,
+        ]);
+        $this->makeTodo((int)$bestowal->id, [
+            'title' => 'Given',
+            'status' => ActionItem::STATUS_COMPLETED,
+            'sort_order' => 30,
+        ]);
+
+        $result = $this->finalizationService()->markGiven((int)$bestowal->id, self::ADMIN_MEMBER_ID);
+
+        $this->assertFalse($result->success);
+        $this->assertStringContainsString('required checks', (string)$result->reason);
+        $reloaded = $this->bestowals->get($bestowal->id);
+        $this->assertSame(Bestowal::LIFECYCLE_OPEN, $reloaded->lifecycle_status);
+    }
+
     /**
      * A cancelled bestowal can never be marked given, even with gating complete.
      *
@@ -150,6 +181,29 @@ class BestowalFinalizationServiceTest extends BaseTestCase
         $this->assertTrue($result->success);
         $reloaded = $this->bestowals->get($bestowal->id);
         $this->assertSame(Bestowal::LIFECYCLE_GIVEN, $reloaded->lifecycle_status);
+    }
+
+    public function testMarkGivenRollsBackWhenRecommendationSyncFails(): void
+    {
+        $bestowal = $this->makeBestowal();
+        $this->makeTodo((int)$bestowal->id, [
+            'is_gating' => true,
+            'status' => ActionItem::STATUS_COMPLETED,
+        ]);
+        $syncService = $this->createMock(BestowalRecommendationSyncService::class);
+        $syncService->method('syncFromBestowal')->willReturn([
+            'success' => false,
+            'error' => 'Recommendation sync failed.',
+        ]);
+        $service = new BestowalFinalizationService($this->actionItemService, $syncService, $this->bestowals);
+
+        $result = $service->markGiven((int)$bestowal->id, self::ADMIN_MEMBER_ID);
+
+        $this->assertFalse($result->success);
+        $this->assertSame('Recommendation sync failed.', $result->reason);
+        $reloaded = $this->bestowals->get($bestowal->id);
+        $this->assertSame(Bestowal::LIFECYCLE_OPEN, $reloaded->lifecycle_status);
+        $this->assertNull($reloaded->bestowed_at);
     }
 
     /**

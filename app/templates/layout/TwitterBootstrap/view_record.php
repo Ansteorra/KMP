@@ -243,7 +243,9 @@ $this->KMP->endBlock();
 if (!$this->fetch('tb_flash')) {
     echo $this->KMP->startBlock('tb_flash');
     if (isset($this->Flash)) {
+        echo '<div id="flash-messages">';
         echo $this->Flash->render();
+        echo '</div>';
     }
     $this->KMP->endBlock();
 }

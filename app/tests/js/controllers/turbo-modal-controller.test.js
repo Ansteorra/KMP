@@ -118,10 +118,12 @@ describe('TurboModalController', () => {
             text: jest.fn().mockResolvedValue('<turbo-stream action="remove" target="modal"></turbo-stream>')
         });
         const preventDefault = jest.fn();
+        const stopImmediatePropagation = jest.fn();
 
-        await controller.submitAsTurboStream({ preventDefault });
+        await controller.submitAsTurboStream({ preventDefault, stopImmediatePropagation });
 
         expect(preventDefault).toHaveBeenCalled();
+        expect(stopImmediatePropagation).toHaveBeenCalled();
         expect(hideMock).toHaveBeenCalled();
         expect(controller.element.querySelector('[name="page_context_url"]').value)
             .toBe('/awards/recommendations?status=submitted');
@@ -130,6 +132,7 @@ describe('TurboModalController', () => {
             expect.objectContaining({
                 method: 'POST',
                 body: expect.any(FormData),
+                credentials: 'same-origin',
                 headers: {
                     'Accept': 'text/vnd.turbo-stream.html',
                     'X-Requested-With': 'XMLHttpRequest',
@@ -139,7 +142,7 @@ describe('TurboModalController', () => {
         expect(controller.renderTurboStream).toHaveBeenCalledWith(
             '<turbo-stream action="remove" target="modal"></turbo-stream>'
         );
-        expect(hideMock).toHaveBeenCalledTimes(2);
+        expect(hideMock).toHaveBeenCalledTimes(1);
     });
 
     test('submitAsTurboStream replaces containing frame for non-stream form responses', async () => {
@@ -168,7 +171,10 @@ describe('TurboModalController', () => {
             text: jest.fn().mockResolvedValue('<form id="replacement-form"></form>')
         });
 
-        await controller.submitAsTurboStream({ preventDefault: jest.fn() });
+        await controller.submitAsTurboStream({
+            preventDefault: jest.fn(),
+            stopImmediatePropagation: jest.fn(),
+        });
 
         expect(controller.renderTurboStream).not.toHaveBeenCalled();
         expect(document.getElementById('editRecommendation').innerHTML)

@@ -14,40 +14,25 @@ use DateTimeZone;
 use Throwable;
 
 /**
- * Synchronizes linked recommendation states from the bestowal lifecycle status.
+ * Synchronizes bestowal-owned recommendation projections from the bestowal lifecycle.
  */
 class BestowalRecommendationSyncService
 {
     use LocatorAwareTrait;
 
-    /**
-     * Recommendation state a linked recommendation moves to when its bestowal is given.
-     */
-    public const RECOMMENDATION_GIVEN_STATE = 'Given';
-
-    /**
-     * Recommendation state a linked recommendation unwinds to when its bestowal is cancelled or unlinked.
-     */
-    public const RECOMMENDATION_UNWIND_STATE = 'King Approved';
-
     private Table $bestowalsTable;
     private Table $recommendationsTable;
-    private RecommendationStateLogService $recommendationStateLogService;
 
     /**
      * @param \Cake\ORM\Table|null $bestowalsTable Optional injected bestowals table.
      * @param \Cake\ORM\Table|null $recommendationsTable Optional injected recommendations table.
-     * @param \Awards\Services\RecommendationStateLogService|null $recommendationStateLogService Optional injected rec state-log service.
      */
     public function __construct(
         ?Table $bestowalsTable = null,
         ?Table $recommendationsTable = null,
-        ?RecommendationStateLogService $recommendationStateLogService = null,
     ) {
         $this->bestowalsTable = $bestowalsTable ?? $this->fetchTable('Awards.Bestowals');
         $this->recommendationsTable = $recommendationsTable ?? $this->fetchTable('Awards.Recommendations');
-        $this->recommendationStateLogService = $recommendationStateLogService
-            ?? new RecommendationStateLogService();
     }
 
     /**
@@ -89,24 +74,9 @@ class BestowalRecommendationSyncService
                         ];
                     }
 
-                    $targetStateName = $this->resolveSyncTargetStateName(
-                        (string)($bestowal->lifecycle_status ?? ''),
-                    );
                     $syncedIds = [];
                     foreach ($recommendations as $recommendation) {
                         $updated = false;
-
-                        if (
-                            $targetStateName !== null
-                            && (string)$recommendation->state !== $targetStateName
-                        ) {
-                            $recommendation = $this->applySystemRecommendationState(
-                                $recommendation,
-                                $targetStateName,
-                                $actorId,
-                            );
-                            $updated = true;
-                        }
 
                         if ($this->syncRecommendationGatheringFromBestowal($bestowal, $recommendation, $actorId)) {
                             $updated = true;
@@ -125,11 +95,11 @@ class BestowalRecommendationSyncService
 
                     return [
                         'success' => true,
-                        'skipped' => $targetStateName === null && $syncedIds === [],
+                        'skipped' => $syncedIds === [],
                         'data' => [
                             'bestowalId' => $bestowalId,
                             'recommendationIds' => $syncedIds,
-                            'targetState' => $targetStateName,
+                            'targetState' => null,
                             'syncedCount' => count($syncedIds),
                         ],
                     ];
@@ -149,31 +119,6 @@ class BestowalRecommendationSyncService
                 ],
             ];
         }
-    }
-
-    /**
-     * Resolve the recommendation state name a linked recommendation should move to
-     * for the supplied bestowal lifecycle status.
-     *
-     * @param string $lifecycleStatus Bestowal lifecycle status (open|given|cancelled).
-     * @return string|null Recommendation state name or null when no sync applies.
-     */
-    public function resolveSyncTargetStateName(string $lifecycleStatus): ?string
-    {
-        return $lifecycleStatus === Bestowal::LIFECYCLE_GIVEN
-            ? self::RECOMMENDATION_GIVEN_STATE
-            : null;
-    }
-
-    /**
-     * Resolve the recommendation state name a linked recommendation unwinds to when its
-     * bestowal is cancelled or the link is removed.
-     *
-     * @return string|null Recommendation state name to unwind to.
-     */
-    public function resolveUnwindTargetStateName(): ?string
-    {
-        return self::RECOMMENDATION_UNWIND_STATE;
     }
 
     /**
@@ -214,13 +159,6 @@ class BestowalRecommendationSyncService
             return false;
         }
 
-        if (
-            $bestowalGatheringId !== null
-            && !Recommendation::supportsGatheringAssignmentForState((string)$recommendation->state)
-        ) {
-            return false;
-        }
-
         $recommendation->gathering_id = $bestowalGatheringId;
         $recommendation->modified_by = $actorId;
         $this->recommendationsTable->saveOrFail(
@@ -244,10 +182,6 @@ class BestowalRecommendationSyncService
         Recommendation $recommendation,
         int $actorId,
     ): bool {
-        if ((string)$recommendation->state !== 'Given') {
-            return false;
-        }
-
         $targetGiven = $this->normalizeGivenDate($bestowal->bestowed_at);
         $currentGiven = $this->normalizeGivenDate($recommendation->given);
         if ($this->givenDatesMatch($targetGiven, $currentGiven)) {
@@ -296,41 +230,5 @@ class BestowalRecommendationSyncService
         }
 
         return $left->format('Y-m-d') === $right->format('Y-m-d');
-    }
-
-    /**
-     * Apply a recommendation state change as a system sync operation.
-     *
-     * @param \Awards\Model\Entity\Recommendation $recommendation Recommendation to update.
-     * @param string $targetState Target recommendation state.
-     * @param int $actorId Actor ID for audit logging.
-     * @return \Awards\Model\Entity\Recommendation
-     */
-    public function applySystemRecommendationState(
-        Recommendation $recommendation,
-        string $targetState,
-        int $actorId,
-    ): Recommendation {
-        $beforeState = (string)$recommendation->state;
-        $beforeStatus = (string)$recommendation->status;
-
-        $recommendation->state = $targetState;
-        $recommendation->modified_by = $actorId;
-
-        $saved = $this->recommendationsTable->saveOrFail(
-            $recommendation,
-            ['systemSync' => true],
-        );
-
-        $this->recommendationStateLogService->logStateTransition(
-            (int)$saved->id,
-            $beforeState,
-            (string)$saved->state,
-            $beforeStatus,
-            $saved->status !== null ? (string)$saved->status : null,
-            $actorId,
-        );
-
-        return $saved;
     }
 }

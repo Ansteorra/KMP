@@ -3,28 +3,26 @@ declare(strict_types=1);
 
 namespace Awards\Test\TestCase\Controller;
 
+use App\Model\Entity\ActionItem;
 use App\Model\Entity\Member;
 use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\TriggerDispatcher;
+use App\Services\WorkflowEngine\WorkflowEngineInterface;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Model\Entity\Bestowal;
+use Awards\Model\Entity\BestowalTodoTemplateItem;
 use Cake\Core\ContainerInterface as CakeContainerInterface;
-use Cake\Event\EventInterface;
 use Cake\ORM\TableRegistry;
 use Closure;
-use Psr\Container\ContainerInterface as PsrContainerInterface;
-use ReflectionProperty;
-use Throwable;
 
 /**
  * Turbo stream grid row sync for BestowalsController.
  */
 class BestowalsControllerGridTurboTest extends HttpIntegrationTestCase
 {
-    /**
-     * @var array<int, string>
-     */
-    private array $mockedServiceKeys = [];
+    private $workflowDefinitions;
+
+    private $workflowVersions;
 
     protected function setUp(): void
     {
@@ -35,43 +33,20 @@ class BestowalsControllerGridTurboTest extends HttpIntegrationTestCase
         $this->enableRetainFlashMessages();
         $this->authenticateAsSuperUser();
 
+        $locator = TableRegistry::getTableLocator();
+        $this->workflowDefinitions = $locator->get('WorkflowDefinitions');
+        $this->workflowVersions = $locator->get('WorkflowVersions');
+
         $this->mockServiceClean(CakeContainerInterface::class, function () {
             return $this->createMock(CakeContainerInterface::class);
         });
-    }
-
-    protected function tearDown(): void
-    {
-        $this->mockedServiceKeys = [];
-        parent::tearDown();
-    }
-
-    public function modifyContainer(
-        EventInterface $event,
-        PsrContainerInterface $container,
-    ): void {
-        parent::modifyContainer($event, $container);
-
-        foreach ($this->mockedServiceKeys as $key) {
-            if (!$container->has($key)) {
-                continue;
-            }
-
-            try {
-                $definition = $container->extend($key);
-                $arguments = new ReflectionProperty($definition, 'arguments');
-                $arguments->setAccessible(true);
-                $arguments->setValue($definition, []);
-            } catch (Throwable) {
-                continue;
-            }
-        }
     }
 
     public function testEditFromGridReturnsRowReplaceStreamOnMainIndex(): void
     {
         $this->ensureActiveWorkflow('awards-bestowal-update');
         $bestowal = $this->createExistingBestowal();
+        $this->createOpenBestowalTodo((int)$bestowal->id);
 
         $this->mockServiceClean(TriggerDispatcher::class, function () use ($bestowal) {
             $mock = $this->createMock(TriggerDispatcher::class);
@@ -106,6 +81,9 @@ class BestowalsControllerGridTurboTest extends HttpIntegrationTestCase
         $this->assertResponseContains(
             '<turbo-stream action="replace" target="bestowals-grid-row-' . $bestowal->id . '"',
         );
+        $this->assertResponseContains('data-grid-view-target="rowCheckbox"');
+        $this->assertResponseContains('aria-label=');
+        $this->assertResponseContains('data-bulk-todo-options=');
         $this->assertResponseNotContains('target="bestowals-grid-table"');
     }
 
@@ -271,14 +249,75 @@ class BestowalsControllerGridTurboTest extends HttpIntegrationTestCase
      */
     private function mockServiceClean(string $class, Closure $factory): void
     {
-        $this->mockService($class, $factory);
-        $this->mockedServiceKeys[] = $class;
+        if ($class !== TriggerDispatcher::class) {
+            $this->mockService($class, $factory);
+
+            return;
+        }
+
+        $dispatcher = $factory();
+        $engine = $this->createMock(WorkflowEngineInterface::class);
+        $engine->method('dispatchTrigger')
+            ->willReturnCallback(
+                fn(string $eventName, array $eventData = [], ?int $triggeredBy = null): array => $dispatcher->dispatch(
+                    $eventName,
+                    $eventData,
+                    $triggeredBy,
+                ),
+            );
+        $this->mockService(WorkflowEngineInterface::class, static fn() => $engine);
     }
 
     private function ensureActiveWorkflow(string $slug): void
     {
-        TableRegistry::getTableLocator()->get('WorkflowDefinitions')
-            ->updateAll(['is_active' => true], ['slug' => $slug]);
+        $definition = $this->workflowDefinitions->find()->where(['slug' => $slug])->first();
+
+        if (!$definition) {
+            $definition = $this->workflowDefinitions->newEntity([
+                'name' => "Test {$slug}",
+                'slug' => $slug,
+                'description' => "Test workflow for {$slug}",
+                'trigger_type' => 'event',
+                'is_active' => true,
+                'created_by' => self::ADMIN_MEMBER_ID,
+                'modified_by' => self::ADMIN_MEMBER_ID,
+            ]);
+            $this->workflowDefinitions->saveOrFail($definition);
+        }
+
+        if (!$definition->current_version_id) {
+            $version = $this->workflowVersions->newEntity([
+                'workflow_definition_id' => $definition->id,
+                'version_number' => 1,
+                'status' => 'published',
+                'definition' => ['nodes' => [], 'edges' => []],
+                'created_by' => self::ADMIN_MEMBER_ID,
+                'modified_by' => self::ADMIN_MEMBER_ID,
+            ]);
+            $this->workflowVersions->saveOrFail($version);
+            $definition->current_version_id = $version->id;
+        }
+
+        $definition->is_active = true;
+        $this->workflowDefinitions->saveOrFail($definition);
+    }
+
+    private function createOpenBestowalTodo(int $bestowalId): ActionItem
+    {
+        $table = TableRegistry::getTableLocator()->get('ActionItems');
+
+        return $table->saveOrFail($table->newEntity([
+            'entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
+            'entity_id' => $bestowalId,
+            'title' => 'Event Scheduled',
+            'assignee_type' => ActionItem::ASSIGNEE_TYPE_MEMBER,
+            'assignee_config' => ['member_id' => self::ADMIN_MEMBER_ID],
+            'branch_id' => self::KINGDOM_BRANCH_ID,
+            'status' => ActionItem::STATUS_OPEN,
+            'is_gating' => true,
+            'sort_order' => 1,
+            'source_ref' => BestowalTodoTemplateItem::ITEM_KEY_EVENT_SCHEDULED,
+        ]));
     }
 
     /**

@@ -49,7 +49,7 @@ class BestowalRecommendationLinkService
     }
 
     /**
-     * Unlink recommendations and restore their pre-link state.
+     * Unlink recommendations from bestowal ownership.
      *
      * @param int $bestowalId Bestowal ID.
      * @param array<int> $recommendationIds Recommendation IDs to unlink.
@@ -81,7 +81,6 @@ class BestowalRecommendationLinkService
                     'Members',
                     'Recommendations' => ['Awards', 'Awards.Levels', 'Requesters'],
                 ]);
-                $unwindState = $this->syncService->resolveUnwindTargetStateName();
                 $unlinked = [];
 
                 foreach ($recommendationIds as $recommendationId) {
@@ -96,16 +95,9 @@ class BestowalRecommendationLinkService
                     }
 
                     $recommendation = $this->recommendationsTable->get($recommendationId);
-                    if ($unwindState !== null) {
-                        $this->syncService->applySystemRecommendationState(
-                            $recommendation,
-                            $unwindState,
-                            $actorId,
-                        );
-                    }
-
                     $recommendation->bestowal_id = null;
                     $recommendation->gathering_id = null;
+                    $recommendation->given = null;
                     $recommendation->modified_by = $actorId;
                     $this->recommendationsTable->saveOrFail($recommendation, ['systemSync' => true]);
                     $this->bestowalRecommendationsTable->deleteOrFail($join);
@@ -127,7 +119,7 @@ class BestowalRecommendationLinkService
     }
 
     /**
-     * Link recommendations to a bestowal and sync their states.
+     * Link recommendations to a bestowal and sync bestowal-owned projections.
      *
      * @param int $bestowalId Bestowal ID.
      * @param array<int> $recommendationIds Recommendation IDs to link.
@@ -263,16 +255,6 @@ class BestowalRecommendationLinkService
             $recommendation->bestowal_id = (int)$bestowal->id;
             $recommendation->modified_by = $actorId;
             $this->recommendationsTable->saveOrFail($recommendation, ['systemSync' => true]);
-            $updated = true;
-        }
-
-        $targetState = $this->syncService->resolveSyncTargetStateName((string)$bestowal->lifecycle_status);
-        if ($targetState !== null && (string)$recommendation->state !== $targetState) {
-            $recommendation = $this->syncService->applySystemRecommendationState(
-                $recommendation,
-                $targetState,
-                $actorId,
-            );
             $updated = true;
         }
 

@@ -38,7 +38,10 @@ Feature: Award Bestowals
         Then I should see the flash message "Marked complete."
         When I open the bestowal to-dos tab
         Then the bestowal to-do "Event Scheduled" should show a gathering assigned
-        When I complete the bestowal to-do "Given"
+        When I complete the bestowal to-do "Added to Agenda"
+        Then I should see the flash message "Marked complete."
+        When I open the bestowal to-dos tab
+        And I complete the bestowal to-do "Given"
         Then I should see the flash message "Marked complete."
         And the bestowal detail page should show "Given" in the state row
 

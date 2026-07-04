@@ -61,6 +61,11 @@ unset($paginationQueryParams['page']);
                     'enableColumnPicker' => $gridState['config']['enableColumnPicker'] ?? true,
                     'tableFrameId' => $tableFrameId,
                     'enableBulkSelection' => $gridState['config']['enableBulkSelection'] ?? false,
+                    'bulkSelectionDataFields' => $gridState['config']['bulkSelectionDataFields'] ?? [],
+                    'bulkSelectionDisabledField' => $gridState['config']['bulkSelectionDisabledField'] ?? null,
+                    'bulkSelectionDisabledLabel' => $gridState['config']['bulkSelection']['disabledLabel'] ?? null,
+                    'bulkSelectionHideDisabledControl' =>
+                        $gridState['config']['bulkSelectionHideDisabledControl'] ?? false,
                     'bulkSelection' => $gridState['config']['bulkSelection'] ?? [],
                 ]) ?>
 

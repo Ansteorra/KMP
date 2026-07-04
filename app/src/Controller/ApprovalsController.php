@@ -17,6 +17,7 @@ use App\Services\WorkflowEngine\WorkflowApprovalManagerInterface;
 use App\Services\WorkflowEngine\WorkflowEngineInterface;
 use Awards\Model\Entity\Bestowal;
 use Awards\Services\BestowalGatheringLookupService;
+use Awards\Services\RecommendationApprovalProcessService;
 use Awards\Services\RecommendationFeedbackService;
 use Cake\Controller\ComponentRegistry;
 use Cake\Http\Response;
@@ -1232,6 +1233,15 @@ class ApprovalsController extends AppController
     private function augmentApproverConfigForResponse(array $approverConfig, ?WorkflowApproval $approval = null): array
     {
         if (!$this->approvalRequiresBestowalGatheringSelection($approval, $approverConfig)) {
+            unset(
+                $approverConfig[self::BESTOWAL_GATHERING_REQUIRED_KEY],
+                $approverConfig['requiresBestowalGathering'],
+                $approverConfig['bestowal_gathering_options'],
+                $approverConfig['bestowalGatheringOptions'],
+                $approverConfig['bestowal_gathering_url'],
+                $approverConfig['bestowalGatheringUrl'],
+            );
+
             return $approverConfig;
         }
 
@@ -1297,13 +1307,44 @@ class ApprovalsController extends AppController
         ?WorkflowApproval $approval,
         array $approverConfig,
     ): bool {
+        $finalStepState = $approval !== null
+            ? $this->awardApprovalFinalStepState($approval, $approverConfig)
+            : null;
+        if ($finalStepState === false) {
+            return false;
+        }
+
         if ($this->requiresBestowalGatheringSelection($approverConfig)) {
             return true;
         }
 
         $slug = (string)($approval?->workflow_instance?->workflow_definition?->slug ?? '');
 
-        return in_array($slug, self::BESTOWAL_GATHERING_WORKFLOW_SLUGS, true);
+        return $finalStepState === true && in_array($slug, self::BESTOWAL_GATHERING_WORKFLOW_SLUGS, true);
+    }
+
+    /**
+     * @param \App\Model\Entity\WorkflowApproval $approval Approval.
+     * @param array<string, mixed> $approverConfig Approval config.
+     * @return bool|null
+     */
+    private function awardApprovalFinalStepState(WorkflowApproval $approval, array $approverConfig): ?bool
+    {
+        $isAwardRecommendationWorkflow = in_array(
+            (string)($approval->workflow_instance?->workflow_definition?->slug ?? ''),
+            self::BESTOWAL_GATHERING_WORKFLOW_SLUGS,
+            true,
+        );
+        if (
+            !$isAwardRecommendationWorkflow
+            && empty($approverConfig['award_approval_run_id'])
+            && empty($approverConfig['award_approval_step_key'])
+            && !array_key_exists('award_approval_is_final_step', $approverConfig)
+        ) {
+            return null;
+        }
+
+        return (new RecommendationApprovalProcessService())->isFinalApprovalStep($approval, $approverConfig);
     }
 
     /**

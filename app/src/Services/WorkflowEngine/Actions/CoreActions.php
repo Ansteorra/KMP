@@ -1,17 +1,28 @@
 <?php
 declare(strict_types=1);
 
+// phpcs:disable Generic.Files.LineLength.TooLong
+
 namespace App\Services\WorkflowEngine\Actions;
 
 use App\Mailer\QueuedMailerAwareTrait;
 use App\Model\Entity\ActiveWindowBaseEntity;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
+use App\Services\WorkflowEngine\ActionResult;
 use App\Services\WorkflowEngine\ExpressionEvaluator;
+use App\Services\WorkflowEngine\WorkflowActionTrait;
 use App\Services\WorkflowEngine\WorkflowContextAwareTrait;
 use App\Services\WorkflowRegistry\WorkflowEntityRegistry;
+use Cake\Core\Plugin;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
+use Cake\ORM\Locator\TableLocator;
+use Cake\ORM\Table;
 use Cake\ORM\TableRegistry;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use RuntimeException;
+use Throwable;
 
 /**
  * Core workflow actions: email, notes, entity updates, role assignment,
@@ -20,6 +31,7 @@ use Cake\ORM\TableRegistry;
 class CoreActions
 {
     use QueuedMailerAwareTrait;
+    use WorkflowActionTrait;
     use WorkflowContextAwareTrait;
 
     private ActiveWindowManagerInterface $activeWindowManager;
@@ -62,7 +74,7 @@ class CoreActions
                 : null;
 
             if (empty($config['template'])) {
-                throw new \RuntimeException('Core.SendEmail requires a template slug or numeric template ID.');
+                throw new RuntimeException('Core.SendEmail requires a template slug or numeric template ID.');
             }
 
             $templateRef = (string)$this->resolveValue($config['template'], $context);
@@ -72,11 +84,11 @@ class CoreActions
             }
             $this->queueMail('KMP', 'sendFromTemplate', $to, $mergedVars);
 
-            return ['sent' => true];
-        } catch (\Throwable $e) {
+            return ActionResult::success(['sent' => true])->toArray();
+        } catch (Throwable $e) {
             Log::error('Workflow SendEmail failed: ' . $e->getMessage());
 
-            return ['sent' => false, 'error' => $e->getMessage()];
+            return ActionResult::failure($e->getMessage(), ['sent' => false])->toArray();
         }
     }
 
@@ -100,8 +112,16 @@ class CoreActions
         ]);
 
         $saved = $notesTable->save($note);
+        if (!$saved) {
+            return [
+                'success' => false,
+                'data' => ['noteId' => null],
+                'error' => 'Failed to save workflow note.',
+                'noteId' => null,
+            ];
+        }
 
-        return ['noteId' => $saved ? $saved->id : null];
+        return ['success' => true, 'data' => ['noteId' => $saved->id], 'error' => null, 'noteId' => $saved->id];
     }
 
     /**
@@ -148,7 +168,7 @@ class CoreActions
             $result = $table->save($entity);
 
             return ['updated' => $result !== false];
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error('Workflow UpdateEntity failed: ' . $e->getMessage());
 
             return ['updated' => false];
@@ -223,7 +243,7 @@ class CoreActions
             $saved = $memberRolesTable->save($memberRole);
 
             return ['memberRoleId' => $saved ? $saved->id : null];
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error('Workflow AssignRole failed: ' . $e->getMessage());
 
             return ['memberRoleId' => null];
@@ -321,7 +341,7 @@ class CoreActions
                 'entityType' => $entityType,
                 'entityId' => $entityId,
             ];
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error('Workflow GetObjectById failed: ' . $e->getMessage());
 
             return [
@@ -376,7 +396,7 @@ class CoreActions
                 'status' => $result->isSuccess() ? 'started' : 'failed',
                 'error' => $result->isSuccess() ? null : $result->getError(),
             ];
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error('Workflow StartActiveWindow failed: ' . $e->getMessage());
 
             return ['memberRoleId' => null, 'status' => 'failed', 'error' => $e->getMessage()];
@@ -412,7 +432,7 @@ class CoreActions
             );
 
             return ['stopped' => $result->isSuccess(), 'error' => $result->isSuccess() ? null : $result->getError()];
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error('Workflow StopActiveWindow failed: ' . $e->getMessage());
 
             return ['stopped' => false, 'error' => $e->getMessage()];
@@ -449,7 +469,7 @@ class CoreActions
             }
 
             return ['transitioned' => $transitioned];
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error('Workflow SyncActiveWindowStatuses failed: ' . $e->getMessage());
 
             return ['transitioned' => ['upcoming_to_current' => 0, 'current_to_expired' => 0], 'error' => $e->getMessage()];
@@ -464,7 +484,7 @@ class CoreActions
      * @param array &$transitioned Transition counters (modified by reference)
      * @return void
      */
-    private function syncTable(\Cake\ORM\Table $table, DateTime $now, array &$transitioned): void
+    private function syncTable(Table $table, DateTime $now, array &$transitioned): void
     {
         $schema = $table->getSchema();
         if (!$schema->hasColumn('status') || !$schema->hasColumn('start_on')) {
@@ -511,7 +531,7 @@ class CoreActions
      * @param \Cake\ORM\Locator\TableLocator $tableLocator Table locator instance
      * @return array<string>
      */
-    private function discoverActiveWindowAliases(\Cake\ORM\Locator\TableLocator $tableLocator): array
+    private function discoverActiveWindowAliases(TableLocator $tableLocator): array
     {
         $aliases = [];
         $appTablePath = APP . 'Model' . DS . 'Table' . DS;
@@ -520,8 +540,8 @@ class CoreActions
             $aliases = array_merge($aliases, $this->scanTableDir($appTablePath, $tableLocator));
         }
 
-        foreach (\Cake\Core\Plugin::loaded() as $plugin) {
-            $pluginPath = \Cake\Core\Plugin::path($plugin) . 'src' . DS . 'Model' . DS . 'Table' . DS;
+        foreach (Plugin::loaded() as $plugin) {
+            $pluginPath = Plugin::path($plugin) . 'src' . DS . 'Model' . DS . 'Table' . DS;
             if (is_dir($pluginPath)) {
                 $aliases = array_merge($aliases, $this->scanTableDir($pluginPath, $tableLocator, $plugin));
             }
@@ -589,11 +609,11 @@ class CoreActions
      * @param string|null $plugin Plugin prefix
      * @return array<string>
      */
-    private function scanTableDir(string $path, \Cake\ORM\Locator\TableLocator $tableLocator, ?string $plugin = null): array
+    private function scanTableDir(string $path, TableLocator $tableLocator, ?string $plugin = null): array
     {
         $aliases = [];
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($path, \RecursiveDirectoryIterator::SKIP_DOTS),
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($path, RecursiveDirectoryIterator::SKIP_DOTS),
         );
 
         foreach ($iterator as $file) {
@@ -612,7 +632,7 @@ class CoreActions
                     $aliases[] = $fullAlias;
                 }
                 $tableLocator->remove($fullAlias);
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 // Skip tables that can't be loaded
             }
         }

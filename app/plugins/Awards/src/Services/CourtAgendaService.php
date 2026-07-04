@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Awards\Services;
 
+use Awards\Model\Entity\CourtAgenda;
 use Awards\Model\Entity\CourtAgendaItem;
 use Awards\Model\Entity\CourtAgendaSegment;
 use Cake\ORM\Locator\LocatorAwareTrait;
@@ -24,7 +25,7 @@ class CourtAgendaService
      * @param int|null $actorId Optional actor ID for audit fields.
      * @return \Awards\Model\Entity\CourtAgenda
      */
-    public function getOrCreateDefaultAgenda(int $gatheringId, ?int $actorId = null)
+    public function getOrCreateDefaultAgenda(int $gatheringId, ?int $actorId = null): CourtAgenda
     {
         $agendas = $this->fetchTable('Awards.CourtAgendas');
         $agenda = $agendas->find()
@@ -126,16 +127,10 @@ class CourtAgendaService
             'Gatherings',
             'CourtAgendaSegments' => [
                 'GatheringScheduledActivities',
-                'CourtAgendaItems' => [
-                    'Bestowals' => [
-                        'Members',
-                        'Awards' => ['Levels'],
-                        'GatheringScheduledActivities',
-                        'Recommendations' => ['Awards' => ['Levels']],
-                    ],
-                ],
+                'CourtAgendaItems',
             ],
         ]);
+        $this->hydrateAgendaItemBestowals($agenda->court_agenda_segments ?? []);
 
         $segments = [];
         $agendaMinutes = 0;
@@ -155,6 +150,7 @@ class CourtAgendaService
                     'minutes' => $minutes,
                 ];
             }
+
             $agendaMinutes += $segmentMinutes;
             $segments[] = [
                 'entity' => $segment,
@@ -177,11 +173,52 @@ class CourtAgendaService
     }
 
     /**
+     * @param array<int, \Awards\Model\Entity\CourtAgendaSegment> $segments Court agenda segments.
+     * @return void
+     */
+    private function hydrateAgendaItemBestowals(array $segments): void
+    {
+        $bestowalIds = [];
+        foreach ($segments as $segment) {
+            foreach ($segment->court_agenda_items ?? [] as $item) {
+                $bestowalId = (int)($item->bestowal_id ?? 0);
+                if ($bestowalId > 0) {
+                    $bestowalIds[$bestowalId] = true;
+                }
+            }
+        }
+        if ($bestowalIds === []) {
+            return;
+        }
+
+        $bestowals = $this->fetchTable('Awards.Bestowals')->find()
+            ->where(['Bestowals.id IN' => array_keys($bestowalIds)])
+            ->contain([
+                'Members',
+                'Awards' => ['Levels'],
+                'GatheringScheduledActivities',
+                'Recommendations' => ['Awards' => ['Levels']],
+            ])
+            ->all()
+            ->combine('id', static fn($bestowal) => $bestowal)
+            ->toArray();
+
+        foreach ($segments as $segment) {
+            foreach ($segment->court_agenda_items ?? [] as $item) {
+                $bestowalId = (int)($item->bestowal_id ?? 0);
+                if ($bestowalId > 0 && isset($bestowals[$bestowalId])) {
+                    $item->bestowal = $bestowals[$bestowalId];
+                }
+            }
+        }
+    }
+
+    /**
      * @param array<string, mixed> $data Submitted segment data.
      * @param int|null $actorId Actor ID.
      * @return \Awards\Model\Entity\CourtAgendaSegment
      */
-    public function addSegment(array $data, ?int $actorId = null)
+    public function addSegment(array $data, ?int $actorId = null): CourtAgendaSegment
     {
         $segments = $this->fetchTable('Awards.CourtAgendaSegments');
         $agendaId = (int)($data['court_agenda_id'] ?? 0);
@@ -210,7 +247,7 @@ class CourtAgendaService
      * @param int|null $actorId Actor ID.
      * @return \Awards\Model\Entity\CourtAgendaItem
      */
-    public function addBlock(array $data, ?int $actorId = null)
+    public function addBlock(array $data, ?int $actorId = null): CourtAgendaItem
     {
         $items = $this->fetchTable('Awards.CourtAgendaItems');
         $segmentId = (int)($data['court_agenda_segment_id'] ?? 0);
@@ -241,7 +278,7 @@ class CourtAgendaService
      * @param int|null $actorId Actor ID.
      * @return \Awards\Model\Entity\CourtAgendaItem
      */
-    public function updateItem(int $itemId, array $data, ?int $actorId = null)
+    public function updateItem(int $itemId, array $data, ?int $actorId = null): CourtAgendaItem
     {
         $items = $this->fetchTable('Awards.CourtAgendaItems');
         $item = $items->get($itemId);
@@ -275,22 +312,24 @@ class CourtAgendaService
     public function moveItem(int $itemId, int $targetSegmentId, int $targetSortOrder, ?int $actorId = null): void
     {
         $items = $this->fetchTable('Awards.CourtAgendaItems');
-        $items->getConnection()->transactional(function () use ($items, $itemId, $targetSegmentId, $targetSortOrder, $actorId): void {
-            $item = $items->get($itemId, contain: ['CourtAgendaSegments']);
-            $sourceSegmentId = (int)$item->court_agenda_segment_id;
-            $targetSegment = $this->fetchTable('Awards.CourtAgendaSegments')->get($targetSegmentId);
-            if ((int)$targetSegment->court_agenda_id !== (int)$item->court_agenda_segment->court_agenda_id) {
-                throw new RuntimeException('Agenda items can only move within the same court agenda.');
-            }
-            $item->court_agenda_segment_id = $targetSegmentId;
-            $item->sort_order = max(0, $targetSortOrder);
-            $item->modified_by = $actorId;
-            $items->saveOrFail($item);
-            if ($sourceSegmentId !== $targetSegmentId) {
-                $this->renumberItems($sourceSegmentId);
-            }
-            $this->renumberItems($targetSegmentId);
-        });
+        $items->getConnection()->transactional(
+            function () use ($items, $itemId, $targetSegmentId, $targetSortOrder, $actorId): void {
+                $item = $items->get($itemId, contain: ['CourtAgendaSegments']);
+                $sourceSegmentId = (int)$item->court_agenda_segment_id;
+                $targetSegment = $this->fetchTable('Awards.CourtAgendaSegments')->get($targetSegmentId);
+                if ((int)$targetSegment->court_agenda_id !== (int)$item->court_agenda_segment->court_agenda_id) {
+                    throw new RuntimeException('Agenda items can only move within the same court agenda.');
+                }
+                $item->court_agenda_segment_id = $targetSegmentId;
+                $item->sort_order = max(0, $targetSortOrder);
+                $item->modified_by = $actorId;
+                $items->saveOrFail($item);
+                if ($sourceSegmentId !== $targetSegmentId) {
+                    $this->renumberItems($sourceSegmentId);
+                }
+                $this->renumberItems($targetSegmentId);
+            },
+        );
     }
 
     /**
@@ -308,7 +347,11 @@ class CourtAgendaService
         if (str_contains($level, 'grant')) {
             return 8;
         }
-        if (str_contains($level, 'award') || str_contains($awardName, 'award of arms') || str_contains($awardName, 'aoa')) {
+        if (
+            str_contains($level, 'award')
+            || str_contains($awardName, 'award of arms')
+            || str_contains($awardName, 'aoa')
+        ) {
             return 4;
         }
 
@@ -399,7 +442,11 @@ class CourtAgendaService
      */
     private function nextItemSortOrder(int $segmentId): int
     {
-        return $this->nextSortOrder($this->fetchTable('Awards.CourtAgendaItems'), 'court_agenda_segment_id', $segmentId);
+        return $this->nextSortOrder(
+            $this->fetchTable('Awards.CourtAgendaItems'),
+            'court_agenda_segment_id',
+            $segmentId,
+        );
     }
 
     /**
@@ -415,7 +462,7 @@ class CourtAgendaService
             ->where([$foreignKey => $foreignId])
             ->first();
 
-        return ((int)($row->max_order ?? 0)) + 10;
+        return (int)($row->max_order ?? 0) + 10;
     }
 
     /**

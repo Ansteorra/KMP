@@ -8,6 +8,7 @@ use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowApprovalResponse;
 use App\Model\Entity\WorkflowApprovalTriageState;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
+use Awards\Model\Entity\ApprovalProcessStep;
 use Awards\Model\Entity\Recommendation;
 use Awards\Model\Entity\RecommendationApprovalRun;
 use Cake\I18n\DateTime;
@@ -280,11 +281,17 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
     {
         $this->authenticateAsSuperUser();
         [$instanceId, $executionLogId] = $this->createWorkflowContext('awards-recommendation-submitted');
+        $recommendation = $this->createExistingRecommendation();
+        $run = $this->createRecommendationApprovalRunWithSteps((int)$recommendation->id, $instanceId, 'crown');
         $this->createApproval(
             $instanceId,
             $executionLogId,
             'Award Recommendation: Needs Gathering',
-            ['member_id' => self::ADMIN_MEMBER_ID],
+            [
+                'member_id' => self::ADMIN_MEMBER_ID,
+                'award_approval_run_id' => (int)$run->id,
+                'award_approval_step_key' => 'crown',
+            ],
         );
 
         $this->get('/approvals/grid-data');
@@ -305,14 +312,18 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
     {
         $this->authenticateAsSuperUser();
         [$instanceId, $executionLogId] = $this->createWorkflowContext('awards-recommendation-submitted');
+        $recommendation = $this->createExistingRecommendation();
+        $run = $this->createRecommendationApprovalRunWithSteps((int)$recommendation->id, $instanceId, 'crown');
         $this->createApproval(
             $instanceId,
             $executionLogId,
             'Award Recommendation: Ranked Gathering Lookup',
-            ['member_id' => self::ADMIN_MEMBER_ID],
+            [
+                'member_id' => self::ADMIN_MEMBER_ID,
+                'award_approval_run_id' => (int)$run->id,
+                'award_approval_step_key' => 'crown',
+            ],
         );
-        $recommendation = $this->createExistingRecommendation();
-        $this->createRecommendationApprovalRun((int)$recommendation->id, $instanceId);
 
         $this->get('/approvals/grid-data');
 
@@ -331,15 +342,76 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
         );
     }
 
+    public function testAwardApprovalGridPayloadSuppressesGatheringForNonFinalApprovalStep(): void
+    {
+        $this->authenticateAsSuperUser();
+        [$instanceId, $executionLogId] = $this->createWorkflowContext('awards-recommendation-submitted');
+        $recommendation = $this->createExistingRecommendation();
+        $run = $this->createRecommendationApprovalRunWithSteps((int)$recommendation->id, $instanceId, 'local');
+        $this->createApproval(
+            $instanceId,
+            $executionLogId,
+            'Award Recommendation: Non-final Step',
+            [
+                'member_id' => self::ADMIN_MEMBER_ID,
+                'requires_bestowal_gathering' => true,
+                'award_approval_run_id' => (int)$run->id,
+                'award_approval_step_key' => 'local',
+            ],
+        );
+
+        $this->get('/approvals/grid-data');
+
+        $this->assertResponseOk();
+        $payload = $this->approvalPayloadForRequest('Award Recommendation: Non-final Step');
+        $this->assertArrayNotHasKey('requires_bestowal_gathering', $payload['approver_config']);
+        $this->assertArrayNotHasKey('bestowal_gathering_url', $payload['approver_config']);
+    }
+
+    public function testAwardApprovalGridPayloadAllowsGatheringForFinalApprovalStep(): void
+    {
+        $this->authenticateAsSuperUser();
+        [$instanceId, $executionLogId] = $this->createWorkflowContext('awards-recommendation-submitted');
+        $recommendation = $this->createExistingRecommendation();
+        $run = $this->createRecommendationApprovalRunWithSteps((int)$recommendation->id, $instanceId, 'crown');
+        $this->createApproval(
+            $instanceId,
+            $executionLogId,
+            'Award Recommendation: Final Step',
+            [
+                'member_id' => self::ADMIN_MEMBER_ID,
+                'requires_bestowal_gathering' => true,
+                'award_approval_run_id' => (int)$run->id,
+                'award_approval_step_key' => 'crown',
+            ],
+        );
+
+        $this->get('/approvals/grid-data');
+
+        $this->assertResponseOk();
+        $payload = $this->approvalPayloadForRequest('Award Recommendation: Final Step');
+        $this->assertTrue($payload['approver_config']['requires_bestowal_gathering'] ?? false);
+        $this->assertSame(
+            '/awards/bestowals/gatherings-for-bestowal-auto-complete?recommendation_id=' . (int)$recommendation->id,
+            $payload['approver_config']['bestowal_gathering_url'] ?? null,
+        );
+    }
+
     public function testAwardApprovalKanbanPayloadRequiresGatheringFromWorkflowSlug(): void
     {
         $this->authenticateAsSuperUser();
         [$instanceId, $executionLogId] = $this->createWorkflowContext('awards-recommendation-submitted');
+        $recommendation = $this->createExistingRecommendation();
+        $run = $this->createRecommendationApprovalRunWithSteps((int)$recommendation->id, $instanceId, 'crown');
         $approvalId = $this->createApproval(
             $instanceId,
             $executionLogId,
             'Award Recommendation: Kanban Gathering',
-            ['member_id' => self::ADMIN_MEMBER_ID],
+            [
+                'member_id' => self::ADMIN_MEMBER_ID,
+                'award_approval_run_id' => (int)$run->id,
+                'award_approval_step_key' => 'crown',
+            ],
         );
 
         $this->get('/approvals/kanban-lane?triage_state=new&view_id=sys-approvals-triage-board');
@@ -817,6 +889,77 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
             'status' => RecommendationApprovalRun::STATUS_IN_PROGRESS,
             'current_step_key' => 'approval',
             'current_step_label' => 'Approval',
+            'started' => DateTime::now(),
+        ]));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function approvalPayloadForRequest(string $requestTitle): array
+    {
+        $rows = array_values(iterator_to_array($this->viewVariable('data')));
+        $this->assertNotEmpty($rows);
+        $targetRows = array_values(array_filter(
+            $rows,
+            static fn($row): bool => (string)($row->request ?? '') === $requestTitle,
+        ));
+        $this->assertNotEmpty($targetRows);
+        $payload = json_decode((string)$targetRows[0]->bulk_response_payload, true);
+        $this->assertIsArray($payload);
+
+        return $payload;
+    }
+
+    private function createRecommendationApprovalRunWithSteps(
+        int $recommendationId,
+        int $workflowInstanceId,
+        string $currentStepKey,
+    ): RecommendationApprovalRun {
+        $approvalProcesses = TableRegistry::getTableLocator()->get('Awards.ApprovalProcesses');
+        $approvalProcess = $approvalProcesses->saveOrFail($approvalProcesses->newEntity([
+            'name' => 'Unified Approval Step Test ' . uniqid('', true),
+            'description' => 'Seeded by unified approval controller test.',
+            'is_active' => true,
+            'approval_process_steps' => [
+                [
+                    'step_key' => 'local',
+                    'label' => 'Local approval',
+                    'sequence' => 1,
+                    'step_type' => ApprovalProcessStep::STEP_TYPE_APPROVAL,
+                    'approver_type' => ApprovalProcessStep::APPROVER_TYPE_MEMBER,
+                    'approver_source_id' => self::ADMIN_MEMBER_ID,
+                    'branch_mode' => ApprovalProcessStep::BRANCH_MODE_AWARD,
+                    'threshold_mode' => ApprovalProcessStep::THRESHOLD_ANY,
+                    'on_reject' => ApprovalProcessStep::ACTION_RETURN_PREVIOUS,
+                    'on_request_changes' => ApprovalProcessStep::ACTION_RETURN_PREVIOUS,
+                    'retain_read_visibility' => true,
+                ],
+                [
+                    'step_key' => 'crown',
+                    'label' => 'Crown approval',
+                    'sequence' => 2,
+                    'step_type' => ApprovalProcessStep::STEP_TYPE_APPROVAL,
+                    'approver_type' => ApprovalProcessStep::APPROVER_TYPE_MEMBER,
+                    'approver_source_id' => self::ADMIN_MEMBER_ID,
+                    'branch_mode' => ApprovalProcessStep::BRANCH_MODE_AWARD,
+                    'threshold_mode' => ApprovalProcessStep::THRESHOLD_ANY,
+                    'on_reject' => ApprovalProcessStep::ACTION_RETURN_PREVIOUS,
+                    'on_request_changes' => ApprovalProcessStep::ACTION_RETURN_PREVIOUS,
+                    'retain_read_visibility' => true,
+                ],
+            ],
+        ], ['associated' => ['ApprovalProcessSteps']]));
+
+        $runs = TableRegistry::getTableLocator()->get('Awards.RecommendationApprovalRuns');
+
+        return $runs->saveOrFail($runs->newEntity([
+            'recommendation_id' => $recommendationId,
+            'approval_process_id' => (int)$approvalProcess->id,
+            'workflow_instance_id' => $workflowInstanceId,
+            'status' => RecommendationApprovalRun::STATUS_IN_PROGRESS,
+            'current_step_key' => $currentStepKey,
+            'current_step_label' => $currentStepKey === 'crown' ? 'Crown approval' : 'Local approval',
             'started' => DateTime::now(),
         ]));
     }

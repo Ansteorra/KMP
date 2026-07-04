@@ -34,7 +34,9 @@
 
 <body>
     <div class="error-container">
-        <?= $this->Flash->render() ?>
+        <div id="flash-messages">
+            <?= $this->Flash->render() ?>
+        </div>
         <main id="main-content" tabindex="-1">
             <?= $this->fetch("content") ?>
         </main>

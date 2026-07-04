@@ -148,6 +148,8 @@ class RecommendationFeedbackService
                     $requests[] = (int)$request->id;
                 }
 
+                $this->dispatchWorkflowEvents($workflowEvents);
+
                 return $requests;
             });
         } catch (Throwable $e) {
@@ -155,8 +157,6 @@ class RecommendationFeedbackService
 
             return new ServiceResult(false, $e->getMessage());
         }
-
-        $this->dispatchWorkflowEvents($workflowEvents);
 
         return new ServiceResult(true, null, ['requestIds' => $created]);
     }
@@ -268,12 +268,10 @@ class RecommendationFeedbackService
                     'triggeredBy' => $memberId,
                 ];
 
+                $this->dispatchWorkflowEvents($workflowEvents);
+
                 return new ServiceResult(true);
             });
-
-            if ($result instanceof ServiceResult && $result->isSuccess()) {
-                $this->dispatchWorkflowEvents($workflowEvents);
-            }
 
             return $result ?: new ServiceResult(false, 'Feedback response failed.');
         } catch (Throwable $e) {
@@ -343,12 +341,10 @@ class RecommendationFeedbackService
                     'triggeredBy' => null,
                 ];
 
+                $this->dispatchWorkflowEvents($workflowEvents);
+
                 return new ServiceResult(true, null, ['expired' => true]);
             });
-
-            if ($result instanceof ServiceResult && $result->isSuccess()) {
-                $this->dispatchWorkflowEvents($workflowEvents);
-            }
 
             return $result ?: new ServiceResult(false, 'Feedback expiration failed.');
         } catch (Throwable $e) {
@@ -427,12 +423,10 @@ class RecommendationFeedbackService
                     ];
                 }
 
+                $this->dispatchWorkflowEvents($workflowEvents);
+
                 return new ServiceResult(true);
             });
-
-            if ($result instanceof ServiceResult && $result->isSuccess()) {
-                $this->dispatchWorkflowEvents($workflowEvents);
-            }
 
             return $result ?: new ServiceResult(false, 'Retraction failed.');
         } catch (Throwable $e) {
@@ -443,34 +437,36 @@ class RecommendationFeedbackService
     }
 
     /**
-     * Dispatch feedback workflow trigger events after domain state has committed.
+     * Dispatch feedback workflow trigger events inside the surrounding write transaction.
      *
      * @param array<int, array{eventName: string, eventData: array<string, mixed>, triggeredBy: int|null}> $events
+     * @return void
      */
     private function dispatchWorkflowEvents(array $events): void
     {
         foreach ($events as $event) {
-            try {
-                if ($this->triggerDispatcher !== null) {
-                    $this->triggerDispatcher->dispatch(
-                        $event['eventName'],
-                        $event['eventData'],
-                        $event['triggeredBy'],
-                    );
-                } else {
-                    EventManager::instance()->dispatch(new Event('Workflow.trigger', $this, [
-                        'eventName' => $event['eventName'],
-                        'eventData' => $event['eventData'],
-                        'triggeredBy' => $event['triggeredBy'],
-                    ]));
-                }
-            } catch (Throwable $e) {
-                Log::warning(sprintf(
-                    'Recommendation feedback workflow trigger "%s" failed: %s',
+            if ($this->triggerDispatcher !== null) {
+                $results = $this->triggerDispatcher->dispatch(
                     $event['eventName'],
-                    $e->getMessage(),
-                ));
+                    $event['eventData'],
+                    $event['triggeredBy'],
+                );
+                foreach ($results as $result) {
+                    if ($result instanceof ServiceResult && !$result->isSuccess()) {
+                        throw new RuntimeException(
+                            $result->getError() ?? "Recommendation feedback workflow trigger \"{$event['eventName']}\" failed.",
+                        );
+                    }
+                }
+
+                continue;
             }
+
+            EventManager::instance()->dispatch(new Event('Workflow.trigger', $this, [
+                'eventName' => $event['eventName'],
+                'eventData' => $event['eventData'],
+                'triggeredBy' => $event['triggeredBy'],
+            ]));
         }
     }
 

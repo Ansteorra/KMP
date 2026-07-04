@@ -13,14 +13,10 @@ use Awards\Model\Entity\Bestowal;
 $modalId = $modalId ?? 'adHocBestowalModal';
 $formData = $adHocFormData ?? [];
 $bestowal = $formData['bestowal'] ?? new Bestowal([
-    'state' => 'Created',
-    'status' => 'Planning',
+    'lifecycle_status' => Bestowal::LIFECYCLE_OPEN,
     'stack_rank' => 0,
     'source' => Bestowal::SOURCE_AD_HOC,
 ]);
-$rules = $formData['rules'] ?? [];
-$statusList = $formData['statusList'] ?? [];
-$statusMap = $formData['statusMap'] ?? [];
 $awardsDomains = $formData['awardsDomains'] ?? [];
 $awards = $formData['awards'] ?? [];
 $courtSlotList = $formData['courtSlotList'] ?? [];
@@ -118,12 +114,6 @@ $submitAction = implode(' ', [
                             </p>
                         </div>
                     </div>
-                    <script type="application/json" data-awards-bestowal-edit-target="stateRulesBlock" class="d-none">
-                        <?= json_encode($rules) ?>
-                    </script>
-                    <script type="application/json" data-awards-bestowal-edit-status-map-json class="d-none">
-                        <?= json_encode($statusMap) ?>
-                    </script>
                     <script type="application/json" data-awards-bestowal-edit-target="bestowedDateHints" class="d-none">
                         <?= json_encode([
                             'gatheringStartDate' => $gatheringStartDateYmd,
@@ -156,9 +146,9 @@ $submitAction = implode(' ', [
                                             'member_sca_name',
                                             'member_public_id',
                                             $memberLookupUrl,
-                                            __('Member Receiving Award'),
+                                            __('Recipient Name'),
                                             true,
-                                            false,
+                                            true,
                                             3,
                                             [
                                                 'data-awards-bestowal-edit-target' => 'member',
@@ -166,6 +156,12 @@ $submitAction = implode(' ', [
                                                     'autocomplete.change->awards-bestowal-edit#onMemberChange',
                                             ],
                                         ) ?>
+                                       <div class="form-text">
+                                           <?= __(
+                                               'Select a member account, or type the recipient SCA name '
+                                               . 'if they do not have one.',
+                                           ) ?>
+                                       </div>
                                     </div>
 
                                     <div class="col-12 col-lg-6">
@@ -206,37 +202,29 @@ $submitAction = implode(' ', [
                                         ) ?>
                                     </div>
 
-                                    <div class="col-12 col-sm-6">
-                                        <label class="form-label" id="<?= h($modalId) ?>StatusLabel">
-                                            <?= __('Status') ?>
-                                        </label>
-                                        <div class="form-control-plaintext border rounded bg-light px-3 py-2"
-                                            aria-labelledby="<?= h($modalId) ?>StatusLabel"
-                                            data-awards-bestowal-edit-target="statusDisplay">
-                                            <?= h($bestowal->status) ?>
+                                    <div class="col-12 col-lg-8 d-none"
+                                        data-awards-bestowal-edit-target="specialtyBlock">
+                                        <?= $this->KMP->comboBoxControl(
+                                            $this->Form,
+                                            'specialty',
+                                            'specialty_hidden',
+                                            [],
+                                            __('Specialty'),
+                                            false,
+                                            true,
+                                            [
+                                                'data-awards-bestowal-edit-target' => 'specialty',
+                                                'data-action' =>
+                                                    'change->awards-bestowal-edit#updateSubmitState',
+                                            ],
+                                        ) ?>
+                                        <div class="form-text">
+                                            <?= __(
+                                                'Select a configured specialty or type the specialty to record.',
+                                            ) ?>
                                         </div>
                                     </div>
 
-                                    <div class="col-12 col-sm-6">
-                                        <?= $this->Form->control('state', [
-                                            'label' => __('State'),
-                                            'options' => $statusList,
-                                            'value' => $bestowal->state,
-                                            'data-awards-bestowal-edit-target' => 'state',
-                                            'data-action' => implode(' ', [
-                                                'change->awards-bestowal-edit#setFieldRules',
-                                                'change->awards-bestowal-edit#updateStatusDisplay',
-                                            ]),
-                                        ]) ?>
-                                    </div>
-
-                                    <div class="col-12 col-sm-6"
-                                        data-awards-bestowal-edit-target="closeReasonBlock">
-                                        <?= $this->Form->control('close_reason', [
-                                            'label' => __('Reason for Cancellation'),
-                                            'data-awards-bestowal-edit-target' => 'closeReason',
-                                        ]) ?>
-                                    </div>
                                 </div>
                             </fieldset>
                         </div>
@@ -335,12 +323,6 @@ $submitAction = implode(' ', [
                                         ]) ?>
                                     </div>
 
-                                    <div class="col-12 col-md-6">
-                                        <?= $this->Form->control('specialty', [
-                                            'label' => __('Specialty'),
-                                            'help' => __('Optional specialty for heralds and scribes.'),
-                                        ]) ?>
-                                    </div>
                                 </div>
                             </fieldset>
                         </div>

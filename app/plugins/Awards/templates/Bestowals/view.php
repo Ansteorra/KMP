@@ -216,6 +216,7 @@ $gatingPercent = $todoGatingTotal > 0 ? (int)round($todoGatingDone / $todoGating
         'todoItems' => $todoItems,
         'todoEligibility' => $todoEligibility,
         'todoRequirementStatus' => $todoRequirementStatus ?? [],
+        'todoBlockedStatus' => $todoBlockedStatus ?? [],
         'todoGatingTotal' => $todoGatingTotal,
         'todoGatingDone' => $todoGatingDone,
         'gatingPercent' => $gatingPercent,

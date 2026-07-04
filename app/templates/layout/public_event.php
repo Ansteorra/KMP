@@ -655,7 +655,9 @@
     <a class="visually-hidden-focusable position-absolute top-0 start-0 z-3 m-2 p-2 bg-white border rounded" href="#main-content">
         <?= __('Skip to main content') ?>
     </a>
-    <?= $this->Flash->render() ?>
+    <div id="flash-messages">
+        <?= $this->Flash->render() ?>
+    </div>
     <main id="main-content" tabindex="-1">
         <?= $this->fetch('content') ?>
     </main>

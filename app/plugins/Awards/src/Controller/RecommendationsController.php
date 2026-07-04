@@ -10,7 +10,6 @@ use App\Controller\WorkflowDispatchTrait;
 use App\KMP\GridRowDomId;
 use App\KMP\GridViewConfig;
 use App\KMP\StaticHelpers;
-use App\KMP\WorkflowApprovalDecisionOptions;
 use App\Model\Entity\Member;
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowApprovalResponse;
@@ -23,6 +22,8 @@ use App\Services\WorkflowEngine\TriggerDispatcher;
 use Awards\KMP\GridColumns\RecommendationsGridColumns;
 use Awards\Model\Entity\Recommendation;
 use Awards\Services\BestowalGatheringLookupService;
+use Awards\Services\RecommendationApprovalDecisionService;
+use Awards\Services\RecommendationApprovalProcessService;
 use Awards\Services\RecommendationFeedbackService;
 use Awards\Services\RecommendationFormService;
 use Awards\Services\RecommendationGroupingService;
@@ -697,9 +698,11 @@ class RecommendationsController extends AppController
      */
     public function memberSubmittedRecsGridData(CsvExportService $csvExportService, RecommendationQueryService $queryService, ?int $memberId = null)
     {
+        $user = $this->request->getAttribute('identity');
+
         // Resolve member ID
         if ($memberId === null || $memberId === -1) {
-            $memberId = $this->request->getAttribute('identity')->id;
+            $memberId = $user->id;
         }
         $emptyRecommendation = $this->Recommendations->newEmptyEntity();
         $emptyRecommendation->requester_id = $memberId;
@@ -907,7 +910,33 @@ class RecommendationsController extends AppController
         }
 
         $pageContext = $this->getPageContextUrl();
-        if ($result->isSuccess() && $this->wantsTurboStreamRequest() && $pageContext !== null) {
+        if ($this->request->getData('feedback_origin') === 'detail' && $ids !== []) {
+            $pageContext = Router::url([
+                'plugin' => 'Awards',
+                'controller' => 'Recommendations',
+                'action' => 'view',
+                $ids[0],
+            ]);
+        }
+        $pageContextPath = $pageContext === null ? null : (parse_url($pageContext, PHP_URL_PATH) ?: $pageContext);
+        if (
+            $pageContextPath === null
+            || !preg_match('#^/awards/recommendations(?:/|$)#', (string)$pageContextPath)
+        ) {
+            $pageContext = $ids === []
+                ? Router::url(['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'index'])
+                : Router::url([
+                    'plugin' => 'Awards',
+                    'controller' => 'Recommendations',
+                    'action' => 'view',
+                    $ids[0],
+                ]);
+        }
+        if ($this->wantsTurboStreamRequest()) {
+            if ($pageContext !== null && !$this->isGridOriginRequest($pageContext)) {
+                return $this->renderTurboFlashOnly();
+            }
+
             return $this->renderTurboCloseModal(
                 'recommendations-grid-table',
                 ['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'gridData'],
@@ -1060,17 +1089,9 @@ class RecommendationsController extends AppController
         $decision = (string)$this->request->getData('decision');
         $comment = trim((string)$this->request->getData('comment'));
         $bestowalGatheringId = $this->getPostedBestowalGatheringId();
-        $approverConfig = $approval->approver_config ?? [];
-        $requiresComment = $decision === WorkflowApprovalResponse::DECISION_REJECT
-            || !empty($approverConfig['requires_comment']);
-        if ($requiresComment && $comment === '') {
-            $this->Flash->error(__('A comment is required for this approval decision.'));
-
-            return $this->redirect(['action' => 'view', $recommendation->id]);
-        }
-
-        if (!in_array($decision, WorkflowApprovalDecisionOptions::allowedValues($approverConfig), true)) {
-            $this->Flash->error(__('Invalid approval decision.'));
+        $validationError = RecommendationApprovalDecisionService::validateApprovalDecision($approval, $decision, $comment);
+        if ($validationError !== null) {
+            $this->Flash->error($validationError);
 
             return $this->redirect(['action' => 'view', $recommendation->id]);
         }
@@ -1270,19 +1291,7 @@ class RecommendationsController extends AppController
      */
     private function validateWorkflowDecision(WorkflowApproval $approval, string $decision, string $comment): ?string
     {
-        $approverConfig = is_array($approval->approver_config) ? $approval->approver_config : [];
-        $requiresComment = $decision === WorkflowApprovalResponse::DECISION_REJECT
-            || !empty($approverConfig['requires_comment']);
-
-        if ($requiresComment && $comment === '') {
-            return __('A comment is required for this approval decision.');
-        }
-
-        if (!in_array($decision, WorkflowApprovalDecisionOptions::allowedValues($approverConfig), true)) {
-            return __('Invalid approval decision.');
-        }
-
-        return null;
+        return RecommendationApprovalDecisionService::validateApprovalDecision($approval, $decision, $comment);
     }
 
     /**
@@ -1304,6 +1313,15 @@ class RecommendationsController extends AppController
         ?Recommendation $recommendation = null,
     ): array {
         if (!$this->approvalRequiresBestowalGatheringSelection($approval, $approverConfig)) {
+            unset(
+                $approverConfig[self::BESTOWAL_GATHERING_REQUIRED_KEY],
+                $approverConfig['requiresBestowalGathering'],
+                $approverConfig['bestowal_gathering_options'],
+                $approverConfig['bestowalGatheringOptions'],
+                $approverConfig['bestowal_gathering_url'],
+                $approverConfig['bestowalGatheringUrl'],
+            );
+
             return $approverConfig;
         }
 
@@ -1341,13 +1359,44 @@ class RecommendationsController extends AppController
         ?WorkflowApproval $approval,
         array $approverConfig,
     ): bool {
+        $finalStepState = $approval !== null
+            ? $this->awardApprovalFinalStepState($approval, $approverConfig)
+            : null;
+        if ($finalStepState === false) {
+            return false;
+        }
+
         if ($this->requiresBestowalGatheringSelection($approverConfig)) {
             return true;
         }
 
         $slug = (string)($approval?->workflow_instance?->workflow_definition?->slug ?? '');
 
-        return in_array($slug, self::BESTOWAL_GATHERING_WORKFLOW_SLUGS, true);
+        return $finalStepState === true && in_array($slug, self::BESTOWAL_GATHERING_WORKFLOW_SLUGS, true);
+    }
+
+    /**
+     * @param \App\Model\Entity\WorkflowApproval $approval Approval.
+     * @param array<string, mixed> $approverConfig Approval config.
+     * @return bool|null
+     */
+    private function awardApprovalFinalStepState(WorkflowApproval $approval, array $approverConfig): ?bool
+    {
+        $isAwardRecommendationWorkflow = in_array(
+            (string)($approval->workflow_instance?->workflow_definition?->slug ?? ''),
+            self::BESTOWAL_GATHERING_WORKFLOW_SLUGS,
+            true,
+        );
+        if (
+            !$isAwardRecommendationWorkflow
+            && empty($approverConfig['award_approval_run_id'])
+            && empty($approverConfig['award_approval_step_key'])
+            && !array_key_exists('award_approval_is_final_step', $approverConfig)
+        ) {
+            return null;
+        }
+
+        return (new RecommendationApprovalProcessService())->isFinalApprovalStep($approval, $approverConfig);
     }
 
     /**
@@ -1537,68 +1586,28 @@ class RecommendationsController extends AppController
         TriggerDispatcher $triggerDispatcher,
         ?int $bestowalGatheringId = null,
     ): ServiceResult {
-        $approvalManager = new DefaultWorkflowApprovalManager();
-        $result = $approvalManager->recordResponse(
-            (int)$approval->id,
+        return $this->getApprovalDecisionService($triggerDispatcher)->decide(
+            $approval,
             $memberId,
             $decision,
             $comment,
+            $bestowalGatheringId,
         );
+    }
 
-        if (!$result->isSuccess() || !$result->getData()) {
-            return $result;
-        }
-
-        $data = $result->getData();
-        $engine = $triggerDispatcher->getEngine();
-        if (
-            in_array($data['approvalStatus'] ?? '', [
-                WorkflowApproval::STATUS_APPROVED,
-                WorkflowApproval::STATUS_REJECTED,
-            ], true)
-        ) {
-            $outputPort = $data['approvalStatus'] === WorkflowApproval::STATUS_APPROVED ? 'approved' : 'rejected';
-            $resumeData = [
-                'approval' => $data,
-                'approverId' => $memberId,
-                'decision' => $decision,
-                'comment' => $comment,
-            ];
-            if ($bestowalGatheringId !== null) {
-                $resumeData['bestowalGatheringId'] = $bestowalGatheringId;
-            }
-
-            $resume = $engine->resumeWorkflow(
-                (int)$data['instanceId'],
-                (string)$data['nodeId'],
-                $outputPort,
-                $resumeData,
-            );
-            if (!$resume->isSuccess()) {
-                return new ServiceResult(
-                    false,
-                    $resume->getError() ?? __('The workflow could not be advanced.'),
-                );
-            }
-        } elseif (!empty($data['needsMore'])) {
-            $intermediateData = [
-                'approverId' => $memberId,
-                'decision' => $decision,
-                'comment' => $comment,
-                'nextApproverId' => $data['nextApproverId'] ?? null,
-            ];
-            if ($bestowalGatheringId !== null) {
-                $intermediateData['bestowalGatheringId'] = $bestowalGatheringId;
-            }
-
-            $engine->fireIntermediateApprovalActions(
-                (int)$data['instanceId'],
-                (string)$data['nodeId'],
-                $intermediateData,
-            );
-        }
-
-        return $result;
+    /**
+     * Build the approval decision service using the current workflow dispatcher.
+     *
+     * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher Trigger dispatcher
+     * @return \Awards\Services\RecommendationApprovalDecisionService
+     */
+    private function getApprovalDecisionService(
+        TriggerDispatcher $triggerDispatcher,
+    ): RecommendationApprovalDecisionService {
+        return new RecommendationApprovalDecisionService(
+            new DefaultWorkflowApprovalManager(),
+            $triggerDispatcher->getEngine(),
+        );
     }
 
     /**
@@ -3419,6 +3428,8 @@ class RecommendationsController extends AppController
                 'enableBulkSelection' => $gridState['config']['enableBulkSelection'] ?? false,
                 'bulkSelectionDataFields' => $gridState['config']['bulkSelectionDataFields'] ?? [],
                 'bulkSelectionDisabledField' => $gridState['config']['bulkSelectionDisabledField'] ?? null,
+                'bulkSelectionDisabledLabel' => $gridState['config']['bulkSelection']['disabledLabel'] ?? null,
+                'bulkSelectionHideDisabledControl' => $gridState['config']['bulkSelectionHideDisabledControl'] ?? false,
                 'rowDomIdPrefix' => preg_replace('/-table$/', '', $tableFrameId),
                 'showActionsColumn' => $enableColumnPicker || $rowActions !== [],
             ]);

@@ -8,6 +8,8 @@ use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\KMP\GridColumns\BestowalsGridColumns;
 use Awards\Model\Entity\Bestowal;
 use Cake\ORM\TableRegistry;
+use DOMDocument;
+use DOMXPath;
 
 /**
  * Coverage for the bestowal grid to-do summary badge and the remaining-to-do
@@ -31,7 +33,7 @@ class BestowalTodoGridTest extends HttpIntegrationTestCase
      * @param string $scaName Recipient display name
      * @return \Awards\Model\Entity\Bestowal
      */
-    private function makeBestowal(string $scaName): Bestowal
+    private function makeBestowal(string $scaName, string $lifecycleStatus = Bestowal::LIFECYCLE_OPEN): Bestowal
     {
         $award = TableRegistry::getTableLocator()->get('Awards.Awards')
             ->find()->select(['id'])->firstOrFail();
@@ -40,7 +42,7 @@ class BestowalTodoGridTest extends HttpIntegrationTestCase
             'member_id' => self::ADMIN_MEMBER_ID,
             'member_sca_name' => $scaName,
             'award_id' => $award->id,
-            'lifecycle_status' => Bestowal::LIFECYCLE_OPEN,
+            'lifecycle_status' => $lifecycleStatus,
             'source' => Bestowal::SOURCE_AD_HOC,
             'stack_rank' => 0,
         ]);
@@ -97,6 +99,71 @@ class BestowalTodoGridTest extends HttpIntegrationTestCase
         $this->assertResponseContains($name);
         $this->assertResponseContains('data-bs-toggle="popover"');
         $this->assertResponseContains('To-Do progress: 1 of 2 required checks complete');
+    }
+
+    /**
+     * Full table refreshes keep the bulk-selection cell on every row, but only
+     * render a visible checkbox for bestowals with a To-Do the user can complete.
+     *
+     * @return void
+     */
+    public function testGridDataRendersSelectionCellForEveryBestowalRow(): void
+    {
+        $prefix = 'todo-grid-checkbox-' . uniqid();
+        $open = $this->makeBestowal($prefix . '-open');
+        $noActionableTodo = $this->makeBestowal($prefix . '-no-actionable');
+        $cancelled = $this->makeBestowal($prefix . '-cancelled', Bestowal::LIFECYCLE_CANCELLED);
+        $this->makeTodo((int)$open->id, 'has_scroll');
+        $this->makeTodo((int)$noActionableTodo->id, 'has_scroll', ActionItem::STATUS_COMPLETED);
+
+        $url = '/awards/bestowals/grid-data?' . http_build_query([
+            'search' => $prefix,
+            'limit' => 10,
+            'ignore_default' => 1,
+        ]);
+        $this->get($url);
+
+        $this->assertResponseOk();
+
+        $dom = new DOMDocument();
+        $previousLibxmlSetting = libxml_use_internal_errors(true);
+        $dom->loadHTML((string)$this->_response->getBody());
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousLibxmlSetting);
+        $xpath = new DOMXPath($dom);
+
+        $expectedCellCount = null;
+        foreach (
+            [
+                (int)$open->id => true,
+                (int)$noActionableTodo->id => false,
+                (int)$cancelled->id => false,
+            ] as $bestowalId => $shouldRenderCheckbox
+        ) {
+            $rows = $xpath->query('//tr[@data-id="' . $bestowalId . '"]');
+            $this->assertNotFalse($rows);
+            $this->assertSame(1, $rows->length, 'Expected one rendered row for bestowal ' . $bestowalId);
+
+            $cells = $xpath->query('./td', $rows->item(0));
+            $this->assertNotFalse($cells);
+            $expectedCellCount ??= $cells->length;
+            $this->assertSame(
+                $expectedCellCount,
+                $cells->length,
+                'Every bestowal row should render the same number of cells.',
+            );
+
+            $checkboxes = $xpath->query(
+                './td[1]//input[@type="checkbox" and @data-grid-view-target="rowCheckbox"]',
+                $rows->item(0),
+            );
+            $this->assertNotFalse($checkboxes);
+            $this->assertSame(
+                $shouldRenderCheckbox ? 1 : 0,
+                $checkboxes->length,
+                'Unexpected bulk checkbox visibility for bestowal ' . $bestowalId,
+            );
+        }
     }
 
     /**

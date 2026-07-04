@@ -328,7 +328,17 @@ Then('I should be on a page containing {string}', async ({ page }, text) => {
 
 Then('the grid should show {int} or more results', async ({ page }, minCount) => {
     // Wait for turbo-frame grid to load
-    const rows = await waitForGridRows(page, GRID_ROWS_SELECTOR);
+    let rows;
+    try {
+        rows = await waitForGridRows(page, GRID_ROWS_SELECTOR);
+    } catch (error) {
+        if (!(await page.locator('body').textContent()).includes('Content missing')) {
+            throw error;
+        }
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await waitForPageBody(page);
+        rows = await waitForGridRows(page, GRID_ROWS_SELECTOR);
+    }
     const count = await rows.count();
     expect(count).toBeGreaterThanOrEqual(minCount);
 });

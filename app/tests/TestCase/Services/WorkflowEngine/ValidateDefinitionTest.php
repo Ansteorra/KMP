@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services\WorkflowEngine;
@@ -31,7 +30,19 @@ class ValidateDefinitionTest extends TestCase
      */
     private function validate(array $definition): array
     {
+        $definition += ['schemaVersion' => '1.0'];
+
         return $this->validateMethod->invoke($this->manager, $definition);
+    }
+
+    public function testMissingSchemaVersionReturnsError(): void
+    {
+        $errors = $this->validateMethod->invoke($this->manager, ['nodes' => [
+            'trigger1' => ['type' => 'trigger', 'outputs' => [['target' => 'end1']]],
+            'end1' => ['type' => 'end'],
+        ]]);
+
+        $this->assertContainsString('schemaVersion "1.0"', $errors);
     }
 
     // =====================================================

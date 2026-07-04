@@ -1,4 +1,6 @@
 {
+    "$schema": "./schema.json",
+    "schemaVersion": "1.0",
     "nodes": {
         "trigger-release": {
             "type": "trigger",

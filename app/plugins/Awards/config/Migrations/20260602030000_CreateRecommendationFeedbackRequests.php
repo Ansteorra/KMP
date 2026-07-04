@@ -295,20 +295,92 @@ class CreateRecommendationFeedbackRequests extends BaseMigration
         $existing = $this->fetchRow(
             "SELECT id FROM permissions WHERE name = 'Can Request Recommendation Feedback' LIMIT 1",
         );
-        if ($existing) {
+        if (!$existing) {
+            $this->table('permissions')->insert([
+                'name' => 'Can Request Recommendation Feedback',
+                'require_active_membership' => true,
+                'require_active_background_check' => false,
+                'require_min_age' => 0,
+                'is_system' => true,
+                'is_super_user' => false,
+                'requires_warrant' => true,
+                'created' => DateTime::now(),
+                'created_by' => 1,
+            ])->save();
+            $existing = $this->fetchRow(
+                "SELECT id FROM permissions WHERE name = 'Can Request Recommendation Feedback' LIMIT 1",
+            );
+        }
+
+        $permissionId = (int)$existing['id'];
+        $this->insertPermissionPolicyIfMissing(
+            $permissionId,
+            'Awards\\Policy\\RecommendationPolicy',
+            'canRequestFeedback',
+        );
+        $this->insertPermissionPolicyIfMissing(
+            $permissionId,
+            'Awards\\Policy\\RecommendationPolicy',
+            'canRetractFeedback',
+        );
+        $this->grantFeedbackPermissionToRecommendationManagers($permissionId);
+    }
+
+    /**
+     * Cross-engine insert-if-missing for permission_policies.
+     */
+    private function insertPermissionPolicyIfMissing(int $permissionId, string $policyClass, string $policyMethod): void
+    {
+        $class = str_replace("'", "''", $policyClass);
+        $method = str_replace("'", "''", $policyMethod);
+        $exists = $this->fetchRow(
+            "SELECT 1 FROM permission_policies
+             WHERE permission_id = {$permissionId}
+               AND policy_class = '{$class}'
+               AND policy_method = '{$method}'
+             LIMIT 1",
+        );
+        if ($exists) {
             return;
         }
 
-        $this->table('permissions')->insert([
-            'name' => 'Can Request Recommendation Feedback',
-            'require_active_membership' => true,
-            'require_active_background_check' => false,
-            'require_min_age' => 0,
-            'is_system' => true,
-            'is_super_user' => false,
-            'requires_warrant' => true,
-            'created' => DateTime::now(),
-            'created_by' => 1,
-        ])->save();
+        $this->execute(
+            "INSERT INTO permission_policies (permission_id, policy_class, policy_method)
+             VALUES ({$permissionId}, '{$class}', '{$method}')",
+        );
+    }
+
+    /**
+     * Existing recommendation managers should be able to use the feedback workflow.
+     */
+    private function grantFeedbackPermissionToRecommendationManagers(int $permissionId): void
+    {
+        $managePermission = $this->fetchRow(
+            "SELECT id FROM permissions WHERE name = 'Can Manage Recommendations' LIMIT 1",
+        );
+        if (!$managePermission) {
+            return;
+        }
+
+        $roleRows = $this->fetchAll(
+            'SELECT role_id FROM roles_permissions WHERE permission_id = ' . (int)$managePermission['id'],
+        );
+        foreach ($roleRows as $roleRow) {
+            $roleId = (int)$roleRow['role_id'];
+            $exists = $this->fetchRow(
+                "SELECT 1 FROM roles_permissions
+                 WHERE role_id = {$roleId}
+                   AND permission_id = {$permissionId}
+                 LIMIT 1",
+            );
+            if ($exists) {
+                continue;
+            }
+
+            $this->execute(
+                "INSERT INTO roles_permissions (role_id, permission_id, created, created_by)
+                 VALUES ({$roleId}, {$permissionId}, CURRENT_TIMESTAMP, 1)",
+            );
+        }
     }
 }

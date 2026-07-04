@@ -496,7 +496,18 @@ class RecommendationMigrationServiceTest extends BaseTestCase
                 int $instanceId,
                 string $nodeId,
                 array $approvalData,
+                string $outputPort = 'on_each_approval',
             ): ServiceResult {
+                return new ServiceResult(false, 'Not implemented for this test.');
+            }
+
+            public function completeHumanTask(int $taskId, array $formData, int $completedBy): ServiceResult
+            {
+                return new ServiceResult(false, 'Not implemented for this test.');
+            }
+
+            public function cancelHumanTask(int $taskId, ?string $reason = null): ServiceResult
+            {
                 return new ServiceResult(false, 'Not implemented for this test.');
             }
         });

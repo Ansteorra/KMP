@@ -69,6 +69,7 @@ class RecommendationApprovalProcessServiceTest extends BaseTestCase
             $result->data['approvalApproverConfig']['award_approval_approver_type'],
         );
         $this->assertSame(self::ADMIN_MEMBER_ID, $result->data['approvalApproverConfig']['member_id']);
+        $this->assertTrue($result->data['approvalApproverConfig']['award_approval_is_final_step']);
         $this->assertSame('Submitted', $this->freshRecommendationState((int)$recommendation->id));
     }
 
@@ -78,7 +79,12 @@ class RecommendationApprovalProcessServiceTest extends BaseTestCase
             $this->stepData('local', 'Local approval', 1),
             $this->stepData('crown', 'Crown approval', 2),
         ]);
-        $this->service->startProcess(['instanceId' => $instanceId], ['recommendationId' => (int)$recommendation->id]);
+        $started = $this->service->startProcess(
+            ['instanceId' => $instanceId],
+            ['recommendationId' => (int)$recommendation->id],
+        );
+        $this->assertTrue($started->isSuccess(), $started->getError() ?? '');
+        $this->assertFalse($started->data['approvalApproverConfig']['award_approval_is_final_step']);
 
         $advanced = $this->service->advanceProcess(
             ['instanceId' => $instanceId, 'approval' => ['approvalStatus' => 'approved']],
@@ -87,6 +93,7 @@ class RecommendationApprovalProcessServiceTest extends BaseTestCase
 
         $this->assertTrue($advanced->isSuccess(), $advanced->getError() ?? '');
         $this->assertSame('crown', $advanced->data['currentStepKey']);
+        $this->assertTrue($advanced->data['approvalApproverConfig']['award_approval_is_final_step']);
 
         $completed = $this->service->advanceProcess(
             ['instanceId' => $instanceId, 'approval' => ['approvalStatus' => 'approved']],
@@ -129,7 +136,7 @@ class RecommendationApprovalProcessServiceTest extends BaseTestCase
             ->get((int)$closed->data['runId']);
         $this->assertSame(RecommendationApprovalRun::TERMINAL_REASON_REJECTED, $run->terminal_reason);
         $freshRecommendation = $this->getTableLocator()->get('Awards.Recommendations')->get((int)$recommendation->id);
-        $this->assertSame('No Action', $freshRecommendation->state);
+        $this->assertSame('Submitted', $freshRecommendation->state);
         $this->assertSame($rejectionComment, $freshRecommendation->close_reason);
     }
 
@@ -312,7 +319,7 @@ class RecommendationApprovalProcessServiceTest extends BaseTestCase
             ])
             ->firstOrFail();
         $this->assertSame(WorkflowApproval::APPROVER_TYPE_DYNAMIC, $approval->approver_type);
-        $this->assertArrayNotHasKey('eligible_member_ids', $approval->approver_config);
+        $this->assertSame([self::ADMIN_MEMBER_ID], $approval->approver_config['eligible_member_ids']);
         $this->assertSame(
             ApprovalProcessStep::APPROVER_TYPE_MEMBER,
             $approval->approver_config['award_approval_approver_type'],

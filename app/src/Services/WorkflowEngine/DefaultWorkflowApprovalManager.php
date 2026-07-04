@@ -10,6 +10,7 @@ use App\Model\Entity\WorkflowApprovalResponse;
 use App\Model\Table\WorkflowApprovalsTable;
 use App\Services\ServiceResult;
 use App\Services\WorkflowRegistry\WorkflowApproverResolverRegistry;
+use Cake\Core\ContainerInterface;
 use Cake\Datasource\ConnectionManager;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
@@ -37,6 +38,13 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
      * Base delay in microseconds between optimistic lock retries (50ms).
      */
     private const RETRY_DELAY_US = 50000;
+
+    /**
+     * @param \Cake\Core\ContainerInterface|null $container Optional DI container for dynamic resolvers
+     */
+    public function __construct(private ?ContainerInterface $container = null)
+    {
+    }
 
     /**
      * Record a member's approval decision with optimistic-locking retries.
@@ -125,15 +133,7 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
             // Capture version at read time for optimistic lock check
             $currentVersion = (int)($approval->version ?? 1);
 
-            // Check eligibility before accepting the response
-            if (!WorkflowApprovalsTable::isPendingApprovalForMember($approvalId, $memberId)) {
-                return new ServiceResult(false, 'You are not eligible to respond to this approval.');
-            }
-
             $approverConfig = $approval->approver_config ?? [];
-            if (!in_array($decision, WorkflowApprovalDecisionOptions::allowedValues($approverConfig), true)) {
-                return new ServiceResult(false, 'Invalid approval decision.');
-            }
 
             // Check for duplicate response
             $existing = $responsesTable->find()
@@ -145,6 +145,40 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
 
             if ($existing) {
                 return new ServiceResult(false, 'Member has already responded to this approval.');
+            }
+
+            $isEligible = WorkflowApprovalsTable::isPendingApprovalForMember($approvalId, $memberId);
+            if ($approval->approver_type === WorkflowApproval::APPROVER_TYPE_DYNAMIC) {
+                $serviceRef = $approverConfig['service'] ?? null;
+                $method = $approverConfig['method'] ?? null;
+                if ($serviceRef !== null || $method !== null) {
+                    $dynamicApproverIds = $this->resolveDynamicApproverIds($approval);
+                    $currentApproverId = (int)(
+                        $approval->current_approver_id
+                        ?? $approverConfig['current_approver_id']
+                        ?? 0
+                    );
+                    $memberResolvedEligible = in_array($memberId, $dynamicApproverIds, true);
+                    $resolverEligible = $currentApproverId > 0
+                        ? $memberId === $currentApproverId && $memberResolvedEligible
+                        : $memberResolvedEligible;
+
+                    if (!$resolverEligible) {
+                        return new ServiceResult(false, 'You are not eligible to respond to this approval.');
+                    }
+                    if (!$isEligible && !$this->hasPriorDynamicWorkflowResponse($approval, $memberId)) {
+                        $isEligible = true;
+                    }
+                }
+            }
+
+            // Check eligibility before accepting the response
+            if (!$isEligible) {
+                return new ServiceResult(false, 'You are not eligible to respond to this approval.');
+            }
+
+            if (!in_array($decision, WorkflowApprovalDecisionOptions::allowedValues($approverConfig), true)) {
+                return new ServiceResult(false, 'Invalid approval decision.');
             }
 
             // Create response
@@ -295,10 +329,16 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
         try {
             $approvalsTable = TableRegistry::getTableLocator()->get('WorkflowApprovals');
 
-            $approverType = $config['approverType'] ?? WorkflowApproval::APPROVER_TYPE_PERMISSION;
-            $approverConfig = $config['approverConfig'] ?? null;
-            $requiredCount = (int)($config['requiredCount'] ?? 1);
-            $allowParallel = (bool)($config['allowParallel'] ?? true);
+            $approverType = $config['approver_type']
+                ?? $config['approverType']
+                ?? WorkflowApproval::APPROVER_TYPE_PERMISSION;
+            $approverConfig = $config['approver_config'] ?? $config['approverConfig'] ?? [];
+            $requiredCount = (int)($config['required_count'] ?? $config['requiredCount'] ?? 1);
+            $allowParallel = (bool)($config['allow_parallel']
+                ?? $config['allowParallel']
+                ?? $config['parallel']
+                ?? true);
+            $currentApproverId = $config['current_approver_id'] ?? $approverConfig['current_approver_id'] ?? null;
             $deadline = null;
 
             if (!empty($config['deadline'])) {
@@ -311,7 +351,7 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
                 'execution_log_id' => $executionLogId,
                 'approver_type' => $approverType,
                 'approver_config' => $approverConfig,
-                'current_approver_id' => $approverConfig['current_approver_id'] ?? null,
+                'current_approver_id' => $currentApproverId,
                 'request_title' => $approvalsTable->resolveRequestTitleForInstanceId($instanceId),
                 'required_count' => $requiredCount,
                 'approved_count' => 0,
@@ -319,9 +359,19 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
                 'status' => WorkflowApproval::STATUS_PENDING,
                 'allow_parallel' => $allowParallel,
                 'deadline' => $deadline,
+                'escalation_config' => $config['escalation_config'] ?? $config['escalationConfig'] ?? null,
                 'version' => 1,
                 'approval_token' => StaticHelpers::generateToken(32),
             ]);
+            if ($approval->approver_type === WorkflowApproval::APPROVER_TYPE_DYNAMIC) {
+                $eligibleMemberIds = $this->resolveDynamicApproverIds($approval);
+                $storedConfig = $approval->approver_config ?? [];
+                $storedConfig['eligible_member_ids'] = $eligibleMemberIds;
+                $approval->approver_config = $storedConfig;
+                if ($approval->current_approver_id === null && count($eligibleMemberIds) === 1) {
+                    $approval->current_approver_id = $eligibleMemberIds[0];
+                }
+            }
 
             if (!$approvalsTable->save($approval)) {
                 Log::error("Failed to create approval for instance {$instanceId}, node {$nodeId}");
@@ -329,7 +379,7 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
                 return new ServiceResult(false, 'Failed to create approval.');
             }
 
-            return new ServiceResult(true, null, ['approvalId' => $approval->id]);
+            return new ServiceResult(true, null, ['approvalId' => $approval->id, 'approval' => $approval]);
         } catch (Exception $e) {
             Log::error("Error creating approval: {$e->getMessage()}");
 
@@ -346,14 +396,75 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
     public function getPendingApprovalsForMember(int $memberId): array
     {
         try {
-            return WorkflowApprovalsTable::getPendingApprovalsForMember($memberId, [
+            $approvals = WorkflowApprovalsTable::getPendingApprovalsForMember($memberId, [
                 'WorkflowInstances' => ['WorkflowDefinitions'],
             ]);
+            $approvalsById = [];
+            foreach ($approvals as $approval) {
+                $approvalsById[(int)$approval->id] = $approval;
+            }
+
+            $fallbackApprovals = $this->getResolverBackedPendingDynamicApprovals($memberId);
+            foreach ($fallbackApprovals as $approval) {
+                $approvalsById[(int)$approval->id] = $approval;
+            }
+
+            return array_values($approvalsById);
         } catch (Exception $e) {
             Log::error("Error fetching pending approvals for member {$memberId}: {$e->getMessage()}");
 
             return [];
         }
+    }
+
+    /**
+     * Load callback-only dynamic approvals whose eligibility cannot be represented by lookup fields.
+     *
+     * @param int $memberId Member ID.
+     * @return array<\App\Model\Entity\WorkflowApproval>
+     */
+    private function getResolverBackedPendingDynamicApprovals(int $memberId): array
+    {
+        $approvals = TableRegistry::getTableLocator()->get('WorkflowApprovals')->find()
+            ->contain(['WorkflowInstances' => ['WorkflowDefinitions']])
+            ->where([
+                'WorkflowApprovals.status' => WorkflowApproval::STATUS_PENDING,
+                'WorkflowApprovals.approver_type' => WorkflowApproval::APPROVER_TYPE_DYNAMIC,
+            ])
+            ->orderBy(['WorkflowApprovals.modified' => 'DESC', 'WorkflowApprovals.id' => 'DESC'])
+            ->all()
+            ->toArray();
+
+        $eligibleApprovals = [];
+        foreach ($approvals as $approval) {
+            if ($this->hasPriorDynamicWorkflowResponse($approval, $memberId)) {
+                continue;
+            }
+
+            $config = $approval->approver_config ?? [];
+            if (($config['service'] ?? null) === null && ($config['method'] ?? null) === null) {
+                continue;
+            }
+
+            try {
+                $dynamicApproverIds = $this->resolveDynamicApproverIds($approval);
+            } catch (RuntimeException $e) {
+                Log::error("Dynamic approver resolution failed: {$e->getMessage()}");
+
+                continue;
+            }
+
+            $currentApproverId = (int)($approval->current_approver_id ?? $config['current_approver_id'] ?? 0);
+            $memberResolvedEligible = in_array($memberId, $dynamicApproverIds, true);
+            $isEligible = $currentApproverId > 0
+                ? $memberId === $currentApproverId && $memberResolvedEligible
+                : $memberResolvedEligible;
+            if ($isEligible) {
+                $eligibleApprovals[] = $approval;
+            }
+        }
+
+        return $eligibleApprovals;
     }
 
     /**
@@ -747,6 +858,14 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
         $config = $approval->approver_config ?? [];
         $serviceRef = $config['service'] ?? null;
         $method = $config['method'] ?? null;
+        if (
+            $serviceRef === null
+            && $method === null
+            && isset($config['eligible_member_ids'])
+            && is_array($config['eligible_member_ids'])
+        ) {
+            return array_values(array_unique(array_map('intval', $config['eligible_member_ids'])));
+        }
 
         // Try registry lookup first
         $registryEntry = $serviceRef ? WorkflowApproverResolverRegistry::getResolver($serviceRef) : null;
@@ -769,7 +888,9 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
             throw new RuntimeException("Dynamic approver service class '{$serviceClass}' not found.");
         }
 
-        $service = new $serviceClass();
+        $service = $this->container !== null && $this->container->has($serviceClass)
+            ? $this->container->get($serviceClass)
+            : new $serviceClass();
         if (!method_exists($service, $method)) {
             throw new RuntimeException("Method '{$method}' not found on '{$serviceClass}'.");
         }

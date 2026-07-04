@@ -93,15 +93,22 @@ run_check() {
 }
 
 # 1. PHPUnit
-run_check "PHPUnit Tests" 'composer test 2>&1 | tail -20; test "${PIPESTATUS[0]}" -eq 0'
+run_check "PHPUnit Tests" '
+    vendor/bin/phpunit --colors=always --testsuite core-unit &&
+    vendor/bin/phpunit --colors=always --testsuite core-feature &&
+    vendor/bin/phpunit --colors=always --testsuite plugins
+'
 
-# 2. Jest
+# 2. Skipped-test budget
+run_check "Skipped-Test Budget" 'bash bin/enforce_skip_budget.sh'
+
+# 3. Jest
 run_check "Jest Tests" 'npm run test:js 2>&1; test "${PIPESTATUS[0]}" -eq 0'
 
-# 3. Vite Build
+# 4. Vite Build
 run_check "Vite Build" 'npm run dev 2>&1 | tail -10; test "${PIPESTATUS[0]}" -eq 0'
 
-# 4. PHPCS (pre-existing violations are baselined — only check files we've changed)
+# 5. PHPCS (pre-existing violations are baselined — only check files we've changed)
 run_check "PHPCS Code Style" '
     # Check only staged/modified files for PHPCS violations
     CHANGED_PHP=$(cd "$APP_DIR/.." && git diff --name-only --diff-filter=ACMR HEAD -- "app/src/**/*.php" "app/plugins/**/*.php" "app/tests/**/*.php" 2>/dev/null | sed "s|^app/||")
@@ -114,7 +121,7 @@ run_check "PHPCS Code Style" '
     test "${PIPESTATUS[0]}" -eq 0
 '
 
-# 5. PHPStan Static Analysis (with known baseline errors)
+# 6. PHPStan Static Analysis (with known baseline errors)
 run_check "PHPStan Static Analysis" '
     OUTPUT=$(vendor/bin/phpstan analyse --no-progress --memory-limit=1G 2>&1)
     EXIT_CODE=$?

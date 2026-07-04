@@ -139,7 +139,7 @@ class AutoComplete extends Controller {
             this.hiddenTarget.value = newValue.value;
             this.hiddenTextTarget.value = newValue.text;
             this.clearBtnTarget.disabled = false;
-            this.inputTarget.disabled = true;
+            this.inputTarget.disabled = !this.allowOtherValue;
             return;
         }
         //if the value matches an option set the input value to the option text
@@ -150,7 +150,7 @@ class AutoComplete extends Controller {
                 this.hiddenTextTarget.value = option.text;
                 this.hiddenTarget.value = option.value;
                 this.clearBtnTarget.disabled = false;
-                this.inputTarget.disabled = true;
+                this.inputTarget.disabled = !this.allowOtherValue;
                 return;
             } else {
                 if (this.allowOtherValue) {
@@ -170,7 +170,7 @@ class AutoComplete extends Controller {
                 }
                 if (newValue != "") {
                     this.clearBtnTarget.disabled = false;
-                    this.inputTarget.disabled = true;
+                    this.inputTarget.disabled = !this.allowOtherValue;
                 } else {
                     this.clearBtnTarget.disabled = true;
                     this.inputTarget.disabled = false;
@@ -191,7 +191,7 @@ class AutoComplete extends Controller {
         this.hiddenTarget.disabled = newValue;
         this.hiddenTextTarget.disabled = newValue;
         if (this.inputTarget.value != "") {
-            this.inputTarget.disabled = true;
+            this.inputTarget.disabled = newValue || !this.allowOtherValue;
             this.clearBtnTarget.disabled = newValue;
         } else {
             this.clearBtnTarget.disabled = true;
@@ -343,7 +343,7 @@ class AutoComplete extends Controller {
                 this.hiddenTextTarget.value = initSelection.text;
                 this.inputTarget.value = initSelection.text;
                 if (initSelection.value) {
-                    this.inputTarget.disabled = true;
+                    this.inputTarget.disabled = !this.allowOtherValue;
                     this.clearBtnTarget.disabled = false;
                     if (this.hasHiddenTarget) {
                         this.hiddenTarget.disabled = false;
@@ -638,7 +638,7 @@ class AutoComplete extends Controller {
             this.inputTarget.disabled = false;
         } else {
             this.clearBtnTarget.disabled = false;
-            this.inputTarget.disabled = true;
+            this.inputTarget.disabled = !this.allowOtherValue;
         }
         this.element.dispatchEvent(new CustomEvent("change", { bubbles: true }));
         this.state = "finished";
@@ -672,7 +672,9 @@ class AutoComplete extends Controller {
     onInputChange = () => {
         this.hiddenTextTarget.value = this.inputTarget.value;
         if (this.hasHiddenTarget) this.hiddenTarget.value = "";
-        if (this.hasHiddenTextTarget) this.hiddenTextTarget.value = "";
+        if (this.hasHiddenTextTarget) {
+            this.hiddenTextTarget.value = this.allowOtherValue ? this.inputTarget.value : "";
+        }
 
         const query = this.inputTarget.value.trim();
         if ((query && query.length >= this.minLengthValue) || this.hasDataListTarget || (this.showOnFocusValue && this.hasUrlValue)) {

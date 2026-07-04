@@ -833,7 +833,18 @@ echo $this->KMP->startBlock("modals"); ?>
 
 <?= $this->element('recommendationEditModal') ?>
 <?php if ($user->checkCan("requestFeedback", $recommendation)) : ?>
-<?= $this->element('recommendationFeedbackModal', ['modalId' => 'requestRecommendationFeedbackModal']) ?>
+<?= $this->element('recommendationFeedbackModal', [
+    'modalId' => 'requestRecommendationFeedbackModal',
+    'feedbackOrigin' => 'detail',
+    'selectedRecommendationIds' => [$recommendation->id],
+    'staticPageContext' => true,
+    'pageContextUrl' => $this->Url->build([
+        'plugin' => 'Awards',
+        'controller' => 'Recommendations',
+        'action' => 'view',
+        $recommendation->id,
+    ]),
+]) ?>
 <?php endif; ?>
 
 <?php $this->KMP->endBlock(); ?>

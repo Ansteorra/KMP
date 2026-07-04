@@ -59,13 +59,22 @@ When('I apply a recommendations grid search for {string}', async ({ page }, sear
 
     const searchInput = dropdown.locator('[data-grid-view-target="searchInput"]');
     await expect(searchInput).toBeVisible({ timeout: 30000 });
-    await searchInput.fill(searchText);
     await Promise.all([
         page.waitForResponse(
-            (response) => response.url().includes('/awards/recommendations/grid-data') && response.status() === 200,
+            (response) => {
+                const url = new URL(response.url());
+                return url.pathname.endsWith('/awards/recommendations/grid-data')
+                    && url.searchParams.get('search') === searchText
+                    && response.status() === 200;
+            },
             { timeout: 30000 },
         ),
-        searchInput.press('Enter'),
+        (async () => {
+            await searchInput.click();
+            await searchInput.fill('');
+            await searchInput.pressSequentially(searchText);
+            await searchInput.press('Enter');
+        })(),
     ]);
     await waitForRecommendationsGridReady(page);
 });

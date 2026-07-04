@@ -19,21 +19,26 @@ class BestowalUpdateService
     private BestowalRecommendationSyncService $syncService;
     private BestowalRecommendationLinkService $linkService;
     private BestowalGatheringLookupService $gatheringLookupService;
+    private BestowalCourtSlotService $courtSlotService;
 
     /**
      * @param \Awards\Services\BestowalRecommendationSyncService|null $syncService Optional sync service.
      * @param \Awards\Services\BestowalRecommendationLinkService|null $linkService Optional link service.
+     * @param \Awards\Services\BestowalGatheringLookupService|null $gatheringLookupService Optional lookup service.
+     * @param \Awards\Services\BestowalCourtSlotService|null $courtSlotService Optional court slot service.
      */
     public function __construct(
         ?BestowalRecommendationSyncService $syncService = null,
         ?BestowalRecommendationLinkService $linkService = null,
         ?BestowalGatheringLookupService $gatheringLookupService = null,
+        ?BestowalCourtSlotService $courtSlotService = null,
     ) {
         $this->syncService = $syncService ?? new BestowalRecommendationSyncService();
         $this->linkService = $linkService ?? new BestowalRecommendationLinkService(
             syncService: $this->syncService,
         );
         $this->gatheringLookupService = $gatheringLookupService ?? new BestowalGatheringLookupService();
+        $this->courtSlotService = $courtSlotService ?? new BestowalCourtSlotService();
     }
 
     /**
@@ -79,9 +84,15 @@ class BestowalUpdateService
                     $bestowal->set('award_id', (int)$awardId, ['guard' => false]);
                     $bestowal->setDirty('award_id', true);
 
+                    if (array_key_exists('gathering_scheduled_activity_id', $data)) {
+                        $this->courtSlotService->applyCourtSessionSelection(
+                            $bestowal,
+                            $data['gathering_scheduled_activity_id'],
+                        );
+                    }
+
                     $editableFields = [
                         'gathering_id',
-                        'gathering_scheduled_activity_id',
                         'bestowed_at',
                         'specialty',
                         'noble_notes',

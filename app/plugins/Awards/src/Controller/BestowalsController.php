@@ -105,24 +105,7 @@ class BestowalsController extends AppController
         $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
         $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
         $built['gridOptions']['baseQuery'] = $baseQuery;
-        $built['gridOptions']['enableBulkSelection'] = true;
-        $built['gridOptions']['bulkSelection'] = [
-            'selectAllLabel' => __('Select all bestowals on this page'),
-            'rowLabelTemplate' => __('Select bestowal: {member_sca_name}'),
-            'disabledLabel' => __('Cancelled bestowals cannot be selected for bulk to-do completion.'),
-        ];
-        $built['gridOptions']['bulkActions'] = [
-            [
-                'key' => 'bestowal-todo-complete',
-                'label' => __('Mass Complete Check'),
-                'icon' => 'bi-check2-square',
-                'modalTarget' => '#bestowalBulkTodoModal',
-            ],
-        ];
-        $built['gridOptions']['bulkSelectionDataFields'] = [
-            'bulk-todo-options' => 'bulk_todo_options',
-        ];
-        $built['gridOptions']['bulkSelectionDisabledField'] = 'bulk_todo_disabled';
+        $built['gridOptions'] = $this->withBestowalsBulkSelectionGridOptions($built['gridOptions']);
 
         $result = $this->processDataverseGrid($built['gridOptions']);
 
@@ -360,6 +343,7 @@ class BestowalsController extends AppController
             (int)$bestowal->id,
         );
         $todoRequirementStatus = $this->buildTodoRequirementStatus($todoItems, $bestowal);
+        $todoBlockedStatus = $this->buildTodoBlockedStatus($todoItems, $bestowal);
         $gatingPercent = $todoGatingTotal > 0
             ? (int)round($todoGatingDone / $todoGatingTotal * 100)
             : 0;
@@ -368,6 +352,7 @@ class BestowalsController extends AppController
             'todoItems',
             'todoEligibility',
             'todoRequirementStatus',
+            'todoBlockedStatus',
             'todoGatingTotal',
             'todoGatingDone',
             'gatingPercent',
@@ -413,6 +398,58 @@ class BestowalsController extends AppController
         }
 
         return $status;
+    }
+
+    /**
+     * Build per-item prerequisite display status for bestowal checklist surfaces.
+     *
+     * @param iterable<\App\Model\Entity\ActionItem> $todoItems To-do items.
+     * @param \Awards\Model\Entity\Bestowal $bestowal Bestowal owner.
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildTodoBlockedStatus(iterable $todoItems, Bestowal $bestowal): array
+    {
+        $items = is_array($todoItems) ? $todoItems : iterator_to_array($todoItems, false);
+        $eventScheduled = $this->findTodoBySourceRef($items, BestowalTodoTemplateItem::ITEM_KEY_EVENT_SCHEDULED);
+        $eventComplete = $eventScheduled === null || $eventScheduled->isCompleted();
+        $hasGathering = $bestowal->gathering_id !== null && (int)$bestowal->gathering_id > 0;
+        $status = [];
+
+        foreach ($items as $todoItem) {
+            if ((string)$todoItem->source_ref !== BestowalTodoTemplateItem::ITEM_KEY_ADDED_TO_AGENDA) {
+                continue;
+            }
+
+            if ($eventComplete && $hasGathering) {
+                continue;
+            }
+
+            $status[(int)$todoItem->id] = [
+                'blocked' => true,
+                'label' => $eventComplete ? __('Waiting on Gathering') : __('Waiting on Event Scheduled'),
+                'message' => $eventComplete
+                    ? __('Assign a gathering before Added to Agenda can be completed.')
+                    : __('Complete Event Scheduled before Added to Agenda can be completed.'),
+            ];
+        }
+
+        return $status;
+    }
+
+    /**
+     * @param iterable<\App\Model\Entity\ActionItem> $todoItems To-do items.
+     * @param string $sourceRef Source reference.
+     * @return \App\Model\Entity\ActionItem|null
+     */
+    private function findTodoBySourceRef(iterable $todoItems, string $sourceRef): ?ActionItem
+    {
+        foreach ($todoItems as $todoItem) {
+            if ((string)$todoItem->source_ref === $sourceRef) {
+                return $todoItem;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -879,6 +916,7 @@ class BestowalsController extends AppController
         $completed = 0;
         $skipped = 0;
         $notApplicable = 0;
+        $failureReason = null;
 
         foreach ($scopedIds as $bestowalId) {
             $items = $actionItemService->getItemsForEntity(
@@ -910,13 +948,14 @@ class BestowalsController extends AppController
                 $completed++;
             } else {
                 $skipped++;
+                $failureReason ??= $result->reason !== null ? (string)$result->reason : null;
             }
         }
 
         $unscoped = count($bestowalIds) - count($scopedIds);
         $notApplicable += $unscoped;
 
-        $this->flashBulkTodoSummary($completed, $skipped, $notApplicable);
+        $this->flashBulkTodoSummary($completed, $skipped, $notApplicable, $failureReason);
 
         return $this->redirectAfterBestowalMutation($pageContext, null);
     }
@@ -1164,10 +1203,15 @@ class BestowalsController extends AppController
      * @param int $completed Items completed
      * @param int $skipped Items the actor was not eligible to complete
      * @param int $notApplicable Bestowals without the check open or out of scope
+     * @param string|null $failureReason First completion failure reason, when available.
      * @return void
      */
-    private function flashBulkTodoSummary(int $completed, int $skipped, int $notApplicable): void
-    {
+    private function flashBulkTodoSummary(
+        int $completed,
+        int $skipped,
+        int $notApplicable,
+        ?string $failureReason = null,
+    ): void {
         if ($completed > 0) {
             $message = __n(
                 'Completed the check on {0} bestowal.',
@@ -1191,7 +1235,9 @@ class BestowalsController extends AppController
         }
 
         if ($skipped > 0) {
-            $this->Flash->error(__('You are not assigned to complete that check on the selected bestowals.'));
+            $this->Flash->error(
+                $failureReason ?? __('You are not assigned to complete that check on the selected bestowals.'),
+            );
 
             return;
         }
@@ -1276,9 +1322,11 @@ class BestowalsController extends AppController
         $bulkTodoOptionsMap = $this->loadBestowalBulkTodoOptions($ids);
 
         foreach ($bestowals as $bestowal) {
+            $bulkTodoOptions = $bulkTodoOptionsMap[(int)$bestowal->id] ?? '[]';
             $bestowal->bulk_todo_disabled =
-                ($bestowal->lifecycle_status ?? Bestowal::LIFECYCLE_OPEN) === Bestowal::LIFECYCLE_CANCELLED;
-            $bestowal->bulk_todo_options = $bulkTodoOptionsMap[(int)$bestowal->id] ?? '[]';
+                ($bestowal->lifecycle_status ?? Bestowal::LIFECYCLE_OPEN) === Bestowal::LIFECYCLE_CANCELLED
+                || $bulkTodoOptions === '[]';
+            $bestowal->bulk_todo_options = $bulkTodoOptions;
             if ($this->shouldLoadBestowalDisplayColumn('member_sca_name', $visibleColumns)) {
                 $bestowal->member_sca_name = $bestowal->member->sca_name ?? $bestowal->member_sca_name ?? '';
             }
@@ -1308,6 +1356,37 @@ class BestowalsController extends AppController
     }
 
     /**
+     * Add the bestowals index bulk-selection contract to grid options.
+     *
+     * @param array<string, mixed> $gridOptions Dataverse grid options.
+     * @return array<string, mixed>
+     */
+    private function withBestowalsBulkSelectionGridOptions(array $gridOptions): array
+    {
+        $gridOptions['enableBulkSelection'] = true;
+        $gridOptions['bulkSelection'] = [
+            'selectAllLabel' => __('Select all bestowals on this page'),
+            'rowLabelTemplate' => __('Select bestowal: {member_sca_name}'),
+            'disabledLabel' => __('This bestowal has no open To-Dos you can complete in bulk.'),
+        ];
+        $gridOptions['bulkActions'] = [
+            [
+                'key' => 'bestowal-todo-complete',
+                'label' => __('Mass Complete Check'),
+                'icon' => 'bi-check2-square',
+                'modalTarget' => '#bestowalBulkTodoModal',
+            ],
+        ];
+        $gridOptions['bulkSelectionDataFields'] = [
+            'bulk-todo-options' => 'bulk_todo_options',
+        ];
+        $gridOptions['bulkSelectionDisabledField'] = 'bulk_todo_disabled';
+        $gridOptions['bulkSelectionHideDisabledControl'] = true;
+
+        return $gridOptions;
+    }
+
+    /**
      * Build per-row bulk completion options for open checks the current user may complete.
      *
      * @param list<int> $bestowalIds Displayed bestowal ids
@@ -1332,7 +1411,6 @@ class BestowalsController extends AppController
             ->where([
                 'ActionItems.entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
                 'ActionItems.entity_id IN' => $bestowalIds,
-                'ActionItems.status' => ActionItem::STATUS_OPEN,
                 'ActionItems.source_ref IS NOT' => null,
             ])
             ->order([
@@ -1342,13 +1420,21 @@ class BestowalsController extends AppController
             ])
             ->all();
 
+        $itemsByBestowal = [];
+        foreach ($items as $item) {
+            $itemsByBestowal[(int)$item->entity_id][] = $item;
+        }
+
         $optionsByBestowal = [];
         foreach ($items as $item) {
+            if (!$item->isOpen()) {
+                continue;
+            }
             if (!$user->isSuperUser() && !$actionItemService->isMemberEligible($item, $memberId)) {
                 continue;
             }
 
-            $option = $this->bulkTodoOptionForItem($item);
+            $option = $this->bulkTodoOptionForItem($item, $itemsByBestowal[(int)$item->entity_id] ?? []);
             if ($option === null) {
                 continue;
             }
@@ -1367,12 +1453,16 @@ class BestowalsController extends AppController
 
     /**
      * @param \App\Model\Entity\ActionItem $item Action item.
+     * @param array<int, \App\Model\Entity\ActionItem> $siblingItems To-dos for the same bestowal.
      * @return array<string, mixed>|null
      */
-    private function bulkTodoOptionForItem(ActionItem $item): ?array
+    private function bulkTodoOptionForItem(ActionItem $item, array $siblingItems = []): ?array
     {
         $key = trim((string)$item->source_ref);
         if ($key === '') {
+            return null;
+        }
+        if ($this->isTodoBlockedByPrerequisite($item, $siblingItems)) {
             return null;
         }
 
@@ -1405,6 +1495,22 @@ class BestowalsController extends AppController
         }
 
         return $option;
+    }
+
+    /**
+     * @param \App\Model\Entity\ActionItem $item Action item.
+     * @param array<int, \App\Model\Entity\ActionItem> $siblingItems To-dos for the same bestowal.
+     * @return bool
+     */
+    private function isTodoBlockedByPrerequisite(ActionItem $item, array $siblingItems): bool
+    {
+        if ((string)$item->source_ref !== BestowalTodoTemplateItem::ITEM_KEY_ADDED_TO_AGENDA) {
+            return false;
+        }
+
+        $eventScheduled = $this->findTodoBySourceRef($siblingItems, BestowalTodoTemplateItem::ITEM_KEY_EVENT_SCHEDULED);
+
+        return $eventScheduled !== null && !$eventScheduled->isCompleted();
     }
 
     /**
@@ -1470,17 +1576,21 @@ class BestowalsController extends AppController
             }
 
             if ($completed) {
-                $icon = 'bi-check-circle-fill text-success';
+                $icon = 'bi-check-square-fill text-success';
+                $statusLabel = __('Completed task:');
             } elseif ($cancelled) {
-                $icon = 'bi-slash-circle text-muted';
+                $icon = 'bi-dash-square text-muted';
+                $statusLabel = __('Cancelled task:');
             } else {
-                $icon = 'bi-circle text-warning';
+                $icon = 'bi-hourglass-split text-secondary';
+                $statusLabel = __('Open task:');
             }
             $required = $isGating
                 ? ' <span class="text-danger" aria-hidden="true">*</span>'
                 : '';
             $rows[] = '<li class="d-flex align-items-start gap-2 mb-1">'
                 . '<i class="bi ' . $icon . '" aria-hidden="true"></i>'
+                . '<span class="visually-hidden">' . h($statusLabel) . '</span>'
                 . '<span>' . h($item->title) . $required . '</span>'
                 . '</li>';
         }
@@ -1969,6 +2079,7 @@ class BestowalsController extends AppController
                     $canEdit,
                     $queryContext->queryVisibleColumns(),
                 );
+                $built['gridOptions'] = $this->withBestowalsBulkSelectionGridOptions($built['gridOptions']);
                 $baseQuery = $built['query'];
                 $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
                 $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
@@ -2016,6 +2127,8 @@ class BestowalsController extends AppController
                 'enableBulkSelection' => $gridState['config']['enableBulkSelection'] ?? false,
                 'bulkSelectionDataFields' => $gridState['config']['bulkSelectionDataFields'] ?? [],
                 'bulkSelectionDisabledField' => $gridState['config']['bulkSelectionDisabledField'] ?? null,
+                'bulkSelectionDisabledLabel' => $gridState['config']['bulkSelection']['disabledLabel'] ?? null,
+                'bulkSelectionHideDisabledControl' => $gridState['config']['bulkSelectionHideDisabledControl'] ?? false,
                 'rowDomIdPrefix' => preg_replace('/-table$/', '', $tableFrameId),
                 'showActionsColumn' => $enableColumnPicker || $rowActions !== [],
             ]);

@@ -215,6 +215,21 @@ describe('AutoCompleteController', () => {
         expect(controller.inputTarget.disabled).toBe(true);
     });
 
+    test('value setter with matching option keeps allowOther input editable', () => {
+        setupController({ allowOther: true });
+        controller._selectOptions = [
+            { value: '1', text: 'Option One' },
+            { value: '2', text: 'Option Two' }
+        ];
+        controller.value = '2';
+
+        expect(controller.inputTarget.value).toBe('Option Two');
+        expect(controller.hiddenTarget.value).toBe('2');
+        expect(controller.hiddenTextTarget.value).toBe('Option Two');
+        expect(controller.clearBtnTarget.disabled).toBe(false);
+        expect(controller.inputTarget.disabled).toBe(false);
+    });
+
     test('value setter with unknown value and allowOther false clears fields', () => {
         setupController({ allowOther: false });
         controller._selectOptions = [{ value: '1', text: 'Opt' }];
@@ -236,7 +251,7 @@ describe('AutoCompleteController', () => {
         expect(controller.hiddenTarget.value).toBe('custom');
         expect(controller.hiddenTextTarget.value).toBe('custom');
         expect(controller.clearBtnTarget.disabled).toBe(false);
-        expect(controller.inputTarget.disabled).toBe(true);
+        expect(controller.inputTarget.disabled).toBe(false);
     });
 
     test('value setter with empty/null clears all fields', () => {
@@ -718,6 +733,15 @@ describe('AutoCompleteController', () => {
         expect(controller.clearBtnTarget.disabled).toBe(false);
     });
 
+    test('fireChangeEvent keeps allowOther input editable when value present', () => {
+        setupController({ allowOther: true });
+        controller.inputTarget.value = 'Custom Test';
+        controller.fireChangeEvent('Custom Test', 'Custom Test', null);
+
+        expect(controller.inputTarget.disabled).toBe(false);
+        expect(controller.clearBtnTarget.disabled).toBe(false);
+    });
+
     test('fireChangeEvent enables input and disables clearBtn when input empty', () => {
         setupController();
         controller.inputTarget.value = '';
@@ -937,6 +961,20 @@ describe('AutoCompleteController', () => {
         expect(controller.clearBtnTarget.disabled).toBe(false);
     });
 
+    test('initSelectionValueChanged keeps allowOther input editable', () => {
+        setupController({ allowOther: true });
+        controller._datalistLoaded = false;
+        controller.initSelectionValue = { value: '3', text: 'Three' };
+
+        controller.initSelectionValueChanged();
+
+        expect(controller.hiddenTarget.value).toBe('3');
+        expect(controller.hiddenTextTarget.value).toBe('Three');
+        expect(controller.inputTarget.value).toBe('Three');
+        expect(controller.inputTarget.disabled).toBe(false);
+        expect(controller.clearBtnTarget.disabled).toBe(false);
+    });
+
     // ==================== select ====================
 
     test('select marks target as aria-selected and adds class', () => {
@@ -1091,6 +1129,20 @@ describe('AutoCompleteController', () => {
         } finally {
             jest.useRealTimers();
         }
+    });
+
+    test('onInputChange preserves custom typed text for allowOther fields', () => {
+        setupController({ allowOther: true, dataListContent: JSON.stringify([]) });
+        controller._selectOptions = [];
+        controller._datalistLoaded = true;
+        controller.inputTarget.value = 'Custom Specialty';
+        controller.hiddenTarget.value = 'Old Value';
+        controller.hiddenTextTarget.value = 'Old Text';
+
+        controller.onInputChange();
+
+        expect(controller.hiddenTarget.value).toBe('');
+        expect(controller.hiddenTextTarget.value).toBe('Custom Specialty');
     });
 
     test('onInputBlur without allowOther commits exact text match and fires change event', () => {

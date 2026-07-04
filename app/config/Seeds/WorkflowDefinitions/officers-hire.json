@@ -1,4 +1,6 @@
 {
+    "$schema": "./schema.json",
+    "schemaVersion": "1.0",
     "nodes": {
         "trigger-hire": {
             "type": "trigger",
@@ -272,7 +274,7 @@
         },
         "end-rejected": {
             "type": "end",
-            "label": "Rejected \u2014 Not Warrantable",
+            "label": "Rejected — Not Warrantable",
             "config": {
                 "result": {
                     "success": false,

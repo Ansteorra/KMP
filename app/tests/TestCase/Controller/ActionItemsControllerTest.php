@@ -133,9 +133,7 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
         $this->get('/action-items/my-tasks-data');
 
         $this->assertResponseOk();
-        $this->assertResponseContains('Schedule Bestowal Event');
-        $this->assertResponseContains('bestowal_gathering_id');
-        $this->assertResponseContains('/awards/bestowals/gatherings-for-bestowal-auto-complete/' . $bestowal->id);
+        $this->assertCompletionFormMetadataContainsBestowalGatheringField((int)$bestowal->id);
     }
 
     public function testMyTasksGridDataIncludesEventScheduledFallbackCompletionFormMetadata(): void
@@ -155,9 +153,22 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
         $this->get('/action-items/my-tasks-data');
 
         $this->assertResponseOk();
-        $this->assertResponseContains('Schedule Bestowal Event');
-        $this->assertResponseContains('bestowal_gathering_id');
-        $this->assertResponseContains('/awards/bestowals/gatherings-for-bestowal-auto-complete/' . $bestowal->id);
+        $this->assertCompletionFormMetadataContainsBestowalGatheringField((int)$bestowal->id);
+    }
+
+    private function assertCompletionFormMetadataContainsBestowalGatheringField(int $bestowalId): void
+    {
+        $response = (string)$this->_response->getBody();
+        $this->assertMatchesRegularExpression("/data-todo-completion-form='([^']+)'/", $response);
+        preg_match("/data-todo-completion-form='([^']+)'/", $response, $matches);
+
+        $completionForm = json_decode(html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5), true);
+        $this->assertSame('Schedule Bestowal Event', $completionForm['title'] ?? null);
+        $this->assertSame('bestowal_gathering_id', $completionForm['fields'][0]['valueName'] ?? null);
+        $this->assertSame(
+            '/awards/bestowals/gatherings-for-bestowal-auto-complete/' . $bestowalId,
+            $completionForm['fields'][0]['url'] ?? null,
+        );
     }
 
     /**

@@ -47,7 +47,7 @@ $submitAction = implode(' ', [
             <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
                 <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
                     <i class="bi bi-award text-primary me-1" aria-hidden="true"></i>
-                    <?= __('Award & State') ?>
+                    <?= __('Recipient & Award') ?>
                 </legend>
         <div class="mb-3">
             <p class="form-label mb-1"><?= __('Member') ?></p>
@@ -65,6 +65,16 @@ $submitAction = implode(' ', [
                 'text' => $selectedAward->domain->name,
             ];
         }
+        $domainAttrs = [
+            'data-action' => implode(' ', [
+                'autocomplete.change->awards-bestowal-edit#onDomainChange',
+                'change->awards-bestowal-edit#onDomainChange',
+            ]),
+            'data-awards-bestowal-edit-target' => 'domain',
+        ];
+        if ($domainInitSelection !== null) {
+            $domainAttrs['data-ac-init-selection-value'] = json_encode($domainInitSelection);
+        }
         $awardsList = [];
         foreach ($awards as $award) {
             $awardsList[$award->id] = [
@@ -80,13 +90,7 @@ $submitAction = implode(' ', [
             __('Award Type'),
             true,
             false,
-            [
-                'data-action' => 'autocomplete.change->awards-bestowal-edit#onDomainChange change->awards-bestowal-edit#onDomainChange',
-                'data-ac-init-selection-value' => $domainInitSelection !== null
-                    ? json_encode($domainInitSelection)
-                    : null,
-                'data-awards-bestowal-edit-target' => 'domain',
-            ],
+            $domainAttrs,
         );
         echo $this->Form->control('current_award_id', [
             'type' => 'hidden',
@@ -100,6 +104,47 @@ $submitAction = implode(' ', [
                 'text' => $selectedAward->name,
             ];
         }
+        $awardAttrs = [
+            'data-awards-bestowal-edit-target' => 'award',
+            'data-action' => implode(' ', [
+                'autocomplete.change->awards-bestowal-edit#onAwardChange',
+                'change->awards-bestowal-edit#onAwardChange',
+            ]),
+        ];
+        if ($awardInitSelection !== null) {
+            $awardAttrs['data-ac-init-selection-value'] = json_encode($awardInitSelection);
+        }
+        $specialtyOptions = [];
+        $configuredSpecialties = $selectedAward->specialties ?? [];
+        if (is_string($configuredSpecialties)) {
+            $decodedSpecialties = json_decode($configuredSpecialties, true);
+            $configuredSpecialties = is_array($decodedSpecialties)
+                ? $decodedSpecialties
+                : [$configuredSpecialties];
+        }
+        if (is_array($configuredSpecialties)) {
+            foreach ($configuredSpecialties as $specialtyOption) {
+                $specialtyOption = trim((string)$specialtyOption);
+                if ($specialtyOption !== '') {
+                    $specialtyOptions[$specialtyOption] = $specialtyOption;
+                }
+            }
+        }
+        $specialtyInitSelection = null;
+        if (!empty($bestowal->specialty)) {
+            $specialtyInitSelection = [
+                'value' => $bestowal->specialty,
+                'text' => $bestowal->specialty,
+            ];
+            $specialtyOptions[(string)$bestowal->specialty] = (string)$bestowal->specialty;
+        }
+        $specialtyAttrs = [
+            'data-awards-bestowal-edit-target' => 'specialty',
+            'data-action' => 'change->awards-bestowal-edit#updateSubmitState',
+        ];
+        if ($specialtyInitSelection !== null) {
+            $specialtyAttrs['data-ac-init-selection-value'] = json_encode($specialtyInitSelection);
+        }
         echo $this->KMP->comboBoxControl(
             $this->Form,
             'award_name',
@@ -108,15 +153,24 @@ $submitAction = implode(' ', [
             __('Award to Bestow'),
             true,
             false,
-            [
-                'data-awards-bestowal-edit-target' => 'award',
-                'data-action' => 'autocomplete.change->awards-bestowal-edit#onAwardChange change->awards-bestowal-edit#onAwardChange',
-                'data-ac-init-selection-value' => $awardInitSelection !== null
-                    ? json_encode($awardInitSelection)
-                    : null,
-            ],
+            $awardAttrs,
         );
         ?>
+        <div class="d-none" data-awards-bestowal-edit-target="specialtyBlock">
+            <?= $this->KMP->comboBoxControl(
+                $this->Form,
+                'specialty',
+                'specialty_hidden',
+                $specialtyOptions,
+                __('Specialty'),
+                false,
+                true,
+                $specialtyAttrs,
+            ) ?>
+            <div class="form-text">
+                <?= __('Select a configured specialty or type the specialty to record.') ?>
+            </div>
+        </div>
         <div class="mb-3">
             <p class="form-label mb-1"><?= __('Lifecycle Status') ?></p>
             <div class="form-control-plaintext">
@@ -150,9 +204,11 @@ $submitAction = implode(' ', [
                             $displayName .= ' in ' . h($gathering->branch->name);
                         }
                         if (isset($gathering->start_date)) {
-                            $displayName .= ' on ' . $this->Timezone->format($gathering->start_date, $gathering, 'Y-m-d');
+                            $displayName .= ' on '
+                                . $this->Timezone->format($gathering->start_date, $gathering, 'Y-m-d');
                             if (isset($gathering->end_date)) {
-                                $displayName .= ' - ' . $this->Timezone->format($gathering->end_date, $gathering, 'Y-m-d');
+                                $displayName .= ' - '
+                                    . $this->Timezone->format($gathering->end_date, $gathering, 'Y-m-d');
                             }
                         }
                         $hasAttendanceMarker = isset($gatheringList[$gathering->id])
@@ -173,7 +229,10 @@ $submitAction = implode(' ', [
             <div class="alert alert-danger mb-2" role="alert">
                 <i class="bi bi-exclamation-triangle-fill"></i>
                 <strong><?= __('Warning:') ?></strong>
-                <?= __('This bestowal is scheduled for a cancelled gathering. Please reschedule to a different gathering.') ?>
+                <?= __(
+                    'This bestowal is scheduled for a cancelled gathering. '
+                    . 'Please reschedule to a different gathering.',
+                ) ?>
             </div>
         <?php endif;
 
@@ -215,12 +274,15 @@ $submitAction = implode(' ', [
                 [
                     'data-awards-bestowal-edit-target' => 'planToGiveGathering',
                     'data-ac-show-on-focus-value' => 'true',
-                    'data-action' => 'autocomplete.change->awards-bestowal-edit#updateCourtSlots autocomplete.change->awards-bestowal-edit#onGatheringChange',
+                    'data-action' => implode(' ', [
+                        'autocomplete.change->awards-bestowal-edit#updateCourtSlots',
+                        'autocomplete.change->awards-bestowal-edit#onGatheringChange',
+                    ]),
                     'data-ac-init-selection-value' => json_encode([
                         'value' => $bestowal->gathering_id,
                         'text' => $selectedGatheringText,
                     ]),
-                ]
+                ],
             ) ?>
         </div>
         <?php
@@ -230,6 +292,7 @@ $submitAction = implode(' ', [
         $courtSlotNoScheduleText = $courtSlotNoScheduleText ?? '';
         $courtSlotValue = $courtSlotValue ?? null;
         $hasGatheringSelected = !empty($bestowal->gathering_id);
+        $showNoSchedule = $courtSlotsAvailable && !$courtSlotHasScheduledSessions && $hasGatheringSelected;
         ?>
         <div
             data-awards-bestowal-edit-target="courtSlotBlock"
@@ -240,7 +303,7 @@ $submitAction = implode(' ', [
                 <?= h($courtSlotHelpText) ?>
             </p>
             <div
-                class="alert alert-info small mb-2 <?= ($courtSlotsAvailable && !$courtSlotHasScheduledSessions && $hasGatheringSelected) ? '' : 'd-none' ?>"
+                class="alert alert-info small mb-2 <?= $showNoSchedule ? '' : 'd-none' ?>"
                 role="status"
                 data-awards-bestowal-edit-target="courtSlotNoSchedule">
                 <?= h($courtSlotNoScheduleText) ?>
@@ -279,11 +342,6 @@ $submitAction = implode(' ', [
             'data-awards-bestowal-edit-target' => 'givenDate',
             'container' => ['data-awards-bestowal-edit-target' => 'givenBlock'],
         ]);
-        echo $this->Form->control('specialty', [
-            'label' => __('Specialty'),
-            'value' => $bestowal->specialty,
-            'help' => __('Copied from linked recommendation specialties; edit for court, herald, or scribe notes.'),
-        ]);
         echo $this->Form->control('noble_notes', [
             'type' => 'textarea',
             'label' => __('Noble Notes'),
@@ -310,7 +368,10 @@ $submitAction = implode(' ', [
             'type' => 'textarea',
             'label' => __('Reason Summary'),
             'value' => $bestowal->reason_summary,
-            'help' => __('Created from linked recommendation reasons and submitter names. Update this if court notes need a shorter or edited version.'),
+            'help' => __(
+                'Created from linked recommendation reasons and submitter names. '
+                . 'Update this if court notes need a shorter or edited version.',
+            ),
             'rows' => 5,
         ]) ?>
 
@@ -321,12 +382,15 @@ $submitAction = implode(' ', [
             <div class="mb-3" data-awards-bestowal-edit-target="unlinkRecommendationsBlock">
                 <label class="form-label"><?= __('Unlink Recommendations') ?></label>
                 <p class="text-muted small">
-                    <?= __('Unlinked recommendations return to their pre-link state (typically King Approved). At least one recommendation must remain linked.') ?>
+                    <?= __(
+                        'Unlinked recommendations return to their pre-link state '
+                        . '(typically King Approved). At least one recommendation must remain linked.',
+                    ) ?>
                 </p>
                 <?php foreach ($linkedRecommendations as $recommendation) :
                     $awardLabel = $recommendation->award->abbreviation
                         ?? $recommendation->award->name
-                        ?? ('Rec #' . $recommendation->id);
+                        ?? 'Rec #' . $recommendation->id;
                     ?>
                     <div class="form-check">
                         <?= $this->Form->checkbox('unlink_recommendation_ids[]', [
@@ -347,7 +411,7 @@ $submitAction = implode(' ', [
             $onlyRecommendation = $linkedRecommendations[0];
             $awardLabel = $onlyRecommendation->award->abbreviation
                 ?? $onlyRecommendation->award->name
-                ?? ('Rec #' . $onlyRecommendation->id);
+                ?? 'Rec #' . $onlyRecommendation->id;
             ?>
             <div class="mb-3">
                 <label class="form-label"><?= __('Linked Recommendation') ?></label>
@@ -355,7 +419,10 @@ $submitAction = implode(' ', [
                     <?= h($awardLabel) ?> — <?= h($onlyRecommendation->state) ?>
                 </p>
                 <p class="text-muted small mb-0">
-                    <?= __('A bestowal must keep at least one linked recommendation. Link another recommendation before unlinking this one.') ?>
+                    <?= __(
+                        'A bestowal must keep at least one linked recommendation. '
+                        . 'Link another recommendation before unlinking this one.',
+                    ) ?>
                 </p>
             </div>
             <div class="mb-3 d-none" data-awards-bestowal-edit-target="unlinkRecommendationsBlock">
@@ -377,7 +444,7 @@ $submitAction = implode(' ', [
             </div>
         <?php endif; ?>
 
-        <?php if (!empty($linkableRecommendations)): ?>
+        <?php if (!empty($linkableRecommendations)) : ?>
             <div class="mb-3" data-awards-bestowal-edit-target="linkRecommendationsBlock">
                 <label class="form-label"><?= __('Link Recommendations') ?></label>
                 <?php
@@ -385,7 +452,7 @@ $submitAction = implode(' ', [
                     fn($rec) => (int)$rec->id,
                     $linkedRecommendations,
                 );
-                foreach ($linkableRecommendations as $recId => $label):
+                foreach ($linkableRecommendations as $recId => $label) :
                     if (in_array((int)$recId, $linkedIds, true)) {
                         continue;
                     }

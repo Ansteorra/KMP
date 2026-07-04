@@ -269,6 +269,7 @@ class Application extends BaseApplication implements
 
         // Load workflow providers from plugins and core
         WorkflowPluginLoader::loadFromPlugins($this->getPlugins());
+        $this->getContainer()->get(TriggerDispatcher::class)->attachToEventManager();
 
         // Version-based application configuration management
         // This system allows automatic updates to application settings when KMP is upgraded
@@ -784,7 +785,7 @@ class Application extends BaseApplication implements
         $container->add(
             WorkflowApprovalManagerInterface::class,
             DefaultWorkflowApprovalManager::class,
-        );
+        )->addArgument(ContainerInterface::class);
 
         // Register WorkflowVersionManager for workflow version lifecycle management
         $container->add(
@@ -793,15 +794,19 @@ class Application extends BaseApplication implements
         );
 
         // Workflow Engine — depends on ContainerInterface for dynamic service resolution
-        $container->add(
-            WorkflowEngineInterface::class,
-            DefaultWorkflowEngine::class,
-        )->addArgument(ContainerInterface::class);
+        if (!$container->has(WorkflowEngineInterface::class)) {
+            $container->add(
+                WorkflowEngineInterface::class,
+                DefaultWorkflowEngine::class,
+            )->addArgument(ContainerInterface::class);
+        }
 
         // TriggerDispatcher — depends on WorkflowEngineInterface
-        $container->add(
-            TriggerDispatcher::class,
-        )->addArgument(WorkflowEngineInterface::class);
+        if (!$container->has(TriggerDispatcher::class)) {
+            $container->add(
+                TriggerDispatcher::class,
+            )->addArgument(WorkflowEngineInterface::class);
+        }
 
         // Expression evaluator for workflow templates, dates, and conditionals
         $container->add(ExpressionEvaluator::class);

@@ -6,6 +6,7 @@ namespace App\Model\Table;
 use App\Services\Cache\TenantAwareCache;
 use Cake\Cache\Cache;
 use Cake\Database\Exception\DatabaseException;
+use Cake\Database\Exception\QueryException;
 use Cake\Datasource\EntityInterface;
 use Cake\Log\Log;
 use Cake\ORM\RulesChecker;
@@ -262,7 +263,7 @@ class AppSettingsTable extends BaseTable
 
         try {
             $savedSetting = $this->save($setting);
-        } catch (DatabaseException $exception) {
+        } catch (DatabaseException | QueryException $exception) {
             if (!$isNewSetting || !$this->isUniqueSettingConflict($exception)) {
                 throw $exception;
             }
@@ -319,7 +320,7 @@ class AppSettingsTable extends BaseTable
      * @param \Cake\Database\Exception\DatabaseException $exception Database exception
      * @return bool
      */
-    private function isUniqueSettingConflict(DatabaseException $exception): bool
+    private function isUniqueSettingConflict(DatabaseException | QueryException $exception): bool
     {
         $messages = [$exception->getMessage()];
         if ($exception->getPrevious()) {

@@ -24,12 +24,7 @@ use Throwable;
  */
 class TriggerDispatcher implements EventListenerInterface
 {
-    /**
-     * Tracks automatic listener registration for event-driven model triggers.
-     *
-     * @var self|null
-     */
-    private static ?self $eventManagerListener = null;
+    private static ?self $attachedListener = null;
 
     private WorkflowEngineInterface $engine;
 
@@ -41,15 +36,6 @@ class TriggerDispatcher implements EventListenerInterface
     public function __construct(WorkflowEngineInterface $engine)
     {
         $this->engine = $engine;
-
-        if (self::$eventManagerListener !== $this) {
-            if (self::$eventManagerListener !== null) {
-                EventManager::instance()->off(self::$eventManagerListener);
-            }
-
-            $this->attachToEventManager();
-            self::$eventManagerListener = $this;
-        }
     }
 
     /**
@@ -80,7 +66,11 @@ class TriggerDispatcher implements EventListenerInterface
     public function attachToEventManager(?EventManager $eventManager = null): void
     {
         $manager = $eventManager ?? EventManager::instance();
+        if (self::$attachedListener instanceof self) {
+            $manager->off(self::$attachedListener);
+        }
         $manager->on($this);
+        self::$attachedListener = $this;
     }
 
     /**

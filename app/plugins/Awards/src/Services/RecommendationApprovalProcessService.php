@@ -22,18 +22,14 @@ class RecommendationApprovalProcessService
     use LocatorAwareTrait;
 
     private AwardApprovalResolverService $resolver;
-    private RecommendationTransitionService $transitionService;
 
     /**
      * @param \Awards\Services\AwardApprovalResolverService|null $resolver Branch-aware approver resolver.
-     * @param \Awards\Services\RecommendationTransitionService|null $transitionService State transition service.
      */
     public function __construct(
         ?AwardApprovalResolverService $resolver = null,
-        ?RecommendationTransitionService $transitionService = null,
     ) {
         $this->resolver = $resolver ?? new AwardApprovalResolverService();
-        $this->transitionService = $transitionService ?? new RecommendationTransitionService();
     }
 
     /**
@@ -277,6 +273,8 @@ class RecommendationApprovalProcessService
         Recommendation $recommendation,
         ApprovalProcessStep $step,
     ): array {
+        $steps = $this->orderedSteps($recommendation->award->approval_process->approval_process_steps ?? []);
+        $stepIndex = $this->findStepIndex($steps, (string)$step->step_key);
         $approverIds = $this->excludePriorApprovalResponders(
             (int)$run->workflow_instance_id,
             $this->approverIds($step, $recommendation),
@@ -292,8 +290,60 @@ class RecommendationApprovalProcessService
             'currentStepLabel' => (string)$step->label,
             'approverIds' => $approverIds,
             'requiredCount' => $requiredCount,
-            'approvalApproverConfig' => $this->approvalApproverConfig($run, $step),
+            'approvalApproverConfig' => $this->approvalApproverConfig(
+                $run,
+                $step,
+                $stepIndex !== null && $stepIndex === count($steps) - 1,
+            ),
         ];
+    }
+
+    /**
+     * Determine whether an approval belongs to the last configured step of its award approval process.
+     *
+     * @param \App\Model\Entity\WorkflowApproval $approval Workflow approval.
+     * @param array<string, mixed> $config Approval approver config.
+     * @return bool|null True/false when resolvable, null when this is not a configured award approval step.
+     */
+    public function isFinalApprovalStep(WorkflowApproval $approval, array $config): ?bool
+    {
+        if (array_key_exists('award_approval_is_final_step', $config)) {
+            return filter_var($config['award_approval_is_final_step'], FILTER_VALIDATE_BOOLEAN);
+        }
+
+        $stepKey = (string)($config['award_approval_step_key'] ?? '');
+        $runId = (int)($config['award_approval_run_id'] ?? 0);
+        if ($stepKey === '' && $runId <= 0 && empty($approval->workflow_instance_id)) {
+            return null;
+        }
+
+        $runsTable = $this->fetchTable('Awards.RecommendationApprovalRuns');
+        $query = $runsTable->find()
+            ->contain(['ApprovalProcesses.ApprovalProcessSteps'])
+            ->orderByDesc('RecommendationApprovalRuns.id');
+        if ($runId > 0) {
+            $query->where(['RecommendationApprovalRuns.id' => $runId]);
+        } else {
+            $query->where(['RecommendationApprovalRuns.workflow_instance_id' => (int)$approval->workflow_instance_id]);
+        }
+
+        $run = $query->first();
+        if ($run === null) {
+            return null;
+        }
+
+        $steps = $this->orderedSteps($run->approval_process->approval_process_steps ?? []);
+        if ($steps === []) {
+            return null;
+        }
+
+        $stepKey = $stepKey !== '' ? $stepKey : (string)$run->current_step_key;
+        $stepIndex = $this->findStepIndex($steps, $stepKey);
+        if ($stepIndex === null) {
+            return null;
+        }
+
+        return $stepIndex === count($steps) - 1;
     }
 
     /**
@@ -301,15 +351,20 @@ class RecommendationApprovalProcessService
      *
      * @param \Awards\Model\Entity\RecommendationApprovalRun $run Approval run.
      * @param \Awards\Model\Entity\ApprovalProcessStep $step Approval step.
+     * @param bool $isFinalStep Whether this is the final configured process step.
      * @return array<string, mixed>
      */
-    private function approvalApproverConfig(RecommendationApprovalRun $run, ApprovalProcessStep $step): array
-    {
+    private function approvalApproverConfig(
+        RecommendationApprovalRun $run,
+        ApprovalProcessStep $step,
+        bool $isFinalStep,
+    ): array {
         $config = [
             'service' => 'Awards.ResolveApprovalStepApprovers',
             'method' => 'resolveConfiguredApproverIds',
             'award_approval_run_id' => (int)$run->id,
             'award_approval_step_key' => (string)$step->step_key,
+            'award_approval_is_final_step' => $isFinalStep,
             'award_approval_approver_type' => (string)$step->approver_type,
             'award_approval_approver_source_id' => $step->approver_source_id !== null
                 ? (int)$step->approver_source_id
@@ -444,7 +499,9 @@ class RecommendationApprovalProcessService
 
         $eligibleIds = array_values(array_diff($approverIds, array_unique($priorResponderIds)));
         if ($eligibleIds === []) {
-            throw new RuntimeException('The approval step resolved zero eligible approvers after excluding prior responders.');
+            throw new RuntimeException(
+                'The approval step resolved zero eligible approvers after excluding prior responders.',
+            );
         }
 
         return $eligibleIds;
@@ -486,12 +543,7 @@ class RecommendationApprovalProcessService
         $run->terminal_reason = RecommendationApprovalRun::TERMINAL_REASON_REJECTED;
         $run->modified_by = $actorId;
         $this->fetchTable('Awards.RecommendationApprovalRuns')->saveOrFail($run);
-        $this->transitionRecommendation(
-            $recommendation,
-            RecommendationBestowalStatePolicyService::NO_ACTION_STATE,
-            $actorId,
-            $closeReason,
-        );
+        $this->saveRejectionCloseReason($recommendation, $actorId, $closeReason);
 
         return new ServiceResult(true, null, [
             'runId' => (int)$run->id,
@@ -544,53 +596,25 @@ class RecommendationApprovalProcessService
     }
 
     /**
-     * Transition recommendation state for terminal outcomes that still use legacy recommendation state.
+     * Persist the rejection reason without mutating legacy recommendation status/state.
      *
      * @param \Awards\Model\Entity\Recommendation $recommendation Recommendation.
-     * @param string $targetState Target state.
      * @param int|null $actorId Actor ID.
+     * @param string|null $closeReason Rejection comment to store as the close reason.
      * @return void
      */
-    private function transitionRecommendation(
+    private function saveRejectionCloseReason(
         Recommendation $recommendation,
-        string $targetState,
         ?int $actorId,
         ?string $closeReason = null,
     ): void {
-        $recommendationsTable = $this->fetchTable('Awards.Recommendations');
-
-        if ($actorId === null) {
-            $recommendation->state = $targetState;
-            if ($closeReason !== null) {
-                $recommendation->close_reason = $closeReason;
-            }
-            $recommendationsTable->saveOrFail($recommendation);
-
+        if ($closeReason === null || (string)$recommendation->close_reason === $closeReason) {
             return;
         }
 
-        if ((string)$recommendation->state !== $targetState) {
-            $transitionData = ['targetState' => $targetState];
-            if ($closeReason !== null) {
-                $transitionData['close_reason'] = $closeReason;
-            }
-            $result = $this->transitionService->transition(
-                $recommendationsTable,
-                (int)$recommendation->id,
-                $transitionData,
-                $actorId,
-            );
-            if (!($result['success'] ?? false)) {
-                throw new RuntimeException((string)($result['error'] ?? 'Recommendation state transition failed.'));
-            }
-
-            return;
-        }
-
-        if ($closeReason !== null && (string)$recommendation->close_reason !== $closeReason) {
-            $recommendation->close_reason = $closeReason;
-            $recommendationsTable->saveOrFail($recommendation);
-        }
+        $recommendation->close_reason = $closeReason;
+        $recommendation->modified_by = $actorId;
+        $this->fetchTable('Awards.Recommendations')->saveOrFail($recommendation);
     }
 
     /**

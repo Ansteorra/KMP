@@ -1,10 +1,12 @@
 <?php
 
+use Cake\I18n\DateTime;
+
 /**
  * Single Dataverse grid table row (Turbo Stream replace target).
  *
  * @var \App\View\AppView $this
- * @var array|object $row
+ * @var object|array $row
  * @var array $columns
  * @var array $visibleColumns
  * @var string $controllerName
@@ -16,6 +18,7 @@
  * @var array $bulkSelectionDataFields
  * @var string|null $bulkSelectionDisabledField
  * @var string|null $bulkSelectionDisabledLabel
+ * @var bool $bulkSelectionHideDisabledControl
  * @var string|null $bulkSelectionLabel
  * @var string|null $rowDomIdPrefix
  * @var bool $showActionsColumn
@@ -24,13 +27,14 @@
 $rowId = is_array($row) ? ($row[$primaryKey] ?? null) : ($row->{$primaryKey} ?? null);
 $bulkSelectionLabel = $bulkSelectionLabel ?? __('Select row {0}', $rowId);
 $bulkSelectionDisabledLabel = $bulkSelectionDisabledLabel ?? __('This row cannot be selected for bulk actions');
+$bulkSelectionHideDisabledControl = $bulkSelectionHideDisabledControl ?? false;
 $rowDomId = null;
 if ($rowDomIdPrefix !== null && $rowDomIdPrefix !== '' && $rowId !== null) {
     $rowDomId = $rowDomIdPrefix . '-row-' . $rowId;
 }
 ?>
 <tr<?= $rowDomId !== null ? ' id="' . h($rowDomId) . '"' : '' ?> data-id="<?= h($rowId) ?>">
-    <?php if ($enableBulkSelection): ?>
+    <?php if ($enableBulkSelection) : ?>
         <?php
         $bulkRowDisabled = false;
         if ($bulkSelectionDisabledField !== null && $bulkSelectionDisabledField !== '') {
@@ -41,22 +45,26 @@ if ($rowDomIdPrefix !== null && $rowDomIdPrefix !== '' && $rowId !== null) {
         }
         ?>
         <td style="text-align: center;">
-            <input type="checkbox"
-                   class="form-check-input"
-                   value="<?= h($rowId) ?>"
-                   data-<?= h($controllerName) ?>-target="rowCheckbox"
-                   data-action="change-><?= h($controllerName) ?>#toggleRowSelection"
-                   aria-label="<?= h($bulkSelectionLabel) ?>"
-                   <?php if ($bulkRowDisabled) : ?>
-                   disabled
-                   title="<?= h($bulkSelectionDisabledLabel) ?>"
-                   <?php endif; ?>
-                   <?php foreach ($bulkSelectionDataFields as $attr => $field): ?>
-                   data-<?= h($attr) ?>="<?= h(is_array($row) ? ($row[$field] ?? '') : ($row->{$field} ?? '')) ?>"
-                   <?php endforeach; ?>>
+            <?php if ($bulkRowDisabled && $bulkSelectionHideDisabledControl) : ?>
+                <span class="visually-hidden"><?= h($bulkSelectionDisabledLabel) ?></span>
+            <?php else : ?>
+                <input type="checkbox"
+                       class="form-check-input"
+                       value="<?= h($rowId) ?>"
+                       data-<?= h($controllerName) ?>-target="rowCheckbox"
+                       data-action="change-><?= h($controllerName) ?>#toggleRowSelection"
+                       aria-label="<?= h($bulkSelectionLabel) ?>"
+                       <?php if ($bulkRowDisabled) : ?>
+                       disabled
+                       title="<?= h($bulkSelectionDisabledLabel) ?>"
+                       <?php endif; ?>
+                       <?php foreach ($bulkSelectionDataFields as $attr => $field) : ?>
+                       data-<?= h($attr) ?>="<?= h(is_array($row) ? ($row[$field] ?? '') : ($row->{$field} ?? '')) ?>"
+                       <?php endforeach; ?>>
+            <?php endif; ?>
         </td>
     <?php endif; ?>
-    <?php foreach ($visibleColumns as $columnKey): ?>
+    <?php foreach ($visibleColumns as $columnKey) : ?>
         <?php if (!isset($columns[$columnKey])) {
             continue;
         } ?>
@@ -131,7 +139,7 @@ if ($rowDomIdPrefix !== null && $rowDomIdPrefix !== '' && $rowId !== null) {
                         }
                         break;
                     case 'date':
-                        if ($value instanceof \Cake\I18n\DateTime) {
+                        if ($value instanceof DateTime) {
                             echo h($this->Timezone->date($value));
                         } elseif ($value) {
                             echo h($value);
@@ -140,7 +148,7 @@ if ($rowDomIdPrefix !== null && $rowDomIdPrefix !== '' && $rowId !== null) {
                         }
                         break;
                     case 'datetime':
-                        if ($value instanceof \Cake\I18n\DateTime) {
+                        if ($value instanceof DateTime) {
                             echo h($this->Timezone->format($value));
                         } elseif ($value) {
                             echo h($value);
@@ -196,7 +204,7 @@ if ($rowDomIdPrefix !== null && $rowDomIdPrefix !== '' && $rowId !== null) {
             ?>
         </td>
     <?php endforeach; ?>
-    <?php if ($showActionsColumn): ?>
+    <?php if ($showActionsColumn) : ?>
         <td class="text-end text-nowrap">
             <?php
             if (!empty($rowActions)) {

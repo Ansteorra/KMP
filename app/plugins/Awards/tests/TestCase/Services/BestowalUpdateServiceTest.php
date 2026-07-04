@@ -5,6 +5,7 @@ namespace Awards\Test\TestCase\Services;
 
 use App\Test\TestCase\BaseTestCase;
 use Awards\Model\Entity\Recommendation;
+use Awards\Services\BestowalCourtSlotService;
 use Awards\Services\BestowalCreationService;
 use Awards\Services\BestowalUpdateService;
 use Cake\I18n\DateTime;
@@ -109,6 +110,27 @@ class BestowalUpdateServiceTest extends BaseTestCase
         $this->assertTrue($result['success'], $result['error'] ?? json_encode($result));
         $updatedBestowal = $this->bestowalsTable->get($bestowalId);
         $this->assertSame('Scribal Arts', $updatedBestowal->specialty);
+    }
+
+    public function testUpdateNormalizesRoamingCourtSelection(): void
+    {
+        $bestowalId = $this->createBestowalFromRecommendation();
+        $bestowal = $this->bestowalsTable->get($bestowalId);
+
+        $result = $this->updateService->update(
+            $this->bestowalsTable,
+            $bestowalId,
+            [
+                'award_id' => (int)$bestowal->award_id,
+                'gathering_scheduled_activity_id' => BestowalCourtSlotService::ROAMING_COURT_VALUE,
+            ],
+            self::ADMIN_MEMBER_ID,
+        );
+
+        $this->assertTrue($result['success'], $result['error'] ?? json_encode($result));
+        $updatedBestowal = $this->bestowalsTable->get($bestowalId);
+        $this->assertTrue((bool)$updatedBestowal->roaming_court);
+        $this->assertNull($updatedBestowal->gathering_scheduled_activity_id);
     }
 
     private function createBestowalFromRecommendation(): int

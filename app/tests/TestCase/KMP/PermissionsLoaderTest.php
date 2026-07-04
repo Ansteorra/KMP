@@ -61,6 +61,24 @@ class PermissionsLoaderTest extends BaseTestCase
         $this->assertEquals($first[$sampleId]->scoping_rule, $second[$sampleId]->scoping_rule);
     }
 
+    public function testEmptyPermissionCacheEntryIsRecomputed(): void
+    {
+        Cache::write('member_permissions' . self::ADMIN_MEMBER_ID, [], 'member_permissions');
+
+        $permissions = PermissionsLoader::getPermissions(self::ADMIN_MEMBER_ID);
+
+        $this->assertNotEmpty($permissions);
+    }
+
+    public function testEmptyPolicyCacheEntryIsRecomputed(): void
+    {
+        Cache::write('permissions_policies' . self::ADMIN_MEMBER_ID, [], 'member_permissions');
+
+        $policies = PermissionsLoader::getPolicies(self::ADMIN_MEMBER_ID);
+
+        $this->assertNotEmpty($policies);
+    }
+
     public function testBranchScopedPermissionLoadsForBryce(): void
     {
         $this->skipIfPostgres();

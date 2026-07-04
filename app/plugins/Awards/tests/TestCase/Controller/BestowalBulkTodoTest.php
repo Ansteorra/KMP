@@ -148,8 +148,8 @@ class BestowalBulkTodoTest extends HttpIntegrationTestCase
             'Eligible bestowal check should be completed',
         );
         $this->assertTrue(
-            $table->get($ineligibleTodo->id)->isOpen(),
-            'Ineligible bestowal check should remain open',
+            $table->get($ineligibleTodo->id)->isCompleted(),
+            'Super users can complete selected bestowal checks even when they are not the assigned doer',
         );
     }
 
@@ -223,6 +223,56 @@ class BestowalBulkTodoTest extends HttpIntegrationTestCase
         $this->assertTrue($reloadedTodo->isCompleted());
     }
 
+    public function testBulkCompleteSkipsAgendaUntilEventScheduledIsComplete(): void
+    {
+        $bestowal = $this->makeBestowal();
+        $this->makeTodo((int)$bestowal->id, self::ADMIN_MEMBER_ID, 'event_scheduled', [
+            'title' => 'Event Scheduled',
+            'sort_order' => 10,
+        ]);
+        $agendaTodo = $this->makeTodo((int)$bestowal->id, self::ADMIN_MEMBER_ID, 'added_to_agenda', [
+            'title' => 'Added to Agenda',
+            'sort_order' => 20,
+        ]);
+
+        $this->post('/awards/bestowals/bulk-complete-todo', [
+            'bestowal_ids' => (string)$bestowal->id,
+            'check_key' => 'added_to_agenda',
+        ]);
+
+        $this->assertResponseCode(302);
+        $this->assertFlashMessage('Complete Event Scheduled before Added to Agenda can be completed.');
+        $reloadedTodo = TableRegistry::getTableLocator()->get('ActionItems')->get($agendaTodo->id);
+        $this->assertTrue($reloadedTodo->isOpen());
+    }
+
+    public function testBulkCompleteCompletesAgendaAfterEventScheduledAndGatheringAssigned(): void
+    {
+        $bestowal = $this->makeBestowal();
+        $gathering = $this->makeSelectableGatheringForAward((int)$bestowal->award_id);
+        $bestowal->gathering_id = $gathering->id;
+        TableRegistry::getTableLocator()->get('Awards.Bestowals')->saveOrFail($bestowal);
+        $this->makeTodo((int)$bestowal->id, self::ADMIN_MEMBER_ID, 'event_scheduled', [
+            'title' => 'Event Scheduled',
+            'status' => ActionItem::STATUS_COMPLETED,
+            'sort_order' => 10,
+        ]);
+        $agendaTodo = $this->makeTodo((int)$bestowal->id, self::ADMIN_MEMBER_ID, 'added_to_agenda', [
+            'title' => 'Added to Agenda',
+            'sort_order' => 20,
+        ]);
+
+        $this->post('/awards/bestowals/bulk-complete-todo', [
+            'bestowal_ids' => (string)$bestowal->id,
+            'check_key' => 'added_to_agenda',
+        ]);
+
+        $this->assertResponseCode(302);
+        $this->assertFlashMessage('Completed the check on 1 bestowal.');
+        $reloadedTodo = TableRegistry::getTableLocator()->get('ActionItems')->get($agendaTodo->id);
+        $this->assertTrue($reloadedTodo->isCompleted());
+    }
+
     public function testAssignedEventScheduledTodoUserCanAssignGatheringWithoutSchedulePermission(): void
     {
         $bestowal = $this->makeBestowal();
@@ -281,7 +331,7 @@ class BestowalBulkTodoTest extends HttpIntegrationTestCase
         $gatheringActivities = TableRegistry::getTableLocator()->get('GatheringActivities');
         $awardGatheringActivities = TableRegistry::getTableLocator()->get('Awards.AwardGatheringActivities');
         $gatherings = TableRegistry::getTableLocator()->get('Gatherings');
-        $gatheringActivityLinks = TableRegistry::getTableLocator()->get('GatheringActivityLinks');
+        $gatheringActivityLinks = TableRegistry::getTableLocator()->get('GatheringsGatheringActivities');
 
         $activity = $gatheringActivities->saveOrFail($gatheringActivities->newEntity([
             'name' => 'Bulk Gathering Activity ' . $suffix,

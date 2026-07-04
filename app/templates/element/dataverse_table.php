@@ -19,6 +19,7 @@
  * @var bool $enableBulkSelection Whether to show row selection checkboxes (optional)
  * @var array $bulkSelection Bulk selection label configuration (optional)
  * @var string|null $bulkSelectionDisabledLabel Disabled row checkbox title (optional)
+ * @var bool $bulkSelectionHideDisabledControl Hide disabled row checkboxes while preserving cells (optional)
  */
 
 $controllerName = $controllerName ?? 'grid-view';
@@ -32,6 +33,7 @@ $enableBulkSelection = $enableBulkSelection ?? false;
 $bulkSelectionDataFields = $bulkSelectionDataFields ?? [];
 $bulkSelectionDisabledField = $bulkSelectionDisabledField ?? null;
 $bulkSelectionDisabledLabel = $bulkSelectionDisabledLabel ?? null;
+$bulkSelectionHideDisabledControl = $bulkSelectionHideDisabledControl ?? false;
 $bulkSelection = $bulkSelection ?? [];
 $selectAllBulkSelectionLabel = $bulkSelection['selectAllLabel'] ?? __('Select all rows on this page');
 $rowBulkSelectionLabelTemplate = $bulkSelection['rowLabelTemplate'] ?? null;
@@ -200,6 +202,7 @@ $totalColumns = count($visibleColumns) + ($showActionsColumn ? 1 : 0) + ($enable
                         'bulkSelectionDataFields' => $bulkSelectionDataFields,
                         'bulkSelectionDisabledField' => $bulkSelectionDisabledField,
                         'bulkSelectionDisabledLabel' => $bulkSelectionDisabledLabel,
+                        'bulkSelectionHideDisabledControl' => $bulkSelectionHideDisabledControl,
                         'bulkSelectionLabel' => $bulkSelectionLabel,
                         'rowDomIdPrefix' => $rowDomIdPrefix,
                         'showActionsColumn' => $showActionsColumn,

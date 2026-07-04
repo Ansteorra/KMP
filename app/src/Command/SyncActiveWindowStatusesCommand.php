@@ -3,11 +3,12 @@ declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Application;
 use App\Model\Entity\ActiveWindowBaseEntity;
-use App\Services\WorkflowEngine\DefaultWorkflowEngine;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use Cake\Command\Command;
 use Cake\Console\Arguments;
+use Cake\Console\CommandFactoryInterface;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 use Cake\Core\App;
@@ -18,6 +19,7 @@ use Cake\Log\Log;
 use Cake\ORM\Locator\TableLocator;
 use Cake\ORM\Table;
 use Cake\ORM\TableRegistry;
+use LogicException;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use Throwable;
@@ -37,11 +39,23 @@ use Throwable;
 class SyncActiveWindowStatusesCommand extends Command
 {
     /**
-     * Injected dispatcher — null means createTriggerDispatcher() will be called.
+     * Injected dispatcher. Tests may set this manually when constructing the command directly.
      *
      * @var \App\Services\WorkflowEngine\TriggerDispatcher|null
      */
     private ?TriggerDispatcher $triggerDispatcher = null;
+
+    /**
+     * @param \Cake\Console\CommandFactoryInterface|null $factory Command factory
+     * @param \App\Services\WorkflowEngine\TriggerDispatcher|null $triggerDispatcher Workflow trigger dispatcher
+     */
+    public function __construct(
+        ?CommandFactoryInterface $factory = null,
+        ?TriggerDispatcher $triggerDispatcher = null,
+    ) {
+        parent::__construct($factory);
+        $this->triggerDispatcher = $triggerDispatcher;
+    }
 
     /**
      * Set a custom TriggerDispatcher (for testing).
@@ -52,19 +66,6 @@ class SyncActiveWindowStatusesCommand extends Command
     public function setTriggerDispatcher(TriggerDispatcher $dispatcher): void
     {
         $this->triggerDispatcher = $dispatcher;
-    }
-
-    /**
-     * Create a TriggerDispatcher instance.
-     *
-     * @return \App\Services\WorkflowEngine\TriggerDispatcher
-     */
-    protected function createTriggerDispatcher(): TriggerDispatcher
-    {
-        $container = Container::create();
-        $engine = new DefaultWorkflowEngine($container);
-
-        return new TriggerDispatcher($engine);
     }
 
     /**
@@ -141,8 +142,11 @@ class SyncActiveWindowStatusesCommand extends Command
             }
 
             foreach ($kingdoms as $kingdom) {
-                $dispatcher = $dispatcher ?? ($this->triggerDispatcher ?? $this->createTriggerDispatcher());
-                $io->info(sprintf('Active "active-window-sync" workflow found for kingdom: %s. Dispatching...', $kingdom->name));
+                $dispatcher = $dispatcher ?? $this->getTriggerDispatcher();
+                $io->info(sprintf(
+                    'Active "active-window-sync" workflow found for kingdom: %s. Dispatching...',
+                    $kingdom->name,
+                ));
 
                 $results = $dispatcher->dispatch('ActiveWindow.SyncTriggered', [
                     'triggered_at' => date('c'),
@@ -157,13 +161,17 @@ class SyncActiveWindowStatusesCommand extends Command
                     }
                 }
 
-                $io->success(sprintf('Workflow dispatched for %s (started %d workflow(s)).', $kingdom->name, $successCount));
+                $io->success(sprintf(
+                    'Workflow dispatched for %s (started %d workflow(s)).',
+                    $kingdom->name,
+                    $successCount,
+                ));
                 $dispatched = true;
             }
 
             // If no kingdoms found, try global definition
             if (empty($kingdoms)) {
-                $dispatcher = $this->triggerDispatcher ?? $this->createTriggerDispatcher();
+                $dispatcher = $this->getTriggerDispatcher();
                 $io->info('Active "active-window-sync" workflow found. Dispatching...');
 
                 $results = $dispatcher->dispatch('ActiveWindow.SyncTriggered', [
@@ -190,6 +198,25 @@ class SyncActiveWindowStatusesCommand extends Command
 
             return false;
         }
+    }
+
+    /**
+     * Resolve the workflow trigger dispatcher.
+     *
+     * @return \App\Services\WorkflowEngine\TriggerDispatcher
+     */
+    private function getTriggerDispatcher(): TriggerDispatcher
+    {
+        if ($this->triggerDispatcher === null) {
+            $container = new Container();
+            (new Application(CONFIG))->services($container);
+            if (!$container->has(TriggerDispatcher::class)) {
+                throw new LogicException('TriggerDispatcher service is not available.');
+            }
+            $this->triggerDispatcher = $container->get(TriggerDispatcher::class);
+        }
+
+        return $this->triggerDispatcher;
     }
 
     /**

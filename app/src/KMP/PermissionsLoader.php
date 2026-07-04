@@ -42,7 +42,7 @@ class PermissionsLoader
         // 1. Cache Strategy - Check for cached permissions first
         $cacheKey = TenantAwareCache::tenantScopedKey('member_permissions' . $memberId);
         $cache = Cache::read($cacheKey, 'member_permissions');
-        if (is_array($cache)) {
+        if (is_array($cache) && $cache !== []) {
             return $cache; // Return cached result if available
         }
 
@@ -148,7 +148,9 @@ class PermissionsLoader
         }
 
         // 6. Cache Result for Performance
-        Cache::write($cacheKey, $permissions, 'member_permissions');
+        if ($permissions !== []) {
+            Cache::write($cacheKey, $permissions, 'member_permissions');
+        }
 
         return $permissions;
     }
@@ -177,7 +179,7 @@ class PermissionsLoader
         // 1. Cache Strategy - Check for cached roles first
         $cacheKey = TenantAwareCache::tenantScopedKey('member_roles' . $memberId);
         $cache = Cache::read($cacheKey, 'member_permissions');
-        if (is_array($cache)) {
+        if (is_array($cache) && $cache !== []) {
             return $cache;
         }
 
@@ -229,7 +231,9 @@ class PermissionsLoader
         }
 
         // 4. Cache Result for Performance
-        Cache::write($cacheKey, $roles, 'member_permissions');
+        if ($roles !== []) {
+            Cache::write($cacheKey, $roles, 'member_permissions');
+        }
 
         return $roles;
     }
@@ -251,7 +255,7 @@ class PermissionsLoader
         $cacheKey = TenantAwareCache::tenantScopedKey('permissions_policies' . $id);
         if ($useCache) {
             $cache = Cache::read($cacheKey, 'member_permissions');
-            if (is_array($cache)) {
+            if (is_array($cache) && $cache !== []) {
                 return $cache; // Return cached result if available
             }
         }
@@ -345,7 +349,9 @@ class PermissionsLoader
 
         // 8. Cache Result for Performance
         if ($useCache) {
-            Cache::write($cacheKey, $policies, 'member_permissions');
+            if ($policies !== []) {
+                Cache::write($cacheKey, $policies, 'member_permissions');
+            }
         }
 
         return $policies;

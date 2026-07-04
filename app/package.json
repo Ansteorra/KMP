@@ -26,7 +26,8 @@
         "test:mutate": "bash bin/run-stryker.sh security",
         "test:mutate:all": "bash bin/run-stryker.sh all",
         "test:security": "bash ../security-checker.sh",
-        "test:perf": "node scripts/perf/sizing-benchmark.js"
+        "test:perf": "node scripts/perf/sizing-benchmark.js",
+        "validate:workflows": "node scripts/validate-workflow-definitions.mjs"
     },
     "devDependencies": {
         "@babel/core": "^7.29.0",

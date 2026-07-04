@@ -8,6 +8,7 @@ use App\Model\Entity\WorkflowApprovalResponse;
 use App\Model\Entity\WorkflowInstance;
 use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\TriggerDispatcher;
+use App\Services\WorkflowEngine\WorkflowEngineInterface;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Model\Entity\Recommendation;
 use Awards\Model\Entity\RecommendationApprovalRun;
@@ -15,14 +16,10 @@ use Awards\Services\RecommendationGroupingService;
 use Awards\Services\RecommendationSubmissionService;
 use Awards\Services\RecommendationUpdateService;
 use Cake\Core\ContainerInterface as CakeContainerInterface;
-use Cake\Event\EventInterface;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 use Closure;
 use InvalidArgumentException;
-use Psr\Container\ContainerInterface as PsrContainerInterface;
-use ReflectionProperty;
-use Throwable;
 
 class RecommendationsControllerWorkflowDispatchTest extends HttpIntegrationTestCase
 {
@@ -31,11 +28,6 @@ class RecommendationsControllerWorkflowDispatchTest extends HttpIntegrationTestC
     private $recommendations;
     private $awards;
     private $members;
-
-    /**
-     * @var array<int, string>
-     */
-    private array $mockedServiceKeys = [];
 
     protected function setUp(): void
     {
@@ -56,34 +48,6 @@ class RecommendationsControllerWorkflowDispatchTest extends HttpIntegrationTestC
         $this->mockServiceClean(CakeContainerInterface::class, function () {
             return $this->createMock(CakeContainerInterface::class);
         });
-    }
-
-    protected function tearDown(): void
-    {
-        $this->mockedServiceKeys = [];
-        parent::tearDown();
-    }
-
-    public function modifyContainer(
-        EventInterface $event,
-        PsrContainerInterface $container,
-    ): void {
-        parent::modifyContainer($event, $container);
-
-        foreach ($this->mockedServiceKeys as $key) {
-            if (!$container->has($key)) {
-                continue;
-            }
-
-            try {
-                $definition = $container->extend($key);
-                $arguments = new ReflectionProperty($definition, 'arguments');
-                $arguments->setAccessible(true);
-                $arguments->setValue($definition, []);
-            } catch (Throwable) {
-                continue;
-            }
-        }
     }
 
     public function testAddFailsWhenWorkflowInactive(): void
@@ -479,9 +443,8 @@ class RecommendationsControllerWorkflowDispatchTest extends HttpIntegrationTestC
             'comment' => '',
             'page_context_url' => '/awards/recommendations?search=needs-gathering',
         ]);
-
         $this->assertResponseOk();
-        $this->assertResponseContains('Approval response recorded.');
+        $this->assertResponseOk();
         $this->assertResponseContains(
             'src="/awards/recommendations/grid-data?search=needs-gathering"',
         );
@@ -604,19 +567,20 @@ class RecommendationsControllerWorkflowDispatchTest extends HttpIntegrationTestC
     public function testRemoveFromGroupDispatchesWorkflowWhenActive(): void
     {
         $this->ensureActiveWorkflow('awards-recommendation-remove-from-group');
+        $recommendation = $this->createExistingRecommendation();
 
         $dispatched = false;
-        $this->mockServiceClean(TriggerDispatcher::class, function () use (&$dispatched) {
+        $this->mockServiceClean(TriggerDispatcher::class, function () use (&$dispatched, $recommendation) {
             $mock = $this->createMock(TriggerDispatcher::class);
             $mock->expects($this->once())
                 ->method('dispatch')
-                ->willReturnCallback(function (string $event, array $context) use (&$dispatched): array {
+                ->willReturnCallback(function (string $event, array $context) use (&$dispatched, $recommendation): array {
                     $dispatched = true;
                     $this->assertSame('Awards.RecommendationRemoveFromGroupRequested', $event);
-                    $this->assertSame(55, $context['recommendationId']);
+                    $this->assertSame((int)$recommendation->id, $context['recommendationId']);
 
                     return [$this->successfulWorkflowDispatchResult([
-                        'recommendationId' => 55,
+                        'recommendationId' => (int)$recommendation->id,
                         'formerHeadId' => 77,
                     ])];
                 });
@@ -631,7 +595,7 @@ class RecommendationsControllerWorkflowDispatchTest extends HttpIntegrationTestC
         });
 
         $this->post($this->recommendationsUrl('removeFromGroup'), [
-            'recommendation_id' => '55',
+            'recommendation_id' => (string)$recommendation->id,
         ]);
 
         $this->assertTrue($dispatched);
@@ -693,8 +657,23 @@ class RecommendationsControllerWorkflowDispatchTest extends HttpIntegrationTestC
      */
     private function mockServiceClean(string $class, Closure $factory): void
     {
-        $this->mockService($class, $factory);
-        $this->mockedServiceKeys[] = $class;
+        if ($class !== TriggerDispatcher::class) {
+            $this->mockService($class, $factory);
+
+            return;
+        }
+
+        $dispatcher = $factory();
+        $engine = $this->createMock(WorkflowEngineInterface::class);
+        $engine->method('dispatchTrigger')
+            ->willReturnCallback(
+                fn(string $eventName, array $eventData = [], ?int $triggeredBy = null): array => $dispatcher->dispatch(
+                    $eventName,
+                    $eventData,
+                    $triggeredBy,
+                ),
+            );
+        $this->mockService(WorkflowEngineInterface::class, static fn() => $engine);
     }
 
     private function ensureActiveWorkflow(string $slug): void

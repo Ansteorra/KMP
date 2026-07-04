@@ -31,6 +31,8 @@ class BestowalTodoTemplateItem extends BaseEntity
 
     public const ITEM_KEY_EVENT_SCHEDULED = 'event_scheduled';
 
+    public const ITEM_KEY_ADDED_TO_AGENDA = 'added_to_agenda';
+
     public const REQUIRED_FIELD_GATHERING = 'gathering_id';
 
     public const COMPLETION_PROVIDER_BESTOWAL_GATHERING = 'Awards.BestowalGathering';

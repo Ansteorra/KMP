@@ -7,7 +7,7 @@ Feature: Warrant roster decline workflow
     Scenario: Declining a pending warrant roster issues no warrants and no emails
         Given I delete all test emails
         And I prepare the officer lifecycle fixture
-        And I am logged in as "forest@ampdemo.com"
+        And I am logged in as "admin@amp.ansteorra.org"
         When I assign the officer lifecycle member
         Then I should see the flash message "The officer has been saved."
         And the officer lifecycle should have a pending warrant approval

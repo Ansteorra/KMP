@@ -213,6 +213,25 @@ trait TurboResponseTrait
     }
 
     /**
+     * Render turbo-stream flash messages without forcing a grid or frame reload.
+     */
+    protected function renderTurboFlashOnly(?array $flashMessages = null): Response
+    {
+        if ($flashMessages === null) {
+            $flashMessages = $this->consumeFlashForStream();
+        }
+
+        $this->response = $this->response->withType('text/vnd.turbo-stream.html');
+        $this->viewBuilder()->setPlugin(null);
+        $this->viewBuilder()->disableAutoLayout();
+        $this->set(compact('flashMessages'));
+        $this->viewBuilder()->setTemplatePath('element');
+        $this->viewBuilder()->setTemplate('turbo_stream_flash');
+
+        return $this->render();
+    }
+
+    /**
      * Render turbo-stream: flash + replace a single grid row by DOM id.
      */
     protected function renderTurboReplaceGridRow(

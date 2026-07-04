@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services\WorkflowEngine;
@@ -22,6 +21,7 @@ class WorkflowVersionManagerTest extends BaseTestCase
      * Valid minimal definition with trigger + end node.
      */
     private array $validDefinition = [
+        'schemaVersion' => '1.0',
         'nodes' => [
             'trigger1' => [
                 'type' => 'trigger',
@@ -215,9 +215,12 @@ class WorkflowVersionManagerTest extends BaseTestCase
     public function testPublishRejectsInvalidDefinition(): void
     {
         $defId = $this->createDefinition();
-        $invalidDef = ['nodes' => [
-            'action1' => ['type' => 'action', 'outputs' => []],
-        ]];
+        $invalidDef = [
+            'schemaVersion' => '1.0',
+            'nodes' => [
+                'action1' => ['type' => 'action', 'outputs' => []],
+            ],
+        ];
         $createResult = $this->manager->createDraft($defId, $invalidDef);
 
         $result = $this->manager->publish($createResult->data['versionId'], self::ADMIN_MEMBER_ID);

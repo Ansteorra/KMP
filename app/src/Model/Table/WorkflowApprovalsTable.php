@@ -611,6 +611,9 @@ class WorkflowApprovalsTable extends BaseTable
                 'WorkflowApprovals.approver_lookup_id' => $memberId,
             ],
             [
+                'WorkflowApprovals.approver_type' => WorkflowApproval::APPROVER_TYPE_DYNAMIC,
+            ],
+            [
                 'WorkflowApprovals.approver_lookup_type' => WorkflowApproval::APPROVER_TYPE_POLICY,
             ],
         ];
@@ -857,6 +860,19 @@ class WorkflowApprovalsTable extends BaseTable
     ): bool {
         $config = $approval->approver_config ?? [];
         $currentApproverId = (int)($approval->current_approver_id ?? $config['current_approver_id'] ?? 0);
+        if ($approval->approver_type === WorkflowApproval::APPROVER_TYPE_DYNAMIC && $currentApproverId > 0) {
+            if (empty($config['award_approval_approver_type'])) {
+                return $memberId === $currentApproverId;
+            }
+
+            return $memberId === $currentApproverId && self::dynamicConfigIncludesMember(
+                $config,
+                $memberId,
+                $memberScope,
+                $awardBranchIdsByRun,
+                $branchIndex,
+            );
+        }
         if ($currentApproverId > 0) {
             return $memberId === $currentApproverId;
         }

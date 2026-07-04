@@ -79,6 +79,8 @@ unset($paginationQueryParams['page']);
                     'bulkSelectionDataFields' => $gridState['config']['bulkSelectionDataFields'] ?? [],
                     'bulkSelectionDisabledField' => $gridState['config']['bulkSelectionDisabledField'] ?? null,
                     'bulkSelectionDisabledLabel' => $gridState['config']['bulkSelection']['disabledLabel'] ?? null,
+                    'bulkSelectionHideDisabledControl' =>
+                        $gridState['config']['bulkSelectionHideDisabledControl'] ?? false,
                     'tableFrameId' => $tableFrameId,
                     'bulkSelection' => $gridState['config']['bulkSelection'] ?? [],
                 ]) ?>
