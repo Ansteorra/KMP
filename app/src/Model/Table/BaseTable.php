@@ -101,6 +101,9 @@ class BaseTable extends Table
             foreach ($this::CACHE_GROUPS_TO_CLEAR as $cache) {
                 // Clear all cache entries in the specified group
                 Cache::clearGroup($cache);
+                if ($cache === 'security') {
+                    Cache::write(TenantAwareCache::tenantScopedKey('security_generation'), microtime(true));
+                }
             }
         }
         $this->logImpersonationAction('save', $entity);
@@ -134,6 +137,9 @@ class BaseTable extends Table
         if (!empty($this::CACHE_GROUPS_TO_CLEAR)) {
             foreach ($this::CACHE_GROUPS_TO_CLEAR as $cache) {
                 Cache::clearGroup($cache);
+                if ($cache === 'security') {
+                    Cache::write(TenantAwareCache::tenantScopedKey('security_generation'), microtime(true));
+                }
             }
         }
         $this->logImpersonationAction('delete', $entity);

@@ -40,6 +40,8 @@ namespace App\Model\Entity;
  */
 class ActionItem extends BaseEntity
 {
+    public const COMPLETION_CONFIG_AUTO_COMPLETE = 'auto_complete_when_satisfied';
+
     public const STATUS_OPEN = 'open';
 
     public const STATUS_COMPLETED = 'completed';
@@ -138,5 +140,20 @@ class ActionItem extends BaseEntity
     public function hasCompletionRequirements(): bool
     {
         return $this->getRequiredFieldConfigs() !== [];
+    }
+
+    /**
+     * Whether this to-do may be closed by the system once its requirements validate.
+     *
+     * @return bool
+     */
+    public function canAutoCompleteWhenRequirementsSatisfied(): bool
+    {
+        $config = $this->completion_config;
+        if (!is_array($config)) {
+            return false;
+        }
+
+        return filter_var($config[self::COMPLETION_CONFIG_AUTO_COMPLETE] ?? false, FILTER_VALIDATE_BOOLEAN);
     }
 }

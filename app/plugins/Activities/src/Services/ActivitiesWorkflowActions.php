@@ -1,20 +1,19 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Activities\Services;
 
 use Activities\Model\Entity\Authorization;
-use Activities\Services\AuthorizationManagerInterface;
 use App\KMP\StaticHelpers;
+use App\Mailer\QueuedMailerAwareTrait;
 use App\Services\WorkflowEngine\WorkflowContextAwareTrait;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
-use Cake\Mailer\MailerAwareTrait;
 use Cake\ORM\TableRegistry;
 use Cake\Routing\Exception\MissingRouteException;
 use Cake\Routing\Router;
 use RuntimeException;
+use Throwable;
 
 /**
  * Workflow action implementations for activity authorization operations.
@@ -24,11 +23,16 @@ use RuntimeException;
  */
 class ActivitiesWorkflowActions
 {
-    use MailerAwareTrait;
+    use QueuedMailerAwareTrait;
     use WorkflowContextAwareTrait;
 
     private AuthorizationManagerInterface $authManager;
 
+    /**
+     * Constructor.
+     *
+     * @param \Activities\Services\AuthorizationManagerInterface $authManager Authorization manager
+     */
     public function __construct(AuthorizationManagerInterface $authManager)
     {
         $this->authManager = $authManager;
@@ -53,6 +57,7 @@ class ActivitiesWorkflowActions
 
             if (!$result->success) {
                 Log::warning('Workflow CreateAuthorizationRequest: ' . $result->reason);
+
                 return ['authorizationId' => null];
             }
 
@@ -70,8 +75,9 @@ class ActivitiesWorkflowActions
             return [
                 'authorizationId' => $auth ? $auth->id : null,
             ];
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error('Workflow CreateAuthorizationRequest failed: ' . $e->getMessage());
+
             return ['authorizationId' => null];
         }
     }
@@ -97,6 +103,7 @@ class ActivitiesWorkflowActions
 
             if (!$result->success) {
                 Log::warning('Workflow ActivateAuthorization: ' . $result->reason);
+
                 return ['activated' => false, 'memberRoleId' => null];
             }
 
@@ -106,8 +113,9 @@ class ActivitiesWorkflowActions
                 'activated' => true,
                 'memberRoleId' => $data['memberRoleId'] ?? null,
             ];
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error('Workflow ActivateAuthorization failed: ' . $e->getMessage());
+
             return ['activated' => false, 'memberRoleId' => null];
         }
     }
@@ -142,7 +150,11 @@ class ActivitiesWorkflowActions
             $authorization = $authTable->get($authorizationId);
 
             if ($authorization->status !== Authorization::PENDING_STATUS) {
-                Log::warning("Workflow HandleDenial: authorization {$authorizationId} is not pending (status: {$authorization->status})");
+                Log::warning(
+                    "Workflow HandleDenial: authorization {$authorizationId} is not pending "
+                    . "(status: {$authorization->status})",
+                );
+
                 return ['denied' => false];
             }
 
@@ -154,12 +166,14 @@ class ActivitiesWorkflowActions
 
             if (!$authTable->save($authorization)) {
                 Log::error("Workflow HandleDenial: failed to save authorization {$authorizationId}");
+
                 return ['denied' => false];
             }
 
             return ['denied' => true];
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error('Workflow HandleDenial failed: ' . $e->getMessage());
+
             return ['denied' => false];
         }
     }
@@ -198,10 +212,11 @@ class ActivitiesWorkflowActions
             if (!$activity || !$member || !$approver || empty($approver->email_address)) {
                 Log::warning('Workflow NotifyApprover: missing data for notification'
                     . " activityId={$activityId} requesterId={$requesterId} approverId={$approverId}"
-                    . " activity=" . ($activity ? 'yes' : 'no')
-                    . " member=" . ($member ? 'yes' : 'no')
-                    . " approver=" . ($approver ? 'yes' : 'no')
-                    . " email=" . ($approver->email_address ?? 'null'));
+                    . ' activity=' . ($activity ? 'yes' : 'no')
+                    . ' member=' . ($member ? 'yes' : 'no')
+                    . ' approver=' . ($approver ? 'yes' : 'no')
+                    . ' email=' . ($approver->email_address ?? 'null'));
+
                 return ['sent' => false];
             }
 
@@ -220,8 +235,7 @@ class ActivitiesWorkflowActions
                     '_full' => true,
                 ]);
 
-            $this->getMailer('KMP')->send('sendFromTemplate', [
-                'to' => $approver->email_address,
+            $this->queueMail('KMP', 'sendFromTemplate', $approver->email_address, [
                 '_templateId' => 'authorization-approval-request',
                 'authorizationResponseUrl' => $authorizationResponseUrl,
                 'memberScaName' => $member->sca_name,
@@ -231,8 +245,9 @@ class ActivitiesWorkflowActions
             ]);
 
             return ['sent' => true];
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error('Workflow NotifyApprover failed: ' . $e->getMessage());
+
             return ['sent' => false];
         }
     }
@@ -254,8 +269,9 @@ class ActivitiesWorkflowActions
             $result = $this->authManager->revoke($authorizationId, $revokerId, $revokedReason);
 
             return ['revoked' => $result->success];
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error('Workflow RevokeAuthorization failed: ' . $e->getMessage());
+
             return ['revoked' => false];
         }
     }
@@ -279,7 +295,7 @@ class ActivitiesWorkflowActions
             }
 
             return ['retracted' => true];
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error('Workflow RetractAuthorization failed: ' . $e->getMessage());
             throw $e;
         }
@@ -328,8 +344,9 @@ class ActivitiesWorkflowActions
             }
 
             return ['eligible' => true, 'reason' => 'Member is eligible for renewal'];
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error('Workflow ValidateRenewalEligibility failed: ' . $e->getMessage());
+
             return ['eligible' => false, 'reason' => 'Error checking renewal eligibility'];
         }
     }
@@ -371,8 +388,9 @@ class ActivitiesWorkflowActions
             }
 
             return ['approvers' => $approvers];
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error('Workflow ResolveApprovers failed: ' . $e->getMessage());
+
             return ['approvers' => []];
         }
     }
@@ -411,6 +429,7 @@ class ActivitiesWorkflowActions
 
             if (!$activity || !$member || !$approver || empty($member->email_address)) {
                 Log::warning('Workflow NotifyRequester: missing data for notification');
+
                 return ['sent' => false];
             }
 
@@ -425,8 +444,7 @@ class ActivitiesWorkflowActions
 
             $memberCardUrl = $this->buildMemberCardUrl($requesterId);
 
-            $this->getMailer('KMP')->send('sendFromTemplate', [
-                'to' => $member->email_address,
+            $this->queueMail('KMP', 'sendFromTemplate', $member->email_address, [
                 '_templateId' => 'authorization-request-update',
                 'status' => $status,
                 'memberScaName' => $member->sca_name,
@@ -438,11 +456,19 @@ class ActivitiesWorkflowActions
             ]);
 
             return ['sent' => true];
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error('Workflow NotifyRequester failed: ' . $e->getMessage());
+
             return ['sent' => false];
         }
     }
+
+    /**
+     * Build a member card URL.
+     *
+     * @param int $memberId Member ID
+     * @return string URL to member card
+     */
     private function buildMemberCardUrl(int $memberId): string
     {
         try {

@@ -213,22 +213,23 @@ Then('I see one authorization request for {string} from {string}', async ({ page
 Then('I see one approval request for {string} from {string}', async ({ page }, activityName, requesterName) => {
     // Wait for DataverseGrid to load after search
     await waitForGridRows(page);
+    const requestLabel = `Authorization: ${activityName}`;
 
     const getRows = () => page.locator('table tbody tr')
-        .filter({ hasText: activityName })
+        .filter({ has: page.locator(`td:text-is("${requestLabel}")`) })
         .filter({ hasText: requesterName });
 
     await expect(getRows().first()).toBeVisible({ timeout: 15000 });
     // Store context for the respond step
-    page._lastMatchedApprovalRow = { activityName, requesterName };
+    page._lastMatchedApprovalRow = { requestLabel, requesterName };
 });
 
 When('I click the respond button for the approval request', async ({ page }) => {
     const ctx = page._lastMatchedApprovalRow || {};
     let row;
-    if (ctx.activityName && ctx.requesterName) {
+    if (ctx.requestLabel && ctx.requesterName) {
         row = page.locator('table tbody tr')
-            .filter({ hasText: ctx.activityName })
+            .filter({ has: page.locator(`td:text-is("${ctx.requestLabel}")`) })
             .filter({ hasText: ctx.requesterName })
             .first();
     } else {

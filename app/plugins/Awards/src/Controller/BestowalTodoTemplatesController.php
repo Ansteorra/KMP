@@ -366,6 +366,7 @@ class BestowalTodoTemplatesController extends AppController
                 'label' => BestowalTodoTemplateItem::labelForRequiredField($requiredField),
                 'help' => BestowalTodoTemplateItem::helpForRequiredField($requiredField),
                 'conditional_complete_on_assign' => !empty($data['conditional_complete_on_assign']),
+                'auto_complete_when_satisfied' => !empty($data['auto_complete_when_satisfied']),
             ];
         }
 
@@ -377,6 +378,7 @@ class BestowalTodoTemplatesController extends AppController
             $data['office_source_id'],
             $data['member_source_id'],
             $data['conditional_complete_on_assign'],
+            $data['auto_complete_when_satisfied'],
         );
 
         return $data;

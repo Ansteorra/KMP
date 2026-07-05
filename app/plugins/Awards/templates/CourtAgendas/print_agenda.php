@@ -61,6 +61,12 @@ $title = __('Court Agenda') . ': ' . ($agenda->gathering->name ?? $agenda->name)
             font-size: .9rem;
             margin-top: .25rem;
         }
+        .hand-notes {
+            border-top: 1px solid #555;
+            margin-top: .5rem;
+            min-height: .75in;
+            padding-top: .15rem;
+        }
         .screen-actions {
             margin-bottom: 1rem;
         }
@@ -138,12 +144,15 @@ $title = __('Court Agenda') . ': ' . ($agenda->gathering->name ?? $agenda->name)
                                 <?= h($itemData['awardLabel'] ?: ($item->planned_action ?? $item->title ?? '')) ?>
                                 <div class="notes"><?= h($itemData['durationHint']) ?></div>
                                 <?php if ($bestowal !== null) : ?>
-                                    <div class="notes"><?= __('State:') ?> <?= h($bestowal->state) ?></div>
+                                    <div class="notes"><?= __('State:') ?> <?= h($bestowal->lifecycle_status) ?></div>
                                 <?php endif; ?>
                             </td>
                             <td>
                                 <?php if (!empty($bestowal->call_into_court)) : ?>
-                                    <div><strong><?= __('Call in:') ?></strong> <?= h($bestowal->call_into_court) ?></div>
+                                    <div>
+                                        <strong><?= __('Call in:') ?></strong>
+                                        <?= h($bestowal->call_into_court) ?>
+                                    </div>
                                 <?php endif; ?>
                                 <?php if (!empty($item->presentation_notes)) : ?>
                                     <div><strong><?= __('Agenda:') ?></strong> <?= h($item->presentation_notes) ?></div>
@@ -158,7 +167,10 @@ $title = __('Court Agenda') . ': ' . ($agenda->gathering->name ?? $agenda->name)
                                     <div><strong><?= __('Noble:') ?></strong> <?= h($bestowal->noble_notes) ?></div>
                                 <?php endif; ?>
                                 <?php if (!empty($itemData['specialties'])) : ?>
-                                    <div><strong><?= __('Specialties:') ?></strong> <?= h(implode(', ', $itemData['specialties'])) ?></div>
+                                    <div>
+                                        <strong><?= __('Specialties:') ?></strong>
+                                        <?= h(implode(', ', $itemData['specialties'])) ?>
+                                    </div>
                                 <?php endif; ?>
                                 <?php if (!empty($itemData['reasons'])) : ?>
                                     <div class="reasons">
@@ -170,6 +182,9 @@ $title = __('Court Agenda') . ': ' . ($agenda->gathering->name ?? $agenda->name)
                                         </ol>
                                     </div>
                                 <?php endif; ?>
+                                <div class="hand-notes">
+                                    <strong><?= __('Hand notes:') ?></strong>
+                                </div>
                             </td>
                         </tr>
                     <?php endforeach; ?>

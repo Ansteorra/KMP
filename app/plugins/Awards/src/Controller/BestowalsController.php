@@ -110,7 +110,7 @@ class BestowalsController extends AppController
         $result = $this->processDataverseGrid($built['gridOptions']);
 
         if (!empty($result['isCsvExport'])) {
-            $exportData = $this->prepareBestowalsForDisplay($result['query']->all(), null);
+            $exportData = $this->prepareBestowalsForDisplay($result['query']->all(), $result['visibleColumns'], false);
 
             return $this->handleCsvExport($result, $csvExportService, 'bestowals', 'Awards.Bestowals', $exportData);
         }
@@ -173,7 +173,7 @@ class BestowalsController extends AppController
         $result = $this->processDataverseGrid($built['gridOptions']);
 
         if (!empty($result['isCsvExport'])) {
-            $exportData = $this->prepareBestowalsForDisplay($result['query']->all(), null);
+            $exportData = $this->prepareBestowalsForDisplay($result['query']->all(), $result['visibleColumns'], false);
 
             return $this->handleCsvExport(
                 $result,
@@ -377,7 +377,29 @@ class BestowalsController extends AppController
                 $fieldConfigs[] = $defaultConfig;
             }
             foreach ($fieldConfigs as $fieldConfig) {
-                if (($fieldConfig['field'] ?? null) !== 'gathering_id') {
+                $field = $fieldConfig['field'] ?? null;
+                if ($field === BestowalTodoTemplateItem::REQUIRED_FIELD_COURT_SLOT) {
+                    $courtSlotService = new BestowalCourtSlotService();
+                    $courtSlotValue = $courtSlotService->courtSessionSelectValue($bestowal);
+                    $courtSlotOptions = $courtSlotService->buildEligibleOptionsForBestowal($bestowal);
+                    $status[(int)$todoItem->id] = [
+                        'field' => BestowalTodoTemplateItem::REQUIRED_FIELD_COURT_SLOT,
+                        'label' => __('Court Assignment'),
+                        'satisfied' => $courtSlotService->hasAgendaAssignment($bestowal),
+                        'value' => $courtSlotValue,
+                        'text' => $courtSlotValue !== null
+                            ? (
+                                $courtSlotOptions[$courtSlotValue]
+                                ?? $courtSlotService->formatCourtSlotDisplay($bestowal)
+                            )
+                            : null,
+                        'options' => $courtSlotOptions,
+                    ];
+
+                    continue;
+                }
+
+                if ($field !== BestowalTodoTemplateItem::REQUIRED_FIELD_GATHERING) {
                     continue;
                 }
                 $gatheringId = $bestowal->gathering_id !== null ? (int)$bestowal->gathering_id : null;
@@ -918,11 +940,10 @@ class BestowalsController extends AppController
         $notApplicable = 0;
         $failureReason = null;
 
+        $itemsByBestowal = $this->loadBestowalActionItems(array_map('intval', $scopedIds));
+
         foreach ($scopedIds as $bestowalId) {
-            $items = $actionItemService->getItemsForEntity(
-                Bestowal::ACTION_ITEM_ENTITY_TYPE,
-                (int)$bestowalId,
-            );
+            $items = $itemsByBestowal[(int)$bestowalId] ?? [];
             $match = null;
             foreach ($items as $item) {
                 if ($item->source_ref === $checkKey && $item->isOpen()) {
@@ -1005,9 +1026,15 @@ class BestowalsController extends AppController
         $skippedInvalid = 0;
         $skippedTodo = 0;
         $scopedIds = [];
+        $scopedBestowals = [];
 
         foreach ($query->all() as $bestowal) {
             $scopedIds[] = (int)$bestowal->id;
+            $scopedBestowals[] = $bestowal;
+        }
+        $openItemsByBestowal = $completeRequiredTodo ? $this->loadBestowalActionItems($scopedIds, true) : [];
+
+        foreach ($scopedBestowals as $bestowal) {
             if (!$user->checkCan('manageCourtSchedule', $bestowal)) {
                 $skippedUnauthorized++;
                 continue;
@@ -1030,7 +1057,7 @@ class BestowalsController extends AppController
                 continue;
             }
 
-            $todo = $this->findOpenGatheringRequiredTodo($actionItemService, (int)$bestowal->id);
+            $todo = $this->findOpenGatheringRequiredTodoInItems($openItemsByBestowal[(int)$bestowal->id] ?? []);
             if ($todo === null) {
                 $skippedTodo++;
                 continue;
@@ -1095,13 +1122,12 @@ class BestowalsController extends AppController
     /**
      * Find the open gathering-required to-do for a bestowal.
      *
-     * @param \App\Services\ActionItems\ActionItemService $actionItemService To-do service.
-     * @param int $bestowalId Bestowal ID.
+     * @param array<int, \App\Model\Entity\ActionItem> $items Bestowal to-do items.
      * @return \App\Model\Entity\ActionItem|null
      */
-    private function findOpenGatheringRequiredTodo(ActionItemService $actionItemService, int $bestowalId): ?ActionItem
+    private function findOpenGatheringRequiredTodoInItems(array $items): ?ActionItem
     {
-        foreach ($actionItemService->getItemsForEntity(Bestowal::ACTION_ITEM_ENTITY_TYPE, $bestowalId) as $item) {
+        foreach ($items as $item) {
             if (!$item->isOpen()) {
                 continue;
             }
@@ -1303,10 +1329,14 @@ class BestowalsController extends AppController
      *
      * @param iterable<\Awards\Model\Entity\Bestowal> $bestowals Paginated bestowal entities
      * @param array<int,string>|null $visibleColumns Visible display columns, or null to prepare all
+     * @param bool $includeBulkTodoOptions Whether to decorate rows with bulk to-do selection metadata.
      * @return iterable<\Awards\Model\Entity\Bestowal>
      */
-    protected function prepareBestowalsForDisplay(iterable $bestowals, ?array $visibleColumns = null): iterable
-    {
+    protected function prepareBestowalsForDisplay(
+        iterable $bestowals,
+        ?array $visibleColumns = null,
+        bool $includeBulkTodoOptions = true,
+    ): iterable {
         $ids = [];
         foreach ($bestowals as $bestowal) {
             if (!empty($bestowal->id)) {
@@ -1319,14 +1349,16 @@ class BestowalsController extends AppController
         if ($loadTodoSummary) {
             $todoSummaryMap = $this->loadBestowalTodoSummaries($ids);
         }
-        $bulkTodoOptionsMap = $this->loadBestowalBulkTodoOptions($ids);
+        $bulkTodoOptionsMap = $includeBulkTodoOptions ? $this->loadBestowalBulkTodoOptions($ids) : [];
 
         foreach ($bestowals as $bestowal) {
-            $bulkTodoOptions = $bulkTodoOptionsMap[(int)$bestowal->id] ?? '[]';
-            $bestowal->bulk_todo_disabled =
-                ($bestowal->lifecycle_status ?? Bestowal::LIFECYCLE_OPEN) === Bestowal::LIFECYCLE_CANCELLED
-                || $bulkTodoOptions === '[]';
-            $bestowal->bulk_todo_options = $bulkTodoOptions;
+            if ($includeBulkTodoOptions) {
+                $bulkTodoOptions = $bulkTodoOptionsMap[(int)$bestowal->id] ?? '[]';
+                $bestowal->bulk_todo_disabled =
+                    ($bestowal->lifecycle_status ?? Bestowal::LIFECYCLE_OPEN) === Bestowal::LIFECYCLE_CANCELLED
+                    || $bulkTodoOptions === '[]';
+                $bestowal->bulk_todo_options = $bulkTodoOptions;
+            }
             if ($this->shouldLoadBestowalDisplayColumn('member_sca_name', $visibleColumns)) {
                 $bestowal->member_sca_name = $bestowal->member->sca_name ?? $bestowal->member_sca_name ?? '';
             }
@@ -1449,6 +1481,44 @@ class BestowalsController extends AppController
         }
 
         return $encoded;
+    }
+
+    /**
+     * Batch-load to-do action items for selected bestowals.
+     *
+     * @param list<int> $bestowalIds Bestowal IDs.
+     * @param bool $openOnly Whether to include only open items.
+     * @return array<int, list<\App\Model\Entity\ActionItem>>
+     */
+    private function loadBestowalActionItems(array $bestowalIds, bool $openOnly = false): array
+    {
+        $bestowalIds = array_values(array_unique(array_filter($bestowalIds)));
+        if ($bestowalIds === []) {
+            return [];
+        }
+
+        $query = TableRegistry::getTableLocator()->get('ActionItems')
+            ->find()
+            ->where([
+                'ActionItems.entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
+                'ActionItems.entity_id IN' => $bestowalIds,
+                'ActionItems.source_ref IS NOT' => null,
+            ])
+            ->order([
+                'ActionItems.entity_id' => 'ASC',
+                'ActionItems.sort_order' => 'ASC',
+                'ActionItems.id' => 'ASC',
+            ]);
+        if ($openOnly) {
+            $query->where(['ActionItems.status' => ActionItem::STATUS_OPEN]);
+        }
+
+        $itemsByBestowal = [];
+        foreach ($query->all() as $item) {
+            $itemsByBestowal[(int)$item->entity_id][] = $item;
+        }
+
+        return $itemsByBestowal;
     }
 
     /**

@@ -24,7 +24,7 @@ class BackupTask extends Task
     public ?int $retries = 1;
 
     /**
-     * @param array<string, mixed> $data Not used for scheduled backups
+     * @param array<string, mixed> $data Optional manual backup data
      * @param int $jobId Queue job ID
      */
     public function run(array $data, int $jobId): void
@@ -32,23 +32,40 @@ class BackupTask extends Task
         $appSettings = $this->fetchTable('AppSettings');
         $encryptionKey = $appSettings->getSetting('Backup.encryptionKey');
 
-        if (empty($encryptionKey)) {
-            Log::warning('Scheduled backup skipped — no encryption key configured');
+        $backupsTable = $this->fetchTable('Backups');
+        $storage = new BackupStorageService();
+        $backupService = new BackupService();
+        $backupId = $data['backup_id'] ?? null;
+
+        if (empty($encryptionKey) && $backupId === null) {
+            Log::warning('Scheduled backup skipped - no encryption key configured');
 
             return;
         }
 
-        $backupsTable = $this->fetchTable('Backups');
-        $storage = new BackupStorageService();
-        $backupService = new BackupService();
+        if ($backupId !== null) {
+            $backup = $backupsTable->get((int)$backupId);
+            $backup->status = 'running';
+            $backup->notes = 'Manual backup running.';
+            $backupsTable->save($backup);
+        } else {
+            $backup = $backupsTable->newEntity([
+                'filename' => 'kmp-backup-' . date('Ymd-His') . '.kmpbackup',
+                'storage_type' => $storage->getAdapterType(),
+                'status' => 'running',
+                'notes' => 'Scheduled backup',
+            ]);
+            $backupsTable->save($backup);
+        }
 
-        $backup = $backupsTable->newEntity([
-            'filename' => 'kmp-backup-' . date('Ymd-His') . '.kmpbackup',
-            'storage_type' => $storage->getAdapterType(),
-            'status' => 'running',
-            'notes' => 'Scheduled backup',
-        ]);
-        $backupsTable->save($backup);
+        if (empty($encryptionKey)) {
+            $backup->status = 'failed';
+            $backup->notes = 'No encryption key configured.';
+            $backupsTable->save($backup);
+            Log::warning('Backup skipped - no encryption key configured');
+
+            return;
+        }
 
         try {
             $result = $backupService->export($encryptionKey);
@@ -60,10 +77,11 @@ class BackupTask extends Task
             $backup->status = 'completed';
             $backupsTable->save($backup);
 
-            Log::info("Scheduled backup completed: {$backup->filename}");
+            Log::info("Backup completed: {$backup->filename}");
 
-            // Enforce retention policy
-            $this->cleanOldBackups($backupsTable, $storage, $appSettings);
+            if ($backupId === null) {
+                $this->cleanOldBackups($backupsTable, $storage, $appSettings);
+            }
         } catch (Exception $e) {
             $backup->status = 'failed';
             $backup->notes = $e->getMessage();

@@ -62,7 +62,7 @@ class ActionItemAssigneeResolver
                 return $this->isEligibleByPermission($config, $item->branch_id, $memberId);
 
             case ActionItem::ASSIGNEE_TYPE_ROLE:
-                return $this->isEligibleByRole($config, $memberId);
+                return $this->isEligibleByRole($config, $item->branch_id, $memberId);
 
             case ActionItem::ASSIGNEE_TYPE_MEMBER:
                 return $memberId === (int)($config['member_id'] ?? 0);
@@ -95,7 +95,7 @@ class ActionItemAssigneeResolver
                 return $this->membersByPermission($config, $item->branch_id);
 
             case ActionItem::ASSIGNEE_TYPE_ROLE:
-                return $this->membersByRole($config);
+                return $this->membersByRole($config, $item->branch_id);
 
             case ActionItem::ASSIGNEE_TYPE_MEMBER:
                 $memberId = (int)($config['member_id'] ?? 0);
@@ -175,10 +175,11 @@ class ActionItemAssigneeResolver
      * Role eligibility for a single member.
      *
      * @param array<string, mixed> $config Assignee config
+     * @param int|null $branchId Resolved branch scope
      * @param int $memberId Member to test
      * @return bool
      */
-    protected function isEligibleByRole(array $config, int $memberId): bool
+    protected function isEligibleByRole(array $config, ?int $branchId, int $memberId): bool
     {
         $roleName = $config['role'] ?? null;
         $roleId = (int)($config['role_id'] ?? 0);
@@ -187,19 +188,38 @@ class ActionItemAssigneeResolver
         }
 
         // Source the member's active roles from the canonical cached loader rather
-        // than querying member_roles directly. Role kind matching is branch-agnostic.
+        // than querying member_roles directly. When an ActionItem has a branch,
+        // role eligibility is scoped to that branch.
         $roles = PermissionsLoader::getRoles($memberId);
         if ($roleId > 0) {
-            return isset($roles[$roleId]);
+            $role = $roles[$roleId] ?? null;
+
+            return $role !== null && $this->roleCoversBranch($role, $branchId);
         }
 
         foreach ($roles as $role) {
-            if ((string)$role->name === (string)$roleName) {
+            if ((string)$role->name === (string)$roleName && $this->roleCoversBranch($role, $branchId)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * Whether a loaded role assignment covers a branch.
+     *
+     * @param object $role Role object from PermissionsLoader.
+     * @param int|null $branchId Branch to test, or null to ignore branch scope.
+     * @return bool
+     */
+    protected function roleCoversBranch(object $role, ?int $branchId): bool
+    {
+        if ($branchId === null) {
+            return true;
+        }
+
+        return in_array($branchId, $role->branch_ids ?? [], true);
     }
 
     /**
@@ -249,9 +269,10 @@ class ActionItemAssigneeResolver
      * Reverse role lookup returning member IDs.
      *
      * @param array<string, mixed> $config Assignee config
+     * @param int|null $branchId Resolved branch scope
      * @return array<int>
      */
-    protected function membersByRole(array $config): array
+    protected function membersByRole(array $config, ?int $branchId): array
     {
         $roleName = $config['role'] ?? null;
         $roleId = (int)($config['role_id'] ?? 0);
@@ -259,7 +280,7 @@ class ActionItemAssigneeResolver
             return [];
         }
 
-        $memoKey = 'role|' . ($roleId > 0 ? $roleId : 'n:' . (string)$roleName);
+        $memoKey = 'role|' . ($roleId > 0 ? $roleId : 'n:' . (string)$roleName) . '|' . (string)$branchId;
         if (array_key_exists($memoKey, $this->memberIdMemo)) {
             return $this->memberIdMemo[$memoKey];
         }
@@ -276,6 +297,9 @@ class ActionItemAssigneeResolver
             $query->where(['Roles.id' => $roleId]);
         } else {
             $query->where(['Roles.name' => $roleName]);
+        }
+        if ($branchId !== null) {
+            $query->where(['MemberRoles.branch_id' => $branchId]);
         }
 
         return $this->memberIdMemo[$memoKey] = $query->all()->extract('id')->map(fn($id): int => (int)$id)->toList();

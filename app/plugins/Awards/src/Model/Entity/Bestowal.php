@@ -5,6 +5,7 @@ namespace Awards\Model\Entity;
 
 use App\Model\Entity\BaseEntity;
 use Cake\I18n\DateTime;
+use Cake\ORM\TableRegistry;
 use DateTime as NativeDateTime;
 
 /**
@@ -135,5 +136,31 @@ class Bestowal extends BaseEntity
     public function isActiveBestowal(): bool
     {
         return ($this->lifecycle_status ?? self::LIFECYCLE_OPEN) === self::LIFECYCLE_OPEN;
+    }
+
+    /**
+     * Get the branch ID from the associated award.
+     *
+     * @return int|null Branch ID or null if not determinable.
+     */
+    public function getBranchId(): ?int
+    {
+        if ($this->hasValue('award')) {
+            return $this->award->branch_id !== null ? (int)$this->award->branch_id : null;
+        }
+
+        if ($this->award_id === null) {
+            return null;
+        }
+
+        $award = TableRegistry::getTableLocator()->get('Awards.Awards')->find()
+            ->select(['branch_id'])
+            ->where(['id' => (int)$this->award_id])
+            ->first();
+        if ($award === null || $award->branch_id === null) {
+            return null;
+        }
+
+        return (int)$award->branch_id;
     }
 }

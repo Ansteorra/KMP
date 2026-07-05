@@ -23,6 +23,10 @@ use Cake\ORM\TableRegistry;
  */
 class ActionItemService
 {
+    public const SYSTEM_AUTO_COMPLETION_NOTE = 'Completed automatically after required fields were satisfied.';
+
+    public const SYSTEM_REQUIREMENT_REOPEN_NOTE = 'Reopened automatically after required fields were cleared.';
+
     /**
      * @var \App\Services\ActionItems\ActionItemAssigneeResolver
      */
@@ -84,35 +88,41 @@ class ActionItemService
             ->toList();
         $existingRefs = array_filter($existingRefs, fn($ref): bool => $ref !== null && $ref !== '');
 
-        $created = [];
+        $entities = [];
         foreach ($definitions as $index => $definition) {
             $sourceRef = $definition['source_ref'] ?? null;
             if ($sourceRef !== null && in_array($sourceRef, $existingRefs, true)) {
                 continue;
             }
 
-            $entity = $this->ActionItems->newEntity([
+            $entities[] = $this->ActionItems->newEntity([
                 'entity_type' => $entityType,
                 'entity_id' => $entityId,
                 'title' => $definition['title'] ?? 'To-Do',
                 'description' => $definition['description'] ?? null,
                 'assignee_type' => $definition['assignee_type'] ?? ActionItem::ASSIGNEE_TYPE_PERMISSION,
                 'assignee_config' => $definition['assignee_config'] ?? null,
-                'branch_id' => $definition['branch_id'] ?? $branchId,
+                'branch_id' => array_key_exists('branch_id', $definition) ? $definition['branch_id'] : $branchId,
                 'status' => ActionItem::STATUS_OPEN,
                 'is_gating' => array_key_exists('is_gating', $definition) ? (bool)$definition['is_gating'] : true,
                 'sort_order' => $definition['sort_order'] ?? $index,
                 'source_ref' => $sourceRef,
                 'completion_config' => $definition['completion_config'] ?? null,
             ]);
-
-            if (!$this->ActionItems->save($entity)) {
-                return new ServiceResult(false, 'Failed to create one or more to-do items.', $created);
-            }
-            $created[] = $entity;
         }
 
-        return new ServiceResult(true, null, $created);
+        if ($entities === []) {
+            return new ServiceResult(true, null, []);
+        }
+
+        $created = $this->ActionItems->getConnection()->transactional(
+            fn() => $this->ActionItems->saveMany($entities),
+        );
+        if ($created === false) {
+            return new ServiceResult(false, 'Failed to create one or more to-do items.', []);
+        }
+
+        return new ServiceResult(true, null, iterator_to_array($created));
     }
 
     /**
@@ -182,25 +192,148 @@ class ActionItemService
     }
 
     /**
+     * Synchronize required-field to-dos with their current requirement state.
+     *
+     * @param string $entityType Polymorphic owner type.
+     * @param int $entityId Owner primary key.
+     * @param int|null $completedEventActorId Member whose action caused the auto-close, if any.
+     * @return \App\Services\ServiceResult Data includes completed, reopened, and skipped counts.
+     */
+    public function syncRequiredFieldCompletionStates(
+        string $entityType,
+        int $entityId,
+        ?int $completedEventActorId = null,
+    ): ServiceResult {
+        if ($entityType === '' || $entityId <= 0) {
+            return new ServiceResult(false, 'A valid to-do owner is required for required-field synchronization.');
+        }
+
+        $items = $this->ActionItems->find()
+            ->where([
+                'ActionItems.entity_type' => $entityType,
+                'ActionItems.entity_id' => $entityId,
+                'ActionItems.status IN' => [
+                    ActionItem::STATUS_OPEN,
+                    ActionItem::STATUS_COMPLETED,
+                ],
+            ])
+            ->orderBy(['ActionItems.sort_order' => 'ASC', 'ActionItems.id' => 'ASC'])
+            ->all();
+
+        $completedIds = [];
+        $reopenedIds = [];
+        $skipped = 0;
+        foreach ($items as $item) {
+            $provider = ActionItemCompletionFormRegistry::providerFor($item);
+            if ($provider === null) {
+                if (!$item->hasCompletionRequirements() && !$item->canAutoCompleteWhenRequirementsSatisfied()) {
+                    $skipped++;
+
+                    continue;
+                }
+
+                return new ServiceResult(
+                    false,
+                    'This to-do requires additional information before it can be completed.',
+                );
+            }
+
+            $requirementResult = $provider->validateCompletion($item);
+            if ($item->isCompleted() && !$requirementResult->success) {
+                $result = $this->transition(
+                    (int)$item->id,
+                    null,
+                    ActionItem::STATUS_OPEN,
+                    self::SYSTEM_REQUIREMENT_REOPEN_NOTE,
+                    false,
+                );
+                if (!$result->success) {
+                    return $result;
+                }
+                $reopenedIds[] = (int)$item->id;
+
+                continue;
+            }
+
+            if (!$item->isOpen()) {
+                $skipped++;
+                continue;
+            }
+
+            if (!$item->canAutoCompleteWhenRequirementsSatisfied()) {
+                $skipped++;
+                continue;
+            }
+
+            if (!$requirementResult->success) {
+                $skipped++;
+                continue;
+            }
+
+            $result = $this->transition(
+                (int)$item->id,
+                null,
+                ActionItem::STATUS_COMPLETED,
+                self::SYSTEM_AUTO_COMPLETION_NOTE,
+                false,
+                [],
+                null,
+                $completedEventActorId,
+            );
+            if (!$result->success) {
+                return $result;
+            }
+            $completedIds[] = (int)$item->id;
+        }
+
+        return new ServiceResult(true, null, [
+            'completedIds' => $completedIds,
+            'reopenedIds' => $reopenedIds,
+            'completedCount' => count($completedIds),
+            'reopenedCount' => count($reopenedIds),
+            'skippedCount' => $skipped,
+        ]);
+    }
+
+    /**
+     * System-complete open required-field to-dos whose requirements are now satisfied,
+     * and reopen completed required-field to-dos whose requirements are no longer met.
+     *
+     * @param string $entityType Polymorphic owner type.
+     * @param int $entityId Owner primary key.
+     * @param int|null $completedEventActorId Member whose action caused the auto-close, if any.
+     * @return \App\Services\ServiceResult Data includes completed, reopened, and skipped counts.
+     */
+    public function autoCompleteSatisfiedRequirements(
+        string $entityType,
+        int $entityId,
+        ?int $completedEventActorId = null,
+    ): ServiceResult {
+        return $this->syncRequiredFieldCompletionStates($entityType, $entityId, $completedEventActorId);
+    }
+
+    /**
      * Shared transition handler: validate, update status, write a log row.
      *
      * @param int $actionItemId The item id
-     * @param int $actorId The acting member id
+     * @param int|null $actorId The acting member id, or null for system transitions
      * @param string $toStatus Target status
      * @param string|null $note Optional audit note
      * @param bool $enforceEligibility Whether to enforce the eligibility gate
      * @param array<string, mixed> $completionData Submitted provider-backed completion data
      * @param \App\KMP\KmpIdentityInterface|null $actorIdentity Current actor identity
+     * @param int|null $completedEventActorId Alternate actor for completion listeners.
      * @return \App\Services\ServiceResult
      */
     protected function transition(
         int $actionItemId,
-        int $actorId,
+        ?int $actorId,
         string $toStatus,
         ?string $note,
         bool $enforceEligibility,
         array $completionData = [],
         ?KmpIdentityInterface $actorIdentity = null,
+        ?int $completedEventActorId = null,
     ): ServiceResult {
         /** @var \App\Model\Entity\ActionItem|null $item */
         $item = $this->ActionItems->find()->where(['ActionItems.id' => $actionItemId])->first();
@@ -208,7 +341,7 @@ class ActionItemService
             return new ServiceResult(false, 'To-do item not found.');
         }
 
-        if ($enforceEligibility && !$this->resolver->isMemberEligible($item, $actorId)) {
+        if ($enforceEligibility && ($actorId === null || !$this->resolver->isMemberEligible($item, $actorId))) {
             return new ServiceResult(false, 'You are not assigned to this to-do item.');
         }
 
@@ -268,7 +401,17 @@ class ActionItemService
         );
 
         if ($result->success && $toStatus === ActionItem::STATUS_COMPLETED) {
-            $this->dispatchCompletedEvent($item, $actorId);
+            $this->dispatchCompletedEvent($item, $completedEventActorId ?? $actorId);
+            if ($actorId !== null) {
+                $cascadeResult = $this->autoCompleteSatisfiedRequirements(
+                    (string)$item->entity_type,
+                    (int)$item->entity_id,
+                    $actorId,
+                );
+                if (!$cascadeResult->success) {
+                    return $cascadeResult;
+                }
+            }
         }
 
         return $result;
@@ -279,14 +422,14 @@ class ActionItemService
      *
      * @param \App\Model\Entity\ActionItem $item Action item.
      * @param array<string, mixed> $completionData Submitted provider data.
-     * @param int $actorId Acting member id.
+     * @param int|null $actorId Acting member id, or null for system validation.
      * @param \App\KMP\KmpIdentityInterface|null $actorIdentity Current actor identity.
      * @return \App\Services\ServiceResult
      */
     private function prepareCompletionRequirements(
         ActionItem $item,
         array $completionData,
-        int $actorId,
+        ?int $actorId,
         ?KmpIdentityInterface $actorIdentity,
     ): ServiceResult {
         $provider = ActionItemCompletionFormRegistry::providerFor($item);
@@ -299,10 +442,10 @@ class ActionItemService
         }
 
         if ($completionData !== []) {
-            if ($actorIdentity === null) {
+            if ($actorIdentity === null || $actorId === null) {
                 return new ServiceResult(false, 'A signed-in user is required to update this to-do requirement.');
             }
-            $applyResult = $provider->applySubmission($item, $completionData, $actorId, $actorIdentity);
+            $applyResult = $provider->applySubmission($item, $completionData, (int)$actorId, $actorIdentity);
             if (!$applyResult->success) {
                 return $applyResult;
             }
@@ -319,10 +462,10 @@ class ActionItemService
      * listeners are best-effort and must not affect the transition result.
      *
      * @param \App\Model\Entity\ActionItem $item The completed item.
-     * @param int $actorId Member who completed the item.
+     * @param int|null $actorId Member who completed the item, or null when system-completed.
      * @return void
      */
-    protected function dispatchCompletedEvent(ActionItem $item, int $actorId): void
+    protected function dispatchCompletedEvent(ActionItem $item, ?int $actorId): void
     {
         EventManager::instance()->dispatch(
             new Event('ActionItem.completed', $this, ['item' => $item, 'actorId' => $actorId]),
@@ -345,7 +488,7 @@ class ActionItemService
         $query = $this->ActionItems->find()
             ->contain(['Branches'])
             ->where(['ActionItems.status' => ActionItem::STATUS_OPEN])
-            ->order([
+            ->orderBy([
                 'ActionItems.entity_type' => 'ASC',
                 'ActionItems.entity_id' => 'ASC',
                 'ActionItems.sort_order' => 'ASC',
@@ -366,6 +509,29 @@ class ActionItemService
     }
 
     /**
+     * Apply the open-item candidate SQL scope for a member.
+     *
+     * The scope uses denormalized assignee lookup columns plus the member's
+     * cached permission/role branch coverage so grid endpoints can page and sort
+     * in SQL instead of hydrating every open to-do into PHP first.
+     *
+     * @param \Cake\ORM\Query\SelectQuery $query Query to scope.
+     * @param int $memberId Member ID.
+     * @return \Cake\ORM\Query\SelectQuery
+     */
+    public function applyOpenCandidateScopeForMember(SelectQuery $query, int $memberId): SelectQuery
+    {
+        if ($memberId <= 0) {
+            return $query->where(['ActionItems.id' => -1]);
+        }
+
+        $query->where(['ActionItems.status' => ActionItem::STATUS_OPEN]);
+        $this->applyMemberCandidateScope($query, $memberId);
+
+        return $query;
+    }
+
+    /**
      * List the ids of open action items a member is eligible to act on.
      *
      * Mirrors {@see getOpenItemsForMember()} but returns only ids, for use as a
@@ -381,6 +547,7 @@ class ActionItemService
         }
 
         $query = $this->ActionItems->find()
+            ->select($this->eligibilitySelectColumns())
             ->where(['ActionItems.status' => ActionItem::STATUS_OPEN]);
         $this->applyMemberCandidateScope($query, $memberId);
 
@@ -410,6 +577,7 @@ class ActionItemService
         }
 
         $items = $this->ActionItems->find()
+            ->select($this->eligibilitySelectColumns())
             ->where(['ActionItems.status' => ActionItem::STATUS_OPEN]);
         $this->applyMemberCandidateScope($items, $memberId);
         $items = $items->all()->toArray();
@@ -448,62 +616,64 @@ class ActionItemService
      */
     private function applyMemberCandidateScope(SelectQuery $query, int $memberId): void
     {
-        $roles = PermissionsLoader::getRoles($memberId);
         $permissions = PermissionsLoader::getPermissions($memberId);
-        $roleIds = array_map('intval', array_keys($roles));
-        $permissionIds = array_map('intval', array_keys($permissions));
-        $roleNames = array_values(array_filter(array_map(
-            static fn(object $role): string => (string)$role->name,
-            $roles,
-        )));
-        $permissionNames = array_values(array_filter(array_map(
-            static fn(object $permission): string => (string)$permission->name,
-            $permissions,
-        )));
-        $officeIds = $this->getCurrentOfficeIdsForMember($memberId);
+        $roles = PermissionsLoader::getRoles($memberId);
+        $officeScopes = $this->getCurrentOfficeScopesForMember($memberId);
 
         $conditions = [
             [
                 'ActionItems.assignee_lookup_type' => ActionItem::ASSIGNEE_TYPE_MEMBER,
                 'ActionItems.assignee_lookup_id' => $memberId,
             ],
-            [
-                'ActionItems.assignee_lookup_type' => ActionItem::ASSIGNEE_TYPE_DYNAMIC,
-            ],
         ];
 
-        $permissionConditions = [];
-        if ($permissionIds !== []) {
-            $permissionConditions[] = ['ActionItems.assignee_lookup_id IN' => $permissionIds];
-        }
-        if ($permissionNames !== []) {
-            $permissionConditions[] = ['ActionItems.assignee_lookup_name IN' => $permissionNames];
-        }
-        if ($permissionConditions !== []) {
-            $conditions[] = [
+        foreach ($permissions as $permission) {
+            $lookup = [
                 'ActionItems.assignee_lookup_type' => ActionItem::ASSIGNEE_TYPE_PERMISSION,
-                'OR' => $permissionConditions,
+                'OR' => [
+                    'ActionItems.assignee_lookup_id' => (int)$permission->id,
+                    'ActionItems.assignee_lookup_name' => (string)$permission->name,
+                ],
             ];
+            $branchIds = $permission->branch_ids ?? null;
+            if (is_array($branchIds)) {
+                $branchIds = array_values(array_map('intval', $branchIds));
+                $lookup['AND'] = [[
+                    'OR' => [
+                        'ActionItems.branch_id IS' => null,
+                        'ActionItems.branch_id IN' => $branchIds !== [] ? $branchIds : [-1],
+                    ],
+                ]];
+            }
+            $conditions[] = $lookup;
         }
 
-        $roleConditions = [];
-        if ($roleIds !== []) {
-            $roleConditions[] = ['ActionItems.assignee_lookup_id IN' => $roleIds];
-        }
-        if ($roleNames !== []) {
-            $roleConditions[] = ['ActionItems.assignee_lookup_name IN' => $roleNames];
-        }
-        if ($roleConditions !== []) {
-            $conditions[] = [
+        foreach ($roles as $role) {
+            $lookup = [
                 'ActionItems.assignee_lookup_type' => ActionItem::ASSIGNEE_TYPE_ROLE,
-                'OR' => $roleConditions,
+                'OR' => [
+                    'ActionItems.assignee_lookup_id' => (int)$role->id,
+                    'ActionItems.assignee_lookup_name' => (string)$role->name,
+                ],
             ];
+            $branchIds = array_values(array_map('intval', $role->branch_ids ?? []));
+            $lookup['AND'] = [[
+                'OR' => [
+                    'ActionItems.branch_id IS' => null,
+                    'ActionItems.branch_id IN' => $branchIds !== [] ? $branchIds : [-1],
+                ],
+            ]];
+            $conditions[] = $lookup;
         }
 
-        if ($officeIds !== []) {
+        foreach ($officeScopes as $officeId => $branchIds) {
             $conditions[] = [
                 'ActionItems.assignee_lookup_type' => 'office',
-                'ActionItems.assignee_lookup_id IN' => $officeIds,
+                'ActionItems.assignee_lookup_id' => $officeId,
+                'OR' => [
+                    'ActionItems.branch_id IS' => null,
+                    'ActionItems.branch_id IN' => $branchIds !== [] ? $branchIds : [-1],
+                ],
             ];
         }
 
@@ -511,14 +681,32 @@ class ActionItemService
     }
 
     /**
-     * @param int $memberId Member ID.
-     * @return array<int>
+     * Columns needed for PHP-side residual eligibility checks.
+     *
+     * @return array<string>
      */
-    private function getCurrentOfficeIdsForMember(int $memberId): array
+    private function eligibilitySelectColumns(): array
+    {
+        return [
+            'id',
+            'assignee_type',
+            'assignee_config',
+            'assignee_lookup_type',
+            'assignee_lookup_id',
+            'assignee_lookup_name',
+            'branch_id',
+        ];
+    }
+
+    /**
+     * @param int $memberId Member ID.
+     * @return array<int, array<int>>
+     */
+    private function getCurrentOfficeScopesForMember(int $memberId): array
     {
         $now = DateTime::now();
-        $offices = TableRegistry::getTableLocator()->get('Officers.Officers')->find()
-            ->select(['office_id'])
+        $rows = TableRegistry::getTableLocator()->get('Officers.Officers')->find()
+            ->select(['office_id', 'branch_id'])
             ->where([
                 'Officers.member_id' => $memberId,
                 'Officers.status' => 'Current',
@@ -528,12 +716,20 @@ class ActionItemService
                     'Officers.expires_on >=' => $now,
                 ],
             ])
-            ->all()
-            ->extract('office_id')
-            ->map(fn($id): int => (int)$id)
-            ->toList();
+            ->enableHydration(false)
+            ->all();
 
-        return array_values(array_unique(array_filter($offices)));
+        $officeScopes = [];
+        foreach ($rows as $row) {
+            $officeId = (int)($row['office_id'] ?? 0);
+            $branchId = (int)($row['branch_id'] ?? 0);
+            if ($officeId <= 0 || $branchId <= 0) {
+                continue;
+            }
+            $officeScopes[$officeId][$branchId] = $branchId;
+        }
+
+        return array_map(static fn(array $branchIds): array => array_values($branchIds), $officeScopes);
     }
 
     /**

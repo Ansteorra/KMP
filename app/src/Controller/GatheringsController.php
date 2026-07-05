@@ -10,6 +10,7 @@ use App\Services\GatheringActivityService;
 use App\Services\GatheringCloneService;
 use App\Services\GatheringScheduleService;
 use App\Services\ICalendarService;
+use Cake\Cache\Cache;
 use Cake\Event\EventInterface;
 use Cake\Http\Exception\ForbiddenException;
 use Cake\Http\Exception\NotFoundException;
@@ -1808,6 +1809,7 @@ class GatheringsController extends AppController
         $this->Authorization->skipAuthorization();
 
         $cutoff = new CakeDateTime('-30 days');
+        $feedUntil = new CakeDateTime('+2 years');
         $query = $this->Gatherings->find()
             ->contain([
                 'Branches',
@@ -1820,6 +1822,7 @@ class GatheringsController extends AppController
             ])
             ->where([
                 'Gatherings.end_date >=' => $cutoff,
+                'Gatherings.start_date <=' => $feedUntil,
                 'Gatherings.public_page_enabled' => true,
             ])
             ->orderBy(['Gatherings.start_date' => 'ASC']);
@@ -1831,6 +1834,7 @@ class GatheringsController extends AppController
             $incomingFilters = [];
         }
         $calendarNameParts = [];
+        $normalizedFilters = [];
 
         foreach ($incomingFilters as $columnKey => $filterValue) {
             if (empty($filterValue)) {
@@ -1853,9 +1857,16 @@ class GatheringsController extends AppController
                 : $fieldToFilter;
 
             $values = is_array($filterValue) ? $filterValue : [$filterValue];
+            $values = array_values(array_filter($values, static fn($value): bool => $value !== '' && $value !== null));
+            sort($values);
+            if (empty($values)) {
+                continue;
+            }
+            $normalizedFilters[$columnKey] = $values;
             $query->where([$qualifiedField . ' IN' => $values]);
         }
 
+        ksort($normalizedFilters);
         // Build calendar display name from active filter values
         if (!empty($incomingFilters['branch_id'])) {
             $branchIds = (array)$incomingFilters['branch_id'];
@@ -1887,18 +1898,37 @@ class GatheringsController extends AppController
             $calendarName .= ' - ' . implode(' / ', $calendarNameParts);
         }
 
-        $gatherings = $query->all();
-
         $baseUrl = $this->request->scheme() . '://' . $this->request->host()
             . $this->request->getAttribute('base');
 
-        $icsContent = $iCalendarService->generateFeed($gatherings, $calendarName, $baseUrl);
+        $cacheKey = 'gatherings_ical_' . sha1(json_encode([
+            'baseUrl' => $baseUrl,
+            'filters' => $normalizedFilters,
+            'from' => $cutoff->format('Y-m-d'),
+            'until' => $feedUntil->format('Y-m-d'),
+        ]));
+        $icsContent = Cache::remember($cacheKey, function () use (
+            $iCalendarService,
+            $query,
+            $calendarName,
+            $baseUrl,
+        ): string {
+            return $iCalendarService->generateFeed($query->all(), $calendarName, $baseUrl);
+        }, 'grid_filter_options');
+        $etag = '"' . sha1($icsContent) . '"';
 
-        return $this->response
+        $response = $this->response
             ->withType('text/calendar')
             ->withCharset('UTF-8')
             ->withHeader('Content-Disposition', 'inline')
-            ->withHeader('Cache-Control', 'no-cache, must-revalidate')
+            ->withHeader('Cache-Control', 'public, max-age=900')
+            ->withHeader('ETag', $etag);
+
+        if ($this->request->getHeaderLine('If-None-Match') === $etag) {
+            return $response->withStatus(304);
+        }
+
+        return $response
             ->withStringBody($icsContent);
     }
 

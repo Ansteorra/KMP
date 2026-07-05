@@ -62,12 +62,13 @@ class BackupServiceTest extends TestCase
         $service = new BackupService('backup_scope_test');
         $result = $service->export('correct-key');
 
+        $service->validateImportHeader($result['data'], 'correct-key');
         $service->validateImportPayload($result['data'], 'correct-key');
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Decryption failed');
 
-        $service->validateImportPayload($result['data'], 'wrong-key');
+        $service->validateImportHeader($result['data'], 'wrong-key');
     }
 
     public function testExportPreservesOperationalSchemasWithoutTransientRows(): void

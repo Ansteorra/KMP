@@ -18,10 +18,53 @@ For a production deployment, the following server configuration is recommended:
 
 - **Web Server**: Apache 2.4+ or Nginx 1.18+
 - **PHP**: PHP 8.4+ with required extensions (see [System Requirements](1-introduction.md#13-system-requirements))
-- **Database**: MySQL 5.7+ or MariaDB 10.2+
+- **Database**: PostgreSQL 16+ for managed Azure deployments; MySQL 5.7+ or MariaDB 10.2+ remain supported for self-hosted deployments
+- **Shared cache/session store**: Redis for production multi-replica deployments
 - **Memory**: Minimum 2GB RAM (4GB+ recommended)
 - **Storage**: 10GB+ disk space (more if storing many attachments)
 - **SSL Certificate**: Required for secure user authentication
+
+### Azure Container Apps release target
+
+The workflow-engine release target is a co-located **North Central US** Azure stack:
+
+| Service | Baseline SKU/configuration | Notes |
+| --- | --- | --- |
+| Azure Container Apps | Consumption, single replica initially | Queue worker and workflow scheduler should run outside the web container where possible. |
+| Azure Database for PostgreSQL Flexible Server | Small B-series SKU with built-in PgBouncer enabled | Point app database traffic at PgBouncer port `6432`; keep persistent PDO connections disabled. |
+| Azure Managed Redis | B0 Balanced, 500 MB | Back `CACHE_ENGINE=redis`, `REDIS_URL`, PHP sessions, tenant host map, restore status, and write-invalidated app caches. |
+
+Minimum production environment settings for this shape:
+
+```bash
+KMP_ENV=production
+KMP_DB_DRIVER=postgres
+DB_PORT=6432
+CACHE_ENGINE=redis
+REDIS_URL=rediss://:<password>@<managed-redis-host>:10000/0
+KMP_SESSION_DEFAULTS=cache
+KMP_SESSION_CACHE_CONFIG=default
+```
+
+If Redis is requested but unavailable, the application logs a startup warning and falls back to a local cache backend. That fallback is acceptable for local development only; production should not run multi-replica traffic with APCu/file cache or PHP file sessions because permission caches, tenant host maps, restore locks, and login sessions would be per-process or per-replica.
+
+Connection budget guidance:
+
+- PgBouncer transaction pooling should absorb Apache/PHP request concurrency on small Flexible Server SKUs.
+- Keep database `persistent` connections disabled for web and queue processes.
+- Size Redis client connections as Apache workers x replicas plus queue/scheduler clients.
+- Rehearse backup restore against the North Central US PostgreSQL instance; the release-day restore is also the region migration.
+
+Queue and scheduler guidance:
+
+- Prefer a separate Container App or ACA Job for `bin/cake queue run -q` and workflow scheduler commands instead of running them inside the web container.
+- If cron must remain co-located with the web container temporarily, the production entrypoint uses `QUEUE_EXIT_WHEN_NOTHING_TO_DO=true` every five minutes. Tune `QUEUE_SLEEP_TIME`, `QUEUE_GC_PROB`, and `QUEUE_WORKER_MAX_RUNTIME` rather than increasing web-container CPU contention.
+
+Image cache guidance:
+
+- Glide processed images are written to `images/cache`.
+- In Azure Container Apps, keep this cache ephemeral unless regeneration cost becomes measurable; do not mount Azure Files just for derived images without a retention policy.
+- Production cron runs `bin/cake image_cache_gc --days "${KMP_IMAGE_CACHE_GC_DAYS:-7}"` at 03:15 to remove stale generated files. Set `KMP_IMAGE_CACHE_GC_DAYS` if the cache needs a longer or shorter retention window.
 
 ### Directory Structure
 
@@ -243,8 +286,12 @@ bin/cake migrations rollback
 
 Follow this process when deploying database changes:
 
-1. **Backup**: Always back up the production database before applying migrations
+1. **Backup**: Always back up the production database before applying migrations. Use the command for the configured database engine.
    ```bash
+   # PostgreSQL / Azure Flexible PostgreSQL
+   pg_dump --format=custom --no-owner --no-privileges "$DATABASE_URL" > kmp_backup_YYYYMMDD.dump
+
+   # MySQL/MariaDB
    mysqldump -u user -p kmp_production > kmp_backup_YYYYMMDD.sql
    ```
 
@@ -267,7 +314,16 @@ Follow this process when deploying database changes:
    bin/cake migrations status
    ```
 
-5. **Disable Maintenance Mode**: Return the application to normal operation
+5. **Regenerate schema dump**: Refresh `app/config/schema_dump.sql` after all migrations and plugin migrations are applied so provisioning and audits reflect the shipped schema. Use the command for the configured database engine.
+   ```bash
+   # PostgreSQL / Azure Flexible PostgreSQL
+   pg_dump --schema-only --no-owner --no-privileges "$DATABASE_URL" > app/config/schema_dump.sql
+
+   # MySQL/MariaDB
+   mysqldump --no-data -u user -p kmp_production > app/config/schema_dump.sql
+   ```
+
+6. **Disable Maintenance Mode**: Return the application to normal operation
    ```php
    StaticHelpers::setAppSetting('KMP.MaintenanceMode', 'no');
    ```

@@ -281,20 +281,20 @@ class Recommendation extends BaseEntity
      */
     public function getBranchId(): ?int
     {
-        if ($this->award) {
+        if ($this->hasValue('award')) {
             return $this->award->branch_id;
         }
 
-        if ($this->award_id == null) {
+        if ($this->award_id === null) {
             return null;
         }
         $awardTbl = TableRegistry::getTableLocator()->get('Awards.Awards');
         $award = $awardTbl->find()
-            ->where(['id' => $this->award_id])
-            ->select('branch_id')
+            ->select(['branch_id'])
+            ->where(['id' => (int)$this->award_id])
             ->first();
         if ($award) {
-            return $award->branch_id;
+            return $award->branch_id !== null ? (int)$award->branch_id : null;
         }
 
         return null;

@@ -52,6 +52,13 @@ env_or_file() {
 
 canonical_path() {
     path="$1"
+    if [ ! -e "$path" ] && [[ "$path" == /host_mnt/* ]]; then
+        docker_desktop_host_path="/${path#/host_mnt/}"
+        if [ -e "$docker_desktop_host_path" ]; then
+            path="$docker_desktop_host_path"
+        fi
+    fi
+
     if [ ! -e "$path" ]; then
         return 1
     fi

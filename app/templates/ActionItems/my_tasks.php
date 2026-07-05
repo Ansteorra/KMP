@@ -95,6 +95,22 @@ $this->KMP->endBlock(); ?>
                         <i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>
                         <?= __('Select the gathering where the bestowal will be presented.') ?>
                     </div>
+                    <div class="mt-3" data-todo-target="courtSlotGroup" hidden>
+                        <label class="form-label" for="todoCourtSlot">
+                            <?= __('Court Assignment') ?>
+                        </label>
+                        <select class="form-select" id="todoCourtSlot" name="gathering_scheduled_activity_id"
+                            data-todo-target="courtSlotSelect" aria-describedby="todoCourtSlotHelp">
+                            <option value=""><?= __('Choose a court assignment') ?></option>
+                        </select>
+                        <div class="form-text" id="todoCourtSlotHelp" data-todo-target="courtSlotHelp">
+                            <?= __('Choose Roaming Court or an eligible scheduled court activity.') ?>
+                        </div>
+                        <div class="text-danger small" data-todo-target="courtSlotError" hidden>
+                            <i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>
+                            <?= __('Select Roaming Court or a scheduled court activity.') ?>
+                        </div>
+                    </div>
                 </div>
 
                 <div>
@@ -190,12 +206,35 @@ document.addEventListener('DOMContentLoaded', function () {
             const hidden = control?.querySelector('[data-ac-target="hidden"]');
             const input = control?.querySelector('[data-ac-target="input"]');
             const error = modal.querySelector('[data-todo-target="bestowalGatheringError"]');
-            if (!section || section.hidden || !hidden || hidden.value !== '') {
+            const courtGroup = modal.querySelector('[data-todo-target="courtSlotGroup"]');
+            const courtSelect = modal.querySelector('[data-todo-target="courtSlotSelect"]');
+            const courtError = modal.querySelector('[data-todo-target="courtSlotError"]');
+            const courtSlotRequired = section && !section.hidden
+                && courtGroup && !courtGroup.hidden
+                && courtSelect && courtSelect.value === '';
+            if (courtSlotRequired) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                courtSelect.setAttribute('aria-invalid', 'true');
+                courtSelect.focus();
+                if (courtError) {
+                    courtError.hidden = false;
+                }
+                return;
+            }
+
+            if (!section || section.hidden || courtGroup && !courtGroup.hidden || !hidden || hidden.value !== '') {
                 if (input) {
                     input.removeAttribute('aria-invalid');
                 }
                 if (error) {
                     error.hidden = true;
+                }
+                if (courtSelect) {
+                    courtSelect.removeAttribute('aria-invalid');
+                }
+                if (courtError) {
+                    courtError.hidden = true;
                 }
                 return;
             }
@@ -240,7 +279,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         const field = Array.isArray(completionForm.fields) ? completionForm.fields[0] : null;
-        const hasField = field && field.type === 'autocomplete';
+        const hasAutocomplete = field && field.type === 'autocomplete';
+        const hasSelect = field && field.type === 'select';
+        const hasField = hasAutocomplete || hasSelect;
         section.hidden = !hasField;
         section.querySelectorAll('input, select, textarea, button').forEach((control) => {
             control.disabled = !hasField;
@@ -248,9 +289,14 @@ document.addEventListener('DOMContentLoaded', function () {
         const includePastControl = modal.querySelector('[data-todo-target="includePastGatherings"]');
         if (includePastControl) {
             includePastControl.checked = false;
+            includePastControl.closest('.form-check')?.toggleAttribute('hidden', !hasAutocomplete);
+            includePastControl.disabled = !hasAutocomplete;
         }
+        toggleGatheringField(hasAutocomplete);
+        toggleCourtSlotField(hasSelect, field || {});
         if (!hasField) {
             resetGatheringControl();
+            resetCourtSlotControl();
             const control = modal.querySelector('[data-todo-target="bestowalGatheringControl"]');
             if (control) {
                 delete control.dataset.baseUrl;
@@ -273,6 +319,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     'Choose the gathering where this bestowal will be presented. ' .
                     'Use Include past gatherings to backdate scheduling.',
                 ) ?>';
+        }
+
+        if (!hasAutocomplete) {
+            return;
         }
 
         const control = modal.querySelector('[data-todo-target="bestowalGatheringControl"]');
@@ -299,6 +349,69 @@ document.addEventListener('DOMContentLoaded', function () {
         const error = modal.querySelector('[data-todo-target="bestowalGatheringError"]');
         if (error) {
             error.hidden = true;
+        }
+    }
+
+    function resetCourtSlotControl() {
+        const select = modal.querySelector('[data-todo-target="courtSlotSelect"]');
+        const error = modal.querySelector('[data-todo-target="courtSlotError"]');
+        if (select) {
+            select.value = '';
+            select.removeAttribute('aria-invalid');
+        }
+        if (error) {
+            error.hidden = true;
+        }
+    }
+
+    function toggleGatheringField(visible) {
+        const control = modal.querySelector('[data-todo-target="bestowalGatheringControl"]');
+        const help = modal.querySelector('[data-todo-target="bestowalGatheringHelp"]');
+        const group = control?.closest('.mb-3') || control;
+        if (group) {
+            group.hidden = !visible;
+        }
+        if (control) {
+            control.querySelectorAll('input, select, textarea, button').forEach((field) => {
+                field.disabled = !visible;
+            });
+        }
+        if (help) {
+            help.hidden = !visible;
+        }
+        if (!visible) {
+            resetGatheringControl();
+        }
+    }
+
+    function toggleCourtSlotField(visible, field) {
+        const group = modal.querySelector('[data-todo-target="courtSlotGroup"]');
+        const select = modal.querySelector('[data-todo-target="courtSlotSelect"]');
+        const help = modal.querySelector('[data-todo-target="courtSlotHelp"]');
+        if (group) {
+            group.hidden = !visible;
+        }
+        if (!select) {
+            return;
+        }
+
+        select.disabled = !visible;
+        select.required = visible;
+        if (!visible) {
+            resetCourtSlotControl();
+            return;
+        }
+
+        const options = field.options && typeof field.options === 'object' ? field.options : {};
+        select.replaceChildren(new Option('<?= __('Choose a court assignment') ?>', ''));
+        Object.entries(options).forEach(([value, label]) => {
+            select.appendChild(new Option(String(label), String(value)));
+        });
+        select.value = field.value !== null && field.value !== undefined ? String(field.value) : '';
+        select.removeAttribute('aria-invalid');
+        if (help) {
+            help.textContent = field.help
+                || '<?= __('Choose Roaming Court or an eligible scheduled court activity.') ?>';
         }
     }
 

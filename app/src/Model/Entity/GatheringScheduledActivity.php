@@ -111,7 +111,7 @@ class GatheringScheduledActivity extends Entity
      */
     protected function _getActivityName(): string
     {
-        if ($this->is_other || empty($this->gathering_activity)) {
+        if ($this->is_other || !$this->hasValue('gathering_activity')) {
             return 'Other';
         }
 
@@ -150,7 +150,7 @@ class GatheringScheduledActivity extends Entity
         }
 
         // If no gathering_activity, return null
-        if (empty($this->gathering_activity)) {
+        if (!$this->hasValue('gathering_activity')) {
             return null;
         }
 

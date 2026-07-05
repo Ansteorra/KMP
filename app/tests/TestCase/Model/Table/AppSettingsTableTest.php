@@ -191,6 +191,7 @@ class AppSettingsTableTest extends BaseTestCase
 
         // Clear cache before test
         Cache::clear();
+        AppSettingsTable::clearRequestCaches();
 
         // First call should populate cache
         $value = $this->AppSettings->getSetting($uniqueName);
@@ -210,6 +211,7 @@ class AppSettingsTableTest extends BaseTestCase
 
         // Clear cache and test again
         Cache::clear();
+        AppSettingsTable::clearRequestCaches();
         $freshValue = $this->AppSettings->getSetting($uniqueName);
         $this->assertEquals('modified-value', $freshValue);
     }
@@ -228,6 +230,7 @@ class AppSettingsTableTest extends BaseTestCase
         $this->AppSettings->updateSetting($firstName, 'string', 'first-value', false);
         $this->AppSettings->updateSetting($secondName, 'string', 'second-value', false);
         Cache::clear();
+        AppSettingsTable::clearRequestCaches();
 
         $this->assertSame('first-value', $this->AppSettings->getSetting($firstName));
 
@@ -240,6 +243,9 @@ class AppSettingsTableTest extends BaseTestCase
         $this->assertSame('second-value', $this->AppSettings->getSetting($secondName));
 
         Cache::clear();
+        $this->assertSame('second-value', $this->AppSettings->getSetting($secondName));
+
+        $this->AppSettings->updateSetting($secondName, 'string', 'updated-second-value', false);
         $this->assertSame('updated-second-value', $this->AppSettings->getSetting($secondName));
     }
 
@@ -668,6 +674,7 @@ class AppSettingsTableTest extends BaseTestCase
         $this->assertArrayNotHasKey($prefix . 'third', $cachedSettings);
 
         Cache::clear();
+        AppSettingsTable::clearRequestCaches();
         $freshSettings = $this->AppSettings->getAllAppSettingsStartWith($prefix);
         $this->assertSame('updated-first-value', $freshSettings[$firstName]);
         $this->assertSame('third-value', $freshSettings[$prefix . 'third']);

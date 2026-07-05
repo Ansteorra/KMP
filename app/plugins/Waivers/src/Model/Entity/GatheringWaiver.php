@@ -1,11 +1,11 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Waivers\Model\Entity;
 
-use Cake\ORM\Entity;
 use App\Model\Entity\BaseEntity;
+use Cake\I18n\DateTime;
+use Cake\ORM\TableRegistry;
 
 /**
  * GatheringWaiver Entity
@@ -102,7 +102,7 @@ class GatheringWaiver extends BaseEntity
 
     /**
      * Virtual field indicating if waiver can be declined
-     * 
+     *
      * A waiver can be declined if:
      * - It has not already been declined
      * - It was created within the last 30 days
@@ -127,7 +127,8 @@ class GatheringWaiver extends BaseEntity
             return false;
         }
 
-        $thirtyDaysAgo = new \Cake\I18n\DateTime('-30 days');
+        $thirtyDaysAgo = new DateTime('-30 days');
+
         return $this->created >= $thirtyDaysAgo;
     }
 
@@ -175,34 +176,34 @@ class GatheringWaiver extends BaseEntity
 
     /**
      * Get branch ID for authorization scoping
-     * 
+     *
      * Returns the branch ID of the hosting branch for this waiver's gathering.
      * This enables proper authorization checks by allowing policies to determine
      * which branch context the waiver belongs to.
-     * 
+     *
      * The branch ID is obtained through the gathering relationship, which connects
      * the waiver to its hosting branch. This supports the authorization system's
      * requirement to check permissions based on organizational scope.
-     * 
+     *
      * @return int|null Branch ID from the gathering's hosting branch, or null if not determinable
      */
     public function getBranchId(): ?int
     {
         // Try to get from eager-loaded gathering relationship
-        if ($this->gathering) {
-            return $this->gathering->branch_id;
+        if ($this->hasValue('gathering')) {
+            return $this->gathering->branch_id !== null ? (int)$this->gathering->branch_id : null;
         }
 
         // If gathering_id exists but gathering not loaded, fetch it
         if ($this->gathering_id) {
-            $gatheringsTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Gatherings');
+            $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
             $gathering = $gatheringsTable->find()
-                ->where(['id' => $this->gathering_id])
                 ->select(['branch_id'])
+                ->where(['id' => (int)$this->gathering_id])
                 ->first();
 
             if ($gathering) {
-                return $gathering->branch_id;
+                return $gathering->branch_id !== null ? (int)$gathering->branch_id : null;
             }
         }
 

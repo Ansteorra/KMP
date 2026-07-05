@@ -156,19 +156,117 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
         $this->assertCompletionFormMetadataContainsBestowalGatheringField((int)$bestowal->id);
     }
 
+    public function testMyTasksGridDataIncludesAddedToAgendaCourtSlotCompletionFormMetadata(): void
+    {
+        ActionItemCompletionFormRegistry::register(
+            'AwardsBestowals',
+            new BestowalTodoCompletionFormProvider(),
+        );
+        $this->authenticateAsMember(self::ADMIN_MEMBER_ID);
+        $bestowal = $this->makeBestowal();
+        $schedule = $this->makeScheduledCourtForAward((int)$bestowal->award_id);
+        $bestowal->gathering_id = $schedule['gathering']->id;
+        TableRegistry::getTableLocator()->get('Awards.Bestowals')->saveOrFail($bestowal);
+        $this->makeMemberItem(self::ADMIN_MEMBER_ID, [
+            'entity_id' => (int)$bestowal->id,
+            'title' => 'Event Scheduled',
+            'source_ref' => BestowalTodoTemplateItem::ITEM_KEY_EVENT_SCHEDULED,
+            'status' => ActionItem::STATUS_COMPLETED,
+            'sort_order' => 10,
+        ]);
+        $this->makeMemberItem(self::ADMIN_MEMBER_ID, [
+            'entity_id' => (int)$bestowal->id,
+            'title' => 'Added to Agenda',
+            'source_ref' => BestowalTodoTemplateItem::ITEM_KEY_ADDED_TO_AGENDA,
+            'sort_order' => 20,
+        ]);
+
+        $this->get('/action-items/my-tasks-data');
+
+        $this->assertResponseOk();
+        $completionForm = $this->extractCompletionFormMetadata();
+        $this->assertSame('Add Bestowal to Agenda', $completionForm['title'] ?? null);
+        $this->assertSame('select', $completionForm['fields'][0]['type'] ?? null);
+        $this->assertSame('gathering_scheduled_activity_id', $completionForm['fields'][0]['name'] ?? null);
+        $this->assertArrayHasKey('roaming', $completionForm['fields'][0]['options'] ?? []);
+        $this->assertArrayHasKey((string)$schedule['scheduledActivity']->id, $completionForm['fields'][0]['options'] ?? []);
+    }
+
     private function assertCompletionFormMetadataContainsBestowalGatheringField(int $bestowalId): void
     {
-        $response = (string)$this->_response->getBody();
-        $this->assertMatchesRegularExpression("/data-todo-completion-form='([^']+)'/", $response);
-        preg_match("/data-todo-completion-form='([^']+)'/", $response, $matches);
-
-        $completionForm = json_decode(html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5), true);
+        $completionForm = $this->extractCompletionFormMetadata();
         $this->assertSame('Schedule Bestowal Event', $completionForm['title'] ?? null);
         $this->assertSame('bestowal_gathering_id', $completionForm['fields'][0]['valueName'] ?? null);
         $this->assertSame(
             '/awards/bestowals/gatherings-for-bestowal-auto-complete/' . $bestowalId,
             $completionForm['fields'][0]['url'] ?? null,
         );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function extractCompletionFormMetadata(): array
+    {
+        $response = (string)$this->_response->getBody();
+        $this->assertMatchesRegularExpression("/data-todo-completion-form='([^']+)'/", $response);
+        preg_match("/data-todo-completion-form='([^']+)'/", $response, $matches);
+
+        return json_decode(html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5), true);
+    }
+
+    /**
+     * @param int $awardId Award primary key.
+     * @return array{gathering: object, scheduledActivity: object}
+     */
+    private function makeScheduledCourtForAward(int $awardId): array
+    {
+        $suffix = uniqid('', true);
+        $gatheringActivities = TableRegistry::getTableLocator()->get('GatheringActivities');
+        $awardGatheringActivities = TableRegistry::getTableLocator()->get('Awards.AwardGatheringActivities');
+        $gatherings = TableRegistry::getTableLocator()->get('Gatherings');
+        $scheduledActivities = TableRegistry::getTableLocator()->get('GatheringScheduledActivities');
+        $gatheringActivityLinks = TableRegistry::getTableLocator()->get('GatheringsGatheringActivities');
+
+        $activity = $gatheringActivities->saveOrFail($gatheringActivities->newEntity([
+            'name' => 'Todo Court Activity ' . $suffix,
+        ]));
+        $awardGatheringActivities->saveOrFail($awardGatheringActivities->newEntity([
+            'award_id' => $awardId,
+            'gathering_activity_id' => $activity->id,
+        ]));
+
+        $gatheringType = TableRegistry::getTableLocator()->get('GatheringTypes')
+            ->find()
+            ->select(['id'])
+            ->firstOrFail();
+        $gathering = $gatherings->saveOrFail($gatherings->newEntity([
+            'branch_id' => self::KINGDOM_BRANCH_ID,
+            'gathering_type_id' => $gatheringType->id,
+            'name' => 'Todo Court Gathering ' . $suffix,
+            'start_date' => DateTime::now()->addDays(30),
+            'end_date' => DateTime::now()->addDays(31),
+            'created_by' => self::ADMIN_MEMBER_ID,
+        ]));
+        $gatheringActivityLinks->saveOrFail($gatheringActivityLinks->newEntity([
+            'gathering_id' => $gathering->id,
+            'gathering_activity_id' => $activity->id,
+            'sort_order' => 1,
+            'not_removable' => false,
+        ]));
+        $scheduledActivity = $scheduledActivities->saveOrFail($scheduledActivities->newEntity([
+            'gathering_id' => $gathering->id,
+            'gathering_activity_id' => $activity->id,
+            'start_datetime' => DateTime::now()->addDays(30)->addHours(2),
+            'has_end_time' => false,
+            'display_title' => 'Evening Court',
+            'description' => 'Court agenda test session.',
+            'pre_register' => false,
+            'is_other' => false,
+            'created_by' => self::ADMIN_MEMBER_ID,
+        ]));
+
+        return compact('gathering', 'scheduledActivity');
     }
 
     /**

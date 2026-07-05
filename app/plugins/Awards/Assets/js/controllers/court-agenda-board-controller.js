@@ -9,9 +9,13 @@ class CourtAgendaBoardController extends Controller {
 
     connect() {
         this.draggedItem = null
+        this.dropPlaceholder = null
+        this.currentDropSegment = null
+        this.currentDropPlacement = null
     }
 
     disconnect() {
+        this.clearDropPreview()
         this.draggedItem = null
     }
 
@@ -26,9 +30,7 @@ class CourtAgendaBoardController extends Controller {
 
     dragEnd(event) {
         event.currentTarget.classList.remove("opacity-50", "border-primary")
-        this.element.querySelectorAll(".court-agenda-segment-drop").forEach((segment) => {
-            segment.classList.remove("court-agenda-segment-drop", "border", "border-primary", "rounded")
-        })
+        this.clearDropPreview()
         this.draggedItem = null
     }
 
@@ -37,29 +39,39 @@ class CourtAgendaBoardController extends Controller {
             return
         }
         event.preventDefault()
-        event.currentTarget.classList.add("court-agenda-segment-drop", "border", "border-primary", "rounded")
+        const segment = event.currentTarget
+        const placement = this.dropPlacement(event, segment, this.draggedItem)
+        this.showDropPreview(segment, placement)
         event.dataTransfer.dropEffect = "move"
     }
 
     dragLeave(event) {
-        event.currentTarget.classList.remove("court-agenda-segment-drop", "border", "border-primary", "rounded")
+        const relatedTarget = event.relatedTarget
+        if (relatedTarget instanceof Node && event.currentTarget.contains(relatedTarget)) {
+            return
+        }
+
+        this.clearDropPreview()
     }
 
     async drop(event) {
         event.preventDefault()
         const segment = event.currentTarget
-        segment.classList.remove("court-agenda-segment-drop", "border", "border-primary", "rounded")
         const itemId = event.dataTransfer.getData("application/x-court-agenda-item")
             || event.dataTransfer.getData("text/plain")
         const segmentId = segment.dataset.segmentId
         const item = this.draggedItem || this.element.querySelector(`[data-item-id="${this.escapeSelector(itemId)}"]`)
         if (!itemId || !segmentId || !item) {
+            this.clearDropPreview()
             this.announce("Could not identify the agenda item to move.")
             return
         }
 
-        const placement = this.dropPlacement(event, segment, item)
+        const placement = this.currentDropSegment === segment && this.currentDropPlacement
+            ? this.currentDropPlacement
+            : this.dropPlacement(event, segment, item)
         const sortOrder = this.sortOrderForPlacement(segment, placement, item)
+        this.clearDropPreview()
         const moved = await this.moveItem(itemId, segmentId, sortOrder)
         if (moved) {
             this.placeItem(item, segment, placement)
@@ -160,18 +172,77 @@ class CourtAgendaBoardController extends Controller {
     }
 
     dropPlacement(event, segment, draggedItem) {
-        const targetItem = event.target instanceof Element
-            ? event.target.closest("[data-court-agenda-board-target~='item']")
-            : null
-        if (!targetItem || targetItem === draggedItem || !segment.contains(targetItem)) {
+        if (!Number.isFinite(event.clientY)) {
             return { targetItem: null, position: "end" }
         }
 
-        const rect = targetItem.getBoundingClientRect()
-        return {
-            targetItem,
-            position: event.clientY < rect.top + (rect.height / 2) ? "before" : "after",
+        const items = this.itemsForSegment(segment).filter((item) => item !== draggedItem)
+        for (const item of items) {
+            const rect = item.getBoundingClientRect()
+            if (event.clientY < rect.top + (rect.height / 2)) {
+                return { targetItem: item, position: "before" }
+            }
         }
+
+        return { targetItem: null, position: "end" }
+    }
+
+    showDropPreview(segment, placement) {
+        const placeholder = this.ensureDropPlaceholder()
+        this.element.querySelectorAll(".court-agenda-segment-drop").forEach((dropSegment) => {
+            dropSegment.classList.remove("court-agenda-segment-drop", "border", "border-primary", "rounded")
+        })
+        segment.classList.add("court-agenda-segment-drop", "border", "border-primary", "rounded")
+
+        if (this.draggedItem && this.draggedItem.offsetHeight > 0) {
+            placeholder.style.minHeight = `${this.draggedItem.offsetHeight}px`
+        } else {
+            placeholder.style.removeProperty("min-height")
+        }
+
+        this.placeItem(placeholder, segment, placement)
+        this.currentDropSegment = segment
+        this.currentDropPlacement = placement
+    }
+
+    ensureDropPlaceholder() {
+        if (this.dropPlaceholder) {
+            return this.dropPlaceholder
+        }
+
+        const placeholder = document.createElement("article")
+        placeholder.className = [
+            "card",
+            "mb-3",
+            "border",
+            "border-primary",
+            "border-2",
+            "bg-primary",
+            "bg-opacity-10",
+            "pe-none",
+            "court-agenda-drop-placeholder",
+        ].join(" ")
+        placeholder.setAttribute("aria-hidden", "true")
+        placeholder.innerHTML = `
+            <div class="card-body py-3 text-center">
+                <span class="fw-semibold text-primary">Drop here</span>
+            </div>
+        `
+        this.dropPlaceholder = placeholder
+
+        return placeholder
+    }
+
+    clearDropPreview() {
+        if (this.dropPlaceholder) {
+            this.dropPlaceholder.remove()
+            this.dropPlaceholder = null
+        }
+        this.currentDropSegment = null
+        this.currentDropPlacement = null
+        this.element.querySelectorAll(".court-agenda-segment-drop").forEach((segment) => {
+            segment.classList.remove("court-agenda-segment-drop", "border", "border-primary", "rounded")
+        })
     }
 
     sortOrderForPlacement(segment, placement, movingItem = this.draggedItem) {

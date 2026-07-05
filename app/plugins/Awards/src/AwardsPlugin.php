@@ -137,153 +137,151 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
         $configVersion = StaticHelpers::getAppSetting('Awards.configVersion', '0.0.0', null, true);
         if ($configVersion != $currentConfigVersion) {
             StaticHelpers::setAppSetting('Awards.configVersion', $currentConfigVersion, null, true);
-        } // end if ($configVersion != $currentConfigVersion)
-
-        // Always ensure default settings exist (idempotent — only creates if missing).
-        StaticHelpers::getAppSetting('Awards.RecButtonClass', 'btn-warning', null, true);
-        StaticHelpers::getAppSetting(
-            'Member.AdditionalInfo.CallIntoCourt',
-            'select:Never,With Notice,Without Notice|user|public',
-            null,
-            true,
-        );
-        StaticHelpers::getAppSetting(
-            'Member.AdditionalInfo.CourtAvailability',
-            'select:None,Morning,Evening,Any|user|public',
-            null,
-            true,
-        );
-        StaticHelpers::getAppSetting('Member.AdditionalInfo.PersonToGiveNoticeTo', 'text|user|public', null, true);
-        StaticHelpers::getAppSetting('Plugin.Awards.Active', 'yes', null, true);
-        StaticHelpers::getAppSetting('Awards.RecommendationStatesRequireCanViewHidden', yaml_emit([
-            'No Action',
-            'Linked',
-            'Linked - Closed',
-        ]), 'yaml', true);
-        StaticHelpers::getAppSetting('Awards.RecommendationStatuses', yaml_emit([
-            'In Progress' => [
-                'Submitted',
-                'In Consideration',
-                'Awaiting Feedback',
-                'Deferred till Later',
-                'King Approved',
-                'Queen Approved',
-                'Linked',
-            ],
-            'Scheduling' => [
-                'Need to Schedule',
-            ],
-            'To Give' => [
-                'Scheduled',
-                'Announced Not Given',
-            ],
-            'Closed' => [
-                'Given',
+            StaticHelpers::getAppSetting('Awards.RecButtonClass', 'btn-warning', null, true);
+            StaticHelpers::getAppSetting(
+                'Member.AdditionalInfo.CallIntoCourt',
+                'select:Never,With Notice,Without Notice|user|public',
+                null,
+                true,
+            );
+            StaticHelpers::getAppSetting(
+                'Member.AdditionalInfo.CourtAvailability',
+                'select:None,Morning,Evening,Any|user|public',
+                null,
+                true,
+            );
+            StaticHelpers::getAppSetting('Member.AdditionalInfo.PersonToGiveNoticeTo', 'text|user|public', null, true);
+            StaticHelpers::getAppSetting('Plugin.Awards.Active', 'yes', null, true);
+            StaticHelpers::getAppSetting('Awards.RecommendationStatesRequireCanViewHidden', yaml_emit([
                 'No Action',
+                'Linked',
                 'Linked - Closed',
-            ],
-        ]), 'yaml', true);
-        StaticHelpers::getAppSetting('Awards.RecommendationStateRules', yaml_emit([
-            'Need to Schedule' => [
-                'Visible' => [
-                    'planToGiveBlockTarget',
+            ]), 'yaml', true);
+            StaticHelpers::getAppSetting('Awards.RecommendationStatuses', yaml_emit([
+                'In Progress' => [
+                    'Submitted',
+                    'In Consideration',
+                    'Awaiting Feedback',
+                    'Deferred till Later',
+                    'King Approved',
+                    'Queen Approved',
+                    'Linked',
                 ],
-                'Disabled' => [
-                    'domainTarget',
-                    'awardTarget',
-                    'specialtyTarget',
-                    'scaMemberTarget',
-                    'branchTarget',
-                    'scaMemberTarget',
+                'Scheduling' => [
+                    'Need to Schedule',
                 ],
-            ],
-            'Scheduled' => [
-                'Required' => [
-                    'planToGiveEventTarget',
+                'To Give' => [
+                    'Scheduled',
+                    'Announced Not Given',
                 ],
-                'Visible' => [
-                    'planToGiveBlockTarget',
+                'Closed' => [
+                    'Given',
+                    'No Action',
+                    'Linked - Closed',
                 ],
-                'Disabled' => [
-                    'domainTarget',
-                    'awardTarget',
-                    'specialtyTarget',
-                    'scaMemberTarget',
-                    'branchTarget',
-                    'scaMemberTarget',
+            ]), 'yaml', true);
+            StaticHelpers::getAppSetting('Awards.RecommendationStateRules', yaml_emit([
+                'Need to Schedule' => [
+                    'Visible' => [
+                        'planToGiveBlockTarget',
+                    ],
+                    'Disabled' => [
+                        'domainTarget',
+                        'awardTarget',
+                        'specialtyTarget',
+                        'scaMemberTarget',
+                        'branchTarget',
+                        'scaMemberTarget',
+                    ],
                 ],
-            ],
-            'Given' => [
-                'Required' => [
-                    'planToGiveEventTarget',
-                    'givenDateTarget',
+                'Scheduled' => [
+                    'Required' => [
+                        'planToGiveEventTarget',
+                    ],
+                    'Visible' => [
+                        'planToGiveBlockTarget',
+                    ],
+                    'Disabled' => [
+                        'domainTarget',
+                        'awardTarget',
+                        'specialtyTarget',
+                        'scaMemberTarget',
+                        'branchTarget',
+                        'scaMemberTarget',
+                    ],
                 ],
-                'Visible' => [
-                    'planToGiveBlockTarget',
-                    'givenBlockTarget',
+                'Given' => [
+                    'Required' => [
+                        'planToGiveEventTarget',
+                        'givenDateTarget',
+                    ],
+                    'Visible' => [
+                        'planToGiveBlockTarget',
+                        'givenBlockTarget',
+                    ],
+                    'Disabled' => [
+                        'domainTarget',
+                        'awardTarget',
+                        'specialtyTarget',
+                        'scaMemberTarget',
+                        'branchTarget',
+                        'scaMemberTarget',
+                    ],
+                    'Set' => [
+                        'close_reason' => 'Given',
+                    ],
                 ],
-                'Disabled' => [
-                    'domainTarget',
-                    'awardTarget',
-                    'specialtyTarget',
-                    'scaMemberTarget',
-                    'branchTarget',
-                    'scaMemberTarget',
+                'No Action' => [
+                    'Required' => [
+                        'closeReasonTarget',
+                    ],
+                    'Visible' => [
+                        'closeReasonBlockTarget',
+                        'closeReasonTarget',
+                    ],
+                    'Disabled' => [
+                        'domainTarget',
+                        'awardTarget',
+                        'specialtyTarget',
+                        'scaMemberTarget',
+                        'branchTarget',
+                        'courtAvailabilityTarget',
+                        'callIntoCourtTarget',
+                        'scaMemberTarget',
+                    ],
                 ],
-                'Set' => [
-                    'close_reason' => 'Given',
+                'Linked' => [
+                    'Disabled' => [
+                        'domainTarget',
+                        'awardTarget',
+                        'specialtyTarget',
+                        'scaMemberTarget',
+                        'branchTarget',
+                        'courtAvailabilityTarget',
+                        'callIntoCourtTarget',
+                        'reasonTarget',
+                        'contactEmailTarget',
+                        'contactNumberTarget',
+                        'personToNotifyTarget',
+                    ],
                 ],
-            ],
-            'No Action' => [
-                'Required' => [
-                    'closeReasonTarget',
+                'Linked - Closed' => [
+                    'Disabled' => [
+                        'domainTarget',
+                        'awardTarget',
+                        'specialtyTarget',
+                        'scaMemberTarget',
+                        'branchTarget',
+                        'courtAvailabilityTarget',
+                        'callIntoCourtTarget',
+                        'reasonTarget',
+                        'contactEmailTarget',
+                        'contactNumberTarget',
+                        'personToNotifyTarget',
+                    ],
                 ],
-                'Visible' => [
-                    'closeReasonBlockTarget',
-                    'closeReasonTarget',
-                ],
-                'Disabled' => [
-                    'domainTarget',
-                    'awardTarget',
-                    'specialtyTarget',
-                    'scaMemberTarget',
-                    'branchTarget',
-                    'courtAvailabilityTarget',
-                    'callIntoCourtTarget',
-                    'scaMemberTarget',
-                ],
-            ],
-            'Linked' => [
-                'Disabled' => [
-                    'domainTarget',
-                    'awardTarget',
-                    'specialtyTarget',
-                    'scaMemberTarget',
-                    'branchTarget',
-                    'courtAvailabilityTarget',
-                    'callIntoCourtTarget',
-                    'reasonTarget',
-                    'contactEmailTarget',
-                    'contactNumberTarget',
-                    'personToNotifyTarget',
-                ],
-            ],
-            'Linked - Closed' => [
-                'Disabled' => [
-                    'domainTarget',
-                    'awardTarget',
-                    'specialtyTarget',
-                    'scaMemberTarget',
-                    'branchTarget',
-                    'courtAvailabilityTarget',
-                    'callIntoCourtTarget',
-                    'reasonTarget',
-                    'contactEmailTarget',
-                    'contactNumberTarget',
-                    'personToNotifyTarget',
-                ],
-            ],
-        ]), 'yaml', true);
+            ]), 'yaml', true);
+        } // end if ($configVersion != $currentConfigVersion)
     }
 
     /**

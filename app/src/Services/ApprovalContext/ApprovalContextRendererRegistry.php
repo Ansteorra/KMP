@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services\ApprovalContext;
@@ -7,6 +6,7 @@ namespace App\Services\ApprovalContext;
 use App\Model\Entity\WorkflowInstance;
 use Cake\Log\Log;
 use Cake\ORM\TableRegistry;
+use Exception;
 
 /**
  * Static registry for approval context renderers.
@@ -20,10 +20,17 @@ use Cake\ORM\TableRegistry;
  */
 class ApprovalContextRendererRegistry
 {
-    /** @var array<string, ApprovalContextRendererInterface> */
+    /**
+     * @var array<string, \App\Services\ApprovalContext\ApprovalContextRendererInterface>
+     */
     private static array $renderers = [];
 
     private static bool $initialized = false;
+
+    /**
+     * @var array<string, \App\Services\ApprovalContext\ApprovalContext>
+     */
+    private static array $contextCache = [];
 
     /**
      * Register a renderer for a given source (e.g. 'Authorizations', 'Awards').
@@ -49,14 +56,29 @@ class ApprovalContextRendererRegistry
     public static function render(WorkflowInstance $instance): ApprovalContext
     {
         self::ensureInitialized();
+        $cacheKey = self::contextCacheKey($instance);
+        if ($cacheKey !== null && isset(self::$contextCache[$cacheKey])) {
+            return self::$contextCache[$cacheKey];
+        }
 
-        foreach (self::$renderers as $source => $renderer) {
+        foreach (self::$renderers as $renderer) {
             if ($renderer->canRender($instance)) {
-                return $renderer->render($instance);
+                $context = $renderer->render($instance);
+
+                if ($cacheKey !== null) {
+                    self::$contextCache[$cacheKey] = $context;
+                }
+
+                return $context;
             }
         }
 
-        return self::getDefaultContext($instance);
+        $context = self::getDefaultContext($instance);
+        if ($cacheKey !== null) {
+            self::$contextCache[$cacheKey] = $context;
+        }
+
+        return $context;
     }
 
     /**
@@ -82,7 +104,7 @@ class ApprovalContextRendererRegistry
                 if ($entity !== null) {
                     $name = $entity->name ?? $entity->sca_name ?? $entity->title ?? $name;
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 Log::warning(sprintf(
                     'ApprovalContextRendererRegistry: Could not load %s#%s — %s',
                     $entityType,
@@ -106,7 +128,7 @@ class ApprovalContextRendererRegistry
     /**
      * Get all registered renderers.
      *
-     * @return array<string, ApprovalContextRendererInterface>
+     * @return array<string, \App\Services\ApprovalContext\ApprovalContextRendererInterface>
      */
     public static function getAllRenderers(): array
     {
@@ -160,6 +182,7 @@ class ApprovalContextRendererRegistry
     {
         self::$renderers = [];
         self::$initialized = false;
+        self::$contextCache = [];
     }
 
     /**
@@ -174,5 +197,26 @@ class ApprovalContextRendererRegistry
         }
 
         self::$initialized = true;
+    }
+
+    /**
+     * Build a request-local cache key for persisted workflow instances.
+     *
+     * @param \App\Model\Entity\WorkflowInstance $instance Workflow instance.
+     * @return string|null
+     */
+    private static function contextCacheKey(WorkflowInstance $instance): ?string
+    {
+        if (empty($instance->id)) {
+            return null;
+        }
+
+        return implode(':', [
+            (int)$instance->id,
+            (string)($instance->entity_type ?? ''),
+            (string)($instance->entity_id ?? ''),
+            (string)($instance->workflow_definition_id ?? ''),
+            (string)($instance->modified?->toUnixString() ?? ''),
+        ]);
     }
 }

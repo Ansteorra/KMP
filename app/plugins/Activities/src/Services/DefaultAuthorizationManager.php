@@ -7,6 +7,7 @@ namespace Activities\Services;
 
 use Activities\Model\Entity\Authorization;
 use App\KMP\StaticHelpers;
+use App\Mailer\QueuedMailerAwareTrait;
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowInstance;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
@@ -14,7 +15,6 @@ use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
-use Cake\Mailer\MailerAwareTrait;
 use Cake\ORM\TableRegistry;
 use Cake\Routing\Exception\MissingRouteException;
 use Cake\Routing\Router;
@@ -38,7 +38,7 @@ use Throwable;
 class DefaultAuthorizationManager implements AuthorizationManagerInterface
 {
     #region
-    use MailerAwareTrait;
+    use QueuedMailerAwareTrait;
 
     private ActiveWindowManagerInterface $activeWindowManager;
 
@@ -364,8 +364,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
             $nextApproverScaName = '';
         }
         $memberCardUrl = $this->buildMemberCardUrl($requesterId);
-        $this->getMailer('KMP')->send('sendFromTemplate', [
-            'to' => $member->email_address,
+        $this->queueMail('KMP', 'sendFromTemplate', $member->email_address, [
             '_templateId' => 'authorization-request-update',
             'status' => $status,
             'memberScaName' => $member->sca_name,
@@ -517,8 +516,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         $approver = $membersTable->get($approverId);
 
         try {
-            $this->getMailer('KMP')->send('sendFromTemplate', [
-                'to' => $approver->email_address,
+            $this->queueMail('KMP', 'sendFromTemplate', $approver->email_address, [
                 '_templateId' => 'authorization-request-retracted',
                 'activityName' => $activity->name,
                 'approverScaName' => $approver->sca_name,

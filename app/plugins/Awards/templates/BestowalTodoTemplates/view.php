@@ -263,6 +263,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
         $selectedRequiredField = (string)($item?->required_field ?? '');
         $requiredFieldConfig = is_array($item?->required_field_config ?? null) ? $item->required_field_config : [];
         $conditionalComplete = (bool)($requiredFieldConfig['conditional_complete_on_assign'] ?? true);
+        $autoCompleteWhenSatisfied = (bool)($requiredFieldConfig['auto_complete_when_satisfied'] ?? false);
 
         echo '<div class="row g-3">';
         echo '<div class="col-12 col-lg-6">';
@@ -418,6 +419,15 @@ echo $this->KMP->startBlock('pageTitle') ?>
         'checked' => $conditionalComplete,
         'label' => __('Allow completion when this field is assigned'),
         'help' => __('Bulk or To-Do completion flows may complete this check in the same action that sets the field.'),
+        ]);
+        echo $this->Form->control('auto_complete_when_satisfied', [
+        'type' => 'checkbox',
+        'switch' => true,
+        'checked' => $autoCompleteWhenSatisfied,
+        'label' => __('Can be closed by system'),
+        'help' => __(
+            'When all required fields are satisfied by another workflow, the system may mark this check complete.',
+        ),
         ]);
         echo '</div>';
         echo '</fieldset>';

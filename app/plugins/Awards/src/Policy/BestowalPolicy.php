@@ -146,6 +146,45 @@ class BestowalPolicy extends BasePolicy
     }
 
     /**
+     * Authorize assigning the court slot required by an eligible Added to Agenda to-do.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The authenticated user
+     * @param \App\Model\Entity\BaseEntity $entity The bestowal entity
+     * @param mixed ...$optionalArgs Additional authorization context; first arg is the action item
+     * @return bool True if authorized
+     */
+    public function canAssignRequiredTodoCourtSlot(
+        KmpIdentityInterface $user,
+        BaseEntity $entity,
+        ...$optionalArgs,
+    ): bool {
+        if ($this->canManageCourtSchedule($user, $entity, ...$optionalArgs)) {
+            return true;
+        }
+
+        $item = $optionalArgs[0] ?? null;
+        if (!$item instanceof ActionItem || !$item->isOpen()) {
+            return false;
+        }
+        if (
+            (string)$item->entity_type !== Bestowal::ACTION_ITEM_ENTITY_TYPE
+            || (int)$item->entity_id !== (int)$entity->id
+        ) {
+            return false;
+        }
+        if (!$this->actionItemRequiresCourtSlot($item)) {
+            return false;
+        }
+
+        $memberId = (int)$user->getIdentifier();
+        if ($memberId <= 0) {
+            return false;
+        }
+
+        return (new ActionItemAssigneeResolver())->isMemberEligible($item, $memberId);
+    }
+
+    /**
      * Authorize bestowal cancellation.
      *
      * @param \App\KMP\KmpIdentityInterface $user The authenticated user
@@ -224,6 +263,27 @@ class BestowalPolicy extends BasePolicy
      */
     private function actionItemRequiresGathering(ActionItem $item): bool
     {
+        return $this->actionItemRequiresField($item, BestowalTodoTemplateItem::REQUIRED_FIELD_GATHERING);
+    }
+
+    /**
+     * Whether the action item carries, or defaults to, the bestowal court slot requirement.
+     *
+     * @param \App\Model\Entity\ActionItem $item Action item
+     * @return bool
+     */
+    private function actionItemRequiresCourtSlot(ActionItem $item): bool
+    {
+        return $this->actionItemRequiresField($item, BestowalTodoTemplateItem::REQUIRED_FIELD_COURT_SLOT);
+    }
+
+    /**
+     * @param \App\Model\Entity\ActionItem $item Action item
+     * @param string $requiredField Required field key
+     * @return bool
+     */
+    private function actionItemRequiresField(ActionItem $item, string $requiredField): bool
+    {
         $fieldConfigs = $item->getRequiredFieldConfigs();
         $defaultConfig = BestowalTodoTemplateItem::getDefaultRequiredFieldConfigForSourceRef($item->source_ref);
         if ($fieldConfigs === [] && $defaultConfig !== null) {
@@ -231,7 +291,7 @@ class BestowalPolicy extends BasePolicy
         }
 
         foreach ($fieldConfigs as $fieldConfig) {
-            if (($fieldConfig['field'] ?? null) === BestowalTodoTemplateItem::REQUIRED_FIELD_GATHERING) {
+            if (($fieldConfig['field'] ?? null) === $requiredField) {
                 return true;
             }
         }

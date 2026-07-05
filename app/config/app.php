@@ -28,12 +28,24 @@ use Cake\Cache\Engine\RedisEngine;
 use Cake\Database\Connection;
 use Cake\Database\Driver\Mysql;
 use Cake\Database\Driver\Postgres;
+use Cake\Http\Session\CacheSession;
 use Cake\Log\Engine\FileLog;
 use Cake\Mailer\Transport\MailTransport;
 use Templating\View\Icon\BootstrapIcon;
 
 // Determine cache engine and Redis config from environment
-$cacheEngine = env('CACHE_ENGINE', 'apcu') === 'redis' ? RedisEngine::class : ApcuEngine::class;
+$runtimeEnvironment = strtolower((string)env('KMP_ENV', env('APP_ENV', '')));
+$localHttpEnvironment = in_array(
+    $runtimeEnvironment,
+    ['dev', 'development', 'local', 'test'],
+    true,
+);
+$defaultCacheEngine = $localHttpEnvironment ? 'apcu' : 'redis';
+$requestedCacheEngine = strtolower((string)env('CACHE_ENGINE', $defaultCacheEngine));
+$redisFallbackWarnings = [];
+$localFallbackCacheEngine = extension_loaded('apcu') ? ApcuEngine::class : FileEngine::class;
+$localFallbackCacheEngineName = $localFallbackCacheEngine === ApcuEngine::class ? 'APCu' : 'file cache';
+$cacheEngine = $requestedCacheEngine === 'redis' ? RedisEngine::class : ApcuEngine::class;
 $cliArgs = array_map('strtolower', $_SERVER['argv'] ?? []);
 $isSetupCommand = PHP_SAPI === 'cli' && (in_array('migrations', $cliArgs, true) || in_array('update_database', $cliArgs, true));
 if ($cacheEngine === RedisEngine::class && $isSetupCommand) {
@@ -41,13 +53,21 @@ if ($cacheEngine === RedisEngine::class && $isSetupCommand) {
 }
 $redisExtensionLoaded = extension_loaded('redis');
 if ($cacheEngine === RedisEngine::class && !$redisExtensionLoaded) {
-    $cacheEngine = ApcuEngine::class;
+    $redisFallbackWarnings[] = sprintf(
+        'CACHE_ENGINE=redis was requested but the redis PHP extension is not loaded; falling back to %s.',
+        $localFallbackCacheEngineName,
+    );
+    $cacheEngine = $localFallbackCacheEngine;
 }
 $redisConfig = [];
 if ($cacheEngine === RedisEngine::class) {
     $redisUrl = trim((string)env('REDIS_URL', ''));
     if ($redisUrl === '') {
-        $cacheEngine = ApcuEngine::class;
+        $redisFallbackWarnings[] = sprintf(
+            'CACHE_ENGINE=redis was requested but REDIS_URL is empty; falling back to %s.',
+            $localFallbackCacheEngineName,
+        );
+        $cacheEngine = $localFallbackCacheEngine;
     } else {
         $parsed = parse_url($redisUrl) ?: [];
         $redisConfig = [
@@ -57,8 +77,16 @@ if ($cacheEngine === RedisEngine::class) {
             'database' => (int)(ltrim($parsed['path'] ?? '/0', '/') ?: '0'),
             'timeout'  => 0,
             'persistent' => false,
+            'tls' => ($parsed['scheme'] ?? '') === 'rediss',
         ];
     }
+}
+if ($cacheEngine === ApcuEngine::class && !extension_loaded('apcu')) {
+    error_log('[KMP config] CACHE_ENGINE=apcu was requested but the apcu PHP extension is not loaded; falling back to file cache.');
+    $cacheEngine = FileEngine::class;
+}
+foreach ($redisFallbackWarnings as $redisFallbackWarning) {
+    error_log('[KMP config] ' . $redisFallbackWarning);
 }
 $databaseDriverName = strtolower((string)env('KMP_DB_DRIVER', 'mysql'));
 $databaseDriver = match ($databaseDriverName) {
@@ -87,11 +115,6 @@ $detailedPlatformAdminLoginErrorsDefault = in_array(
     ['dev', 'development', 'local', 'test', 'staging'],
     true,
 );
-$localHttpEnvironment = in_array(
-    strtolower((string)env('KMP_ENV', env('APP_ENV', ''))),
-    ['dev', 'development', 'local', 'test'],
-    true,
-);
 $restoreStatusPath = env('RESTORE_STATUS_CACHE_PATH', TMP . 'restore_status' . DS);
 if (!is_dir($restoreStatusPath)) {
     @mkdir($restoreStatusPath, 0770, true);
@@ -112,6 +135,30 @@ $tenantHostMapCacheConfig = $cacheEngine === RedisEngine::class
         "duration" => "+999 days",
         "path" => $tenantHostMapCachePath,
     ];
+$restoreStatusCacheConfig = $cacheEngine === RedisEngine::class
+    ? $redisConfig + [
+        "className" => RedisEngine::class,
+        "duration" => "+2 days",
+        "prefix" => "kmp_restore_",
+    ]
+    : [
+        "className" => FileEngine::class,
+        "duration" => "+2 days",
+        "prefix" => "kmp_restore_",
+        "path" => $restoreStatusPath,
+        "mask" => 0666,
+        "dirMask" => 0770,
+    ];
+$sessionDefaults = strtolower((string)env(
+    'KMP_SESSION_DEFAULTS',
+    $cacheEngine === RedisEngine::class ? 'cache' : 'php',
+));
+$sessionHandler = $sessionDefaults === 'cache'
+    ? [
+        "engine" => CacheSession::class,
+        "config" => env('KMP_SESSION_CACHE_CONFIG', 'default'),
+    ]
+    : null;
 $dbQueryLogEnabled = filter_var(env('PERF_DB_QUERY_LOG_ENABLED', false), FILTER_VALIDATE_BOOLEAN);
 
 $appInsightsConnectionString = trim((string)env('APPINSIGHTS_CONNECTION_STRING', ''));
@@ -311,16 +358,9 @@ return [
 
         /**
          * Restore Status Cache
-         * Uses file cache so restore lock/progress state is shared between web and CLI.
+         * Uses Redis when available so restore lock/progress state is shared across replicas.
          */
-        "restore_status" => [
-            "className" => FileEngine::class,
-            "duration" => "+2 days",
-            "prefix" => "kmp_restore_",
-            "path" => $restoreStatusPath,
-            "mask" => 0666,
-            "dirMask" => 0770,
-        ],
+        "restore_status" => $restoreStatusCacheConfig,
 
         /**
          * CakePHP Translation Cache
@@ -763,9 +803,12 @@ return [
      * @see docs/7.1-security-best-practices.md#session-security-configuration
      */
     /** @see docs/7.1-security-best-practices.md#session-security-configuration */
-    "Session" => [
+    "Session" => array_filter([
         /** @var string Session handler type */
-        "defaults" => "php",
+        "defaults" => $sessionDefaults,
+
+        /** @var array|null Cache-backed session handler configuration */
+        "handler" => $sessionHandler,
 
         /** @var int Session timeout in minutes */
         "timeout" => 30,
@@ -790,7 +833,7 @@ return [
             /** @var bool Validate session IDs for security */
             "session.use_strict_mode" => true,
         ]),
-    ],
+    ], static fn(mixed $value): bool => $value !== null),
 
     'Icon' => [
         /** @see docs/9.2-bootstrap-icons.md */

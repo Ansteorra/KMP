@@ -241,7 +241,7 @@ class DevLoadBestowalTodoUsersSeed extends BaseSeed
                     $adminId,
                     $now,
                 );
-                $memberRoleId = $this->ensureMemberRole($memberId, $roleId, $adminId, $now);
+                $memberRoleId = $this->ensureMemberRole($memberId, $roleId, $branchId, $adminId, $now);
                 $this->ensureOfficer(
                     $memberId,
                     $branchId,
@@ -434,11 +434,12 @@ class DevLoadBestowalTodoUsersSeed extends BaseSeed
     /**
      * @param int $memberId Member id.
      * @param int $roleId Role id.
+     * @param int $branchId Branch id.
      * @param int $adminId Admin member id.
      * @param \Cake\I18n\DateTime $now Current timestamp.
      * @return int
      */
-    private function ensureMemberRole(int $memberId, int $roleId, int $adminId, DateTime $now): int
+    private function ensureMemberRole(int $memberId, int $roleId, int $branchId, int $adminId, DateTime $now): int
     {
         $memberRoles = TableRegistry::getTableLocator()->get('MemberRoles');
         $memberRole = $memberRoles->find()
@@ -453,12 +454,20 @@ class DevLoadBestowalTodoUsersSeed extends BaseSeed
             $memberRole->set([
                 'member_id' => $memberId,
                 'role_id' => $roleId,
+                'branch_id' => $branchId,
                 'start_on' => DateTime::now()->format('Y-m-d'),
                 'expires_on' => null,
                 'approver_id' => $adminId,
                 'granting_model' => 'Direct Grant',
                 'created_by' => $adminId,
                 'created' => $now,
+            ], ['guard' => false]);
+            $memberRoles->saveOrFail($memberRole);
+        } elseif ((int)$memberRole->branch_id !== $branchId) {
+            $memberRole->set([
+                'branch_id' => $branchId,
+                'modified_by' => $adminId,
+                'modified' => $now,
             ], ['guard' => false]);
             $memberRoles->saveOrFail($memberRole);
         }

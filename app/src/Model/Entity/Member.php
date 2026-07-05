@@ -345,6 +345,9 @@ class Member extends BaseEntity implements
                 // if the above fails, then the url is not to a controller that maps to a table
                 return $this->authorization->checkCan($this, $url['action'], $url);
             }
+            if ($tableClass === self::class && isset($url[0]) && (int)$url[0] === (int)$this->id) {
+                return $this->authorization->checkCan($this, $url['action'], $this);
+            }
             if (isset($url[0])) {
                 $entity = $table->get($url[0]);
             } else {

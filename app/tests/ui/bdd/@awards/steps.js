@@ -2405,7 +2405,21 @@ When('I assign the first available gathering and complete the bestowal to-do {st
 When('I complete the bestowal to-do {string}', async ({ page }, title) => {
     const item = getBestowalTodoItem(page, title);
     await expect(item).toBeVisible({ timeout: 15000 });
-    await item.getByRole('link', { name: /Complete|Mark complete:/ }).click();
+    const directComplete = item.getByRole('link', { name: /Complete|Mark complete:/ });
+    if (await directComplete.count()) {
+        await directComplete.click();
+    } else {
+        const courtAssignment = item.getByLabel('Court Assignment');
+        if (await courtAssignment.count()) {
+            await courtAssignment.selectOption({ index: 1 });
+            await item.getByRole('button', { name: 'Assign Court and Complete' }).click();
+            await page.waitForLoadState('networkidle');
+
+            return;
+        }
+
+        throw new Error(`No completion control found for bestowal to-do "${title}".`);
+    }
     const confirmDialog = page.getByRole('dialog', { name: 'Confirm action' });
     await expect(confirmDialog).toBeVisible({ timeout: 10000 });
     await confirmDialog.getByRole('button', { name: 'Confirm' }).click();

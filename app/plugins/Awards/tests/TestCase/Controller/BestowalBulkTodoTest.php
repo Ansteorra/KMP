@@ -223,6 +223,37 @@ class BestowalBulkTodoTest extends HttpIntegrationTestCase
         $this->assertTrue($reloadedTodo->isCompleted());
     }
 
+    public function testBulkAssignGatheringAutoCompletesSystemClosableEventScheduledTodo(): void
+    {
+        $bestowal = $this->makeBestowal();
+        $gathering = $this->makeSelectableGatheringForAward((int)$bestowal->award_id);
+        $todo = $this->makeTodo((int)$bestowal->id, self::ADMIN_MEMBER_ID, 'event_scheduled', [
+            'title' => 'Event Scheduled',
+            'completion_config' => [
+                ActionItem::COMPLETION_CONFIG_AUTO_COMPLETE => true,
+                'required_fields' => [
+                    [
+                        'provider' => BestowalTodoTemplateItem::COMPLETION_PROVIDER_BESTOWAL_GATHERING,
+                        'field' => BestowalTodoTemplateItem::REQUIRED_FIELD_GATHERING,
+                        'conditional_complete_on_assign' => true,
+                    ],
+                ],
+            ],
+        ]);
+
+        $this->post('/awards/bestowals/bulk-assign-gathering', [
+            'bestowal_ids' => (string)$bestowal->id,
+            'bestowal_gathering_id' => (string)$gathering->id,
+        ]);
+
+        $this->assertResponseCode(302);
+        $reloadedBestowal = TableRegistry::getTableLocator()->get('Awards.Bestowals')->get($bestowal->id);
+        $this->assertSame((int)$gathering->id, (int)$reloadedBestowal->gathering_id);
+        $reloadedTodo = TableRegistry::getTableLocator()->get('ActionItems')->get($todo->id);
+        $this->assertTrue($reloadedTodo->isCompleted());
+        $this->assertNull($reloadedTodo->completed_by);
+    }
+
     public function testBulkCompleteSkipsAgendaUntilEventScheduledIsComplete(): void
     {
         $bestowal = $this->makeBestowal();
@@ -246,11 +277,41 @@ class BestowalBulkTodoTest extends HttpIntegrationTestCase
         $this->assertTrue($reloadedTodo->isOpen());
     }
 
-    public function testBulkCompleteCompletesAgendaAfterEventScheduledAndGatheringAssigned(): void
+    public function testBulkCompleteSkipsAgendaUntilCourtAssignmentExists(): void
     {
         $bestowal = $this->makeBestowal();
         $gathering = $this->makeSelectableGatheringForAward((int)$bestowal->award_id);
         $bestowal->gathering_id = $gathering->id;
+        TableRegistry::getTableLocator()->get('Awards.Bestowals')->saveOrFail($bestowal);
+        $this->makeTodo((int)$bestowal->id, self::ADMIN_MEMBER_ID, 'event_scheduled', [
+            'title' => 'Event Scheduled',
+            'status' => ActionItem::STATUS_COMPLETED,
+            'sort_order' => 10,
+        ]);
+        $agendaTodo = $this->makeTodo((int)$bestowal->id, self::ADMIN_MEMBER_ID, 'added_to_agenda', [
+            'title' => 'Added to Agenda',
+            'sort_order' => 20,
+        ]);
+
+        $this->post('/awards/bestowals/bulk-complete-todo', [
+            'bestowal_ids' => (string)$bestowal->id,
+            'check_key' => 'added_to_agenda',
+        ]);
+
+        $this->assertResponseCode(302);
+        $this->assertFlashMessage(
+            'Assign this bestowal to Roaming Court or a scheduled court activity before completing Added to Agenda.',
+        );
+        $reloadedTodo = TableRegistry::getTableLocator()->get('ActionItems')->get($agendaTodo->id);
+        $this->assertTrue($reloadedTodo->isOpen());
+    }
+
+    public function testBulkCompleteCompletesAgendaAfterEventScheduledAndCourtAssigned(): void
+    {
+        $bestowal = $this->makeBestowal();
+        $gathering = $this->makeSelectableGatheringForAward((int)$bestowal->award_id);
+        $bestowal->gathering_id = $gathering->id;
+        $bestowal->roaming_court = true;
         TableRegistry::getTableLocator()->get('Awards.Bestowals')->saveOrFail($bestowal);
         $this->makeTodo((int)$bestowal->id, self::ADMIN_MEMBER_ID, 'event_scheduled', [
             'title' => 'Event Scheduled',

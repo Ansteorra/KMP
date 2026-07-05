@@ -52,7 +52,7 @@ class BestowalTodoMaterializationServiceTest extends BaseTestCase
         $memberItem = $items['scroll_assigned'];
         $this->assertSame(ActionItem::ASSIGNEE_TYPE_MEMBER, $memberItem->assignee_type);
         $this->assertSame(self::TEST_MEMBER_AGATHA_ID, (int)$memberItem->assignee_config['member_id']);
-        $this->assertSame(self::KINGDOM_BRANCH_ID, (int)$memberItem->branch_id);
+        $this->assertNull($memberItem->branch_id);
         $this->assertTrue((bool)$memberItem->is_gating);
         $this->assertSame(ActionItem::STATUS_OPEN, $memberItem->status);
 
@@ -95,6 +95,39 @@ class BestowalTodoMaterializationServiceTest extends BaseTestCase
             $requiredFields[0]['provider'],
         );
         $this->assertTrue($requiredFields[0]['conditional_complete_on_assign']);
+        $this->assertTrue($eventScheduled->canAutoCompleteWhenRequirementsSatisfied());
+    }
+
+    public function testMaterializeScopesRolePermissionAndOfficeItemsToAwardBranch(): void
+    {
+        $templateId = $this->createTemplateWithScopedAssigneeItems();
+        $awardId = $this->assignTemplateToAward($templateId, self::KINGDOM_BRANCH_ID);
+        $bestowalId = 9000005;
+        $bestowal = $this->buildBestowal($bestowalId, $awardId);
+
+        $this->assertSame(self::KINGDOM_BRANCH_ID, $bestowal->getBranchId());
+        $result = $this->service->materializeForBestowal($bestowal);
+
+        $this->assertTrue($result->success, (string)$result->reason);
+        $items = $this->loadActionItems($bestowalId);
+        foreach (['role_scope', 'permission_scope', 'office_scope'] as $sourceRef) {
+            $this->assertArrayHasKey($sourceRef, $items);
+            $this->assertSame(ActionItem::ASSIGNEE_TYPE_DYNAMIC, $items[$sourceRef]->assignee_type);
+            $this->assertSame(self::KINGDOM_BRANCH_ID, (int)$items[$sourceRef]->branch_id);
+            $this->assertSame(
+                BestowalTodoAssigneeResolver::class,
+                $items[$sourceRef]->assignee_config['service'],
+            );
+        }
+        $this->assertSame(BestowalTodoTemplateItem::ASSIGNEE_TYPE_ROLE, $items['role_scope']->assignee_config['kind']);
+        $this->assertSame(
+            BestowalTodoTemplateItem::ASSIGNEE_TYPE_PERMISSION,
+            $items['permission_scope']->assignee_config['kind'],
+        );
+        $this->assertSame(
+            BestowalTodoTemplateItem::ASSIGNEE_TYPE_OFFICE,
+            $items['office_scope']->assignee_config['kind'],
+        );
     }
 
     public function testMaterializeIsIdempotentOnSourceRef(): void
@@ -186,10 +219,56 @@ class BestowalTodoMaterializationServiceTest extends BaseTestCase
             'required_field_config' => [
                 'provider' => BestowalTodoTemplateItem::COMPLETION_PROVIDER_BESTOWAL_GATHERING,
                 'conditional_complete_on_assign' => true,
+                ActionItem::COMPLETION_CONFIG_AUTO_COMPLETE => true,
             ],
             'sort_order' => 0,
         ]);
         $this->assertNotFalse($this->itemsTable->save($item), json_encode($item->getErrors()));
+
+        return (int)$template->id;
+    }
+
+    private function createTemplateWithScopedAssigneeItems(): int
+    {
+        $template = $this->templatesTable->newEntity([
+            'name' => 'Scoped Assignees Template ' . uniqid(),
+            'description' => 'Role, permission, and office scoping.',
+            'is_active' => true,
+        ]);
+        $this->assertNotFalse($this->templatesTable->save($template), json_encode($template->getErrors()));
+
+        $role = $this->getTableLocator()->get('Roles')->find()->select(['id'])->firstOrFail();
+        $permission = $this->getTableLocator()->get('Permissions')->find()->select(['id'])->firstOrFail();
+        $office = $this->getTableLocator()->get('Officers.Offices')->find()->select(['id'])->firstOrFail();
+        $definitions = [
+            [
+                'item_key' => 'role_scope',
+                'label' => 'Role scoped',
+                'assignee_type' => BestowalTodoTemplateItem::ASSIGNEE_TYPE_ROLE,
+                'assignee_source_id' => (int)$role->id,
+            ],
+            [
+                'item_key' => 'permission_scope',
+                'label' => 'Permission scoped',
+                'assignee_type' => BestowalTodoTemplateItem::ASSIGNEE_TYPE_PERMISSION,
+                'assignee_source_id' => (int)$permission->id,
+            ],
+            [
+                'item_key' => 'office_scope',
+                'label' => 'Office scoped',
+                'assignee_type' => BestowalTodoTemplateItem::ASSIGNEE_TYPE_OFFICE,
+                'assignee_source_id' => (int)$office->id,
+            ],
+        ];
+        foreach ($definitions as $index => $definition) {
+            $item = $this->itemsTable->newEntity($definition + [
+                'template_id' => (int)$template->id,
+                'branch_mode' => BestowalTodoTemplateItem::BRANCH_MODE_AWARD,
+                'is_gating' => false,
+                'sort_order' => $index,
+            ]);
+            $this->assertNotFalse($this->itemsTable->save($item), json_encode($item->getErrors()));
+        }
 
         return (int)$template->id;
     }

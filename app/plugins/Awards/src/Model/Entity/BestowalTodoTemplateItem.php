@@ -35,7 +35,11 @@ class BestowalTodoTemplateItem extends BaseEntity
 
     public const REQUIRED_FIELD_GATHERING = 'gathering_id';
 
+    public const REQUIRED_FIELD_COURT_SLOT = 'court_slot';
+
     public const COMPLETION_PROVIDER_BESTOWAL_GATHERING = 'Awards.BestowalGathering';
+
+    public const COMPLETION_PROVIDER_BESTOWAL_COURT_SLOT = 'Awards.BestowalCourtSlot';
 
     public const ASSIGNEE_TYPE_OPTIONS = [
         self::ASSIGNEE_TYPE_ROLE => 'Role',
@@ -53,6 +57,7 @@ class BestowalTodoTemplateItem extends BaseEntity
     public const REQUIRED_FIELD_OPTIONS = [
         '' => 'None',
         self::REQUIRED_FIELD_GATHERING => 'Bestowal gathering',
+        self::REQUIRED_FIELD_COURT_SLOT => 'Court assignment',
     ];
 
     /**
@@ -63,17 +68,29 @@ class BestowalTodoTemplateItem extends BaseEntity
      */
     public static function getDefaultRequiredFieldConfigForSourceRef(?string $sourceRef): ?array
     {
-        if ($sourceRef !== self::ITEM_KEY_EVENT_SCHEDULED) {
-            return null;
+        if ($sourceRef === self::ITEM_KEY_EVENT_SCHEDULED) {
+            return [
+                'provider' => self::COMPLETION_PROVIDER_BESTOWAL_GATHERING,
+                'field' => self::REQUIRED_FIELD_GATHERING,
+                'label' => 'Bestowal Gathering',
+                'help' => 'Choose the gathering where this bestowal will be presented.',
+                'conditional_complete_on_assign' => true,
+                ActionItem::COMPLETION_CONFIG_AUTO_COMPLETE => true,
+            ];
         }
 
-        return [
-            'provider' => self::COMPLETION_PROVIDER_BESTOWAL_GATHERING,
-            'field' => self::REQUIRED_FIELD_GATHERING,
-            'label' => 'Bestowal Gathering',
-            'help' => 'Choose the gathering where this bestowal will be presented.',
-            'conditional_complete_on_assign' => true,
-        ];
+        if ($sourceRef === self::ITEM_KEY_ADDED_TO_AGENDA) {
+            return [
+                'provider' => self::COMPLETION_PROVIDER_BESTOWAL_COURT_SLOT,
+                'field' => self::REQUIRED_FIELD_COURT_SLOT,
+                'label' => 'Court Assignment',
+                'help' => 'Choose Roaming Court or a scheduled court activity that can give this award.',
+                'conditional_complete_on_assign' => true,
+                ActionItem::COMPLETION_CONFIG_AUTO_COMPLETE => true,
+            ];
+        }
+
+        return null;
     }
 
     /**
@@ -155,6 +172,9 @@ class BestowalTodoTemplateItem extends BaseEntity
         ];
 
         return [
+            ActionItem::COMPLETION_CONFIG_AUTO_COMPLETE => (bool)(
+                $config[ActionItem::COMPLETION_CONFIG_AUTO_COMPLETE] ?? false
+            ),
             'required_fields' => [$fieldConfig],
         ];
     }
@@ -165,9 +185,11 @@ class BestowalTodoTemplateItem extends BaseEntity
      */
     public static function providerForRequiredField(string $requiredField): ?string
     {
-        return $requiredField === self::REQUIRED_FIELD_GATHERING
-            ? self::COMPLETION_PROVIDER_BESTOWAL_GATHERING
-            : null;
+        return match ($requiredField) {
+            self::REQUIRED_FIELD_GATHERING => self::COMPLETION_PROVIDER_BESTOWAL_GATHERING,
+            self::REQUIRED_FIELD_COURT_SLOT => self::COMPLETION_PROVIDER_BESTOWAL_COURT_SLOT,
+            default => null,
+        };
     }
 
     /**
@@ -185,8 +207,10 @@ class BestowalTodoTemplateItem extends BaseEntity
      */
     public static function helpForRequiredField(string $requiredField): string
     {
-        return $requiredField === self::REQUIRED_FIELD_GATHERING
-            ? 'Choose the future event or court where this bestowal will be presented.'
-            : '';
+        return match ($requiredField) {
+            self::REQUIRED_FIELD_GATHERING => 'Choose the future event or court where this bestowal will be presented.',
+            self::REQUIRED_FIELD_COURT_SLOT => 'Choose Roaming Court or an eligible scheduled court activity.',
+            default => '',
+        };
     }
 }

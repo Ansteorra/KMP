@@ -198,6 +198,29 @@ class BackupService
     }
 
     /**
+     * Validate that an encrypted backup starts with the expected JSON metadata.
+     *
+     * This intentionally avoids full JSON decoding in web requests; the queued
+     * restore task performs full validation before making restore changes.
+     */
+    public function validateImportHeader(string $encryptedData, string $encryptionKey): void
+    {
+        $compressed = $this->decrypt($encryptedData, $encryptionKey);
+        $jsonPrefix = gzdecode($compressed, 1048576);
+        unset($compressed);
+        if ($jsonPrefix === false) {
+            throw new RuntimeException('Failed to decompress backup data — wrong key or corrupt file');
+        }
+
+        if (
+            !str_contains($jsonPrefix, '"meta"')
+            || !str_contains($jsonPrefix, '"version":' . self::FORMAT_VERSION)
+        ) {
+            throw new RuntimeException('Invalid backup file header');
+        }
+    }
+
+    /**
      * Import (restore) from an encrypted backup.
      *
      * @param string $encryptedData Raw encrypted backup bytes

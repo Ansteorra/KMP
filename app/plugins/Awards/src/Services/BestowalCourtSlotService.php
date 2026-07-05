@@ -6,6 +6,7 @@ namespace Awards\Services;
 use App\KMP\TimezoneHelper;
 use Awards\Model\Entity\Bestowal;
 use Cake\ORM\TableRegistry;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -91,6 +92,108 @@ class BestowalCourtSlotService
         }
 
         return $options;
+    }
+
+    /**
+     * Build court assignment options limited to sessions that can give the bestowal award.
+     *
+     * @param \Awards\Model\Entity\Bestowal $bestowal Bestowal entity.
+     * @param \App\Model\Entity\Member|array|null $member Viewer for timezone conversion.
+     * @return array<int|string, string> Option value => label.
+     */
+    public function buildEligibleOptionsForBestowal(Bestowal $bestowal, $member = null): array
+    {
+        $gatheringId = $bestowal->gathering_id !== null ? (int)$bestowal->gathering_id : null;
+        if (!$this->gatheringSupportsCourtSlots($gatheringId)) {
+            return [];
+        }
+
+        $options = [
+            self::ROAMING_COURT_VALUE => self::roamingCourtLabel(),
+        ];
+        foreach ($this->fetchEligibleScheduledActivities($bestowal) as $activity) {
+            $options[(int)$activity->id] = $this->buildActivityLabel($activity, $member);
+        }
+
+        return $options;
+    }
+
+    /**
+     * Whether the bestowal already satisfies the Added to Agenda court assignment requirement.
+     *
+     * @param \Awards\Model\Entity\Bestowal $bestowal Bestowal entity.
+     * @return bool
+     */
+    public function hasAgendaAssignment(Bestowal $bestowal): bool
+    {
+        return $this->isRoamingCourt($bestowal)
+            || (int)($bestowal->gathering_scheduled_activity_id ?? 0) > 0;
+    }
+
+    /**
+     * Apply a to-do court assignment, accepting only roaming or award-eligible scheduled activities.
+     *
+     * @param \Awards\Model\Entity\Bestowal $bestowal Bestowal entity.
+     * @param mixed $rawActivityId Submitted court assignment value.
+     * @return void
+     */
+    public function applyEligibleCourtSessionSelection(Bestowal $bestowal, mixed $rawActivityId): void
+    {
+        if ($rawActivityId === null || $rawActivityId === '') {
+            throw new RuntimeException(__('Choose Roaming Court or an eligible scheduled court activity.'));
+        }
+
+        if ((string)$rawActivityId === self::ROAMING_COURT_VALUE) {
+            $this->applyCourtSessionSelection($bestowal, self::ROAMING_COURT_VALUE);
+
+            return;
+        }
+
+        if (!ctype_digit((string)$rawActivityId)) {
+            throw new RuntimeException(__('Choose Roaming Court or an eligible scheduled court activity.'));
+        }
+
+        $activityId = (int)$rawActivityId;
+        if ($activityId <= 0 || !$this->scheduledActivityCanGiveBestowalAward($bestowal, $activityId)) {
+            throw new RuntimeException(__('That scheduled activity cannot give this award.'));
+        }
+
+        $this->applyCourtSessionSelection($bestowal, $activityId);
+    }
+
+    /**
+     * Check whether a scheduled activity belongs to the bestowal gathering and can give its award.
+     *
+     * @param \Awards\Model\Entity\Bestowal $bestowal Bestowal entity.
+     * @param int $scheduledActivityId Scheduled gathering activity id.
+     * @return bool
+     */
+    public function scheduledActivityCanGiveBestowalAward(Bestowal $bestowal, int $scheduledActivityId): bool
+    {
+        $gatheringId = $bestowal->gathering_id !== null ? (int)$bestowal->gathering_id : null;
+        $awardId = $bestowal->award_id !== null ? (int)$bestowal->award_id : null;
+        if ($gatheringId === null || $gatheringId <= 0 || $awardId === null || $awardId <= 0) {
+            return false;
+        }
+
+        $activitiesTable = TableRegistry::getTableLocator()->get('GatheringScheduledActivities');
+        $activity = $activitiesTable->find()
+            ->select(['id', 'gathering_id', 'gathering_activity_id'])
+            ->where([
+                'id' => $scheduledActivityId,
+                'gathering_id' => $gatheringId,
+            ])
+            ->first();
+        if ($activity === null || (int)($activity->gathering_activity_id ?? 0) <= 0) {
+            return false;
+        }
+
+        return TableRegistry::getTableLocator()->get('Awards.AwardGatheringActivities')->find()
+            ->where([
+                'award_id' => $awardId,
+                'gathering_activity_id' => (int)$activity->gathering_activity_id,
+            ])
+            ->count() > 0;
     }
 
     /**
@@ -349,6 +452,41 @@ class BestowalCourtSlotService
         }
 
         return $label;
+    }
+
+    /**
+     * @param \Awards\Model\Entity\Bestowal $bestowal Bestowal entity.
+     * @return array<int, object>
+     */
+    private function fetchEligibleScheduledActivities(Bestowal $bestowal): array
+    {
+        $gatheringId = $bestowal->gathering_id !== null ? (int)$bestowal->gathering_id : null;
+        $awardId = $bestowal->award_id !== null ? (int)$bestowal->award_id : null;
+        if ($gatheringId === null || $gatheringId <= 0 || $awardId === null || $awardId <= 0) {
+            return [];
+        }
+
+        $allowedActivityIds = TableRegistry::getTableLocator()->get('Awards.AwardGatheringActivities')->find()
+            ->select(['gathering_activity_id'])
+            ->where(['award_id' => $awardId])
+            ->all()
+            ->extract('gathering_activity_id')
+            ->map(fn($id): int => (int)$id)
+            ->filter(fn(int $id): bool => $id > 0)
+            ->toList();
+        if ($allowedActivityIds === []) {
+            return [];
+        }
+
+        return TableRegistry::getTableLocator()->get('GatheringScheduledActivities')->find()
+            ->select(['id', 'gathering_id', 'gathering_activity_id', 'display_title', 'start_datetime', 'end_datetime'])
+            ->where([
+                'gathering_id' => $gatheringId,
+                'gathering_activity_id IN' => array_values(array_unique($allowedActivityIds)),
+            ])
+            ->orderBy(['start_datetime' => 'ASC', 'id' => 'ASC'])
+            ->all()
+            ->toList();
     }
 
     /**

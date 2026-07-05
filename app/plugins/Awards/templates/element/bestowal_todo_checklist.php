@@ -59,6 +59,7 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                 $blocked = $blocker !== null && !empty($blocker['blocked']);
                 $canAssignRequirement = $eligible && $item->isOpen() && $missingRequirement && !$blocked;
                 $canCompleteDirectly = $eligible && $item->isOpen() && !$missingRequirement && !$blocked;
+                $requirementField = (string)($requirement['field'] ?? '');
                 ?>
                 <li class="list-group-item d-flex justify-content-between align-items-start gap-3">
                     <div class="me-auto">
@@ -93,13 +94,23 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                             <?php if ($requirement !== null) : ?>
                                 <?php if (!empty($requirement['satisfied'])) : ?>
                                     <span class="badge bg-info text-dark">
-                                        <i class="bi bi-calendar-check me-1" aria-hidden="true"></i>
-                                        <?= __('Gathering assigned') ?>
+                                        <?php if ($requirementField === 'court_slot') : ?>
+                                            <i class="bi bi-list-check me-1" aria-hidden="true"></i>
+                                            <?= __('Court assigned') ?>
+                                        <?php else : ?>
+                                            <i class="bi bi-calendar-check me-1" aria-hidden="true"></i>
+                                            <?= __('Gathering assigned') ?>
+                                        <?php endif; ?>
                                     </span>
                                 <?php else : ?>
                                     <span class="badge bg-danger">
-                                        <i class="bi bi-calendar-x me-1" aria-hidden="true"></i>
-                                        <?= __('Gathering required') ?>
+                                        <?php if ($requirementField === 'court_slot') : ?>
+                                            <i class="bi bi-list-check me-1" aria-hidden="true"></i>
+                                            <?= __('Court assignment required') ?>
+                                        <?php else : ?>
+                                            <i class="bi bi-calendar-x me-1" aria-hidden="true"></i>
+                                            <?= __('Gathering required') ?>
+                                        <?php endif; ?>
                                     </span>
                                 <?php endif; ?>
                             <?php endif; ?>
@@ -116,7 +127,7 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                                 <?= h((string)($blocker['message'] ?? __('Complete prerequisite checks first.'))) ?>
                             </div>
                         <?php endif; ?>
-                        <?php if ($canAssignRequirement) : ?>
+                        <?php if ($canAssignRequirement && $requirementField === 'gathering_id') : ?>
                             <div class="border rounded-3 bg-light-subtle p-3 mt-3"
                                 data-bestowal-gathering-requirement>
                                 <?= $this->Form->create(null, [
@@ -168,6 +179,52 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                                 <button type="submit" class="btn btn-sm btn-success">
                                     <i class="bi bi-check-lg me-1" aria-hidden="true"></i>
                                     <?= __('Assign Gathering and Complete') ?>
+                                </button>
+                                <?= $this->Form->end() ?>
+                            </div>
+                        <?php elseif ($canAssignRequirement && $requirementField === 'court_slot') : ?>
+                            <div class="border rounded-3 bg-light-subtle p-3 mt-3">
+                                <?= $this->Form->create(null, [
+                                    'url' => [
+                                        'plugin' => null,
+                                        'controller' => 'ActionItems',
+                                        'action' => 'complete',
+                                        $item->id,
+                                    ],
+                                ]) ?>
+                                <?= $this->Form->hidden('id', ['value' => $item->id]) ?>
+                                <?= $this->Form->hidden('current_page', ['value' => $currentPageUrl]) ?>
+                                <?php
+                                $courtSlotId = 'todo-' . (int)$item->id . '-court-slot';
+                                $courtOptions = (array)($requirement['options'] ?? []);
+                                ?>
+                                <label class="form-label" for="<?= h($courtSlotId) ?>">
+                                    <?= __('Court Assignment') ?>
+                                </label>
+                                <?= $this->Form->select(
+                                    'gathering_scheduled_activity_id',
+                                    $courtOptions,
+                                    [
+                                        'id' => $courtSlotId,
+                                        'class' => 'form-select',
+                                        'empty' => __('Choose a court assignment'),
+                                        'required' => true,
+                                        'value' => $requirement['value'] ?? null,
+                                        'aria-describedby' => $courtSlotId . '-help',
+                                    ],
+                                ) ?>
+                                <div class="form-text mb-3" id="<?= h($courtSlotId) ?>-help">
+                                    <?=
+                                    __(
+                                        'Choose Roaming Court, or choose a scheduled court activity that can give ' .
+                                        'this award. Completing this form assigns the court slot and closes this ' .
+                                        'to-do.',
+                                    )
+                                    ?>
+                                </div>
+                                <button type="submit" class="btn btn-sm btn-success">
+                                    <i class="bi bi-check-lg me-1" aria-hidden="true"></i>
+                                    <?= __('Assign Court and Complete') ?>
                                 </button>
                                 <?= $this->Form->end() ?>
                             </div>

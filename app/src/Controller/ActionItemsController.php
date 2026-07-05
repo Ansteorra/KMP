@@ -88,14 +88,7 @@ class ActionItemsController extends AppController
                 ]);
             }
 
-            $eligibleIds = $actionItemService->getActionableItemIdsForMember($memberId);
-            if ($eligibleIds === []) {
-                $query->where(['ActionItems.id' => -1]);
-            } else {
-                $query->where(['ActionItems.id IN' => $eligibleIds]);
-            }
-
-            return $query;
+            return $actionItemService->applyOpenCandidateScopeForMember($query, $memberId);
         };
 
         $result = $this->processDataverseGrid([
@@ -476,70 +469,20 @@ class ActionItemsController extends AppController
     private function groupByOwner(array $items): array
     {
         $groups = [];
+        $ownerDescriptors = $this->buildOwnerDescriptors($items);
         foreach ($items as $item) {
             $key = $item->entity_type . ':' . $item->entity_id;
             if (!isset($groups[$key])) {
-                $groups[$key] = $this->describeOwner((string)$item->entity_type, (int)$item->entity_id);
+                $groups[$key] = $ownerDescriptors[$key]
+                    ?? $this->genericOwnerDescriptor((string)$item->entity_type, (int)$item->entity_id);
+                $groups[$key]['entityType'] = (string)$item->entity_type;
+                $groups[$key]['entityId'] = (int)$item->entity_id;
                 $groups[$key]['items'] = [];
             }
             $groups[$key]['items'][] = $item;
         }
 
         return array_values($groups);
-    }
-
-    /**
-     * Resolve a display label and view URL for a polymorphic owner.
-     *
-     * Falls back to a generic label/route derived from the entity type so the
-     * surface stays plugin-agnostic; known types get a richer label.
-     *
-     * @param string $entityType Owner type, e.g. Awards.Bestowals
-     * @param int $entityId Owner primary key
-     * @return array<string, mixed>
-     */
-    private function describeOwner(string $entityType, int $entityId): array
-    {
-        $label = str_replace('.', ' ', $entityType) . ' #' . $entityId;
-
-        if ($entityType === 'Awards.Bestowals') {
-            $label = $this->describeBestowal($entityId, $label);
-        }
-
-        return [
-            'label' => $label,
-            'url' => $this->ownerUrl($entityType, $entityId),
-            'entityType' => $entityType,
-            'entityId' => $entityId,
-        ];
-    }
-
-    /**
-     * Build a richer label for an Awards bestowal owner, guarded so a disabled
-     * or schema-changed Awards plugin degrades gracefully.
-     *
-     * @param int $bestowalId Bestowal id
-     * @param string $fallback Generic fallback label
-     * @return string
-     */
-    private function describeBestowal(int $bestowalId, string $fallback): string
-    {
-        try {
-            $bestowal = $this->fetchTable('Awards.Bestowals')->find()
-                ->where(['Bestowals.id' => $bestowalId])
-                ->contain(['Members', 'Awards'])
-                ->first();
-            if ($bestowal === null) {
-                return $fallback;
-            }
-            $recipient = $bestowal->get('member_sca_name')
-                ?: ($bestowal->member->sca_name ?? __('Recipient'));
-            $award = $bestowal->award->name ?? __('Award');
-
-            return sprintf('%s — %s', $recipient, $award);
-        } catch (Throwable $exception) {
-            return $fallback;
-        }
     }
 
     /**

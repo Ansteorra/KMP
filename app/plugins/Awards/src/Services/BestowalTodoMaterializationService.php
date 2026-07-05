@@ -36,6 +36,11 @@ class BestowalTodoMaterializationService
     private ActionItemService $actionItemService;
 
     /**
+     * @var array<string, \Cake\Datasource\EntityInterface|null>
+     */
+    private array $ancestorBranchMemo = [];
+
+    /**
      * @param \App\Services\ActionItems\ActionItemService|null $actionItemService Optional injected service.
      */
     public function __construct(?ActionItemService $actionItemService = null)
@@ -208,22 +213,30 @@ class BestowalTodoMaterializationService
      */
     private function findAncestorBranchByType(int $branchId, string $branchType): ?EntityInterface
     {
-        $branches = $this->fetchTable('Branches');
-        $current = $branches->get($branchId);
-
-        while ($current !== null) {
-            if ((string)$current->get('type') === $branchType) {
-                return $current;
-            }
-
-            $parentId = $current->get('parent_id');
-            if ($parentId === null) {
-                return null;
-            }
-
-            $current = $branches->get($parentId);
+        $memoKey = $branchId . ':' . $branchType;
+        if (array_key_exists($memoKey, $this->ancestorBranchMemo)) {
+            return $this->ancestorBranchMemo[$memoKey];
         }
 
-        return null;
+        $branches = $this->fetchTable('Branches');
+        $candidateIds = array_values(array_unique(array_merge(
+            [$branchId],
+            $branches->getAllParents($branchId),
+        )));
+        $rows = $branches->find()
+            ->select(['id', 'type'])
+            ->where(['id IN' => $candidateIds])
+            ->all()
+            ->combine('id', static fn(EntityInterface $branch): EntityInterface => $branch)
+            ->toArray();
+
+        foreach ($candidateIds as $candidateId) {
+            $branch = $rows[$candidateId] ?? null;
+            if ($branch !== null && (string)$branch->get('type') === $branchType) {
+                return $this->ancestorBranchMemo[$memoKey] = $branch;
+            }
+        }
+
+        return $this->ancestorBranchMemo[$memoKey] = null;
     }
 }

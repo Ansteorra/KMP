@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace Awards\Services;
 
+use App\Services\ActionItems\ActionItemService;
+use Awards\Model\Entity\Bestowal;
 use Cake\Log\Log;
 use Cake\ORM\Locator\LocatorAwareTrait;
 use Cake\ORM\Table;
@@ -20,18 +22,21 @@ class BestowalUpdateService
     private BestowalRecommendationLinkService $linkService;
     private BestowalGatheringLookupService $gatheringLookupService;
     private BestowalCourtSlotService $courtSlotService;
+    private ActionItemService $actionItemService;
 
     /**
      * @param \Awards\Services\BestowalRecommendationSyncService|null $syncService Optional sync service.
      * @param \Awards\Services\BestowalRecommendationLinkService|null $linkService Optional link service.
      * @param \Awards\Services\BestowalGatheringLookupService|null $gatheringLookupService Optional lookup service.
      * @param \Awards\Services\BestowalCourtSlotService|null $courtSlotService Optional court slot service.
+     * @param \App\Services\ActionItems\ActionItemService|null $actionItemService Optional action item service.
      */
     public function __construct(
         ?BestowalRecommendationSyncService $syncService = null,
         ?BestowalRecommendationLinkService $linkService = null,
         ?BestowalGatheringLookupService $gatheringLookupService = null,
         ?BestowalCourtSlotService $courtSlotService = null,
+        ?ActionItemService $actionItemService = null,
     ) {
         $this->syncService = $syncService ?? new BestowalRecommendationSyncService();
         $this->linkService = $linkService ?? new BestowalRecommendationLinkService(
@@ -39,6 +44,7 @@ class BestowalUpdateService
         );
         $this->gatheringLookupService = $gatheringLookupService ?? new BestowalGatheringLookupService();
         $this->courtSlotService = $courtSlotService ?? new BestowalCourtSlotService();
+        $this->actionItemService = $actionItemService ?? new ActionItemService();
     }
 
     /**
@@ -60,6 +66,7 @@ class BestowalUpdateService
             return $bestowalsTable->getConnection()->transactional(
                 function () use ($bestowalsTable, $bestowalId, $data, $actorId): array {
                     $bestowal = $bestowalsTable->get($bestowalId);
+                    $originalGatheringId = $bestowal->gathering_id !== null ? (int)$bestowal->gathering_id : null;
                     $unlinkIds = $this->normalizeIdList($data['unlink_recommendation_ids'] ?? []);
                     $linkIds = $this->normalizeIdList($data['link_recommendation_ids'] ?? []);
 
@@ -107,6 +114,18 @@ class BestowalUpdateService
                             $bestowal->setDirty($field, true);
                         }
                     }
+                    if (array_key_exists('gathering_id', $data)) {
+                        $newGatheringId = $bestowal->gathering_id !== null ? (int)$bestowal->gathering_id : null;
+                        $courtSelectionProvided = array_key_exists('gathering_scheduled_activity_id', $data)
+                            && $data['gathering_scheduled_activity_id'] !== null
+                            && $data['gathering_scheduled_activity_id'] !== '';
+                        if (
+                            $newGatheringId === null
+                            || ($originalGatheringId !== $newGatheringId && !$courtSelectionProvided)
+                        ) {
+                            $this->clearCourtAssignment($bestowal);
+                        }
+                    }
                     $bestowal->set('modified_by', $actorId, ['guard' => false]);
                     $bestowalsTable->saveOrFail($bestowal);
 
@@ -115,6 +134,14 @@ class BestowalUpdateService
                         throw new RuntimeException(
                             (string)($syncResult['error'] ?? 'Recommendation sync failed.'),
                         );
+                    }
+                    $autoCloseResult = $this->actionItemService->autoCompleteSatisfiedRequirements(
+                        Bestowal::ACTION_ITEM_ENTITY_TYPE,
+                        $bestowalId,
+                        $actorId,
+                    );
+                    if (!$autoCloseResult->success) {
+                        throw new RuntimeException((string)$autoCloseResult->reason);
                     }
 
                     return [
@@ -125,6 +152,7 @@ class BestowalUpdateService
                             'unlinkedRecommendationIds' => $unlinkIds,
                             'linkedRecommendationIds' => $linkIds,
                             'sync' => $syncResult['data'] ?? [],
+                            'autoClosedTodos' => $autoCloseResult->data ?? [],
                         ],
                     ];
                 },
@@ -144,6 +172,7 @@ class BestowalUpdateService
      * @param int $gatheringId Gathering ID.
      * @param int $actorId Actor performing the update.
      * @param bool $futureOnly When true, only future gatherings are selectable.
+     * @param bool $autoCompleteTodos Whether satisfied required-field to-dos should be system-closed.
      * @return array<string, mixed>
      */
     public function assignGathering(
@@ -152,6 +181,7 @@ class BestowalUpdateService
         int $gatheringId,
         int $actorId,
         bool $futureOnly = true,
+        bool $autoCompleteTodos = true,
     ): array {
         if ($bestowalId <= 0 || $gatheringId <= 0) {
             return $this->failureResult('A valid bestowal and gathering are required.');
@@ -159,7 +189,14 @@ class BestowalUpdateService
 
         try {
             return $bestowalsTable->getConnection()->transactional(
-                function () use ($bestowalsTable, $bestowalId, $gatheringId, $actorId, $futureOnly): array {
+                function () use (
+                    $bestowalsTable,
+                    $bestowalId,
+                    $gatheringId,
+                    $actorId,
+                    $futureOnly,
+                    $autoCompleteTodos,
+                ): array {
                     $bestowal = $bestowalsTable->find()
                         ->where(['Bestowals.id' => $bestowalId])
                         ->contain([
@@ -194,8 +231,7 @@ class BestowalUpdateService
                     if ($currentGatheringId !== $gatheringId) {
                         $bestowal->set('gathering_id', $gatheringId, ['guard' => false]);
                         $bestowal->setDirty('gathering_id', true);
-                        $bestowal->set('gathering_scheduled_activity_id', null, ['guard' => false]);
-                        $bestowal->setDirty('gathering_scheduled_activity_id', true);
+                        $this->clearCourtAssignment($bestowal);
                         $bestowal->set('modified_by', $actorId, ['guard' => false]);
                         $bestowalsTable->saveOrFail($bestowal);
                     }
@@ -206,6 +242,18 @@ class BestowalUpdateService
                             (string)($syncResult['error'] ?? 'Recommendation sync failed.'),
                         );
                     }
+                    $autoClosedTodos = [];
+                    if ($autoCompleteTodos) {
+                        $autoCloseResult = $this->actionItemService->autoCompleteSatisfiedRequirements(
+                            Bestowal::ACTION_ITEM_ENTITY_TYPE,
+                            $bestowalId,
+                            $actorId,
+                        );
+                        if (!$autoCloseResult->success) {
+                            throw new RuntimeException((string)$autoCloseResult->reason);
+                        }
+                        $autoClosedTodos = $autoCloseResult->data ?? [];
+                    }
 
                     return [
                         'success' => true,
@@ -213,6 +261,7 @@ class BestowalUpdateService
                             'bestowalId' => $bestowalId,
                             'result' => ['lifecycleStatus' => $bestowal->lifecycle_status],
                             'sync' => $syncResult['data'] ?? [],
+                            'autoClosedTodos' => $autoClosedTodos,
                         ],
                     ];
                 },
@@ -259,5 +308,19 @@ class BestowalUpdateService
                 'processedCount' => 0,
             ],
         ];
+    }
+
+    /**
+     * Clear court placement when the owning gathering changes or is removed.
+     *
+     * @param \Awards\Model\Entity\Bestowal $bestowal Bestowal being updated.
+     * @return void
+     */
+    private function clearCourtAssignment(Bestowal $bestowal): void
+    {
+        $bestowal->set('roaming_court', false, ['guard' => false]);
+        $bestowal->setDirty('roaming_court', true);
+        $bestowal->set('gathering_scheduled_activity_id', null, ['guard' => false]);
+        $bestowal->setDirty('gathering_scheduled_activity_id', true);
     }
 }

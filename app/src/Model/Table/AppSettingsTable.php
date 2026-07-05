@@ -64,6 +64,13 @@ class AppSettingsTable extends BaseTable
     private static array $sensitiveSettingRequestCache = [];
 
     /**
+     * Request-local all-settings payload keyed by tenant-aware cache key.
+     *
+     * @var array<string, array{values: array<string, mixed>, raw: array<string, mixed>}>
+     */
+    private static array $settingsPayloadRequestCache = [];
+
+    /**
      * Initialize method
      *
      * @param array<string, mixed> $config The configuration for the Table.
@@ -320,7 +327,7 @@ class AppSettingsTable extends BaseTable
      * @param \Cake\Database\Exception\DatabaseException $exception Database exception
      * @return bool
      */
-    private function isUniqueSettingConflict(DatabaseException | QueryException $exception): bool
+    private function isUniqueSettingConflict(DatabaseException|QueryException $exception): bool
     {
         $messages = [$exception->getMessage()];
         if ($exception->getPrevious()) {
@@ -513,6 +520,20 @@ class AppSettingsTable extends BaseTable
     }
 
     /**
+     * Clear request-local setting memoization.
+     *
+     * Useful for tests and long-running workers that need to simulate a fresh
+     * request after directly manipulating the shared cache or database.
+     *
+     * @return void
+     */
+    public static function clearRequestCaches(): void
+    {
+        self::$sensitiveSettingRequestCache = [];
+        self::$settingsPayloadRequestCache = [];
+    }
+
+    /**
      * Check if sensitive setting.
      *
      * @param string $name
@@ -531,9 +552,15 @@ class AppSettingsTable extends BaseTable
     private function getCachedSettingsPayload(): array
     {
         $cacheKey = $this->allSettingsCacheKey();
+        if (isset(self::$settingsPayloadRequestCache[$cacheKey])) {
+            return self::$settingsPayloadRequestCache[$cacheKey];
+        }
+
         $payload = Cache::read($cacheKey, 'default');
         if (is_array($payload) && isset($payload['values'], $payload['raw'])) {
-            return $payload;
+            self::$settingsPayloadRequestCache[$cacheKey] = $payload;
+
+            return self::$settingsPayloadRequestCache[$cacheKey];
         }
 
         $payload = ['values' => [], 'raw' => []];
@@ -553,8 +580,9 @@ class AppSettingsTable extends BaseTable
             );
         }
         Cache::write($cacheKey, $payload, 'default');
+        self::$settingsPayloadRequestCache[$cacheKey] = $payload;
 
-        return $payload;
+        return self::$settingsPayloadRequestCache[$cacheKey];
     }
 
     /**
@@ -562,7 +590,9 @@ class AppSettingsTable extends BaseTable
      */
     private function clearSettingCaches(?string $name = null): void
     {
-        Cache::delete($this->allSettingsCacheKey(), 'default');
+        $allSettingsCacheKey = $this->allSettingsCacheKey();
+        Cache::delete($allSettingsCacheKey, 'default');
+        unset(self::$settingsPayloadRequestCache[$allSettingsCacheKey]);
         if ($name !== null) {
             Cache::delete($this->cacheKey($name), 'default');
             Cache::delete($this->assetCacheKey($name), 'default');

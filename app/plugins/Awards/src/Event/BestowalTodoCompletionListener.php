@@ -51,9 +51,12 @@ class BestowalTodoCompletionListener implements EventListenerInterface
             return;
         }
 
-        $actorId = (int)$event->getData('actorId');
+        $actorId = $event->getData('actorId');
+        if ($actorId === null || (int)$actorId <= 0) {
+            return;
+        }
         $result = (new BestowalFinalizationService())
-            ->finalizeFromGatingCompletion((int)$item->entity_id, $actorId);
+            ->finalizeFromGatingCompletion((int)$item->entity_id, (int)$actorId);
 
         if (!$result->isSuccess()) {
             Log::error(sprintf(

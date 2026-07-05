@@ -84,6 +84,28 @@ class CourtAgendaPolicy extends BasePolicy
      * @param mixed ...$optionalArgs Context.
      * @return bool
      */
+    public function canAddBestowal(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        return $this->canEdit($user, $entity, ...$optionalArgs);
+    }
+
+    /**
+     * @param \App\KMP\KmpIdentityInterface $user User.
+     * @param \App\Model\Entity\BaseEntity $entity Agenda entity.
+     * @param mixed ...$optionalArgs Context.
+     * @return bool
+     */
+    public function canMoveToRoaming(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        return $this->canEdit($user, $entity, ...$optionalArgs);
+    }
+
+    /**
+     * @param \App\KMP\KmpIdentityInterface $user User.
+     * @param \App\Model\Entity\BaseEntity $entity Agenda entity.
+     * @param mixed ...$optionalArgs Context.
+     * @return bool
+     */
     public function canUpdateItem(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         return $this->canEdit($user, $entity, ...$optionalArgs);
@@ -96,6 +118,17 @@ class CourtAgendaPolicy extends BasePolicy
      * @return bool
      */
     public function canMoveItem(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        return $this->canEdit($user, $entity, ...$optionalArgs);
+    }
+
+    /**
+     * @param \App\KMP\KmpIdentityInterface $user User.
+     * @param \App\Model\Entity\BaseEntity $entity Agenda entity.
+     * @param mixed ...$optionalArgs Context.
+     * @return bool
+     */
+    public function canRemoveItem(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         return $this->canEdit($user, $entity, ...$optionalArgs);
     }

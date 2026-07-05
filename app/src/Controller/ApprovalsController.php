@@ -49,6 +49,15 @@ class ApprovalsController extends AppController
     private WorkflowEngineInterface $engine;
     private WorkflowApprovalManagerInterface $approvalManager;
     private ?array $bestowalGatheringOptions = null;
+    private ?RecommendationApprovalProcessService $recommendationApprovalProcessService = null;
+    /**
+     * @var array<string, bool|null>
+     */
+    private array $awardApprovalFinalStepCache = [];
+    /**
+     * @var array<int, int|null>
+     */
+    private array $awardsRecommendationIdsByWorkflowInstanceId = [];
 
     /**
      * Constructor.
@@ -684,8 +693,10 @@ class ApprovalsController extends AppController
             $approval->approver_config = $approverConfig;
             $isFeedbackResponse = !empty($approverConfig['feedback_response']);
             $approval->is_feedback_response = $isFeedbackResponse;
-            $approval->bulk_response_type_key = $this->getApprovalResponseTypeKey($approval);
-            $approval->bulk_response_payload = json_encode($this->getApprovalResponseModalPayload($approval));
+            $approval->bulk_response_type_key = $this->getApprovalResponseTypeKey($approval, $approverConfig);
+            $approval->bulk_response_payload = json_encode(
+                $this->getApprovalResponseModalPayload($approval, $approverConfig),
+            );
             $approval->bulk_response_disabled = $approval->status !== WorkflowApproval::STATUS_PENDING;
             if ($includeWorkflowName) {
                 $approval->workflow_name = $approval->workflow_instance?->workflow_definition?->name ?? __('Unknown');
@@ -1185,26 +1196,28 @@ class ApprovalsController extends AppController
      *
      * @return array<string, mixed>
      */
-    private function getApprovalResponseModalPayload(WorkflowApproval $approval): array
+    private function getApprovalResponseModalPayload(WorkflowApproval $approval, ?array $approverConfig = null): array
     {
+        $approverConfig ??= $this->augmentApproverConfigForResponse(
+            ApprovalsGridColumns::normalizeApproverConfig($approval->approver_config),
+            $approval,
+        );
+
         return [
             'id' => (int)$approval->id,
-            'approver_config' => $this->augmentApproverConfigForResponse(
-                ApprovalsGridColumns::normalizeApproverConfig($approval->approver_config),
-                $approval,
-            ),
+            'approver_config' => $approverConfig,
             'required_count' => (int)$approval->required_count,
             'approved_count' => (int)$approval->approved_count,
-            'bulk_type_key' => $this->getApprovalResponseTypeKey($approval),
+            'bulk_type_key' => $this->getApprovalResponseTypeKey($approval, $approverConfig),
         ];
     }
 
     /**
      * Hash the modal-affecting approval configuration so bulk responses cannot mix types.
      */
-    private function getApprovalResponseTypeKey(WorkflowApproval $approval): string
+    private function getApprovalResponseTypeKey(WorkflowApproval $approval, ?array $approverConfig = null): string
     {
-        $approverConfig = ApprovalsGridColumns::normalizeApproverConfig($approval->approver_config);
+        $approverConfig ??= ApprovalsGridColumns::normalizeApproverConfig($approval->approver_config);
         $isFeedbackResponse = !empty($approverConfig['feedback_response']);
         $typeConfig = [
             'approver_type' => (string)$approval->approver_type,
@@ -1274,13 +1287,19 @@ class ApprovalsController extends AppController
             return null;
         }
 
+        $workflowInstanceId = (int)$approval->workflow_instance_id;
+        if (array_key_exists($workflowInstanceId, $this->awardsRecommendationIdsByWorkflowInstanceId)) {
+            return $this->awardsRecommendationIdsByWorkflowInstanceId[$workflowInstanceId];
+        }
+
         $run = TableRegistry::getTableLocator()->get('Awards.RecommendationApprovalRuns')->find()
             ->select(['recommendation_id'])
-            ->where(['workflow_instance_id' => (int)$approval->workflow_instance_id])
+            ->where(['workflow_instance_id' => $workflowInstanceId])
             ->first();
         $recommendationId = (int)($run?->recommendation_id ?? 0);
 
-        return $recommendationId > 0 ? $recommendationId : null;
+        return $this->awardsRecommendationIdsByWorkflowInstanceId[$workflowInstanceId] =
+            $recommendationId > 0 ? $recommendationId : null;
     }
 
     /**
@@ -1344,7 +1363,23 @@ class ApprovalsController extends AppController
             return null;
         }
 
-        return (new RecommendationApprovalProcessService())->isFinalApprovalStep($approval, $approverConfig);
+        $cacheKey = implode(':', [
+            (int)($approval->id ?? 0),
+            (int)($approval->workflow_instance_id ?? 0),
+            (string)($approverConfig['award_approval_run_id'] ?? ''),
+            (string)($approverConfig['award_approval_step_key'] ?? ''),
+            array_key_exists('award_approval_is_final_step', $approverConfig)
+                ? (string)(int)filter_var($approverConfig['award_approval_is_final_step'], FILTER_VALIDATE_BOOLEAN)
+                : '',
+        ]);
+        if (array_key_exists($cacheKey, $this->awardApprovalFinalStepCache)) {
+            return $this->awardApprovalFinalStepCache[$cacheKey];
+        }
+
+        $this->recommendationApprovalProcessService ??= new RecommendationApprovalProcessService();
+
+        return $this->awardApprovalFinalStepCache[$cacheKey] =
+            $this->recommendationApprovalProcessService->isFinalApprovalStep($approval, $approverConfig);
     }
 
     /**

@@ -4,7 +4,12 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Controller;
 
 use App\KMP\TimezoneHelper;
+use App\Model\Entity\ActionItem;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
+use Awards\Model\Entity\Bestowal;
+use Awards\Model\Entity\BestowalTodoTemplateItem;
+use Awards\Model\Entity\CourtAgendaItem;
+use Awards\Model\Entity\CourtAgendaSegment;
 use Cake\Cache\Cache;
 use Waivers\Policy\GatheringWaiverPolicy;
 
@@ -584,6 +589,95 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $exists = $this->getTableLocator()->get('GatheringScheduledActivities')
             ->exists(['id' => $scheduledActivity->id]);
         $this->assertTrue($exists);
+    }
+
+    public function testDeleteScheduledActivityClearsBestowalCourtAssignments(): void
+    {
+        $gathering = $this->getScheduleTestGathering();
+        $scheduledActivity = $this->createScheduledActivity(
+            $gathering,
+            self::ADMIN_MEMBER_ID,
+            'Court Slot to Delete',
+        );
+        $award = $this->getTableLocator()->get('Awards.Awards')
+            ->find()
+            ->select(['id'])
+            ->firstOrFail();
+        $bestowals = $this->getTableLocator()->get('Awards.Bestowals');
+        $bestowal = $bestowals->saveOrFail($bestowals->newEntity([
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'award_id' => $award->id,
+            'gathering_id' => $gathering->id,
+            'gathering_scheduled_activity_id' => $scheduledActivity->id,
+            'lifecycle_status' => Bestowal::LIFECYCLE_OPEN,
+            'source' => Bestowal::SOURCE_AD_HOC,
+            'stack_rank' => 10,
+        ]));
+        $agendas = $this->getTableLocator()->get('Awards.CourtAgendas');
+        $agenda = $agendas->saveOrFail($agendas->newEntity([
+            'gathering_id' => $gathering->id,
+            'name' => 'Delete Court Slot Agenda',
+            'is_default' => true,
+            'created_by' => self::ADMIN_MEMBER_ID,
+        ]));
+        $segments = $this->getTableLocator()->get('Awards.CourtAgendaSegments');
+        $segment = $segments->saveOrFail($segments->newEntity([
+            'court_agenda_id' => $agenda->id,
+            'gathering_scheduled_activity_id' => $scheduledActivity->id,
+            'name' => 'Court Slot to Delete',
+            'court_type' => CourtAgendaSegment::TYPE_COURT,
+            'sort_order' => 10,
+            'created_by' => self::ADMIN_MEMBER_ID,
+        ]));
+        $items = $this->getTableLocator()->get('Awards.CourtAgendaItems');
+        $item = $items->saveOrFail($items->newEntity([
+            'court_agenda_segment_id' => $segment->id,
+            'bestowal_id' => $bestowal->id,
+            'item_type' => CourtAgendaItem::TYPE_BESTOWAL,
+            'role' => CourtAgendaItem::ROLE_PRESENT,
+            'sort_order' => 10,
+            'estimated_minutes' => 5,
+            'duration_locked' => false,
+            'include_reasons' => true,
+            'include_specialties' => true,
+            'created_by' => self::ADMIN_MEMBER_ID,
+        ]));
+        $actionItems = $this->getTableLocator()->get('ActionItems');
+        $addedToAgendaTodo = $actionItems->saveOrFail($actionItems->newEntity([
+            'entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
+            'entity_id' => (int)$bestowal->id,
+            'title' => 'Added to Agenda',
+            'assignee_type' => ActionItem::ASSIGNEE_TYPE_MEMBER,
+            'assignee_config' => ['member_id' => self::ADMIN_MEMBER_ID],
+            'branch_id' => self::KINGDOM_BRANCH_ID,
+            'status' => ActionItem::STATUS_COMPLETED,
+            'completed_by' => self::ADMIN_MEMBER_ID,
+            'is_gating' => true,
+            'sort_order' => 20,
+            'source_ref' => BestowalTodoTemplateItem::ITEM_KEY_ADDED_TO_AGENDA,
+            'completion_config' => [
+                ActionItem::COMPLETION_CONFIG_AUTO_COMPLETE => true,
+                'required_fields' => [
+                    [
+                        'provider' => BestowalTodoTemplateItem::COMPLETION_PROVIDER_BESTOWAL_COURT_SLOT,
+                        'field' => BestowalTodoTemplateItem::REQUIRED_FIELD_COURT_SLOT,
+                    ],
+                ],
+            ],
+        ]));
+
+        $this->post('/gatherings/delete-scheduled-activity/' . $gathering->public_id . '/' . $scheduledActivity->id);
+
+        $this->assertRedirect(['action' => 'view', $gathering->public_id]);
+        $updatedBestowal = $bestowals->get((int)$bestowal->id);
+        $this->assertNull($updatedBestowal->gathering_scheduled_activity_id);
+        $this->assertFalse((bool)$updatedBestowal->roaming_court);
+        $this->assertFalse($segments->exists(['id' => (int)$segment->id]));
+        $this->assertFalse($items->exists(['id' => (int)$item->id]));
+        $this->assertTrue($actionItems->get((int)$addedToAgendaTodo->id)->isOpen());
+        $this->assertFalse(
+            $this->getTableLocator()->get('GatheringScheduledActivities')->exists(['id' => $scheduledActivity->id]),
+        );
     }
 
     public function testCourtScheduleManagerSeesOnlyDelegatedScheduleControls(): void

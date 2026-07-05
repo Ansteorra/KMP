@@ -37,16 +37,21 @@ class CourtAgendasController extends AppController
         $user = $this->request->getAttribute('identity');
         $agenda = $agendaService->getOrCreateDefaultAgenda($gatheringIdInt, (int)$user->id);
         $canManage = $user->checkCan('edit', $agenda);
-        if ($canManage) {
-            $agendaService->importGatheringBestowals((int)$agenda->id, (int)$user->id);
-        }
 
         $viewModel = $agendaService->buildAgendaViewModel((int)$agenda->id);
+        $selectedSegmentId = $this->selectedSegmentId(
+            $viewModel['segments'],
+            $this->request->getQuery('segment_id'),
+        );
         $this->set([
             'agenda' => $viewModel['agenda'],
             'segments' => $viewModel['segments'],
+            'selectedSegmentId' => $selectedSegmentId,
             'totalMinutes' => $viewModel['totalMinutes'],
             'totalWarning' => $viewModel['totalWarning'],
+            'unscheduledBestowals' => $viewModel['unscheduledBestowals'],
+            'scheduledActivityOptions' => $viewModel['scheduledActivityOptions'],
+            'segmentOptions' => $viewModel['segmentOptions'],
             'canManage' => $canManage,
         ]);
 
@@ -90,13 +95,72 @@ class CourtAgendasController extends AppController
         $this->request->allowMethod(['post']);
         $agenda = $this->loadAgenda($agendaId);
         $this->Authorization->authorize($agenda, 'import');
+        $createdSegments = $agendaService->ensureEligibleCourtSegments(
+            (int)$agenda->id,
+            (int)$this->request->getAttribute('identity')->id,
+        );
         $count = $agendaService->importGatheringBestowals(
             (int)$agenda->id,
             (int)$this->request->getAttribute('identity')->id,
         );
-        $this->Flash->success(__('{0} bestowal(s) imported into the court agenda.', $count));
+        $this->Flash->success(__(
+            '{0} court segment(s) created and {1} bestowal(s) imported into the court agenda.',
+            $createdSegments,
+            $count,
+        ));
 
         return $this->redirect(['action' => 'gathering', $agenda->gathering_id]);
+    }
+
+    /**
+     * Add an eligible gathering bestowal to an agenda segment.
+     *
+     * @param \Awards\Services\CourtAgendaService $agendaService Court agenda service.
+     * @return \Cake\Http\Response|null
+     */
+    public function addBestowal(CourtAgendaService $agendaService): ?Response
+    {
+        $this->request->allowMethod(['post']);
+        $agenda = $this->loadAgenda((string)$this->request->getData('court_agenda_id'));
+        $this->Authorization->authorize($agenda, 'addBestowal');
+        $bestowalId = $this->requirePositiveInt($this->request->getData('bestowal_id'), __('Bestowal ID is required.'));
+        $segmentId = $this->requirePositiveInt(
+            $this->request->getData('court_agenda_segment_id'),
+            __('Agenda segment ID is required.'),
+        );
+        $agendaService->addBestowalToSegment(
+            (int)$agenda->id,
+            $bestowalId,
+            $segmentId,
+            (int)$this->request->getAttribute('identity')->id,
+        );
+        $this->Flash->success(__('Bestowal added to the court agenda.'));
+
+        return $this->redirectToGatheringSegment($agenda, $segmentId);
+    }
+
+    /**
+     * Move a bestowal or agenda item to roaming court.
+     *
+     * @param \Awards\Services\CourtAgendaService $agendaService Court agenda service.
+     * @return \Cake\Http\Response|null
+     */
+    public function moveToRoaming(CourtAgendaService $agendaService): ?Response
+    {
+        $this->request->allowMethod(['post']);
+        $agenda = $this->loadAgenda((string)$this->request->getData('court_agenda_id'));
+        $this->Authorization->authorize($agenda, 'moveToRoaming');
+        $itemId = $this->optionalPositiveInt($this->request->getData('item_id'));
+        $bestowalId = $this->optionalPositiveInt($this->request->getData('bestowal_id'));
+        $agendaService->moveToRoamingCourt(
+            (int)$agenda->id,
+            $itemId,
+            $bestowalId,
+            (int)$this->request->getAttribute('identity')->id,
+        );
+        $this->Flash->success(__('Bestowal moved to roaming court.'));
+
+        return $this->redirectToGatheringSegment($agenda, $this->request->getData('return_segment_id'));
     }
 
     /**
@@ -113,7 +177,7 @@ class CourtAgendasController extends AppController
         $agendaService->addSegment($this->request->getData(), (int)$this->request->getAttribute('identity')->id);
         $this->Flash->success(__('Court agenda segment added.'));
 
-        return $this->redirect(['action' => 'gathering', $agenda->gathering_id]);
+        return $this->redirectToGatheringSegment($agenda, $this->request->getData('return_segment_id'));
     }
 
     /**
@@ -130,7 +194,7 @@ class CourtAgendasController extends AppController
         $agendaService->addBlock($this->request->getData(), (int)$this->request->getAttribute('identity')->id);
         $this->Flash->success(__('Agenda block added.'));
 
-        return $this->redirect(['action' => 'gathering', $agenda->gathering_id]);
+        return $this->redirectToGatheringSegment($agenda, $this->request->getData('court_agenda_segment_id'));
     }
 
     /**
@@ -146,10 +210,14 @@ class CourtAgendasController extends AppController
         $itemIdInt = $this->requirePositiveInt($itemId, __('Agenda item ID is required.'));
         $agenda = $this->loadAgendaForItem($itemIdInt);
         $this->Authorization->authorize($agenda, 'updateItem');
-        $agendaService->updateItem($itemIdInt, $this->request->getData(), (int)$this->request->getAttribute('identity')->id);
+        $agendaService->updateItem(
+            $itemIdInt,
+            $this->request->getData(),
+            (int)$this->request->getAttribute('identity')->id,
+        );
         $this->Flash->success(__('Agenda item updated.'));
 
-        return $this->redirect(['action' => 'gathering', $agenda->gathering_id]);
+        return $this->redirectToGatheringSegment($agenda, $this->request->getData('return_segment_id'));
     }
 
     /**
@@ -166,7 +234,7 @@ class CourtAgendasController extends AppController
             $this->request->getData('court_agenda_segment_id'),
             __('Agenda segment ID is required.'),
         );
-        $sortOrder = (int)$this->request->getData('sort_order', 10);
+        $sortOrder = (int)$this->request->getData('sort_order', 999999);
         $agenda = $this->loadAgendaForItem($itemId);
         $this->Authorization->authorize($agenda, 'moveItem');
         $agendaService->moveItem($itemId, $segmentId, $sortOrder, (int)$this->request->getAttribute('identity')->id);
@@ -177,7 +245,25 @@ class CourtAgendasController extends AppController
                 ->withStringBody((string)json_encode(['success' => true]));
         }
 
-        return $this->redirect(['action' => 'gathering', $agenda->gathering_id]);
+        return $this->redirectToGatheringSegment($agenda, $segmentId);
+    }
+
+    /**
+     * Remove an item from the court agenda.
+     *
+     * @param \Awards\Services\CourtAgendaService $agendaService Court agenda service.
+     * @return \Cake\Http\Response|null
+     */
+    public function removeItem(CourtAgendaService $agendaService): ?Response
+    {
+        $this->request->allowMethod(['post', 'delete']);
+        $itemId = $this->requirePositiveInt($this->request->getData('item_id'), __('Agenda item ID is required.'));
+        $agenda = $this->loadAgendaForItem($itemId);
+        $this->Authorization->authorize($agenda, 'removeItem');
+        $agendaService->removeItem($itemId, (int)$this->request->getAttribute('identity')->id);
+        $this->Flash->success(__('Agenda item removed.'));
+
+        return $this->redirectToGatheringSegment($agenda, $this->request->getData('return_segment_id'));
     }
 
     /**
@@ -225,6 +311,58 @@ class CourtAgendasController extends AppController
     {
         if (!is_numeric((string)$value) || (int)$value <= 0) {
             throw new BadRequestException($message);
+        }
+
+        return (int)$value;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $segments Agenda segments.
+     * @param mixed $requestedId Requested selected segment ID.
+     * @return int|null
+     */
+    private function selectedSegmentId(array $segments, mixed $requestedId): ?int
+    {
+        $firstSegmentId = null;
+        foreach ($segments as $segmentData) {
+            $segment = $segmentData['entity'];
+            $segmentId = (int)$segment->id;
+            $firstSegmentId ??= $segmentId;
+            if ((string)$requestedId !== '' && (int)$requestedId === $segmentId) {
+                return $segmentId;
+            }
+        }
+
+        return $firstSegmentId;
+    }
+
+    /**
+     * @param \Awards\Model\Entity\CourtAgenda $agenda Agenda.
+     * @param mixed $segmentId Segment ID.
+     * @return \Cake\Http\Response|null
+     */
+    private function redirectToGatheringSegment(CourtAgenda $agenda, mixed $segmentId): ?Response
+    {
+        $query = [];
+        $segmentId = $this->optionalPositiveInt($segmentId);
+        if ($segmentId !== null) {
+            $query['segment_id'] = $segmentId;
+        }
+
+        return $this->redirect(['action' => 'gathering', $agenda->gathering_id, '?' => $query]);
+    }
+
+    /**
+     * @param mixed $value Value to validate.
+     * @return int|null
+     */
+    private function optionalPositiveInt(mixed $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        if (!is_numeric((string)$value) || (int)$value <= 0) {
+            throw new BadRequestException(__('Invalid identifier.'));
         }
 
         return (int)$value;

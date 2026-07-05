@@ -7,6 +7,7 @@ use App\Model\Entity\ActionItem;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\BestowalTodoTemplateItem;
+use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 
 /**
@@ -133,6 +134,64 @@ class BestowalTodoViewTest extends HttpIntegrationTestCase
         $this->assertResponseNotContains('aria-label="Mark complete: Added to Agenda"');
     }
 
+    public function testViewRendersCourtRequirementForAddedToAgendaTodo(): void
+    {
+        $bestowal = $this->makeBestowal();
+        $schedule = $this->makeScheduledCourtForAward((int)$bestowal->award_id);
+        $bestowal->gathering_id = $schedule['gathering']->id;
+        TableRegistry::getTableLocator()->get('Awards.Bestowals')->saveOrFail($bestowal);
+        $this->makeTodo((int)$bestowal->id, [
+            'title' => 'Event Scheduled',
+            'source_ref' => BestowalTodoTemplateItem::ITEM_KEY_EVENT_SCHEDULED,
+            'status' => ActionItem::STATUS_COMPLETED,
+            'sort_order' => 10,
+        ]);
+        $this->makeTodo((int)$bestowal->id, [
+            'title' => 'Added to Agenda',
+            'source_ref' => BestowalTodoTemplateItem::ITEM_KEY_ADDED_TO_AGENDA,
+            'sort_order' => 20,
+        ]);
+
+        $this->get('/awards/bestowals/view/' . $bestowal->id);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Court assignment required');
+        $this->assertResponseContains('Assign Court and Complete');
+        $this->assertResponseContains('Roaming Court');
+        $this->assertResponseContains('Evening Court');
+    }
+
+    public function testCompletingAddedToAgendaTodoCanAssignRoamingCourt(): void
+    {
+        $bestowal = $this->makeBestowal();
+        $schedule = $this->makeScheduledCourtForAward((int)$bestowal->award_id);
+        $bestowal->gathering_id = $schedule['gathering']->id;
+        TableRegistry::getTableLocator()->get('Awards.Bestowals')->saveOrFail($bestowal);
+        $this->makeTodo((int)$bestowal->id, [
+            'title' => 'Event Scheduled',
+            'source_ref' => BestowalTodoTemplateItem::ITEM_KEY_EVENT_SCHEDULED,
+            'status' => ActionItem::STATUS_COMPLETED,
+            'sort_order' => 10,
+        ]);
+        $agendaTodo = $this->makeTodo((int)$bestowal->id, [
+            'title' => 'Added to Agenda',
+            'source_ref' => BestowalTodoTemplateItem::ITEM_KEY_ADDED_TO_AGENDA,
+            'sort_order' => 20,
+        ]);
+
+        $this->post('/action-items/complete/' . $agendaTodo->id, [
+            'id' => (string)$agendaTodo->id,
+            'gathering_scheduled_activity_id' => 'roaming',
+        ]);
+
+        $this->assertResponseCode(302);
+        $reloadedBestowal = TableRegistry::getTableLocator()->get('Awards.Bestowals')->get($bestowal->id);
+        $this->assertTrue((bool)$reloadedBestowal->roaming_court);
+        $this->assertNull($reloadedBestowal->gathering_scheduled_activity_id);
+        $reloadedTodo = TableRegistry::getTableLocator()->get('ActionItems')->get($agendaTodo->id);
+        $this->assertTrue($reloadedTodo->isCompleted());
+    }
+
     /**
      * When every gating item is complete, the Mark Given action is offered.
      *
@@ -152,5 +211,59 @@ class BestowalTodoViewTest extends HttpIntegrationTestCase
         $this->assertResponseContains('All required checks are complete.');
         $this->assertResponseContains('bi-check-square-fill');
         $this->assertResponseContains('Completed task:');
+    }
+
+    /**
+     * @param int $awardId Award primary key.
+     * @return array{gathering: object, scheduledActivity: object}
+     */
+    private function makeScheduledCourtForAward(int $awardId): array
+    {
+        $suffix = uniqid('', true);
+        $gatheringActivities = TableRegistry::getTableLocator()->get('GatheringActivities');
+        $awardGatheringActivities = TableRegistry::getTableLocator()->get('Awards.AwardGatheringActivities');
+        $gatherings = TableRegistry::getTableLocator()->get('Gatherings');
+        $scheduledActivities = TableRegistry::getTableLocator()->get('GatheringScheduledActivities');
+        $gatheringActivityLinks = TableRegistry::getTableLocator()->get('GatheringsGatheringActivities');
+
+        $activity = $gatheringActivities->saveOrFail($gatheringActivities->newEntity([
+            'name' => 'Checklist Court Activity ' . $suffix,
+        ]));
+        $awardGatheringActivities->saveOrFail($awardGatheringActivities->newEntity([
+            'award_id' => $awardId,
+            'gathering_activity_id' => $activity->id,
+        ]));
+
+        $gatheringType = TableRegistry::getTableLocator()->get('GatheringTypes')
+            ->find()
+            ->select(['id'])
+            ->firstOrFail();
+        $gathering = $gatherings->saveOrFail($gatherings->newEntity([
+            'branch_id' => self::KINGDOM_BRANCH_ID,
+            'gathering_type_id' => $gatheringType->id,
+            'name' => 'Checklist Court Gathering ' . $suffix,
+            'start_date' => DateTime::now()->addDays(30),
+            'end_date' => DateTime::now()->addDays(31),
+            'created_by' => self::ADMIN_MEMBER_ID,
+        ]));
+        $gatheringActivityLinks->saveOrFail($gatheringActivityLinks->newEntity([
+            'gathering_id' => $gathering->id,
+            'gathering_activity_id' => $activity->id,
+            'sort_order' => 1,
+            'not_removable' => false,
+        ]));
+        $scheduledActivity = $scheduledActivities->saveOrFail($scheduledActivities->newEntity([
+            'gathering_id' => $gathering->id,
+            'gathering_activity_id' => $activity->id,
+            'start_datetime' => DateTime::now()->addDays(30)->addHours(2),
+            'has_end_time' => false,
+            'display_title' => 'Evening Court',
+            'description' => 'Checklist court session.',
+            'pre_register' => false,
+            'is_other' => false,
+            'created_by' => self::ADMIN_MEMBER_ID,
+        ]));
+
+        return compact('gathering', 'scheduledActivity');
     }
 }

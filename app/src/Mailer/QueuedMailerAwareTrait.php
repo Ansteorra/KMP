@@ -59,7 +59,7 @@ trait QueuedMailerAwareTrait
             'action' => $action,
             'vars' => $vars,
         ];
-        $useEmailQueue = (StaticHelpers::getAppSetting('Email.UseQueue', 'no', null, true) === 'yes');
+        $useEmailQueue = (StaticHelpers::getAppSetting('Email.UseQueue', 'yes', null, true) === 'yes');
         $connection = ConnectionManager::get('default');
         if ($useEmailQueue || $connection->inTransaction()) {
             $this->queueMailJob($data);

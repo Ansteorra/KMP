@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Queue\Task\BackupRestoreTask;
+use App\Queue\Task\BackupTask;
 use App\Services\BackupService;
 use App\Services\BackupStorageService;
 use App\Services\RestoreStagingService;
@@ -86,39 +87,31 @@ class BackupsController extends AppController
         }
 
         $storage = new BackupStorageService();
-        $backupService = new BackupService();
 
         $backup = $this->Backups->newEntity([
             'filename' => 'kmp-backup-' . date('Ymd-His') . '.kmpbackup',
             'storage_type' => $storage->getAdapterType(),
             'status' => 'running',
+            'notes' => 'Manual backup queued.',
         ]);
         $this->Backups->save($backup);
 
         try {
-            $result = $backupService->export($encryptionKey);
-            $storage->write($backup->filename, $result['data']);
+            $this->fetchTable('Queue.QueuedJobs')->createJob(BackupTask::class, [
+                'backup_id' => $backup->id,
+            ], [
+                'group' => 'backup',
+                'reference' => 'backup-' . $backup->id,
+                'status' => 'Backup queued.',
+            ]);
 
-            $backup->size_bytes = $result['meta']['size_bytes'];
-            $backup->table_count = $result['meta']['table_count'];
-            $backup->row_count = $result['meta']['row_count'];
-            $backup->status = 'completed';
-            $this->Backups->save($backup);
-
-            $this->Flash->success(__('Backup created successfully: {0}', $backup->filename));
-        } catch (Exception $e) {
-            $errorMsg = $e->getMessage();
-            $fullError = $errorMsg;
-            $prev = $e->getPrevious();
-            while ($prev) {
-                $fullError .= ' <- ' . $prev->getMessage();
-                $prev = $prev->getPrevious();
-            }
-            Log::error('Backup creation failed: ' . $fullError);
+            $this->Flash->success(__('Backup queued: {0}', $backup->filename));
+        } catch (Throwable $e) {
+            Log::error('Backup queueing failed: ' . $e->getMessage());
             $backup->status = 'failed';
-            $backup->notes = substr(strip_tags($errorMsg), 0, 500);
+            $backup->notes = substr(strip_tags($e->getMessage()), 0, 500);
             $this->Backups->save($backup);
-            $this->Flash->error(__('Backup failed. Check logs for details.'));
+            $this->Flash->error(__('Backup failed to queue. Check logs for details.'));
         }
 
         return $this->redirect(['action' => 'index']);
@@ -185,9 +178,12 @@ class BackupsController extends AppController
         }
 
         try {
-            (new BackupService())->validateImportPayload($data, $encryptionKey);
+            (new BackupService())->validateImportHeader($data, $encryptionKey);
         } catch (Throwable $e) {
-            $message = __('The backup file could not be opened with the provided encryption key: {0}', $e->getMessage());
+            $message = __(
+                'The backup file could not be opened with the provided encryption key: {0}',
+                $e->getMessage(),
+            );
             Log::warning(sprintf(
                 'Restore preflight failed for %s: %s',
                 (string)$sourceLabel,

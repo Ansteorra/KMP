@@ -103,6 +103,14 @@ RUN mkdir -p \
     /var/www/html/images/cache \
     /opt/kmp
 
+# Expose plugin webroot assets directly through Apache; AssetMiddleware remains
+# as a runtime fallback for development and unusual plugin layouts.
+RUN for plugin_webroot in plugins/*/webroot; do \
+        [ -d "$plugin_webroot" ] || continue; \
+        plugin_name="$(basename "$(dirname "$plugin_webroot")" | tr '[:upper:]' '[:lower:]')"; \
+        ln -sfn "../$plugin_webroot" "webroot/$plugin_name"; \
+    done
+
 # Bundle the dev seed + reset script so the Azure nightly "reset" job can
 # restore a known demo state inside the container (no external dump load).
 # These are not served by Apache (outside DocumentRoot).

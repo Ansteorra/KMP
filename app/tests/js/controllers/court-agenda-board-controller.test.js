@@ -98,6 +98,109 @@ describe('CourtAgendaBoardController', () => {
         expect(segment.classList.contains('border-primary')).toBe(true);
     });
 
+    test('drag over inserts a ghost placeholder at the pending sort position', () => {
+        const dragged = root.querySelector('[data-item-id="2"]');
+        const target = root.querySelector('[data-item-id="1"]');
+        const segment = root.querySelector('[data-segment-id="10"]');
+        controller.draggedItem = dragged;
+        target.getBoundingClientRect = jest.fn(() => ({
+            top: 100,
+            height: 40,
+        }));
+        const event = {
+            preventDefault: jest.fn(),
+            currentTarget: segment,
+            target,
+            clientY: 105,
+            dataTransfer: {
+                dropEffect: '',
+            },
+        };
+
+        controller.dragOver(event);
+
+        const placeholder = root.querySelector('.court-agenda-drop-placeholder');
+        expect(placeholder).not.toBeNull();
+        expect(placeholder.getAttribute('aria-hidden')).toBe('true');
+        expect(placeholder.classList.contains('pe-none')).toBe(true);
+        expect(Array.from(segment.children)).toEqual([
+            placeholder,
+            target,
+            dragged,
+        ]);
+    });
+
+    test('drag over stays stable when the ghost placeholder is under the pointer', () => {
+        const dragged = root.querySelector('[data-item-id="2"]');
+        const target = root.querySelector('[data-item-id="1"]');
+        const segment = root.querySelector('[data-segment-id="10"]');
+        controller.draggedItem = dragged;
+        target.getBoundingClientRect = jest.fn(() => ({
+            top: 100,
+            height: 40,
+        }));
+        const dataTransfer = {
+            dropEffect: '',
+        };
+        controller.dragOver({
+            preventDefault: jest.fn(),
+            currentTarget: segment,
+            target,
+            clientY: 105,
+            dataTransfer,
+        });
+        const placeholder = root.querySelector('.court-agenda-drop-placeholder');
+
+        controller.dragOver({
+            preventDefault: jest.fn(),
+            currentTarget: segment,
+            target: placeholder,
+            clientY: 105,
+            dataTransfer,
+        });
+
+        expect(Array.from(segment.children)).toEqual([
+            placeholder,
+            target,
+            dragged,
+        ]);
+    });
+
+    test('drop removes the ghost placeholder after placing the item', async () => {
+        const dragged = root.querySelector('[data-item-id="2"]');
+        const target = root.querySelector('[data-item-id="1"]');
+        const segment = root.querySelector('[data-segment-id="10"]');
+        controller.draggedItem = dragged;
+        target.getBoundingClientRect = jest.fn(() => ({
+            top: 100,
+            height: 40,
+        }));
+        controller.dragOver({
+            preventDefault: jest.fn(),
+            currentTarget: segment,
+            target,
+            clientY: 105,
+            dataTransfer: {
+                dropEffect: '',
+            },
+        });
+
+        await controller.drop({
+            preventDefault: jest.fn(),
+            currentTarget: segment,
+            target,
+            dataTransfer: {
+                getData: jest.fn((type) => (type === 'application/x-court-agenda-item' ? '2' : '')),
+            },
+        });
+
+        expect(root.querySelector('.court-agenda-drop-placeholder')).toBeNull();
+        expect(Array.from(segment.querySelectorAll('[data-item-id]'))).toEqual([
+            dragged,
+            target,
+        ]);
+    });
+
     test('drop announces when the dragged agenda item payload is missing', () => {
         const segment = root.querySelector('[data-segment-id="20"]');
         const event = {
