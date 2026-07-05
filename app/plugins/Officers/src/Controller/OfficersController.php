@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Officers\Controller;
@@ -662,10 +663,14 @@ class OfficersController extends AppController
         if ($endsIn !== null) {
             $endDate = new DateTime('+' . $endsIn . ' days');
 
-            $officers = $officers->where([
-                'Officers.expires_on >=' => DateTime::now(),
-                'Officers.expires_on <=' => $endDate,
-            ]);
+            // Include officers that either have no expiry (landed nobility)
+            // or whose expiry falls within the requested window.
+            $officers = $officers->where(function ($exp, $q) use ($endDate) {
+                return $exp->or_([
+                    $exp->isNull('Officers.expires_on'),
+                    ['Officers.expires_on >=' => DateTime::now(), 'Officers.expires_on <=' => $endDate]
+                ]);
+            });
         }
         fputcsv($output, ['Office', 'Name', 'email', 'Branch', 'Department', 'Start', 'End']);
 
