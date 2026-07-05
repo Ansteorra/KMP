@@ -41,6 +41,7 @@ $rowDomIdPrefix = $rowDomIdPrefix ?? null;
 if ($rowDomIdPrefix === null && !empty($tableFrameId)) {
     $rowDomIdPrefix = preg_replace('/-table$/', '', (string)$tableFrameId);
 }
+$dataRows = is_array($data) ? $data : (is_iterable($data) ? iterator_to_array($data, false) : []);
 
 $getRowValue = function ($row, string $path) use (&$getRowValue, $columns) {
     if (isset($columns[$path]['renderField']) && $columns[$path]['renderField'] !== $path) {
@@ -104,7 +105,7 @@ $formatBulkSelectionLabel = function (string $template, $row) use ($getRowValue)
 $showActionsColumn = $enableColumnPicker || !empty($rowActions);
 
 // Calculate total column count for empty state colspan
-$totalColumns = count($visibleColumns) + ($showActionsColumn ? 1 : 0) + ($enableBulkSelection ? 1 : 0);
+$totalColumns = max(1, count($visibleColumns) + ($showActionsColumn ? 1 : 0) + ($enableBulkSelection ? 1 : 0));
 ?>
 
 <div class="table-responsive">
@@ -175,14 +176,16 @@ $totalColumns = count($visibleColumns) + ($showActionsColumn ? 1 : 0) + ($enable
             </tr>
         </thead>
         <tbody>
-            <?php if (empty($data)) : ?>
+            <?php if (empty($dataRows)) : ?>
                 <tr>
                     <td colspan="<?= $totalColumns ?>" class="text-center text-muted py-4">
-                        No records found.
+                        <div role="status" aria-live="polite">
+                            <?= __('No records found.') ?>
+                        </div>
                     </td>
                 </tr>
             <?php else : ?>
-                <?php foreach ($data as $row) : ?>
+                <?php foreach ($dataRows as $row) : ?>
                     <?php
                     $rowId = is_array($row) ? ($row[$primaryKey] ?? null) : ($row->{$primaryKey} ?? null);
                     $bulkSelectionLabel = $rowBulkSelectionLabelTemplate

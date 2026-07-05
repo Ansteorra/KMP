@@ -36,6 +36,7 @@ describe('GridViewController', () => {
     });
 
     afterEach(() => {
+        window.history.replaceState({}, '', '/');
         document.body.innerHTML = '';
         jest.restoreAllMocks();
     });
@@ -229,6 +230,31 @@ describe('GridViewController', () => {
         expect(merged.filters.active).toEqual({ todos_summary: ['open:has_scroll'] });
     });
 
+    test('mergeStateWithPrevious preserves visible columns when table refresh omits them', () => {
+        controller.state = {
+            columns: {
+                visible: ['name', 'branch'],
+                all: {
+                    name: { label: 'Name' },
+                    branch: { label: 'Branch' },
+                },
+            },
+        };
+
+        const merged = controller.mergeStateWithPrevious({
+            columns: {
+                visible: [],
+                all: [],
+            },
+        });
+
+        expect(merged.columns.visible).toEqual(['name', 'branch']);
+        expect(merged.columns.all).toEqual({
+            name: { label: 'Name' },
+            branch: { label: 'Branch' },
+        });
+    });
+
     test('mergeStateWithPrevious lets a full refresh override stale filter options', () => {
         controller.state = {
             filters: {
@@ -271,6 +297,40 @@ describe('GridViewController', () => {
 
         pushStateSpy.mockRestore();
         navigateSpy.mockRestore();
+    });
+
+    test('buildUrl preserves bracketed dirty keys and removes orphan bracket params', () => {
+        window.history.replaceState({}, '', '/gatherings?%5Bfilters%5D=1&filter%5Bgathering_type_id%5D%5B%5D=1');
+
+        const url = controller.buildUrl({
+            start_date_start: '2026-07-01',
+            'dirty[filters]': '1',
+        });
+        const params = new URL(url, window.location.origin).searchParams;
+
+        expect(params.get('dirty[filters]')).toBe('1');
+        expect(params.getAll('filter[gathering_type_id][]')).toEqual(['1']);
+        expect(params.get('start_date_start')).toBe('2026-07-01');
+        expect(params.has('[filters]')).toBe(false);
+    });
+
+    test('buildUrlWithFilters removes malformed dirty params from filter URLs', () => {
+        window.history.replaceState({}, '', '/gatherings?%5Bfilters%5D=1&start_date_start=2026-07-01');
+        controller.state = {
+            view: { currentId: null },
+            filters: { active: {} },
+            search: '',
+        };
+
+        const url = controller.buildUrlWithFilters({
+            gathering_type_id: ['1'],
+            start_date_start: '2026-07-01',
+        });
+        const params = new URL(url, window.location.origin).searchParams;
+
+        expect(params.getAll('filter[gathering_type_id][]')).toEqual(['1']);
+        expect(params.get('start_date_start')).toBe('2026-07-01');
+        expect(params.has('[filters]')).toBe(false);
     });
 
     test('eligible-only bulk action is hidden when no rows match required field', () => {

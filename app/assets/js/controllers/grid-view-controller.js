@@ -174,12 +174,24 @@ class GridViewController extends Controller {
         const merged = { ...nextState }
         const previousColumns = this.state.columns || {}
         const nextColumns = merged.columns || {}
+        const previousVisibleColumns = Array.isArray(previousColumns.visible)
+            ? previousColumns.visible
+            : Object.values(previousColumns.visible || {})
+        const nextVisibleColumns = Array.isArray(nextColumns.visible)
+            ? nextColumns.visible
+            : Object.values(nextColumns.visible || {})
         if (
             (!nextColumns.all || Object.keys(nextColumns.all).length === 0)
             && previousColumns.all
             && Object.keys(previousColumns.all).length > 0
         ) {
             merged.columns = { ...nextColumns, all: previousColumns.all }
+        }
+        if (
+            nextVisibleColumns.length === 0
+            && previousVisibleColumns.length > 0
+        ) {
+            merged.columns = { ...(merged.columns || nextColumns), visible: previousVisibleColumns }
         }
 
         const previousView = this.state.view || {}
@@ -2101,11 +2113,22 @@ class GridViewController extends Controller {
         })
     }
 
+    normalizeGridQueryParams(params) {
+        const keysToDelete = []
+        for (const key of params.keys()) {
+            if (/^\[[^\]]+\]$/.test(key)) {
+                keysToDelete.push(key)
+            }
+        }
+        keysToDelete.forEach(key => params.delete(key))
+    }
+
     /**
      * Build URL with updated parameters
      */
     buildUrl(updates) {
         const params = new URLSearchParams(window.location.search)
+        this.normalizeGridQueryParams(params)
 
         // Apply updates
         for (const [key, value] of Object.entries(updates)) {
@@ -2122,6 +2145,7 @@ class GridViewController extends Controller {
 
         // Ensure sticky parameters persist across navigations
         this.applyStickyParamsToParams(params, updates)
+        this.normalizeGridQueryParams(params)
 
         // Remove filter parameters if not explicitly included
         if (!('filter' in updates)) {
@@ -2139,6 +2163,7 @@ class GridViewController extends Controller {
     buildUrlWithFilters(filterParams) {
         const url = new URL(window.location)
         const params = url.searchParams
+        this.normalizeGridQueryParams(params)
 
         // If we're on a saved view and search hasn't been explicitly dirtied,
         // preserve the current search value in the URL
@@ -2184,6 +2209,7 @@ class GridViewController extends Controller {
 
         // Ensure sticky parameters persist
         this.applyStickyParamsToParams(params)
+        this.normalizeGridQueryParams(params)
 
         const queryString = params.toString()
         return queryString ? `${url.pathname}?${queryString}` : url.pathname
@@ -2223,15 +2249,18 @@ class GridViewController extends Controller {
 
                 // Build final URL starting with base path
                 const finalUrl = new URL(baseGridDataUrl, window.location.origin)
+                this.normalizeGridQueryParams(finalUrl.searchParams)
 
                 // Copy all params from the incoming URL
                 // Use append() instead of set() to preserve multiple values for the same key (e.g., filter[status][])
                 urlObj.searchParams.forEach((value, key) => {
                     finalUrl.searchParams.append(key, value)
                 })
+                this.normalizeGridQueryParams(finalUrl.searchParams)
 
                 // Ensure sticky parameters are carried over for frame requests
                 this.applyStickyParamsToParams(finalUrl.searchParams)
+                this.normalizeGridQueryParams(finalUrl.searchParams)
 
                 // Preserve context params from original src if not in new URL
                 contextParams.forEach(param => {

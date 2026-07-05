@@ -1046,7 +1046,27 @@ trait DataverseGridTrait
             $visibleColumns = array_merge($visibleColumns, $gridColumnsClass::getRequiredColumns());
         }
 
-        return array_values(array_unique($visibleColumns));
+        $visibleColumns = array_values(array_unique(array_filter(
+            $visibleColumns,
+            fn($key) => is_string($key) && isset($columnsMetadata[$key]),
+        )));
+
+        if ($visibleColumns === []) {
+            $visibleColumns = array_values(array_filter(
+                array_keys($columnsMetadata),
+                fn($key) => !($columnsMetadata[$key]['exportOnly'] ?? false)
+                    && ($columnsMetadata[$key]['defaultVisible'] ?? false),
+            ));
+        }
+
+        if ($visibleColumns === []) {
+            $visibleColumns = array_values(array_filter(
+                array_keys($columnsMetadata),
+                fn($key) => !($columnsMetadata[$key]['exportOnly'] ?? false),
+            ));
+        }
+
+        return $visibleColumns;
     }
 
     /**
