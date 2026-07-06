@@ -1049,3 +1049,68 @@ tr.row-expanded .toggle-icon.bi-chevron-down {
         0 0 0 0.32rem rgba(13, 110, 253, 0.95),
         0 0.25rem 0.65rem rgba(0, 0, 0, 0.75);
 }
+
+/* ============================================================
+   App Settings edit modal — code editor sizing
+
+   The edit form is loaded into the modal inside <turbo-frame><form>,
+   which breaks Bootstrap's scrollable-modal layout (it only pins the
+   footer and scrolls the body when they are direct children of
+   .modal-content). Re-establish the flex column through the wrappers so
+   the footer buttons stay put and the code editor fills the space that
+   is left, instead of pushing the buttons past the clipped modal edge.
+   ============================================================ */
+
+#editAppSettingModal #editAppSettingFrame,
+#editAppSettingModal #editAppSettingFrame > form {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+#editAppSettingModal .modal-header,
+#editAppSettingModal .modal-footer {
+    flex: 0 0 auto;
+}
+
+#editAppSettingModal .modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+#editAppSettingModal .modal-body > fieldset {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* The code-editor block grows to fill whatever height remains. */
+#editAppSettingModal [data-controller~="code-editor"] {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* When a code editor is present, let the modal use the full dialog height
+   so the editor has room to fill (short string settings stay compact). */
+#editAppSettingModal .modal-content:has(.code-editor-wrapper) {
+    height: 100%;
+}
+
+#editAppSettingModal .code-editor-wrapper {
+    flex: 1 1 auto;
+    min-height: 200px !important;
+}
+
+#editAppSettingModal .code-editor-wrapper textarea {
+    min-height: 0 !important;
+    height: auto;
+    resize: none;
+}
