@@ -1924,7 +1924,7 @@ class GatheringsController extends AppController
             ->contain([
                 'Branches' => ['fields' => ['id', 'name']],
                 'GatheringTypes' => ['fields' => ['id', 'name', 'color']],
-                'GatheringActivities' => ['fields' => ['id', 'name']],
+                'GatheringActivities' => ['fields' => ['id', 'name', 'is_circle']],
                 'GatheringAttendances' => [
                     'Members' => ['fields' => ['id', 'sca_name']],
                     'conditions' => ['GatheringAttendances.is_royal_progress' => true],

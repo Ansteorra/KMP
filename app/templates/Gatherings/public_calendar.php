@@ -15,8 +15,8 @@
 
 use Cake\I18n\DateTime;
 
-// Circles are modeled as activities (e.g. "Laurel Circle") - detect by name
-$isCircleActivity = fn($activity) => stripos($activity->name, 'circle') !== false;
+// Circles are activities flagged is_circle (Laurel Circle, Pelican Circle, etc.)
+$isCircleActivity = fn($activity) => (bool)$activity->is_circle;
 $hasCircle = fn($gathering) => (bool)array_filter(
     $gathering->gathering_activities ?? [],
     $isCircleActivity,

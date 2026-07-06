@@ -42,6 +42,10 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <td class="col-10"><?= h($gatheringActivity->description) ?></td>
 </tr>
 <tr scope="row">
+    <th class="col"><?= __('Order Circle') ?></th>
+    <td class="col-10"><?= $this->KMP->bool($gatheringActivity->is_circle, $this->Html) ?></td>
+</tr>
+<tr scope="row">
     <th class="col"><?= __('Created') ?></th>
     <td class="col-10"><?= $this->Timezone->format($gatheringActivity->created, null, null, \IntlDateFormatter::SHORT, \IntlDateFormatter::SHORT) ?></td>
 </tr>

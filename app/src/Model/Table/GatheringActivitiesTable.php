@@ -81,6 +81,10 @@ class GatheringActivitiesTable extends Table
             ->scalar('description')
             ->allowEmptyString('description');
 
+        $validator
+            ->boolean('is_circle')
+            ->allowEmptyString('is_circle');
+
         return $validator;
     }
 

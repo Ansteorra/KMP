@@ -22,6 +22,12 @@ $this->KMP->endBlock();
         <?php
         echo $this->Form->control('name', ['required' => true]);
         echo $this->Form->control('description', ['type' => 'textarea', 'rows' => 3]);
+        echo $this->Form->control('is_circle', [
+            'type' => 'checkbox',
+            'switch' => true,
+            'label' => __('Order Circle'),
+            'help' => __('Marks this activity as an order circle (Laurel, Pelican, etc.); shown with a circle icon on the public calendar.'),
+        ]);
         ?>
     </fieldset>
     <div class="form-group">

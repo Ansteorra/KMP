@@ -906,12 +906,15 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
     /**
      * Link an activity to a gathering through the join table.
      */
-    private function linkActivity(object $gathering, string $activityName): object
+    private function linkActivity(object $gathering, string $activityName, bool $isCircle = false): object
     {
         $activities = $this->getTableLocator()->get('GatheringActivities');
         $activity = $activities->find()->where(['name' => $activityName])->first();
         if (!$activity) {
-            $activity = $activities->saveOrFail($activities->newEntity(['name' => $activityName]));
+            $activity = $activities->saveOrFail($activities->newEntity([
+                'name' => $activityName,
+                'is_circle' => $isCircle,
+            ]));
         }
 
         $links = $this->getTableLocator()->get('GatheringsGatheringActivities');
@@ -948,21 +951,32 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
     }
 
     /**
-     * Circle-named activities render the order-circle icon on the calendar.
+     * The order-circle icon is driven by the activity's is_circle flag, not by
+     * its name: a flagged activity gets the icon even without "circle" in the
+     * name, and a "circle"-named activity that is not flagged does not.
      *
      * @return void
      * @uses \App\Controller\GatheringsController::publicCalendar()
      */
-    public function testPublicCalendarShowsCircleIcon(): void
+    public function testPublicCalendarCircleIconUsesFlagNotName(): void
     {
-        $withCircle = $this->createCalendarGathering('Circle Icon Event Kappa', true);
-        $this->linkActivity($withCircle, 'Laurel Circle');
+        $flagged = $this->createCalendarGathering('Flagged Circle Event Kappa', true);
+        // Deliberately not named "circle" - only the flag should matter
+        $this->linkActivity($flagged, 'Order of the Laurel', true);
+
+        $notFlagged = $this->createCalendarGathering('Drum Circle Event Kappa2', true);
+        // Named "circle" but not flagged - must not get the icon
+        $this->linkActivity($notFlagged, 'Drum Circle', false);
 
         $this->session(['Auth' => null]);
         $this->get('/events');
 
         $this->assertResponseOk();
-        $this->assertResponseContains('kc-activity-chip-circle');
+        // Exactly one activity chip is styled as a circle (the flagged one)
+        $this->assertSame(
+            1,
+            substr_count((string)$this->_response->getBody(), 'kc-activity-chip-circle'),
+        );
     }
 
     /**
