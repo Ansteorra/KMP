@@ -1032,3 +1032,129 @@ a.kc-event-name:focus-visible {
         padding: 0 0 0.35rem;
     }
 }
+
+/* Activity filter bar and chips on the public kingdom calendar */
+
+.kc-filter-bar {
+    max-width: 700px;
+    margin: 1.25rem auto 0;
+    text-align: left;
+}
+
+.kc-filter-fieldset {
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    background: #fff;
+    padding: 0.75rem 1rem 1rem;
+}
+
+.kc-filter-legend {
+    float: none;
+    width: auto;
+    padding: 0 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+}
+
+.kc-filter-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.kc-filter-chip {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    margin: 0;
+}
+
+.kc-filter-chip input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.kc-filter-chip span {
+    display: inline-block;
+    padding: 0.3rem 0.9rem;
+    border-radius: 9999px;
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.15s;
+}
+
+.kc-filter-chip input:checked + span {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
+}
+
+.kc-filter-chip input:focus-visible + span {
+    outline: 3px solid #f59e0b;
+    outline-offset: 2px;
+}
+
+.kc-filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.kc-filter-apply {
+    border: none;
+    border-radius: 9999px;
+    background: #2563eb;
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 0.4rem 1.4rem;
+    cursor: pointer;
+}
+
+.kc-filter-apply:hover,
+.kc-filter-apply:focus-visible {
+    background: #1e40af;
+}
+
+.kc-filter-clear {
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+.kc-circle-icon {
+    color: #b45309;
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.kc-event-activities {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.5rem;
+}
+
+.kc-activity-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.15rem 0.65rem;
+    border-radius: 9999px;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.kc-activity-chip-circle {
+    background: #fef3c7;
+    color: #92400e;
+}

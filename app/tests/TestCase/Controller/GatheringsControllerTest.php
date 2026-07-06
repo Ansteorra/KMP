@@ -829,6 +829,68 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
     }
 
     /**
+     * Link an activity to a gathering through the join table.
+     */
+    private function linkActivity(object $gathering, string $activityName): object
+    {
+        $activities = $this->getTableLocator()->get('GatheringActivities');
+        $activity = $activities->find()->where(['name' => $activityName])->first();
+        if (!$activity) {
+            $activity = $activities->saveOrFail($activities->newEntity(['name' => $activityName]));
+        }
+
+        $links = $this->getTableLocator()->get('GatheringsGatheringActivities');
+        $links->saveOrFail($links->newEntity([
+            'gathering_id' => $gathering->id,
+            'gathering_activity_id' => $activity->id,
+            'sort_order' => 1,
+        ]));
+
+        return $activity;
+    }
+
+    /**
+     * The public calendar can be filtered by activity - circles are just
+     * activities, so this covers the circles facet too.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::publicCalendar()
+     */
+    public function testPublicCalendarFiltersByActivity(): void
+    {
+        $withCircle = $this->createCalendarGathering('Circle Event Theta', true);
+        $without = $this->createCalendarGathering('No Circle Event Iota', true);
+        $circleActivity = $this->linkActivity($withCircle, 'Pelican Circle');
+
+        $this->session(['Auth' => null]);
+        $this->get('/events?activities[]=' . $circleActivity->id);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains($withCircle->name);
+        $this->assertResponseNotContains($without->name);
+        // The filter bar lists the activity as an option
+        $this->assertResponseContains('Pelican Circle');
+    }
+
+    /**
+     * Circle-named activities render the order-circle icon on the calendar.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::publicCalendar()
+     */
+    public function testPublicCalendarShowsCircleIcon(): void
+    {
+        $withCircle = $this->createCalendarGathering('Circle Icon Event Kappa', true);
+        $this->linkActivity($withCircle, 'Laurel Circle');
+
+        $this->session(['Auth' => null]);
+        $this->get('/events');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('kc-activity-chip-circle');
+    }
+
+    /**
      * The public iCal feed only includes published events.
      *
      * @return void

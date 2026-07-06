@@ -50,8 +50,16 @@ flag is set.
   grouped by month, in each event's own timezone.
 - Shows inline (no expansion needed): dates/times, host branch, location, the
   event's web link (`gatherings.website_url`, issue #59), a `.ics` download,
-  a cancelled badge when applicable, and royal progress with a crown icon
-  (issue #63).
+  a cancelled badge when applicable, activity chips, and royal progress with a
+  crown icon (issue #63).
+- **Activity filter**: a no-JS filter bar lets visitors narrow the list by
+  activity (`?activities[]=<id>`). Options are the activities present on any
+  upcoming published event.
+- **Circles are just activities** (no separate model): create activities named
+  e.g. "Laurel Circle" / "Pelican Circle" and attach them to gatherings. Any
+  activity whose name contains "circle" (case-insensitive) gets the
+  order-circle icon and a highlighted chip, and the activity filter covers the
+  circles facet.
 - The header offers a `webcal://` subscription link to the public feed
   (`/gatherings/feed`), which applies the same `published = true` filter.
 - Template: `templates/Gatherings/public_calendar.php`; styles live in

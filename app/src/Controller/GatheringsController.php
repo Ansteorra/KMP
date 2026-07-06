@@ -1902,24 +1902,54 @@ class GatheringsController extends AppController
 
         $today = CakeDateTime::now()->startOfDay();
         $horizon = new CakeDateTime('+2 years');
+        $publishedConditions = [
+            'Gatherings.published' => true,
+            'Gatherings.end_date >=' => $today,
+            'Gatherings.start_date <=' => $horizon,
+        ];
 
-        $gatherings = $this->Gatherings->find()
+        // Activity filter - circles are just activities (e.g. "Laurel Circle"),
+        // so filtering by activity covers the circles facet too
+        $selectedActivityIds = array_values(array_unique(array_filter(array_map(
+            'intval',
+            (array)$this->request->getQuery('activities', []),
+        ))));
+
+        $query = $this->Gatherings->find()
             ->contain([
                 'Branches' => ['fields' => ['id', 'name']],
                 'GatheringTypes' => ['fields' => ['id', 'name', 'color']],
+                'GatheringActivities' => ['fields' => ['id', 'name']],
                 'GatheringAttendances' => [
                     'Members' => ['fields' => ['id', 'sca_name']],
                     'conditions' => ['GatheringAttendances.is_royal_progress' => true],
                     'sort' => ['GatheringAttendances.progress_office_name' => 'ASC'],
                 ],
             ])
-            ->where([
-                'Gatherings.published' => true,
-                'Gatherings.end_date >=' => $today,
-                'Gatherings.start_date <=' => $horizon,
-            ])
-            ->orderBy(['Gatherings.start_date' => 'ASC'])
-            ->all();
+            ->where($publishedConditions)
+            ->orderBy(['Gatherings.start_date' => 'ASC']);
+
+        if ($selectedActivityIds !== []) {
+            $activityGatheringIds = $this->fetchTable('GatheringsGatheringActivities')->find()
+                ->select(['gathering_id'])
+                ->where(['gathering_activity_id IN' => $selectedActivityIds]);
+            $query->where(['Gatherings.id IN' => $activityGatheringIds]);
+        }
+
+        $gatherings = $query->all();
+
+        // Filter options: activities present on any upcoming published event,
+        // regardless of the currently applied filter
+        $publishedGatheringIds = $this->Gatherings->find()
+            ->select(['id'])
+            ->where($publishedConditions);
+        $activityIdsOnCalendar = $this->fetchTable('GatheringsGatheringActivities')->find()
+            ->select(['gathering_activity_id'])
+            ->where(['gathering_id IN' => $publishedGatheringIds]);
+        $activityOptions = $this->fetchTable('GatheringActivities')->find('list')
+            ->where(['GatheringActivities.id IN' => $activityIdsOnCalendar])
+            ->orderBy(['GatheringActivities.name' => 'ASC'])
+            ->toArray();
 
         // Group by month (in each gathering's own timezone for display)
         $gatheringsByMonth = [];
@@ -1932,7 +1962,7 @@ class GatheringsController extends AppController
             $gatheringsByMonth[$monthKey][] = $gathering;
         }
 
-        $this->set(compact('gatheringsByMonth'));
+        $this->set(compact('gatheringsByMonth', 'activityOptions', 'selectedActivityIds'));
     }
 
     /**

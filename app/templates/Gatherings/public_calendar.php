@@ -9,9 +9,18 @@
  *
  * @var \App\View\AppView $this
  * @var array<string, array<\App\Model\Entity\Gathering>> $gatheringsByMonth Keyed by "Y-m"
+ * @var array<int, string> $activityOptions Activity id => name for the filter bar
+ * @var array<int> $selectedActivityIds Currently applied activity filter
  */
 
 use Cake\I18n\DateTime;
+
+// Circles are modeled as activities (e.g. "Laurel Circle") - detect by name
+$isCircleActivity = fn($activity) => stripos($activity->name, 'circle') !== false;
+$hasCircle = fn($gathering) => (bool)array_filter(
+    $gathering->gathering_activities ?? [],
+    $isCircleActivity,
+);
 
 $siteTitle = $this->KMP->getAppSetting('KMP.ShortSiteTitle');
 $this->assign('title', $siteTitle . ': ' . __('Kingdom Calendar'));
@@ -38,7 +47,36 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                 <span class="kc-progress-icon" aria-hidden="true">&#x1F451;</span>
                 <?= __('Royal Progress') ?>
             </span>
+            <span class="kc-legend-item">
+                <i class="bi bi-record-circle kc-circle-icon" aria-hidden="true"></i>
+                <?= __('Order Circle') ?>
+            </span>
         </div>
+
+        <?php if (!empty($activityOptions)): ?>
+            <form method="get" action="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'publicCalendar']) ?>"
+                class="kc-filter-bar">
+                <fieldset class="kc-filter-fieldset">
+                    <legend class="kc-filter-legend"><?= __('Filter by activity') ?></legend>
+                    <div class="kc-filter-options">
+                        <?php foreach ($activityOptions as $activityId => $activityName): ?>
+                            <label class="kc-filter-chip">
+                                <input type="checkbox" name="activities[]" value="<?= (int)$activityId ?>"
+                                    <?= in_array((int)$activityId, $selectedActivityIds, true) ? 'checked' : '' ?>>
+                                <span><?= h($activityName) ?></span>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                    <div class="kc-filter-actions">
+                        <button type="submit" class="kc-filter-apply"><?= __('Apply Filter') ?></button>
+                        <?php if (!empty($selectedActivityIds)): ?>
+                            <a href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'publicCalendar']) ?>"
+                                class="kc-filter-clear"><?= __('Clear') ?></a>
+                        <?php endif; ?>
+                    </div>
+                </fieldset>
+            </form>
+        <?php endif; ?>
     </header>
 
     <main class="kc-list">
@@ -86,6 +124,12 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                                     <span class="kc-progress-icon"
                                         title="<?= h(__('Royal Progress')) ?>"
                                         aria-label="<?= h(__('Royal Progress')) ?>">&#x1F451;</span>
+                                <?php endif; ?>
+
+                                <?php if ($hasCircle($gathering)): ?>
+                                    <i class="bi bi-record-circle kc-circle-icon"
+                                        title="<?= h(__('Order Circle')) ?>"
+                                        aria-label="<?= h(__('Order Circle')) ?>"></i>
                                 <?php endif; ?>
 
                                 <?php if ($isCancelled): ?>
@@ -141,6 +185,19 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                                     </a>
                                 </span>
                             </div>
+
+                            <?php if (!empty($gathering->gathering_activities)): ?>
+                                <div class="kc-event-activities">
+                                    <?php foreach ($gathering->gathering_activities as $activity): ?>
+                                        <span class="kc-activity-chip<?= $isCircleActivity($activity) ? ' kc-activity-chip-circle' : '' ?>">
+                                            <?php if ($isCircleActivity($activity)): ?>
+                                                <i class="bi bi-record-circle" aria-hidden="true"></i>
+                                            <?php endif; ?>
+                                            <?= h($activity->name) ?>
+                                        </span>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
 
                             <?php if (!empty($progressAttendances)): ?>
                                 <div class="kc-event-progress">
