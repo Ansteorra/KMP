@@ -177,7 +177,7 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                             </div>
 
                             <div class="kc-event-meta">
-                                <span class="kc-meta-item">
+                                <span class="kc-meta-item kc-meta-when">
                                     <i class="bi bi-calendar3"></i>
                                     <?php if ($gathering->is_multi_day): ?>
                                         <?= $this->Timezone->format($gathering->start_date, 'M j', false, null, $gathering) ?>
