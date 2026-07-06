@@ -5,6 +5,8 @@ namespace App\Test\TestCase\Model\Table;
 
 use App\Model\Table\GatheringsTable;
 use App\Test\TestCase\BaseTestCase;
+use Cake\I18n\Date;
+use Cake\I18n\DateTime;
 
 /**
  * Tests Gathering template activity sync behavior.
@@ -128,5 +130,55 @@ class GatheringsTableTest extends BaseTestCase
             ->where(['gathering_id' => $gathering->id, 'gathering_activity_id' => $activityC->id])
             ->firstOrFail();
         $this->assertFalse((bool)$updatedLinkC->not_removable);
+    }
+
+    /**
+     * The is_preregistration_open virtual reflects URL presence, cancellation,
+     * and the close date.
+     *
+     * @return void
+     */
+    public function testIsPreregistrationOpenVirtual(): void
+    {
+        $make = fn(array $data) => $this->Gatherings->newEntity([
+                'branch_id' => 2,
+                'gathering_type_id' => 1,
+                'name' => 'Prereg Virtual',
+                'start_date' => '2099-01-01 10:00:00',
+                'end_date' => '2099-01-01 12:00:00',
+                'created_by' => 1,
+            ] + $data);
+
+        // No URL -> closed
+        $this->assertFalse($make([])->is_preregistration_open);
+
+        // URL, no close date -> open until the event
+        $this->assertTrue($make(['preregister_url' => 'https://ex.test/p'])->is_preregistration_open);
+
+        // URL + future close date -> open
+        $future = $make([
+            'preregister_url' => 'https://ex.test/p',
+            'preregister_closes_on' => Date::now()->addDays(7),
+        ]);
+        $this->assertTrue($future->is_preregistration_open);
+
+        // URL + today's close date -> still open (inclusive)
+        $today = $make([
+            'preregister_url' => 'https://ex.test/p',
+            'preregister_closes_on' => Date::now(),
+        ]);
+        $this->assertTrue($today->is_preregistration_open);
+
+        // URL + past close date -> closed
+        $past = $make([
+            'preregister_url' => 'https://ex.test/p',
+            'preregister_closes_on' => Date::now()->subDays(1),
+        ]);
+        $this->assertFalse($past->is_preregistration_open);
+
+        // Cancelled -> closed even with an open URL
+        $cancelled = $make(['preregister_url' => 'https://ex.test/p']);
+        $cancelled->cancelled_at = DateTime::now();
+        $this->assertFalse($cancelled->is_preregistration_open);
     }
 }

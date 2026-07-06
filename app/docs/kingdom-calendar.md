@@ -56,10 +56,25 @@ link use this precedence. Per-event `.ics` downloads are public when either
 
 ### Pre-registration link
 
-`gatherings.preregister_url` holds the external pre-registration / payment
-URL. When populated (and the event is upcoming and not cancelled) it renders
-as a prominent "Pre-Register" button in the public landing page hero.
+`gatherings.preregister_url` holds the external pre-registration / payment URL
+and `gatherings.preregister_closes_on` (a date) is the last day it is offered.
 Pre-registration is currently an external process; KMP only links to it.
+
+The `Gathering::is_preregistration_open` virtual is the single source of truth:
+it is true when a pre-register URL is set, the gathering is not cancelled, and
+the close date (if any) has not passed. A null close date keeps it open until
+the event; callers still guard on "not past" separately.
+
+The pre-register button appears wherever an upcoming event is shown:
+
+- Public landing page hero (with a "Pre-registration open until <date>" note)
+- `/events` public calendar (quick link with an "until <date>" note)
+- `/calendar?view=list` (authenticated calendar list)
+- The gathering quick-view modal in the calendar
+
+The `calendarGridData` and `quickView` queries select `preregister_url` and
+`preregister_closes_on` explicitly; the public landing/calendar queries load
+all gathering columns.
 
 ## Public kingdom calendar (issues #59, #60, #63)
 

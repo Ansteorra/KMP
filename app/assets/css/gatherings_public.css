@@ -1158,3 +1158,13 @@ a.kc-event-name:focus-visible {
     background: #fef3c7;
     color: #92400e;
 }
+
+/* Pre-register quick link on the public kingdom calendar */
+.kc-meta-prereg a {
+    color: #b45309;
+    font-weight: 700;
+}
+
+.kc-meta-prereg small {
+    font-weight: 400;
+}

@@ -167,6 +167,18 @@ $this->KMP->endBlock();
         </div>
 
         <div class="mb-3">
+            <?= $this->Form->control('preregister_closes_on', [
+                'type' => 'date',
+                'class' => 'form-control',
+                'label' => __('Pre-Registration Closes'),
+                'empty' => true,
+            ]) ?>
+            <small class="form-text text-muted">
+                <?= __('Last day the pre-registration link is shown. Leave blank to keep it open until the event.') ?>
+            </small>
+        </div>
+
+        <div class="mb-3">
             <?= $this->Form->control('timezone', [
                 'type' => 'select',
                 'options' => $this->Timezone->getTimezoneOptions(),

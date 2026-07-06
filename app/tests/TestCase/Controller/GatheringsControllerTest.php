@@ -355,6 +355,81 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains('Pagination Off Calendar Event 205');
     }
 
+    /**
+     * The calendar list view shows the pre-register link when open and hides
+     * it once pre-registration has closed.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::calendarGridData()
+     */
+    public function testCalendarListPreregisterLinkVisibility(): void
+    {
+        $gatherings = $this->getTableLocator()->get('Gatherings');
+        $open = $gatherings->saveOrFail($gatherings->newEntity([
+            'public_id' => 'prgopen1',
+            'branch_id' => 2,
+            'gathering_type_id' => 1,
+            'name' => 'Prereg Open Calendar Event',
+            'start_date' => '2099-11-10 10:00:00',
+            'end_date' => '2099-11-10 16:00:00',
+            'timezone' => 'America/Chicago',
+            'preregister_url' => 'https://ex.test/open-prereg',
+            'preregister_closes_on' => '2099-11-01',
+            'created_by' => self::ADMIN_MEMBER_ID,
+        ]));
+        $closed = $gatherings->saveOrFail($gatherings->newEntity([
+            'public_id' => 'prgclsd1',
+            'branch_id' => 2,
+            'gathering_type_id' => 1,
+            'name' => 'Prereg Closed Calendar Event',
+            'start_date' => '2099-11-12 10:00:00',
+            'end_date' => '2099-11-12 16:00:00',
+            'timezone' => 'America/Chicago',
+            'preregister_url' => 'https://ex.test/closed-prereg',
+            // close date already in the past
+            'preregister_closes_on' => '2000-01-01',
+            'created_by' => self::ADMIN_MEMBER_ID,
+        ]));
+
+        $this->configRequest([
+            'headers' => ['Turbo-Frame' => 'gatherings-calendar-grid-table'],
+        ]);
+        $this->get('/gatherings/calendar-grid-data?view=list&year=2099&month=11');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('https://ex.test/open-prereg');
+        $this->assertResponseNotContains('https://ex.test/closed-prereg');
+    }
+
+    /**
+     * The calendar quick-view modal shows the pre-register link when open.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::quickView()
+     */
+    public function testQuickViewShowsOpenPreregisterLink(): void
+    {
+        $gatherings = $this->getTableLocator()->get('Gatherings');
+        $gathering = $gatherings->saveOrFail($gatherings->newEntity([
+            'public_id' => 'prgqv001',
+            'branch_id' => 2,
+            'gathering_type_id' => 1,
+            'name' => 'Prereg Quick View Event',
+            'start_date' => '2099-11-20 10:00:00',
+            'end_date' => '2099-11-20 16:00:00',
+            'timezone' => 'America/Chicago',
+            'preregister_url' => 'https://ex.test/qv-prereg',
+            'preregister_closes_on' => '2099-11-15',
+            'created_by' => self::ADMIN_MEMBER_ID,
+        ]));
+
+        $this->get('/gatherings/quick-view/' . $gathering->public_id);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('https://ex.test/qv-prereg');
+        $this->assertResponseContains('Pre-Register');
+    }
+
     public function testPublicLandingGroupsScheduleByGatheringTimezoneDate(): void
     {
         $gatherings = $this->getTableLocator()->get('Gatherings');
@@ -932,6 +1007,7 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $gathering = $this->createCalendarGathering('Prereg Event Nu', true, [
             'public_page_enabled' => true,
             'preregister_url' => 'https://example.org/prereg-and-pay',
+            'preregister_closes_on' => '2099-12-31',
         ]);
 
         $this->session(['Auth' => null]);
@@ -940,6 +1016,29 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseOk();
         $this->assertResponseContains('https://example.org/prereg-and-pay');
         $this->assertResponseContains(__('Pre-Register'));
+        // The close date is surfaced as an "until" note
+        $this->assertResponseContains('December 31, 2099');
+    }
+
+    /**
+     * Once pre-registration has closed, the landing page hides the button.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::publicLanding()
+     */
+    public function testPublicLandingHidesClosedPreregisterLink(): void
+    {
+        $gathering = $this->createCalendarGathering('Prereg Closed Event Xi', true, [
+            'public_page_enabled' => true,
+            'preregister_url' => 'https://example.org/closed-prereg',
+            'preregister_closes_on' => '2000-01-01',
+        ]);
+
+        $this->session(['Auth' => null]);
+        $this->get('/gatherings/public-landing/' . $gathering->public_id);
+
+        $this->assertResponseOk();
+        $this->assertResponseNotContains('https://example.org/closed-prereg');
     }
 
     /**

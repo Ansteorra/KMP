@@ -256,6 +256,16 @@ $showAttendanceControls = isset($canAttend)
 
         <!-- Action Buttons -->
         <div class="d-grid gap-2 d-md-flex justify-content-md-start mt-4 pt-3 border-top">
+            <?php if (!$isPastEvent && $gathering->is_preregistration_open): ?>
+                <a href="<?= h($gathering->preregister_url) ?>" target="_blank" rel="noopener"
+                    class="btn btn-warning fw-bold"
+                    title="<?= h(__('Pre-register and pay for this event (external site)')) ?>">
+                    <i class="bi bi-ticket-perforated"></i> Pre-Register
+                    <?php if ($gathering->preregister_closes_on !== null): ?>
+                        <small>(<?= __('until {0}', h($gathering->preregister_closes_on->format('M j'))) ?>)</small>
+                    <?php endif; ?>
+                </a>
+            <?php endif; ?>
             <?php if (!$isPastEvent): ?>
                 <?= $this->Html->link(
                     '<i class="bi bi-calendar-plus"></i> Add to Calendar',

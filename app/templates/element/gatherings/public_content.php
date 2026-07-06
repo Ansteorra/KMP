@@ -145,7 +145,7 @@ if (!isset($scheduleByDate)) {
         <!-- Pre-Registration / Calendar Download Buttons (only for current/future events) -->
         <?php if (!$isPast): ?>
             <div class="mt-3 d-flex flex-wrap gap-2 justify-content-center">
-                <?php if (!empty($gathering->preregister_url) && !$isCancelled): ?>
+                <?php if ($gathering->is_preregistration_open): ?>
                     <a href="<?= h($gathering->preregister_url) ?>" target="_blank" rel="noopener"
                         class="btn btn-warning btn-lg fw-bold"
                         title="<?= h(__('Pre-register and pay for this event (external site)')) ?>">
@@ -162,6 +162,12 @@ if (!isset($scheduleByDate)) {
                     ]
                 ) ?>
             </div>
+            <?php if ($gathering->is_preregistration_open && $gathering->preregister_closes_on !== null): ?>
+                <p class="mt-2 mb-0 small text-white-50">
+                    <i class="bi bi-clock-history"></i>
+                    <?= __('Pre-registration open until {0}', h($gathering->preregister_closes_on->format('F j, Y'))) ?>
+                </p>
+            <?php endif; ?>
         <?php endif; ?>
     </div>
 </div>

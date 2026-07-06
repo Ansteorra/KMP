@@ -181,6 +181,10 @@ class GatheringsTable extends Table
             );
 
         $validator
+            ->date('preregister_closes_on')
+            ->allowEmptyDate('preregister_closes_on');
+
+        $validator
             ->scalar('timezone')
             ->maxLength('timezone', 50)
             ->allowEmptyString('timezone')

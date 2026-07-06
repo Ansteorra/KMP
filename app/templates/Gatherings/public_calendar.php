@@ -200,6 +200,20 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                                         <i class="bi bi-download"></i> <?= __('iCal') ?>
                                     </a>
                                 </span>
+
+                                <?php if ($gathering->is_preregistration_open): ?>
+                                    <span class="kc-meta-item kc-meta-prereg">
+                                        <a href="<?= h($gathering->preregister_url) ?>" target="_blank" rel="noopener"
+                                            title="<?= h(__('Pre-register and pay for this event (external site)')) ?>">
+                                            <i class="bi bi-ticket-perforated"></i> <?= __('Pre-Register') ?>
+                                        </a>
+                                        <?php if ($gathering->preregister_closes_on !== null): ?>
+                                            <small class="text-muted">
+                                                <?= __('until {0}', h($gathering->preregister_closes_on->format('M j'))) ?>
+                                            </small>
+                                        <?php endif; ?>
+                                    </span>
+                                <?php endif; ?>
                             </div>
 
                             <?php if (!empty($gathering->gathering_activities)): ?>
