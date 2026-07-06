@@ -13,6 +13,7 @@ use Cake\Routing\Router;
 use DateTime;
 use DateTimeZone;
 use Exception;
+use Traversable;
 
 /**
  * GatheringAttendances Controller
@@ -54,6 +55,36 @@ class GatheringAttendancesController extends AppController
             ->withType('application/json')
             ->withStatus($status)
             ->withStringBody(json_encode($data));
+    }
+
+    /**
+     * Apply the royal progress selection from request data to an attendance.
+     *
+     * Reads `progress_officer_id` (an officers_officers.id, empty for none)
+     * and delegates to the table, which verifies the assignment and snapshots
+     * the office. Progress fields are guarded against mass assignment, so this
+     * is the only write path.
+     *
+     * @param \App\Model\Entity\GatheringAttendance $gatheringAttendance Attendance being saved
+     * @param array $data Request data
+     * @return bool False when the selected officer assignment is not valid for progress
+     */
+    private function applyProgressFromRequest($gatheringAttendance, array $data): bool
+    {
+        if (!array_key_exists('progress_officer_id', $data)) {
+            return true;
+        }
+
+        $progressOfficerId = $data['progress_officer_id'];
+        $progressOfficerId = $progressOfficerId === null || $progressOfficerId === ''
+            ? null
+            : (int)$progressOfficerId;
+
+        return $this->GatheringAttendances->applyRoyalProgress(
+            $gatheringAttendance,
+            $progressOfficerId,
+            (int)$gatheringAttendance->member_id,
+        );
     }
 
     /**
@@ -110,6 +141,20 @@ class GatheringAttendancesController extends AppController
 
             // Authorize after patching data so policy can check member_id
             $this->Authorization->authorize($gatheringAttendance);
+
+            if (!$this->applyProgressFromRequest($gatheringAttendance, $data)) {
+                if ($this->wantsJson()) {
+                    return $this->jsonResponse(
+                        ['success' => false, 'error' => 'Invalid royal progress selection'],
+                        400,
+                    );
+                }
+                $this->Flash->error(__(
+                    'You do not currently hold that office, so the RSVP cannot be recorded as royal progress.',
+                ));
+
+                return $this->redirect($this->referer());
+            }
 
             if ($this->GatheringAttendances->save($gatheringAttendance)) {
                 if ($this->wantsJson()) {
@@ -179,6 +224,14 @@ class GatheringAttendancesController extends AppController
             $data['modified_by'] = $currentUser->id;
 
             $gatheringAttendance = $this->GatheringAttendances->patchEntity($gatheringAttendance, $data);
+
+            if (!$this->applyProgressFromRequest($gatheringAttendance, $data)) {
+                $this->Flash->error(__(
+                    'You do not currently hold that office, so the RSVP cannot be recorded as royal progress.',
+                ));
+
+                return $this->redirect($this->referer());
+            }
 
             if ($this->GatheringAttendances->save($gatheringAttendance)) {
                 $this->Flash->success(__('Your attendance has been updated.'));
@@ -334,6 +387,10 @@ class GatheringAttendancesController extends AppController
 
         $this->Authorization->authorize($gatheringAttendance, 'add');
 
+        if (!$this->applyProgressFromRequest($gatheringAttendance, $data)) {
+            return $this->jsonResponse(['success' => false, 'error' => 'Invalid royal progress selection'], 400);
+        }
+
         if ($this->GatheringAttendances->save($gatheringAttendance)) {
             return $this->jsonResponse([
                 'success' => true,
@@ -377,6 +434,10 @@ class GatheringAttendancesController extends AppController
         $updateData = array_intersect_key($data, array_flip($allowedFields));
 
         $gatheringAttendance = $this->GatheringAttendances->patchEntity($gatheringAttendance, $updateData);
+
+        if (!$this->applyProgressFromRequest($gatheringAttendance, $data)) {
+            return $this->jsonResponse(['success' => false, 'error' => 'Invalid royal progress selection'], 400);
+        }
 
         if ($this->GatheringAttendances->save($gatheringAttendance)) {
             return $this->jsonResponse([
@@ -601,7 +662,7 @@ class GatheringAttendancesController extends AppController
         ): ?array {
             $systemViews = GatheringAttendancesGridColumns::getSystemViews([]);
             $result = $this->processDataverseGrid([
-                'gridKey' => "Members.gatherings",
+                'gridKey' => 'Members.gatherings',
                 'gridColumnsClass' => GatheringAttendancesGridColumns::class,
                 'baseQuery' => $this->GatheringAttendances->find()
                     ->where([
@@ -628,7 +689,7 @@ class GatheringAttendancesController extends AppController
             $gridData = $result['data'];
             if (is_array($gridData)) {
                 $rows = $gridData;
-            } elseif ($gridData instanceof \Traversable) {
+            } elseif ($gridData instanceof Traversable) {
                 $rows = iterator_to_array($gridData, false);
             } else {
                 $rows = [];

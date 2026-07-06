@@ -247,6 +247,14 @@ $publicLandingUrl = $this->Url->build([
         <td class="col-10"><?= h($gathering->location) ?></td>
     </tr>
 <?php endif; ?>
+<?php if (!empty($gathering->website_url)) : ?>
+    <tr scope="row">
+        <th class="col"><?= __('Website') ?></th>
+        <td class="col-10">
+            <a href="<?= h($gathering->website_url) ?>" target="_blank" rel="noopener"><?= h($gathering->website_url) ?></a>
+        </td>
+    </tr>
+<?php endif; ?>
 <tr scope="row">
     <th class="col"><?= __('Published') ?></th>
     <td>
@@ -546,6 +554,7 @@ if ($canAttend && (!$gathering->is_cancelled || $userAttendance)) {
         'gathering' => $gathering,
         'userAttendance' => $userAttendance,
         'user' => $user,
+        'progressOfficers' => $progressOfficers ?? [],
     ]);
 }
 

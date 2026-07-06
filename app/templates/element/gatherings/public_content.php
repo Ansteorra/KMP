@@ -21,6 +21,7 @@ use Cake\I18n\DateTime;
 // Check if user is authenticated
 $isAuthenticated = isset($user) && $user !== null;
 $kingdomAttendances = $kingdomAttendances ?? [];
+$progressAttendances = $progressAttendances ?? [];
 
 // Get current time in the gathering's timezone for accurate status
 $gatheringTimezone = \App\KMP\TimezoneHelper::getGatheringTimezone($gathering, $this->getRequest()->getAttribute('identity'));
@@ -114,7 +115,29 @@ if (!isset($scheduleByDate)) {
                 <i class="bi bi-building"></i>
                 <?= h($gathering->branch->name) ?>
             </span>
+
+            <?php if (!empty($gathering->website_url)): ?>
+                <span class="meta-item">
+                    <i class="bi bi-link-45deg"></i>
+                    <a href="<?= h($gathering->website_url) ?>" target="_blank" rel="noopener" class="event-website-link">
+                        <?= __('Event Website') ?>
+                    </a>
+                </span>
+            <?php endif; ?>
         </div>
+
+        <?php if (!empty($progressAttendances)): ?>
+            <div class="royal-progress-banner" role="note" aria-label="<?= __('Royal Progress') ?>">
+                <span class="royal-progress-icon" aria-hidden="true">&#x1F451;</span>
+                <span class="royal-progress-text">
+                    <strong><?= __('Royal Progress:') ?></strong>
+                    <?= h(implode(', ', array_map(
+                        fn($attendance) => $attendance->progress_title . ' (' . ($attendance->member->sca_name ?? '') . ')',
+                        $progressAttendances,
+                    ))) ?>
+                </span>
+            </div>
+        <?php endif; ?>
 
         <!-- Calendar Download Button (only for current/future events) -->
         <?php if (!$isPast): ?>
@@ -577,7 +600,8 @@ if ($isAuthenticated && ($canCreateAttendance || $canEditAttendance)):
         'gathering' => $gathering,
         'userAttendance' => $userAttendance ?? null,
         'user' => $user,
-        'modalId' => 'attendGatheringModal'
+        'modalId' => 'attendGatheringModal',
+        'progressOfficers' => $progressOfficers ?? [],
     ]);
 endif;
 ?>

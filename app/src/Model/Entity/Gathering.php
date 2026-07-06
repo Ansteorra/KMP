@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -54,6 +53,7 @@ class Gathering extends BaseEntity
         'start_date' => true,
         'end_date' => true,
         'location' => true,
+        'website_url' => true,
         'timezone' => true,
         'latitude' => true,
         'longitude' => true,

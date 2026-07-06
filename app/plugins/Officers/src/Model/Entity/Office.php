@@ -17,6 +17,7 @@ use App\Model\Entity\BaseEntity;
  * @property bool $requires_warrant Warrant requirement flag
  * @property bool $required_office Organizational requirement flag
  * @property bool $only_one_per_branch Branch-level uniqueness constraint
+ * @property bool $is_royal_progress Holders' RSVPs count as royal progress on the public calendar
  * @property bool $can_skip_report Reporting exemption permission
  * @property int|null $deputy_to_id Foreign key for deputy office relationships
  * @property int|null $reports_to_id Foreign key for reporting hierarchy
@@ -61,6 +62,7 @@ class Office extends BaseEntity
         'can_skip_report' => true,
         'required_office' => true,
         'only_one_per_branch' => true,
+        'is_royal_progress' => true,
         'deputy_to_id' => true,
         'reports_to_id' => true,
         'grants_role_id' => true,

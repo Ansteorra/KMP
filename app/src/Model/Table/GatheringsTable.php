@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -165,6 +164,12 @@ class GatheringsTable extends Table
             ->scalar('location')
             ->maxLength('location', 255)
             ->allowEmptyString('location');
+
+        $validator
+            ->scalar('website_url')
+            ->maxLength('website_url', 512)
+            ->allowEmptyString('website_url')
+            ->urlWithProtocol('website_url', __('Website must be a full URL including http:// or https://'));
 
         $validator
             ->scalar('timezone')

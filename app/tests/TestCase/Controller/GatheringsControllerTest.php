@@ -752,6 +752,145 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertRedirect();
     }
 
+    /**
+     * Create a future gathering for public-calendar tests.
+     */
+    private function createCalendarGathering(string $name, bool $published): object
+    {
+        $gatherings = $this->getTableLocator()->get('Gatherings');
+        $gathering = $gatherings->newEntity([
+            'branch_id' => 2,
+            'gathering_type_id' => 1,
+            'name' => $name,
+            'start_date' => '2026-09-15 10:00:00',
+            'end_date' => '2026-09-15 18:00:00',
+            'timezone' => 'America/Chicago',
+            'created_by' => self::ADMIN_MEMBER_ID,
+        ]);
+        $gatherings->saveOrFail($gathering);
+        if ($published) {
+            // published is guarded against mass assignment; set explicitly
+            $gathering->set('published', true);
+            $gatherings->saveOrFail($gathering);
+        }
+
+        return $gathering;
+    }
+
+    /**
+     * The public kingdom calendar is unauthenticated and only lists published events.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::publicCalendar()
+     */
+    public function testPublicCalendarListsOnlyPublishedEvents(): void
+    {
+        $published = $this->createCalendarGathering('Published Kingdom Event Alpha', true);
+        $unpublished = $this->createCalendarGathering('Unpublished Draft Event Beta', false);
+
+        $this->session(['Auth' => null]);
+        $this->get('/events');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Kingdom Calendar');
+        $this->assertResponseContains($published->name);
+        $this->assertResponseNotContains($unpublished->name);
+    }
+
+    /**
+     * Royal progress attendances render on the public calendar with the
+     * office snapshot title.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::publicCalendar()
+     */
+    public function testPublicCalendarShowsRoyalProgress(): void
+    {
+        $published = $this->createCalendarGathering('Progress Kingdom Event Gamma', true);
+
+        $attendances = $this->getTableLocator()->get('GatheringAttendances');
+        $attendance = $attendances->newEntity([
+            'gathering_id' => $published->id,
+            'member_id' => self::TEST_MEMBER_AGATHA_ID,
+            'share_with_kingdom' => true,
+            'created_by' => self::TEST_MEMBER_AGATHA_ID,
+        ]);
+        // Progress fields are guarded; set them the way applyRoyalProgress does
+        $attendance->set('is_royal_progress', true);
+        $attendance->set('progress_office_name', 'Crown');
+        $attendance->set('progress_branch_name', 'Test Kingdom');
+        $attendances->saveOrFail($attendance);
+
+        $this->session(['Auth' => null]);
+        $this->get('/events');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Crown of Test Kingdom');
+    }
+
+    /**
+     * The public iCal feed only includes published events.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::feed()
+     */
+    public function testFeedOnlyIncludesPublishedEvents(): void
+    {
+        $published = $this->createCalendarGathering('Feed Published Event Delta', true);
+        $unpublished = $this->createCalendarGathering('Feed Unpublished Event Epsilon', false);
+
+        $this->session(['Auth' => null]);
+        $this->get('/gatherings/feed');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains($published->name);
+        $this->assertResponseNotContains($unpublished->name);
+    }
+
+    /**
+     * Publishing requires the dedicated publish permission; a regular member
+     * cannot publish even their own branch's gathering.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::publish()
+     */
+    public function testPublishDeniedWithoutPermission(): void
+    {
+        $gathering = $this->createCalendarGathering('Publish Denied Event Zeta', false);
+
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $this->post('/gatherings/publish/' . $gathering->id . '?publish=true');
+
+        $gatherings = $this->getTableLocator()->get('Gatherings');
+        $this->assertFalse((bool)$gatherings->get($gathering->id)->published);
+    }
+
+    /**
+     * A super user can publish and unpublish, stamping published_by/on.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::publish()
+     */
+    public function testPublishAndUnpublishAsSuperUser(): void
+    {
+        $gathering = $this->createCalendarGathering('Publish Allowed Event Eta', false);
+
+        $this->post('/gatherings/publish/' . $gathering->id . '?publish=true');
+        $this->assertRedirect();
+
+        $gatherings = $this->getTableLocator()->get('Gatherings');
+        $published = $gatherings->get($gathering->id);
+        $this->assertTrue((bool)$published->published);
+        $this->assertNotNull($published->published_by);
+        $this->assertNotNull($published->published_on);
+
+        $this->post('/gatherings/publish/' . $gathering->id . '?publish=false');
+        $unpublished = $gatherings->get($gathering->id);
+        $this->assertFalse((bool)$unpublished->published);
+        $this->assertNull($unpublished->published_by);
+        $this->assertNull($unpublished->published_on);
+    }
+
     private function getGatheringWithUploadedWaivers()
     {
         $GatheringWaivers = $this->getTableLocator()->get('Waivers.GatheringWaivers');

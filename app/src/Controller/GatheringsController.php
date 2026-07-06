@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
@@ -80,8 +79,8 @@ class GatheringsController extends AppController
     {
         parent::beforeFilter($event);
 
-        // Allow public access to landing page, calendar download, and feed
-        $this->Authentication->allowUnauthenticated(['publicLanding', 'downloadCalendar', 'feed']);
+        // Allow public access to landing page, kingdom calendar, calendar download, and feed
+        $this->Authentication->allowUnauthenticated(['publicLanding', 'publicCalendar', 'downloadCalendar', 'feed']);
     }
 
     /**
@@ -306,7 +305,12 @@ class GatheringsController extends AppController
         $defaultMonth = (int)$today->format('m');
         $defaultView = $this->request->getQuery('view', 'month');
 
-        $this->set(compact('defaultYear', 'defaultMonth', 'defaultView'));
+        // Progress-eligible offices held by the current user (for the RSVP modal)
+        $progressOfficers = $currentUser
+            ? $this->Gatherings->GatheringAttendances->currentProgressOfficersForMember((int)$currentUser->id)
+            : [];
+
+        $this->set(compact('defaultYear', 'defaultMonth', 'defaultView', 'progressOfficers'));
     }
 
     /**
@@ -953,6 +957,19 @@ class GatheringsController extends AppController
         // Calculate event duration
         $durationDays = $gathering->start_date->diffInDays($gathering->end_date) + 1;
 
+        // Royal progress attendances (public info) and the current user's
+        // progress-eligible offices for the RSVP modal
+        $progressAttendances = $this->Gatherings->GatheringAttendances
+            ->find('royalProgress')
+            ->contain(['Members' => ['fields' => ['id', 'sca_name']]])
+            ->where(['gathering_id' => $gathering->id])
+            ->orderBy(['progress_office_name' => 'ASC'])
+            ->all()
+            ->toArray();
+        $progressOfficers = $currentUser
+            ? $this->Gatherings->GatheringAttendances->currentProgressOfficersForMember((int)$currentUser->id)
+            : [];
+
         $this->set(compact(
             'gathering',
             'hasWaivers',
@@ -961,6 +978,8 @@ class GatheringsController extends AppController
             'totalAttendanceCount',
             'userAttendance',
             'kingdomAttendances',
+            'progressAttendances',
+            'progressOfficers',
             'scheduleByDate',
             'durationDays',
         ));
@@ -1840,6 +1859,20 @@ class GatheringsController extends AppController
                 ->toArray();
         }
 
+        // Royal progress is public information - shown to everyone
+        $progressAttendances = $this->fetchTable('GatheringAttendances')
+            ->find('royalProgress')
+            ->contain(['Members' => ['fields' => ['id', 'sca_name']]])
+            ->where(['gathering_id' => $gathering->id])
+            ->orderBy(['progress_office_name' => 'ASC'])
+            ->all()
+            ->toArray();
+
+        // Progress-eligible offices held by the current user (for the RSVP modal)
+        $progressOfficers = $identity
+            ? $this->fetchTable('GatheringAttendances')->currentProgressOfficersForMember((int)$identity->id)
+            : [];
+
         $this->set(compact(
             'gathering',
             'scheduleByDate',
@@ -1847,7 +1880,59 @@ class GatheringsController extends AppController
             'user',
             'userAttendance',
             'kingdomAttendances',
+            'progressAttendances',
+            'progressOfficers',
         ));
+    }
+
+    /**
+     * Public kingdom calendar - a read-only, list-first view of published events.
+     *
+     * The public replacement for the legacy kingdom events page. Requires no
+     * authentication and only lists gatherings explicitly published to the
+     * kingdom calendar (issues #58/#60). Events are grouped by month and show
+     * royal progress and web links inline (issues #59/#61/#63).
+     *
+     * @return \Cake\Http\Response|null|void Renders view
+     */
+    public function publicCalendar()
+    {
+        $this->Authorization->skipAuthorization();
+        $this->viewBuilder()->setLayout('public_event');
+
+        $today = CakeDateTime::now()->startOfDay();
+        $horizon = new CakeDateTime('+2 years');
+
+        $gatherings = $this->Gatherings->find()
+            ->contain([
+                'Branches' => ['fields' => ['id', 'name']],
+                'GatheringTypes' => ['fields' => ['id', 'name', 'color']],
+                'GatheringAttendances' => [
+                    'Members' => ['fields' => ['id', 'sca_name']],
+                    'conditions' => ['GatheringAttendances.is_royal_progress' => true],
+                    'sort' => ['GatheringAttendances.progress_office_name' => 'ASC'],
+                ],
+            ])
+            ->where([
+                'Gatherings.published' => true,
+                'Gatherings.end_date >=' => $today,
+                'Gatherings.start_date <=' => $horizon,
+            ])
+            ->orderBy(['Gatherings.start_date' => 'ASC'])
+            ->all();
+
+        // Group by month (in each gathering's own timezone for display)
+        $gatheringsByMonth = [];
+        foreach ($gatherings as $gathering) {
+            $localStart = TimezoneHelper::toUserTimezone($gathering->start_date, null, null, $gathering);
+            $monthKey = $localStart->format('Y-m');
+            if (!isset($gatheringsByMonth[$monthKey])) {
+                $gatheringsByMonth[$monthKey] = [];
+            }
+            $gatheringsByMonth[$monthKey][] = $gathering;
+        }
+
+        $this->set(compact('gatheringsByMonth'));
     }
 
     /**
@@ -1878,7 +1963,9 @@ class GatheringsController extends AppController
             ->where([
                 'Gatherings.end_date >=' => $cutoff,
                 'Gatherings.start_date <=' => $feedUntil,
-                'Gatherings.public_page_enabled' => true,
+                // Only events explicitly published to the kingdom calendar
+                // appear in the public feed (issue #58).
+                'Gatherings.published' => true,
             ])
             ->orderBy(['Gatherings.start_date' => 'ASC']);
 
@@ -2025,8 +2112,9 @@ class GatheringsController extends AppController
         $fullBaseUrl = $this->request->scheme() . '://' . $this->request->host() . $baseUrl;
         $eventUrl = $fullBaseUrl . '/gatherings/public-landing/' . $gathering->public_id;
 
-        // Check security based on public_page_enabled setting
-        if ($gathering->public_page_enabled === false) {
+        // Calendar downloads are public for gatherings with a public landing
+        // page or published to the kingdom calendar; otherwise require login.
+        if ($gathering->public_page_enabled === false && $gathering->published === false) {
             // Private gathering - require authentication but no policy check
             $identity = $this->Authentication->getIdentity();
             if (!$identity) {

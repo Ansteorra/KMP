@@ -211,6 +211,19 @@ return function (RouteBuilder $routes): void {
         $builder->connect("/pages/*", "Pages::display");
 
         /**
+         * Public Kingdom Calendar Routes
+         *
+         * Unauthenticated, list-first view of events published to the kingdom
+         * calendar, plus a short URL for each event's public landing page.
+         *
+         * @route "/events" → GatheringsController::publicCalendar()
+         */
+        $builder->connect("/events", [
+            "controller" => "Gatherings",
+            "action" => "publicCalendar",
+        ]);
+
+        /**
          * Progressive Web App Manifest Route
          * 
          * Serves the web app manifest for PWA functionality.

@@ -88,6 +88,13 @@ echo $this->KMP->startBlock("pageTitle") ?>
                             $this->Html,
                         ) ?></td>
 </tr>
+<tr scope="row">
+    <th class='col'><?= __("Royal Progress") ?></th>
+    <td class="col-10"><?= $this->Kmp->bool(
+                            $office->is_royal_progress,
+                            $this->Html,
+                        ) ?></td>
+</tr>
 <th class='col'><?= __("Reports To") ?></th>
 <td class="col-10"><?= $office->hasValue(
                         "reports_to",
@@ -183,6 +190,7 @@ echo $this->Modal->create("Edit Office", [
             echo $this->Form->control("can_skip_report", ["switch" => true, 'label' => 'Skip Report']);
             echo $this->Form->control("requires_warrant", ["switch" => true, 'label' => 'Warrant']);
             echo $this->Form->control("only_one_per_branch", ["switch" => true, 'label' => 'One Per Branch']);
+            echo $this->Form->control("is_royal_progress", ["switch" => true, 'label' => 'Royal Progress']);
             echo $this->Form->control("is_deputy", [
                 "type" => "checkbox",
                 "switch" => true,

@@ -154,6 +154,18 @@ $this->KMP->endBlock();
         </div>
 
         <div class="mb-3">
+            <?= $this->Form->control('website_url', [
+                'type' => 'url',
+                'class' => 'form-control',
+                'label' => __('Event Website'),
+                'placeholder' => 'https://...',
+            ]) ?>
+            <small class="form-text text-muted">
+                <?= __('Shown as the event web link on the public kingdom calendar and landing page.') ?>
+            </small>
+        </div>
+
+        <div class="mb-3">
             <?= $this->Form->control('timezone', [
                 'type' => 'select',
                 'options' => $this->Timezone->getTimezoneOptions(),
