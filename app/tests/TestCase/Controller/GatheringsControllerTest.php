@@ -45,6 +45,44 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
     }
 
     /**
+     * Test grid table frame keeps column metadata when date/type filters are applied.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::gridData()
+     */
+    public function testGridDataTableFrameRendersColumnsWithFilteredRows(): void
+    {
+        $gatherings = $this->getTableLocator()->get('Gatherings');
+        $gathering = $gatherings->newEntity([
+            'branch_id' => 2,
+            'gathering_type_id' => 1,
+            'name' => 'Grid Frame Column Regression',
+            'description' => 'Verifies filtered table-frame responses render columns.',
+            'start_date' => '2026-07-15 10:00:00',
+            'end_date' => '2026-07-15 12:00:00',
+            'location' => 'Grid Test Site',
+            'timezone' => 'America/Chicago',
+            'public_page_enabled' => true,
+            'created_by' => self::ADMIN_MEMBER_ID,
+        ]);
+        $gatherings->saveOrFail($gathering);
+
+        $this->configRequest([
+            'headers' => ['Turbo-Frame' => 'gatherings-grid-table'],
+        ]);
+        $this->get(
+            '/gatherings/grid-data?start_date_start=2026-07-01&start_date_end=2026-07-31'
+            . '&filter%5Bgathering_type_id%5D%5B%5D=1&dirty%5Bfilters%5D=1',
+        );
+
+        $this->assertResponseOk();
+        $body = (string)$this->_response->getBody();
+        $this->assertStringContainsString('data-column-key="name"', $body);
+        $this->assertStringContainsString('data-column-key="gathering_type_id"', $body);
+        $this->assertResponseContains('Grid Frame Column Regression');
+    }
+
+    /**
      * Test view method
      *
      * @return void
