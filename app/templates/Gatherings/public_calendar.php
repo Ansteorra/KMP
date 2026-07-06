@@ -98,6 +98,21 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                     $hasPublicPage = (bool)$gathering->public_page_enabled;
                     $progressAttendances = $gathering->gathering_attendances ?? [];
                     $typeColor = $gathering->gathering_type->color ?? null;
+                    // The event's web link: the KMP public page when enabled
+                    // (it supersedes the Event Website field), else the
+                    // external website URL when populated.
+                    $eventUrl = null;
+                    $eventUrlIsExternal = false;
+                    if ($hasPublicPage) {
+                        $eventUrl = $this->Url->build([
+                            'controller' => 'Gatherings',
+                            'action' => 'public-landing',
+                            $gathering->public_id,
+                        ]);
+                    } elseif (!empty($gathering->website_url)) {
+                        $eventUrl = $gathering->website_url;
+                        $eventUrlIsExternal = true;
+                    }
                     ?>
                     <article class="kc-event<?= $isCancelled ? ' kc-event-cancelled' : '' ?>">
                         <div class="kc-event-date" aria-hidden="true">
@@ -111,9 +126,9 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
 
                         <div class="kc-event-body">
                             <div class="kc-event-title-row">
-                                <?php if ($hasPublicPage): ?>
-                                    <a class="kc-event-name"
-                                        href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'public-landing', $gathering->public_id]) ?>">
+                                <?php if ($eventUrl !== null): ?>
+                                    <a class="kc-event-name" href="<?= h($eventUrl) ?>"
+                                        <?= $eventUrlIsExternal ? 'target="_blank" rel="noopener"' : '' ?>>
                                         <?= h($gathering->name) ?>
                                     </a>
                                 <?php else: ?>
@@ -169,11 +184,12 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                                     </span>
                                 <?php endif; ?>
 
-                                <?php if (!empty($gathering->website_url)): ?>
+                                <?php if ($eventUrl !== null): ?>
                                     <span class="kc-meta-item">
-                                        <i class="bi bi-link-45deg"></i>
-                                        <a href="<?= h($gathering->website_url) ?>" target="_blank" rel="noopener">
-                                            <?= h(preg_replace('/^https?:\/\/(www\.)?/', '', $gathering->website_url)) ?>
+                                        <i class="bi bi-box-arrow-up-right"></i>
+                                        <a href="<?= h($eventUrl) ?>"
+                                            <?= $eventUrlIsExternal ? 'target="_blank" rel="noopener"' : '' ?>>
+                                            <?= $eventUrlIsExternal ? __('Event Website') : __('Event Page') ?>
                                         </a>
                                     </span>
                                 <?php endif; ?>

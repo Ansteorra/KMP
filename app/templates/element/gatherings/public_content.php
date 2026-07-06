@@ -116,7 +116,10 @@ if (!isset($scheduleByDate)) {
                 <?= h($gathering->branch->name) ?>
             </span>
 
-            <?php if (!empty($gathering->website_url)): ?>
+            <?php // The public page supersedes the Event Website; only show the
+                  // external site link when the public page is not enabled
+                  // (i.e. the authenticated view_public context) ?>
+            <?php if (!$gathering->public_page_enabled && !empty($gathering->website_url)): ?>
                 <span class="meta-item">
                     <i class="bi bi-link-45deg"></i>
                     <a href="<?= h($gathering->website_url) ?>" target="_blank" rel="noopener" class="event-website-link">
@@ -139,9 +142,16 @@ if (!isset($scheduleByDate)) {
             </div>
         <?php endif; ?>
 
-        <!-- Calendar Download Button (only for current/future events) -->
+        <!-- Pre-Registration / Calendar Download Buttons (only for current/future events) -->
         <?php if (!$isPast): ?>
-            <div class="mt-3">
+            <div class="mt-3 d-flex flex-wrap gap-2 justify-content-center">
+                <?php if (!empty($gathering->preregister_url) && !$isCancelled): ?>
+                    <a href="<?= h($gathering->preregister_url) ?>" target="_blank" rel="noopener"
+                        class="btn btn-warning btn-lg fw-bold"
+                        title="<?= h(__('Pre-register and pay for this event (external site)')) ?>">
+                        <i class="bi bi-ticket-perforated"></i> <?= __('Pre-Register') ?>
+                    </a>
+                <?php endif; ?>
                 <?= $this->Html->link(
                     '<i class="bi bi-calendar-plus"></i> ' . __('Add to Calendar'),
                     ['controller' => 'Gatherings', 'action' => 'downloadCalendar', $gathering->public_id],

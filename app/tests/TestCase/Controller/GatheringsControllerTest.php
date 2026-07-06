@@ -755,10 +755,10 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
     /**
      * Create a future gathering for public-calendar tests.
      */
-    private function createCalendarGathering(string $name, bool $published): object
+    private function createCalendarGathering(string $name, bool $published, array $extra = []): object
     {
         $gatherings = $this->getTableLocator()->get('Gatherings');
-        $gathering = $gatherings->newEntity([
+        $gathering = $gatherings->newEntity($extra + [
             'branch_id' => 2,
             'gathering_type_id' => 1,
             'name' => $name,
@@ -888,6 +888,58 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
 
         $this->assertResponseOk();
         $this->assertResponseContains('kc-activity-chip-circle');
+    }
+
+    /**
+     * Event link precedence on the public calendar: the KMP public page
+     * supersedes the Event Website; the website is used only when the public
+     * page is disabled.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::publicCalendar()
+     */
+    public function testPublicCalendarEventLinkPrecedence(): void
+    {
+        $withPublicPage = $this->createCalendarGathering('Public Page Event Lambda', true, [
+            'public_page_enabled' => true,
+            'website_url' => 'https://example.org/superseded-site',
+        ]);
+        $websiteOnly = $this->createCalendarGathering('Website Only Event Mu', true, [
+            'public_page_enabled' => false,
+            'website_url' => 'https://example.org/external-site',
+        ]);
+
+        $this->session(['Auth' => null]);
+        $this->get('/events');
+
+        $this->assertResponseOk();
+        // Public page wins: landing link shown, external website suppressed
+        $this->assertResponseContains('public-landing/' . $withPublicPage->public_id);
+        $this->assertResponseNotContains('https://example.org/superseded-site');
+        // No public page: the external website is the event link
+        $this->assertResponseContains('https://example.org/external-site');
+    }
+
+    /**
+     * The pre-registration link renders as a call-to-action on the public
+     * landing page.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::publicLanding()
+     */
+    public function testPublicLandingShowsPreregisterLink(): void
+    {
+        $gathering = $this->createCalendarGathering('Prereg Event Nu', true, [
+            'public_page_enabled' => true,
+            'preregister_url' => 'https://example.org/prereg-and-pay',
+        ]);
+
+        $this->session(['Auth' => null]);
+        $this->get('/gatherings/public-landing/' . $gathering->public_id);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('https://example.org/prereg-and-pay');
+        $this->assertResponseContains(__('Pre-Register'));
     }
 
     /**

@@ -38,9 +38,28 @@ These are independent controls:
 | `public_page_enabled` | The per-event public landing page (`/gatherings/public-landing/{public_id}`) | Event stewards / branch gathering managers |
 | `published` | Listing on the public kingdom calendar (`/events`) and the public iCal feed | Kingdom calendar staff only |
 
-A published event without a public landing page appears on the calendar as
-plain text (no link). Per-event `.ics` downloads are public when **either**
-flag is set.
+### Event link precedence
+
+Each event has one canonical public web link:
+
+1. **Public landing page** when `public_page_enabled` is true — it supersedes
+   the Event Website. The website field is disabled in the add/edit forms
+   while the public page is enabled, and any stored `website_url` is not shown
+   publicly.
+2. **Event Website** (`gatherings.website_url`) otherwise, when populated —
+   rendered as an external link.
+3. Neither → the event appears on the calendar as plain text (no link).
+
+On `/events` both the event name and an "Event Page" / "Event Website" quick
+link use this precedence. Per-event `.ics` downloads are public when either
+`published` or `public_page_enabled` is set.
+
+### Pre-registration link
+
+`gatherings.preregister_url` holds the external pre-registration / payment
+URL. When populated (and the event is upcoming and not cancelled) it renders
+as a prominent "Pre-Register" button in the public landing page hero.
+Pre-registration is currently an external process; KMP only links to it.
 
 ## Public kingdom calendar (issues #59, #60, #63)
 

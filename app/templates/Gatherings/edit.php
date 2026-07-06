@@ -159,9 +159,22 @@ $this->KMP->endBlock();
                 'class' => 'form-control',
                 'label' => __('Event Website'),
                 'placeholder' => 'https://...',
+                'data-gathering-form-target' => 'websiteUrl',
             ]) ?>
             <small class="form-text text-muted">
-                <?= __('Shown as the event web link on the public kingdom calendar and landing page.') ?>
+                <?= __('External web page for the event. Disabled while the public landing page is enabled - the public page is used as the event\'s web link instead.') ?>
+            </small>
+        </div>
+
+        <div class="mb-3">
+            <?= $this->Form->control('preregister_url', [
+                'type' => 'url',
+                'class' => 'form-control',
+                'label' => __('Pre-Registration Link'),
+                'placeholder' => 'https://...',
+            ]) ?>
+            <small class="form-text text-muted">
+                <?= __('External pre-registration / payment link, shown prominently on the public event page.') ?>
             </small>
         </div>
 
@@ -197,7 +210,9 @@ $this->KMP->endBlock();
             <div class="form-check">
                 <?= $this->Form->checkbox('public_page_enabled', [
                     'id' => 'public_page_enabled',
-                    'class' => 'form-check-input'
+                    'class' => 'form-check-input',
+                    'data-gathering-form-target' => 'publicPageToggle',
+                    'data-action' => 'change->gathering-form#publicPageToggled',
                 ]) ?>
                 <label class="form-check-label" for="public_page_enabled">
                     <?= __('Enable Public Landing Page') ?>

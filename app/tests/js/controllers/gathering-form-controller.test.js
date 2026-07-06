@@ -67,4 +67,42 @@ describe('GatheringFormController', () => {
         controller.connect();
         expect(spy).toHaveBeenCalled();
     });
+
+    describe('website URL toggle', () => {
+        beforeEach(() => {
+            const toggle = document.createElement('input');
+            toggle.type = 'checkbox';
+            const website = document.createElement('input');
+            website.type = 'url';
+            controller.element.appendChild(toggle);
+            controller.element.appendChild(website);
+            controller.publicPageToggleTarget = toggle;
+            controller.websiteUrlTarget = website;
+            controller.hasPublicPageToggleTarget = true;
+            controller.hasWebsiteUrlTarget = true;
+        });
+
+        test('declares the toggle targets', () => {
+            expect(GatheringFormController.targets).toEqual(
+                expect.arrayContaining(['publicPageToggle', 'websiteUrl'])
+            );
+        });
+
+        test('disables website field while public page is enabled', () => {
+            controller.publicPageToggleTarget.checked = true;
+            controller.publicPageToggled();
+            expect(controller.websiteUrlTarget.disabled).toBe(true);
+
+            controller.publicPageToggleTarget.checked = false;
+            controller.publicPageToggled();
+            expect(controller.websiteUrlTarget.disabled).toBe(false);
+        });
+
+        test('connect syncs the initial disabled state', () => {
+            jest.spyOn(controller, 'validateDates').mockReturnValue(true);
+            controller.publicPageToggleTarget.checked = true;
+            controller.connect();
+            expect(controller.websiteUrlTarget.disabled).toBe(true);
+        });
+    });
 });

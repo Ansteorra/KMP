@@ -19,6 +19,8 @@ use App\KMP\TimezoneHelper;
  * @property \Cake\I18n\DateTime $start_date
  * @property \Cake\I18n\DateTime $end_date
  * @property string|null $location
+ * @property string|null $website_url
+ * @property string|null $preregister_url
  * @property string|null $timezone
  * @property float|null $latitude
  * @property float|null $longitude
@@ -54,6 +56,7 @@ class Gathering extends BaseEntity
         'end_date' => true,
         'location' => true,
         'website_url' => true,
+        'preregister_url' => true,
         'timezone' => true,
         'latitude' => true,
         'longitude' => true,

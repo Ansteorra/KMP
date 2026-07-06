@@ -252,6 +252,19 @@ $publicLandingUrl = $this->Url->build([
         <th class="col"><?= __('Website') ?></th>
         <td class="col-10">
             <a href="<?= h($gathering->website_url) ?>" target="_blank" rel="noopener"><?= h($gathering->website_url) ?></a>
+            <?php if ($gathering->public_page_enabled): ?>
+                <small class="text-muted ms-2">
+                    <?= __('(not shown publicly - the public landing page is used as the event link)') ?>
+                </small>
+            <?php endif; ?>
+        </td>
+    </tr>
+<?php endif; ?>
+<?php if (!empty($gathering->preregister_url)) : ?>
+    <tr scope="row">
+        <th class="col"><?= __('Pre-Registration') ?></th>
+        <td class="col-10">
+            <a href="<?= h($gathering->preregister_url) ?>" target="_blank" rel="noopener"><?= h($gathering->preregister_url) ?></a>
         </td>
     </tr>
 <?php endif; ?>

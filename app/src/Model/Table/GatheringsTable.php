@@ -172,6 +172,15 @@ class GatheringsTable extends Table
             ->urlWithProtocol('website_url', __('Website must be a full URL including http:// or https://'));
 
         $validator
+            ->scalar('preregister_url')
+            ->maxLength('preregister_url', 512)
+            ->allowEmptyString('preregister_url')
+            ->urlWithProtocol(
+                'preregister_url',
+                __('Pre-registration link must be a full URL including http:// or https://'),
+            );
+
+        $validator
             ->scalar('timezone')
             ->maxLength('timezone', 50)
             ->allowEmptyString('timezone')
