@@ -19,6 +19,10 @@ const wait = (delayMs) => new Promise((resolve) => {
     setTimeout(resolve, delayMs);
 });
 
+const waitSync = (delayMs) => {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
+};
+
 const waitForPageBody = async (page, timeout = DEFAULT_TIMEOUT) => {
     await expect(page.locator('body')).toBeVisible({ timeout });
 };
@@ -226,6 +230,54 @@ const drainPendingQueueJobs = () => {
     }
 };
 
+const waitForQueueSettledSync = ({ timeoutMs = 45000, pollMs = 1000 } = {}) => {
+    const startedAt = Date.now();
+    let consecutiveEmpty = 0;
+    let lastPending = -1;
+    let lastError = null;
+
+    while (Date.now() - startedAt < timeoutMs) {
+        try {
+            lastPending = countPendingQueueJobs();
+            lastError = null;
+            if (lastPending > 0) {
+                drainPendingQueueJobs();
+                lastPending = countPendingQueueJobs();
+            }
+        } catch (error) {
+            lastPending = -1;
+            lastError = error;
+        }
+
+        if (lastPending === 0) {
+            consecutiveEmpty += 1;
+            if (consecutiveEmpty >= 2) {
+                return true;
+            }
+        } else {
+            consecutiveEmpty = 0;
+        }
+
+        waitSync(pollMs);
+    }
+
+    let diagnostics = `last pending count = ${lastPending}`;
+    if (lastError) {
+        diagnostics += `; last DB error: ${(lastError.message || String(lastError)).substring(0, 300)}`;
+    } else {
+        try {
+            const rows = dbQuery(
+                "SELECT id, job_task, attempts, failure_message FROM queued_jobs WHERE completed IS NULL ORDER BY created DESC LIMIT 10;",
+            );
+            diagnostics += `\nUncompleted jobs:\n${rows}`;
+        } catch (error) {
+            diagnostics += `\n(could not read uncompleted jobs: ${error.message})`;
+        }
+    }
+
+    throw new Error(`waitForQueueSettledSync timed out after ${timeoutMs}ms — ${diagnostics}`);
+};
+
 /**
  * Block until the queue has no due, uncompleted jobs — the deterministic "settled"
  * primitive for trustworthy negative-email and async-side-effect assertions.
@@ -381,6 +433,8 @@ const flushWorkflowsAndQueue = ({ forceScheduler = false } = {}) => {
         // assertions into false passes.
         runCakeCommand(['workflow_scheduler', '--force', '-q'], { timeoutMs: 30000 });
     }
+
+    waitForQueueSettledSync();
 };
 
 /**

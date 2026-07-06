@@ -139,6 +139,30 @@ wait_for_app_startup() {
     return 1
 }
 
+clear_cakephp_caches() {
+    "${COMPOSE[@]}" exec -T app php -r '
+require "vendor/autoload.php";
+require "config/bootstrap.php";
+use Cake\Cache\Cache;
+$failed = [];
+foreach (Cache::configured() as $config) {
+    if (in_array($config, ["_cake_core_", "_cake_routes_"], true)) {
+        continue;
+    }
+    try {
+        if (!Cache::clear($config)) {
+            $failed[] = "$config (clear returned false)";
+        }
+    } catch (Throwable $e) {
+        $failed[] = $config . " (" . $e->getMessage() . ")";
+    }
+}
+if (!empty($failed)) {
+    fwrite(STDERR, "Warning: Failed to clear cache configs: " . implode(", ", $failed) . "\n");
+}
+'
+}
+
 if [ ${#BACKGROUND_SERVICES_TO_RESTART[@]} -gt 0 ]; then
     trap restart_background_services EXIT
     echo "[pre] Pausing background services during database reset: ${BACKGROUND_SERVICES_TO_RESTART[*]}"
@@ -260,6 +284,9 @@ wait_for_app_startup
 if [ "$LOAD_SEED" = true ] && [ "$DB_DRIVER" != "postgres" ] && [ "$DB_DRIVER" != "pgsql" ] && [ -f "dev_seed_clean.sql" ]; then
     echo "[2/5] Loading seed data snapshot from dev_seed_clean.sql..."
     "${COMPOSE[@]}" exec -T db mariadb -u"${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" < dev_seed_clean.sql
+
+    echo "      Clearing app caches after seed import..."
+    clear_cakephp_caches
     
     echo "[3/5] Running migrations to bring schema up to current..."
     "${COMPOSE[@]}" exec -T app bin/cake migrations migrate
@@ -293,6 +320,9 @@ elif [ "$LOAD_SEED" = true ] && { [ "$DB_DRIVER" = "postgres" ] || [ "$DB_DRIVER
 
     echo "[4/6] Loading PostgreSQL baseline seed from $PG_SEED_FILE..."
     "${COMPOSE[@]}" exec -T app sh -lc 'psql "$DATABASE_URL" -q -v ON_ERROR_STOP=1' < "$PG_SEED_FILE" >/dev/null
+
+    echo "      Clearing app caches after seed import..."
+    clear_cakephp_caches
 
     SEEDED_MEMBER_COUNT="$("${COMPOSE[@]}" exec -T app sh -lc 'psql "$DATABASE_URL" -At -c "SELECT count(*) FROM members"')"
     echo "      Seeded members: ${SEEDED_MEMBER_COUNT}"
@@ -847,27 +877,7 @@ echo "[post] Rebuilding test database schema..."
 "${COMPOSE[@]}" exec -T app bash bin/setup_test_database.sh >/dev/null
 
 echo "[post] Clearing CakePHP caches..."
-"${COMPOSE[@]}" exec -T app php -r '
-require "vendor/autoload.php";
-require "config/bootstrap.php";
-use Cake\Cache\Cache;
-$failed = [];
-foreach (Cache::configured() as $config) {
-    if (in_array($config, ["_cake_core_", "_cake_routes_"], true)) {
-        continue;
-    }
-    try {
-        if (!Cache::clear($config)) {
-            $failed[] = "$config (clear returned false)";
-        }
-    } catch (Throwable $e) {
-        $failed[] = $config . " (" . $e->getMessage() . ")";
-    }
-}
-if (!empty($failed)) {
-    fwrite(STDERR, "Warning: Failed to clear cache configs: " . implode(", ", $failed) . "\n");
-}
-'
+clear_cakephp_caches
 echo ""
 echo "✅ Database reset complete!"
 echo ""

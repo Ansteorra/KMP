@@ -20,11 +20,15 @@ class PlatformJobRunnerTest extends TestCase
 
     private string $secretFile = '';
 
+    private string $secretDirectory = '';
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->previousSecrets = (array)Configure::read('Secrets');
-        $this->secretFile = TMP . 'tests' . DS . 'platform-job-runner-secrets-' . uniqid() . '.json';
+        $this->secretDirectory = TMP . 'tests' . DS . 'platform-job-runner-secrets-' . uniqid('', true);
+        mkdir($this->secretDirectory, 0700, true);
+        $this->secretFile = $this->secretDirectory . DS . 'secrets.json';
         Configure::write('Secrets', [
             'driver' => 'file',
             'drivers' => [
@@ -48,6 +52,9 @@ class PlatformJobRunnerTest extends TestCase
         Configure::write('Secrets', $this->previousSecrets);
         if ($this->secretFile !== '' && file_exists($this->secretFile)) {
             unlink($this->secretFile);
+        }
+        if ($this->secretDirectory !== '' && is_dir($this->secretDirectory)) {
+            rmdir($this->secretDirectory);
         }
         parent::tearDown();
     }

@@ -1090,7 +1090,10 @@ When('I release the officer lifecycle member', async ({ page }) => {
     const currentState = refreshFixtureState(page);
     await openBranchOfficersTab(page);
 
-    const row = page.locator('table tbody tr').filter({ hasText: fixture.memberName }).first();
+    const row = page.locator('table tbody tr')
+        .filter({ hasText: fixture.memberName })
+        .filter({ hasText: fixture.officeName })
+        .first();
     await expect(row).toBeVisible({ timeout: 15000 });
     await row.getByRole('button', { name: 'Release', exact: true }).click();
 
