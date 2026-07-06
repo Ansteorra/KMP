@@ -42,7 +42,7 @@
         <div id="edit-activity-name"
             class="form-control-plaintext"
             data-edit-activity-description-target="activityName">
-        </fieldset>
+        </div>
     </div>
 
     <div class="mb-3">
@@ -70,7 +70,7 @@
             <?= __('Example: Change "Open practice" to "Baronial Championship" for this specific gathering.') ?>
         </small>
     </div>
-</div>
+</fieldset>
 
 <?php echo $this->Modal->end([
     $this->Form->button(__('Save Description'), [
