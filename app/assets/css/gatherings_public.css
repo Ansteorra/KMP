@@ -1156,18 +1156,24 @@ body:has(.kingdom-calendar-page) {
     min-width: 0;
 }
 
+/* Row 1: the title, on its own line */
 .kc-event-title-row {
-    display: flex;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: 0.5rem;
     margin-bottom: 0.4rem;
+}
+
+/* Row 2: consistent tag row — type, then progress, then order circle */
+.kc-event-tags {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.55rem;
+    margin-bottom: 0.5rem;
 }
 
 .kc-event-name {
     font-family: var(--kc-font-display);
     font-size: 1.3rem;
-    line-height: 1.15;
+    line-height: 1.2;
     color: var(--kc-ink);
     text-decoration: none;
 }

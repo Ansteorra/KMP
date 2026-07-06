@@ -174,6 +174,17 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                                 <?php else: ?>
                                     <span class="kc-event-name"><?= h($gathering->name) ?></span>
                                 <?php endif; ?>
+                            </div>
+
+                            <div class="kc-event-tags">
+                                <?php if ($isCancelled): ?>
+                                    <span class="kc-badge kc-badge-cancelled"><?= __('Cancelled') ?></span>
+                                <?php endif; ?>
+
+                                <span class="kc-badge kc-badge-type"
+                                    <?php if ($typeColor): ?>style="--kc-type-color: <?= h($typeColor) ?>;"<?php endif; ?>>
+                                    <?= h($gathering->gathering_type->name) ?>
+                                </span>
 
                                 <?php if (!empty($progressAttendances)): ?>
                                     <span class="kc-progress-icon"
@@ -186,15 +197,6 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                                         title="<?= h(__('Order Circle')) ?>"
                                         aria-label="<?= h(__('Order Circle')) ?>"></i>
                                 <?php endif; ?>
-
-                                <?php if ($isCancelled): ?>
-                                    <span class="kc-badge kc-badge-cancelled"><?= __('Cancelled') ?></span>
-                                <?php endif; ?>
-
-                                <span class="kc-badge kc-badge-type"
-                                    <?php if ($typeColor): ?>style="--kc-type-color: <?= h($typeColor) ?>;"<?php endif; ?>>
-                                    <?= h($gathering->gathering_type->name) ?>
-                                </span>
                             </div>
 
                             <div class="kc-event-meta">
