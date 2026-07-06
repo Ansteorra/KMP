@@ -1056,6 +1056,30 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
     }
 
     /**
+     * Multi-day events show a duration ribbon counting calendar days (date-only,
+     * so a Fri 5pm–Sun 3pm event reads as 3 days, not 2).
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::publicCalendar()
+     */
+    public function testPublicCalendarShowsMultiDayDuration(): void
+    {
+        // Fri 17:00 -> Sun 15:00 is under 2*24h but spans 3 calendar days.
+        // Dates stay within the calendar's +2 year horizon so they list.
+        $this->createCalendarGathering('Three Day War', true, [
+            'start_date' => '2027-11-12 17:00:00',
+            'end_date' => '2027-11-14 15:00:00',
+        ]);
+
+        $this->session(['Auth' => null]);
+        $this->get('/events');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('kc-event-through');
+        $this->assertResponseContains('3 days');
+    }
+
+    /**
      * The admin "Public calendar CSS" app setting is injected into /events so
      * kingdoms can restyle the page.
      *

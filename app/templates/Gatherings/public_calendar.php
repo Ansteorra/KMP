@@ -131,16 +131,37 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                     }
                     ?>
                     <article class="kc-event<?= $isCancelled ? ' kc-event-cancelled' : '' ?>">
-                        <div class="kc-event-date" aria-hidden="true">
-                            <span class="kc-event-month">
-                                <?= $this->Timezone->format($gathering->start_date, 'M', false, null, $gathering) ?>
-                            </span>
-                            <span class="kc-event-day">
-                                <?= $this->Timezone->format($gathering->start_date, 'j', false, null, $gathering) ?>
-                            </span>
-                            <span class="kc-event-dow">
-                                <?= $this->Timezone->format($gathering->start_date, 'D', false, null, $gathering) ?>
-                            </span>
+                        <div class="kc-event-daterail" aria-hidden="true">
+                            <div class="kc-event-date">
+                                <span class="kc-event-month">
+                                    <?= $this->Timezone->format($gathering->start_date, 'M', false, null, $gathering) ?>
+                                </span>
+                                <span class="kc-event-day">
+                                    <?= $this->Timezone->format($gathering->start_date, 'j', false, null, $gathering) ?>
+                                </span>
+                                <span class="kc-event-dow">
+                                    <?= $this->Timezone->format($gathering->start_date, 'D', false, null, $gathering) ?>
+                                </span>
+                            </div>
+                            <?php if ($gathering->is_multi_day): ?>
+                                <?php
+                                // Count calendar days in the event's own timezone (date-only,
+                                // so a Fri 5pm–Sun 3pm event counts as 3 days, not 2).
+                                $startLocal = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, null, null, $gathering);
+                                $endLocal = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, null, null, $gathering);
+                                $dayCount = 0;
+                                if ($startLocal && $endLocal) {
+                                    $startDay = \Cake\I18n\Date::parse($startLocal->format('Y-m-d'));
+                                    $endDay = \Cake\I18n\Date::parse($endLocal->format('Y-m-d'));
+                                    $dayCount = (int)$startDay->diffInDays($endDay) + 1;
+                                }
+                                ?>
+                                <span class="kc-event-through">
+                                    <?= $dayCount > 0
+                                        ? h(__n('{0} day', '{0} days', $dayCount, $dayCount))
+                                        : __('multi-day') ?>
+                                </span>
+                            <?php endif; ?>
                         </div>
 
                         <div class="kc-event-body">

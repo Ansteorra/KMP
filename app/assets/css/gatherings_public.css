@@ -1090,11 +1090,19 @@ body:has(.kingdom-calendar-page) {
     text-decoration: line-through;
 }
 
+/* Date rail: the shield plus, for multi-day events, a duration ribbon. */
+.kc-event-daterail {
+    flex-shrink: 0;
+    align-self: flex-start;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+}
+
 /* Signature: the date sits on a heraldic escutcheon.
    Sized for at-a-glance legibility — full-contrast month/weekday, large day. */
 .kc-event-date {
-    flex-shrink: 0;
-    align-self: flex-start;      /* compact shield, not a full-height pennant */
     width: 76px;
     height: 92px;
     padding: 0.5rem 0.25rem 0.5rem;
@@ -1129,6 +1137,18 @@ body:has(.kingdom-calendar-page) {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.1em;
+}
+
+/* Multi-day duration ribbon under the shield (e.g. "3 DAYS") */
+.kc-event-through {
+    max-width: 84px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    line-height: 1.1;
+    text-align: center;
+    color: var(--kc-accent);
 }
 
 .kc-event-body {
