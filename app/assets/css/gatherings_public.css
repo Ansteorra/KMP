@@ -809,16 +809,21 @@
     --kc-font-display: 'Marcellus', 'Optima', Georgia, 'Times New Roman', serif;
     --kc-font-body: 'Spectral', Georgia, 'Iowan Old Style', 'Times New Roman', serif;
 
-    max-width: var(--kc-maxw);
-    margin: 0 auto;
-    padding: clamp(1.5rem, 4vw, 3.5rem) 1.1rem 4rem;
+    /* Full-bleed parchment ground so the month banners blend into the page
+       and only the cards float above it. Content is centered per section. */
+    background: var(--kc-bg);
+    min-height: 100vh;
+    padding: clamp(1.5rem, 4vw, 3.5rem) 0 4rem;
     font-family: var(--kc-font-body);
     color: var(--kc-ink);
 }
 
-/* Paint the whole viewport parchment, not just the column */
-body:has(.kingdom-calendar-page) {
-    background: var(--kc-bg);
+.kc-header,
+.kc-list,
+.kc-footer {
+    max-width: var(--kc-maxw);
+    margin-inline: auto;
+    padding-inline: 1.1rem;
 }
 
 .kingdom-calendar-page ::selection {
@@ -923,6 +928,7 @@ body:has(.kingdom-calendar-page) {
     border: 1px solid var(--kc-rule);
     border-radius: var(--kc-radius);
     background: var(--kc-surface);
+    box-shadow: var(--kc-shadow);   /* match the event cards */
     padding: 0.85rem 1.1rem 1.1rem;
 }
 
