@@ -54,6 +54,7 @@ if (!isset($scheduleByDate)) {
 }
 ?>
 
+<div class="gathering-public-surface" data-controller="public-gathering">
 <?php if ($isCancelled): ?>
 <!-- Cancelled Banner -->
 <div class="alert alert-danger text-center py-4 mb-0" role="alert" style="border-radius: 0; border: none; background: linear-gradient(135deg, #dc3545 0%, #8B0000 100%); color: white;">
@@ -580,26 +581,4 @@ if ($isAuthenticated && ($canCreateAttendance || $canEditAttendance)):
     ]);
 endif;
 ?>
-
-<!-- Email obfuscation script -->
-<script>
-    (function() {
-        // Decode and activate email links to prevent bot scraping
-        document.addEventListener('DOMContentLoaded', function() {
-            const emailLinks = document.querySelectorAll('.email-link');
-            emailLinks.forEach(function(link) {
-                const encodedEmail = link.getAttribute('data-email');
-                if (encodedEmail) {
-                    // Decode the base64 encoded email
-                    const email = atob(encodedEmail);
-                    // Set the mailto href
-                    link.href = 'mailto:' + email;
-                    // Display the email address
-                    link.textContent = email;
-                    // Remove the data attribute to further obfuscate
-                    link.removeAttribute('data-email');
-                }
-            });
-        });
-    })();
-</script>
+</div>

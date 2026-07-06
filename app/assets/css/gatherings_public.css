@@ -1,0 +1,753 @@
+/* Shared styles for public gathering surfaces used by public_landing and view_public. */
+
+.gathering-public-page,
+.gathering-public-content {
+    --medieval-gold: #d4af37;
+    --medieval-gold-dark: #b8941f;
+    --medieval-crimson: #8b0000;
+    --medieval-crimson-dark: #660000;
+    --medieval-royal: #4b0082;
+    --medieval-forest: #2c5f2d;
+    --medieval-parchment: #f4e8d0;
+    --medieval-ink: #2b2b2b;
+
+    --stone-900: #1c1917;
+    --stone-800: #292524;
+    --stone-700: #44403c;
+    --stone-600: #57534e;
+    --stone-500: #78716c;
+    --stone-400: #a8a29e;
+    --stone-300: #d6d3d1;
+    --stone-200: #e7e5e4;
+    --stone-100: #f5f5f4;
+    --stone-50: #fafaf9;
+
+    --font-serif: "Playfair Display", Georgia, serif;
+    --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+    --space-xs: 0.375rem;
+    --space-sm: 0.625rem;
+    --space-md: 1rem;
+    --space-lg: 1.5rem;
+    --space-xl: 2rem;
+    --space-2xl: 2.5rem;
+    --space-3xl: 3rem;
+}
+
+.gathering-public-page {
+    background: var(--stone-50);
+    color: var(--stone-800);
+    font-family: var(--font-sans);
+    min-height: 100vh;
+}
+
+.gathering-public-page :focus-visible,
+.gathering-public-content :focus-visible {
+    outline: 3px solid var(--medieval-gold);
+    outline-offset: 3px;
+}
+
+.table-responsive:has(.gathering-public-content) {
+    overflow: visible !important;
+}
+
+.table-responsive:has(.gathering-public-content) table {
+    border: none !important;
+    display: block !important;
+}
+
+.table-responsive:has(.gathering-public-content) tbody {
+    display: block !important;
+}
+
+.gathering-public-record-cell {
+    border: none;
+    padding: 0;
+}
+
+.gathering-public-surface {
+    color: var(--stone-800);
+    font-family: var(--font-sans);
+}
+
+.gathering-public-surface .hero-banner {
+    background: linear-gradient(135deg, var(--medieval-crimson) 0%, var(--medieval-royal) 100%);
+    border-bottom: 4px solid var(--medieval-gold);
+    box-shadow: 0 4px 6px rgb(0 0 0 / 10%);
+    color: var(--stone-50);
+    margin-bottom: var(--space-xl);
+    padding: var(--space-2xl) var(--space-md);
+    position: relative;
+}
+
+.gathering-public-content .hero-banner {
+    margin-left: -15px;
+    margin-right: -15px;
+}
+
+.gathering-public-surface .hero-banner::before {
+    background-image:
+        repeating-linear-gradient(90deg, rgb(212 175 55 / 3%) 0, transparent 1px, transparent 20px),
+        repeating-linear-gradient(0deg, rgb(212 175 55 / 3%) 0, transparent 1px, transparent 20px);
+    bottom: 0;
+    content: "";
+    left: 0;
+    pointer-events: none;
+    position: absolute;
+    right: 0;
+    top: 0;
+}
+
+.gathering-public-surface .hero-banner-ornament {
+    color: var(--medieval-gold);
+    font-size: 2.5rem;
+    opacity: 0.4;
+    position: absolute;
+    text-shadow: 0 2px 4px rgb(0 0 0 / 30%);
+}
+
+.gathering-public-surface .hero-banner-ornament-left {
+    left: 1rem;
+    top: 1rem;
+}
+
+.gathering-public-surface .hero-banner-ornament-right {
+    right: 1rem;
+    top: 1rem;
+}
+
+.gathering-public-surface .hero-banner-content {
+    margin: 0 auto;
+    max-width: 900px;
+    position: relative;
+    text-align: center;
+}
+
+.gathering-public-surface .event-type-badge {
+    background: rgb(212 175 55 / 20%);
+    border: 2px solid var(--medieval-gold);
+    border-radius: 20px;
+    color: var(--medieval-gold);
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    margin-bottom: var(--space-md);
+    padding: var(--space-xs) var(--space-lg);
+    text-transform: uppercase;
+}
+
+.gathering-public-surface .event-title {
+    font-family: var(--font-serif);
+    font-size: clamp(1.75rem, 5vw, 2.75rem);
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: var(--space-md);
+    text-shadow: 0 2px 8px rgb(0 0 0 / 30%);
+}
+
+.gathering-public-surface .event-quick-meta {
+    display: flex;
+    flex-wrap: wrap;
+    font-size: 0.875rem;
+    font-weight: 500;
+    gap: var(--space-md);
+    justify-content: center;
+}
+
+.gathering-public-surface .meta-item {
+    align-items: center;
+    backdrop-filter: blur(10px);
+    background: rgb(255 255 255 / 10%);
+    border-radius: 8px;
+    display: inline-flex;
+    gap: var(--space-xs);
+    padding: var(--space-sm) var(--space-md);
+}
+
+.gathering-public-surface .meta-item i {
+    color: var(--medieval-gold);
+    font-size: 1rem;
+}
+
+.gathering-public-surface .event-container {
+    margin: 0 auto var(--space-xl);
+    max-width: 1100px;
+    padding: 0 var(--space-md);
+}
+
+.gathering-public-surface .info-grid {
+    display: grid;
+    gap: var(--space-md);
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    margin-bottom: var(--space-lg);
+}
+
+.gathering-public-surface .info-card-medieval {
+    background: linear-gradient(to bottom, var(--stone-50) 0%, var(--stone-100) 100%);
+    border: 2px solid var(--stone-300);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgb(0 0 0 / 10%);
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.gathering-public-surface .info-card-medieval:hover {
+    box-shadow: 0 4px 8px rgb(0 0 0 / 15%);
+    transform: translateY(-2px);
+}
+
+.gathering-public-surface .card-header-medieval {
+    align-items: center;
+    background: linear-gradient(135deg, var(--medieval-crimson) 0%, var(--medieval-crimson-dark) 100%);
+    border-bottom: 2px solid var(--medieval-gold);
+    color: var(--stone-50);
+    display: flex;
+    font-size: 0.813rem;
+    font-weight: 700;
+    gap: var(--space-xs);
+    letter-spacing: 0.05em;
+    padding: var(--space-sm) var(--space-md);
+    text-transform: uppercase;
+}
+
+.gathering-public-surface .card-header-medieval i {
+    color: var(--medieval-gold);
+    font-size: 1rem;
+}
+
+.gathering-public-surface .card-body-medieval {
+    color: var(--stone-800);
+    font-size: 0.875rem;
+    line-height: 1.6;
+    padding: var(--space-md);
+}
+
+.gathering-public-surface .staff-entry,
+.gathering-public-surface .steward-entry {
+    margin-bottom: var(--space-md);
+}
+
+.gathering-public-surface .staff-entry:last-child,
+.gathering-public-surface .steward-entry:last-child {
+    margin-bottom: 0;
+}
+
+.gathering-public-surface .contact-detail {
+    align-items: center;
+    color: var(--stone-600);
+    display: flex;
+    font-size: 0.813rem;
+    gap: var(--space-xs);
+    margin-top: var(--space-xs);
+}
+
+.gathering-public-surface .contact-detail i,
+.gathering-public-surface .contact-detail a,
+.gathering-public-surface .staff-contacts a {
+    color: var(--medieval-crimson);
+}
+
+.gathering-public-surface .contact-detail a:hover {
+    text-decoration: underline;
+}
+
+.gathering-public-surface .contact-note {
+    color: var(--stone-600);
+    font-size: 0.75rem;
+    font-style: italic;
+    margin-top: var(--space-xs);
+}
+
+.gathering-public-surface .staff-contacts {
+    display: inline-flex;
+    gap: var(--space-sm);
+    margin-left: var(--space-sm);
+}
+
+.gathering-public-surface .staff-contacts a {
+    font-size: 0.875rem;
+}
+
+.gathering-public-surface .status-happening .card-header-medieval {
+    background: linear-gradient(135deg, var(--medieval-forest) 0%, #1e4620 100%);
+}
+
+.gathering-public-surface .status-badge-active {
+    background: var(--medieval-forest);
+    border-radius: 6px;
+    color: #fff;
+    font-weight: 700;
+    padding: var(--space-sm) var(--space-md);
+    text-align: center;
+}
+
+.gathering-public-surface .activity-count,
+.gathering-public-surface .countdown-display {
+    color: var(--medieval-crimson);
+    font-weight: 700;
+    text-align: center;
+}
+
+.gathering-public-surface .countdown-display {
+    font-size: 1.5rem;
+}
+
+.gathering-public-surface .activity-count {
+    font-size: 2rem;
+}
+
+.gathering-public-surface .section-medieval {
+    background: linear-gradient(to bottom, var(--stone-50) 0%, #fff 100%);
+    border: 2px solid var(--stone-300);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgb(0 0 0 / 5%);
+    margin-bottom: var(--space-xl);
+    padding: var(--space-xl) var(--space-lg);
+}
+
+.gathering-public-surface .section-title-medieval {
+    align-items: center;
+    border-bottom: 3px solid var(--medieval-gold);
+    color: var(--medieval-crimson);
+    display: flex;
+    font-family: var(--font-serif);
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-weight: 700;
+    gap: var(--space-md);
+    justify-content: center;
+    margin-bottom: var(--space-lg);
+    padding-bottom: var(--space-md);
+    text-align: center;
+}
+
+.gathering-public-surface .title-ornament {
+    color: var(--medieval-gold);
+    font-size: 1rem;
+}
+
+.gathering-public-surface .content-scroll {
+    color: var(--stone-700);
+    line-height: 1.8;
+    max-height: 500px;
+    overflow-y: auto;
+    padding-right: var(--space-sm);
+}
+
+.gathering-public-surface .content-scroll::-webkit-scrollbar {
+    width: 8px;
+}
+
+.gathering-public-surface .content-scroll::-webkit-scrollbar-track {
+    background: var(--stone-200);
+    border-radius: 4px;
+}
+
+.gathering-public-surface .content-scroll::-webkit-scrollbar-thumb {
+    background: var(--medieval-gold);
+    border-radius: 4px;
+}
+
+.gathering-public-surface .schedule-day-medieval {
+    margin-bottom: var(--space-xl);
+}
+
+.gathering-public-surface .schedule-day-header {
+    border-bottom: 2px solid var(--medieval-gold);
+    color: var(--medieval-crimson);
+    font-family: var(--font-serif);
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: var(--space-md);
+    padding-bottom: var(--space-sm);
+}
+
+.gathering-public-surface .schedule-events,
+.gathering-public-surface .activities-compact {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.gathering-public-surface .activity-item-compact,
+.gathering-public-surface .schedule-event-item {
+    background: #fff;
+    border-left: 4px solid var(--medieval-gold);
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 10%);
+    display: flex;
+    gap: var(--space-md);
+    padding: var(--space-md);
+}
+
+.gathering-public-surface .schedule-time-badge {
+    background: var(--medieval-crimson);
+    border-radius: 6px;
+    color: #fff;
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    height: fit-content;
+    min-width: 100px;
+    padding: var(--space-sm) var(--space-md);
+    text-align: center;
+}
+
+.gathering-public-surface .schedule-time-badge i {
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.gathering-public-surface .activity-details-compact h4,
+.gathering-public-surface .schedule-event-content h4 {
+    color: var(--stone-800);
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: var(--space-xs);
+}
+
+.gathering-public-surface .activity-details-compact p,
+.gathering-public-surface .schedule-event-desc {
+    color: var(--stone-600);
+    font-size: 0.875rem;
+    line-height: 1.6;
+}
+
+.gathering-public-surface .activity-details-compact p {
+    margin: 0;
+}
+
+.gathering-public-surface .schedule-event-desc {
+    margin-bottom: var(--space-xs);
+}
+
+.gathering-public-surface .activity-tag {
+    background: var(--stone-200);
+    border-radius: 12px;
+    color: var(--stone-700);
+    display: inline-block;
+    font-size: 0.688rem;
+    font-weight: 600;
+    padding: 0.25rem 0.625rem;
+}
+
+.gathering-public-surface .activity-tag i {
+    font-size: 0.625rem;
+}
+
+.gathering-public-surface .activity-icon-compact {
+    color: var(--medieval-gold);
+    flex-shrink: 0;
+    font-size: 1.5rem;
+}
+
+.gathering-public-surface .location-display {
+    align-items: center;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgb(0 0 0 / 5%);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
+    padding: var(--space-lg);
+}
+
+.gathering-public-surface .location-icon {
+    align-items: center;
+    background: linear-gradient(135deg, var(--medieval-crimson) 0%, var(--medieval-crimson-dark) 100%);
+    border-radius: 50%;
+    color: var(--medieval-gold);
+    display: flex;
+    font-size: 1.75rem;
+    height: 60px;
+    justify-content: center;
+    width: 60px;
+}
+
+.gathering-public-surface .location-address {
+    color: var(--stone-700);
+    font-size: 1rem;
+    line-height: 1.8;
+    margin: 0;
+    text-align: center;
+}
+
+.gathering-public-surface .location-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+    justify-content: center;
+    margin-bottom: var(--space-lg);
+}
+
+.gathering-public-surface .map-container {
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgb(0 0 0 / 10%);
+    overflow: hidden;
+}
+
+.gathering-public-surface .btn-medieval {
+    align-items: center;
+    border: 2px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    font-size: 0.875rem;
+    font-weight: 700;
+    gap: var(--space-sm);
+    letter-spacing: 0.025em;
+    padding: var(--space-sm) var(--space-lg);
+    text-decoration: none;
+    text-transform: uppercase;
+    transition: all 0.2s;
+}
+
+.gathering-public-surface .btn-medieval-primary {
+    background: linear-gradient(135deg, var(--medieval-crimson) 0%, var(--medieval-crimson-dark) 100%);
+    border-color: var(--medieval-gold);
+    color: #fff;
+}
+
+.gathering-public-surface .btn-medieval-primary:hover,
+.gathering-public-surface .btn-medieval-primary:focus-visible {
+    background: linear-gradient(135deg, var(--medieval-crimson-dark) 0%, var(--medieval-crimson) 100%);
+    box-shadow: 0 4px 8px rgb(0 0 0 / 20%);
+    transform: translateY(-2px);
+}
+
+.gathering-public-surface .btn-medieval-secondary {
+    background: var(--stone-200);
+    border-color: var(--stone-400);
+    color: var(--stone-800);
+}
+
+.gathering-public-surface .btn-medieval-secondary:hover,
+.gathering-public-surface .btn-medieval-secondary:focus-visible {
+    background: var(--stone-300);
+}
+
+.gathering-public-surface .btn-medieval-outline {
+    background: transparent;
+    border-color: rgb(255 255 255 / 50%);
+    color: var(--stone-50);
+}
+
+.gathering-public-surface .btn-medieval-outline:hover,
+.gathering-public-surface .btn-medieval-outline:focus-visible {
+    background: rgb(255 255 255 / 10%);
+    border-color: #fff;
+}
+
+.gathering-public-surface .btn-medieval-cta {
+    background: linear-gradient(135deg, var(--medieval-gold) 0%, var(--medieval-gold-dark) 100%);
+    border-color: #fff;
+    color: var(--medieval-ink);
+    font-size: 1rem;
+    padding: var(--space-md) var(--space-xl);
+}
+
+.gathering-public-surface .btn-medieval-cta:hover,
+.gathering-public-surface .btn-medieval-cta:focus-visible {
+    background: linear-gradient(135deg, var(--medieval-gold-dark) 0%, var(--medieval-gold) 100%);
+    box-shadow: 0 6px 12px rgb(0 0 0 / 30%);
+    transform: translateY(-2px);
+}
+
+.gathering-public-surface .dropdown-menu-medieval {
+    background: var(--stone-50);
+    border: 2px solid var(--stone-300);
+    border-radius: 6px;
+    padding: 0.5rem 0;
+}
+
+.gathering-public-surface .dropdown-menu-medieval .dropdown-item {
+    color: var(--stone-800);
+    padding: 0.5rem 1rem;
+}
+
+.gathering-public-surface .dropdown-menu-medieval .dropdown-item:hover,
+.gathering-public-surface .dropdown-menu-medieval .dropdown-item:focus-visible {
+    background: var(--stone-200);
+    color: var(--medieval-crimson);
+}
+
+.gathering-public-surface .cta-medieval {
+    background: linear-gradient(135deg, var(--medieval-crimson) 0%, var(--medieval-royal) 100%);
+    border: 3px solid var(--medieval-gold);
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgb(0 0 0 / 20%);
+    color: var(--stone-50);
+    padding: var(--space-2xl) var(--space-lg);
+    position: relative;
+    text-align: center;
+}
+
+.gathering-public-surface .cta-ornament-bottom,
+.gathering-public-surface .cta-ornament-top {
+    color: var(--medieval-gold);
+    font-size: 1.25rem;
+    letter-spacing: 0.5rem;
+    opacity: 0.6;
+}
+
+.gathering-public-surface .cta-ornament-top {
+    margin-bottom: var(--space-md);
+}
+
+.gathering-public-surface .cta-ornament-bottom {
+    margin-top: var(--space-md);
+}
+
+.gathering-public-surface .cta-medieval h2 {
+    font-family: var(--font-serif);
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-weight: 700;
+    margin-bottom: var(--space-md);
+}
+
+.gathering-public-surface .cta-medieval p {
+    font-size: 1rem;
+    margin-bottom: var(--space-lg);
+    opacity: 0.95;
+}
+
+.gathering-public-surface .cta-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+    justify-content: center;
+}
+
+.gathering-public-footer {
+    background: var(--stone-900);
+    color: var(--stone-400);
+    margin-top: var(--space-2xl);
+    padding: var(--space-2xl) var(--space-lg);
+    text-align: center;
+}
+
+.gathering-public-footer .container {
+    margin: 0 auto;
+    max-width: 1100px;
+}
+
+.gathering-public-footer p {
+    margin: 0;
+}
+
+.gathering-public-footer .gathering-public-footer-meta {
+    font-size: 0.75rem;
+    margin-top: var(--space-md);
+    opacity: 0.7;
+}
+
+@keyframes gathering-public-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.gathering-public-surface .fade-in {
+    animation: gathering-public-fade-in 0.5s ease-out;
+}
+
+.gathering-public-mobile-back-bar {
+    align-items: center;
+    background: linear-gradient(135deg, var(--medieval-crimson) 0%, var(--medieval-crimson-dark) 100%);
+    box-shadow: 0 2px 8px rgb(0 0 0 / 20%);
+    display: flex;
+    left: 0;
+    padding: 12px 16px;
+    position: fixed;
+    right: 0;
+    top: 0;
+    z-index: 1000;
+}
+
+.gathering-public-mobile-back-link {
+    align-items: center;
+    color: #fff;
+    display: flex;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.gathering-public-mobile-back-link:hover,
+.gathering-public-mobile-back-link:focus-visible {
+    color: #fff;
+    text-decoration: underline;
+}
+
+.gathering-public-mobile-back-icon {
+    font-size: 1.25rem;
+}
+
+.gathering-public-mobile-back-spacer {
+    height: 52px;
+}
+
+@media (max-width: 768px) {
+    .gathering-public-surface .hero-banner {
+        padding: var(--space-xl) var(--space-md);
+    }
+
+    .gathering-public-surface .hero-banner-ornament {
+        font-size: 1.5rem;
+    }
+
+    .gathering-public-surface .event-quick-meta,
+    .gathering-public-surface .cta-buttons,
+    .gathering-public-surface .location-actions {
+        flex-direction: column;
+    }
+
+    .gathering-public-surface .event-quick-meta {
+        gap: var(--space-sm);
+    }
+
+    .gathering-public-surface .info-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .gathering-public-surface .schedule-event-item {
+        flex-direction: column;
+    }
+
+    .gathering-public-surface .schedule-time-badge {
+        width: 100%;
+    }
+
+    .gathering-public-surface .btn-medieval {
+        justify-content: center;
+        width: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .gathering-public-surface .fade-in {
+        animation: none;
+    }
+
+    .gathering-public-surface .btn-medieval,
+    .gathering-public-surface .info-card-medieval {
+        transition: none;
+    }
+
+    .gathering-public-surface .btn-medieval-cta:hover,
+    .gathering-public-surface .btn-medieval-cta:focus-visible,
+    .gathering-public-surface .btn-medieval-outline:hover,
+    .gathering-public-surface .btn-medieval-outline:focus-visible,
+    .gathering-public-surface .btn-medieval-primary:hover,
+    .gathering-public-surface .btn-medieval-primary:focus-visible,
+    .gathering-public-surface .info-card-medieval:hover {
+        transform: none;
+    }
+}

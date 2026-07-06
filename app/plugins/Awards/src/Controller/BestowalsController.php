@@ -153,7 +153,7 @@ class BestowalsController extends AppController
 
         $systemViews = BestowalsGridColumns::getSystemViews(['context' => 'gatheringBestowals']);
         $queryContext = $this->resolveDataverseGridQueryContext([
-            'gridKey' => 'Awards.Bestowals.gathering.' . $gatheringId,
+            'gridKey' => 'Awards.Bestowals.gathering',
             'gridColumnsClass' => BestowalsGridColumns::class,
             'systemViews' => $systemViews,
             'defaultSystemView' => 'sys-bestowals-gathering',
@@ -2120,7 +2120,7 @@ class BestowalsController extends AppController
             if ($syncContext['contextKey'] === 'gathering') {
                 $systemViews = BestowalsGridColumns::getSystemViews(['context' => 'gatheringBestowals']);
                 $queryContext = $this->resolveDataverseGridQueryContext([
-                    'gridKey' => 'Awards.Bestowals.gathering.' . $syncContext['gatheringId'],
+                    'gridKey' => 'Awards.Bestowals.gathering',
                     'gridColumnsClass' => BestowalsGridColumns::class,
                     'systemViews' => $systemViews,
                     'defaultSystemView' => 'sys-bestowals-gathering',

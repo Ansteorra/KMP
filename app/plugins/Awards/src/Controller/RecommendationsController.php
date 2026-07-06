@@ -715,7 +715,7 @@ class RecommendationsController extends AppController
         // Build via service
         $systemViews = RecommendationsGridColumns::getSystemViews(['context' => 'memberSubmitted']);
         $queryContext = $this->resolveDataverseGridQueryContext([
-            'gridKey' => 'Awards.Recommendations.memberSubmitted.' . $memberId,
+            'gridKey' => 'Awards.Recommendations.memberSubmitted',
             'gridColumnsClass' => RecommendationsGridColumns::class,
             'systemViews' => $systemViews,
             'defaultSystemView' => 'sys-recs-submitted-by',
@@ -812,7 +812,7 @@ class RecommendationsController extends AppController
         // Build via service
         $systemViews = RecommendationsGridColumns::getSystemViews(['context' => 'recsForMember']);
         $queryContext = $this->resolveDataverseGridQueryContext([
-            'gridKey' => 'Awards.Recommendations.forMember.' . $memberId,
+            'gridKey' => 'Awards.Recommendations.forMember',
             'gridColumnsClass' => RecommendationsGridColumns::class,
             'systemViews' => $systemViews,
             'defaultSystemView' => 'sys-recs-for-member',

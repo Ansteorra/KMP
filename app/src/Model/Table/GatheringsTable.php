@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -70,6 +71,11 @@ class GatheringsTable extends Table
             'className' => 'Members',
             'foreignKey' => 'created_by',
             'joinType' => 'INNER',
+        ]);
+        $this->belongsTo('PublishedByMember', [
+            'className' => 'Members',
+            'foreignKey' => 'published_by',
+            'joinType' => 'LEFT',
         ]);
 
         // Many-to-many relationship with GatheringActivities through join table

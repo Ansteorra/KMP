@@ -170,7 +170,7 @@ class AwardsController extends AppController
             });
 
         $result = $this->processDataverseGrid([
-            'gridKey' => 'Awards.Awards.activity.' . $activityId,
+            'gridKey' => 'Awards.Awards.activity',
             'gridColumnsClass' => AwardsGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'Awards',
@@ -466,9 +466,9 @@ class AwardsController extends AppController
         $this->Authorization->skipAuthorization();
         $currentAwardId = $this->request->getQuery('current_award_id');
         $awards = $this->Awards->find('selectable', [
-                'domain_id' => $domainId,
-                'current_award_id' => $currentAwardId,
-            ])
+            'domain_id' => $domainId,
+            'current_award_id' => $currentAwardId,
+        ])
             ->contain([
                 'Domains' => function ($q) {
                     return $q->select(['id', 'name']);

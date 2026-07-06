@@ -32,7 +32,7 @@ $frameId = 'gathering-bestowals-grid-' . $gatheringId;
 
 <?php if (!$isEmpty): ?>
     <?= $this->element('dv_grid', [
-        'gridKey' => 'Awards.Bestowals.gathering.' . $gatheringId,
+        'gridKey' => 'Awards.Bestowals.gathering',
         'frameId' => $frameId,
         'dataUrl' => $this->Url->build([
             'plugin' => 'Awards',

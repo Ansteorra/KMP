@@ -601,7 +601,7 @@ class GatheringAttendancesController extends AppController
         ): ?array {
             $systemViews = GatheringAttendancesGridColumns::getSystemViews([]);
             $result = $this->processDataverseGrid([
-                'gridKey' => "Members.gatherings.{$memberId}",
+                'gridKey' => "Members.gatherings",
                 'gridColumnsClass' => GatheringAttendancesGridColumns::class,
                 'baseQuery' => $this->GatheringAttendances->find()
                     ->where([

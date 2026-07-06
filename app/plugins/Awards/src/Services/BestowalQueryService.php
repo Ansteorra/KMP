@@ -80,7 +80,7 @@ class BestowalQueryService
         $systemViews = BestowalsGridColumns::getSystemViews(['context' => 'gatheringBestowals']);
 
         $gridOptions = [
-            'gridKey' => 'Awards.Bestowals.gathering.' . $gatheringId,
+            'gridKey' => 'Awards.Bestowals.gathering',
             'gridColumnsClass' => BestowalsGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'Bestowals',

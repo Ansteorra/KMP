@@ -15,7 +15,7 @@ $frameId = 'recs-for-member-grid-' . $id;
 
 <?php if (!$isEmpty): ?>
     <?= $this->element('dv_grid', [
-        'gridKey' => 'Awards.Recommendations.forMember.' . $id,
+        'gridKey' => 'Awards.Recommendations.forMember',
         'frameId' => $frameId,
         'dataUrl' => $this->Url->build([
             'plugin' => 'Awards',

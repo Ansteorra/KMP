@@ -54,6 +54,8 @@ export default defineConfig({
                 waivers: resolve(__dirname, 'plugins/Waivers/assets/css/waivers.css'),
                 'waiver-upload': resolve(__dirname, 'plugins/Waivers/assets/css/waiver-upload.css'),
                 'workflow-designer': resolve(__dirname, 'assets/css/workflow-designer.css'),
+                error: resolve(__dirname, 'assets/css/error.css'),
+                'gatherings_public': resolve(__dirname, 'assets/css/gatherings_public.css'),
                 drawflow: resolve(__dirname, 'node_modules/drawflow/dist/drawflow.min.css'),
             },
             output: {

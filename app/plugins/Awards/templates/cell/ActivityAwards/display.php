@@ -26,7 +26,7 @@ $gridFrameId = 'activity-awards-grid-' . $gatheringActivity->id;
         </div>
 
         <?= $this->element('dv_grid', [
-            'gridKey' => 'Awards.Awards.activity.' . $gatheringActivity->id,
+            'gridKey' => 'Awards.Awards.activity',
             'frameId' => $gridFrameId,
             'dataUrl' => $this->Url->build([
                 'plugin' => 'Awards',

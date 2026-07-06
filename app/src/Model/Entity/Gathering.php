@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -71,6 +72,9 @@ class Gathering extends BaseEntity
         'gathering_scheduled_activities' => false,
         'gathering_staff' => false,
         'gathering_waivers' => false,
+        'published' => false,
+        'published_by' => false,
+        'published_on' => false,
     ];
 
     /**

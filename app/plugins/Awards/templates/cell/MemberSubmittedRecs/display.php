@@ -23,7 +23,7 @@ $frameId = 'member-submitted-recs-grid-' . $id;
 
 <?php if (!$isEmpty): ?>
     <?= $this->element('dv_grid', [
-        'gridKey' => 'Awards.Recommendations.memberSubmitted.' . $id,
+        'gridKey' => 'Awards.Recommendations.memberSubmitted',
         'frameId' => $frameId,
         'dataUrl' => $this->Url->build([
             'plugin' => 'Awards',

@@ -150,7 +150,7 @@ $this->KMP->endBlock() ?>
 <div class="related tab-pane fade m-3" id="nav-roles" role="tabpanel" aria-labelledby="nav-roles-tab"
     data-detail-tabs-target="tabContent" data-tab-order="10" style="order: 10;">
     <?= $this->element('dv_grid', [
-        'gridKey' => "Members.roles.{$member->id}",
+        'gridKey' => "Members.roles",
         'frameId' => "member-roles-grid-{$member->id}",
         'dataUrl' => $this->Url->build(['action' => 'rolesGridData', $member->id]),
     ]) ?>
@@ -166,7 +166,7 @@ $this->KMP->endBlock() ?>
     </div>
     <?php endif; ?>
     <?= $this->element('dv_grid', [
-        'gridKey' => "Members.gatherings.{$member->id}",
+        'gridKey' => "Members.gatherings",
         'frameId' => "member-gatherings-grid-{$member->id}",
         'dataUrl' => $this->Url->build(['action' => 'gatheringsGridData', $member->id]),
     ]) ?>
@@ -183,8 +183,8 @@ $this->KMP->endBlock() ?>
 <div class="related tab-pane fade m-3" id="nav-children" role="tabpanel" aria-labelledby="nav-children-tab"
     data-detail-tabs-target="tabContent" data-tab-order="25" style="order: 25;">
     <?= $this->element('members/children', [
-        'children' => $children,
-    ]) ?>
+            'children' => $children,
+        ]) ?>
 </div>
 <?php endif; ?>
 <?php if (!empty($aiForm) && $canViewAdditionalInformation) : ?>
@@ -379,7 +379,7 @@ $this->KMP->endBlock() ?>
                         if ($lastUsedNetwork === '') {
                             $lastUsedNetwork = trim((string)($quickLoginDevice->last_used_ip_address ?? ''));
                         }
-                    ?>
+                        ?>
                 <tr>
                     <td>
                         <div class="fw-semibold">
@@ -404,13 +404,13 @@ $this->KMP->endBlock() ?>
                     <td class="text-end">
                         <?php if ($canManageQuickLoginDevices) : ?>
                         <?= $this->Form->postLink(
-                                __('Disable'),
-                                ['action' => 'removeQuickLoginDevice', $quickLoginDevice->id],
-                                [
-                                    'class' => 'btn btn-sm btn-outline-danger',
-                                    'confirm' => __('Disable quick login on this device?'),
-                                ],
-                            ) ?>
+                                        __('Disable'),
+                                        ['action' => 'removeQuickLoginDevice', $quickLoginDevice->id],
+                                        [
+                                            'class' => 'btn btn-sm btn-outline-danger',
+                                            'confirm' => __('Disable quick login on this device?'),
+                                        ],
+                                    ) ?>
                         <?php endif; ?>
                     </td>
                 </tr>

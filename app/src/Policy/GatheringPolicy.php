@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Policy;
@@ -237,5 +238,25 @@ class GatheringPolicy extends BasePolicy
             ->first();
 
         return $stewardRecord !== null;
+    }
+
+    /**
+     * Check if user can publish the gathering
+     *
+     * Users can publish the gathering if they have the standard publish permission
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user
+     * @param \App\Model\Entity\BaseEntity $entity The gathering entity
+     * @param mixed ...$optionalArgs Optional arguments
+     * @return bool
+     */
+    public function canPublish(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    {
+        // Check standard permission first
+        if ($this->_hasPolicy($user, __FUNCTION__, $entity)) {
+            return true;
+        }
+
+        return false;
     }
 }

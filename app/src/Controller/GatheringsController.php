@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Controller;
@@ -1203,6 +1204,49 @@ class GatheringsController extends AppController
         );
 
         $this->set(compact('gathering', 'branches', 'gatheringTypes', 'lockBranch', 'branchCount'));
+    }
+
+    /**
+     * Publish method
+     *
+     * Publish or unpublish an existing gathering.
+     *
+     * @param string|null $id Gathering id.
+     * @param bool $publish Whether to publish (true) or unpublish (false) the gathering.
+     * @return \Cake\Http\Response|null|void Redirects on successful edit, renders view otherwise.
+     * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
+     */
+    public function publish($id = null)
+    {
+        $publish = $this->request->getQuery('publish');
+        $publish = filter_var($publish, FILTER_VALIDATE_BOOLEAN);
+        $gathering = $this->Gatherings->get($id, contain: ['Branches']);
+        if (!$gathering) {
+            throw new NotFoundException(__('Gathering not found'));
+        }
+        $this->Authorization->authorize($gathering);
+
+        if ($this->request->is(['post'])) {
+            $gathering->published = $publish;
+            if (!$gathering->published) {
+                $gathering->published_by = null;
+                $gathering->published_on = null;
+            } else {
+                $gathering->published_by = $this->Authentication->getIdentity()->id;
+                $gathering->published_on = CakeDateTime::now();
+            }
+
+            if ($this->Gatherings->save($gathering)) {
+                $this->Flash->success(__(
+                    'The gathering "{0}" has been updated successfully.',
+                    $gathering->name,
+                ));
+            } else {
+                $this->Flash->error(__('The gathering could not be saved. Please, try again.'));
+            }
+        }
+
+        return $this->redirect(['action' => 'view', $gathering->public_id]);
     }
 
     /**
