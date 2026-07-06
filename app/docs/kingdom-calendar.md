@@ -133,3 +133,10 @@ is the only write path.
 The public calendar is self-contained (no app chrome, no authentication) and
 can be linked or iframed from a kingdom WordPress site. Per-tenant theming is
 tracked separately in issue #65.
+
+Because `/events` is meant to be embedded, `GatheringsController::publicCalendar`
+is excluded from the back-navigation stack (`$isNoStack` in
+`AppController::beforeFilter`, alongside `NavBar` and `AppSettings::asset`). An
+authenticated user viewing a page that iframes `/events` shares their session
+with the iframe request, so without this exclusion the calendar would push
+itself onto their back-button history.

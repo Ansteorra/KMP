@@ -943,6 +943,31 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
     }
 
     /**
+     * The public calendar is meant to be iframed, so it must not record
+     * itself in the back-navigation stack.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::publicCalendar()
+     */
+    public function testPublicCalendarDoesNotUpdatePageStack(): void
+    {
+        // An authenticated KMP user may load a page that iframes /events; the
+        // iframe request shares their session, so the calendar must not push
+        // itself onto their back-navigation stack. setUp() authenticates.
+        $this->get('/events');
+
+        $this->assertResponseOk();
+        // The pageStack view variable reflects the in-request navigation-history
+        // computation. The public calendar is excluded, so it must never appear.
+        $pageStack = (array)$this->viewVariable('pageStack');
+        $this->assertNotContains(
+            '/events',
+            $pageStack,
+            'The public calendar must not be recorded in navigation history.',
+        );
+    }
+
+    /**
      * The public iCal feed only includes published events.
      *
      * @return void

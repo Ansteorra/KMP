@@ -190,6 +190,11 @@ class AppController extends Controller
         if ($params['controller'] == 'AppSettings' && $params['action'] == 'asset') {
             $isNoStack = true;
         }
+        // The public kingdom calendar is meant to be embedded (iframed) into
+        // external pages, so it must not pollute the back-navigation stack.
+        if ($params['controller'] == 'Gatherings' && $params['action'] == 'publicCalendar') {
+            $isNoStack = true;
+        }
 
         $pageStack = $session->read('pageStack', []);
         if ($params['action'] == 'index') {
