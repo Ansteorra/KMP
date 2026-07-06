@@ -82,6 +82,7 @@ echo $this->Modal->create('Add App Setting', [
                     'string' => 'String',
                     'json' => 'JSON',
                     'yaml' => 'YAML',
+                    'css' => 'CSS',
                     'password' => 'Password',
                     'image' => 'Image',
                     'file' => 'File',

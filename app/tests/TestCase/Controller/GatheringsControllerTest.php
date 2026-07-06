@@ -1056,6 +1056,52 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
     }
 
     /**
+     * The admin "Public calendar CSS" app setting is injected into /events so
+     * kingdoms can restyle the page.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::publicCalendar()
+     */
+    public function testPublicCalendarInjectsCustomCss(): void
+    {
+        $this->getTableLocator()->get('AppSettings')->setAppSetting(
+            'Plugin.PublicGatherings.CustomCSS',
+            '.kingdom-calendar-page { --kc-accent: #abcdef; }',
+            'css',
+        );
+
+        $this->session(['Auth' => null]);
+        $this->get('/events');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('<style>');
+        $this->assertResponseContains('--kc-accent: #abcdef;');
+    }
+
+    /**
+     * Custom CSS cannot break out of the injected <style> element.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::publicCalendar()
+     */
+    public function testPublicCalendarCustomCssCannotBreakOutOfStyleTag(): void
+    {
+        $this->getTableLocator()->get('AppSettings')->setAppSetting(
+            'Plugin.PublicGatherings.CustomCSS',
+            'body{}</style><script>alert(1)</script>',
+            'css',
+        );
+
+        $this->session(['Auth' => null]);
+        $this->get('/events');
+
+        $this->assertResponseOk();
+        // The closing tag is neutralized, so no live script is injected
+        $this->assertResponseNotContains('</style><script>alert(1)');
+        $this->assertResponseContains('<\/style>');
+    }
+
+    /**
      * The public calendar is meant to be iframed, so it must not record
      * itself in the back-navigation stack.
      *

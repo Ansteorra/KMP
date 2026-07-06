@@ -146,11 +146,30 @@ is the only write path.
 - Public landing page hero — "Royal Progress" banner
 - Both use the snapshot fields, never live officer data.
 
+## Theming the public calendar (issue #65)
+
+The `/events` page is built entirely from a set of CSS custom properties
+(`--kc-*`) scoped to `.kingdom-calendar-page` in `assets/css/gatherings_public.css`
+(the heraldic default: parchment, a gules accent, regalia gold, and a
+Marcellus/Spectral type pairing, with each event's date on a shield-shaped
+escutcheon). Reskinning a kingdom is mostly a matter of overriding a handful of
+those variables; power users can target the `.kc-*` classes directly.
+
+The override surface is the **`Plugin.PublicGatherings.CustomCSS`** app setting
+(type `css`, edited in the app-settings code editor). `publicCalendar` injects
+its value into a `<style>` block *after* the base stylesheet, so admin CSS wins.
+The value is guarded against `</style>` breakout. The setting is seeded (by
+migration `AddPublicGatheringsCssAppSetting`) with a fully-commented default that
+documents every theme variable and the key classes — inert until an admin
+uncomments/edits it, so the stock look ships unchanged.
+
+`css` is a first-class app-setting type: it appears in the "Add setting" type
+dropdown and renders in the code editor (no JSON/YAML validation).
+
 ## Embedding
 
 The public calendar is self-contained (no app chrome, no authentication) and
-can be linked or iframed from a kingdom WordPress site. Per-tenant theming is
-tracked separately in issue #65.
+can be linked or iframed from a kingdom WordPress site.
 
 Because `/events` is meant to be embedded, `GatheringsController::publicCalendar`
 is excluded from the back-navigation stack (`$isNoStack` in

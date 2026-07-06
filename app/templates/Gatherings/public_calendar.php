@@ -24,7 +24,22 @@ $hasCircle = fn($gathering) => (bool)array_filter(
 
 $siteTitle = $this->KMP->getAppSetting('KMP.ShortSiteTitle');
 $this->assign('title', $siteTitle . ': ' . __('Kingdom Calendar'));
+
+// Base stylesheet + the manuscript type pairing this design is built on.
+$this->append('css', implode('', [
+    '<link rel="preconnect" href="https://fonts.googleapis.com">',
+    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>',
+    '<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Spectral:wght@400;500;600;700&display=swap" rel="stylesheet">',
+]));
 $this->append('css', $this->Vite->css('gatherings_public'));
+
+// Admin-authored theme overrides (App Setting), injected AFTER the base
+// stylesheet so a kingdom's custom CSS wins. Guard against tag breakout since
+// this is raw CSS placed inside <style>.
+$customCalendarCss = (string)$this->KMP->getAppSetting('Plugin.PublicGatherings.CustomCSS', '');
+if (trim($customCalendarCss) !== '') {
+    $this->append('css', '<style>' . str_ireplace('</style', '<\/style', $customCalendarCss) . '</style>');
+}
 
 $feedUrl = $this->Url->build(
     ['controller' => 'Gatherings', 'action' => 'feed'],
@@ -34,9 +49,10 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
 ?>
 <div class="kingdom-calendar-page">
     <header class="kc-header">
-        <div class="kc-header-ornament" aria-hidden="true">&#x2694;</div>
-        <h1 class="kc-title"><?= __('Kingdom Calendar') ?></h1>
-        <p class="kc-subtitle"><?= h($siteTitle) ?> &mdash; <?= __('Upcoming Events') ?></p>
+        <div class="kc-header-ornament" aria-hidden="true">&#x2766;</div>
+        <span class="kc-eyebrow"><?= __('The Kingdom Calendar of') ?> <?= h($siteTitle) ?></span>
+        <h1 class="kc-title"><?= __('Upcoming Events') ?></h1>
+        <p class="kc-subtitle"><?= __('Tourneys, courts, feasts, and gatherings across the realm') ?></p>
         <div class="kc-actions">
             <a href="<?= h($webcalUrl) ?>" class="kc-subscribe-link">
                 <i class="bi bi-calendar-plus"></i> <?= __('Subscribe to Calendar') ?>
@@ -116,6 +132,9 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                     ?>
                     <article class="kc-event<?= $isCancelled ? ' kc-event-cancelled' : '' ?>">
                         <div class="kc-event-date" aria-hidden="true">
+                            <span class="kc-event-month">
+                                <?= $this->Timezone->format($gathering->start_date, 'M', false, null, $gathering) ?>
+                            </span>
                             <span class="kc-event-day">
                                 <?= $this->Timezone->format($gathering->start_date, 'j', false, null, $gathering) ?>
                             </span>

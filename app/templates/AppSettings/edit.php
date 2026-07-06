@@ -48,7 +48,7 @@
                 </div>
                 <div class="col-12 col-lg-6">
                     <label class="form-label d-block"><?= __('Type') ?></label>
-                    <span class="badge bg-<?= $displayType === 'yaml' ? 'warning' : ($displayType === 'json' ? 'info' : ($displayType === 'password' ? 'dark' : (in_array($displayType, ['file', 'image'], true) ? 'success' : 'secondary'))) ?>">
+                    <span class="badge bg-<?= $displayType === 'yaml' ? 'warning' : ($displayType === 'json' ? 'info' : ($displayType === 'css' ? 'primary' : ($displayType === 'password' ? 'dark' : (in_array($displayType, ['file', 'image'], true) ? 'success' : 'secondary')))) ?>">
                         <?= h(strtoupper($displayType)) ?>
                     </span>
                 </div>
@@ -107,16 +107,16 @@
                         <?php endif; ?>
                     </div>
                 <?php endif; ?>
-            <?php elseif ($displayType === 'yaml' || $displayType === 'json') : ?>
-                <!-- Complex type - use code editor with syntax validation -->
+            <?php elseif ($displayType === 'yaml' || $displayType === 'json' || $displayType === 'css') : ?>
+                <!-- Complex type - use code editor (syntax validation for yaml/json) -->
                 <div class="mb-3"
                     data-controller="code-editor"
                     data-code-editor-language-value="<?= h($displayType) ?>"
-                    data-code-editor-validate-on-change-value="true"
+                    data-code-editor-validate-on-change-value="<?= $displayType === 'css' ? 'false' : 'true' ?>"
                     data-code-editor-min-height-value="300px">
                     <label for="raw_value" class="form-label">
                         <?= __('Value') ?>
-                        <span class="badge bg-<?= $displayType === 'yaml' ? 'warning text-dark' : 'info' ?>">
+                        <span class="badge bg-<?= $displayType === 'yaml' ? 'warning text-dark' : ($displayType === 'css' ? 'primary' : 'info') ?>">
                             <?= h(strtoupper($displayType)) ?>
                         </span>
                     </label>
@@ -131,6 +131,8 @@
                     <div class="form-text">
                         <?php if ($displayType === 'yaml') : ?>
                             <i class="bi bi-info-circle me-1"></i><?= __('Enter valid YAML. Use 2-space indentation. Press Tab to indent.') ?>
+                        <?php elseif ($displayType === 'css') : ?>
+                            <i class="bi bi-info-circle me-1"></i><?= __('Custom CSS for the public page. The default value documents the theme variables and classes you can override.') ?>
                         <?php else : ?>
                             <i class="bi bi-info-circle me-1"></i><?= __('Enter valid JSON. Press Tab to indent.') ?>
                         <?php endif; ?>
