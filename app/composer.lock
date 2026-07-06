@@ -75,12 +75,12 @@
             "version": "1.5.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/Azure-OSS/azure-storage-php.git",
+                "url": "https://github.com/php-oss-for-azure/azure-storage-php.git",
                 "reference": "c065ad267ca54a2dca7ffcb22915a4f7ab10bbea"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Azure-OSS/azure-storage-php/zipball/c065ad267ca54a2dca7ffcb22915a4f7ab10bbea",
+                "url": "https://api.github.com/repos/php-oss-for-azure/azure-storage-php/zipball/c065ad267ca54a2dca7ffcb22915a4f7ab10bbea",
                 "reference": "c065ad267ca54a2dca7ffcb22915a4f7ab10bbea",
                 "shasum": ""
             },
@@ -140,12 +140,12 @@
             "version": "1.2.1",
             "source": {
                 "type": "git",
-                "url": "https://github.com/Azure-OSS/azure-storage-php-adapter-flysystem.git",
+                "url": "https://github.com/php-oss-for-azure/azure-storage-blob-flysystem-php.git",
                 "reference": "faec5c735dd91517e36c0f585d4097dadfa33398"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Azure-OSS/azure-storage-php-adapter-flysystem/zipball/faec5c735dd91517e36c0f585d4097dadfa33398",
+                "url": "https://api.github.com/repos/php-oss-for-azure/azure-storage-blob-flysystem-php/zipball/faec5c735dd91517e36c0f585d4097dadfa33398",
                 "reference": "faec5c735dd91517e36c0f585d4097dadfa33398",
                 "shasum": ""
             },

@@ -30,7 +30,7 @@
         "validate:workflows": "node scripts/validate-workflow-definitions.mjs"
     },
     "devDependencies": {
-        "@babel/core": "^7.29.0",
+        "@babel/core": "^7.29.6",
         "@babel/plugin-transform-runtime": "^7.29.0",
         "@babel/preset-env": "^7.29.0",
         "@babel/runtime": "^7.29.2",
@@ -66,7 +66,7 @@
         "popper.js": "^1.16.1",
         "qrcode": "^1.5.4",
         "smol-toml": "^1.6.1",
-        "undici": "^7.24.6"
+        "undici": "^7.28.0"
     },
     "browserslist": [
         "defaults"
