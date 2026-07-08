@@ -1198,6 +1198,20 @@ a.kc-event-name:focus-visible {
     background-size: 100% 1.5px;
 }
 
+/* Persistent cue that the title opens the event's page (no hover on mobile).
+   A non-breaking space in the markup keeps this glued to the last word. */
+.kc-event-name-icon {
+    font-size: 0.58em;
+    color: var(--kc-accent);
+    opacity: 0.7;
+    vertical-align: 0.12em;
+}
+
+a.kc-event-name:hover .kc-event-name-icon,
+a.kc-event-name:focus-visible .kc-event-name-icon {
+    opacity: 1;
+}
+
 .kc-progress-icon {
     font-size: 1.05rem;
     line-height: 1;

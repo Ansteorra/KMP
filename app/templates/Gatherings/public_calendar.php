@@ -167,10 +167,12 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                         <div class="kc-event-body">
                             <div class="kc-event-title-row">
                                 <?php if ($eventUrl !== null): ?>
-                                    <a class="kc-event-name" href="<?= h($eventUrl) ?>"
-                                        <?= $eventUrlIsExternal ? 'target="_blank" rel="noopener"' : '' ?>>
-                                        <?= h($gathering->name) ?>
-                                    </a>
+                                    <a class="kc-event-name kc-event-name-link" href="<?= h($eventUrl) ?>"
+                                        <?= $eventUrlIsExternal ? 'target="_blank" rel="noopener"' : '' ?>
+                                        title="<?= h($eventUrlIsExternal ? __('Open the event website') : __('View the event page')) ?>"><?=
+                                        // A non-breaking space glues the link icon to the last word
+                                        // so it never orphans onto its own line when the title wraps.
+                                        h($gathering->name) ?>&#160;<i class="bi <?= $eventUrlIsExternal ? 'bi-box-arrow-up-right' : 'bi-chevron-right' ?> kc-event-name-icon" aria-hidden="true"></i></a>
                                 <?php else: ?>
                                     <span class="kc-event-name"><?= h($gathering->name) ?></span>
                                 <?php endif; ?>
@@ -227,26 +229,18 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                                 <?php endif; ?>
                             </div>
 
-                            <?php if ($eventUrl !== null || $gathering->is_preregistration_open): ?>
+                            <?php // The title is the event-page link; the only standalone
+                                  // action is Pre-Register (an external, time-sensitive CTA). ?>
+                            <?php if ($gathering->is_preregistration_open): ?>
                                 <div class="kc-event-actions">
-                                    <?php if ($eventUrl !== null): ?>
-                                        <a class="kc-action" href="<?= h($eventUrl) ?>"
-                                            <?= $eventUrlIsExternal ? 'target="_blank" rel="noopener"' : '' ?>>
-                                            <i class="bi bi-box-arrow-up-right"></i>
-                                            <?= $eventUrlIsExternal ? __('Event Website') : __('Event Page') ?>
-                                        </a>
-                                    <?php endif; ?>
-
-                                    <?php if ($gathering->is_preregistration_open): ?>
-                                        <a class="kc-action kc-action-prereg" href="<?= h($gathering->preregister_url) ?>"
-                                            target="_blank" rel="noopener"
-                                            title="<?= h(__('Pre-register and pay for this event (external site)')) ?>">
-                                            <i class="bi bi-ticket-perforated"></i> <?= __('Pre-Register') ?>
-                                            <?php if ($gathering->preregister_closes_on !== null): ?>
-                                                <small><?= __('until {0}', h($gathering->preregister_closes_on->format('M j'))) ?></small>
-                                            <?php endif; ?>
-                                        </a>
-                                    <?php endif; ?>
+                                    <a class="kc-action kc-action-prereg" href="<?= h($gathering->preregister_url) ?>"
+                                        target="_blank" rel="noopener"
+                                        title="<?= h(__('Pre-register and pay for this event (external site)')) ?>">
+                                        <i class="bi bi-ticket-perforated"></i> <?= __('Pre-Register') ?>
+                                        <?php if ($gathering->preregister_closes_on !== null): ?>
+                                            <small><?= __('until {0}', h($gathering->preregister_closes_on->format('M j'))) ?></small>
+                                        <?php endif; ?>
+                                    </a>
                                 </div>
                             <?php endif; ?>
 
