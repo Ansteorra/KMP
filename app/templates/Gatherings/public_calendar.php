@@ -227,76 +227,83 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                                 <?php endif; ?>
                             </div>
 
-                            <div class="kc-event-actions">
-                                <?php if ($eventUrl !== null): ?>
-                                    <a class="kc-action" href="<?= h($eventUrl) ?>"
-                                        <?= $eventUrlIsExternal ? 'target="_blank" rel="noopener"' : '' ?>>
-                                        <i class="bi bi-box-arrow-up-right"></i>
-                                        <?= $eventUrlIsExternal ? __('Event Website') : __('Event Page') ?>
-                                    </a>
-                                <?php endif; ?>
+                            <?php if ($eventUrl !== null || $gathering->is_preregistration_open): ?>
+                                <div class="kc-event-actions">
+                                    <?php if ($eventUrl !== null): ?>
+                                        <a class="kc-action" href="<?= h($eventUrl) ?>"
+                                            <?= $eventUrlIsExternal ? 'target="_blank" rel="noopener"' : '' ?>>
+                                            <i class="bi bi-box-arrow-up-right"></i>
+                                            <?= $eventUrlIsExternal ? __('Event Website') : __('Event Page') ?>
+                                        </a>
+                                    <?php endif; ?>
 
-                                <a class="kc-action" href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'downloadCalendar', $gathering->public_id]) ?>"
-                                    title="<?= h(__('Download calendar file (.ics)')) ?>">
-                                    <i class="bi bi-download"></i> <?= __('iCal') ?>
-                                </a>
-
-                                <?php if ($gathering->is_preregistration_open): ?>
-                                    <a class="kc-action kc-action-prereg" href="<?= h($gathering->preregister_url) ?>"
-                                        target="_blank" rel="noopener"
-                                        title="<?= h(__('Pre-register and pay for this event (external site)')) ?>">
-                                        <i class="bi bi-ticket-perforated"></i> <?= __('Pre-Register') ?>
-                                        <?php if ($gathering->preregister_closes_on !== null): ?>
-                                            <small><?= __('until {0}', h($gathering->preregister_closes_on->format('M j'))) ?></small>
-                                        <?php endif; ?>
-                                    </a>
-                                <?php endif; ?>
-                            </div>
+                                    <?php if ($gathering->is_preregistration_open): ?>
+                                        <a class="kc-action kc-action-prereg" href="<?= h($gathering->preregister_url) ?>"
+                                            target="_blank" rel="noopener"
+                                            title="<?= h(__('Pre-register and pay for this event (external site)')) ?>">
+                                            <i class="bi bi-ticket-perforated"></i> <?= __('Pre-Register') ?>
+                                            <?php if ($gathering->preregister_closes_on !== null): ?>
+                                                <small><?= __('until {0}', h($gathering->preregister_closes_on->format('M j'))) ?></small>
+                                            <?php endif; ?>
+                                        </a>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endif; ?>
 
                             <?php
+                            // Secondary detail folds behind a "Details" drawer so the mobile
+                            // list stays scannable. iCal lives here too (always present, so
+                            // the drawer renders on every event).
                             $hasActivities = !empty($gathering->gathering_activities);
                             $hasProgress = !empty($progressAttendances);
                             if ($hasActivities && $hasProgress) {
                                 $moreLabel = __('Activities & royal progress');
                             } elseif ($hasActivities) {
                                 $moreLabel = __n('{0} activity', '{0} activities', count($gathering->gathering_activities), count($gathering->gathering_activities));
-                            } else {
+                            } elseif ($hasProgress) {
                                 $moreLabel = __('Royal progress');
+                            } else {
+                                $moreLabel = __('Add to calendar');
                             }
                             ?>
-                            <?php if ($hasActivities || $hasProgress): ?>
-                                <details class="kc-more">
-                                    <summary class="kc-more-summary">
-                                        <span><?= h($moreLabel) ?></span>
-                                        <i class="bi bi-chevron-down kc-more-chevron" aria-hidden="true"></i>
-                                    </summary>
-                                    <div class="kc-more-body">
-                                        <?php if ($hasActivities): ?>
-                                            <div class="kc-event-activities">
-                                                <?php foreach ($gathering->gathering_activities as $activity): ?>
-                                                    <span class="kc-activity-chip<?= $isCircleActivity($activity) ? ' kc-activity-chip-circle' : '' ?>">
-                                                        <?php if ($isCircleActivity($activity)): ?>
-                                                            <i class="bi bi-record-circle" aria-hidden="true"></i>
-                                                        <?php endif; ?>
-                                                        <?= h($activity->name) ?>
-                                                    </span>
-                                                <?php endforeach; ?>
-                                            </div>
-                                        <?php endif; ?>
+                            <details class="kc-more">
+                                <summary class="kc-more-summary">
+                                    <span><?= h($moreLabel) ?></span>
+                                    <i class="bi bi-chevron-down kc-more-chevron" aria-hidden="true"></i>
+                                </summary>
+                                <div class="kc-more-body">
+                                    <?php if ($hasActivities): ?>
+                                        <div class="kc-event-activities">
+                                            <?php foreach ($gathering->gathering_activities as $activity): ?>
+                                                <span class="kc-activity-chip<?= $isCircleActivity($activity) ? ' kc-activity-chip-circle' : '' ?>">
+                                                    <?php if ($isCircleActivity($activity)): ?>
+                                                        <i class="bi bi-record-circle" aria-hidden="true"></i>
+                                                    <?php endif; ?>
+                                                    <?= h($activity->name) ?>
+                                                </span>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
 
-                                        <?php if ($hasProgress): ?>
-                                            <div class="kc-event-progress">
-                                                <strong><?= __('Progress:') ?></strong>
-                                                <?= h(implode(', ', array_map(
-                                                    fn($attendance) => $attendance->progress_title
-                                                        . (!empty($attendance->member->sca_name) ? ' (' . $attendance->member->sca_name . ')' : ''),
-                                                    $progressAttendances,
-                                                ))) ?>
-                                            </div>
-                                        <?php endif; ?>
+                                    <?php if ($hasProgress): ?>
+                                        <div class="kc-event-progress">
+                                            <strong><?= __('Progress:') ?></strong>
+                                            <?= h(implode(', ', array_map(
+                                                fn($attendance) => $attendance->progress_title
+                                                    . (!empty($attendance->member->sca_name) ? ' (' . $attendance->member->sca_name . ')' : ''),
+                                                $progressAttendances,
+                                            ))) ?>
+                                        </div>
+                                    <?php endif; ?>
+
+                                    <div class="kc-more-actions">
+                                        <a class="kc-action" href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'downloadCalendar', $gathering->public_id]) ?>"
+                                            title="<?= h(__('Download calendar file (.ics)')) ?>">
+                                            <i class="bi bi-download"></i> <?= __('Add to calendar (.ics)') ?>
+                                        </a>
                                     </div>
-                                </details>
-                            <?php endif; ?>
+                                </div>
+                            </details>
                         </div>
                     </article>
                 <?php endforeach; ?>

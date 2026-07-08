@@ -1378,6 +1378,10 @@ a.kc-event-name:focus-visible {
     padding-bottom: 0.35rem;
 }
 
+.kc-more-actions {
+    margin-top: 0.6rem;
+}
+
 /* Activity chips */
 .kc-event-activities {
     display: flex;
