@@ -225,61 +225,77 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                                         <?= h($gathering->location) ?>
                                     </span>
                                 <?php endif; ?>
+                            </div>
 
+                            <div class="kc-event-actions">
                                 <?php if ($eventUrl !== null): ?>
-                                    <span class="kc-meta-item">
+                                    <a class="kc-action" href="<?= h($eventUrl) ?>"
+                                        <?= $eventUrlIsExternal ? 'target="_blank" rel="noopener"' : '' ?>>
                                         <i class="bi bi-box-arrow-up-right"></i>
-                                        <a href="<?= h($eventUrl) ?>"
-                                            <?= $eventUrlIsExternal ? 'target="_blank" rel="noopener"' : '' ?>>
-                                            <?= $eventUrlIsExternal ? __('Event Website') : __('Event Page') ?>
-                                        </a>
-                                    </span>
+                                        <?= $eventUrlIsExternal ? __('Event Website') : __('Event Page') ?>
+                                    </a>
                                 <?php endif; ?>
 
-                                <span class="kc-meta-item">
-                                    <a href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'downloadCalendar', $gathering->public_id]) ?>"
-                                        title="<?= h(__('Download calendar file (.ics)')) ?>">
-                                        <i class="bi bi-download"></i> <?= __('iCal') ?>
-                                    </a>
-                                </span>
+                                <a class="kc-action" href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'downloadCalendar', $gathering->public_id]) ?>"
+                                    title="<?= h(__('Download calendar file (.ics)')) ?>">
+                                    <i class="bi bi-download"></i> <?= __('iCal') ?>
+                                </a>
 
                                 <?php if ($gathering->is_preregistration_open): ?>
-                                    <span class="kc-meta-item kc-meta-prereg">
-                                        <a href="<?= h($gathering->preregister_url) ?>" target="_blank" rel="noopener"
-                                            title="<?= h(__('Pre-register and pay for this event (external site)')) ?>">
-                                            <i class="bi bi-ticket-perforated"></i> <?= __('Pre-Register') ?>
-                                        </a>
+                                    <a class="kc-action kc-action-prereg" href="<?= h($gathering->preregister_url) ?>"
+                                        target="_blank" rel="noopener"
+                                        title="<?= h(__('Pre-register and pay for this event (external site)')) ?>">
+                                        <i class="bi bi-ticket-perforated"></i> <?= __('Pre-Register') ?>
                                         <?php if ($gathering->preregister_closes_on !== null): ?>
-                                            <small class="text-muted">
-                                                <?= __('until {0}', h($gathering->preregister_closes_on->format('M j'))) ?>
-                                            </small>
+                                            <small><?= __('until {0}', h($gathering->preregister_closes_on->format('M j'))) ?></small>
                                         <?php endif; ?>
-                                    </span>
+                                    </a>
                                 <?php endif; ?>
                             </div>
 
-                            <?php if (!empty($gathering->gathering_activities)): ?>
-                                <div class="kc-event-activities">
-                                    <?php foreach ($gathering->gathering_activities as $activity): ?>
-                                        <span class="kc-activity-chip<?= $isCircleActivity($activity) ? ' kc-activity-chip-circle' : '' ?>">
-                                            <?php if ($isCircleActivity($activity)): ?>
-                                                <i class="bi bi-record-circle" aria-hidden="true"></i>
-                                            <?php endif; ?>
-                                            <?= h($activity->name) ?>
-                                        </span>
-                                    <?php endforeach; ?>
-                                </div>
-                            <?php endif; ?>
+                            <?php
+                            $hasActivities = !empty($gathering->gathering_activities);
+                            $hasProgress = !empty($progressAttendances);
+                            if ($hasActivities && $hasProgress) {
+                                $moreLabel = __('Activities & royal progress');
+                            } elseif ($hasActivities) {
+                                $moreLabel = __n('{0} activity', '{0} activities', count($gathering->gathering_activities), count($gathering->gathering_activities));
+                            } else {
+                                $moreLabel = __('Royal progress');
+                            }
+                            ?>
+                            <?php if ($hasActivities || $hasProgress): ?>
+                                <details class="kc-more">
+                                    <summary class="kc-more-summary">
+                                        <span><?= h($moreLabel) ?></span>
+                                        <i class="bi bi-chevron-down kc-more-chevron" aria-hidden="true"></i>
+                                    </summary>
+                                    <div class="kc-more-body">
+                                        <?php if ($hasActivities): ?>
+                                            <div class="kc-event-activities">
+                                                <?php foreach ($gathering->gathering_activities as $activity): ?>
+                                                    <span class="kc-activity-chip<?= $isCircleActivity($activity) ? ' kc-activity-chip-circle' : '' ?>">
+                                                        <?php if ($isCircleActivity($activity)): ?>
+                                                            <i class="bi bi-record-circle" aria-hidden="true"></i>
+                                                        <?php endif; ?>
+                                                        <?= h($activity->name) ?>
+                                                    </span>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        <?php endif; ?>
 
-                            <?php if (!empty($progressAttendances)): ?>
-                                <div class="kc-event-progress">
-                                    <strong><?= __('Progress:') ?></strong>
-                                    <?= h(implode(', ', array_map(
-                                        fn($attendance) => $attendance->progress_title
-                                            . (!empty($attendance->member->sca_name) ? ' (' . $attendance->member->sca_name . ')' : ''),
-                                        $progressAttendances,
-                                    ))) ?>
-                                </div>
+                                        <?php if ($hasProgress): ?>
+                                            <div class="kc-event-progress">
+                                                <strong><?= __('Progress:') ?></strong>
+                                                <?= h(implode(', ', array_map(
+                                                    fn($attendance) => $attendance->progress_title
+                                                        . (!empty($attendance->member->sca_name) ? ' (' . $attendance->member->sca_name . ')' : ''),
+                                                    $progressAttendances,
+                                                ))) ?>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                </details>
                             <?php endif; ?>
                         </div>
                     </article>

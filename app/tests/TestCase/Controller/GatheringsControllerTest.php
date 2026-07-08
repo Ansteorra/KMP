@@ -980,6 +980,29 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
     }
 
     /**
+     * Activities are folded behind a <details> expander so the mobile list
+     * stays scannable, while the essentials (title, date, location) stay
+     * inline.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::publicCalendar()
+     */
+    public function testPublicCalendarCollapsesActivitiesBehindDetails(): void
+    {
+        $gathering = $this->createCalendarGathering('Details Fold Event Sigma', true);
+        $this->linkActivity($gathering, 'Grand Feast');
+
+        $this->session(['Auth' => null]);
+        $this->get('/events');
+
+        $this->assertResponseOk();
+        // The expander wraps the activities; essentials remain outside it
+        $this->assertResponseContains('<details class="kc-more">');
+        $this->assertResponseContains('Grand Feast');
+        $this->assertResponseContains('Details Fold Event Sigma');
+    }
+
+    /**
      * Event link precedence on the public calendar: the KMP public page
      * supersedes the Event Website; the website is used only when the public
      * page is disabled.
