@@ -1184,32 +1184,21 @@
     text-decoration: none;
 }
 
+/* Linked titles carry a faint underline so they read as tappable on mobile
+   (no hover there); it strengthens to the accent on hover/focus. Colour-only,
+   so it never affects wrapping. */
 a.kc-event-name {
-    background-image: linear-gradient(var(--kc-accent), var(--kc-accent));
-    background-size: 0% 1.5px;
-    background-position: 0 100%;
-    background-repeat: no-repeat;
-    transition: background-size 0.2s ease, color 0.2s ease;
+    text-decoration: underline;
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 0.16em;
+    text-decoration-color: color-mix(in srgb, var(--kc-accent) 28%, transparent);
+    transition: text-decoration-color 0.2s ease, color 0.2s ease;
 }
 
 a.kc-event-name:hover,
 a.kc-event-name:focus-visible {
     color: var(--kc-accent);
-    background-size: 100% 1.5px;
-}
-
-/* Persistent cue that the title opens the event's page (no hover on mobile).
-   A non-breaking space in the markup keeps this glued to the last word. */
-.kc-event-name-icon {
-    font-size: 0.58em;
-    color: var(--kc-accent);
-    opacity: 0.7;
-    vertical-align: 0.12em;
-}
-
-a.kc-event-name:hover .kc-event-name-icon,
-a.kc-event-name:focus-visible .kc-event-name-icon {
-    opacity: 1;
+    text-decoration-color: var(--kc-accent);
 }
 
 .kc-progress-icon {

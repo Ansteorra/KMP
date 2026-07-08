@@ -167,12 +167,9 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                         <div class="kc-event-body">
                             <div class="kc-event-title-row">
                                 <?php if ($eventUrl !== null): ?>
-                                    <a class="kc-event-name kc-event-name-link" href="<?= h($eventUrl) ?>"
+                                    <a class="kc-event-name" href="<?= h($eventUrl) ?>"
                                         <?= $eventUrlIsExternal ? 'target="_blank" rel="noopener"' : '' ?>
-                                        title="<?= h($eventUrlIsExternal ? __('Open the event website') : __('View the event page')) ?>"><?=
-                                        // A non-breaking space glues the link icon to the last word
-                                        // so it never orphans onto its own line when the title wraps.
-                                        h($gathering->name) ?>&#160;<i class="bi <?= $eventUrlIsExternal ? 'bi-box-arrow-up-right' : 'bi-chevron-right' ?> kc-event-name-icon" aria-hidden="true"></i></a>
+                                        title="<?= h($eventUrlIsExternal ? __('Open the event website') : __('View the event page')) ?>"><?= h($gathering->name) ?></a>
                                 <?php else: ?>
                                     <span class="kc-event-name"><?= h($gathering->name) ?></span>
                                 <?php endif; ?>
