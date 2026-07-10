@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Services\WorkflowEngine;
 
 use App\Services\WorkflowEngine\DefaultWorkflowVersionManager;
+use App\Services\WorkflowRegistry\WorkflowActionRegistry;
 use Cake\TestSuite\TestCase;
 use ReflectionMethod;
 
@@ -195,6 +196,120 @@ class ValidateDefinitionTest extends TestCase
         ]];
         $errors = $this->validate($definition);
         $this->assertContainsString('maxIterations', $errors);
+    }
+
+    public function testUnknownNodeTypeReturnsError(): void
+    {
+        $definition = ['nodes' => [
+            'trigger1' => ['type' => 'trigger', 'config' => [], 'outputs' => [['target' => 'mystery1']]],
+            'mystery1' => ['type' => 'mystery', 'config' => [], 'outputs' => [['target' => 'end1']]],
+            'end1' => ['type' => 'end', 'config' => [], 'outputs' => []],
+        ]];
+
+        $this->assertContainsString('unsupported type', $this->validate($definition));
+    }
+
+    public function testForEachWaitingDescendantReturnsError(): void
+    {
+        $definition = ['nodes' => [
+            'trigger1' => ['type' => 'trigger', 'config' => [], 'outputs' => [['target' => 'forEach1']]],
+            'forEach1' => [
+                'type' => 'forEach',
+                'config' => ['collection' => '$.trigger.items'],
+                'outputs' => [
+                    ['port' => 'iterate', 'target' => 'delay1'],
+                    ['port' => 'complete', 'target' => 'end1'],
+                ],
+            ],
+            'delay1' => ['type' => 'delay', 'config' => [], 'outputs' => []],
+            'end1' => ['type' => 'end', 'config' => [], 'outputs' => []],
+        ]];
+
+        $this->assertContainsString('cannot contain waiting node', $this->validate($definition));
+    }
+
+    public function testForEachExplicitAsyncActionReturnsError(): void
+    {
+        $definition = ['nodes' => [
+            'trigger1' => ['type' => 'trigger', 'config' => [], 'outputs' => [['target' => 'forEach1']]],
+            'forEach1' => [
+                'type' => 'forEach',
+                'config' => ['collection' => '$.trigger.items'],
+                'outputs' => [
+                    ['port' => 'iterate', 'target' => 'action1'],
+                    ['port' => 'complete', 'target' => 'end1'],
+                ],
+            ],
+            'action1' => [
+                'type' => 'action',
+                'config' => ['action' => 'Unknown.AsyncAction', 'isAsync' => true],
+                'outputs' => [],
+            ],
+            'end1' => ['type' => 'end', 'config' => [], 'outputs' => []],
+        ]];
+
+        $this->assertContainsString('cannot contain waiting node', $this->validate($definition));
+    }
+
+    public function testForEachRegistryAsyncActionReturnsError(): void
+    {
+        WorkflowActionRegistry::register('ValidationTest', [[
+            'action' => 'ValidationTest.AsyncAction',
+            'label' => 'Async test action',
+            'description' => 'Async action used by validation tests.',
+            'inputSchema' => [],
+            'outputSchema' => [],
+            'serviceClass' => self::class,
+            'serviceMethod' => 'validate',
+            'isAsync' => true,
+        ]]);
+
+        try {
+            $definition = ['nodes' => [
+                'trigger1' => ['type' => 'trigger', 'config' => [], 'outputs' => [['target' => 'forEach1']]],
+                'forEach1' => [
+                    'type' => 'forEach',
+                    'config' => ['collection' => '$.trigger.items'],
+                    'outputs' => [
+                        ['port' => 'iterate', 'target' => 'action1'],
+                        ['port' => 'complete', 'target' => 'end1'],
+                    ],
+                ],
+                'action1' => [
+                    'type' => 'action',
+                    'config' => ['action' => 'ValidationTest.AsyncAction'],
+                    'outputs' => [],
+                ],
+                'end1' => ['type' => 'end', 'config' => [], 'outputs' => []],
+            ]];
+
+            $this->assertContainsString('cannot contain waiting node', $this->validate($definition));
+        } finally {
+            WorkflowActionRegistry::unregister('ValidationTest');
+        }
+    }
+
+    public function testForEachMissingDescendantReturnsValidationError(): void
+    {
+        $definition = ['nodes' => [
+            'trigger1' => ['type' => 'trigger', 'config' => [], 'outputs' => [['target' => 'forEach1']]],
+            'forEach1' => [
+                'type' => 'forEach',
+                'config' => ['collection' => '$.trigger.items'],
+                'outputs' => [
+                    ['port' => 'iterate', 'target' => 'action1'],
+                    ['port' => 'complete', 'target' => 'end1'],
+                ],
+            ],
+            'action1' => [
+                'type' => 'action',
+                'config' => [],
+                'outputs' => [['target' => 'missing']],
+            ],
+            'end1' => ['type' => 'end', 'config' => [], 'outputs' => []],
+        ]];
+
+        $this->assertContainsString("non-existent target 'missing'", $this->validate($definition));
     }
 
     // =====================================================

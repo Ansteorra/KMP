@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services\WorkflowEngine;
@@ -448,6 +447,60 @@ class ForEachNodeTest extends BaseTestCase
         $this->assertCount(1, $forEachLogs);
         $this->assertSame(WorkflowExecutionLog::STATUS_COMPLETED, $forEachLogs[0]->status);
         $this->assertSame(2, $forEachLogs[0]->output_data['processed']);
+    }
+
+    public function testForEachRejectsWaitingDescendantsAtRuntime(): void
+    {
+        $slug = 'foreach-waiting-' . uniqid();
+        $this->createWorkflow($slug, [
+            'nodes' => [
+                'trigger1' => ['type' => 'trigger', 'config' => [], 'outputs' => [['target' => 'forEach1']]],
+                'forEach1' => [
+                    'type' => 'forEach',
+                    'config' => ['collection' => '$.trigger.items'],
+                    'outputs' => [
+                        ['port' => 'iterate', 'target' => 'delay1'],
+                        ['port' => 'complete', 'target' => 'end1'],
+                    ],
+                ],
+                'delay1' => ['type' => 'delay', 'config' => [], 'outputs' => []],
+                'end1' => ['type' => 'end', 'config' => [], 'outputs' => []],
+            ],
+        ]);
+
+        $result = $this->engine->startWorkflow($slug, ['items' => ['a', 'b']]);
+
+        $this->assertFalse($result->isSuccess());
+        $this->assertStringContainsString('cannot execute waiting node', $result->reason);
+    }
+
+    public function testForEachRejectsExplicitAsyncActionAtRuntime(): void
+    {
+        $slug = 'foreach-async-' . uniqid();
+        $this->createWorkflow($slug, [
+            'nodes' => [
+                'trigger1' => ['type' => 'trigger', 'config' => [], 'outputs' => [['target' => 'forEach1']]],
+                'forEach1' => [
+                    'type' => 'forEach',
+                    'config' => ['collection' => '$.trigger.items'],
+                    'outputs' => [
+                        ['port' => 'iterate', 'target' => 'action1'],
+                        ['port' => 'complete', 'target' => 'end1'],
+                    ],
+                ],
+                'action1' => [
+                    'type' => 'action',
+                    'config' => ['action' => 'Unknown.AsyncAction', 'isAsync' => true],
+                    'outputs' => [],
+                ],
+                'end1' => ['type' => 'end', 'config' => [], 'outputs' => []],
+            ],
+        ]);
+
+        $result = $this->engine->startWorkflow($slug, ['items' => ['a', 'b']]);
+
+        $this->assertFalse($result->isSuccess());
+        $this->assertStringContainsString('cannot execute waiting node', $result->reason);
     }
 
     // =====================================================

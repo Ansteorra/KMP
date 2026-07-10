@@ -5,6 +5,7 @@ namespace App\Command;
 
 use App\Application;
 use App\Model\Entity\WorkflowDefinition;
+use App\Model\Table\WorkflowSchedulesTable;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use Cake\Command\Command;
 use Cake\Console\Arguments;
@@ -25,8 +26,8 @@ use Throwable;
  * Designed to be called frequently (e.g., every minute via system cron).
  * On each invocation it finds workflow definitions with trigger_type='scheduled',
  * evaluates their cron expressions against last_run_at, and dispatches
- * due workflows via TriggerDispatcher. Idempotent — rapid re-runs will not
- * double-trigger because last_run_at is updated before dispatch.
+ * due workflows via TriggerDispatcher. Idempotent — each run is leased while
+ * dispatching, and last_run_at advances only after successful dispatch.
  */
 class WorkflowSchedulerCommand extends Command
 {
@@ -127,7 +128,6 @@ class WorkflowSchedulerCommand extends Command
             $result = $this->processScheduledWorkflow(
                 $definition,
                 $schedulesTable,
-                $now,
                 $dryRun,
                 $force,
                 $io,
@@ -166,7 +166,6 @@ class WorkflowSchedulerCommand extends Command
      *
      * @param \App\Model\Entity\WorkflowDefinition $definition Workflow definition
      * @param \App\Model\Table\WorkflowSchedulesTable $schedulesTable Schedules table
-     * @param \Cake\I18n\DateTime $now Current time
      * @param bool $dryRun Whether this is a dry run
      * @param bool $force Force execution regardless of schedule
      * @param \Cake\Console\ConsoleIo $io Console IO
@@ -174,8 +173,7 @@ class WorkflowSchedulerCommand extends Command
      */
     private function processScheduledWorkflow(
         WorkflowDefinition $definition,
-        $schedulesTable,
-        DateTime $now,
+        WorkflowSchedulesTable $schedulesTable,
         bool $dryRun,
         bool $force,
         ConsoleIo $io,
@@ -203,18 +201,7 @@ class WorkflowSchedulerCommand extends Command
             return 'error';
         }
 
-        // Get or create the schedule tracking record
-        $schedule = $schedulesTable->find()
-            ->where(['workflow_definition_id' => $definition->id])
-            ->first();
-
-        if (!$schedule) {
-            $schedule = $schedulesTable->newEntity([
-                'workflow_definition_id' => $definition->id,
-                'is_enabled' => true,
-            ]);
-            $schedulesTable->saveOrFail($schedule);
-        }
+        $schedule = $schedulesTable->getOrCreateForDefinition((int)$definition->id);
 
         if (!$schedule->is_enabled) {
             $io->out(sprintf('  [%s] Schedule disabled — skipping.', $definition->slug));
@@ -224,10 +211,11 @@ class WorkflowSchedulerCommand extends Command
 
         // Check if the workflow is due to run
         $cron = new CronExpression($cronExpression);
-        $isDue = $force || $this->isDue($cron, $schedule->last_run_at, $now);
+        $evaluationTime = DateTime::now();
+        $isDue = $force || $this->isDue($cron, $schedule->last_run_at, $evaluationTime);
 
         if (!$isDue) {
-            $nextRun = $cron->getNextRunDate($now->format('Y-m-d H:i:s'));
+            $nextRun = $cron->getNextRunDate($evaluationTime->format('Y-m-d H:i:s'));
             $io->out(sprintf(
                 '  [%s] Not due (next: %s) — skipping.',
                 $definition->slug,
@@ -251,55 +239,84 @@ class WorkflowSchedulerCommand extends Command
             return 'dispatched';
         }
 
-        // Update last_run_at BEFORE dispatch to prevent double-triggering
-        $schedule->last_run_at = $now;
-        $nextRun = $cron->getNextRunDate($now->format('Y-m-d H:i:s'));
-        $schedule->next_run_at = new DateTime($nextRun->format('Y-m-d H:i:s'));
-
-        if (!$schedulesTable->save($schedule)) {
-            $io->error(sprintf(
-                '  [%s] Failed to update schedule record.',
-                $definition->slug,
-            ));
-
-            return 'error';
-        }
-
-        // Dispatch the trigger
+        $connection = $schedulesTable->getConnection();
+        $connection->enableSavePoints();
+        // Holding the claim update's row lock through dispatch prevents another
+        // scheduler from reclaiming an expired lease while this worker is alive.
         try {
-            $dispatcher = $this->getTriggerDispatcher();
-
-            $eventData = [
-                'trigger' => 'schedule',
-                'schedule' => $cronExpression,
-                'scheduledAt' => $now->format('Y-m-d H:i:s'),
-                'workflowDefinitionId' => $definition->id,
-                'entityType' => $triggerConfig['entityType'] ?? $definition->entity_type,
-                'entityQuery' => $triggerConfig['entityQuery'] ?? [],
-                'description' => $triggerConfig['description'] ?? $definition->description,
-            ];
-
-            $results = $dispatcher->dispatch(
-                'Schedule.CronTriggered',
-                $eventData,
-                null, // system-triggered, no member
-            );
-
-            $successCount = 0;
-            foreach ($results as $result) {
-                if ($result->isSuccess()) {
-                    $successCount++;
-                }
-            }
-
-            $io->success(sprintf(
-                '  [%s] Dispatched (cron: %s, started: %d workflow(s))',
-                $definition->slug,
+            return $connection->transactional(function () use (
+                $schedule,
+                $schedulesTable,
+                $cron,
                 $cronExpression,
-                $successCount,
-            ));
+                $definition,
+                $triggerConfig,
+                $io,
+            ): string {
+                $claimTime = DateTime::now();
+                $claimToken = $schedulesTable->claimExecution($schedule, $claimTime);
+                if ($claimToken === null) {
+                    $io->out(sprintf(
+                        '  [%s] Already claimed or completed by another scheduler — skipping.',
+                        $definition->slug,
+                    ));
 
-            return 'dispatched';
+                    return 'skipped';
+                }
+
+                $nextRun = $cron->getNextRunDate($claimTime->format('Y-m-d H:i:s'));
+                $nextRunAt = new DateTime($nextRun->format('Y-m-d H:i:s'));
+                $dispatcher = $this->getTriggerDispatcher();
+
+                $eventData = [
+                    'trigger' => 'schedule',
+                    'schedule' => $cronExpression,
+                    'scheduledAt' => $claimTime->format('Y-m-d H:i:s'),
+                    'workflowDefinitionId' => $definition->id,
+                    'entityType' => $triggerConfig['entityType'] ?? $definition->entity_type,
+                    'entityQuery' => $triggerConfig['entityQuery'] ?? [],
+                    'description' => $triggerConfig['description'] ?? $definition->description,
+                ];
+
+                $results = $dispatcher->dispatch(
+                    'Schedule.CronTriggered',
+                    $eventData,
+                    null, // system-triggered, no member
+                );
+
+                $successCount = 0;
+                foreach ($results as $result) {
+                    if ($result->isSuccess()) {
+                        $successCount++;
+                    }
+                }
+                if ($successCount === 0 || $successCount !== count($results)) {
+                    throw new LogicException(sprintf(
+                        'Trigger dispatch started %d of %d matching workflow(s).',
+                        $successCount,
+                        count($results),
+                    ));
+                }
+                if (
+                    !$schedulesTable->completeExecutionClaim(
+                        (int)$schedule->id,
+                        $claimToken,
+                        $claimTime,
+                        $nextRunAt,
+                    )
+                ) {
+                    throw new LogicException('Scheduler claim was lost before completion.');
+                }
+
+                $io->success(sprintf(
+                    '  [%s] Dispatched (cron: %s, started: %d workflow(s))',
+                    $definition->slug,
+                    $cronExpression,
+                    $successCount,
+                ));
+
+                return 'dispatched';
+            });
         } catch (Throwable $e) {
             Log::error(sprintf(
                 'WorkflowScheduler: Failed to dispatch %s: %s',

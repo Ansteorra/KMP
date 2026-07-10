@@ -491,17 +491,27 @@ class RecommendationFeedbackServiceTest extends BaseTestCase
         $workflowDefinition = $this->workflowDefinitionsTable->find()
             ->where(['current_version_id IS NOT' => null])
             ->firstOrFail();
-        $instance = $this->workflowInstancesTable->saveOrFail($this->workflowInstancesTable->newEntity([
-            'workflow_definition_id' => $workflowDefinition->id,
-            'workflow_version_id' => $workflowDefinition->current_version_id,
-            'entity_type' => 'Awards.RecommendationFeedbackRequests',
-            'entity_id' => $requestId,
-            'status' => WorkflowInstance::STATUS_WAITING,
-            'context' => [],
-            'active_nodes' => ['feedback-approval'],
-            'started_by' => self::ADMIN_MEMBER_ID,
-            'started_at' => DateTime::now(),
-        ]));
+        $instance = $this->workflowInstancesTable->find()
+            ->where([
+                'workflow_definition_id' => $workflowDefinition->id,
+                'entity_type' => 'Awards.RecommendationFeedbackRequests',
+                'entity_id' => $requestId,
+                'status IN' => WorkflowInstance::ACTIVE_STATUSES,
+            ])
+            ->first();
+        if ($instance === null) {
+            $instance = $this->workflowInstancesTable->saveOrFail($this->workflowInstancesTable->newEntity([
+                'workflow_definition_id' => $workflowDefinition->id,
+                'workflow_version_id' => $workflowDefinition->current_version_id,
+                'entity_type' => 'Awards.RecommendationFeedbackRequests',
+                'entity_id' => $requestId,
+                'status' => WorkflowInstance::STATUS_WAITING,
+                'context' => [],
+                'active_nodes' => ['feedback-approval'],
+                'started_by' => self::ADMIN_MEMBER_ID,
+                'started_at' => DateTime::now(),
+            ]));
+        }
         $log = $this->workflowExecutionLogsTable->saveOrFail($this->workflowExecutionLogsTable->newEntity([
             'workflow_instance_id' => $instance->id,
             'node_id' => 'feedback-approval-test',

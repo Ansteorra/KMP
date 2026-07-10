@@ -104,6 +104,12 @@ class WorkflowsControllerTest extends HttpIntegrationTestCase
         $this->assertRedirectContains('/login');
     }
 
+    public function testUnauthenticatedAppSettingsRedirects(): void
+    {
+        $this->get('/workflows/app-settings');
+        $this->assertRedirectContains('/login');
+    }
+
     // =====================================================
     // Super user can access admin actions
     // =====================================================
@@ -185,6 +191,27 @@ class WorkflowsControllerTest extends HttpIntegrationTestCase
         $this->authenticateAsSuperUser();
         $this->get('/workflows/approvals');
         $this->assertResponseOk();
+    }
+
+    public function testSuperUserAppSettingsResponseNeverIncludesValues(): void
+    {
+        $secret = 'workflow-endpoint-secret-' . uniqid();
+        $settingsTable = $this->getTableLocator()->get('AppSettings');
+        $this->assertTrue($settingsTable->updateSetting('Workflow.TestSecret', 'password', $secret));
+
+        $this->authenticateAsSuperUser();
+        $this->configRequest(['headers' => ['Accept' => 'application/json']]);
+        $this->get('/workflows/app-settings');
+
+        $this->assertResponseOk();
+        $payload = json_decode((string)$this->_response->getBody(), true);
+        $this->assertIsArray($payload['appSettings'] ?? null);
+        $this->assertStringNotContainsString($secret, (string)$this->_response->getBody());
+        foreach ($payload['appSettings'] as $setting) {
+            $this->assertArrayHasKey('name', $setting);
+            $this->assertArrayHasKey('type', $setting);
+            $this->assertArrayNotHasKey('value', $setting);
+        }
     }
 
     // =====================================================
@@ -278,6 +305,13 @@ class WorkflowsControllerTest extends HttpIntegrationTestCase
     {
         $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
         $this->post('/workflows/create-draft', ['workflowId' => 1]);
+        $this->assertRedirect();
+    }
+
+    public function testNonSuperUserWithoutWorkflowPolicyCannotAccessAppSettings(): void
+    {
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $this->get('/workflows/app-settings');
         $this->assertRedirect();
     }
 

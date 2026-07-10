@@ -270,8 +270,8 @@ export default class WorkflowNodeConfigHandler {
             let options = '<option value="">Select a setting...</option>'
             const items = Array.isArray(data) ? data : (data.appSettings || data.settings || [])
             items.forEach(s => {
-                const key = s.name || s.value || ''
-                const label = s.name || key
+                const key = s.name || ''
+                const label = key
                 const selected = key === selectedKey ? 'selected' : ''
                 options += `<option value="${key}" ${selected}>${label}</option>`
             })

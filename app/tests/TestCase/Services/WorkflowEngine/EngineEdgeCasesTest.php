@@ -1,17 +1,17 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services\WorkflowEngine;
 
 use App\Model\Entity\WorkflowExecutionLog;
 use App\Model\Entity\WorkflowInstance;
-use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\DefaultWorkflowEngine;
 use App\Services\WorkflowEngine\ExpressionEvaluator;
 use App\Test\TestCase\BaseTestCase;
 use Cake\Core\ContainerInterface;
 use Cake\ORM\TableRegistry;
+use DateTime;
+use DateTimeInterface;
 
 /**
  * Edge-case and boundary-condition tests for the workflow engine.
@@ -793,7 +793,7 @@ class EngineEdgeCasesTest extends BaseTestCase
     public function testDateExpressionNowReturnsDateTime(): void
     {
         $result = $this->expr->evaluateDateExpression('now', []);
-        $this->assertInstanceOf(\DateTimeInterface::class, $result);
+        $this->assertInstanceOf(DateTimeInterface::class, $result);
     }
 
     /** 33. Date diff: adding then subtracting the same amount returns approximately the same date. */
@@ -801,12 +801,12 @@ class EngineEdgeCasesTest extends BaseTestCase
     {
         $context = ['start' => '2025-06-15'];
         $added = $this->expr->evaluateDateExpression('$.start + 30 days', $context);
-        $this->assertInstanceOf(\DateTimeInterface::class, $added);
+        $this->assertInstanceOf(DateTimeInterface::class, $added);
         $this->assertEquals('2025-07-15', $added->format('Y-m-d'));
 
         $context2 = ['start' => '2025-07-15'];
         $subtracted = $this->expr->evaluateDateExpression('$.start - 30 days', $context2);
-        $this->assertInstanceOf(\DateTimeInterface::class, $subtracted);
+        $this->assertInstanceOf(DateTimeInterface::class, $subtracted);
         $this->assertEquals('2025-06-15', $subtracted->format('Y-m-d'));
     }
 
@@ -964,8 +964,8 @@ class EngineEdgeCasesTest extends BaseTestCase
     // ADDITIONAL EDGE CASES (41-55)
     // =========================================================================
 
-    /** 41. Unknown node type logs as failed but doesn't crash workflow start. */
-    public function testUnknownNodeTypeLogsAsFailed(): void
+    /** 41. Unknown node types fail workflow startup. */
+    public function testUnknownNodeTypeFailsWorkflow(): void
     {
         $slug = 'unknown-type-' . uniqid();
         $this->createWorkflow($slug, [
@@ -981,14 +981,8 @@ class EngineEdgeCasesTest extends BaseTestCase
         ]);
 
         $result = $this->engine->startWorkflow($slug);
-        // Engine catches the unknown type and logs it, but startWorkflow still returns success
-        $this->assertTrue($result->isSuccess());
-        $badLog = $this->logsTable->find()->where([
-            'workflow_instance_id' => $result->data['instanceId'],
-            'node_id' => 'mystery1',
-        ])->first();
-        $this->assertNotNull($badLog);
-        $this->assertEquals(WorkflowExecutionLog::STATUS_FAILED, $badLog->status);
+        $this->assertFalse($result->isSuccess());
+        $this->assertStringContainsString('Unknown node type', $result->reason);
     }
 
     /** 42. Workflow with only trigger and no other nodes. */
@@ -1189,7 +1183,7 @@ class EngineEdgeCasesTest extends BaseTestCase
     {
         $context = ['start' => '2025-01-01'];
         $result = $this->expr->evaluateDateExpression('$.start + 2 weeks', $context);
-        $this->assertInstanceOf(\DateTimeInterface::class, $result);
+        $this->assertInstanceOf(DateTimeInterface::class, $result);
         $this->assertEquals('2025-01-15', $result->format('Y-m-d'));
     }
 
@@ -1197,8 +1191,8 @@ class EngineEdgeCasesTest extends BaseTestCase
     public function testDateExpressionAddHours(): void
     {
         $result = $this->expr->evaluateDateExpression('now + 24 hours', []);
-        $this->assertInstanceOf(\DateTimeInterface::class, $result);
-        $tomorrow = (new \DateTime())->modify('+24 hours');
+        $this->assertInstanceOf(DateTimeInterface::class, $result);
+        $tomorrow = (new DateTime())->modify('+24 hours');
         $this->assertEquals($tomorrow->format('Y-m-d'), $result->format('Y-m-d'));
     }
 
@@ -1207,7 +1201,7 @@ class EngineEdgeCasesTest extends BaseTestCase
     {
         $context = ['d' => '2025-03-01'];
         $result = $this->expr->evaluateDateExpression('$.d + 1 day', $context);
-        $this->assertInstanceOf(\DateTimeInterface::class, $result);
+        $this->assertInstanceOf(DateTimeInterface::class, $result);
         $this->assertEquals('2025-03-02', $result->format('Y-m-d'));
     }
 
@@ -1598,9 +1592,9 @@ class EngineEdgeCasesTest extends BaseTestCase
     /** 82. Date expression with DateTime object in context. */
     public function testDateExpressionWithDateTimeObjectInContext(): void
     {
-        $context = ['start' => new \DateTime('2025-01-01')];
+        $context = ['start' => new DateTime('2025-01-01')];
         $result = $this->expr->evaluateDateExpression('$.start + 10 days', $context);
-        $this->assertInstanceOf(\DateTimeInterface::class, $result);
+        $this->assertInstanceOf(DateTimeInterface::class, $result);
         $this->assertEquals('2025-01-11', $result->format('Y-m-d'));
     }
 

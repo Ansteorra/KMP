@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -15,6 +14,7 @@ namespace App\Model\Entity;
  * @property int $workflow_version_id
  * @property string|null $entity_type
  * @property int|null $entity_id
+ * @property string|null $active_entity_key
  * @property string $status
  * @property array|null $context
  * @property array|null $active_nodes
@@ -38,6 +38,11 @@ class WorkflowInstance extends BaseEntity
     public const STATUS_COMPLETED = 'completed';
     public const STATUS_FAILED = 'failed';
     public const STATUS_CANCELLED = 'cancelled';
+
+    public const ACTIVE_STATUSES = [
+        self::STATUS_RUNNING,
+        self::STATUS_WAITING,
+    ];
 
     /**
      * Fields that can be mass assigned.

@@ -1,15 +1,19 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Command;
 
+use App\Command\WorkflowSchedulerCommand;
 use App\Model\Entity\WorkflowDefinition;
 use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use App\Services\WorkflowEngine\WorkflowEngineInterface;
 use App\Test\TestCase\BaseTestCase;
+use Cake\Command\Command;
+use Cake\Console\Arguments;
+use Cake\Console\ConsoleIo;
 use Cake\Console\TestSuite\ConsoleIntegrationTestTrait;
+use Cake\Console\TestSuite\StubConsoleOutput;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 
@@ -151,15 +155,24 @@ class WorkflowSchedulerCommandTest extends BaseTestCase
     {
         $slug = 'sched-update-' . uniqid();
         $def = $this->createScheduledWorkflow($slug, '* * * * *');
+        $engine = $this->createMock(WorkflowEngineInterface::class);
+        $engine->expects($this->once())
+            ->method('dispatchTrigger')
+            ->willReturn([new ServiceResult(true, 'Workflow started')]);
+        $command = new WorkflowSchedulerCommand(
+            null,
+            new TriggerDispatcher($engine),
+        );
+        $args = new Arguments([], ['dry-run' => false, 'force' => false], ['dry-run', 'force']);
 
-        // No schedule record yet — first run
-        // Run the actual command (not dry-run) to test schedule updates
-        // We use the real command but it will attempt dispatch.
-        // The dispatch may fail if no matching trigger node, but last_run_at
-        // should still be updated because it's set BEFORE dispatch.
-        $this->exec('workflow_scheduler');
+        // No schedule record yet — first successful run records completion.
+        $result = $command->execute(
+            $args,
+            new ConsoleIo(new StubConsoleOutput(), new StubConsoleOutput()),
+        );
 
         // Verify a schedule record was created and last_run_at set
+        $this->assertSame(Command::CODE_SUCCESS, $result);
         $schedule = $this->schedulesTable->find()
             ->where(['workflow_definition_id' => $def->id])
             ->first();
@@ -249,21 +262,70 @@ class WorkflowSchedulerCommandTest extends BaseTestCase
     {
         $slug = 'sched-idempotent-' . uniqid();
         $def = $this->createScheduledWorkflow($slug, '0 2 * * *');
+        $engine = $this->createMock(WorkflowEngineInterface::class);
+        $engine->expects($this->once())
+            ->method('dispatchTrigger')
+            ->willReturn([new ServiceResult(true, 'Workflow started')]);
+        $command = new WorkflowSchedulerCommand(
+            null,
+            new TriggerDispatcher($engine),
+        );
+        $args = new Arguments([], ['dry-run' => false, 'force' => false], ['dry-run', 'force']);
 
         // First run — due because no last_run_at
-        $this->exec('workflow_scheduler');
+        $result = $command->execute(
+            $args,
+            new ConsoleIo(new StubConsoleOutput(), new StubConsoleOutput()),
+        );
 
+        $this->assertSame(Command::CODE_SUCCESS, $result);
         $schedule = $this->schedulesTable->find()
             ->where(['workflow_definition_id' => $def->id])
             ->first();
 
         $this->assertNotNull($schedule);
-        $firstRunAt = $schedule->last_run_at;
 
         // Second run — should skip because just ran
         $this->exec('workflow_scheduler --dry-run');
 
         $this->assertOutputContains('Not due');
+    }
+
+    public function testFailedDispatchReleasesClaimWithoutConsumingRun(): void
+    {
+        $this->defTable->updateAll(
+            ['is_active' => false],
+            ['trigger_type' => WorkflowDefinition::TRIGGER_SCHEDULED],
+        );
+        $slug = 'sched-retry-' . uniqid();
+        $definition = $this->createScheduledWorkflow($slug, '* * * * *');
+        $lastRunAt = new DateTime('2020-01-01 00:00:00');
+        $schedule = $this->schedulesTable->newEntity([
+            'workflow_definition_id' => $definition->id,
+            'last_run_at' => $lastRunAt,
+            'is_enabled' => true,
+        ]);
+        $this->schedulesTable->saveOrFail($schedule);
+
+        $engine = $this->createMock(WorkflowEngineInterface::class);
+        $engine->expects($this->once())
+            ->method('dispatchTrigger')
+            ->willReturn([new ServiceResult(false, 'dispatch failed')]);
+        $command = new WorkflowSchedulerCommand(
+            null,
+            new TriggerDispatcher($engine),
+        );
+        $out = new StubConsoleOutput();
+        $err = new StubConsoleOutput();
+        $args = new Arguments([], ['dry-run' => false, 'force' => false], ['dry-run', 'force']);
+
+        $result = $command->execute($args, new ConsoleIo($out, $err));
+
+        $this->assertSame(Command::CODE_ERROR, $result);
+        $updated = $this->schedulesTable->get($schedule->id);
+        $this->assertEquals($lastRunAt, $updated->last_run_at);
+        $this->assertNull($updated->claim_token);
+        $this->assertNull($updated->claimed_at);
     }
 
     /**

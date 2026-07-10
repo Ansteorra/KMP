@@ -629,12 +629,12 @@ class WorkflowDefinitionsController extends AppController
      */
     public function appSettings(): void
     {
-        $this->Authorization->skipAuthorization();
+        $this->authorizeCurrentUrl();
         $this->request->allowMethod(['get']);
 
         $settingsTable = $this->fetchTable('AppSettings');
         $settings = $settingsTable->find()
-            ->select(['name', 'value', 'type'])
+            ->select(['name', 'type'])
             ->orderBy(['name' => 'ASC'])
             ->all();
 
@@ -642,7 +642,6 @@ class WorkflowDefinitionsController extends AppController
         foreach ($settings as $setting) {
             $results[] = [
                 'name' => $setting->name,
-                'value' => $setting->value,
                 'type' => $setting->type,
             ];
         }

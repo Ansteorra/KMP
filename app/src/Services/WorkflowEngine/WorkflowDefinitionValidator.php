@@ -43,6 +43,11 @@ class WorkflowDefinitionValidator
         }
 
         foreach ($nodes as $key => $node) {
+            $type = $node['type'] ?? null;
+            if (!is_string($type) || !WorkflowNodeTypes::isSupported($type)) {
+                $errors[] = "Node '{$key}' has unsupported type '" . (is_scalar($type) ? (string)$type : '') . "'.";
+            }
+
             $outputs = $node['outputs'] ?? [];
             if (!is_array($outputs)) {
                 $errors[] = "Node '{$key}' outputs must be an array.";
@@ -81,6 +86,10 @@ class WorkflowDefinitionValidator
             if (empty($node['config']['collection'])) {
                 $errors[] = "ForEach node '{$key}' must have a collection path configured.";
             }
+            foreach ($this->findWaitingForEachDescendants((string)$key, $node, $nodes) as $descendant => $type) {
+                $errors[] = "ForEach node '{$key}' iterate path cannot contain waiting node "
+                    . "'{$descendant}' of type '{$type}'.";
+            }
         }
 
         foreach ($nodes as $key => $node) {
@@ -88,6 +97,41 @@ class WorkflowDefinitionValidator
         }
 
         return $errors;
+    }
+
+    /**
+     * Find async/waiting nodes reachable from a forEach iterate output.
+     *
+     * @param string $nodeKey ForEach node key
+     * @param array $node ForEach node definition
+     * @param array $nodes Workflow nodes
+     * @return array<string, string> Node ID to node type
+     */
+    private function findWaitingForEachDescendants(string $nodeKey, array $node, array $nodes): array
+    {
+        $waiting = [];
+        foreach (($node['outputs'] ?? []) as $output) {
+            if (!is_array($output) || ($output['port'] ?? 'default') !== 'iterate') {
+                continue;
+            }
+            $target = $output['target'] ?? null;
+            if (!is_string($target) || !isset($nodes[$target])) {
+                continue;
+            }
+
+            foreach ($this->findReachableNodes($target, $nodes) as $descendant) {
+                if ($descendant === $nodeKey) {
+                    continue;
+                }
+                $descendantNode = (array)($nodes[$descendant] ?? []);
+                $type = (string)($descendantNode['type'] ?? '');
+                if (WorkflowNodeTypes::requiresWaiting($descendantNode)) {
+                    $waiting[$descendant] = $type;
+                }
+            }
+        }
+
+        return $waiting;
     }
 
     /**
@@ -228,8 +272,13 @@ class WorkflowDefinitionValidator
      * @param array<array<string>> $cycles Cycle accumulator
      * @return void
      */
-    private function dfsDetectCycles(string $nodeKey, array $nodes, array &$visited, array &$stack, array &$cycles): void
-    {
+    private function dfsDetectCycles(
+        string $nodeKey,
+        array $nodes,
+        array &$visited,
+        array &$stack,
+        array &$cycles,
+    ): void {
         $visited[$nodeKey] = true;
         $stack[$nodeKey] = true;
 

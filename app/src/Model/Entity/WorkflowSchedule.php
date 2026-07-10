@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -14,6 +13,8 @@ namespace App\Model\Entity;
  * @property \Cake\I18n\DateTime|null $last_run_at
  * @property \Cake\I18n\DateTime|null $next_run_at
  * @property bool $is_enabled
+ * @property string|null $claim_token
+ * @property \Cake\I18n\DateTime|null $claimed_at
  * @property \Cake\I18n\DateTime|null $created
  * @property \Cake\I18n\DateTime|null $modified
  *

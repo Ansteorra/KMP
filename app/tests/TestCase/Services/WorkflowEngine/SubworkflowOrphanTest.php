@@ -1,15 +1,12 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services\WorkflowEngine;
 
-use App\Model\Entity\WorkflowExecutionLog;
 use App\Model\Entity\WorkflowInstance;
 use App\Services\WorkflowEngine\DefaultWorkflowEngine;
 use App\Test\TestCase\BaseTestCase;
 use Cake\Core\ContainerInterface;
-use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 
 /**
@@ -114,6 +111,133 @@ class SubworkflowOrphanTest extends BaseTestCase
         $this->assertSame(WorkflowInstance::STATUS_COMPLETED, $parentInstance->status);
     }
 
+    public function testSynchronousChildCompletionResumesParent(): void
+    {
+        $childSlug = 'sub-child-sync-' . uniqid();
+        $this->createWorkflow($childSlug, [
+            'nodes' => [
+                'trigger1' => ['type' => 'trigger', 'config' => [], 'outputs' => [['port' => 'default', 'target' => 'end1']]],
+                'end1' => ['type' => 'end', 'config' => [], 'outputs' => []],
+            ],
+        ]);
+
+        $parentSlug = 'sub-parent-sync-' . uniqid();
+        $this->createWorkflow($parentSlug, [
+            'nodes' => [
+                'trigger1' => ['type' => 'trigger', 'config' => [], 'outputs' => [['port' => 'default', 'target' => 'sub1']]],
+                'sub1' => [
+                    'type' => 'subworkflow',
+                    'config' => ['workflowSlug' => $childSlug],
+                    'outputs' => [['port' => 'default', 'target' => 'end1']],
+                ],
+                'end1' => ['type' => 'end', 'config' => [], 'outputs' => []],
+            ],
+        ]);
+
+        $result = $this->engine->startWorkflow($parentSlug);
+
+        $this->assertTrue($result->isSuccess());
+        $parentInstance = $this->instancesTable->get($result->data['instanceId']);
+        $this->assertSame(WorkflowInstance::STATUS_COMPLETED, $parentInstance->status);
+        $this->assertNotNull($parentInstance->context['nodes']['sub1']['childInstanceId'] ?? null);
+    }
+
+    public function testForkedSynchronousChildResumesParentOnce(): void
+    {
+        $childSlug = 'sub-child-fork-' . uniqid();
+        $this->createWorkflow($childSlug, [
+            'nodes' => [
+                'trigger1' => ['type' => 'trigger', 'config' => [], 'outputs' => [['target' => 'fork1']]],
+                'fork1' => [
+                    'type' => 'fork',
+                    'config' => [],
+                    'outputs' => [
+                        ['target' => 'end1'],
+                        ['target' => 'end2'],
+                    ],
+                ],
+                'end1' => ['type' => 'end', 'config' => [], 'outputs' => []],
+                'end2' => ['type' => 'end', 'config' => [], 'outputs' => []],
+            ],
+        ]);
+
+        $parentSlug = 'sub-parent-fork-' . uniqid();
+        $this->createWorkflow($parentSlug, [
+            'nodes' => [
+                'trigger1' => ['type' => 'trigger', 'config' => [], 'outputs' => [['target' => 'sub1']]],
+                'sub1' => [
+                    'type' => 'subworkflow',
+                    'config' => ['workflowSlug' => $childSlug],
+                    'outputs' => [['target' => 'end1']],
+                ],
+                'end1' => ['type' => 'end', 'config' => [], 'outputs' => []],
+            ],
+        ]);
+
+        $result = $this->engine->startWorkflow($parentSlug);
+
+        $this->assertTrue($result->isSuccess(), (string)$result->reason);
+        $parent = $this->instancesTable->get($result->data['instanceId']);
+        $this->assertSame(WorkflowInstance::STATUS_COMPLETED, $parent->status);
+        $this->assertEmpty($parent->active_nodes);
+    }
+
+    public function testParallelChildCompletionsBothResumeParent(): void
+    {
+        $childSlug = 'sub-child-parallel-' . uniqid();
+        $this->createWorkflow($childSlug, [
+            'nodes' => [
+                'trigger1' => ['type' => 'trigger', 'config' => [], 'outputs' => [['target' => 'delay1']]],
+                'delay1' => ['type' => 'delay', 'config' => ['duration' => '1d'], 'outputs' => [['target' => 'end1']]],
+                'end1' => ['type' => 'end', 'config' => [], 'outputs' => []],
+            ],
+        ]);
+
+        $parentSlug = 'sub-parent-parallel-' . uniqid();
+        $this->createWorkflow($parentSlug, [
+            'nodes' => [
+                'trigger1' => ['type' => 'trigger', 'config' => [], 'outputs' => [['target' => 'fork1']]],
+                'fork1' => [
+                    'type' => 'fork',
+                    'config' => [],
+                    'outputs' => [
+                        ['target' => 'sub1'],
+                        ['target' => 'sub2'],
+                    ],
+                ],
+                'sub1' => [
+                    'type' => 'subworkflow',
+                    'config' => ['workflowSlug' => $childSlug],
+                    'outputs' => [['target' => 'join1']],
+                ],
+                'sub2' => [
+                    'type' => 'subworkflow',
+                    'config' => ['workflowSlug' => $childSlug],
+                    'outputs' => [['target' => 'join1']],
+                ],
+                'join1' => ['type' => 'join', 'config' => [], 'outputs' => [['target' => 'end1']]],
+                'end1' => ['type' => 'end', 'config' => [], 'outputs' => []],
+            ],
+        ]);
+
+        $startResult = $this->engine->startWorkflow($parentSlug);
+        $this->assertTrue($startResult->isSuccess());
+        $parentId = $startResult->data['instanceId'];
+        $parent = $this->instancesTable->get($parentId);
+        $firstChildId = $parent->context['nodes']['sub1']['childInstanceId'];
+        $secondChildId = $parent->context['nodes']['sub2']['childInstanceId'];
+
+        $firstResume = $this->engine->resumeWorkflow($firstChildId, 'delay1', 'default');
+        $this->assertTrue($firstResume->isSuccess(), (string)$firstResume->reason);
+        $parent = $this->instancesTable->get($parentId);
+        $this->assertSame(WorkflowInstance::STATUS_WAITING, $parent->status);
+
+        $secondResume = $this->engine->resumeWorkflow($secondChildId, 'delay1', 'default');
+        $this->assertTrue($secondResume->isSuccess(), (string)$secondResume->reason);
+        $parent = $this->instancesTable->get($parentId);
+        $this->assertSame(WorkflowInstance::STATUS_COMPLETED, $parent->status);
+    }
+
     public function testChildContextHasParentReference(): void
     {
         $childSlug = 'sub-child-ref-' . uniqid();
@@ -201,8 +325,15 @@ class SubworkflowOrphanTest extends BaseTestCase
         $this->assertNotSame(
             WorkflowInstance::STATUS_CANCELLED,
             $childInstance->status,
-            'Current behavior: child is not auto-cancelled when parent is cancelled'
+            'Current behavior: child is not auto-cancelled when parent is cancelled',
         );
+
+        $resumeResult = $this->engine->resumeWorkflow($childId, 'delay1', 'default');
+        $this->assertTrue($resumeResult->isSuccess(), (string)$resumeResult->reason);
+        $childInstance = $this->instancesTable->get($childId);
+        $this->assertSame(WorkflowInstance::STATUS_COMPLETED, $childInstance->status);
+        $parentInstance = $this->instancesTable->get($parentId);
+        $this->assertSame(WorkflowInstance::STATUS_CANCELLED, $parentInstance->status);
     }
 
     // =====================================================
@@ -224,15 +355,9 @@ class SubworkflowOrphanTest extends BaseTestCase
             ],
         ]);
 
-        // Starting parent with non-existent child slug: engine stores failure info but
-        // the subworkflow node still sets parent to WAITING with the failed start result
         $result = $this->engine->startWorkflow($parentSlug);
-        $this->assertTrue($result->isSuccess());
-
-        $parentInstance = $this->instancesTable->get($result->data['instanceId']);
-        // Parent enters waiting even though child start failed (no childInstanceId)
-        $this->assertSame(WorkflowInstance::STATUS_WAITING, $parentInstance->status);
-        $this->assertNull($parentInstance->context['nodes']['sub1']['childInstanceId']);
+        $this->assertFalse($result->isSuccess());
+        $this->assertStringContainsString('failed to start', $result->reason);
     }
 
     public function testSubworkflowNodeWithoutSlugFails(): void
@@ -272,7 +397,7 @@ class SubworkflowOrphanTest extends BaseTestCase
         ]);
 
         // Start the child workflow normally first
-        $childResult = $this->engine->startWorkflow($childSlug);
+        $this->engine->startWorkflow($childSlug);
         // If it auto-completes (trigger → end), it will try to resume a non-existent parent.
         // We need to set up the parent reference BEFORE it completes, so use a delay.
 
@@ -301,18 +426,11 @@ class SubworkflowOrphanTest extends BaseTestCase
         // Resume child from delay → will reach end → try to resume non-existent parent
         // This should fail gracefully (resumeWorkflow will return failure for missing instance)
         $resumeResult = $this->engine->resumeWorkflow($childId, 'delay1', 'default');
+        $this->assertTrue($resumeResult->isSuccess(), (string)$resumeResult->reason);
 
         // Child itself should complete
         $childInstance = $this->instancesTable->get($childId);
-        // The resume of parent (999999) will throw/fail but child end node already completed
-        // The child's own status depends on whether the parent resume exception propagates
-        $this->assertTrue(
-            in_array($childInstance->status, [
-                WorkflowInstance::STATUS_COMPLETED,
-                WorkflowInstance::STATUS_FAILED,
-            ]),
-            'Child should either complete or fail when parent is missing'
-        );
+        $this->assertSame(WorkflowInstance::STATUS_COMPLETED, $childInstance->status);
     }
 
     public function testParentStoresChildInstanceIdInContext(): void

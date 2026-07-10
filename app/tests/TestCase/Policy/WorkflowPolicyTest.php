@@ -72,6 +72,21 @@ class WorkflowPolicyTest extends TestCase
         return $user;
     }
 
+    /**
+     * Create a regular user with explicit policy grants.
+     *
+     * @param array<string, mixed> $policies Policy map
+     */
+    private function makeRegularUserWithPolicies(array $policies): KmpIdentityInterface
+    {
+        $user = $this->createMock(KmpIdentityInterface::class);
+        $user->method('isSuperUser')->willReturn(false);
+        $user->method('getIdentifier')->willReturn(100);
+        $user->method('getPolicies')->willReturn($policies);
+
+        return $user;
+    }
+
     // =====================================================
     // WorkflowDefinitionsTablePolicy – super user bypass
     // =====================================================
@@ -217,6 +232,21 @@ class WorkflowPolicyTest extends TestCase
     {
         $user = $this->makeRegularUser();
         $this->assertFalse($this->definitionsControllerPolicy->canIndex($user, []));
+    }
+
+    public function testDefinitionsControllerPolicyAppSettingsRequiresIndexPolicy(): void
+    {
+        $policyClass = WorkflowDefinitionsControllerPolicy::class;
+        $user = $this->makeRegularUserWithPolicies([
+            $policyClass => [
+                'canIndex' => ['permission' => 'view-workflow-definitions'],
+            ],
+        ]);
+
+        $this->assertTrue($this->definitionsControllerPolicy->canAppSettings($user, []));
+        $this->assertFalse(
+            $this->definitionsControllerPolicy->canAppSettings($this->makeRegularUser(), []),
+        );
     }
 
     // =====================================================

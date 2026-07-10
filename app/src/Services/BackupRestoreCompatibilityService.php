@@ -9,6 +9,7 @@ use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowApprovalResponse;
 use App\Model\Entity\WorkflowExecutionLog;
 use App\Model\Entity\WorkflowInstance;
+use App\Model\Table\WorkflowInstancesTable;
 use App\Services\WorkflowEngine\DefaultWorkflowEngine;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use App\Services\WorkflowRegistry\WorkflowPluginLoader;
@@ -899,13 +900,11 @@ class BackupRestoreCompatibilityService
                 SET entity_type = 'WarrantRosters'
               WHERE slug = 'warrants-roster-approval' AND entity_type = 'Warrants'",
         );
-        $connection->execute(
-            "UPDATE workflow_instances
-                SET entity_type = 'WarrantRosters'
-              WHERE entity_type = 'Warrants'
-                AND workflow_definition_id IN (
-                    SELECT id FROM workflow_definitions WHERE slug = 'warrants-roster-approval'
-                )",
+        $this->rewriteWorkflowInstanceEntityType(
+            $connection,
+            'warrants-roster-approval',
+            'Warrants',
+            'WarrantRosters',
         );
 
         $contextSql = $connection->getDriver() instanceof Postgres ? 'context::text' : 'context';
@@ -1078,6 +1077,45 @@ class BackupRestoreCompatibilityService
         }
 
         return ['warrant_roster_approval_workflows_backfilled' => $count];
+    }
+
+    /**
+     * Rewrite restored workflow entity metadata without invalidating active uniqueness keys.
+     */
+    private function rewriteWorkflowInstanceEntityType(
+        Connection $connection,
+        string $workflowSlug,
+        string $oldEntityType,
+        string $newEntityType,
+    ): void {
+        $hasActiveEntityKey = $this->hasColumns(
+            $connection,
+            'workflow_instances',
+            ['active_entity_key'],
+        );
+        $instances = $connection->execute(
+            'SELECT wi.id, wi.workflow_definition_id, wi.entity_id, wi.status '
+            . 'FROM workflow_instances wi '
+            . 'INNER JOIN workflow_definitions wd ON wd.id = wi.workflow_definition_id '
+            . 'WHERE wd.slug = ? AND wi.entity_type = ?',
+            [$workflowSlug, $oldEntityType],
+        )->fetchAll('assoc') ?: [];
+
+        foreach ($instances as $instance) {
+            $values = ['entity_type' => $newEntityType];
+            if ($hasActiveEntityKey) {
+                $entityId = $instance['entity_id'];
+                $values['active_entity_key'] = $entityId !== null
+                    && in_array($instance['status'], WorkflowInstance::ACTIVE_STATUSES, true)
+                    ? WorkflowInstancesTable::buildActiveEntityKey(
+                        (int)$instance['workflow_definition_id'],
+                        $newEntityType,
+                        (int)$entityId,
+                    )
+                    : null;
+            }
+            $connection->update('workflow_instances', $values, ['id' => (int)$instance['id']]);
+        }
     }
 
     /**

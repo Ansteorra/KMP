@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Policy;
@@ -16,6 +15,9 @@ use Authorization\Policy\ResultInterface;
  */
 class WorkflowDefinitionsControllerPolicy implements BeforePolicyInterface
 {
+    /**
+     * Allow super users to bypass action-specific checks.
+     */
     public function before(
         ?IdentityInterface $user,
         mixed $resource,
@@ -28,64 +30,108 @@ class WorkflowDefinitionsControllerPolicy implements BeforePolicyInterface
         return null;
     }
 
+    /**
+     * Check access to the workflow definition index.
+     */
     public function canIndex(KmpIdentityInterface $user, mixed $resource): bool
     {
         return $this->_hasPolicyForUrl($user, __FUNCTION__, $resource);
     }
 
+    /**
+     * Check access to create workflow definitions.
+     */
     public function canAdd(KmpIdentityInterface $user, mixed $resource): bool
     {
         return $this->_hasPolicyForUrl($user, __FUNCTION__, $resource);
     }
 
+    /**
+     * Check access to the workflow designer.
+     */
     public function canDesigner(KmpIdentityInterface $user, mixed $resource): bool
     {
         return $this->_hasPolicyForUrl($user, __FUNCTION__, $resource);
     }
 
+    /**
+     * Check access to load a workflow version.
+     */
     public function canLoadVersion(KmpIdentityInterface $user, mixed $resource): bool
     {
         return $this->_hasPolicyForUrl($user, __FUNCTION__, $resource);
     }
 
+    /**
+     * Check access to the workflow registry.
+     */
     public function canRegistry(KmpIdentityInterface $user, mixed $resource): bool
     {
         return $this->_hasPolicyForUrl($user, __FUNCTION__, $resource);
     }
 
+    /**
+     * Check access to save a workflow definition.
+     */
     public function canSave(KmpIdentityInterface $user, mixed $resource): bool
     {
         return $this->_hasPolicyForUrl($user, __FUNCTION__, $resource);
     }
 
+    /**
+     * Check access to publish a workflow definition.
+     */
     public function canPublish(KmpIdentityInterface $user, mixed $resource): bool
     {
         return $this->_hasPolicyForUrl($user, __FUNCTION__, $resource);
     }
 
+    /**
+     * Check access to workflow versions.
+     */
     public function canVersions(KmpIdentityInterface $user, mixed $resource): bool
     {
         return $this->_hasPolicyForUrl($user, __FUNCTION__, $resource);
     }
 
+    /**
+     * Check access to compare workflow versions.
+     */
     public function canCompareVersions(KmpIdentityInterface $user, mixed $resource): bool
     {
         return $this->_hasPolicyForUrl($user, __FUNCTION__, $resource);
     }
 
+    /**
+     * Check access to activate or deactivate a workflow definition.
+     */
     public function canToggleActive(KmpIdentityInterface $user, mixed $resource): bool
     {
         return $this->_hasPolicyForUrl($user, __FUNCTION__, $resource);
     }
 
+    /**
+     * Check access to create a workflow draft.
+     */
     public function canCreateDraft(KmpIdentityInterface $user, mixed $resource): bool
     {
         return $this->_hasPolicyForUrl($user, __FUNCTION__, $resource);
     }
 
+    /**
+     * Check access to migrate active workflow instances.
+     */
     public function canMigrateInstances(KmpIdentityInterface $user, mixed $resource): bool
     {
         return $this->_hasPolicyForUrl($user, __FUNCTION__, $resource);
+    }
+
+    /**
+     * App-setting names are workflow designer metadata, so index access is sufficient.
+     */
+    public function canAppSettings(KmpIdentityInterface $user, mixed $resource): bool
+    {
+        return $this->_hasPolicyForUrl($user, 'canIndex', $resource);
     }
 
     /**

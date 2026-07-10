@@ -763,16 +763,8 @@ class DefaultWorkflowEngineTest extends BaseTestCase
 
         $result = $this->engine->startWorkflow($slug);
 
-        // Unknown type doesn't throw but logs as failed
-        $this->assertTrue($result->isSuccess());
-        $instanceId = $result->data['instanceId'];
-
-        $badLog = $this->logsTable->find()
-            ->where(['workflow_instance_id' => $instanceId, 'node_id' => 'bad1'])
-            ->first();
-        $this->assertNotNull($badLog);
-        $this->assertSame(WorkflowExecutionLog::STATUS_FAILED, $badLog->status);
-        $this->assertStringContainsString('Unknown node type', $badLog->error_message);
+        $this->assertFalse($result->isSuccess());
+        $this->assertStringContainsString('Unknown node type', $result->reason);
     }
 
     public function testActionNodeMissingActionThrows(): void
@@ -903,6 +895,41 @@ class DefaultWorkflowEngineTest extends BaseTestCase
 
         $this->assertIsArray($results);
         $this->assertEmpty($results);
+    }
+
+    public function testDispatchTriggerCanTargetOneWorkflowDefinition(): void
+    {
+        $eventName = 'schedule.targeted.' . uniqid();
+        [$firstDefinitionId] = $this->createWorkflow('dispatch-first-' . uniqid(), [
+            'nodes' => [
+                'trigger1' => [
+                    'type' => 'trigger',
+                    'config' => ['event' => $eventName],
+                    'outputs' => [['target' => 'end1']],
+                ],
+                'end1' => ['type' => 'end', 'config' => [], 'outputs' => []],
+            ],
+        ]);
+        [$secondDefinitionId] = $this->createWorkflow('dispatch-second-' . uniqid(), [
+            'nodes' => [
+                'trigger1' => [
+                    'type' => 'trigger',
+                    'config' => ['event' => $eventName],
+                    'outputs' => [['target' => 'end1']],
+                ],
+                'end1' => ['type' => 'end', 'config' => [], 'outputs' => []],
+            ],
+        ]);
+
+        $results = $this->engine->dispatchTrigger($eventName, [
+            'workflowDefinitionId' => $secondDefinitionId,
+        ]);
+
+        $this->assertCount(1, $results);
+        $this->assertTrue($results[0]->isSuccess());
+        $instance = $this->instancesTable->get($results[0]->data['instanceId']);
+        $this->assertSame($secondDefinitionId, $instance->workflow_definition_id);
+        $this->assertNotSame($firstDefinitionId, $instance->workflow_definition_id);
     }
 
     // =====================================================

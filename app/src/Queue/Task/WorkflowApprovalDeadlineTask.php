@@ -12,6 +12,7 @@ use Cake\Log\Log;
 use Cake\ORM\Table;
 use Queue\Queue\ServicesTrait;
 use Queue\Queue\Task;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -35,6 +36,11 @@ class WorkflowApprovalDeadlineTask extends Task
      * Prevent parallel execution of this task.
      */
     public bool $unique = true;
+
+    /**
+     * Retry transient workflow resume failures.
+     */
+    public ?int $retries = 3;
 
     /**
      * Scan for expired approvals, process escalation config, and resume workflows.
@@ -88,39 +94,24 @@ class WorkflowApprovalDeadlineTask extends Task
                     // Escalation returned false — fall through to default expiry
                 }
 
-                // Default: mark as expired and resume on 'expired' port
-                $approval->status = WorkflowApproval::STATUS_EXPIRED;
-                if (!$approvalsTable->save($approval)) {
-                    Log::error(
-                        "WorkflowApprovalDeadlineTask: Failed to save expired status for approval {$approval->id}",
-                    );
-                    $errors++;
-
+                $expiredApproval = $this->transitionAndResume(
+                    $approval,
+                    WorkflowApproval::STATUS_EXPIRED,
+                    'expired',
+                    ['expiredApprovalId' => $approval->id],
+                    $approvalsTable,
+                    $engine,
+                );
+                if ($expiredApproval === null) {
                     continue;
                 }
 
-                $this->dispatchExpiredApprovalEvent($approval);
-
-                $result = $engine->resumeWorkflow(
-                    $approval->workflow_instance_id,
-                    $approval->node_id,
-                    'expired',
-                    ['expiredApprovalId' => $approval->id],
+                $this->dispatchExpiredApprovalEvent($expiredApproval);
+                $processed++;
+                Log::info(
+                    "WorkflowApprovalDeadlineTask: Expired approval {$approval->id}, "
+                    . "resumed instance {$approval->workflow_instance_id}",
                 );
-
-                if ($result->isSuccess()) {
-                    $processed++;
-                    Log::info(
-                        "WorkflowApprovalDeadlineTask: Expired approval {$approval->id}, "
-                        . "resumed instance {$approval->workflow_instance_id}",
-                    );
-                } else {
-                    $errors++;
-                    Log::error(
-                        "WorkflowApprovalDeadlineTask: Failed to resume instance {$approval->workflow_instance_id}: "
-                        . $result->getError(),
-                    );
-                }
             } catch (Throwable $e) {
                 $errors++;
                 Log::error("WorkflowApprovalDeadlineTask: Exception for approval {$approval->id}: " . $e->getMessage());
@@ -128,6 +119,11 @@ class WorkflowApprovalDeadlineTask extends Task
         }
 
         Log::info("WorkflowApprovalDeadlineTask: Processed {$processed}, errors {$errors}");
+        if ($errors > 0) {
+            throw new RuntimeException(
+                "WorkflowApprovalDeadlineTask failed to process {$errors} approval(s); retrying pending work.",
+            );
+        }
     }
 
     /**
@@ -152,38 +148,30 @@ class WorkflowApprovalDeadlineTask extends Task
 
         switch ($action) {
             case 'auto_approve':
-                $approval->status = WorkflowApproval::STATUS_APPROVED;
-                if (!$approvalsTable->save($approval)) {
-                    Log::error("WorkflowApprovalDeadlineTask: Failed to auto-approve approval {$approvalId}");
-
-                    return false;
-                }
-                $result = $engine->resumeWorkflow(
-                    $approval->workflow_instance_id,
-                    $approval->node_id,
+                $this->transitionAndResume(
+                    $approval,
+                    WorkflowApproval::STATUS_APPROVED,
                     'approved',
                     ['escalatedApprovalId' => $approvalId, 'escalationAction' => 'auto_approve'],
+                    $approvalsTable,
+                    $engine,
                 );
                 Log::info("WorkflowApprovalDeadlineTask: Auto-approved approval {$approvalId} (escalation)");
 
-                return $result->isSuccess();
+                return true;
 
             case 'auto_reject':
-                $approval->status = WorkflowApproval::STATUS_REJECTED;
-                if (!$approvalsTable->save($approval)) {
-                    Log::error("WorkflowApprovalDeadlineTask: Failed to auto-reject approval {$approvalId}");
-
-                    return false;
-                }
-                $result = $engine->resumeWorkflow(
-                    $approval->workflow_instance_id,
-                    $approval->node_id,
+                $this->transitionAndResume(
+                    $approval,
+                    WorkflowApproval::STATUS_REJECTED,
                     'rejected',
                     ['escalatedApprovalId' => $approvalId, 'escalationAction' => 'auto_reject'],
+                    $approvalsTable,
+                    $engine,
                 );
                 Log::info("WorkflowApprovalDeadlineTask: Auto-rejected approval {$approvalId} (escalation)");
 
-                return $result->isSuccess();
+                return true;
 
             case 'reassign':
                 $newConfig = $escalationConfig['reassign_to'] ?? null;
@@ -196,19 +184,15 @@ class WorkflowApprovalDeadlineTask extends Task
 
                     return false;
                 }
-                $approval->approver_type = $newConfig['type'] ?? $approval->approver_type;
-                $approval->approver_config = $newConfig;
-                $approval->deadline = $this->parseExtendedDeadline($extendDeadline);
-                // Clear escalation to prevent re-triggering
-                $approval->escalation_config = null;
-                if ($approvalsTable->save($approval)) {
-                    Log::info("WorkflowApprovalDeadlineTask: Reassigned approval {$approvalId} with extended deadline");
+                $this->reassignPendingApproval(
+                    $approval,
+                    $newConfig,
+                    $this->parseExtendedDeadline($extendDeadline),
+                    $approvalsTable,
+                );
+                Log::info("WorkflowApprovalDeadlineTask: Reassigned approval {$approvalId} with extended deadline");
 
-                    return true;
-                }
-                Log::error("WorkflowApprovalDeadlineTask: Failed to reassign approval {$approvalId}");
-
-                return false;
+                return true;
 
             case 'notify':
                 $notifyTargets = $escalationConfig['notify_members'] ?? [];
@@ -228,6 +212,106 @@ class WorkflowApprovalDeadlineTask extends Task
 
                 return false;
         }
+    }
+
+    /**
+     * Atomically transition an approval and resume its workflow.
+     *
+     * @return \App\Model\Entity\WorkflowApproval|null Updated approval, or null when already handled
+     */
+    private function transitionAndResume(
+        WorkflowApproval $approval,
+        string $status,
+        string $outputPort,
+        array $resumeData,
+        Table $approvalsTable,
+        WorkflowEngineInterface $engine,
+    ): ?WorkflowApproval {
+        $connection = $approvalsTable->getConnection();
+        $connection->enableSavePoints();
+
+        return $connection->transactional(
+            function () use (
+                $approval,
+                $status,
+                $outputPort,
+                $resumeData,
+                $approvalsTable,
+                $engine,
+            ): ?WorkflowApproval {
+                // Cancellation uses the same instance-then-approval lock order.
+                $instancesTable = $this->getTableLocator()->get('WorkflowInstances');
+                $lockedInstance = $instancesTable->find()
+                    ->where(['id' => $approval->workflow_instance_id])
+                    ->epilog('FOR UPDATE')
+                    ->first();
+                if ($lockedInstance === null || $lockedInstance->isTerminal()) {
+                    return null;
+                }
+
+                $lockedApproval = $approvalsTable->find()
+                    ->where(['id' => $approval->id])
+                    ->epilog('FOR UPDATE')
+                    ->first();
+                if (
+                    !$lockedApproval
+                    || $lockedApproval->status !== WorkflowApproval::STATUS_PENDING
+                ) {
+                    return null;
+                }
+
+                $lockedApproval->status = $status;
+                $approvalsTable->saveOrFail($lockedApproval);
+
+                $result = $engine->resumeWorkflow(
+                    (int)$lockedApproval->workflow_instance_id,
+                    (string)$lockedApproval->node_id,
+                    $outputPort,
+                    $resumeData,
+                );
+                if (!$result->isSuccess()) {
+                    throw new RuntimeException(
+                        "Failed to resume instance {$lockedApproval->workflow_instance_id}: "
+                        . ($result->getError() ?? 'Unknown error'),
+                    );
+                }
+
+                return $lockedApproval;
+            },
+        );
+    }
+
+    /**
+     * Reassign an approval while holding the same row lock used by responses.
+     */
+    private function reassignPendingApproval(
+        WorkflowApproval $approval,
+        array $newConfig,
+        DateTime $deadline,
+        Table $approvalsTable,
+    ): void {
+        $connection = $approvalsTable->getConnection();
+        $connection->enableSavePoints();
+        $connection->transactional(
+            function () use ($approval, $newConfig, $deadline, $approvalsTable): void {
+                $lockedApproval = $approvalsTable->find()
+                    ->where(['id' => $approval->id])
+                    ->epilog('FOR UPDATE')
+                    ->first();
+                if (
+                    !$lockedApproval
+                    || $lockedApproval->status !== WorkflowApproval::STATUS_PENDING
+                ) {
+                    return;
+                }
+
+                $lockedApproval->approver_type = $newConfig['type'] ?? $lockedApproval->approver_type;
+                $lockedApproval->approver_config = $newConfig;
+                $lockedApproval->deadline = $deadline;
+                $lockedApproval->escalation_config = null;
+                $approvalsTable->saveOrFail($lockedApproval);
+            },
+        );
     }
 
     /**

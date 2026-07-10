@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Queue\Task;
 
 use App\Model\Entity\WorkflowApproval;
+use App\Model\Entity\WorkflowInstance;
 use App\Queue\Task\WorkflowApprovalDeadlineTask;
 use App\Queue\Task\WorkflowResumeTask;
 use App\Services\ServiceResult;
@@ -186,6 +187,36 @@ class WorkflowTaskTest extends BaseTestCase
         $this->assertEquals(WorkflowApproval::STATUS_EXPIRED, $updated->status);
     }
 
+    public function testDeadlineTaskRollsBackApprovalWhenResumeFails(): void
+    {
+        $approvalsTable = TableRegistry::getTableLocator()->get('WorkflowApprovals');
+        $approvalsTable->updateAll(
+            ['deadline' => DateTime::now()->modify('+1 day')],
+            [
+                'status' => WorkflowApproval::STATUS_PENDING,
+                'deadline <' => DateTime::now(),
+            ],
+        );
+        $approval = $this->createExpiredApproval();
+
+        $engine = $this->createMock(WorkflowEngineInterface::class);
+        $engine->expects($this->once())
+            ->method('resumeWorkflow')
+            ->willReturn(new ServiceResult(false, 'resume failed'));
+
+        $task = $this->createDeadlineTask($engine);
+
+        try {
+            $task->run([], 1);
+            $this->fail('Deadline task should throw so the queue retries the approval.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('retrying pending work', $exception->getMessage());
+        }
+
+        $updated = $approvalsTable->get($approval->id);
+        $this->assertSame(WorkflowApproval::STATUS_PENDING, $updated->status);
+    }
+
     public function testDeadlineTaskDispatchesExpiredApprovalEvent(): void
     {
         $defTable = TableRegistry::getTableLocator()->get('WorkflowDefinitions');
@@ -290,5 +321,63 @@ class WorkflowTaskTest extends BaseTestCase
         }
 
         return $task;
+    }
+
+    private function createExpiredApproval(): WorkflowApproval
+    {
+        $defTable = TableRegistry::getTableLocator()->get('WorkflowDefinitions');
+        $def = $defTable->newEntity([
+            'name' => 'Deadline Retry Test ' . uniqid(),
+            'slug' => 'deadline-retry-' . uniqid(),
+            'trigger_type' => 'manual',
+        ]);
+        $defTable->saveOrFail($def);
+
+        $versionsTable = TableRegistry::getTableLocator()->get('WorkflowVersions');
+        $version = $versionsTable->newEntity([
+            'workflow_definition_id' => $def->id,
+            'version_number' => 1,
+            'definition' => ['nodes' => [
+                'trigger1' => ['type' => 'trigger', 'outputs' => [['target' => 'end1']]],
+                'end1' => ['type' => 'end', 'outputs' => []],
+            ]],
+            'status' => 'published',
+        ]);
+        $versionsTable->saveOrFail($version);
+
+        $instancesTable = TableRegistry::getTableLocator()->get('WorkflowInstances');
+        $instance = $instancesTable->newEntity([
+            'workflow_definition_id' => $def->id,
+            'workflow_version_id' => $version->id,
+            'status' => WorkflowInstance::STATUS_WAITING,
+        ]);
+        $instancesTable->saveOrFail($instance);
+
+        $logsTable = TableRegistry::getTableLocator()->get('WorkflowExecutionLogs');
+        $log = $logsTable->newEntity([
+            'workflow_instance_id' => $instance->id,
+            'node_id' => 'approval_node',
+            'node_type' => 'approval',
+            'status' => 'waiting',
+        ]);
+        $logsTable->saveOrFail($log);
+
+        $approvalsTable = TableRegistry::getTableLocator()->get('WorkflowApprovals');
+        $approval = $approvalsTable->newEntity([
+            'workflow_instance_id' => $instance->id,
+            'node_id' => 'approval_node',
+            'execution_log_id' => $log->id,
+            'approver_type' => WorkflowApproval::APPROVER_TYPE_MEMBER,
+            'approver_config' => ['member_id' => self::ADMIN_MEMBER_ID],
+            'required_count' => 1,
+            'approved_count' => 0,
+            'rejected_count' => 0,
+            'status' => WorkflowApproval::STATUS_PENDING,
+            'allow_parallel' => true,
+            'deadline' => DateTime::now()->modify('-1 hour'),
+        ]);
+        $approvalsTable->saveOrFail($approval);
+
+        return $approval;
     }
 }

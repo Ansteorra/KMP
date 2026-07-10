@@ -5,6 +5,7 @@ namespace App\Test\TestCase\Services;
 
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowInstance;
+use App\Model\Table\WorkflowInstancesTable;
 use App\Services\BackupRestoreCompatibilityService;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use App\Test\TestCase\BaseTestCase;
@@ -306,6 +307,57 @@ class BackupRestoreCompatibilityServiceTest extends BaseTestCase
                 ])
                 ->firstOrFail();
             $this->assertSame('2026-01-01 10:05:00', $response->responded_at->format('Y-m-d H:i:s'));
+        } finally {
+            if ($createdLegacyTable) {
+                $connection->execute('DROP TABLE warrant_roster_approvals');
+            }
+        }
+    }
+
+    public function testWarrantRosterEntityRewriteRefreshesActiveUniquenessKey(): void
+    {
+        $connection = ConnectionManager::get('default');
+        $createdLegacyTable = $this->createLegacyWarrantRosterApprovalSourceTable($connection);
+
+        try {
+            $this->invokePrivate('syncWorkflowDefinitions', [$connection]);
+            $definition = $this->getTableLocator()->get('WorkflowDefinitions')->find()
+                ->where(['slug' => 'warrants-roster-approval'])
+                ->firstOrFail();
+            $connection->update(
+                'workflow_definitions',
+                ['entity_type' => 'Warrants'],
+                ['id' => (int)$definition->id],
+            );
+
+            $entityId = -2147482999;
+            $instancesTable = $this->getTableLocator()->get('WorkflowInstances');
+            $instance = $instancesTable->saveOrFail($instancesTable->newEntity([
+                'workflow_definition_id' => $definition->id,
+                'workflow_version_id' => $definition->current_version_id,
+                'entity_type' => 'Warrants',
+                'entity_id' => $entityId,
+                'status' => WorkflowInstance::STATUS_WAITING,
+                'context' => [],
+                'active_nodes' => ['approval-gate'],
+                'started_by' => self::ADMIN_MEMBER_ID,
+                'started_at' => DateTime::now(),
+            ]));
+            $oldKey = $instance->active_entity_key;
+
+            $this->invokePrivate('backfillWarrantRosterApprovalWorkflows', [$connection]);
+
+            $updated = $instancesTable->get($instance->id);
+            $this->assertSame('WarrantRosters', $updated->entity_type);
+            $this->assertNotSame($oldKey, $updated->active_entity_key);
+            $this->assertSame(
+                WorkflowInstancesTable::buildActiveEntityKey(
+                    (int)$definition->id,
+                    'WarrantRosters',
+                    $entityId,
+                ),
+                $updated->active_entity_key,
+            );
         } finally {
             if ($createdLegacyTable) {
                 $connection->execute('DROP TABLE warrant_roster_approvals');

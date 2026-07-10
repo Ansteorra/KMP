@@ -4,6 +4,9 @@ declare(strict_types=1);
 namespace App\Model\Table;
 
 use App\Model\Entity\WorkflowInstance;
+use ArrayObject;
+use Cake\Datasource\EntityInterface;
+use Cake\Event\Event;
 use Cake\ORM\RulesChecker;
 use Cake\Validation\Validator;
 
@@ -57,6 +60,46 @@ class WorkflowInstancesTable extends BaseTable
 
         // MariaDB stores JSON as longtext; explicitly map JSON columns
         $this->setJsonColumnTypesIfPresent(['context', 'active_nodes', 'error_info']);
+    }
+
+    /**
+     * Maintain the unique key used to serialize active workflows per entity.
+     */
+    public function beforeSave(Event $event, EntityInterface $entity, ArrayObject $options): void
+    {
+        if (!$entity instanceof WorkflowInstance) {
+            return;
+        }
+
+        $entityId = $entity->entity_id;
+        if (
+            $entityId !== null
+            && in_array($entity->status, WorkflowInstance::ACTIVE_STATUSES, true)
+        ) {
+            $entity->active_entity_key = self::buildActiveEntityKey(
+                (int)$entity->workflow_definition_id,
+                $entity->entity_type,
+                (int)$entityId,
+            );
+
+            return;
+        }
+
+        $entity->active_entity_key = null;
+    }
+
+    /**
+     * Build the stable database uniqueness key for an active workflow entity.
+     */
+    public static function buildActiveEntityKey(
+        int $workflowDefinitionId,
+        ?string $entityType,
+        int $entityId,
+    ): string {
+        return hash(
+            'sha256',
+            $workflowDefinitionId . "\0" . ($entityType ?? '') . "\0" . $entityId,
+        );
     }
 
     /**
