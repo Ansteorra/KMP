@@ -35,18 +35,21 @@ const waitForSuccessfulLogin = async (page, timeout = DEFAULT_TIMEOUT) => {
 const loginAs = async (page, emailAddress, password = 'TestPassword') => {
     await page.goto('/members/logout', { waitUntil: 'domcontentloaded' });
     await waitForPageBody(page);
-    await page.goto('/members/login', { waitUntil: 'domcontentloaded' });
+    await page.goto('/members/login', { waitUntil: 'load' });
     await waitForPageBody(page);
     await page.locator('#email-address').fill(emailAddress);
     await page.locator('#password').fill(password);
 
-    const loginResponsePromise = page.waitForResponse((response) => {
-        const request = response.request();
+    const submitButton = page.getByRole('button', { name: 'Sign in', exact: true });
+    await submitButton.scrollIntoViewIfNeeded();
+    const [loginResponse] = await Promise.all([
+        page.waitForResponse((response) => {
+            const request = response.request();
 
-        return request.method() === 'POST' && new URL(response.url()).pathname.includes('/members/login');
-    }, { timeout: 30000 });
-    await page.locator('input[type="submit"][value="Sign in"]').click({ noWaitAfter: true });
-    const loginResponse = await loginResponsePromise;
+            return request.method() === 'POST' && new URL(response.url()).pathname === '/members/login';
+        }, { timeout: 30000 }),
+        submitButton.click({ noWaitAfter: true }),
+    ]);
     if (![200, 302, 303].includes(loginResponse.status())) {
         throw new Error(`Login failed with HTTP ${loginResponse.status()}`);
     }
