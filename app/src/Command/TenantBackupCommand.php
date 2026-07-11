@@ -5,16 +5,16 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Services\Backups\LocalTenantBackupStorage;
-use App\Services\Backups\PgDumpTenantBackupDumper;
+use App\Services\Backups\BackupStorageFactory;
+use App\Services\Backups\JsonTenantBackupDumper;
 use App\Services\Backups\TenantBackupEncryptor;
 use App\Services\Backups\TenantBackupService;
 use App\Services\Secrets\SecretStoreFactory;
+use App\Services\TenantConnectionManager;
 use Cake\Command\Command;
 use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
-use Cake\Core\Configure;
 use Cake\Datasource\ConnectionManager;
 use RuntimeException;
 
@@ -28,7 +28,7 @@ class TenantBackupCommand extends Command
     protected function buildOptionParser(ConsoleOptionParser $parser): ConsoleOptionParser
     {
         return parent::buildOptionParser($parser)
-            ->setDescription('Create an encrypted pg_dump backup for a tenant.')
+            ->setDescription('Create an encrypted JSON logical backup for a tenant.')
             ->addOption('tenant', [
                 'help' => 'Tenant slug to back up.',
                 'required' => true,
@@ -36,6 +36,9 @@ class TenantBackupCommand extends Command
             ->addOption('retention-days', [
                 'help' => 'Retention period for the backup metadata.',
                 'default' => '30',
+            ])
+            ->addOption('platform-job-id', [
+                'help' => 'Existing Platform Admin job UUID to update.',
             ]);
     }
 
@@ -46,6 +49,9 @@ class TenantBackupCommand extends Command
             $result = $service->backupTenant(
                 (string)$args->getOption('tenant'),
                 (int)$args->getOption('retention-days'),
+                $args->getOption('platform-job-id') === null
+                    ? null
+                    : (string)$args->getOption('platform-job-id'),
             );
             $io->success(sprintf('Tenant backup completed: %s (%s)', $result->backupId, $result->objectUri));
 
@@ -59,24 +65,16 @@ class TenantBackupCommand extends Command
 
     private function buildService(): TenantBackupService
     {
-        $enabled = (bool)Configure::read('TenantBackups.local.enabled', false);
-        $root = (string)Configure::read('TenantBackups.local.path', TMP . 'backups');
-        if (env('KMP_LOCAL_BACKUPS_ENABLED', null) !== null) {
-            $enabled = filter_var(env('KMP_LOCAL_BACKUPS_ENABLED', false), FILTER_VALIDATE_BOOLEAN);
-        }
-        $configuredRoot = env('KMP_LOCAL_BACKUPS_PATH', null);
-        if (is_string($configuredRoot) && $configuredRoot !== '') {
-            $root = $configuredRoot;
-        }
         /** @var \Cake\Database\Connection $platform */
         $platform = ConnectionManager::get('platform');
+        $secretStore = SecretStoreFactory::fromConfig();
 
         return new TenantBackupService(
             $platform,
-            SecretStoreFactory::fromConfig(),
-            new PgDumpTenantBackupDumper(),
+            $secretStore,
+            new JsonTenantBackupDumper(new TenantConnectionManager($secretStore)),
             new TenantBackupEncryptor(),
-            new LocalTenantBackupStorage($root, $enabled),
+            BackupStorageFactory::tenant(),
         );
     }
 }

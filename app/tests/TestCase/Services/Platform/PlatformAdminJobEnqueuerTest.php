@@ -8,6 +8,7 @@ use App\Services\Platform\PlatformAuditService;
 use Cake\Database\Connection;
 use Cake\Database\Driver\Sqlite;
 use Cake\TestSuite\TestCase;
+use RuntimeException;
 
 class PlatformAdminJobEnqueuerTest extends TestCase
 {
@@ -37,6 +38,30 @@ class PlatformAdminJobEnqueuerTest extends TestCase
                 modified_at TEXT NULL
             )',
         );
+        $this->connection->execute(
+            'CREATE TABLE tenants (
+                id TEXT PRIMARY KEY,
+                status TEXT NOT NULL
+            )',
+        );
+        $this->connection->insert('tenants', [
+            'id' => 'tenant-1',
+            'status' => 'suspended',
+        ]);
+        $this->connection->execute(
+            'CREATE TABLE tenant_backups (
+                id TEXT PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                backup_type TEXT NOT NULL,
+                status TEXT NOT NULL
+            )',
+        );
+        $this->connection->insert('tenant_backups', [
+            'id' => 'backup-1',
+            'tenant_id' => 'tenant-1',
+            'backup_type' => 'json',
+            'status' => 'completed',
+        ]);
         $this->connection->execute(
             'CREATE TABLE audit_events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -112,5 +137,204 @@ class PlatformAdminJobEnqueuerTest extends TestCase
         $this->assertSame($first['id'], $second['id']);
         $this->assertSame(1, (int)$this->connection->execute('SELECT COUNT(*) FROM platform_jobs')->fetchColumn(0));
         $this->assertSame(1, (int)$this->connection->execute('SELECT COUNT(*) FROM audit_events')->fetchColumn(0));
+    }
+
+    public function testRejectsOverlappingTenantLifecycleOperations(): void
+    {
+        $service = new PlatformAdminJobEnqueuer(
+            $this->connection,
+            new PlatformAuditService($this->connection),
+        );
+        $service->enqueue(
+            'tenant_backup',
+            'tenant-1',
+            'platform-user-1',
+            ['tenant_slug' => 'example'],
+            'first-backup',
+            'manual backup request',
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Another lifecycle operation is already queued or running');
+
+        $service->enqueue(
+            'tenant_restore',
+            'tenant-1',
+            'platform-user-1',
+            ['tenant_slug' => 'example', 'backup_id' => 'backup-1'],
+            'overlapping-restore',
+            'manual restore request',
+        );
+    }
+
+    public function testAllowsNewTenantOperationAfterPreviousJobCompleted(): void
+    {
+        $service = new PlatformAdminJobEnqueuer(
+            $this->connection,
+            new PlatformAuditService($this->connection),
+        );
+        $first = $service->enqueue(
+            'tenant_backup',
+            'tenant-1',
+            'platform-user-1',
+            ['tenant_slug' => 'example'],
+            'completed-backup',
+            'manual backup request',
+        );
+        $this->connection->update('platform_jobs', ['status' => 'completed'], ['id' => $first['id']]);
+
+        $restore = $service->enqueue(
+            'tenant_restore',
+            'tenant-1',
+            'platform-user-1',
+            ['tenant_slug' => 'example', 'backup_id' => 'backup-1'],
+            'later-restore',
+            'manual restore request',
+        );
+
+        $this->assertSame('queued', $restore['status']);
+        $this->assertSame(2, (int)$this->connection->execute('SELECT COUNT(*) FROM platform_jobs')->fetchColumn(0));
+    }
+
+    public function testRejectsOperationMatchingBootstrapJobSlug(): void
+    {
+        $service = new PlatformAdminJobEnqueuer(
+            $this->connection,
+            new PlatformAuditService($this->connection),
+        );
+        $service->enqueue(
+            'tenant_provision',
+            null,
+            'platform-user-1',
+            ['tenant_slug' => 'example'],
+            'bootstrap-provision',
+            'tenant bootstrap',
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Another lifecycle operation is already queued or running');
+
+        $service->enqueue(
+            'tenant_backup',
+            'tenant-1',
+            'platform-user-1',
+            ['tenant_slug' => 'example'],
+            'bootstrap-overlap',
+            'manual backup request',
+        );
+    }
+
+    public function testBootstrapConflictLookupIsNotCapped(): void
+    {
+        for ($index = 0; $index < 101; $index++) {
+            $this->insertProvisionJob($index, sprintf('unrelated-%03d', $index));
+        }
+        $this->insertProvisionJob(101, 'example');
+        $service = new PlatformAdminJobEnqueuer(
+            $this->connection,
+            new PlatformAuditService($this->connection),
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Another lifecycle operation is already queued or running');
+
+        $service->enqueue(
+            'tenant_provision',
+            null,
+            'platform-user-1',
+            ['tenant_slug' => 'example'],
+            'duplicate-bootstrap',
+            'tenant bootstrap',
+        );
+    }
+
+    public function testRestoreRechecksBackupAvailabilityBeforeEnqueue(): void
+    {
+        $this->connection->update('tenant_backups', ['status' => 'deleting'], ['id' => 'backup-1']);
+        $service = new PlatformAdminJobEnqueuer(
+            $this->connection,
+            new PlatformAuditService($this->connection),
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Tenant backup is no longer available for restore.');
+
+        $service->enqueue(
+            'tenant_restore',
+            'tenant-1',
+            'platform-user-1',
+            ['tenant_slug' => 'example', 'backup_id' => 'backup-1'],
+            'deleting-backup-restore',
+            'manual restore request',
+        );
+    }
+
+    public function testRestoreRequiresTenantToRemainSuspended(): void
+    {
+        $this->connection->update('tenants', ['status' => 'active'], ['id' => 'tenant-1']);
+        $service = new PlatformAdminJobEnqueuer(
+            $this->connection,
+            new PlatformAuditService($this->connection),
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Tenant must remain suspended before a restore can be queued.');
+
+        $service->enqueue(
+            'tenant_restore',
+            'tenant-1',
+            'platform-user-1',
+            ['tenant_slug' => 'example', 'backup_id' => 'backup-1'],
+            'active-tenant-restore',
+            'manual restore request',
+        );
+    }
+
+    public function testRejectsConcurrentPlatformDatabaseBackups(): void
+    {
+        $service = new PlatformAdminJobEnqueuer(
+            $this->connection,
+            new PlatformAuditService($this->connection),
+        );
+        $service->enqueue(
+            'platform_database_backup',
+            null,
+            'platform-user-1',
+            ['retention_days' => 30],
+            'platform-backup-1',
+            'manual platform backup',
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('already queued or running');
+
+        $service->enqueue(
+            'platform_database_backup',
+            null,
+            'platform-user-1',
+            ['retention_days' => 30],
+            'platform-backup-2',
+            'manual platform backup',
+        );
+    }
+
+    private function insertProvisionJob(int $index, string $tenantSlug): void
+    {
+        $now = '2026-07-10 12:00:00';
+        $this->connection->insert('platform_jobs', [
+            'id' => sprintf('provision-job-%03d', $index),
+            'tenant_id' => null,
+            'requested_by_platform_user_id' => null,
+            'job_type' => 'tenant_provision',
+            'status' => 'queued',
+            'idempotency_key' => sprintf('provision-%03d', $index),
+            'parameters' => json_encode(['tenant_slug' => $tenantSlug]),
+            'log_uri' => null,
+            'last_error' => null,
+            'created_at' => $now,
+            'started_at' => null,
+            'finished_at' => null,
+            'modified_at' => $now,
+        ]);
     }
 }

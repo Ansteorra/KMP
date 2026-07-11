@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "10d2f4ae37ce148a9af1c458fa7490a6",
+    "content-hash": "90ffbf8fd213cfb03bc5a619fd2a6184",
     "packages": [
         {
             "name": "admad/cakephp-glide",
@@ -9748,8 +9748,9 @@
         "php": "^8.3",
         "ext-gd": "*",
         "ext-intl": "*",
+        "ext-sodium": "*",
         "ext-yaml": "*"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.6.0"
+    "plugin-api-version": "2.9.0"
 }

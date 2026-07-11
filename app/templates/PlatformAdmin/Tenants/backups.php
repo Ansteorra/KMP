@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
 
+use App\Services\Backups\TenantBackupEncryptor;
+use App\Services\Backups\TenantBackupService;
+
 // phpcs:disable Generic.Files.LineLength.TooLong
 
 /**
@@ -28,7 +31,7 @@ $this->assign('title', __('Tenant Backups: {0}', $tenant['slug']));
     <div class="card-body">
         <h2 id="tenant-backup-request-heading" class="h5"><?= __('Create Tenant Backup') ?></h2>
         <p class="text-muted">
-            <?= __('Queues a platform-admin tenant backup using the shared encrypted .kmpbackup JSON archive model.') ?>
+            <?= __('Creates an encrypted, gzip-compressed JSON logical archive in the configured backup storage backend.') ?>
         </p>
         <?= $this->Form->create(null, [
             'url' => ['prefix' => 'PlatformAdmin', 'controller' => 'Tenants', 'action' => 'createBackup', $tenant['slug']],
@@ -57,7 +60,7 @@ $this->assign('title', __('Tenant Backups: {0}', $tenant['slug']));
         <h2 id="tenant-backup-jobs-heading" class="h5"><?= __('Queued Backup and Restore Operations') ?></h2>
         <div class="table-responsive">
             <table class="table table-sm align-middle">
-                <thead><tr><th><?= __('Type') ?></th><th><?= __('Status') ?></th><th><?= __('Created') ?></th><th><?= __('Started') ?></th><th><?= __('Finished') ?></th><th><?= __('Error') ?></th></tr></thead>
+                <thead><tr><th scope="col"><?= __('Type') ?></th><th scope="col"><?= __('Status') ?></th><th scope="col"><?= __('Created') ?></th><th scope="col"><?= __('Started') ?></th><th scope="col"><?= __('Finished') ?></th><th scope="col"><?= __('Error') ?></th></tr></thead>
                 <tbody>
                 <?php foreach ($jobs as $job) : ?>
                     <tr>
@@ -78,47 +81,135 @@ $this->assign('title', __('Tenant Backups: {0}', $tenant['slug']));
     </div>
 </section>
 
-<section class="card" aria-labelledby="legacy-tenant-backups-heading">
+<?php $tenantBackupModalId = 'tenant-backup-action-modal'; ?>
+<section
+    class="card"
+    aria-labelledby="recorded-tenant-backups-heading"
+    data-controller="guarded-action-modal"
+>
     <div class="card-body">
-        <h2 id="legacy-tenant-backups-heading" class="h5"><?= __('Recorded Tenant Backups') ?></h2>
-        <p class="text-muted"><?= __('Existing tenant backup metadata is shown here until the shared .kmpbackup metadata view is fully unified.') ?></p>
+        <h2 id="recorded-tenant-backups-heading" class="h5"><?= __('Recorded Tenant Backups') ?></h2>
+        <div class="alert alert-warning" role="note" aria-labelledby="tenant-recovery-key-warning-heading">
+            <h3 id="tenant-recovery-key-warning-heading" class="h6 alert-heading">
+                <?= __('Recovery keys are sensitive') ?>
+            </h3>
+            <p class="mb-0">
+                <?= __('A recovery-key file decrypts only its matching archive; it never contains the reusable tenant key-encryption key. Download the two files separately, store them in separate protected locations, and delete browser copies when custody is complete.') ?>
+            </p>
+        </div>
         <div class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead><tr><th><?= __('Type') ?></th><th><?= __('Status') ?></th><th><?= __('Size') ?></th><th><?= __('Created') ?></th><th><?= __('Completed') ?></th><th><?= __('Retention') ?></th><th><?= __('Guarded Actions') ?></th></tr></thead>
+            <table class="table table-sm align-middle text-nowrap">
+                <thead><tr><th scope="col"><?= __('Type') ?></th><th scope="col"><?= __('Status') ?></th><th scope="col"><?= __('Size') ?></th><th scope="col"><?= __('Created') ?></th><th scope="col"><?= __('Completed') ?></th><th scope="col"><?= __('Retention') ?></th><th scope="col"><?= __('Guarded Actions') ?></th></tr></thead>
                 <tbody>
                 <?php foreach ($backups as $backup) : ?>
-                    <?php $canUseArchive = ($backup['backup_type'] ?? '') === 'kmpbackup_json' && ($backup['status'] ?? '') === 'completed'; ?>
+                    <?php
+                    $backupId = (string)($backup['id'] ?? '');
+                    $domBackupId = (string)preg_replace('/[^A-Za-z0-9_-]/', '-', $backupId);
+                    $backupType = (string)($backup['backup_type'] ?? '');
+                    $backupTypeLabel = match ($backupType) {
+                        'json' => __('JSON logical archive'),
+                        'pg_dump' => __('Legacy PostgreSQL dump'),
+                        TenantBackupService::LEGACY_BACKUP_TYPE => __('Legacy .kmpbackup archive'),
+                        default => __('Unknown format'),
+                    };
+                    $retentionTimestamp = strtotime((string)($backup['retention_until'] ?? ''));
+                    $canDownloadArchive = in_array(
+                        $backupType,
+                        ['json', 'pg_dump', TenantBackupService::LEGACY_BACKUP_TYPE],
+                        true,
+                    )
+                        && ($backup['status'] ?? '') === 'completed'
+                        && ($retentionTimestamp === false || $retentionTimestamp > time());
+                    $canRestoreArchive = $canDownloadArchive
+                        && in_array($backupType, ['json', 'pg_dump'], true);
+                    $canExportRecoveryKey = $canDownloadArchive
+                        && $backupType === 'json'
+                        && ($backup['encryption_algorithm'] ?? '') ===
+                            TenantBackupEncryptor::DATA_ALGORITHM;
+                    $canDeleteArchive = (string)($backup['object_uri'] ?? '') !== ''
+                        && in_array(
+                            $backupType,
+                            ['json', 'pg_dump', TenantBackupService::LEGACY_BACKUP_TYPE],
+                            true,
+                        )
+                        && in_array((string)($backup['status'] ?? ''), ['completed', 'failed', 'deleting'], true);
+                    ?>
                     <tr>
-                        <td><?= h($backup['backup_type'] ?? '') ?></td>
+                        <td><?= h($backupTypeLabel) ?></td>
                         <td><?= h($backup['status'] ?? '') ?></td>
                         <td><?= h((string)($backup['object_size_bytes'] ?? '')) ?></td>
                         <td><?= h($backup['created_at'] ?? '') ?></td>
                         <td><?= h($backup['completed_at'] ?? '') ?></td>
                         <td><?= h($backup['retention_until'] ?? '') ?></td>
                         <td>
-                            <?php if ($canUseArchive) : ?>
-                                <div class="d-flex flex-column gap-2">
-                                    <?= $this->Form->create(null, [
-                                        'url' => ['prefix' => 'PlatformAdmin', 'controller' => 'Tenants', 'action' => 'downloadBackup', $tenant['slug'], $backup['id']],
-                                    ]) ?>
-                                    <?= $this->Form->hidden('nonce', ['value' => $nonce]) ?>
-                                    <?= $this->Form->control('confirmation', ['label' => __('Type DOWNLOAD {0}', $tenant['slug']), 'class' => 'form-control-sm']) ?>
-                                    <?= $this->Form->control('reason', ['label' => __('Reason'), 'class' => 'form-control-sm']) ?>
-                                    <?= $this->Form->control('totp', ['label' => __('MFA code'), 'class' => 'form-control-sm', 'autocomplete' => 'one-time-code']) ?>
-                                    <?= $this->Form->button(__('Download encrypted archive'), ['class' => 'btn btn-outline-primary btn-sm']) ?>
-                                    <?= $this->Form->end() ?>
-                                    <?= $this->Form->create(null, [
-                                        'url' => ['prefix' => 'PlatformAdmin', 'controller' => 'Tenants', 'action' => 'restoreBackup', $tenant['slug'], $backup['id']],
-                                    ]) ?>
-                                    <?= $this->Form->hidden('nonce', ['value' => $nonce]) ?>
-                                    <?= $this->Form->control('confirmation', ['label' => __('Type RESTORE {0}', $tenant['slug']), 'class' => 'form-control-sm']) ?>
-                                    <?= $this->Form->control('reason', ['label' => __('Reason'), 'class' => 'form-control-sm']) ?>
-                                    <?= $this->Form->control('totp', ['label' => __('MFA code'), 'class' => 'form-control-sm', 'autocomplete' => 'one-time-code']) ?>
-                                    <?= $this->Form->button(__('Queue destructive restore'), ['class' => 'btn btn-outline-danger btn-sm']) ?>
-                                    <?= $this->Form->end() ?>
+                            <?php if ($canDownloadArchive || $canDeleteArchive) : ?>
+                                <div
+                                    class="d-inline-flex flex-nowrap gap-1"
+                                    role="group"
+                                    aria-label="<?= h(__('Actions for tenant backup {0}', $backupId)) ?>"
+                                >
+                                    <?php if ($canDownloadArchive) : ?>
+                                        <?= $this->element('PlatformAdmin/guarded_backup_action', [
+                                            'modalId' => $tenantBackupModalId,
+                                            'templateId' => 'tenant-backup-' . $domBackupId . '-download',
+                                            'url' => ['prefix' => 'PlatformAdmin', 'controller' => 'Tenants', 'action' => 'downloadBackup', $tenant['slug'], $backupId],
+                                            'nonce' => $nonce,
+                                            'buttonLabel' => __('Download encrypted archive'),
+                                            'modalTitle' => __('Download tenant backup'),
+                                            'description' => __('Download the encrypted archive for tenant backup {0}.', $backupId),
+                                            'confirmation' => 'DOWNLOAD ' . $tenant['slug'],
+                                            'submitLabel' => __('Download encrypted archive'),
+                                            'tone' => 'primary',
+                                        ]) ?>
+                                    <?php endif; ?>
+                                    <?php if ($canExportRecoveryKey) : ?>
+                                        <?= $this->element('PlatformAdmin/guarded_backup_action', [
+                                            'modalId' => $tenantBackupModalId,
+                                            'templateId' => 'tenant-backup-' . $domBackupId . '-recovery-key',
+                                            'url' => ['prefix' => 'PlatformAdmin', 'controller' => 'Tenants', 'action' => 'downloadBackupRecoveryKey', $tenant['slug'], $backupId],
+                                            'nonce' => $nonce,
+                                            'buttonLabel' => __('Download recovery key'),
+                                            'modalTitle' => __('Download tenant recovery key'),
+                                            'description' => __('Export the recovery key for tenant backup {0}.', $backupId),
+                                            'confirmation' => 'DOWNLOAD KEY ' . $tenant['slug'],
+                                            'submitLabel' => __('Download recovery key'),
+                                            'warning' => __('This file is a high-sensitivity secret. Store it separately from the encrypted archive.'),
+                                            'tone' => 'warning',
+                                        ]) ?>
+                                    <?php endif; ?>
+                                    <?php if ($canRestoreArchive) : ?>
+                                        <?= $this->element('PlatformAdmin/guarded_backup_action', [
+                                            'modalId' => $tenantBackupModalId,
+                                            'templateId' => 'tenant-backup-' . $domBackupId . '-restore',
+                                            'url' => ['prefix' => 'PlatformAdmin', 'controller' => 'Tenants', 'action' => 'restoreBackup', $tenant['slug'], $backupId],
+                                            'nonce' => $nonce,
+                                            'buttonLabel' => __('Queue destructive restore'),
+                                            'modalTitle' => __('Queue tenant restore'),
+                                            'description' => __('Queue tenant backup {0} to replace the current tenant database.', $backupId),
+                                            'confirmation' => 'RESTORE ' . $tenant['slug'],
+                                            'submitLabel' => __('Queue destructive restore'),
+                                            'warning' => __('Restore is destructive. The tenant must be suspended before this request can be queued.'),
+                                            'tone' => 'danger',
+                                        ]) ?>
+                                    <?php endif; ?>
+                                    <?php if ($canDeleteArchive) : ?>
+                                        <?= $this->element('PlatformAdmin/guarded_backup_action', [
+                                            'modalId' => $tenantBackupModalId,
+                                            'templateId' => 'tenant-backup-' . $domBackupId . '-delete',
+                                            'url' => ['prefix' => 'PlatformAdmin', 'controller' => 'Tenants', 'action' => 'deleteBackup', $tenant['slug'], $backupId],
+                                            'nonce' => $nonce,
+                                            'buttonLabel' => __('Delete backup'),
+                                            'modalTitle' => __('Delete tenant backup'),
+                                            'description' => __('Delete the encrypted archive for tenant backup {0}.', $backupId),
+                                            'confirmation' => 'DELETE BACKUP ' . $tenant['slug'],
+                                            'submitLabel' => __('Delete backup'),
+                                            'warning' => __('This permanently removes the encrypted archive. Operational and audit metadata will be retained.'),
+                                            'tone' => 'danger',
+                                        ]) ?>
+                                    <?php endif; ?>
                                 </div>
                             <?php else : ?>
-                                <span class="text-muted"><?= __('Only completed .kmpbackup archives can be downloaded or restored.') ?></span>
+                                <span class="text-muted"><?= __('No guarded actions are available for this backup.') ?></span>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -130,4 +221,7 @@ $this->assign('title', __('Tenant Backups: {0}', $tenant['slug']));
             </table>
         </div>
     </div>
+    <?= $this->element('PlatformAdmin/guarded_backup_action_modal', [
+        'modalId' => $tenantBackupModalId,
+    ]) ?>
 </section>

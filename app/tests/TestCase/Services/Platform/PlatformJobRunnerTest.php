@@ -3,7 +3,11 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Services\Platform;
 
+use App\Command\PlatformBackupCommand;
+use App\Command\TenantBackupCommand;
+use App\Command\TenantRestoreCommand;
 use App\Services\Platform\PlatformJobRunner;
+use App\Services\Secrets\SecretStoreFactory;
 use Cake\Core\Configure;
 use Cake\Database\Connection;
 use Cake\Database\Driver\Sqlite;
@@ -107,6 +111,138 @@ class PlatformJobRunnerTest extends TestCase
         $this->assertSame($tenant['id'], $job['tenant_id']);
         $this->assertStringNotContainsString('password', (string)$job['parameters']);
         $this->assertStringNotContainsString('secret', (string)$job['parameters']);
+        $this->assertTrue(SecretStoreFactory::fromConfig()->exists('tenant.acme.db.password'));
+        $this->assertTrue(SecretStoreFactory::fromConfig()->exists('tenant.acme.kek'));
+        $this->assertGreaterThanOrEqual(
+            2,
+            (int)$this->connection->execute(
+                'SELECT COUNT(*) FROM platform_job_events WHERE platform_job_id = ?',
+                ['job-1'],
+            )->fetchColumn(0),
+        );
+    }
+
+    public function testDispatchesCanonicalBackupAndRestoreJobsToCommands(): void
+    {
+        $this->insertJob('job-tenant-backup', PlatformJobRunner::JOB_TENANT_BACKUP, [
+            'tenant_slug' => 'acme',
+            'retention_days' => 14,
+        ]);
+        $this->insertJob('job-tenant-restore', PlatformJobRunner::JOB_TENANT_RESTORE, [
+            'tenant_slug' => 'acme',
+            'backup_id' => '11111111-1111-4111-8111-111111111111',
+        ]);
+        $this->insertJob('job-platform-backup', PlatformJobRunner::JOB_PLATFORM_BACKUP, [
+            'retention_days' => 30,
+        ]);
+        $calls = [];
+
+        $result = (new PlatformJobRunner($this->connection))->run(
+            10,
+            static function (string $command, array $arguments) use (&$calls): int {
+                $calls[] = [$command, $arguments];
+
+                return 0;
+            },
+        );
+
+        $this->assertSame(['claimed' => 3, 'completed' => 3, 'failed' => 0], $result);
+        $this->assertSame(
+            [TenantBackupCommand::class, TenantRestoreCommand::class, PlatformBackupCommand::class],
+            array_column($calls, 0),
+        );
+        $this->assertContains('--platform-job-id', $calls[0][1]);
+        $this->assertContains('job-tenant-backup', $calls[0][1]);
+        $this->assertContains('--confirm-destructive', $calls[1][1]);
+        $this->assertContains('job-tenant-restore', $calls[1][1]);
+        $this->assertContains('job-platform-backup', $calls[2][1]);
+        $this->assertSame(
+            6,
+            (int)$this->connection->execute('SELECT COUNT(*) FROM platform_job_events')->fetchColumn(0),
+        );
+    }
+
+    public function testNonZeroCommandExitMarksJobFailedAndRecordsEvent(): void
+    {
+        $this->insertJob('job-failed', PlatformJobRunner::JOB_TENANT_BACKUP, [
+            'tenant_slug' => 'acme',
+            'retention_days' => 14,
+        ]);
+        $this->connection->update(
+            'platform_jobs',
+            ['last_error' => 'stale previous attempt'],
+            ['id' => 'job-failed'],
+        );
+
+        $result = (new PlatformJobRunner($this->connection))->run(10, static fn(): int => 2);
+
+        $this->assertSame(['claimed' => 1, 'completed' => 0, 'failed' => 1], $result);
+        $job = $this->connection->execute(
+            'SELECT status, last_error FROM platform_jobs WHERE id = ?',
+            ['job-failed'],
+        )->fetch('assoc');
+        $this->assertSame('failed', $job['status']);
+        $this->assertStringContainsString('status 2', (string)$job['last_error']);
+        $event = $this->connection->execute(
+            'SELECT event_level, event_code FROM platform_job_events ORDER BY sequence_number DESC LIMIT 1',
+        )->fetch('assoc');
+        $this->assertSame('error', $event['event_level']);
+        $this->assertSame('job.failed', $event['event_code']);
+    }
+
+    public function testCommandFailurePreservesServiceDiagnostic(): void
+    {
+        $this->insertJob('job-service-failed', PlatformJobRunner::JOB_TENANT_BACKUP, [
+            'tenant_slug' => 'acme',
+            'retention_days' => 14,
+        ]);
+
+        $result = (new PlatformJobRunner($this->connection))->run(
+            1,
+            function (): int {
+                $this->connection->update(
+                    'platform_jobs',
+                    ['last_error' => 'Tenant backup checksum does not match metadata.'],
+                    ['id' => 'job-service-failed'],
+                );
+
+                return 2;
+            },
+        );
+
+        $this->assertSame(['claimed' => 1, 'completed' => 0, 'failed' => 1], $result);
+        $jobError = $this->connection->execute(
+            'SELECT last_error FROM platform_jobs WHERE id = ?',
+            ['job-service-failed'],
+        )->fetchColumn(0);
+        $this->assertSame('Tenant backup checksum does not match metadata.', $jobError);
+        $eventMessage = $this->connection->execute(
+            'SELECT message FROM platform_job_events WHERE platform_job_id = ? AND event_code = ?',
+            ['job-service-failed', 'job.failed'],
+        )->fetchColumn(0);
+        $this->assertSame('Tenant backup checksum does not match metadata.', $eventMessage);
+    }
+
+    public function testRestoreAcceptsLegacyCliJobTenantSlug(): void
+    {
+        $this->insertJob('job-legacy-restore', PlatformJobRunner::JOB_TENANT_RESTORE, [
+            'target_tenant_slug' => 'acme',
+            'backup_id' => '11111111-1111-4111-8111-111111111111',
+        ]);
+        $calls = [];
+
+        $result = (new PlatformJobRunner($this->connection))->run(
+            1,
+            static function (string $command, array $arguments) use (&$calls): int {
+                $calls[] = [$command, $arguments];
+
+                return 0;
+            },
+        );
+
+        $this->assertSame(['claimed' => 1, 'completed' => 1, 'failed' => 0], $result);
+        $this->assertSame(TenantRestoreCommand::class, $calls[0][0]);
+        $this->assertSame('acme', $calls[0][1][5]);
     }
 
     private function createSchema(): void
@@ -163,5 +299,38 @@ class PlatformJobRunnerTest extends TestCase
                 modified_at TEXT NULL
             )',
         );
+        $this->connection->execute(
+            'CREATE TABLE platform_job_events (
+                id TEXT PRIMARY KEY,
+                platform_job_id TEXT NOT NULL,
+                sequence_number INTEGER NOT NULL,
+                event_level TEXT NOT NULL,
+                event_code TEXT NOT NULL,
+                message TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )',
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $parameters
+     */
+    private function insertJob(string $id, string $jobType, array $parameters): void
+    {
+        $this->connection->insert('platform_jobs', [
+            'id' => $id,
+            'tenant_id' => $jobType === PlatformJobRunner::JOB_PLATFORM_BACKUP ? null : 'tenant-1',
+            'requested_by_platform_user_id' => 'platform-admin-1',
+            'job_type' => $jobType,
+            'status' => 'queued',
+            'idempotency_key' => $id,
+            'parameters' => json_encode($parameters, JSON_THROW_ON_ERROR),
+            'log_uri' => null,
+            'last_error' => null,
+            'created_at' => '2026-05-16 12:00:00',
+            'started_at' => null,
+            'finished_at' => null,
+            'modified_at' => '2026-05-16 12:00:00',
+        ]);
     }
 }

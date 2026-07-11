@@ -5,18 +5,19 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Services\Backups\LocalTenantBackupStorage;
+use App\Services\Backups\BackupStorageFactory;
+use App\Services\Backups\JsonTenantBackupRestorer;
 use App\Services\Backups\PgRestoreTenantBackupRestorer;
 use App\Services\Backups\TenantBackupEncryptor;
 use App\Services\Backups\TenantRestoreDrillService;
 use App\Services\Backups\TenantRestoreService;
 use App\Services\Backups\TenantRestoreServiceDrillVerifier;
 use App\Services\Secrets\SecretStoreFactory;
+use App\Services\TenantConnectionManager;
 use Cake\Command\Command;
 use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
-use Cake\Core\Configure;
 use Cake\Datasource\ConnectionManager;
 use RuntimeException;
 
@@ -61,7 +62,7 @@ class TenantRestoreDrillCommand extends Command
                     . self::DESTRUCTIVE_CONFIRMATION,
                 );
             }
-            $service = $this->buildService();
+            $service = $this->buildService($io);
             $result = $service->planRecentDrill(
                 $args->getOption('tenant') === null ? null : (string)$args->getOption('tenant'),
                 (int)$args->getOption('lookback-hours'),
@@ -85,28 +86,26 @@ class TenantRestoreDrillCommand extends Command
         }
     }
 
-    private function buildService(): TenantRestoreDrillService
+    private function buildService(ConsoleIo $io): TenantRestoreDrillService
     {
-        $enabled = (bool)Configure::read('TenantBackups.local.enabled', false);
-        $root = (string)Configure::read(
-            'TenantBackups.local.path',
-            dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'tmp' . DIRECTORY_SEPARATOR . 'backups',
-        );
-        $localBackupsEnabled = getenv('KMP_LOCAL_BACKUPS_ENABLED');
-        if ($localBackupsEnabled !== false) {
-            $enabled = filter_var($localBackupsEnabled, FILTER_VALIDATE_BOOLEAN);
-        }
-        $configuredRoot = getenv('KMP_LOCAL_BACKUPS_PATH');
-        if ($configuredRoot !== false && $configuredRoot !== '') {
-            $root = $configuredRoot;
-        }
         /** @var \Cake\Database\Connection $platform */
         $platform = ConnectionManager::get('platform');
+        $secretStore = SecretStoreFactory::fromConfig();
+        $migrationRunner = static function () use ($io): void {
+            $exitCode = (new UpdateDatabaseCommand())->run(
+                ['--connection', TenantConnectionManager::CONNECTION_ALIAS, '--no-lock'],
+                $io,
+            );
+            if ($exitCode !== null && $exitCode !== Command::CODE_SUCCESS) {
+                throw new RuntimeException('Tenant migrations failed during JSON restore drill.');
+            }
+        };
         $restoreService = new TenantRestoreService(
             $platform,
-            SecretStoreFactory::fromConfig(),
-            new LocalTenantBackupStorage($root, $enabled),
+            $secretStore,
+            BackupStorageFactory::tenant(),
             new TenantBackupEncryptor(),
+            new JsonTenantBackupRestorer(new TenantConnectionManager($secretStore), $migrationRunner),
             new PgRestoreTenantBackupRestorer(),
         );
 

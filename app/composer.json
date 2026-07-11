@@ -8,6 +8,7 @@
         "php": "^8.3",
         "ext-gd": "*",
         "ext-intl": "*",
+        "ext-sodium": "*",
         "ext-yaml": "*",
         "admad/cakephp-glide": "^6.0",
         "azure-oss/storage-blob-flysystem": "^1.2",

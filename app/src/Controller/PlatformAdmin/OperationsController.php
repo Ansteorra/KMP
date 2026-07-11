@@ -3,16 +3,21 @@ declare(strict_types=1);
 
 namespace App\Controller\PlatformAdmin;
 
-use App\Services\BackupStorageService;
+use App\Services\Backups\BackupDeletionService;
+use App\Services\Backups\BackupStorageFactory;
+use App\Services\Backups\PlatformDatabaseBackupEncryptor;
+use App\Services\Backups\TenantBackupService;
 use App\Services\Platform\PlatformAdminJobEnqueuer;
 use App\Services\Platform\PlatformAuditService;
 use App\Services\Platform\PlatformHealthService;
+use App\Services\Platform\PlatformJobRunner;
 use App\Services\Platform\ReleaseCompatibilityChecker;
 use App\Services\Platform\ReleaseManifest;
 use Cake\Core\Configure;
 use Cake\Http\Exception\BadRequestException;
 use Cake\Http\Exception\NotFoundException;
 use Cake\Utility\Text;
+use RuntimeException;
 use Throwable;
 
 class OperationsController extends PlatformAdminAppController
@@ -53,6 +58,92 @@ class OperationsController extends PlatformAdminAppController
     }
 
     /**
+     * Show safe execution detail and progress events for one platform job.
+     */
+    public function job(string $jobId): void
+    {
+        $job = $this->platform()->execute(
+            'SELECT j.id, j.tenant_id, j.job_type, j.status, j.created_at, j.started_at,
+                    j.finished_at, j.modified_at,
+                    CASE WHEN j.last_error IS NULL OR j.last_error = :empty THEN 0 ELSE 1 END AS has_error,
+                    t.slug AS tenant_slug
+               FROM platform_jobs j
+          LEFT JOIN tenants t ON t.id = j.tenant_id
+              WHERE j.id = :jobId
+              LIMIT 1',
+            ['jobId' => $jobId, 'empty' => ''],
+        )->fetch('assoc');
+        if (!is_array($job)) {
+            throw new NotFoundException('Platform job was not found.');
+        }
+        $events = $this->safeRows(
+            'SELECT sequence_number, event_level, event_code, message, created_at
+               FROM platform_job_events
+              WHERE platform_job_id = :jobId
+           ORDER BY sequence_number ASC
+              LIMIT 200',
+            ['jobId' => $jobId],
+        );
+        $retryNonce = Text::uuid();
+        $canRetry = (string)$job['status'] === 'failed'
+            && PlatformJobRunner::supports((string)$job['job_type']);
+        $this->set(compact('job', 'events', 'retryNonce', 'canRetry'));
+    }
+
+    /**
+     * Queue a fresh attempt of a failed executable platform job.
+     *
+     * @return \Cake\Http\Response|null
+     */
+    public function retryJob(string $jobId)
+    {
+        $this->request->allowMethod(['post']);
+        try {
+            $source = $this->platform()->execute(
+                'SELECT id, tenant_id, job_type, status, parameters
+                   FROM platform_jobs
+                  WHERE id = :jobId
+                  LIMIT 1',
+                ['jobId' => $jobId],
+            )->fetch('assoc');
+            if (!is_array($source)) {
+                throw new NotFoundException('Platform job was not found.');
+            }
+            if ((string)$source['status'] !== 'failed') {
+                throw new BadRequestException('Only failed jobs can be retried.');
+            }
+            if (!PlatformJobRunner::supports((string)$source['job_type'])) {
+                throw new BadRequestException('This platform job type is not retryable.');
+            }
+            $parameters = json_decode((string)$source['parameters'], true);
+            if (!is_array($parameters)) {
+                throw new BadRequestException('The source job parameters are invalid.');
+            }
+            $reason = $this->validateStepUpAction('RETRY job');
+            $nonce = (string)$this->request->getData('nonce', Text::uuid());
+            $job = $this->jobEnqueuer()->enqueue(
+                (string)$source['job_type'],
+                $source['tenant_id'] === null ? null : (string)$source['tenant_id'],
+                $this->platformAdmin['id'] ?? null,
+                $parameters,
+                sprintf('platform_job_retry:%s:%s', $jobId, $nonce),
+                $reason,
+                $this->auditOptions($source['tenant_id'] === null ? null : (string)$source['tenant_id']),
+            );
+            $this->Flash->success(__('A new job attempt has been queued: {0}', $job['id']));
+        } catch (BadRequestException | RuntimeException $exception) {
+            $this->Flash->error(__($exception->getMessage()));
+        }
+
+        return $this->redirect([
+            'prefix' => 'PlatformAdmin',
+            'controller' => 'Operations',
+            'action' => 'job',
+            $jobId,
+        ]);
+    }
+
+    /**
      * List configured platform schedules.
      *
      * @return void
@@ -82,7 +173,8 @@ class OperationsController extends PlatformAdminAppController
     {
         $tenantBackups = $this->safeRows(
             'SELECT b.id, b.backup_type, b.status, b.object_size_bytes, b.created_at,
-                    b.completed_at, b.retention_until, t.slug AS tenant_slug
+                    b.completed_at, b.retention_until, b.error_summary, b.encryption_algorithm,
+                    t.slug AS tenant_slug
                FROM tenant_backups b
                JOIN tenants t ON t.id = b.tenant_id
            ORDER BY b.created_at DESC
@@ -90,7 +182,7 @@ class OperationsController extends PlatformAdminAppController
         );
         $platformBackups = $this->safeRows(
             'SELECT id, backup_type, status, connection_name, database_name, object_size_bytes,
-                    created_at, completed_at, retention_until
+                   object_uri, created_at, completed_at, retention_until, error_summary, encryption_algorithm
                FROM platform_database_backups
            ORDER BY created_at DESC
               LIMIT 50',
@@ -103,7 +195,7 @@ class OperationsController extends PlatformAdminAppController
     }
 
     /**
-     * Queue a platform database JSON backup.
+     * Queue an encrypted platform PostgreSQL dump backup.
      *
      * @return \Cake\Http\Response|null
      */
@@ -112,64 +204,26 @@ class OperationsController extends PlatformAdminAppController
         $this->request->allowMethod(['post']);
         $retentionDays = max(1, min(365, (int)$this->request->getData('retention_days', 30)));
         $nonce = (string)$this->request->getData('nonce', Text::uuid());
-        $job = (new PlatformAdminJobEnqueuer(
-            $this->platform(),
-            new PlatformAuditService($this->platform()),
-        ))->enqueue(
-            'platform_backup_json',
-            null,
-            $this->platformAdmin['id'] ?? null,
-            [
-                'scope' => 'platform',
-                'connection' => 'platform',
-                'backup_format' => 'kmpbackup_json',
-                'retention_days' => $retentionDays,
-            ],
-            sprintf('platform_backup_json:%s', $nonce),
-            'platform admin platform database backup request',
-            [
-                'ipAddress' => $this->request->clientIp(),
-                'userAgent' => $this->request->getHeaderLine('User-Agent') ?: 'platform-admin',
-            ],
-        );
-        $this->Flash->success(__('Platform database backup has been queued: {0}', $job['id']));
-
-        return $this->redirect(['prefix' => 'PlatformAdmin', 'controller' => 'Operations', 'action' => 'backups']);
-    }
-
-    /**
-     * Queue a guarded platform database restore request.
-     *
-     * @param string $backupId Platform backup row id
-     * @return \Cake\Http\Response|null
-     */
-    public function restorePlatformBackup(string $backupId)
-    {
-        $this->request->allowMethod(['post']);
-
         try {
-            $backup = $this->platformBackupById($backupId);
-            $filename = $this->validatedCompletedKmpBackup($backup);
-            $reason = $this->validateStepUpAction('RESTORE platform');
-            $nonce = (string)$this->request->getData('nonce', Text::uuid());
-            $job = $this->jobEnqueuer()->enqueue(
-                'platform_restore_json',
+            $job = (new PlatformAdminJobEnqueuer(
+                $this->platform(),
+                new PlatformAuditService($this->platform()),
+            ))->enqueue(
+                PlatformJobRunner::JOB_PLATFORM_BACKUP,
                 null,
                 $this->platformAdmin['id'] ?? null,
                 [
-                    'scope' => 'platform',
-                    'connection' => 'platform',
-                    'backup_id' => $backupId,
-                    'object_name' => $filename,
-                    'backup_format' => 'kmpbackup_json',
-                    'reason' => $reason,
+                    'retention_days' => $retentionDays,
                 ],
-                sprintf('platform_restore_json:%s:%s', $backupId, $nonce),
-                $reason,
-                $this->auditOptions(),
+                sprintf('platform_database_backup:%s', $nonce),
+                'platform admin platform database backup request',
+                [
+                    'ipAddress' => $this->request->clientIp(),
+                    'userAgent' => $this->request->getHeaderLine('User-Agent') ?: 'platform-admin',
+                ],
             );
-            $this->Flash->success(__('Platform database restore has been queued: {0}', $job['id']));
-        } catch (BadRequestException $exception) {
+            $this->Flash->success(__('Platform database backup has been queued: {0}', $job['id']));
+        } catch (RuntimeException $exception) {
             $this->Flash->error(__($exception->getMessage()));
         }
 
@@ -177,7 +231,7 @@ class OperationsController extends PlatformAdminAppController
     }
 
     /**
-     * Download an encrypted platform database .kmpbackup archive after audit and step-up.
+     * Download an encrypted platform database dump after audit and step-up.
      *
      * @param string $backupId Platform backup row id
      * @return \Cake\Http\Response|null
@@ -188,25 +242,103 @@ class OperationsController extends PlatformAdminAppController
 
         try {
             $backup = $this->platformBackupById($backupId);
-            $filename = $this->validatedCompletedKmpBackup($backup);
+            $this->assertUsableBackup($backup, ['pg_dump', TenantBackupService::LEGACY_BACKUP_TYPE]);
             $reason = $this->validateStepUpAction('DOWNLOAD platform');
+            $download = $this->stageBackupDownload(
+                $backup,
+                BackupStorageFactory::platformArchive((string)$backup['backup_type']),
+                'platform',
+            );
+            register_shutdown_function(static function () use ($download): void {
+                if (is_file($download['path'])) {
+                    unlink($download['path']);
+                }
+            });
             $this->auditService()->record(
                 'platform_backup.download',
                 $this->platformAdmin['id'] ?? null,
                 'platform_database_backup',
                 $backupId,
                 $reason,
-                ['backup_format' => 'kmpbackup_json'],
+                ['backup_format' => 'encrypted_' . (string)$backup['backup_type']],
                 false,
                 $this->auditOptions(),
             );
-            $data = (new BackupStorageService())->read($filename);
 
             return $this->response
                 ->withType('application/octet-stream')
-                ->withDownload(basename($filename))
-                ->withStringBody($data);
-        } catch (BadRequestException $exception) {
+                ->withFile($download['path'], [
+                    'download' => true,
+                    'name' => $download['filename'],
+                ]);
+        } catch (BadRequestException | RuntimeException $exception) {
+            $this->Flash->error(__($exception->getMessage()));
+        }
+
+        return $this->redirect(['prefix' => 'PlatformAdmin', 'controller' => 'Operations', 'action' => 'backups']);
+    }
+
+    /**
+     * Download a platform backup-scoped recovery key after audit and operator step-up.
+     *
+     * @param string $backupId Platform backup row id
+     * @return \Cake\Http\Response|null
+     */
+    public function downloadPlatformBackupRecoveryKey(string $backupId)
+    {
+        $this->request->allowMethod(['post']);
+
+        try {
+            $backup = $this->platformBackupById($backupId);
+            $this->assertUsableBackup($backup, ['pg_dump']);
+            if ((string)$backup['encryption_algorithm'] !== PlatformDatabaseBackupEncryptor::DATA_ALGORITHM) {
+                throw new BadRequestException('This backup does not support portable recovery-key export.');
+            }
+            $reason = $this->validateStepUpAction('DOWNLOAD KEY platform');
+            $export = $this->exportPlatformBackupRecoveryKey($backup);
+            $this->auditService()->record(
+                'platform_backup.recovery_key_exported',
+                $this->platformAdmin['id'] ?? null,
+                'platform_database_backup',
+                $backupId,
+                $reason,
+                ['backup_format' => 'encrypted_pg_dump'],
+                false,
+                $this->auditOptions(),
+            );
+
+            return $this->recoveryKeyDownloadResponse($export);
+        } catch (BadRequestException | RuntimeException $exception) {
+            $this->Flash->error(__($exception->getMessage()));
+        }
+
+        return $this->redirect(['prefix' => 'PlatformAdmin', 'controller' => 'Operations', 'action' => 'backups']);
+    }
+
+    /**
+     * Delete an encrypted platform backup object after audit and operator step-up.
+     *
+     * @param string $backupId Platform backup row id
+     * @return \Cake\Http\Response|null
+     */
+    public function deletePlatformBackup(string $backupId)
+    {
+        $this->request->allowMethod(['post']);
+
+        try {
+            $backup = $this->platformBackupById($backupId);
+            $this->assertDeletableBackup($backup, ['pg_dump', TenantBackupService::LEGACY_BACKUP_TYPE]);
+            $reason = $this->validateStepUpAction('DELETE BACKUP platform');
+            (new BackupDeletionService($this->platform(), $this->auditService()))->deletePlatform(
+                $backup,
+                BackupStorageFactory::platformArchive((string)$backup['backup_type']),
+                $this->platformAdmin['id'] ?? null,
+                $reason,
+                ['backup_format' => 'encrypted_' . (string)$backup['backup_type']],
+                $this->auditOptions(),
+            );
+            $this->Flash->success(__('Platform backup archive deleted. Audit metadata has been retained.'));
+        } catch (BadRequestException | RuntimeException $exception) {
             $this->Flash->error(__($exception->getMessage()));
         }
 
@@ -266,9 +398,10 @@ class OperationsController extends PlatformAdminAppController
     /**
      * @return array<string, mixed>
      */
-    private function auditOptions(): array
+    private function auditOptions(?string $tenantId = null): array
     {
         return [
+            'tenantId' => $tenantId,
             'ipAddress' => $this->request->clientIp(),
             'userAgent' => $this->request->getHeaderLine('User-Agent') ?: 'platform-admin',
         ];
@@ -280,7 +413,9 @@ class OperationsController extends PlatformAdminAppController
     private function platformBackupById(string $backupId): array
     {
         $row = $this->platform()->execute(
-            'SELECT id, backup_type, status, object_uri
+            'SELECT id, backup_type, status, object_uri, object_size_bytes, object_sha256,
+                    encryption_algorithm, wrapped_dek, wrapped_dek_key_name,
+                    wrapped_dek_key_version, wrapped_dek_metadata, retention_until
                FROM platform_database_backups
               WHERE id = :backupId
               LIMIT 1',
@@ -291,21 +426,6 @@ class OperationsController extends PlatformAdminAppController
         }
 
         return $row;
-    }
-
-    /**
-     * @param array<string, mixed> $backup
-     */
-    private function validatedCompletedKmpBackup(array $backup): string
-    {
-        if ((string)($backup['status'] ?? '') !== 'completed') {
-            throw new BadRequestException('Only completed backups can be used for this action.');
-        }
-        if ((string)($backup['backup_type'] ?? '') !== 'kmpbackup_json') {
-            throw new BadRequestException('Only encrypted JSON .kmpbackup archives can be used for this action.');
-        }
-
-        return $this->safeKmpBackupObjectName($backup['object_uri'] ?? null);
     }
 
     /**

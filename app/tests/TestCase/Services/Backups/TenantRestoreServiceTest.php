@@ -97,13 +97,13 @@ class TenantRestoreServiceTest extends TestCase
             $this->assertSame('Unsafe target tenant database name.', $e->getMessage());
         }
         $this->assertSame([], $restorer->restoreCalls);
-        $this->assertSame([], $restorer->argvCalls);
+        $this->assertSame([], $restorer->validationCalls);
     }
 
-    public function testRestoreUsesInjectableRestorerArgvAndDoesNotLeakPassword(): void
+    public function testRestoreUsesInjectableRestorerAndDoesNotLeakPassword(): void
     {
         $backupId = $this->createCompletedBackup('demo', 'demo_db');
-        $this->insertTenant('target', 'target_db');
+        $this->insertTenant('target', 'target_db', 'suspended');
         $restorer = new RecordingTenantBackupRestorer();
         $service = $this->restoreService($this->secrets(['demo', 'target']), $restorer);
 
@@ -118,15 +118,43 @@ class TenantRestoreServiceTest extends TestCase
         $this->assertSame('target', $result->targetTenantSlug);
         $this->assertCount(1, $restorer->restoreCalls);
         $this->assertSame('target', $restorer->restoreCalls[0]['tenant']);
-        $allArgv = implode(' ', array_merge(...$restorer->argvCalls));
-        $this->assertStringContainsString('target_db', $allArgv);
-        $this->assertStringNotContainsString('target-secret-password', $allArgv);
+        $validation = json_encode($restorer->validationCalls, JSON_THROW_ON_ERROR);
+        $this->assertStringContainsString('target_db', $validation);
+        $this->assertStringNotContainsString('target-secret-password', $validation);
         $job = $this->platform()->execute('SELECT status, parameters, last_error FROM platform_jobs WHERE id = ?', [
             $result->jobId,
         ])->fetch('assoc');
         $this->assertSame('completed', $job['status']);
         $this->assertStringContainsString('"mode":"cross-tenant"', (string)$job['parameters']);
+        $this->assertStringContainsString('"tenant_slug":"target"', (string)$job['parameters']);
         $this->assertStringNotContainsString('target-secret-password', (string)$job['parameters']);
+    }
+
+    public function testDestructiveRestoreRejectsActiveTargetTenant(): void
+    {
+        $backupId = $this->createCompletedBackup('demo', 'demo_db');
+        $this->insertTenant('target', 'target_db');
+        $restorer = new RecordingTenantBackupRestorer();
+
+        try {
+            $this->restoreService(
+                $this->secrets(['demo', 'target']),
+                $restorer,
+            )->restoreTenantBackup(
+                $backupId,
+                TenantRestoreService::MODE_CROSS_TENANT,
+                'target',
+                true,
+            );
+            $this->fail('Expected active tenant restore rejection.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame(
+                'Target tenant must remain suspended during a destructive restore.',
+                $exception->getMessage(),
+            );
+        }
+
+        $this->assertSame([], $restorer->restoreCalls);
     }
 
     public function testDryRunDecryptsAndPlansWithoutExecutingRestore(): void
@@ -145,7 +173,7 @@ class TenantRestoreServiceTest extends TestCase
 
         $this->assertSame('planned', $result->status);
         $this->assertTrue($result->dryRun);
-        $this->assertNotEmpty($restorer->argvCalls);
+        $this->assertNotEmpty($restorer->validationCalls);
         $this->assertSame([], $restorer->restoreCalls);
     }
 
@@ -175,6 +203,62 @@ class TenantRestoreServiceTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Unsafe backup id.');
         $service->restoreTenantBackup('bad/backup', TenantRestoreService::MODE_SAME_TENANT, null, true);
+    }
+
+    public function testRestoreReusesExistingQueuedPlatformJob(): void
+    {
+        $backupId = $this->createCompletedBackup('demo', 'demo_db');
+        $jobId = Text::uuid();
+        $this->insertQueuedJob($jobId, TenantRestoreService::JOB_TYPE);
+
+        $result = $this->restoreService(
+            $this->secrets(['demo']),
+            new RecordingTenantBackupRestorer(),
+        )->restoreTenantBackup(
+            $backupId,
+            TenantRestoreService::MODE_SAME_TENANT,
+            null,
+            true,
+            true,
+            $jobId,
+        );
+
+        $this->assertSame($jobId, $result->jobId);
+        $job = $this->platform()->execute(
+            'SELECT status FROM platform_jobs WHERE id = ?',
+            [$jobId],
+        )->fetch('assoc');
+        $this->assertSame('planned', $job['status']);
+    }
+
+    public function testInvalidExistingJobIsNotMarkedFailed(): void
+    {
+        $backupId = $this->createCompletedBackup('demo', 'demo_db');
+        $jobId = Text::uuid();
+        $this->insertQueuedJob($jobId, TenantBackupService::JOB_TYPE);
+
+        try {
+            $this->restoreService(
+                $this->secrets(['demo']),
+                new RecordingTenantBackupRestorer(),
+            )->restoreTenantBackup(
+                $backupId,
+                TenantRestoreService::MODE_SAME_TENANT,
+                null,
+                true,
+                true,
+                $jobId,
+            );
+            $this->fail('Expected existing job type validation failure.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('Tenant restore job context is invalid.', $exception->getMessage());
+        }
+
+        $status = $this->platform()->execute(
+            'SELECT status FROM platform_jobs WHERE id = ?',
+            [$jobId],
+        )->fetchColumn(0);
+        $this->assertSame('queued', $status);
     }
 
     private function createCompletedBackup(string $slug, string $dbName): string
@@ -276,14 +360,14 @@ class TenantRestoreServiceTest extends TestCase
         );
     }
 
-    private function insertTenant(string $slug, string $dbName): string
+    private function insertTenant(string $slug, string $dbName, string $status = 'active'): string
     {
         $id = Text::uuid();
         $this->platform()->insert('tenants', [
             'id' => $id,
             'slug' => $slug,
             'display_name' => ucfirst($slug),
-            'status' => 'active',
+            'status' => $status,
             'db_server' => 'db.example.test',
             'db_name' => $dbName,
             'db_role' => str_replace('-', '_', $slug) . '_role',
@@ -291,6 +375,25 @@ class TenantRestoreServiceTest extends TestCase
         ]);
 
         return $id;
+    }
+
+    private function insertQueuedJob(string $jobId, string $jobType): void
+    {
+        $this->platform()->insert('platform_jobs', [
+            'id' => $jobId,
+            'tenant_id' => null,
+            'requested_by_platform_user_id' => null,
+            'job_type' => $jobType,
+            'status' => 'queued',
+            'idempotency_key' => $jobId,
+            'parameters' => '{}',
+            'log_uri' => null,
+            'last_error' => null,
+            'created_at' => '2026-07-10 00:00:00',
+            'started_at' => null,
+            'finished_at' => null,
+            'modified_at' => null,
+        ]);
     }
 
     private function platform(): Connection

@@ -62,17 +62,24 @@ Default job shapes:
   `/opt/kmp/reset-and-seed.sh`.
 - `<prefix>-provision` — manual tenant provision operation shape. The safe
   default prints command help; operators override args for a specific tenant.
-- `<prefix>-queue` — scheduled shared queue worker (`bin/cake queue run`) every
-  5 minutes by default.
+- `<prefix>-queue` — five-minute resilience poll of
+  `bin/cake platform schedule due`. It is safe alongside the minute dispatcher
+  because schedule advisory locks and `next_run_at` prevent duplicate claims.
 - `<prefix>-sched-hourly`, `<prefix>-sched-daily`, `<prefix>-sched-weekly`,
   `<prefix>-sched-nightly` — scheduled dispatchers that call
-  `bin/cake platform schedule run <schedule-name>`. Platform schedule rows hold
-  tenant scope (`platform`, all active tenants, or one tenant) and dispatch work
-  into app/platform queues.
+  `bin/cake platform schedule due`. The minute dispatcher is enabled by default;
+  the other shapes remain disabled compatibility options. Stored platform
+  schedule rows own cron expressions, tenant scope (`platform`, all active
+  tenants, or one tenant), and command payloads.
 
 The Bicep parameters under **Fixed schedule-shape job controls** enable/disable
 each shape and tune cron/parallelism without embedding secrets. Keep dispatcher
 parallelism at `1` unless the corresponding platform schedules are idempotent.
+PostgreSQL advisory locks prevent two dispatcher replicas from claiming the
+same stored schedule. The seeded `tenant-queue-drain` schedule binds each
+active tenant database and processes at most 25 jobs or 45 seconds per tenant;
+the plain `queue run` command must not be used as the fleet worker because it
+only sees the default datasource.
 
 ## One-time bootstrap
 
@@ -220,7 +227,8 @@ want a stable tag.
 
 The helper temporarily patches the `kmpnightly-migrate` Container Apps Job when
 it needs to run specific commands (`bin/cake migrations migrate`,
-`bin/cake updateDatabase`, `bin/cake platform_migrate migrate`, and optionally
+`bin/cake updateDatabase`, `bin/cake platform_migrate migrate`,
+`bin/cake platform backup-keys ensure`, and optionally
 `bin/cake awards migrate_award_recommendations --apply --allow-open-manual-review`).
 It restores the job to the no-op command `/usr/local/bin/docker-entrypoint.sh
 /bin/true` afterward so accidental manual starts remain safe.

@@ -235,6 +235,46 @@ class PlatformScheduleRunnerTest extends TestCase
         $this->assertSame('Notify [redacted-email] failed', $message);
     }
 
+    public function testRunDueDispatchesOnlySchedulesWhoseWindowHasArrived(): void
+    {
+        $this->insertSchedule('due-now', [
+            'cron_expression' => '* * * * *',
+            'next_run_at' => '2020-01-01 00:00:00',
+        ]);
+        $this->insertSchedule('future', [
+            'cron_expression' => '* * * * *',
+            'next_run_at' => '2099-01-01 00:00:00',
+        ]);
+
+        $result = (new PlatformScheduleRunner($this->noopDispatcher()))->runDue();
+
+        $this->assertSame(1, $result['schedules']);
+        $this->assertSame(1, $result['completed']);
+        $this->assertSame(0, $result['failed']);
+        $this->assertSame(1, $result['jobsCreated']);
+        $job = $this->platform()->execute('SELECT parameters FROM platform_jobs')->fetch('assoc');
+        $this->assertStringContainsString('due-now', (string)$job['parameters']);
+    }
+
+    public function testRunDueMarksInvalidCronAsFailedWithoutDispatching(): void
+    {
+        $this->insertSchedule('invalid-cron', [
+            'cron_expression' => 'not a cron',
+            'next_run_at' => '2020-01-01 00:00:00',
+        ]);
+
+        $result = (new PlatformScheduleRunner($this->noopDispatcher()))->runDue();
+
+        $this->assertSame(0, $result['schedules']);
+        $this->assertSame(1, $result['failed']);
+        $schedule = $this->platform()->execute(
+            'SELECT status, last_error FROM platform_schedules WHERE name = ?',
+            ['invalid-cron'],
+        )->fetch('assoc');
+        $this->assertSame('failed', $schedule['status']);
+        $this->assertSame('Invalid cron expression.', $schedule['last_error']);
+    }
+
     private function createPlatformSchema(): void
     {
         $connection = $this->platform();

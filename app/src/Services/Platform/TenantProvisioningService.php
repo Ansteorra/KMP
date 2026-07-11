@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\Services\Platform;
 
+use App\KMP\TenantContext;
+use App\KMP\TenantMetadata;
 use App\Model\Entity\Member;
 use App\Services\Secrets\SecretStoreFactory;
 use App\Services\Secrets\SensitiveString;
@@ -54,11 +56,14 @@ class TenantProvisioningService
 
         $secretName = sprintf('tenant.%s.db.password', $request->slug);
         $password = $this->ensurePassword($secretName, $request->rotatePassword);
+        $backupKekName = sprintf('tenant.%s.kek', $request->slug);
+        $this->ensurePassword($backupKekName, false);
 
         $tenant = $this->upsertTenantMetadata($platform, $request);
         $this->upsertTenantHost($platform, (string)$tenant['id'], $request->host);
         $this->progress($progress, 'info', sprintf('Tenant metadata ready: %s (%s)', $request->slug, $tenant['id']));
         $this->progress($progress, 'info', sprintf('Stored DB password secret: %s', $secretName));
+        $this->progress($progress, 'info', sprintf('Backup encryption key ready: %s', $backupKekName));
 
         if (!$request->skipCreateDatabase) {
             $this->maybeCreateDatabase($platform, $request, $password, $progress);
@@ -71,7 +76,10 @@ class TenantProvisioningService
             if ($commandRunner === null) {
                 throw new RuntimeException('Tenant migration execution requires a command runner.');
             }
-            $schemaVersion = $this->runTenantMigrations($request, $password, $commandRunner, $progress);
+            $schemaVersion = TenantContext::with(
+                TenantMetadata::fromPlatformRow($tenant),
+                fn(): ?string => $this->runTenantMigrations($request, $password, $commandRunner, $progress),
+            );
         } else {
             $this->progress($progress, 'warning', 'Skipping tenant migrations; tenant will remain provisioning.');
         }
@@ -459,6 +467,7 @@ class TenantProvisioningService
                 'migrate',
                 '--connection',
                 self::TENANT_CONNECTION,
+                '--no-lock',
             ]);
             if ($result !== Command::CODE_SUCCESS) {
                 throw new RuntimeException('Tenant application migrations failed.');
@@ -470,6 +479,7 @@ class TenantProvisioningService
                     'migrate',
                     '--connection',
                     self::TENANT_CONNECTION,
+                    '--no-lock',
                     '--plugin',
                     $plugin,
                 ]);

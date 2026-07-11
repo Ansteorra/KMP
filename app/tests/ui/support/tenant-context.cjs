@@ -17,7 +17,10 @@ const createTenantContext = async (browser, { tenant = 'kmp' } = {}) => {
     const context = await browser.newContext({
         baseURL,
         ignoreHTTPSErrors: true,
-        extraHTTPHeaders: hostHeader ? { Host: hostHeader } : undefined,
+        extraHTTPHeaders: {
+            'X-KMP-E2E': '1',
+            ...(hostHeader ? { Host: hostHeader } : {}),
+        },
     });
 
     return { context, baseURL, hostHeader };

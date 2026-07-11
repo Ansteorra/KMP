@@ -30,6 +30,7 @@ class BackupService
     private const SALT_LENGTH = 16;
     private const IV_LENGTH = 12;
     private const TAG_LENGTH = 16;
+    private const HEADER_PREFIX_LENGTH = 1048576;
 
     /**
      * Tables excluded from backup because they contain transient runtime state.
@@ -125,6 +126,24 @@ class BackupService
      */
     public function export(string $encryptionKey): array
     {
+        $archive = $this->exportLogicalArchive();
+        $encrypted = $this->encrypt($archive['data'], $encryptionKey);
+        $archive['data'] = $encrypted;
+        $archive['meta']['size_bytes'] = strlen($encrypted);
+
+        return $archive;
+    }
+
+    /**
+     * Export all application tables as a gzip-compressed JSON logical archive.
+     *
+     * Encryption is intentionally left to the caller so managed platform
+     * backups can use per-backup envelope keys without double encryption.
+     *
+     * @return array{data: string, meta: array{table_count: int, row_count: int, size_bytes: int}}
+     */
+    public function exportLogicalArchive(): array
+    {
         $connection = $this->connection();
         $schemaCollection = $connection->getSchemaCollection();
         $allTables = $schemaCollection->listTables();
@@ -163,7 +182,7 @@ class BackupService
 
         $payload['meta']['row_count'] = $totalRows;
 
-        // JSON → gzip → encrypt
+        // JSON → gzip. Managed backups apply envelope encryption separately.
         $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         if ($json === false) {
             throw new RuntimeException('Failed to encode backup data as JSON');
@@ -174,14 +193,12 @@ class BackupService
             throw new RuntimeException('Failed to compress backup data');
         }
 
-        $encrypted = $this->encrypt($compressed, $encryptionKey);
-
         return [
-            'data' => $encrypted,
+            'data' => $compressed,
             'meta' => [
                 'table_count' => count($tables),
                 'row_count' => $totalRows,
-                'size_bytes' => strlen($encrypted),
+                'size_bytes' => strlen($compressed),
             ],
         ];
     }
@@ -194,7 +211,25 @@ class BackupService
      */
     public function validateImportPayload(string $encryptedData, string $encryptionKey): void
     {
-        $this->decodePayload($encryptedData, $encryptionKey);
+        $this->validateLogicalArchive($this->decrypt($encryptedData, $encryptionKey));
+    }
+
+    /**
+     * Validate a gzip-compressed JSON logical archive without restoring it.
+     */
+    public function validateLogicalArchive(string $compressedData): void
+    {
+        $this->decodeLogicalPayload($compressedData);
+    }
+
+    /**
+     * Protect a managed logical archive with a temporary tenant restore credential.
+     */
+    public function encryptLogicalArchive(string $compressedData, string $encryptionKey): string
+    {
+        $this->validateLogicalArchiveHeader($compressedData);
+
+        return $this->encrypt($compressedData, $encryptionKey);
     }
 
     /**
@@ -206,17 +241,76 @@ class BackupService
     public function validateImportHeader(string $encryptedData, string $encryptionKey): void
     {
         $compressed = $this->decrypt($encryptedData, $encryptionKey);
-        $jsonPrefix = gzdecode($compressed, 1048576);
-        unset($compressed);
-        if ($jsonPrefix === false) {
-            throw new RuntimeException('Failed to decompress backup data — wrong key or corrupt file');
+        try {
+            $this->validateLogicalArchiveHeader($compressed);
+        } finally {
+            sodium_memzero($compressed);
         }
+    }
+
+    /**
+     * Validate the bounded header of a compressed logical archive.
+     */
+    private function validateLogicalArchiveHeader(string $compressedData): void
+    {
+        $jsonPrefix = $this->readGzipPrefix($compressedData, self::HEADER_PREFIX_LENGTH);
 
         if (
             !str_contains($jsonPrefix, '"meta"')
             || !str_contains($jsonPrefix, '"version":' . self::FORMAT_VERSION)
         ) {
             throw new RuntimeException('Invalid backup file header');
+        }
+    }
+
+    /**
+     * Decompress only the requested prefix without expanding the full archive.
+     */
+    private function readGzipPrefix(string $compressedData, int $maxLength): string
+    {
+        $stream = fopen('php://memory', 'w+b');
+        if ($stream === false) {
+            throw new RuntimeException('Unable to open backup validation stream');
+        }
+
+        try {
+            $length = strlen($compressedData);
+            $offset = 0;
+            while ($offset < $length) {
+                $written = fwrite($stream, substr($compressedData, $offset));
+                if ($written === false || $written === 0) {
+                    throw new RuntimeException('Unable to buffer backup data for validation');
+                }
+                $offset += $written;
+            }
+            if (!rewind($stream)) {
+                throw new RuntimeException('Unable to rewind backup validation stream');
+            }
+
+            $warning = null;
+            set_error_handler(static function (int $severity, string $message) use (&$warning): bool {
+                $warning = sprintf('%d: %s', $severity, $message);
+
+                return true;
+            });
+            try {
+                $filter = stream_filter_append(
+                    $stream,
+                    'zlib.inflate',
+                    STREAM_FILTER_READ,
+                    ['window' => 31],
+                );
+                $prefix = $filter === false ? false : stream_get_contents($stream, $maxLength);
+            } finally {
+                restore_error_handler();
+            }
+            if ($warning !== null || $filter === false || $prefix === false || $prefix === '') {
+                throw new RuntimeException('Failed to decompress backup data — wrong key or corrupt file');
+            }
+
+            return $prefix;
+        } finally {
+            fclose($stream);
         }
     }
 
@@ -238,13 +332,40 @@ class BackupService
         array|callable|null $options = [],
         ?callable $migrationRunner = null,
     ): array {
+        $this->reportProgress($progressReporter, 'decrypting', 'Decrypting backup file.');
+        $compressedData = $this->decrypt($encryptedData, $encryptionKey);
+
+        return $this->importLogicalArchive(
+            $compressedData,
+            $progressReporter,
+            $options,
+            $migrationRunner,
+        );
+    }
+
+    /**
+     * Import a gzip-compressed JSON logical archive.
+     *
+     * @param string $compressedData Gzip-compressed versioned JSON payload
+     * @param callable(array<string, mixed>):void|null $progressReporter Restore progress callback
+     * @param callable|array{ignoreSchemaMismatch?: bool}|null $options Restore options, or migration runner for BC
+     * @param callable():void|null $migrationRunner Post-import migration callback
+     * @return array{table_count: int, row_count: int, constraints_not_valid?: int,
+     *   payload_upgrade?: array<string, mixed>, post_restore?: array<string, int>}
+     */
+    public function importLogicalArchive(
+        string $compressedData,
+        ?callable $progressReporter = null,
+        array|callable|null $options = [],
+        ?callable $migrationRunner = null,
+    ): array {
         if (is_callable($options) && $migrationRunner === null) {
             $migrationRunner = $options;
             $options = [];
         }
         $ignoreSchemaMismatch = (bool)(is_array($options) ? ($options['ignoreSchemaMismatch'] ?? false) : false);
 
-        $payload = $this->decodePayload($encryptedData, $encryptionKey, $progressReporter);
+        $payload = $this->decodeLogicalPayload($compressedData, $progressReporter);
         $payload = $this->ensureOperationalSchemaTables($payload);
 
         $this->reportSchemaMismatch($payload, $ignoreSchemaMismatch, $progressReporter);
@@ -253,6 +374,9 @@ class BackupService
         (new DatabaseSchemaResetService())->reset($payload['schema'], $progressReporter);
 
         $stats = $this->importPayloadRows($payload, $progressReporter);
+        $compatibilityPayload = $payload;
+        $compatibilityPayload['tables'] = array_fill_keys(array_keys($payload['tables']), []);
+        unset($payload);
 
         if ($migrationRunner !== null) {
             $this->reportProgress($progressReporter, 'migrating', 'Applying application migrations.');
@@ -268,7 +392,7 @@ class BackupService
 
         $postRestoreStats = (new BackupRestoreCompatibilityService())->reconcile(
             $this->connection(),
-            $payload,
+            $compatibilityPayload,
             $progressReporter,
         );
         $this->clearApplicationCachesAfterRestore();
@@ -330,17 +454,12 @@ class BackupService
      * @param callable(array<string, mixed>):void|null $progressReporter
      * @return array{meta: array<string, mixed>, schema: array<string, mixed>, tables: array<string, mixed>}
      */
-    private function decodePayload(
-        string $encryptedData,
-        string $encryptionKey,
+    private function decodeLogicalPayload(
+        string $compressedData,
         ?callable $progressReporter = null,
     ): array {
-        // Decrypt → decompress → JSON
-        $this->reportProgress($progressReporter, 'decrypting', 'Decrypting backup file.');
-        $compressed = $this->decrypt($encryptedData, $encryptionKey);
-
         $this->reportProgress($progressReporter, 'decompressing', 'Decompressing backup payload.');
-        $json = gzdecode($compressed);
+        $json = gzdecode($compressedData);
         if ($json === false) {
             throw new RuntimeException('Failed to decompress backup data — wrong key or corrupt file');
         }
@@ -826,7 +945,7 @@ class BackupService
                 ? $foreignKey['definition'] . ' NOT VALID'
                 : $foreignKey['definition'];
             $savepoint = sprintf('kmp_fk_validate_%d', $index);
-            $savepoint = sprintf('kmp_fk_validate_%d', $index);
+            $constraintAdded = false;
             $connection->execute("SAVEPOINT {$savepoint}");
             try {
                 $connection->execute(

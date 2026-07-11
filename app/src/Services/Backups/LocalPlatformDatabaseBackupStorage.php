@@ -7,7 +7,7 @@ namespace App\Services\Backups;
 
 use RuntimeException;
 
-class LocalPlatformDatabaseBackupStorage
+class LocalPlatformDatabaseBackupStorage implements PlatformDatabaseBackupStorageInterface
 {
     public function __construct(
         private readonly string $rootPath,
@@ -37,16 +37,47 @@ class LocalPlatformDatabaseBackupStorage
         }
         $dir = $this->join($this->rootPath, 'objects' . DIRECTORY_SEPARATOR . 'platform');
         $this->ensureDirectory($dir);
-        $target = $this->join($dir, $backupId . '.pgdump.enc.json');
+        $target = $this->join($dir, $backupId . '.pgdump.enc');
         if (!rename($encryptedPath, $target)) {
             throw new RuntimeException('Unable to store encrypted platform backup file.');
         }
 
         return new TenantBackupStoredObject(
-            'local://platform/' . $backupId . '.pgdump.enc.json',
+            'local://platform/' . $backupId . '.pgdump.enc',
             (int)filesize($target),
             hash_file('sha256', $target) ?: '',
         );
+    }
+
+    public function retrieve(string $objectUri, string $destinationPath): TenantBackupStoredObject
+    {
+        $this->assertEnabled();
+        if ($destinationPath === '' || str_contains($destinationPath, "\0")) {
+            throw new RuntimeException('Unsafe platform backup restore destination path.');
+        }
+        $source = $this->pathFromUri($objectUri);
+        if (!is_file($source)) {
+            throw new RuntimeException('Stored platform backup object is missing.');
+        }
+        $this->ensureDirectory(dirname($destinationPath));
+        if (!copy($source, $destinationPath)) {
+            throw new RuntimeException('Unable to retrieve stored platform backup object.');
+        }
+
+        return new TenantBackupStoredObject(
+            $objectUri,
+            (int)filesize($destinationPath),
+            hash_file('sha256', $destinationPath) ?: '',
+        );
+    }
+
+    public function delete(string $objectUri): void
+    {
+        $this->assertEnabled();
+        $path = $this->pathFromUri($objectUri);
+        if (is_file($path) && !unlink($path)) {
+            throw new RuntimeException('Unable to delete stored platform backup object.');
+        }
     }
 
     private function assertEnabled(): void
@@ -82,6 +113,16 @@ class LocalPlatformDatabaseBackupStorage
         if (!is_dir($dir) && !mkdir($dir, 0770, true) && !is_dir($dir)) {
             throw new RuntimeException('Unable to create local platform backup storage directory.');
         }
+    }
+
+    private function pathFromUri(string $objectUri): string
+    {
+        if (!preg_match('#^local://platform/([0-9a-f-]{36}\.pgdump\.enc(?:\.json)?)$#', $objectUri, $matches)) {
+            throw new RuntimeException('Unsupported or unsafe platform backup object URI.');
+        }
+
+        return $this->join($this->rootPath, 'objects' . DIRECTORY_SEPARATOR . 'platform')
+            . DIRECTORY_SEPARATOR . $matches[1];
     }
 
     private function join(string $left, string $right): string

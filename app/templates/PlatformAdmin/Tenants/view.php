@@ -10,9 +10,25 @@ declare(strict_types=1);
  * @var list<array<string, mixed>> $jobs
  * @var list<array<string, mixed>> $backups
  * @var array<string, mixed>|null $provisioningJob
+ * @var list<array<string, mixed>> $provisioningEvents
+ * @var array<string, int|float|bool> $metrics
+ * @var list<array<string, mixed>> $metricRoutes
+ * @var list<array<string, mixed>> $metricHours
+ * @var string $lifecycleNonce
  */
 $this->assign('title', __('Tenant: {0}', $tenant['slug']));
+$latestBackup = $backups[0] ?? null;
+$backupTimestamp = is_array($latestBackup) ? strtotime((string)($latestBackup['completed_at'] ?? '')) : false;
+$backupCurrent = is_array($latestBackup)
+    && ($latestBackup['status'] ?? '') === 'completed'
+    && $backupTimestamp !== false
+    && $backupTimestamp >= time() - 24 * 60 * 60;
 ?>
+<?php if (empty($metrics['available'])) : ?>
+    <div class="alert alert-warning" role="status">
+        <?= __('Tenant request telemetry is unavailable. Apply the platform operational telemetry migration and verify the platform database connection.') ?>
+    </div>
+<?php endif; ?>
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
     <div>
         <h1 class="h2 mb-1"><?= h($tenant['display_name'] ?? $tenant['slug']) ?></h1>
@@ -26,6 +42,54 @@ $this->assign('title', __('Tenant: {0}', $tenant['slug']));
     </div>
 </div>
 
+<section class="ops-stat-grid mb-4" aria-label="<?= __('Tenant operating summary for the last 24 hours') ?>">
+    <article class="ops-stat ops-stat--traffic">
+        <div class="ops-stat__label"><?= __('Requests') ?></div>
+        <div class="ops-stat__value"><?= h(number_format((int)$metrics['request_count'])) ?></div>
+        <p class="ops-stat__detail"><?= __('Privacy-safe routed request aggregates') ?></p>
+    </article>
+    <article class="ops-stat ops-stat--fleet">
+        <div class="ops-stat__label"><?= __('Error rate') ?></div>
+        <div class="ops-stat__value"><?= h(number_format((float)$metrics['error_rate'], 2)) ?><span class="ops-stat__unit">%</span></div>
+        <p class="ops-stat__detail"><?= __('{0} errors; {1} were server errors', h(number_format((int)$metrics['error_count'])), h(number_format((int)$metrics['server_error_count']))) ?></p>
+    </article>
+    <article class="ops-stat ops-stat--latency">
+        <div class="ops-stat__label"><?= __('Average response') ?></div>
+        <div class="ops-stat__value"><?= h((string)$metrics['average_duration_ms']) ?><span class="ops-stat__unit">ms</span></div>
+        <p class="ops-stat__detail"><?= __('Maximum {0} ms; {1} slow requests', h((string)$metrics['duration_max_ms']), h(number_format((int)$metrics['slow_request_count']))) ?></p>
+    </article>
+    <article class="ops-stat ops-stat--protection">
+        <div class="ops-stat__label"><?= __('Backup protection') ?></div>
+        <div class="ops-stat__value"><?= $backupCurrent ? __('24h') : __('—') ?></div>
+        <p class="ops-stat__detail"><?= $backupCurrent ? __('A retained backup completed in the last day.') : __('No current retained backup is available.') ?></p>
+    </article>
+</section>
+
+<details class="ops-panel mb-4">
+    <summary class="ops-panel__header fw-semibold"><?= __('Inspect hourly request trend') ?></summary>
+    <div class="table-responsive">
+        <table class="table ops-table align-middle mb-0">
+            <caption class="visually-hidden"><?= __('Hourly tenant request, error, and average response totals') ?></caption>
+            <thead><tr><th scope="col"><?= __('Hour (UTC)') ?></th><th scope="col" class="text-end"><?= __('Requests') ?></th><th scope="col" class="text-end"><?= __('Errors') ?></th><th scope="col" class="text-end"><?= __('Server errors') ?></th><th scope="col" class="text-end"><?= __('Average') ?></th></tr></thead>
+            <tbody>
+            <?php foreach ($metricHours as $hour) : ?>
+                <?php $hourRequests = max(1, (int)($hour['request_count'] ?? 0)); ?>
+                <tr>
+                    <td><?= h($hour['metric_hour'] ?? '') ?></td>
+                    <td class="text-end ops-number"><?= h(number_format((int)($hour['request_count'] ?? 0))) ?></td>
+                    <td class="text-end ops-number"><?= h(number_format((int)($hour['error_count'] ?? 0))) ?></td>
+                    <td class="text-end ops-number"><?= h(number_format((int)($hour['server_error_count'] ?? 0))) ?></td>
+                    <td class="text-end ops-number"><?= h((string)(int)round((int)($hour['duration_total_ms'] ?? 0) / $hourRequests)) ?> ms</td>
+                </tr>
+            <?php endforeach; ?>
+            <?php if ($metricHours === []) : ?>
+                <tr><td colspan="5" class="ops-empty"><?= __('No hourly traffic aggregates are available.') ?></td></tr>
+            <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</details>
+
 <section class="row g-3 mb-4" aria-label="Tenant summary">
     <div class="col-12 col-lg-6">
         <div class="card h-100">
@@ -38,6 +102,52 @@ $this->assign('title', __('Tenant: {0}', $tenant['slug']));
                     <dt class="col-sm-4"><?= __('Schema') ?></dt><dd class="col-sm-8"><?= h($tenant['schema_version'] ?? '') ?></dd>
                     <dt class="col-sm-4"><?= __('Queue Limit') ?></dt><dd class="col-sm-8"><?= h((string)($tenant['queue_concurrency_limit'] ?? '')) ?></dd>
                 </dl>
+                <?php if (($tenant['status'] ?? '') === 'active') : ?>
+                    <hr>
+                    <?= $this->Form->create(null, [
+                        'url' => ['prefix' => 'PlatformAdmin', 'controller' => 'Tenants', 'action' => 'suspend', $tenant['slug']],
+                    ]) ?>
+                    <?= $this->Form->hidden('nonce', ['value' => $lifecycleNonce]) ?>
+                    <?= $this->Form->control('confirmation', ['label' => __('Type SUSPEND {0}', $tenant['slug'])]) ?>
+                    <?= $this->Form->control('reason', ['label' => __('Operator reason'), 'required' => true]) ?>
+                    <?= $this->Form->control('totp', ['label' => __('MFA code'), 'autocomplete' => 'one-time-code']) ?>
+                    <?= $this->Form->button(__('Suspend tenant'), ['class' => 'btn btn-warning']) ?>
+                    <?= $this->Form->end() ?>
+                <?php elseif (($tenant['status'] ?? '') === 'suspended') : ?>
+                    <hr>
+                    <div class="d-grid gap-3">
+                        <?= $this->Form->create(null, [
+                            'url' => ['prefix' => 'PlatformAdmin', 'controller' => 'Tenants', 'action' => 'reactivate', $tenant['slug']],
+                        ]) ?>
+                        <?= $this->Form->hidden('nonce', ['value' => $lifecycleNonce]) ?>
+                        <?= $this->Form->control('confirmation', ['label' => __('Type REACTIVATE {0}', $tenant['slug'])]) ?>
+                        <?= $this->Form->control('reason', ['label' => __('Reactivation reason'), 'required' => true]) ?>
+                        <?= $this->Form->control('totp', ['label' => __('Reactivation MFA code'), 'autocomplete' => 'one-time-code']) ?>
+                        <?= $this->Form->button(__('Reactivate tenant'), ['class' => 'btn btn-success']) ?>
+                        <?= $this->Form->end() ?>
+
+                        <?= $this->Form->create(null, [
+                            'url' => ['prefix' => 'PlatformAdmin', 'controller' => 'Tenants', 'action' => 'archive', $tenant['slug']],
+                        ]) ?>
+                        <?= $this->Form->hidden('nonce', ['value' => $lifecycleNonce]) ?>
+                        <?= $this->Form->control('confirmation', ['label' => __('Type ARCHIVE {0}', $tenant['slug'])]) ?>
+                        <?= $this->Form->control('reason', ['label' => __('Archival reason'), 'required' => true]) ?>
+                        <?= $this->Form->control('totp', ['label' => __('Archival MFA code'), 'autocomplete' => 'one-time-code']) ?>
+                        <?= $this->Form->button(__('Archive tenant'), ['class' => 'btn btn-outline-danger']) ?>
+                        <?= $this->Form->end() ?>
+                    </div>
+                <?php elseif (($tenant['status'] ?? '') === 'provisioning') : ?>
+                    <hr>
+                    <?= $this->Form->create(null, [
+                        'url' => ['prefix' => 'PlatformAdmin', 'controller' => 'Tenants', 'action' => 'archive', $tenant['slug']],
+                    ]) ?>
+                    <?= $this->Form->hidden('nonce', ['value' => $lifecycleNonce]) ?>
+                    <?= $this->Form->control('confirmation', ['label' => __('Type ARCHIVE {0}', $tenant['slug'])]) ?>
+                    <?= $this->Form->control('reason', ['label' => __('Archival reason'), 'required' => true]) ?>
+                    <?= $this->Form->control('totp', ['label' => __('Archival MFA code'), 'autocomplete' => 'one-time-code']) ?>
+                    <?= $this->Form->button(__('Archive incomplete tenant'), ['class' => 'btn btn-outline-danger']) ?>
+                    <?= $this->Form->end() ?>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -79,6 +189,52 @@ $this->assign('title', __('Tenant: {0}', $tenant['slug']));
                 <p class="text-muted mb-0"><?= __('No recent provisioning job is recorded for this tenant.') ?></p>
             <?php endif; ?>
         </div>
+        <?php if ($provisioningEvents !== []) : ?>
+            <ol class="list-group list-group-numbered mt-3" aria-label="<?= __('Provisioning progress') ?>">
+                <?php foreach ($provisioningEvents as $event) : ?>
+                    <li class="list-group-item d-flex justify-content-between align-items-start gap-3">
+                        <div>
+                            <strong><?= h($event['message'] ?? '') ?></strong>
+                            <div class="small text-muted"><?= h(str_replace('.', ' ', (string)($event['event_code'] ?? ''))) ?></div>
+                        </div>
+                        <span class="ops-inline-state <?= ($event['event_level'] ?? '') === 'error' ? 'ops-inline-state--bad' : 'ops-inline-state--good' ?>">
+                            <?= h($event['event_level'] ?? '') ?>
+                        </span>
+                    </li>
+                <?php endforeach; ?>
+            </ol>
+        <?php endif; ?>
+    </div>
+</section>
+
+<section class="ops-panel mb-4" aria-labelledby="route-analytics-heading">
+    <div class="ops-panel__header">
+        <div>
+            <p class="ops-panel__kicker mb-1"><?= __('Privacy-safe request analytics') ?></p>
+            <h2 id="route-analytics-heading" class="h4 mb-0"><?= __('Routes needing support review') ?></h2>
+        </div>
+        <span class="text-muted small"><?= __('Last 24 hours · no URLs, users, or request bodies stored') ?></span>
+    </div>
+    <div class="table-responsive">
+        <table class="table ops-table align-middle mb-0">
+            <thead><tr><th scope="col"><?= __('Routed action') ?></th><th scope="col" class="text-end"><?= __('Requests') ?></th><th scope="col" class="text-end"><?= __('Errors') ?></th><th scope="col" class="text-end"><?= __('Server errors') ?></th><th scope="col" class="text-end"><?= __('Average') ?></th><th scope="col" class="text-end"><?= __('Maximum') ?></th></tr></thead>
+            <tbody>
+            <?php foreach ($metricRoutes as $route) : ?>
+                <?php $routeRequests = max(1, (int)($route['request_count'] ?? 0)); ?>
+                <tr>
+                    <td class="fw-semibold"><?= h($route['route_name'] ?? '') ?></td>
+                    <td class="text-end ops-number"><?= h(number_format((int)($route['request_count'] ?? 0))) ?></td>
+                    <td class="text-end ops-number"><?= h(number_format((int)($route['error_count'] ?? 0))) ?></td>
+                    <td class="text-end ops-number"><?= h(number_format((int)($route['server_error_count'] ?? 0))) ?></td>
+                    <td class="text-end ops-number"><?= h((string)(int)round((int)($route['duration_total_ms'] ?? 0) / $routeRequests)) ?> ms</td>
+                    <td class="text-end ops-number"><?= h((string)($route['duration_max_ms'] ?? 0)) ?> ms</td>
+                </tr>
+            <?php endforeach; ?>
+            <?php if ($metricRoutes === []) : ?>
+                <tr><td colspan="6" class="ops-empty"><?= __('No routed tenant traffic was recorded during this window.') ?></td></tr>
+            <?php endif; ?>
+            </tbody>
+        </table>
     </div>
 </section>
 

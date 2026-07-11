@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Services\Backups\LocalPlatformDatabaseBackupStorage;
+use App\Services\Backups\BackupStorageFactory;
 use App\Services\Backups\PgDumpPlatformDatabaseBackupDumper;
 use App\Services\Backups\PlatformDatabaseBackupEncryptor;
 use App\Services\Backups\PlatformDatabaseBackupService;
@@ -14,7 +14,6 @@ use Cake\Command\Command;
 use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
-use Cake\Core\Configure;
 use Cake\Datasource\ConnectionManager;
 use RuntimeException;
 
@@ -32,6 +31,9 @@ class PlatformBackupCommand extends Command
             ->addOption('retention-days', [
                 'help' => 'Retention period for the backup metadata.',
                 'default' => '30',
+            ])
+            ->addOption('platform-job-id', [
+                'help' => 'Existing Platform Admin job UUID to update.',
             ]);
     }
 
@@ -39,7 +41,12 @@ class PlatformBackupCommand extends Command
     {
         try {
             $service = $this->buildService();
-            $result = $service->backupPlatformDatabase((int)$args->getOption('retention-days'));
+            $result = $service->backupPlatformDatabase(
+                (int)$args->getOption('retention-days'),
+                $args->getOption('platform-job-id') === null
+                    ? null
+                    : (string)$args->getOption('platform-job-id'),
+            );
             $io->success(sprintf('Platform database backup completed: %s (%s)', $result->backupId, $result->objectUri));
 
             return self::CODE_SUCCESS;
@@ -52,15 +59,6 @@ class PlatformBackupCommand extends Command
 
     private function buildService(): PlatformDatabaseBackupService
     {
-        $enabled = (bool)Configure::read('PlatformBackups.local.enabled', false);
-        $root = (string)Configure::read('PlatformBackups.local.path', TMP . 'platform-backups');
-        if (env('KMP_PLATFORM_LOCAL_BACKUPS_ENABLED', null) !== null) {
-            $enabled = filter_var(env('KMP_PLATFORM_LOCAL_BACKUPS_ENABLED', false), FILTER_VALIDATE_BOOLEAN);
-        }
-        $configuredRoot = env('KMP_PLATFORM_LOCAL_BACKUPS_PATH', null);
-        if (is_string($configuredRoot) && $configuredRoot !== '') {
-            $root = $configuredRoot;
-        }
         /** @var \Cake\Database\Connection $platform */
         $platform = ConnectionManager::get('platform');
 
@@ -70,11 +68,7 @@ class PlatformBackupCommand extends Command
             SecretStoreFactory::fromConfig(),
             new PgDumpPlatformDatabaseBackupDumper(),
             new PlatformDatabaseBackupEncryptor(),
-            new LocalPlatformDatabaseBackupStorage(
-                $root,
-                $enabled,
-                (string)env('KMP_ENV', env('APP_ENV', 'production')),
-            ),
+            BackupStorageFactory::platform(),
         );
     }
 }

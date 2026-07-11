@@ -48,6 +48,8 @@ namespace App;
 
 // Authentication usings
 
+use App\Command\PlatformScheduleRunCommand;
+use App\Command\PlatformSchedulesRunDueCommand;
 use App\Controller\ApprovalsController;
 use App\Controller\WorkflowDefinitionsController;
 use App\Controller\WorkflowInstancesController;
@@ -78,7 +80,10 @@ use App\Services\MemberProfileService;
 use App\Services\MemberRegistrationService;
 use App\Services\MemberSearchService;
 use App\Services\NavigationRegistry;
+use App\Services\Platform\AllowlistedPlatformScheduleDispatcher;
 use App\Services\Platform\PlatformHealthService;
+use App\Services\Platform\PlatformScheduleRunner;
+use App\Services\Platform\TenantQueueDrainService;
 use App\Services\QuickLoginDeviceService;
 use App\Services\Secrets\SecretStoreFactory;
 use App\Services\Secrets\SecretStoreInterface;
@@ -561,9 +566,6 @@ class Application extends BaseApplication implements
                 ]),
             )
 
-            // 4b. Restore maintenance gate - blocks normal traffic while DB schema is being reset.
-            ->add(new RestoreMaintenanceMiddleware())
-
             // 5. Routing Middleware - URL to controller/action mapping
             // For large applications, consider enabling route caching in production
             // See: https://github.com/CakeDC/cakephp-cached-routing
@@ -580,6 +582,9 @@ class Application extends BaseApplication implements
                     (int)Configure::read('Platform.health.retryDelayMs', 0),
                 ),
             ))
+
+            // 5b. Tenant-scoped restore gate must run after tenant resolution.
+            ->add(new RestoreMaintenanceMiddleware())
 
             // 6. Body Parser Middleware - Request body parsing
             // Parses JSON, XML, and form data into $request->getData()
@@ -775,6 +780,19 @@ class Application extends BaseApplication implements
         $container->addShared(SecretStoreInterface::class, fn() => SecretStoreFactory::fromConfig());
         $container->add(TenantConnectionManager::class)
             ->addArgument(SecretStoreInterface::class);
+        $container->add(TenantQueueDrainService::class)
+            ->addArgument(ContainerInterface::class);
+        $container->add(AllowlistedPlatformScheduleDispatcher::class)
+            ->addArgument(TenantQueueDrainService::class);
+        $container->add(PlatformScheduleRunner::class)
+            ->addArguments([
+                AllowlistedPlatformScheduleDispatcher::class,
+                TenantConnectionManager::class,
+            ]);
+        $container->add(PlatformScheduleRunCommand::class)
+            ->addArgument(PlatformScheduleRunner::class);
+        $container->add(PlatformSchedulesRunDueCommand::class)
+            ->addArgument(PlatformScheduleRunner::class);
 
         // Gathering services extracted from GatheringsController
         $container->add(GatheringActivityService::class);

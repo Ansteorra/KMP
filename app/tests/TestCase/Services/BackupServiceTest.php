@@ -48,6 +48,74 @@ class BackupServiceTest extends TestCase
         $this->assertSame(1, $result['meta']['row_count']);
     }
 
+    public function testLogicalArchiveExportAndValidationUseCompressedJsonWithoutUserEncryption(): void
+    {
+        ConnectionManager::setConfig('backup_scope_test', [
+            'className' => 'Cake\Database\Connection',
+            'driver' => 'Cake\Database\Driver\Sqlite',
+            'database' => ':memory:',
+        ]);
+        $connection = ConnectionManager::get('backup_scope_test');
+        $connection->execute('CREATE TABLE platform_values (id INTEGER PRIMARY KEY, name TEXT NOT NULL)');
+        $connection->insert('platform_values', ['id' => 1, 'name' => 'Logical archive']);
+
+        $service = new BackupService('backup_scope_test');
+        $archive = $service->exportLogicalArchive();
+        $service->validateLogicalArchive($archive['data']);
+        $protectedArchive = $service->encryptLogicalArchive($archive['data'], 'temporary-restore-key');
+        $service->validateImportHeader($protectedArchive, 'temporary-restore-key');
+
+        $json = gzdecode($archive['data']);
+        $this->assertNotFalse($json);
+        $payload = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+        $this->assertSame(2, $payload['meta']['version']);
+        $this->assertSame(['platform_values'], $payload['meta']['tables']);
+        $this->assertSame('Logical archive', $payload['tables']['platform_values'][0]['name']);
+        $this->assertSame(strlen($archive['data']), $archive['meta']['size_bytes']);
+        $this->assertNotSame($archive['data'], $protectedArchive);
+    }
+
+    public function testHeaderValidationAcceptsArchiveExpandedBeyondPrefixLimit(): void
+    {
+        $service = new BackupService('backup_scope_test');
+        $json = json_encode([
+            'meta' => ['version' => 2],
+            'padding' => str_repeat('x', 2 * 1024 * 1024),
+        ], JSON_THROW_ON_ERROR);
+        $archive = gzencode($json, 9);
+        $this->assertNotFalse($archive);
+
+        $protectedArchive = $service->encryptLogicalArchive($archive, 'large-archive-key');
+
+        $service->validateImportHeader($protectedArchive, 'large-archive-key');
+        $this->addToAssertionCount(1);
+    }
+
+    public function testHeaderValidationRejectsCorruptGzipWithoutEmittingWarnings(): void
+    {
+        $service = new BackupService('backup_scope_test');
+        $encrypt = new ReflectionMethod(BackupService::class, 'encrypt');
+        $protectedArchive = $encrypt->invoke($service, 'not a gzip archive', 'corrupt-archive-key');
+        $warnings = [];
+        set_error_handler(static function (int $severity, string $message) use (&$warnings): bool {
+            $warnings[] = sprintf('%d: %s', $severity, $message);
+
+            return true;
+        });
+        try {
+            try {
+                $service->validateImportHeader($protectedArchive, 'corrupt-archive-key');
+                $this->fail('Expected corrupt gzip validation to fail.');
+            } catch (RuntimeException $e) {
+                $this->assertStringContainsString('Failed to decompress backup data', $e->getMessage());
+            }
+        } finally {
+            restore_error_handler();
+        }
+
+        $this->assertSame([], $warnings);
+    }
+
     public function testValidateImportPayloadRejectsWrongKeyBeforeRestore(): void
     {
         ConnectionManager::setConfig('backup_scope_test', [
@@ -351,6 +419,53 @@ class BackupServiceTest extends TestCase
         );
     }
 
+    public function testRestorePostgresForeignKeysRethrowsConstraintAddFailures(): void
+    {
+        $service = new BackupService();
+        $connection = new class {
+            /**
+             * @var array<int, string>
+             */
+            public array $queries = [];
+
+            public function execute(string $sql): object
+            {
+                $this->queries[] = $sql;
+
+                if (str_starts_with($sql, 'ALTER TABLE') && str_contains($sql, 'ADD CONSTRAINT')) {
+                    throw new RuntimeException('SQLSTATE[42P07]: constraint already exists');
+                }
+
+                return new class {
+                };
+            }
+        };
+        $driver = new class {
+            public function quoteIdentifier(string $identifier): string
+            {
+                return "\"{$identifier}\"";
+            }
+        };
+        $foreignKeys = [[
+            'table' => 'awards_recommendations_events',
+            'name' => 'awards_recommendations_events_event_id_fkey',
+            'definition' => 'FOREIGN KEY (event_id) REFERENCES awards_events(id)',
+        ]];
+
+        $method = new ReflectionMethod(BackupService::class, 'restorePostgresForeignKeys');
+        $method->setAccessible(true);
+
+        try {
+            $method->invoke($service, $connection, $driver, $foreignKeys);
+            $this->fail('Expected the constraint add failure to be rethrown.');
+        } catch (RuntimeException $e) {
+            $this->assertSame('SQLSTATE[42P07]: constraint already exists', $e->getMessage());
+        }
+
+        $this->assertContains('ROLLBACK TO SAVEPOINT kmp_fk_validate_0', $connection->queries);
+        $this->assertContains('RELEASE SAVEPOINT kmp_fk_validate_0', $connection->queries);
+    }
+
     public function testImportRejectsObsoleteRowOnlyPayload(): void
     {
         $service = new BackupService();
@@ -393,6 +508,23 @@ class BackupServiceTest extends TestCase
         $this->expectExceptionMessage('Invalid backup file structure');
 
         $service->import($encrypted, 'test-key');
+    }
+
+    public function testImportLogicalArchiveRejectsMalformedPayloadBeforeSchemaReset(): void
+    {
+        $service = new BackupService();
+        $json = json_encode([
+            'meta' => ['version' => 2],
+            'tables' => [],
+        ]);
+        $this->assertNotFalse($json);
+        $compressed = gzencode($json);
+        $this->assertNotFalse($compressed);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Invalid backup file structure');
+
+        $service->importLogicalArchive($compressed);
     }
 
     public function testBuildRestoreTableMapIncludesCurrentTablesMissingFromBackup(): void

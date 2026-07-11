@@ -3,8 +3,10 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\KMP\TenantContext;
 use App\Queue\Task\BackupRestoreTask;
 use App\Queue\Task\BackupTask;
+use App\Services\Backups\BackupRecoveryKeyService;
 use App\Services\BackupService;
 use App\Services\BackupStorageService;
 use App\Services\RestoreStagingService;
@@ -13,6 +15,7 @@ use Cake\Http\Response;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Psr\Http\Message\UploadedFileInterface;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -127,8 +130,41 @@ class BackupsController extends AppController
         set_time_limit(0);
         ignore_user_abort(true);
         $encryptionKey = trim((string)$this->request->getData('restore_key', ''));
-        if ($encryptionKey === '') {
-            $message = __('Enter the encryption key for this backup restore.');
+        $recoveryKeyUpload = $this->request->getData('recovery_key_file');
+        $hasRecoveryKey = $recoveryKeyUpload instanceof UploadedFileInterface
+            && $recoveryKeyUpload->getError() === UPLOAD_ERR_OK;
+        $recoveryKeyWasSubmitted = $recoveryKeyUpload instanceof UploadedFileInterface
+            && $recoveryKeyUpload->getError() !== UPLOAD_ERR_NO_FILE;
+
+        if ($recoveryKeyWasSubmitted && !$hasRecoveryKey) {
+            $message = __('Choose a valid backup recovery-key file.');
+            if ($expectsJson) {
+                return $this->jsonResponse(['success' => false, 'message' => $message], 400);
+            }
+            $this->Flash->error($message);
+
+            return $this->redirect(['action' => 'index']);
+        }
+        if ($id !== null && $hasRecoveryKey) {
+            $message = __('A recovery-key file can be used only when importing a managed backup archive.');
+            if ($expectsJson) {
+                return $this->jsonResponse(['success' => false, 'message' => $message], 400);
+            }
+            $this->Flash->error($message);
+
+            return $this->redirect(['action' => 'index']);
+        }
+        if ($encryptionKey !== '' && $hasRecoveryKey) {
+            $message = __('Provide either a backup encryption key or a recovery-key file, not both.');
+            if ($expectsJson) {
+                return $this->jsonResponse(['success' => false, 'message' => $message], 400);
+            }
+            $this->Flash->error($message);
+
+            return $this->redirect(['action' => 'index']);
+        }
+        if ($encryptionKey === '' && !$hasRecoveryKey) {
+            $message = __('Enter the backup encryption key or choose its recovery-key file.');
             if ($expectsJson) {
                 return $this->jsonResponse(['success' => false, 'message' => $message], 400);
             }
@@ -178,12 +214,27 @@ class BackupsController extends AppController
         }
 
         try {
-            (new BackupService())->validateImportHeader($data, $encryptionKey);
+            $backupService = new BackupService();
+            if ($hasRecoveryKey) {
+                $recoveryKeyJson = $this->readRecoveryKeyUpload($recoveryKeyUpload);
+                $logicalArchive = (new BackupRecoveryKeyService())->decryptTenantArchive(
+                    $data,
+                    $recoveryKeyJson,
+                    TenantContext::slug(),
+                );
+                $encryptionKey = rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
+                try {
+                    $data = $backupService->encryptLogicalArchive($logicalArchive, $encryptionKey);
+                } finally {
+                    sodium_memzero($logicalArchive);
+                }
+            } else {
+                $backupService->validateImportHeader($data, $encryptionKey);
+            }
         } catch (Throwable $e) {
-            $message = __(
-                'The backup file could not be opened with the provided encryption key: {0}',
-                $e->getMessage(),
-            );
+            $message = $hasRecoveryKey
+                ? __('The managed backup and recovery-key files could not be opened: {0}', $e->getMessage())
+                : __('The backup file could not be opened with the provided encryption key: {0}', $e->getMessage());
             Log::warning(sprintf(
                 'Restore preflight failed for %s: %s',
                 (string)$sourceLabel,
@@ -209,6 +260,7 @@ class BackupsController extends AppController
             'backup_id' => $id,
             'actor' => $actor,
             'restore_id' => $restoreId,
+            'recovery_key_import' => $hasRecoveryKey,
             'message' => sprintf('Restore starting from %s.', $sourceLabel),
             ])
         ) {
@@ -240,6 +292,7 @@ class BackupsController extends AppController
                 'backup_id' => $id,
                 'actor' => $actor,
                 'restore_id' => $restoreId,
+                'recovery_key_import' => $hasRecoveryKey,
             ]);
 
             if ($restoreTrackedBackup !== null) {
@@ -253,6 +306,7 @@ class BackupsController extends AppController
                 'backup_id' => $id,
                 'actor' => $actor,
                 'restore_id' => $restoreId,
+                'recovery_key_import' => $hasRecoveryKey,
             ]);
             $restoreJob = $this->enqueueRestoreRunner($token, $restoreId);
 
@@ -261,6 +315,7 @@ class BackupsController extends AppController
                 'backup_id' => $id,
                 'actor' => $actor,
                 'restore_id' => $restoreId,
+                'recovery_key_import' => $hasRecoveryKey,
                 'queue_job_id' => $restoreJob->id,
             ]);
 
@@ -292,6 +347,7 @@ class BackupsController extends AppController
                 'backup_id' => $id,
                 'actor' => $actor,
                 'restore_id' => $restoreId,
+                'recovery_key_import' => $hasRecoveryKey,
             ]);
             if ($expectsJson) {
                 return $this->jsonResponse([
@@ -304,6 +360,25 @@ class BackupsController extends AppController
         }
 
         return $this->redirect(['action' => 'index']);
+    }
+
+    /**
+     * Read a bounded recovery-key upload without persisting it.
+     */
+    private function readRecoveryKeyUpload(UploadedFileInterface $uploadedFile): string
+    {
+        $size = $uploadedFile->getSize();
+        if ($size !== null && $size > BackupRecoveryKeyService::MAX_KEY_FILE_BYTES) {
+            throw new RuntimeException('The backup recovery-key file is too large.');
+        }
+        $stream = $uploadedFile->getStream();
+        $stream->rewind();
+        $json = $stream->getContents();
+        if ($json === '' || strlen($json) > BackupRecoveryKeyService::MAX_KEY_FILE_BYTES) {
+            throw new RuntimeException('The backup recovery-key file is empty or too large.');
+        }
+
+        return $json;
     }
 
     /**

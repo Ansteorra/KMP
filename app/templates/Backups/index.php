@@ -34,7 +34,7 @@ $restoreIsLocked = !empty($restoreStatus['locked']);
         <div class="col-md-4 mb-4">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="card-title mb-0"><i class="bi bi-gear"></i> <?= __('Backup Settings') ?></h5>
+                    <h5 class="card-title mb-0"><i class="bi bi-gear" aria-hidden="true"></i> <?= __('Backup Settings') ?></h5>
                 </div>
                 <div class="card-body">
                     <?= $this->Form->create(null, ['url' => ['action' => 'settings']]) ?>
@@ -43,11 +43,11 @@ $restoreIsLocked = !empty($restoreStatus['locked']);
                         <label class="form-label fw-bold"><?= __('Encryption Key') ?></label>
                         <?php if ($hasKey): ?>
                             <div class="alert alert-success py-1 px-2 mb-1">
-                                <i class="bi bi-lock-fill"></i> <?= __('Key is set') ?>
+                                <i class="bi bi-lock-fill" aria-hidden="true"></i> <?= __('Key is set') ?>
                             </div>
                         <?php else: ?>
                             <div class="alert alert-warning py-1 px-2 mb-1">
-                                <i class="bi bi-exclamation-triangle"></i> <?= __('No key set — required for backups') ?>
+                                <i class="bi bi-exclamation-triangle" aria-hidden="true"></i> <?= __('No key set — required for backups') ?>
                             </div>
                         <?php endif; ?>
                         <input type="password" name="encryption_key" class="form-control form-control-sm"
@@ -75,7 +75,7 @@ $restoreIsLocked = !empty($restoreStatus['locked']);
                     <div class="mb-2">
                         <label class="form-label fw-bold"><?= __('Storage') ?></label>
                         <div class="text-muted small">
-                            <i class="bi bi-hdd"></i> <?= h(ucfirst($storageType)) ?>
+                            <i class="bi bi-hdd" aria-hidden="true"></i> <?= h(ucfirst($storageType)) ?>
                         </div>
                     </div>
 
@@ -89,7 +89,7 @@ $restoreIsLocked = !empty($restoreStatus['locked']);
         <div class="col-md-8">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="card-title mb-0"><i class="bi bi-archive"></i> <?= __('Backups, Export, and Import') ?></h5>
+                    <h5 class="card-title mb-0"><i class="bi bi-archive" aria-hidden="true"></i> <?= __('Backups, Export, and Import') ?></h5>
                 </div>
                 <div class="card-body p-0">
                     <div class="p-3 border-bottom bg-light">
@@ -97,7 +97,7 @@ $restoreIsLocked = !empty($restoreStatus['locked']);
                             <div>
                                 <?= $this->Form->create(null, ['url' => ['action' => 'create'], 'class' => 'd-inline']) ?>
                                 <?= $this->Form->button(
-                                    '<i class="bi bi-download"></i> ' . __('Export Backup'),
+                                    '<i class="bi bi-download" aria-hidden="true"></i> ' . __('Export Backup'),
                                     [
                                         'class' => 'btn btn-success btn-sm',
                                         'escapeTitle' => false,
@@ -117,11 +117,24 @@ $restoreIsLocked = !empty($restoreStatus['locked']);
                                             id="backup-file-input"
                                             name="backup_file"
                                             class="form-control form-control-sm"
-                                            accept=".kmpbackup,application/octet-stream"
+                                            accept=".kmpbackup,.enc,application/octet-stream"
                                             aria-describedby="backup-file-help"
                                             required>
                                         <div id="backup-file-help" class="form-text">
-                                            <?= __('Choose a .kmpbackup archive exported from KMP before starting the restore.') ?>
+                                            <?= __('Choose a tenant .kmpbackup file, or a managed .json.gz.enc archive downloaded from Platform Admin.') ?>
+                                        </div>
+                                        <label for="backup-recovery-key-input" class="form-label mt-2 mb-1 small fw-bold">
+                                            <?= __('Managed Backup Recovery Key') ?>
+                                            <span class="text-muted fw-normal"><?= __('(required only for .json.gz.enc archives)') ?></span>
+                                        </label>
+                                        <input type="file"
+                                            id="backup-recovery-key-input"
+                                            name="recovery_key_file"
+                                            class="form-control form-control-sm"
+                                            accept=".json,application/json"
+                                            aria-describedby="backup-recovery-key-help">
+                                        <div id="backup-recovery-key-help" class="form-text">
+                                            <?= __('Choose the matching .kmpbackup-key.json file. It works only with its bound archive and must be handled as a secret.') ?>
                                         </div>
                                     </div>
                                     <div class="col-md-auto">
@@ -132,11 +145,13 @@ $restoreIsLocked = !empty($restoreStatus['locked']);
                                             'id' => 'backup-import-restore-form',
                                             'data-action' => 'submit->backup-restore-status#submitRestore',
                                             'data-file-input-id' => 'backup-file-input',
+                                            'data-recovery-key-input-id' => 'backup-recovery-key-input',
                                             'data-restore-confirm-message' => __('Import this backup and replace all current data? This action cannot be undone.'),
                                             'data-restore-key-prompt' => __('Enter the encryption key for this backup file:'),
+                                            'data-managed-key-required-message' => __('Choose the matching recovery-key file for this managed backup archive.'),
                                         ]) ?>
                                         <?= $this->Form->button(
-                                            '<i class="bi bi-upload"></i> ' . __('Import and Restore'),
+                                            '<i class="bi bi-upload" aria-hidden="true"></i> ' . __('Import and Restore'),
                                             [
                                                 'class' => 'btn btn-outline-warning btn-sm',
                                                 'escapeTitle' => false,
@@ -153,7 +168,7 @@ $restoreIsLocked = !empty($restoreStatus['locked']);
 
                     <?php if (empty(iterator_to_array($backups))): ?>
                         <div class="p-4 text-center text-muted">
-                            <i class="bi bi-archive" style="font-size: 3rem;"></i>
+                            <i class="bi bi-archive" style="font-size: 3rem;" aria-hidden="true"></i>
                             <p class="mt-2"><?= __('No backups yet. Set your encryption key and create your first backup.') ?></p>
                         </div>
                     <?php else: ?>
@@ -200,7 +215,7 @@ $restoreIsLocked = !empty($restoreStatus['locked']);
                                             <td class="text-end">
                                                 <?php if ($backup->status !== 'running' && !$restoreIsLocked): ?>
                                                     <?= $this->Html->link(
-                                                        '<i class="bi bi-download"></i>',
+                                                        '<i class="bi bi-download" aria-hidden="true"></i>',
                                                         ['action' => 'download', $backup->id],
                                                         ['escape' => false, 'class' => 'btn btn-outline-primary btn-sm me-1', 'title' => __('Download')],
                                                     ) ?>
@@ -212,7 +227,7 @@ $restoreIsLocked = !empty($restoreStatus['locked']);
                                                         'data-restore-key-prompt' => __('Enter the encryption key for this backup:'),
                                                     ]) ?>
                                                     <?= $this->Form->button(
-                                                        '<i class="bi bi-arrow-counterclockwise"></i>',
+                                                        '<i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>',
                                                         [
                                                             'escapeTitle' => false,
                                                             'class' => 'btn btn-outline-warning btn-sm me-1',
@@ -223,7 +238,7 @@ $restoreIsLocked = !empty($restoreStatus['locked']);
                                                 <?php endif; ?>
                                                 <?php if (!$restoreIsLocked): ?>
                                                     <?= $this->Form->postLink(
-                                                        '<i class="bi bi-trash"></i>',
+                                                        '<i class="bi bi-trash" aria-hidden="true"></i>',
                                                         ['action' => 'delete', $backup->id],
                                                         [
                                                             'escape' => false,
@@ -234,7 +249,7 @@ $restoreIsLocked = !empty($restoreStatus['locked']);
                                                     ) ?>
                                                 <?php else: ?>
                                                     <button type="button" class="btn btn-outline-secondary btn-sm" disabled title="<?= __('A restore/import is currently running') ?>">
-                                                        <i class="bi bi-lock"></i>
+                                                        <i class="bi bi-lock" aria-hidden="true"></i>
                                                     </button>
                                                 <?php endif; ?>
                                             </td>

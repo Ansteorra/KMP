@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.36.1.42791",
-      "templateHash": "13042094485468315229"
+      "templateHash": "14453087190157093140"
     }
   },
   "parameters": {
@@ -199,14 +199,14 @@
       "type": "bool",
       "defaultValue": true,
       "metadata": {
-        "description": "Enable the scheduled queue worker job."
+        "description": "Enable the scheduled resilience dispatcher for due platform schedules, including tenant queues."
       }
     },
     "queueWorkerCron": {
       "type": "string",
       "defaultValue": "*/5 * * * *",
       "metadata": {
-        "description": "Cron for the queue worker schedule shape."
+        "description": "Cron for the resilience dispatcher schedule shape."
       }
     },
     "queueWorkerParallelism": {
@@ -234,32 +234,18 @@
         "description": "Enable the hourly platform schedule dispatcher job."
       }
     },
-    "scheduleHourlyName": {
-      "type": "string",
-      "defaultValue": "hourly",
-      "metadata": {
-        "description": "Platform schedule name dispatched by the hourly schedule-shape job."
-      }
-    },
     "scheduleHourlyCron": {
       "type": "string",
-      "defaultValue": "5 * * * *",
+      "defaultValue": "* * * * *",
       "metadata": {
-        "description": "Cron for the hourly platform schedule dispatcher."
+        "description": "Cron for the due platform schedule dispatcher."
       }
     },
     "enableScheduleDailyJob": {
       "type": "bool",
-      "defaultValue": true,
+      "defaultValue": false,
       "metadata": {
         "description": "Enable the daily platform schedule dispatcher job."
-      }
-    },
-    "scheduleDailyName": {
-      "type": "string",
-      "defaultValue": "daily",
-      "metadata": {
-        "description": "Platform schedule name dispatched by the daily schedule-shape job."
       }
     },
     "scheduleDailyCron": {
@@ -271,16 +257,9 @@
     },
     "enableScheduleWeeklyJob": {
       "type": "bool",
-      "defaultValue": true,
+      "defaultValue": false,
       "metadata": {
         "description": "Enable the weekly platform schedule dispatcher job."
-      }
-    },
-    "scheduleWeeklyName": {
-      "type": "string",
-      "defaultValue": "weekly",
-      "metadata": {
-        "description": "Platform schedule name dispatched by the weekly schedule-shape job."
       }
     },
     "scheduleWeeklyCron": {
@@ -292,16 +271,9 @@
     },
     "enableScheduleNightlyJob": {
       "type": "bool",
-      "defaultValue": true,
+      "defaultValue": false,
       "metadata": {
         "description": "Enable the nightly maintenance platform schedule dispatcher job."
-      }
-    },
-    "scheduleNightlyName": {
-      "type": "string",
-      "defaultValue": "nightly",
-      "metadata": {
-        "description": "Platform schedule name dispatched by the nightly maintenance schedule-shape job."
       }
     },
     "scheduleNightlyCron": {
@@ -519,8 +491,9 @@
         ],
         "args": [
           "bin/cake",
-          "queue",
-          "run",
+          "platform",
+          "schedule",
+          "due",
           "-q"
         ]
       },
@@ -543,8 +516,7 @@
           "bin/cake",
           "platform",
           "schedule",
-          "run",
-          "[parameters('scheduleHourlyName')]"
+          "due"
         ]
       },
       {
@@ -566,8 +538,7 @@
           "bin/cake",
           "platform",
           "schedule",
-          "run",
-          "[parameters('scheduleDailyName')]"
+          "due"
         ]
       },
       {
@@ -589,8 +560,7 @@
           "bin/cake",
           "platform",
           "schedule",
-          "run",
-          "[parameters('scheduleWeeklyName')]"
+          "due"
         ]
       },
       {
@@ -612,8 +582,7 @@
           "bin/cake",
           "platform",
           "schedule",
-          "run",
-          "[parameters('scheduleNightlyName')]"
+          "due"
         ]
       }
     ]

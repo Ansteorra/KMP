@@ -57,8 +57,17 @@ Connection budget guidance:
 
 Queue and scheduler guidance:
 
-- Prefer a separate Container App or ACA Job for `bin/cake queue run -q` and workflow scheduler commands instead of running them inside the web container.
-- If cron must remain co-located with the web container temporarily, the production entrypoint uses `QUEUE_EXIT_WHEN_NOTHING_TO_DO=true` every five minutes. Tune `QUEUE_SLEEP_TIME`, `QUEUE_GC_PROB`, and `QUEUE_WORKER_MAX_RUNTIME` rather than increasing web-container CPU contention.
+- In multi-tenant mode, run `bin/cake platform schedule due` every minute from a
+  separate Container App Job. The seeded queue schedule binds every active
+  tenant database; a plain `bin/cake queue run` sees only the default database.
+- In single-database mode, prefer a separate Container App or ACA Job for
+  `bin/cake queue run -q` and workflow scheduler commands instead of running
+  them inside the web container.
+- If legacy cron must remain co-located with the web container temporarily, the
+  production entrypoint uses `QUEUE_EXIT_WHEN_NOTHING_TO_DO=true` every five
+  minutes. Tune `QUEUE_SLEEP_TIME`, `QUEUE_GC_PROB`, and
+  `QUEUE_WORKER_MAX_RUNTIME` rather than increasing web-container CPU
+  contention.
 
 Image cache guidance:
 

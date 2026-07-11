@@ -37,13 +37,13 @@ class LocalTenantBackupStorage implements TenantBackupStorageInterface
         }
         $dir = $this->join($this->join($this->rootPath, 'objects'), $tenant->slug);
         $this->ensureDirectory($dir);
-        $target = $this->join($dir, $backupId . '.pgdump.enc.json');
+        $target = $this->join($dir, $backupId . '.json.gz.enc');
         if (!rename($encryptedPath, $target)) {
             throw new RuntimeException('Unable to store encrypted backup file.');
         }
 
         return new TenantBackupStoredObject(
-            'local://' . $tenant->slug . '/' . $backupId . '.pgdump.enc.json',
+            'local://' . $tenant->slug . '/' . $backupId . '.json.gz.enc',
             (int)filesize($target),
             hash_file('sha256', $target) ?: '',
         );
@@ -67,6 +67,15 @@ class LocalTenantBackupStorage implements TenantBackupStorageInterface
             (int)filesize($destinationPath),
             hash_file('sha256', $destinationPath) ?: '',
         );
+    }
+
+    public function delete(string $objectUri): void
+    {
+        $this->assertEnabled();
+        $path = $this->pathFromUri($objectUri);
+        if (is_file($path) && !unlink($path)) {
+            throw new RuntimeException('Unable to delete stored tenant backup object.');
+        }
     }
 
     private function assertEnabled(): void
@@ -101,11 +110,18 @@ class LocalTenantBackupStorage implements TenantBackupStorageInterface
 
     private function pathFromUri(string $objectUri): string
     {
-        if (!preg_match('#^local://([^/]+)/([^/]+\.pgdump\.enc\.json)$#', $objectUri, $matches)) {
+        if (
+            !preg_match(
+                '#^local://([^/]+)/([^/]+\.(?:json\.gz|pgdump)\.enc(?:\.json)?)$#',
+                $objectUri,
+                $matches,
+            )
+        ) {
             throw new RuntimeException('Unsupported or unsafe tenant backup object URI.');
         }
         $this->assertSafeSegment($matches[1], 'tenant slug');
-        $this->assertSafeSegment(str_replace('.pgdump.enc.json', '', $matches[2]), 'backup id');
+        $backupId = preg_replace('/\.(?:json\.gz|pgdump)\.enc(?:\.json)?$/', '', $matches[2]);
+        $this->assertSafeSegment((string)$backupId, 'backup id');
 
         return $this->join($this->join($this->rootPath, 'objects'), $matches[1]) . DIRECTORY_SEPARATOR . $matches[2];
     }

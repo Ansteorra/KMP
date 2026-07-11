@@ -9,14 +9,20 @@ use App\Services\Secrets\SensitiveString;
 interface TenantBackupRestorerInterface
 {
     /**
-     * Restore a decrypted tenant backup into the target tenant database.
+     * Validate a decrypted tenant backup and its target without mutating data.
      */
-    public function restore(TenantMetadata $targetTenant, SensitiveString $databasePassword, string $backupPath): void;
+    public function validate(TenantMetadata $targetTenant, string $backupPath): void;
 
     /**
-     * Build a safe argv list for restore planning and validation.
+     * Restore a decrypted tenant backup into the target tenant database.
      *
-     * @return list<string>
+     * @param callable(array<string, mixed>):void|null $progressReporter
+     * @return array<string, mixed> Restore statistics
      */
-    public function buildArgv(TenantMetadata $targetTenant, string $backupPath): array;
+    public function restore(
+        TenantMetadata $targetTenant,
+        SensitiveString $databasePassword,
+        string $backupPath,
+        ?callable $progressReporter = null,
+    ): array;
 }

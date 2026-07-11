@@ -6,21 +6,26 @@ namespace App\Middleware;
 use App\Services\Platform\PlatformHealthCheckerInterface;
 use App\Services\Platform\PlatformHealthService;
 use App\Services\Platform\TenantHostResolver;
+use App\Services\Platform\TenantOperationalMetricsService;
 use App\Services\TenantConnectionManager;
 use Cake\Core\Configure;
+use Cake\Database\Connection;
 use Cake\Database\Exception\DatabaseException;
 use Cake\Database\Exception\MissingConnectionException;
 use Cake\Database\Exception\MissingDriverException;
 use Cake\Database\Exception\MissingExtensionException;
+use Cake\Datasource\ConnectionManager;
 use Cake\Datasource\Exception\MissingDatasourceConfigException;
 use Cake\Datasource\Exception\MissingDatasourceException;
 use Cake\Http\Response;
+use Cake\Http\ServerRequest;
 use Cake\Log\Log;
 use PDOException;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use Throwable;
 
 class TenantResolutionMiddleware implements MiddlewareInterface
 {
@@ -38,6 +43,7 @@ class TenantResolutionMiddleware implements MiddlewareInterface
         private readonly string $requiredSchemaVersion = '',
         private readonly ?PlatformHealthCheckerInterface $platformHealth = null,
         private readonly ?TenantHostResolver $tenantHostResolver = null,
+        private readonly ?TenantOperationalMetricsService $operationalMetrics = null,
     ) {
     }
 
@@ -96,7 +102,29 @@ class TenantResolutionMiddleware implements MiddlewareInterface
             return new Response(['status' => 503, 'body' => 'Tenant maintenance in progress.']);
         }
 
-        return $this->connectionManager->withTenant($tenant, fn(): ResponseInterface => $handler->handle($request));
+        $startedAt = hrtime(true);
+        try {
+            $response = $this->connectionManager->withTenant(
+                $tenant,
+                fn(): ResponseInterface => $handler->handle($request),
+            );
+            $this->recordOperationalMetric(
+                $tenant->id,
+                $request,
+                $response->getStatusCode(),
+                $startedAt,
+            );
+
+            return $response;
+        } catch (Throwable $exception) {
+            $statusCode = (int)$exception->getCode();
+            if ($statusCode < 400 || $statusCode > 599) {
+                $statusCode = 500;
+            }
+            $this->recordOperationalMetric($tenant->id, $request, $statusCode, $startedAt);
+
+            throw $exception;
+        }
     }
 
     /**
@@ -136,5 +164,64 @@ class TenantResolutionMiddleware implements MiddlewareInterface
         );
 
         return in_array($normalizedHost, array_filter($configuredHosts), true);
+    }
+
+    /**
+     * Record a privacy-safe request aggregate without affecting the response.
+     */
+    private function recordOperationalMetric(
+        string $tenantId,
+        ServerRequestInterface $request,
+        int $statusCode,
+        int $startedAt,
+    ): void {
+        if (!Configure::read('Platform.telemetry.enabled', true)) {
+            return;
+        }
+
+        try {
+            $metrics = $this->operationalMetrics;
+            if ($metrics === null) {
+                $connection = ConnectionManager::get('platform');
+                if (!$connection instanceof Connection) {
+                    return;
+                }
+                $metrics = new TenantOperationalMetricsService(
+                    $connection,
+                    (int)Configure::read(
+                        'Platform.telemetry.slowRequestMs',
+                        TenantOperationalMetricsService::DEFAULT_SLOW_REQUEST_MS,
+                    ),
+                );
+            }
+            $metrics->record(
+                $tenantId,
+                $this->routeName($request),
+                $statusCode,
+                (int)round((hrtime(true) - $startedAt) / 1_000_000),
+            );
+        } catch (Throwable $exception) {
+            Log::warning(sprintf('Tenant operational metric write failed: %s', $exception::class));
+        }
+    }
+
+    /**
+     * Build a route identifier without IDs, query strings, or request data.
+     */
+    private function routeName(ServerRequestInterface $request): string
+    {
+        if (!$request instanceof ServerRequest) {
+            return 'unrouted';
+        }
+
+        $parts = [];
+        foreach (['plugin', 'prefix', 'controller', 'action'] as $parameter) {
+            $value = trim((string)$request->getParam($parameter, ''));
+            if ($value !== '') {
+                $parts[] = $value;
+            }
+        }
+
+        return $parts === [] ? 'unrouted' : implode('/', $parts);
     }
 }

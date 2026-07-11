@@ -7,7 +7,9 @@ namespace App\Services\Backups;
 
 use App\Services\Platform\PlatformScheduleRunner;
 use Cake\Database\Connection;
+use Cake\Database\Driver\Postgres;
 use Cake\I18n\DateTime;
+use Cake\Log\Log;
 use Cake\Utility\Text;
 use RuntimeException;
 use Throwable;
@@ -55,44 +57,56 @@ class TenantRestoreDrillService
             ));
         }
 
-        $dryRun = !$executeRestore;
-        $jobId = $this->insertJob((string)$backup['tenant_id'], 'running', [
-            'tenant_slug' => (string)$backup['tenant_slug'],
-            'backup_id' => (string)$backup['id'],
-            'backup_completed_at' => $this->nullableString($backup['completed_at'] ?? null),
-            'lookback_hours' => $lookbackHours,
-            'dry_run' => $dryRun,
-            'destructive_execution' => $executeRestore,
-        ]);
-        $plan = new TenantRestoreDrillPlan(
-            $jobId,
-            (string)$backup['id'],
-            (string)$backup['tenant_id'],
-            (string)$backup['tenant_slug'],
-            $this->nullableString($backup['completed_at'] ?? null),
-            $dryRun,
-            $executeRestore,
-        );
-
+        $backupId = (string)$backup['id'];
+        $archiveLocked = false;
         try {
-            $this->verifier->verify($plan);
-            $status = $dryRun ? 'planned' : 'completed';
-            $message = $dryRun ? 'Restore drill plan verified without executing restore.' : 'Restore drill executed.';
-            $this->finishJob($jobId, $status, null);
-
-            return new TenantRestoreDrillResult(
+            $archiveLocked = $this->lockBackupArchive($backupId);
+            $this->assertBackupStillCompleted($backupId);
+            $dryRun = !$executeRestore;
+            $jobId = $this->insertJob((string)$backup['tenant_id'], 'running', [
+                'tenant_slug' => (string)$backup['tenant_slug'],
+                'backup_id' => $backupId,
+                'backup_completed_at' => $this->nullableString($backup['completed_at'] ?? null),
+                'lookback_hours' => $lookbackHours,
+                'dry_run' => $dryRun,
+                'destructive_execution' => $executeRestore,
+            ]);
+            $plan = new TenantRestoreDrillPlan(
                 $jobId,
-                $plan->backupId,
-                $plan->tenantSlug,
-                $status,
+                $backupId,
+                (string)$backup['tenant_id'],
+                (string)$backup['tenant_slug'],
+                $this->nullableString($backup['completed_at'] ?? null),
                 $dryRun,
-                $message,
+                $executeRestore,
             );
-        } catch (Throwable $e) {
-            $message = $this->scrubError($e->getMessage());
-            $this->finishJob($jobId, 'failed', $message);
 
-            throw new RuntimeException($message, 0, $e);
+            try {
+                $this->verifier->verify($plan);
+                $status = $dryRun ? 'planned' : 'completed';
+                $message = $dryRun
+                    ? 'Restore drill plan verified without executing restore.'
+                    : 'Restore drill executed.';
+                $this->finishJob($jobId, $status, null);
+
+                return new TenantRestoreDrillResult(
+                    $jobId,
+                    $plan->backupId,
+                    $plan->tenantSlug,
+                    $status,
+                    $dryRun,
+                    $message,
+                );
+            } catch (Throwable $e) {
+                $message = $this->scrubError($e->getMessage());
+                $this->finishJob($jobId, 'failed', $message);
+
+                throw new RuntimeException($message, 0, $e);
+            }
+        } finally {
+            if ($archiveLocked) {
+                $this->unlockBackupArchive($backupId);
+            }
         }
     }
 
@@ -113,15 +127,55 @@ class TenantRestoreDrillService
                FROM tenant_backups b
                INNER JOIN tenants t ON t.id = b.tenant_id
               WHERE b.status = :status
-                AND b.backup_type = :backupType
+                AND b.backup_type IN (:jsonBackupType, :legacyBackupType)
                 AND (b.completed_at IS NOT NULL AND b.completed_at >= :cutoff)'
                 . $tenantFilter .
             ' ORDER BY b.completed_at DESC, b.created_at DESC
               LIMIT 1',
-            $params + ['status' => 'completed', 'backupType' => 'pg_dump'],
+            $params + [
+                'status' => 'completed',
+                'jsonBackupType' => TenantBackupService::BACKUP_TYPE,
+                'legacyBackupType' => 'pg_dump',
+            ],
         )->fetch('assoc');
 
         return is_array($row) ? $row : null;
+    }
+
+    private function assertBackupStillCompleted(string $backupId): void
+    {
+        $status = $this->platformConnection->execute(
+            'SELECT status FROM tenant_backups WHERE id = :backupId LIMIT 1',
+            ['backupId' => $backupId],
+        )->fetchColumn(0);
+        if ($status !== 'completed') {
+            throw new RuntimeException('Tenant backup is no longer available for a restore drill.');
+        }
+    }
+
+    private function lockBackupArchive(string $backupId): bool
+    {
+        if (!$this->platformConnection->getDriver() instanceof Postgres) {
+            return false;
+        }
+        $this->platformConnection->execute(
+            'SELECT pg_advisory_lock(hashtext(:scope))',
+            ['scope' => sprintf('backup-archive:%s', $backupId)],
+        );
+
+        return true;
+    }
+
+    private function unlockBackupArchive(string $backupId): void
+    {
+        try {
+            $this->platformConnection->execute(
+                'SELECT pg_advisory_unlock(hashtext(:scope))',
+                ['scope' => sprintf('backup-archive:%s', $backupId)],
+            );
+        } catch (Throwable $exception) {
+            Log::error(sprintf('Restore drill archive unlock failed for %s: %s', $backupId, $exception::class));
+        }
     }
 
     /**

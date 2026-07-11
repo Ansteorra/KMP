@@ -3,12 +3,16 @@ declare(strict_types=1);
 
 namespace App\Controller\PlatformAdmin;
 
-use App\Services\BackupStorageService;
+use App\Services\Backups\BackupDeletionService;
+use App\Services\Backups\BackupStorageFactory;
+use App\Services\Backups\TenantBackupService;
 use App\Services\Platform\PlatformAdminJobEnqueuer;
 use App\Services\Platform\PlatformAuditService;
+use App\Services\Platform\PlatformFleetHealthService;
 use App\Services\Platform\PlatformJobRunner;
 use App\Services\Platform\TenantConfigSchema;
 use App\Services\Platform\TenantHostResolver;
+use App\Services\Platform\TenantLifecycleService;
 use App\Services\Secrets\SecretStoreFactory;
 use App\Services\Secrets\SensitiveString;
 use App\Services\Secrets\WritableSecretStoreInterface;
@@ -31,14 +35,10 @@ class TenantsController extends PlatformAdminAppController
     public function index(): void
     {
         try {
-            $tenants = $this->platform()->execute(
-                'SELECT id, slug, display_name, status, region, primary_host, schema_version,
-                        queue_concurrency_limit, created_at, activated_at, suspended_at, archived_at
-                   FROM tenants
-               ORDER BY display_name ASC, slug ASC
-                  LIMIT 200',
-            )->fetchAll('assoc');
-        } catch (Throwable) {
+            $fleet = (new PlatformFleetHealthService($this->platform()))->snapshot(null, 500);
+            $tenants = $fleet['tenants'];
+        } catch (Throwable $exception) {
+            Log::warning(sprintf('Platform tenant fleet list failed: %s', $exception::class));
             $tenants = [];
         }
 
@@ -62,6 +62,11 @@ class TenantsController extends PlatformAdminAppController
                 $tenantData = $this->tenantDataFromRequest($this->request->getData());
                 $initialSuperUserEmail = $this->initialSuperUserEmailFromRequest($this->request->getData(), true);
                 $newConfig = $schema->buildFromFormData($this->configFormData($this->request->getData()));
+                if (($newConfig['email']['mode'] ?? 'default') === 'disabled') {
+                    throw new InvalidArgumentException(
+                        'Email delivery cannot be disabled while onboarding the initial tenant super user.',
+                    );
+                }
                 $tenant = $this->createTenant($tenantData, $newConfig);
                 $job = $this->enqueueTenantProvisioningJob(
                     $tenant,
@@ -164,13 +169,48 @@ class TenantsController extends PlatformAdminAppController
             throw new NotFoundException('Tenant was not found.');
         }
 
+        $provisioningJob = $this->latestTenantJob(
+            (string)$tenant['id'],
+            PlatformJobRunner::JOB_TENANT_PROVISION,
+        );
         $this->set([
             'tenant' => $tenant,
             'hosts' => $this->tenantHosts((string)$tenant['id']),
             'jobs' => $this->tenantJobs((string)$tenant['id']),
             'backups' => $this->tenantBackups((string)$tenant['id']),
-            'provisioningJob' => $this->latestTenantJob((string)$tenant['id'], PlatformJobRunner::JOB_TENANT_PROVISION),
+            'provisioningJob' => $provisioningJob,
+            'provisioningEvents' => $provisioningJob === null
+                ? []
+                : $this->jobEvents((string)$provisioningJob['id']),
+            'metrics' => $this->tenantMetrics((string)$tenant['id']),
+            'metricRoutes' => $this->tenantMetricRoutes((string)$tenant['id']),
+            'metricHours' => $this->tenantMetricHours((string)$tenant['id']),
+            'lifecycleNonce' => Text::uuid(),
         ]);
+    }
+
+    /**
+     * Suspend an active tenant after operator step-up verification.
+     */
+    public function suspend(string $slug)
+    {
+        return $this->transitionLifecycle($slug, 'suspended', 'SUSPEND');
+    }
+
+    /**
+     * Reactivate a suspended tenant after operator step-up verification.
+     */
+    public function reactivate(string $slug)
+    {
+        return $this->transitionLifecycle($slug, 'active', 'REACTIVATE');
+    }
+
+    /**
+     * Archive a suspended or incomplete tenant after operator step-up verification.
+     */
+    public function archive(string $slug)
+    {
+        return $this->transitionLifecycle($slug, 'archived', 'ARCHIVE');
     }
 
     /**
@@ -196,8 +236,8 @@ class TenantsController extends PlatformAdminAppController
               LIMIT 25',
             [
                 'tenantId' => $tenant['id'],
-                'backupJob' => 'tenant_backup_json',
-                'restoreJob' => 'tenant_restore_json',
+                'backupJob' => PlatformJobRunner::JOB_TENANT_BACKUP,
+                'restoreJob' => PlatformJobRunner::JOB_TENANT_RESTORE,
                 'empty' => '',
             ],
         )->fetchAll('assoc');
@@ -208,7 +248,7 @@ class TenantsController extends PlatformAdminAppController
     }
 
     /**
-     * Queue a tenant JSON backup from Platform Admin.
+     * Queue an encrypted tenant JSON logical archive from Platform Admin.
      *
      * @param string $slug Tenant slug
      * @return \Cake\Http\Response|null
@@ -223,21 +263,23 @@ class TenantsController extends PlatformAdminAppController
 
         $retentionDays = max(1, min(365, (int)$this->request->getData('retention_days', 30)));
         $nonce = (string)$this->request->getData('nonce', Text::uuid());
-        $job = $this->jobEnqueuer()->enqueue(
-            'tenant_backup_json',
-            (string)$tenant['id'],
-            $this->platformAdmin['id'] ?? null,
-            [
-                'scope' => 'tenant',
-                'tenant_slug' => (string)$tenant['slug'],
-                'backup_format' => 'kmpbackup_json',
-                'retention_days' => $retentionDays,
-            ],
-            sprintf('tenant_backup_json:%s:%s', $tenant['slug'], $nonce),
-            'platform admin tenant backup request',
-            $this->auditOptions((string)$tenant['id']),
-        );
-        $this->Flash->success(__('Tenant backup has been queued: {0}', $job['id']));
+        try {
+            $job = $this->jobEnqueuer()->enqueue(
+                PlatformJobRunner::JOB_TENANT_BACKUP,
+                (string)$tenant['id'],
+                $this->platformAdmin['id'] ?? null,
+                [
+                    'tenant_slug' => (string)$tenant['slug'],
+                    'retention_days' => $retentionDays,
+                ],
+                sprintf('tenant_backup:%s:%s', $tenant['slug'], $nonce),
+                'platform admin tenant backup request',
+                $this->auditOptions((string)$tenant['id']),
+            );
+            $this->Flash->success(__('Tenant backup has been queued: {0}', $job['id']));
+        } catch (RuntimeException $exception) {
+            $this->Flash->error(__($exception->getMessage()));
+        }
 
         return $this->redirect([
             'prefix' => 'PlatformAdmin',
@@ -267,27 +309,23 @@ class TenantsController extends PlatformAdminAppController
                 throw new BadRequestException('Tenant must be suspended before a platform-admin restore is queued.');
             }
             $backup = $this->tenantBackupById((string)$tenant['id'], $backupId);
-            $filename = $this->validatedCompletedKmpBackup($backup);
+            $this->assertUsableBackup($backup);
             $reason = $this->validateStepUpAction(sprintf('RESTORE %s', $tenant['slug']));
             $nonce = (string)$this->request->getData('nonce', Text::uuid());
             $job = $this->jobEnqueuer()->enqueue(
-                'tenant_restore_json',
+                PlatformJobRunner::JOB_TENANT_RESTORE,
                 (string)$tenant['id'],
                 $this->platformAdmin['id'] ?? null,
                 [
-                    'scope' => 'tenant',
                     'tenant_slug' => (string)$tenant['slug'],
                     'backup_id' => $backupId,
-                    'object_name' => $filename,
-                    'backup_format' => 'kmpbackup_json',
-                    'reason' => $reason,
                 ],
-                sprintf('tenant_restore_json:%s:%s:%s', $tenant['slug'], $backupId, $nonce),
+                sprintf('tenant_restore:%s:%s:%s', $tenant['slug'], $backupId, $nonce),
                 $reason,
                 $this->auditOptions((string)$tenant['id']),
             );
             $this->Flash->success(__('Tenant restore has been queued: {0}', $job['id']));
-        } catch (BadRequestException $exception) {
+        } catch (BadRequestException | RuntimeException $exception) {
             $this->Flash->error(__($exception->getMessage()));
         }
 
@@ -316,8 +354,22 @@ class TenantsController extends PlatformAdminAppController
 
         try {
             $backup = $this->tenantBackupById((string)$tenant['id'], $backupId);
-            $filename = $this->validatedCompletedKmpBackup($backup);
+            $this->assertUsableBackup($backup, [
+                TenantBackupService::BACKUP_TYPE,
+                TenantBackupService::LEGACY_BACKUP_TYPE,
+                'pg_dump',
+            ]);
             $reason = $this->validateStepUpAction(sprintf('DOWNLOAD %s', $tenant['slug']));
+            $download = $this->stageBackupDownload(
+                $backup,
+                BackupStorageFactory::tenantArchive((string)$backup['backup_type']),
+                'tenant-' . (string)$tenant['slug'],
+            );
+            register_shutdown_function(static function () use ($download): void {
+                if (is_file($download['path'])) {
+                    unlink($download['path']);
+                }
+            });
             $this->auditService()->record(
                 'tenant_backup.download',
                 $this->platformAdmin['id'] ?? null,
@@ -325,19 +377,110 @@ class TenantsController extends PlatformAdminAppController
                 $backupId,
                 $reason,
                 [
-                    'backup_format' => 'kmpbackup_json',
+                    'backup_format' => 'encrypted_' . (string)$backup['backup_type'],
                     'tenant_slug' => (string)$tenant['slug'],
                 ],
                 false,
                 $this->auditOptions((string)$tenant['id']),
             );
-            $data = (new BackupStorageService())->read($filename);
 
             return $this->response
                 ->withType('application/octet-stream')
-                ->withDownload(basename($filename))
-                ->withStringBody($data);
-        } catch (BadRequestException $exception) {
+                ->withFile($download['path'], [
+                    'download' => true,
+                    'name' => $download['filename'],
+                ]);
+        } catch (BadRequestException | RuntimeException $exception) {
+            $this->Flash->error(__($exception->getMessage()));
+        }
+
+        return $this->redirect([
+            'prefix' => 'PlatformAdmin',
+            'controller' => 'Tenants',
+            'action' => 'backups',
+            $tenant['slug'],
+        ]);
+    }
+
+    /**
+     * Download a backup-scoped recovery key after audit and operator step-up.
+     *
+     * @param string $slug Tenant slug
+     * @param string $backupId Backup row id
+     * @return \Cake\Http\Response|null
+     */
+    public function downloadBackupRecoveryKey(string $slug, string $backupId)
+    {
+        $this->request->allowMethod(['post']);
+        $tenant = $this->tenantBySlug($slug);
+        if ($tenant === null) {
+            throw new NotFoundException('Tenant was not found.');
+        }
+
+        try {
+            $backup = $this->tenantBackupById((string)$tenant['id'], $backupId);
+            $this->assertUsableBackup($backup, ['json']);
+            $reason = $this->validateStepUpAction(sprintf('DOWNLOAD KEY %s', $tenant['slug']));
+            $export = $this->exportTenantBackupRecoveryKey($backup, $tenant);
+            $this->auditService()->record(
+                'tenant_backup.recovery_key_exported',
+                $this->platformAdmin['id'] ?? null,
+                'tenant_backup',
+                $backupId,
+                $reason,
+                [
+                    'backup_format' => 'encrypted_json',
+                    'tenant_slug' => (string)$tenant['slug'],
+                ],
+                false,
+                $this->auditOptions((string)$tenant['id']),
+            );
+
+            return $this->recoveryKeyDownloadResponse($export);
+        } catch (BadRequestException | RuntimeException $exception) {
+            $this->Flash->error(__($exception->getMessage()));
+        }
+
+        return $this->redirect([
+            'prefix' => 'PlatformAdmin',
+            'controller' => 'Tenants',
+            'action' => 'backups',
+            $tenant['slug'],
+        ]);
+    }
+
+    /**
+     * Delete an encrypted tenant backup object after audit and operator step-up.
+     *
+     * @param string $slug Tenant slug
+     * @param string $backupId Backup row id
+     * @return \Cake\Http\Response|null
+     */
+    public function deleteBackup(string $slug, string $backupId)
+    {
+        $this->request->allowMethod(['post']);
+        $tenant = $this->tenantBySlug($slug);
+        if ($tenant === null) {
+            throw new NotFoundException('Tenant was not found.');
+        }
+
+        try {
+            $backup = $this->tenantBackupById((string)$tenant['id'], $backupId);
+            $this->assertDeletableBackup($backup);
+            $reason = $this->validateStepUpAction(sprintf('DELETE BACKUP %s', $tenant['slug']));
+            (new BackupDeletionService($this->platform(), $this->auditService()))->deleteTenant(
+                $backup,
+                BackupStorageFactory::tenantArchive((string)$backup['backup_type']),
+                $this->platformAdmin['id'] ?? null,
+                $reason,
+                [
+                    'backup_format' => 'encrypted_' . (string)$backup['backup_type'],
+                    'tenant_slug' => (string)$tenant['slug'],
+                ],
+                $this->auditOptions((string)$tenant['id']),
+            );
+            $this->Flash->success(__('Tenant backup archive deleted. Audit metadata has been retained.'));
+        } catch (BadRequestException | RuntimeException $exception) {
             $this->Flash->error(__($exception->getMessage()));
         }
 
@@ -450,7 +593,9 @@ class TenantsController extends PlatformAdminAppController
     private function tenantBackupById(string $tenantId, string $backupId): array
     {
         $row = $this->platform()->execute(
-            'SELECT id, tenant_id, backup_type, status, object_uri
+            'SELECT id, tenant_id, backup_type, status, object_uri, object_size_bytes,
+                    object_sha256, encryption_algorithm, wrapped_dek, wrapped_dek_key_name,
+                    wrapped_dek_key_version, wrapped_dek_metadata, retention_until
                FROM tenant_backups
               WHERE tenant_id = :tenantId
                 AND id = :backupId
@@ -462,21 +607,6 @@ class TenantsController extends PlatformAdminAppController
         }
 
         return $row;
-    }
-
-    /**
-     * @param array<string, mixed> $backup
-     */
-    private function validatedCompletedKmpBackup(array $backup): string
-    {
-        if ((string)($backup['status'] ?? '') !== 'completed') {
-            throw new BadRequestException('Only completed backups can be used for this action.');
-        }
-        if ((string)($backup['backup_type'] ?? '') !== 'kmpbackup_json') {
-            throw new BadRequestException('Only encrypted JSON .kmpbackup archives can be used for this action.');
-        }
-
-        return $this->safeKmpBackupObjectName($backup['object_uri'] ?? null);
     }
 
     /**
@@ -570,14 +700,9 @@ class TenantsController extends PlatformAdminAppController
         if ($displayName === '' || mb_strlen($displayName) > 120) {
             throw new InvalidArgumentException('Tenant display name is required and must be 120 characters or fewer.');
         }
-        $status = $existingSlug === null ? 'provisioning' : trim((string)($data['status'] ?? 'provisioning'));
+        $status = $existingSlug === null ? 'provisioning' : (string)$currentStatus;
         if (!in_array($status, ['provisioning', 'active', 'suspended', 'archived'], true)) {
             throw new InvalidArgumentException('Tenant status must be provisioning, active, suspended, or archived.');
-        }
-        if ($status === 'active' && $currentStatus !== 'active') {
-            throw new InvalidArgumentException(
-                'Tenant activation is completed by the provisioning worker, not manual edits.',
-            );
         }
         $region = trim((string)($data['region'] ?? 'us'));
         if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/', $region)) {
@@ -667,7 +792,7 @@ class TenantsController extends PlatformAdminAppController
     private function createTenant(array $tenantData, array $config): array
     {
         $now = (new DateTime('now'))->format('Y-m-d H:i:s');
-        $this->ensureTenantDatabasePasswordSecret((string)$tenantData['slug']);
+        $this->ensureTenantSecrets((string)$tenantData['slug']);
         $tenant = $tenantData + [
             'id' => Text::uuid(),
             'key_vault_prefix' => sprintf('tenant.%s', $tenantData['slug']),
@@ -738,22 +863,22 @@ class TenantsController extends PlatformAdminAppController
     /**
      * Ensure runtime tenant routing can resolve the DB password secret after create.
      */
-    private function ensureTenantDatabasePasswordSecret(string $slug): void
+    private function ensureTenantSecrets(string $slug): void
     {
-        $secretName = sprintf('tenant.%s.db.password', $slug);
         $store = SecretStoreFactory::fromConfig();
         if (!$store instanceof WritableSecretStoreInterface) {
             throw new RuntimeException(
-                'Configured secret store is not writable; tenant database password secret cannot be created.',
+                'Configured secret store is not writable; tenant secrets cannot be created.',
             );
         }
 
-        $existing = $store->get($secretName);
-        if ($existing !== null && !$existing->isEmpty()) {
-            return;
+        foreach ([sprintf('tenant.%s.db.password', $slug), sprintf('tenant.%s.kek', $slug)] as $secretName) {
+            $existing = $store->get($secretName);
+            if ($existing !== null && !$existing->isEmpty()) {
+                continue;
+            }
+            $store->put($secretName, new SensitiveString($this->generateDatabasePassword()));
         }
-
-        $store->put($secretName, new SensitiveString($this->generateDatabasePassword()));
     }
 
     /**
@@ -798,6 +923,41 @@ class TenantsController extends PlatformAdminAppController
             $this->auditTenantRegistryChange('tenant.updated', $tenant, $oldConfig, $tenantData, $newConfig);
         });
         TenantHostResolver::clearCache();
+    }
+
+    /**
+     * Apply a guarded tenant lifecycle transition.
+     *
+     * @return \Cake\Http\Response|null
+     */
+    private function transitionLifecycle(string $slug, string $targetStatus, string $confirmationVerb)
+    {
+        $this->request->allowMethod(['post']);
+        $tenant = $this->tenantBySlug($slug);
+        if ($tenant === null) {
+            throw new NotFoundException('Tenant was not found.');
+        }
+
+        try {
+            $reason = $this->validateStepUpAction(sprintf('%s %s', $confirmationVerb, $slug));
+            (new TenantLifecycleService($this->platform()))->transition(
+                (string)$tenant['id'],
+                $targetStatus,
+                isset($this->platformAdmin['id']) ? (string)$this->platformAdmin['id'] : null,
+                $reason,
+                $this->auditOptions((string)$tenant['id']),
+            );
+            $this->Flash->success(__('Tenant status changed to {0}.', $targetStatus));
+        } catch (BadRequestException | RuntimeException $exception) {
+            $this->Flash->error(__($exception->getMessage()));
+        }
+
+        return $this->redirect([
+            'prefix' => 'PlatformAdmin',
+            'controller' => 'Tenants',
+            'action' => 'view',
+            $slug,
+        ]);
     }
 
     /**
@@ -933,13 +1093,146 @@ class TenantsController extends PlatformAdminAppController
     private function tenantBackups(string $tenantId): array
     {
         return $this->platform()->execute(
-            'SELECT id, backup_type, status, object_size_bytes, created_at, completed_at, retention_until
+            'SELECT id, backup_type, status, object_uri, object_size_bytes, encryption_algorithm,
+                    created_at, completed_at, retention_until
                FROM tenant_backups
               WHERE tenant_id = :tenantId
            ORDER BY created_at DESC
               LIMIT 20',
             ['tenantId' => $tenantId],
         )->fetchAll('assoc');
+    }
+
+    /**
+     * @return array<string, int|float|bool>
+     */
+    private function tenantMetrics(string $tenantId): array
+    {
+        $defaults = [
+            'available' => false,
+            'request_count' => 0,
+            'error_count' => 0,
+            'server_error_count' => 0,
+            'slow_request_count' => 0,
+            'average_duration_ms' => 0,
+            'duration_max_ms' => 0,
+            'error_rate' => 0.0,
+        ];
+        try {
+            $row = $this->platform()->execute(
+                'SELECT COALESCE(SUM(request_count), 0) AS request_count,
+                        COALESCE(SUM(error_count), 0) AS error_count,
+                        COALESCE(SUM(server_error_count), 0) AS server_error_count,
+                        COALESCE(SUM(slow_request_count), 0) AS slow_request_count,
+                        COALESCE(SUM(duration_total_ms), 0) AS duration_total_ms,
+                        COALESCE(MAX(duration_max_ms), 0) AS duration_max_ms
+                   FROM tenant_request_metrics_hourly
+                  WHERE tenant_id = :tenantId
+                    AND metric_hour >= :since',
+                [
+                    'tenantId' => $tenantId,
+                    'since' => gmdate('Y-m-d H:i:s', time() - 24 * 60 * 60),
+                ],
+            )->fetch('assoc');
+        } catch (Throwable $exception) {
+            Log::warning(sprintf('Tenant metric summary unavailable: %s', $exception::class));
+
+            return $defaults;
+        }
+        if (!is_array($row)) {
+            return $defaults;
+        }
+
+        $requests = (int)$row['request_count'];
+        $errors = (int)$row['error_count'];
+
+        return [
+            'available' => true,
+            'request_count' => $requests,
+            'error_count' => $errors,
+            'server_error_count' => (int)$row['server_error_count'],
+            'slow_request_count' => (int)$row['slow_request_count'],
+            'average_duration_ms' => $requests > 0
+                ? (int)round((int)$row['duration_total_ms'] / $requests)
+                : 0,
+            'duration_max_ms' => (int)$row['duration_max_ms'],
+            'error_rate' => $requests > 0 ? round($errors / $requests * 100, 2) : 0.0,
+        ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function tenantMetricRoutes(string $tenantId): array
+    {
+        try {
+            return $this->platform()->execute(
+                'SELECT route_name,
+                        SUM(request_count) AS request_count,
+                        SUM(error_count) AS error_count,
+                        SUM(server_error_count) AS server_error_count,
+                        SUM(duration_total_ms) AS duration_total_ms,
+                        MAX(duration_max_ms) AS duration_max_ms
+                   FROM tenant_request_metrics_hourly
+                  WHERE tenant_id = :tenantId
+                    AND metric_hour >= :since
+               GROUP BY route_name
+               ORDER BY SUM(error_count) DESC, SUM(request_count) DESC
+                  LIMIT 12',
+                [
+                    'tenantId' => $tenantId,
+                    'since' => gmdate('Y-m-d H:i:s', time() - 24 * 60 * 60),
+                ],
+            )->fetchAll('assoc');
+        } catch (Throwable) {
+            return [];
+        }
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function tenantMetricHours(string $tenantId): array
+    {
+        try {
+            return $this->platform()->execute(
+                'SELECT metric_hour,
+                        SUM(request_count) AS request_count,
+                        SUM(error_count) AS error_count,
+                        SUM(server_error_count) AS server_error_count,
+                        SUM(duration_total_ms) AS duration_total_ms
+                   FROM tenant_request_metrics_hourly
+                  WHERE tenant_id = :tenantId
+                    AND metric_hour >= :since
+               GROUP BY metric_hour
+               ORDER BY metric_hour ASC',
+                [
+                    'tenantId' => $tenantId,
+                    'since' => gmdate('Y-m-d H:i:s', time() - 24 * 60 * 60),
+                ],
+            )->fetchAll('assoc');
+        } catch (Throwable) {
+            return [];
+        }
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function jobEvents(string $jobId): array
+    {
+        try {
+            return $this->platform()->execute(
+                'SELECT sequence_number, event_level, event_code, message, created_at
+                   FROM platform_job_events
+                  WHERE platform_job_id = :jobId
+               ORDER BY sequence_number ASC
+                  LIMIT 100',
+                ['jobId' => $jobId],
+            )->fetchAll('assoc');
+        } catch (Throwable) {
+            return [];
+        }
     }
 
     /**

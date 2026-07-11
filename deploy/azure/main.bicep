@@ -120,10 +120,10 @@ param enableRestoreJob bool = true
 @description('Enable the manual tenant provision job shape. Operators override args when starting it for a specific tenant.')
 param enableProvisionJob bool = true
 
-@description('Enable the scheduled queue worker job.')
+@description('Enable the scheduled resilience dispatcher for due platform schedules, including tenant queues.')
 param enableQueueWorkerJob bool = true
 
-@description('Cron for the queue worker schedule shape.')
+@description('Cron for the resilience dispatcher schedule shape.')
 param queueWorkerCron string = '*/5 * * * *'
 
 @minValue(1)
@@ -139,35 +139,23 @@ param queueWorkerReplicaTimeoutSeconds int = 600
 @description('Enable the hourly platform schedule dispatcher job.')
 param enableScheduleHourlyJob bool = true
 
-@description('Platform schedule name dispatched by the hourly schedule-shape job.')
-param scheduleHourlyName string = 'hourly'
-
-@description('Cron for the hourly platform schedule dispatcher.')
-param scheduleHourlyCron string = '5 * * * *'
+@description('Cron for the due platform schedule dispatcher.')
+param scheduleHourlyCron string = '* * * * *'
 
 @description('Enable the daily platform schedule dispatcher job.')
-param enableScheduleDailyJob bool = true
-
-@description('Platform schedule name dispatched by the daily schedule-shape job.')
-param scheduleDailyName string = 'daily'
+param enableScheduleDailyJob bool = false
 
 @description('Cron for the daily platform schedule dispatcher.')
 param scheduleDailyCron string = '15 7 * * *'
 
 @description('Enable the weekly platform schedule dispatcher job.')
-param enableScheduleWeeklyJob bool = true
-
-@description('Platform schedule name dispatched by the weekly schedule-shape job.')
-param scheduleWeeklyName string = 'weekly'
+param enableScheduleWeeklyJob bool = false
 
 @description('Cron for the weekly platform schedule dispatcher.')
 param scheduleWeeklyCron string = '30 7 * * 1'
 
 @description('Enable the nightly maintenance platform schedule dispatcher job.')
-param enableScheduleNightlyJob bool = true
-
-@description('Platform schedule name dispatched by the nightly maintenance schedule-shape job.')
-param scheduleNightlyName string = 'nightly'
+param enableScheduleNightlyJob bool = false
 
 @description('Cron for the nightly maintenance platform schedule dispatcher.')
 param scheduleNightlyCron string = '0 3 * * *'
@@ -773,8 +761,8 @@ var scheduledShapeJobDefinitions = [
     memory: '1Gi'
     env: jobEnvWorker
     command: [ '/usr/local/bin/docker-entrypoint.sh' ]
-    // Queue runtime is bounded by app/config/app_queue.php Queue.workermaxruntime.
-    args: [ 'bin/cake', 'queue', 'run', '-q' ]
+    // Advisory locks and next_run_at make this a safe fallback for the minute dispatcher.
+    args: [ 'bin/cake', 'platform', 'schedule', 'due', '-q' ]
   }
   {
     enabled: enableScheduleHourlyJob
@@ -789,7 +777,7 @@ var scheduledShapeJobDefinitions = [
     memory: '1Gi'
     env: jobEnvWorker
     command: [ '/usr/local/bin/docker-entrypoint.sh' ]
-    args: [ 'bin/cake', 'platform', 'schedule', 'run', scheduleHourlyName ]
+    args: [ 'bin/cake', 'platform', 'schedule', 'due' ]
   }
   {
     enabled: enableScheduleDailyJob
@@ -804,7 +792,7 @@ var scheduledShapeJobDefinitions = [
     memory: '1Gi'
     env: jobEnvWorker
     command: [ '/usr/local/bin/docker-entrypoint.sh' ]
-    args: [ 'bin/cake', 'platform', 'schedule', 'run', scheduleDailyName ]
+    args: [ 'bin/cake', 'platform', 'schedule', 'due' ]
   }
   {
     enabled: enableScheduleWeeklyJob
@@ -819,7 +807,7 @@ var scheduledShapeJobDefinitions = [
     memory: '1Gi'
     env: jobEnvWorker
     command: [ '/usr/local/bin/docker-entrypoint.sh' ]
-    args: [ 'bin/cake', 'platform', 'schedule', 'run', scheduleWeeklyName ]
+    args: [ 'bin/cake', 'platform', 'schedule', 'due' ]
   }
   {
     enabled: enableScheduleNightlyJob
@@ -834,7 +822,7 @@ var scheduledShapeJobDefinitions = [
     memory: '1Gi'
     env: jobEnvWorker
     command: [ '/usr/local/bin/docker-entrypoint.sh' ]
-    args: [ 'bin/cake', 'platform', 'schedule', 'run', scheduleNightlyName ]
+    args: [ 'bin/cake', 'platform', 'schedule', 'due' ]
   }
 ]
 

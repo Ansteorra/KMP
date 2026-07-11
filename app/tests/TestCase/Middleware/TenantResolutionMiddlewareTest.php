@@ -7,6 +7,7 @@ use App\Middleware\TenantResolutionMiddleware;
 use App\Services\Platform\PlatformHealthCheckerInterface;
 use App\Services\Platform\PlatformHealthStatus;
 use App\Services\Platform\TenantHostResolver;
+use App\Services\Platform\TenantOperationalMetricsService;
 use App\Services\Secrets\SecretStoreInterface;
 use App\Services\Secrets\SensitiveString;
 use App\Services\TenantConnectionManager;
@@ -199,6 +200,39 @@ class TenantResolutionMiddlewareTest extends TestCase
         $this->assertSame(204, $response->getStatusCode());
     }
 
+    public function testEnabledMiddlewareRecordsPrivacySafeTenantMetric(): void
+    {
+        $this->configureHealthyPlatformDatabase();
+        $connection = ConnectionManager::get('platform');
+        $middleware = new TenantResolutionMiddleware(
+            true,
+            new TenantConnectionManager($this->secretStore(new SensitiveString('tenant-db-password'))),
+            '20260516000000',
+            $this->platformHealth(PlatformHealthStatus::healthy('platform')),
+            null,
+            new TenantOperationalMetricsService($connection, 1),
+        );
+        $request = ServerRequestFactory::fromGlobals([
+            'REQUEST_URI' => '/members/42',
+            'HTTP_HOST' => 'demo.localhost',
+        ])
+            ->withParam('controller', 'Members')
+            ->withParam('action', 'view');
+
+        $response = $middleware->process($request, $this->handler(new Response(['status' => 503])));
+
+        $this->assertSame(503, $response->getStatusCode());
+        $metric = $connection->execute(
+            'SELECT route_name, request_count, error_count, server_error_count
+               FROM tenant_request_metrics_hourly',
+        )->fetch('assoc');
+        $this->assertSame('Members/view', $metric['route_name']);
+        $this->assertSame(1, (int)$metric['request_count']);
+        $this->assertSame(1, (int)$metric['error_count']);
+        $this->assertSame(1, (int)$metric['server_error_count']);
+        $this->assertStringNotContainsString('42', $metric['route_name']);
+    }
+
     private function configureHealthyPlatformDatabase(): void
     {
         ConnectionManager::drop('platform');
@@ -228,6 +262,23 @@ class TenantResolutionMiddlewareTest extends TestCase
                 tenant_id TEXT,
                 host_normalized TEXT,
                 status TEXT
+            )',
+        );
+        $connection->execute(
+            'CREATE TABLE tenant_request_metrics_hourly (
+                id TEXT PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                metric_hour TEXT NOT NULL,
+                route_name TEXT NOT NULL,
+                request_count INTEGER NOT NULL,
+                error_count INTEGER NOT NULL,
+                server_error_count INTEGER NOT NULL,
+                slow_request_count INTEGER NOT NULL,
+                duration_total_ms INTEGER NOT NULL,
+                duration_max_ms INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                modified_at TEXT NULL,
+                UNIQUE (tenant_id, metric_hour, route_name)
             )',
         );
         $connection->execute(

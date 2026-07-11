@@ -11,7 +11,9 @@ use Cake\Log\Log;
 use Exception;
 use League\Flysystem\AwsS3V3\AwsS3V3Adapter;
 use League\Flysystem\Filesystem as FlysystemFilesystem;
+use League\Flysystem\FilesystemException;
 use League\Flysystem\Local\LocalFilesystemAdapter;
+use League\Flysystem\UnableToReadFile;
 use League\Flysystem\UnableToWriteFile;
 use RuntimeException;
 
@@ -59,6 +61,51 @@ class BackupStorageService
     public function read(string $filename): string
     {
         return $this->filesystem->read($filename);
+    }
+
+    /**
+     * Stream a backup into configured storage without loading it into memory.
+     *
+     * @param resource $stream
+     */
+    public function writeStream(string $filename, mixed $stream): void
+    {
+        if (!is_resource($stream)) {
+            throw new RuntimeException('Backup write stream is invalid.');
+        }
+
+        try {
+            $this->filesystem->writeStream($filename, $stream);
+        } catch (FilesystemException $e) {
+            throw new RuntimeException(
+                sprintf('Unable to write backup object to %s storage.', $this->adapter),
+                0,
+                $e,
+            );
+        }
+    }
+
+    /**
+     * Open a stored backup as a stream.
+     *
+     * @return resource
+     */
+    public function readStream(string $filename): mixed
+    {
+        try {
+            $stream = $this->filesystem->readStream($filename);
+        } catch (UnableToReadFile $e) {
+            throw new RuntimeException(
+                sprintf('Unable to read backup object from %s storage.', $this->adapter),
+                0,
+                $e,
+            );
+        }
+        if (!is_resource($stream)) {
+            throw new RuntimeException('Backup storage returned an invalid read stream.');
+        }
+
+        return $stream;
     }
 
     /**
@@ -120,11 +167,7 @@ class BackupStorageService
             $container = $azureConfig['container'] ?? 'documents';
 
             if (empty($connectionString)) {
-                Log::warning('Azure not configured for backups, falling back to local');
-                $this->adapter = 'local';
-                $this->initializeLocalAdapter();
-
-                return;
+                throw new RuntimeException('Azure backup storage requires a connection string.');
             }
 
             try {
@@ -139,19 +182,14 @@ class BackupStorageService
                 $this->filesystem = new FlysystemFilesystem($adapter);
             } catch (Exception $e) {
                 Log::error('Azure backup storage init failed: ' . $e->getMessage());
-                $this->adapter = 'local';
-                $this->initializeLocalAdapter();
+                throw new RuntimeException('Azure backup storage initialization failed.', 0, $e);
             }
         } elseif ($this->adapter === 's3') {
             $s3Config = $config['s3'] ?? [];
             $bucket = $s3Config['bucket'] ?? null;
 
             if (empty($bucket)) {
-                Log::warning('S3 not configured for backups, falling back to local');
-                $this->adapter = 'local';
-                $this->initializeLocalAdapter();
-
-                return;
+                throw new RuntimeException('S3 backup storage requires a bucket.');
             }
 
             try {
@@ -175,8 +213,7 @@ class BackupStorageService
                 $this->filesystem = new FlysystemFilesystem($adapter);
             } catch (Exception $e) {
                 Log::error('S3 backup storage init failed: ' . $e->getMessage());
-                $this->adapter = 'local';
-                $this->initializeLocalAdapter();
+                throw new RuntimeException('S3 backup storage initialization failed.', 0, $e);
             }
         } else {
             $this->initializeLocalAdapter();
@@ -190,7 +227,7 @@ class BackupStorageService
      */
     private function initializeLocalAdapter(): void
     {
-        $backupDir = ROOT . DS . 'backups';
+        $backupDir = (string)Configure::read('Backups.local.path', ROOT . DS . 'backups');
         if (!is_dir($backupDir)) {
             if (!mkdir($backupDir, 0750, true) && !is_dir($backupDir)) {
                 throw new RuntimeException("Cannot create backup directory: {$backupDir}");

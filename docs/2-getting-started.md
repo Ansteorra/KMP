@@ -93,7 +93,10 @@ Xdebug is configured for port `9003` with container-to-host callbacks through `h
 
 ### Scheduled Local Jobs
 
-The app container starts cron by default. Local cron runs:
+The Docker worker and scheduler services own background work. With tenancy
+enabled they poll `bin/cake platform schedule due`; stored schedules fan out
+workflow, maintenance, backup, platform job, and queue processing to active
+tenants. In single-database/legacy cron mode, the equivalent commands are:
 
 - `bin/cake queue run -q` every 2 minutes
 - `bin/cake workflow_scheduler` every minute

@@ -18,7 +18,11 @@ trap stop_worker TERM INT
 
 echo "KMP queue worker loop started."
 while [ "$stopping" -eq 0 ]; do
-    bin/cake queue run -q &
+    if [ "${KMP_TENANCY_ENABLED:-false}" = "true" ]; then
+        bin/cake platform schedule due -q &
+    else
+        bin/cake queue run -q &
+    fi
     child_pid="$!"
     wait "$child_pid"
     status="$?"
@@ -31,7 +35,7 @@ while [ "$stopping" -eq 0 ]; do
     if [ "$status" -ne 0 ]; then
         echo "WARNING: queue worker exited with status ${status}; restarting after ${restart_delay}s." >&2
     else
-        echo "Queue worker reached configured runtime; restarting after ${restart_delay}s." >&2
+        echo "Queue worker cycle completed; restarting after ${restart_delay}s." >&2
     fi
 
     sleep "$restart_delay" &

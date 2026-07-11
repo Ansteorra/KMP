@@ -30,6 +30,16 @@ class UpdateDatabaseCommand extends Command
             ->addOption('plugin', [
                 'short' => 'p',
                 'help' => 'The plugin to run migrations for',
+            ])
+            ->addOption('connection', [
+                'short' => 'c',
+                'help' => 'Datasource connection to migrate.',
+                'default' => 'default',
+            ])
+            ->addOption('no-lock', [
+                'help' => 'Do not write schema lock files after migrations.',
+                'boolean' => true,
+                'default' => false,
             ]);
 
         return $parser;
@@ -44,6 +54,16 @@ class UpdateDatabaseCommand extends Command
      */
     public function execute(Arguments $args, ConsoleIo $io): ?int
     {
+        $connection = trim((string)$args->getOption('connection'));
+        if ($connection === '') {
+            $io->err('A migration connection is required.');
+
+            return Command::CODE_ERROR;
+        }
+        $migrationArgs = ['migrate', '--connection', $connection];
+        if ((bool)$args->getOption('no-lock')) {
+            $migrationArgs[] = '--no-lock';
+        }
         $items = Plugin::getCollection();
         $pluginsToMigrate = [];
 
@@ -59,7 +79,11 @@ class UpdateDatabaseCommand extends Command
         }
         //sort
         asort($pluginsToMigrate);
-        $exitCode = $this->executeCommand(SchemacacheClearCommand::class, ['--connection', 'default'], $io);
+        $exitCode = $this->executeCommand(
+            SchemacacheClearCommand::class,
+            ['--connection', $connection],
+            $io,
+        );
         if ($exitCode !== null && $exitCode !== Command::CODE_SUCCESS) {
             $io->err('Schema cache clear failed.');
 
@@ -67,7 +91,11 @@ class UpdateDatabaseCommand extends Command
         }
 
         $frameworkMigration = new Migrate();
-        $exitCode = $this->executeCommand($frameworkMigration, ['migrate'], $io);
+        $exitCode = $this->executeCommand(
+            $frameworkMigration,
+            $migrationArgs,
+            $io,
+        );
         if ($exitCode !== null && $exitCode !== Command::CODE_SUCCESS) {
             $io->err('Application migrations failed.');
 
@@ -76,7 +104,11 @@ class UpdateDatabaseCommand extends Command
 
         foreach ($pluginsToMigrate as $name => $order) {
             $pluginMigration = new Migrate();
-            $exitCode = $this->executeCommand($pluginMigration, ['migrate', '-p', $name], $io);
+            $exitCode = $this->executeCommand(
+                $pluginMigration,
+                [...$migrationArgs, '-p', $name],
+                $io,
+            );
             if ($exitCode !== null && $exitCode !== Command::CODE_SUCCESS) {
                 $io->err(sprintf('Plugin migrations failed for %s.', $name));
 

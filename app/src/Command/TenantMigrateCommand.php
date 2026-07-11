@@ -4,8 +4,8 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\KMP\TenantMetadata;
-use App\Services\Backups\LocalTenantBackupStorage;
-use App\Services\Backups\PgDumpTenantBackupDumper;
+use App\Services\Backups\BackupStorageFactory;
+use App\Services\Backups\JsonTenantBackupDumper;
 use App\Services\Backups\TenantBackupEncryptor;
 use App\Services\Backups\TenantBackupService;
 use App\Services\Platform\PlatformScheduleRunner;
@@ -26,7 +26,6 @@ use Cake\Command\SchemacacheClearCommand;
 use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
-use Cake\Core\Configure;
 use Cake\Core\Plugin;
 use Cake\Database\Connection;
 use Cake\Database\Driver\Postgres;
@@ -315,7 +314,7 @@ class TenantMigrateCommand extends Command
      */
     private function migrationCommandArgs(array $options): array
     {
-        $commandArgs = ['migrate', '--connection', self::TENANT_CONNECTION];
+        $commandArgs = ['migrate', '--connection', self::TENANT_CONNECTION, '--no-lock'];
         foreach (['target', 'date'] as $option) {
             if (($options[$option] ?? null) !== null && $options[$option] !== '') {
                 $commandArgs[] = '--' . $option;
@@ -601,24 +600,15 @@ class TenantMigrateCommand extends Command
         if ($this->migrationMarkerService !== null) {
             return $this->migrationMarkerService;
         }
-        $enabled = (bool)Configure::read('TenantBackups.local.enabled', false);
-        $root = (string)Configure::read('TenantBackups.local.path', TMP . 'backups');
-        if (env('KMP_LOCAL_BACKUPS_ENABLED', null) !== null) {
-            $enabled = filter_var(env('KMP_LOCAL_BACKUPS_ENABLED', false), FILTER_VALIDATE_BOOLEAN);
-        }
-        $configuredRoot = env('KMP_LOCAL_BACKUPS_PATH', null);
-        if (is_string($configuredRoot) && $configuredRoot !== '') {
-            $root = $configuredRoot;
-        }
 
         return $this->migrationMarkerService = new TenantMigrationMarkerService(
             $this->platform(),
             new TenantBackupService(
                 $this->platform(),
                 SecretStoreFactory::fromConfig(),
-                new PgDumpTenantBackupDumper(),
+                new JsonTenantBackupDumper($this->tenantConnectionManager()),
                 new TenantBackupEncryptor(),
-                new LocalTenantBackupStorage($root, $enabled),
+                BackupStorageFactory::tenant(),
             ),
         );
     }

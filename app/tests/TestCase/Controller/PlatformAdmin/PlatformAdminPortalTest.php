@@ -5,6 +5,10 @@ namespace App\Test\TestCase\Controller\PlatformAdmin;
 
 use App\KMP\TenantMetadata;
 use App\Model\Entity\Member;
+use App\Services\Backups\BackupRecoveryKeyService;
+use App\Services\Backups\PlatformDatabaseBackupEncryptor;
+use App\Services\Backups\TenantBackupEncryptor;
+use App\Services\BackupStorageService;
 use App\Services\Platform\PlatformTotpVerifier;
 use App\Services\Secrets\SecretStoreFactory;
 use App\Services\Secrets\SecretStoreInterface;
@@ -34,6 +38,10 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
     private string $secretFile = '';
 
     private string $totpSecret = 'JBSWY3DPEHPK3PXP';
+
+    private string $tenantBackupKek = 'tenant-backup-kek-for-platform-portal-tests';
+
+    private string $platformBackupKek = 'platform-backup-kek-for-platform-portal-tests';
 
     protected function setUp(): void
     {
@@ -126,6 +134,20 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
     public function testPlatformAdminSessionCanViewDashboard(): void
     {
         $this->enablePortal();
+        $this->platform()->insert('tenant_request_metrics_hourly', [
+            'id' => 'metric-1',
+            'tenant_id' => 'tenant-1',
+            'metric_hour' => gmdate('Y-m-d H:00:00'),
+            'route_name' => 'Members::index',
+            'request_count' => 100,
+            'error_count' => 8,
+            'server_error_count' => 3,
+            'slow_request_count' => 7,
+            'duration_total_ms' => 120000,
+            'duration_max_ms' => 4100,
+            'created_at' => gmdate('Y-m-d H:i:s'),
+            'modified_at' => null,
+        ]);
         $this->session([
             'PlatformAdmin' => [
                 'id' => 'platform-admin-1',
@@ -139,7 +161,10 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->get('/platform-admin');
 
         $this->assertResponseOk();
-        $this->assertResponseContains('Platform Admin Dashboard');
+        $this->assertResponseContains('Platform operations');
+        $this->assertResponseContains('requests / 8.00% errors / 1200 ms average');
+        $this->assertResponseContains('7 slow requests / 3 server errors');
+        $this->assertResponseContains('Request error rate is 8.0%.');
     }
 
     public function testPendingEnrollmentLoginActivatesUser(): void
@@ -255,11 +280,11 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->get('/platform-admin');
 
         $this->assertResponseOk();
-        $this->assertResponseContains('Platform Admin Dashboard');
+        $this->assertResponseContains('Platform operations');
         $this->assertResponseContains('Example Tenant');
-        $this->assertResponseContains('tenant_backup');
-        $this->assertResponseNotContains('>Jobs<');
-        $this->assertResponseNotContains('>Schedules<');
+        $this->assertResponseContains('tenant backup');
+        $this->assertResponseContains('>Jobs<');
+        $this->assertResponseContains('>Schedules<');
         $this->assertResponseNotContains('>Data Console<');
         $this->assertResponseNotContains('db-secret-host');
         $this->assertResponseNotContains('platform-db-password');
@@ -291,7 +316,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
 
         $this->get('/platform-admin/tenants');
         $this->assertResponseOk();
-        $this->assertResponseContains('Create tenant');
+        $this->assertResponseContains('Onboard a kingdom');
         $this->get('/platform-admin/tenants/add');
         $this->assertResponseOk();
         $this->assertResponseContains('Tenant super user email');
@@ -332,6 +357,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->assertSame('resend', $config['email']['mode']);
         $this->assertSame('tenant.newkingdom.email-api-key', $config['email']['api_secret_ref']);
         $this->assertTrue(SecretStoreFactory::fromConfig()->exists('tenant.newkingdom.db.password'));
+        $this->assertTrue(SecretStoreFactory::fromConfig()->exists('tenant.newkingdom.kek'));
 
         $host = $this->platform()->execute(
             'SELECT host FROM tenant_hosts WHERE tenant_id = ? AND is_primary = 1',
@@ -391,7 +417,41 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->assertSame(0, $tenantCount);
     }
 
-    public function testTenantEditCannotManuallyActivateProvisioningTenant(): void
+    public function testTenantCreationRejectsDisabledEmailDelivery(): void
+    {
+        $this->enablePortal();
+        $this->loginAsPlatformAdmin();
+
+        $this->post('/platform-admin/tenants/add', [
+            'slug' => 'newkingdom',
+            'display_name' => 'New Kingdom',
+            'status' => 'provisioning',
+            'region' => 'us',
+            'primary_host' => 'newkingdom.test',
+            'initial_super_user_email' => 'superuser@newkingdom.test',
+            'db_server' => 'db.internal',
+            'db_name' => '',
+            'db_role' => '',
+            'queue_concurrency_limit' => '7',
+            'documents_blob_container' => 'documents-newkingdom',
+            'documents_blob_prefix' => 'tenants/newkingdom',
+            'email_mode' => 'disabled',
+            'features_json' => '',
+            'integration_endpoints_json' => '',
+            'integration_secret_refs_json' => '',
+        ]);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains(
+            'Email delivery cannot be disabled while onboarding the initial tenant super user.',
+        );
+        $tenantCount = (int)$this->platform()
+            ->execute('SELECT COUNT(*) FROM tenants WHERE slug = ?', ['newkingdom'])
+            ->fetchColumn(0);
+        $this->assertSame(0, $tenantCount);
+    }
+
+    public function testTenantEditDoesNotChangeLifecycleStatus(): void
     {
         $this->enablePortal();
         $this->loginAsPlatformAdmin();
@@ -415,8 +475,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             'integration_secret_refs_json' => '',
         ]);
 
-        $this->assertResponseOk();
-        $this->assertResponseContains('Tenant activation is completed by the provisioning worker');
+        $this->assertRedirectContains('/platform-admin/tenants/example');
         $status = $this->platform()
             ->execute('SELECT status FROM tenants WHERE id = ?', ['tenant-1'])
             ->fetchColumn(0);
@@ -460,7 +519,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->assertRedirectContains('/platform-admin/tenants/example');
         $row = $this->platform()->execute('SELECT * FROM tenants WHERE slug = ?', ['example'])->fetch('assoc');
         $this->assertSame('Example Updated', $row['display_name']);
-        $this->assertSame('suspended', $row['status']);
+        $this->assertSame('active', $row['status']);
         $this->assertSame('db-secret-host', $row['db_server']);
         $this->assertSame('tenant_secret_database', $row['db_name']);
         $this->assertSame('tenant_secret_role', $row['db_role']);
@@ -472,6 +531,44 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->assertArrayNotHasKey('password', $config);
     }
 
+    public function testPlatformAdminCanSuspendAndReactivateTenantWithStepUp(): void
+    {
+        $this->enablePortal();
+        $this->loginAsPlatformAdmin();
+
+        $this->post('/platform-admin/tenants/example/suspend', [
+            'confirmation' => 'SUSPEND example',
+            'reason' => 'Investigating elevated tenant errors.',
+            'totp' => $this->totpCode(),
+        ]);
+
+        $this->assertRedirectContains('/platform-admin/tenants/example');
+        $tenant = $this->platform()->execute(
+            'SELECT status, suspended_at FROM tenants WHERE id = ?',
+            ['tenant-1'],
+        )->fetch('assoc');
+        $this->assertSame('suspended', $tenant['status']);
+        $this->assertNotEmpty($tenant['suspended_at']);
+
+        $this->post('/platform-admin/tenants/example/reactivate', [
+            'confirmation' => 'REACTIVATE example',
+            'reason' => 'Tenant health has recovered.',
+            'totp' => $this->totpCode(),
+        ]);
+
+        $this->assertRedirectContains('/platform-admin/tenants/example');
+        $tenant = $this->platform()->execute(
+            'SELECT status, suspended_at FROM tenants WHERE id = ?',
+            ['tenant-1'],
+        )->fetch('assoc');
+        $this->assertSame('active', $tenant['status']);
+        $this->assertNull($tenant['suspended_at']);
+        $actions = $this->platform()->execute(
+            "SELECT action FROM audit_events WHERE action LIKE 'tenant.%' ORDER BY id",
+        )->fetchAll('assoc');
+        $this->assertSame(['tenant.suspended', 'tenant.active'], array_column($actions, 'action'));
+    }
+
     public function testPlatformAdminCanQueueTenantBackup(): void
     {
         $this->enablePortal();
@@ -481,6 +578,11 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->assertResponseOk();
         $this->assertResponseContains('Tenant Backups');
         $this->assertResponseContains('Queue backup');
+        $this->assertResponseContains('id="tenant-backup-tenant-kmpbackup-1-download-confirmation"');
+        $this->assertResponseContains('id="tenant-backup-tenant-kmpbackup-1-recovery-key-confirmation"');
+        $this->assertResponseContains('id="tenant-backup-tenant-kmpbackup-1-restore-confirmation"');
+        $this->assertResponseContains('id="tenant-backup-tenant-kmpbackup-1-delete-confirmation"');
+        $this->assertResponseNotContains('id="confirmation"');
 
         $this->post('/platform-admin/tenants/example/backups/create', [
             'retention_days' => '45',
@@ -490,11 +592,11 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->assertRedirectContains('/platform-admin/tenants/example/backups');
         $job = $this->platform()->execute(
             'SELECT * FROM platform_jobs WHERE job_type = ? ORDER BY created_at DESC LIMIT 1',
-            ['tenant_backup_json'],
+            ['tenant_backup'],
         )->fetch('assoc');
         $this->assertSame('queued', $job['status']);
-        $this->assertSame('tenant_backup_json:example:tenant-backup-test', $job['idempotency_key']);
-        $this->assertStringContainsString('"backup_format":"kmpbackup_json"', $job['parameters']);
+        $this->assertSame('tenant_backup:example:tenant-backup-test', $job['idempotency_key']);
+        $this->assertStringContainsString('"tenant_slug":"example"', $job['parameters']);
         $this->assertStringContainsString('"retention_days":45', $job['parameters']);
 
         $audit = $this->platform()->execute(
@@ -523,12 +625,62 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->assertRedirectContains('/platform-admin/backups');
         $job = $this->platform()->execute(
             'SELECT * FROM platform_jobs WHERE job_type = ? ORDER BY created_at DESC LIMIT 1',
-            ['platform_backup_json'],
+            ['platform_database_backup'],
         )->fetch('assoc');
         $this->assertSame('queued', $job['status']);
-        $this->assertSame('platform_backup_json:platform-backup-test', $job['idempotency_key']);
-        $this->assertStringContainsString('"scope":"platform"', $job['parameters']);
-        $this->assertStringContainsString('"backup_format":"kmpbackup_json"', $job['parameters']);
+        $this->assertSame('platform_database_backup:platform-backup-test', $job['idempotency_key']);
+        $this->assertStringContainsString('"retention_days":60', $job['parameters']);
+    }
+
+    public function testPlatformAdminCanInspectAndRetryFailedExecutableJob(): void
+    {
+        $this->enablePortal();
+        $this->loginAsPlatformAdmin();
+        $jobId = '33333333-3333-4333-8333-333333333333';
+        $this->platform()->insert('platform_jobs', [
+            'id' => $jobId,
+            'tenant_id' => 'tenant-1',
+            'requested_by_platform_user_id' => 'platform-admin-1',
+            'job_type' => 'tenant_backup',
+            'status' => 'failed',
+            'idempotency_key' => 'failed-portal-backup',
+            'parameters' => '{"tenant_slug":"example","retention_days":30}',
+            'last_error' => 'token=[redacted] failed',
+            'created_at' => '2026-07-10 00:00:00',
+            'finished_at' => '2026-07-10 00:01:00',
+        ]);
+        $this->platform()->insert('platform_job_events', [
+            'id' => '44444444-4444-4444-8444-444444444444',
+            'platform_job_id' => $jobId,
+            'sequence_number' => 1,
+            'event_level' => 'error',
+            'event_code' => 'job.failed',
+            'message' => 'Backup worker exited unsuccessfully.',
+            'created_at' => '2026-07-10 00:01:00',
+        ]);
+
+        $this->get('/platform-admin/jobs/' . $jobId);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Progress timeline');
+        $this->assertResponseContains('Backup worker exited unsuccessfully.');
+        $this->assertResponseNotContains('token=[redacted] failed');
+
+        $this->post('/platform-admin/jobs/' . $jobId . '/retry', [
+            'confirmation' => 'RETRY job',
+            'reason' => 'Retry after correcting worker storage.',
+            'totp' => $this->totpCode(),
+            'nonce' => 'retry-test',
+        ]);
+
+        $this->assertRedirectContains('/platform-admin/jobs/' . $jobId);
+        $retry = $this->platform()->execute(
+            'SELECT * FROM platform_jobs WHERE id != :sourceId AND job_type = :jobType ORDER BY created_at DESC LIMIT 1',
+            ['sourceId' => $jobId, 'jobType' => 'tenant_backup'],
+        )->fetch('assoc');
+        $this->assertSame('queued', $retry['status']);
+        $this->assertSame('platform_job_retry:' . $jobId . ':retry-test', $retry['idempotency_key']);
+        $this->assertStringNotContainsString($this->totpCode(), (string)$retry['parameters']);
     }
 
     public function testTenantRestoreRequiresSuspendedTenantAndStepUp(): void
@@ -545,7 +697,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->assertRedirectContains('/platform-admin/tenants/example/backups');
         $count = $this->platform()->execute(
             'SELECT COUNT(*) FROM platform_jobs WHERE job_type = ?',
-            ['tenant_restore_json'],
+            ['tenant_restore'],
         )->fetchColumn(0);
         $this->assertSame(0, (int)$count);
 
@@ -560,11 +712,11 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
 
         $job = $this->platform()->execute(
             'SELECT * FROM platform_jobs WHERE job_type = ? ORDER BY created_at DESC LIMIT 1',
-            ['tenant_restore_json'],
+            ['tenant_restore'],
         )->fetch('assoc');
         $this->assertSame('queued', $job['status']);
-        $this->assertSame('tenant_restore_json:example:tenant-kmpbackup-1:tenant-restore-suspended', $job['idempotency_key']);
-        $this->assertStringContainsString('"object_name":"tenant-example-20260516.kmpbackup"', $job['parameters']);
+        $this->assertSame('tenant_restore:example:tenant-kmpbackup-1:tenant-restore-suspended', $job['idempotency_key']);
+        $this->assertStringContainsString('"backup_id":"tenant-kmpbackup-1"', $job['parameters']);
         $this->assertStringNotContainsString($this->totpCode(), $job['parameters']);
     }
 
@@ -587,26 +739,258 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->assertSame(0, (int)$count);
     }
 
-    public function testPlatformRestoreRequiresStepUpAndQueuesJob(): void
+    public function testTenantRecoveryKeyDownloadIsBoundedAuditedAndNeverCached(): void
+    {
+        $this->enablePortal();
+        $this->loginAsPlatformAdmin();
+        $backupId = '11111111-1111-4111-8111-111111111111';
+        $inputPath = tempnam(TMP, 'portal-tenant-plaintext-');
+        $encryptedPath = tempnam(TMP, 'portal-tenant-encrypted-');
+        $this->assertIsString($inputPath);
+        $this->assertIsString($encryptedPath);
+        try {
+            file_put_contents($inputPath, 'tenant logical backup');
+            $tenant = TenantMetadata::fromPlatformRow(
+                $this->platform()->execute('SELECT * FROM tenants WHERE id = ?', ['tenant-1'])->fetch('assoc'),
+            );
+            $encryption = (new TenantBackupEncryptor())->encryptFile(
+                $inputPath,
+                $encryptedPath,
+                $tenant,
+                $backupId,
+                new SensitiveString($this->tenantBackupKek),
+                'tenant.example.kek',
+                'v1',
+            );
+            $this->platform()->update('tenant_backups', [
+                'id' => $backupId,
+                'object_size_bytes' => filesize($encryptedPath),
+                'object_sha256' => hash_file('sha256', $encryptedPath),
+                'encryption_algorithm' => $encryption->algorithm,
+                'wrapped_dek' => $encryption->wrappedDek,
+                'wrapped_dek_key_name' => 'tenant.example.kek',
+                'wrapped_dek_metadata' => json_encode($encryption->wrappedDekMetadata, JSON_THROW_ON_ERROR),
+            ], ['id' => 'tenant-kmpbackup-1']);
+
+            $this->post('/platform-admin/tenants/example/backups/' . $backupId . '/recovery-key', [
+                'confirmation' => 'DOWNLOAD KEY example',
+                'reason' => 'Testing portable tenant recovery key export.',
+                'totp' => $this->totpCode(),
+            ]);
+
+            $this->assertResponseOk();
+            $this->assertHeaderContains('Cache-Control', 'no-store');
+            $this->assertHeaderContains('Content-Disposition', BackupRecoveryKeyService::FILE_EXTENSION);
+            $payload = json_decode((string)$this->_response->getBody(), true, 16, JSON_THROW_ON_ERROR);
+            $this->assertSame('tenant', $payload['scope']);
+            $this->assertSame($backupId, $payload['backup_id']);
+            $this->assertStringNotContainsString(
+                $this->tenantBackupKek,
+                (string)$this->_response->getBody(),
+            );
+            $action = $this->platform()->execute(
+                'SELECT action FROM audit_events WHERE subject_id = ? ORDER BY id DESC LIMIT 1',
+                [$backupId],
+            )->fetchColumn(0);
+            $this->assertSame('tenant_backup.recovery_key_exported', $action);
+        } finally {
+            unlink($inputPath);
+            unlink($encryptedPath);
+        }
+    }
+
+    public function testPlatformRecoveryKeyDownloadIsBoundedAuditedAndNeverCached(): void
+    {
+        $this->enablePortal();
+        $this->loginAsPlatformAdmin();
+        $backupId = '22222222-2222-4222-8222-222222222222';
+        $inputPath = tempnam(TMP, 'portal-platform-plaintext-');
+        $encryptedPath = tempnam(TMP, 'portal-platform-encrypted-');
+        $this->assertIsString($inputPath);
+        $this->assertIsString($encryptedPath);
+        try {
+            file_put_contents($inputPath, 'platform database dump');
+            $encryption = (new PlatformDatabaseBackupEncryptor())->encryptFile(
+                $inputPath,
+                $encryptedPath,
+                $backupId,
+                new SensitiveString($this->platformBackupKek),
+                'platform.backup.kek',
+                'v1',
+            );
+            $this->platform()->update('platform_database_backups', [
+                'id' => $backupId,
+                'object_size_bytes' => filesize($encryptedPath),
+                'object_sha256' => hash_file('sha256', $encryptedPath),
+                'encryption_algorithm' => $encryption->algorithm,
+                'wrapped_dek' => $encryption->wrappedDek,
+                'wrapped_dek_key_name' => 'platform.backup.kek',
+                'wrapped_dek_metadata' => json_encode($encryption->wrappedDekMetadata, JSON_THROW_ON_ERROR),
+            ], ['id' => 'platform-kmpbackup-1']);
+
+            $this->post('/platform-admin/backups/platform/' . $backupId . '/recovery-key', [
+                'confirmation' => 'DOWNLOAD KEY platform',
+                'reason' => 'Testing portable platform recovery key export.',
+                'totp' => $this->totpCode(),
+            ]);
+
+            $this->assertResponseOk();
+            $this->assertHeaderContains('Cache-Control', 'no-store');
+            $this->assertHeaderContains('Content-Disposition', BackupRecoveryKeyService::FILE_EXTENSION);
+            $payload = json_decode((string)$this->_response->getBody(), true, 16, JSON_THROW_ON_ERROR);
+            $this->assertSame('platform', $payload['scope']);
+            $this->assertSame($backupId, $payload['backup_id']);
+            $this->assertStringNotContainsString(
+                $this->platformBackupKek,
+                (string)$this->_response->getBody(),
+            );
+            $action = $this->platform()->execute(
+                'SELECT action FROM audit_events WHERE subject_id = ? ORDER BY id DESC LIMIT 1',
+                [$backupId],
+            )->fetchColumn(0);
+            $this->assertSame('platform_backup.recovery_key_exported', $action);
+        } finally {
+            unlink($inputPath);
+            unlink($encryptedPath);
+        }
+    }
+
+    public function testPlatformBackupUiDoesNotOfferInProcessRestore(): void
     {
         $this->enablePortal();
         $this->loginAsPlatformAdmin();
 
-        $this->post('/platform-admin/backups/platform/platform-kmpbackup-1/restore', [
-            'confirmation' => 'RESTORE platform',
-            'reason' => 'Testing platform restore guardrails',
-            'totp' => $this->totpCode(),
-            'nonce' => 'platform-restore',
+        $this->get('/platform-admin/backups');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('disaster-recovery runbook');
+        $this->assertResponseNotContains('Queue destructive restore');
+        $count = $this->platform()->execute(
+            'SELECT COUNT(*) FROM platform_jobs WHERE job_type = ?',
+            ['platform_restore_json'],
+        )->fetchColumn(0);
+        $this->assertSame(0, (int)$count);
+    }
+
+    public function testBackupScreensRenderCompactGuardedActionModals(): void
+    {
+        $this->enablePortal();
+        $this->loginAsPlatformAdmin();
+        $legacyBackup = [
+            'backup_type' => 'kmpbackup_json',
+            'status' => 'completed',
+            'object_uri' => 'legacy-example.kmpbackup',
+            'object_size_bytes' => 456,
+            'object_sha256' => null,
+            'encryption_algorithm' => 'AES-256-GCM',
+            'wrapped_dek' => null,
+            'wrapped_dek_key_name' => 'legacy.application.key',
+            'wrapped_dek_key_version' => 'legacy',
+            'wrapped_dek_metadata' => null,
+            'created_at' => '2026-05-16 12:00:00',
+            'completed_at' => '2026-05-16 12:01:00',
+            'retention_until' => '2099-06-16 12:00:00',
+        ];
+        $this->platform()->insert('tenant_backups', $legacyBackup + [
+            'id' => 'legacy-tenant-backup',
+            'tenant_id' => 'tenant-1',
+        ]);
+        $this->platform()->insert('platform_database_backups', $legacyBackup + [
+            'id' => 'legacy-platform-backup',
+            'connection_name' => 'platform',
+            'database_name' => 'platform',
         ]);
 
-        $this->assertRedirectContains('/platform-admin/backups');
-        $job = $this->platform()->execute(
-            'SELECT * FROM platform_jobs WHERE job_type = ? ORDER BY created_at DESC LIMIT 1',
-            ['platform_restore_json'],
-        )->fetch('assoc');
-        $this->assertSame('queued', $job['status']);
-        $this->assertSame('platform_restore_json:platform-kmpbackup-1:platform-restore', $job['idempotency_key']);
-        $this->assertStringContainsString('"object_name":"platform-20260516.kmpbackup"', $job['parameters']);
+        $this->get('/platform-admin/backups');
+        $this->assertResponseOk();
+        $platformBody = (string)$this->_response->getBody();
+        $this->assertStringContainsString('data-controller="guarded-action-modal"', $platformBody);
+        $this->assertStringContainsString('/js/controllers-', $platformBody);
+        $this->assertStringContainsString('/js/index-', $platformBody);
+        $this->assertStringContainsString('table table-sm align-middle text-nowrap', $platformBody);
+        $this->assertStringContainsString('d-inline-flex flex-nowrap gap-1', $platformBody);
+        $this->assertStringContainsString('id="platform-backup-platform-kmpbackup-1-download"', $platformBody);
+        $this->assertStringContainsString('id="platform-backup-platform-kmpbackup-1-delete"', $platformBody);
+        $this->assertStringContainsString('id="platform-backup-legacy-platform-backup-download"', $platformBody);
+        $this->assertStringContainsString('id="platform-backup-legacy-platform-backup-delete"', $platformBody);
+        $this->assertStringNotContainsString(
+            'id="platform-backup-legacy-platform-backup-recovery-key"',
+            $platformBody,
+        );
+        $this->assertSame(1, substr_count($platformBody, 'id="platform-backup-action-modal"'));
+
+        $this->get('/platform-admin/tenants/example/backups');
+        $this->assertResponseOk();
+        $tenantBody = (string)$this->_response->getBody();
+        $this->assertStringContainsString('data-controller="guarded-action-modal"', $tenantBody);
+        $this->assertStringContainsString('table table-sm align-middle text-nowrap', $tenantBody);
+        $this->assertStringContainsString('d-inline-flex flex-nowrap gap-1', $tenantBody);
+        $this->assertStringContainsString('id="tenant-backup-tenant-kmpbackup-1-download"', $tenantBody);
+        $this->assertStringContainsString('id="tenant-backup-tenant-kmpbackup-1-recovery-key"', $tenantBody);
+        $this->assertStringContainsString('id="tenant-backup-tenant-kmpbackup-1-delete"', $tenantBody);
+        $this->assertStringContainsString('id="tenant-backup-legacy-tenant-backup-download"', $tenantBody);
+        $this->assertStringContainsString('id="tenant-backup-legacy-tenant-backup-delete"', $tenantBody);
+        $this->assertStringNotContainsString('id="tenant-backup-legacy-tenant-backup-restore"', $tenantBody);
+        $this->assertStringNotContainsString('id="tenant-backup-legacy-tenant-backup-recovery-key"', $tenantBody);
+        $this->assertSame(1, substr_count($tenantBody, 'id="tenant-backup-action-modal"'));
+    }
+
+    public function testPlatformAdminCanDeleteTenantBackupAndRetainAuditMetadata(): void
+    {
+        $this->enablePortal();
+        $this->loginAsPlatformAdmin();
+        $previousStorage = Configure::read('Documents.storage');
+        $previousBackupPath = Configure::read('Backups.local.path');
+        $backupPath = TMP . 'platform-admin-delete-' . uniqid('', true);
+        $objectPath = 'tenants/example/11111111-1111-4111-8111-111111111111.json.gz.enc';
+        Configure::write('Documents.storage', ['adapter' => 'local']);
+        Configure::write('Backups.local.path', $backupPath);
+
+        try {
+            (new BackupStorageService())->write($objectPath, 'encrypted tenant backup');
+
+            $this->post('/platform-admin/tenants/example/backups/tenant-kmpbackup-1/delete', [
+                'confirmation' => 'DELETE BACKUP example',
+                'reason' => 'Remove the superseded tenant recovery point.',
+                'totp' => $this->totpCode(),
+            ]);
+
+            $this->assertRedirectContains('/platform-admin/tenants/example/backups');
+            $backup = $this->platform()->execute(
+                'SELECT status, object_uri FROM tenant_backups WHERE id = ?',
+                ['tenant-kmpbackup-1'],
+            )->fetch('assoc');
+            $this->assertSame('deleted', $backup['status']);
+            $this->assertNull($backup['object_uri']);
+            $this->assertFalse((new BackupStorageService())->exists($objectPath));
+            $audit = $this->platform()->execute(
+                'SELECT action, reason FROM audit_events WHERE subject_id = ? ORDER BY id DESC LIMIT 1',
+                ['tenant-kmpbackup-1'],
+            )->fetch('assoc');
+            $this->assertSame('tenant_backup.deleted', $audit['action']);
+            $this->assertSame('Remove the superseded tenant recovery point.', $audit['reason']);
+        } finally {
+            Configure::write('Documents.storage', $previousStorage);
+            if ($previousBackupPath === null) {
+                Configure::delete('Backups.local.path');
+            } else {
+                Configure::write('Backups.local.path', $previousBackupPath);
+            }
+            $storedPath = $backupPath . DS . $objectPath;
+            if (is_file($storedPath)) {
+                unlink($storedPath);
+            }
+            $directories = [
+                $backupPath . DS . 'tenants' . DS . 'example',
+                $backupPath . DS . 'tenants',
+                $backupPath,
+            ];
+            foreach ($directories as $directory) {
+                if (is_dir($directory)) {
+                    rmdir($directory);
+                }
+            }
+        }
     }
 
     public function testPlatformAdminCanViewAndEditAllowedTenantConfig(): void
@@ -839,6 +1223,14 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
                     'value' => $this->totpSecret,
                     'rotated_at' => '2026-05-16T12:00:00+00:00',
                 ],
+                'tenant.example.kek' => [
+                    'value' => $this->tenantBackupKek,
+                    'rotated_at' => '2026-05-16T12:00:00+00:00',
+                ],
+                'platform.backup.kek' => [
+                    'value' => $this->platformBackupKek,
+                    'rotated_at' => '2026-05-16T12:00:00+00:00',
+                ],
             ],
         ], JSON_PRETTY_PRINT));
         chmod($this->secretFile, 0600);
@@ -951,6 +1343,33 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             )',
         );
         $connection->execute(
+            'CREATE TABLE platform_job_events (
+                id TEXT PRIMARY KEY,
+                platform_job_id TEXT NOT NULL,
+                sequence_number INTEGER NOT NULL,
+                event_level TEXT NOT NULL,
+                event_code TEXT NOT NULL,
+                message TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )',
+        );
+        $connection->execute(
+            'CREATE TABLE tenant_request_metrics_hourly (
+                id TEXT PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                metric_hour TEXT NOT NULL,
+                route_name TEXT NOT NULL,
+                request_count INTEGER NOT NULL DEFAULT 0,
+                error_count INTEGER NOT NULL DEFAULT 0,
+                server_error_count INTEGER NOT NULL DEFAULT 0,
+                slow_request_count INTEGER NOT NULL DEFAULT 0,
+                duration_total_ms INTEGER NOT NULL DEFAULT 0,
+                duration_max_ms INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                modified_at TEXT NULL
+            )',
+        );
+        $connection->execute(
             'CREATE TABLE tenant_backups (
                 id TEXT PRIMARY KEY,
                 tenant_id TEXT NOT NULL,
@@ -958,12 +1377,17 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
                 status TEXT NOT NULL,
                 object_uri TEXT NULL,
                 object_size_bytes INTEGER NULL,
+                object_sha256 TEXT NULL,
+                encryption_algorithm TEXT NULL,
                 wrapped_dek TEXT NULL,
                 wrapped_dek_key_name TEXT NULL,
                 wrapped_dek_key_version TEXT NULL,
+                wrapped_dek_metadata TEXT NULL,
+                error_summary TEXT NULL,
                 created_at TEXT NOT NULL,
                 completed_at TEXT NULL,
-                retention_until TEXT NULL
+                retention_until TEXT NULL,
+                modified_at TEXT NULL
             )',
         );
         $connection->execute(
@@ -975,10 +1399,17 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
                 database_name TEXT NOT NULL,
                 object_uri TEXT NULL,
                 object_size_bytes INTEGER NULL,
+                object_sha256 TEXT NULL,
+                encryption_algorithm TEXT NULL,
                 wrapped_dek TEXT NULL,
+                wrapped_dek_key_name TEXT NULL,
+                wrapped_dek_key_version TEXT NULL,
+                wrapped_dek_metadata TEXT NULL,
+                error_summary TEXT NULL,
                 created_at TEXT NOT NULL,
                 completed_at TEXT NULL,
-                retention_until TEXT NULL
+                retention_until TEXT NULL,
+                modified_at TEXT NULL
             )',
         );
         $connection->execute(
@@ -1101,23 +1532,32 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             'status' => 'completed',
             'object_uri' => 'object://secret-path/backup.dump',
             'object_size_bytes' => 123,
+            'object_sha256' => str_repeat('a', 64),
+            'encryption_algorithm' => 'aes-256-gcm-envelope-v1',
             'wrapped_dek' => 'wrapped-dek-secret',
             'wrapped_dek_key_name' => 'secret-key-name',
             'wrapped_dek_key_version' => 'secret-key-version',
+            'wrapped_dek_metadata' => '{}',
             'created_at' => $now,
             'completed_at' => $now,
-            'retention_until' => '2026-06-16 12:00:00',
+            'retention_until' => '2099-06-16 12:00:00',
         ]);
         $connection->insert('tenant_backups', [
             'id' => 'tenant-kmpbackup-1',
             'tenant_id' => 'tenant-1',
-            'backup_type' => 'kmpbackup_json',
+            'backup_type' => 'json',
             'status' => 'completed',
-            'object_uri' => 'tenant-example-20260516.kmpbackup',
+            'object_uri' => 'backup://tenants/example/11111111-1111-4111-8111-111111111111.json.gz.enc',
             'object_size_bytes' => 789,
+            'object_sha256' => str_repeat('b', 64),
+            'encryption_algorithm' => 'XCHACHA20-POLY1305-SECRETSTREAM',
+            'wrapped_dek' => 'wrapped-dek-secret',
+            'wrapped_dek_key_name' => 'tenant.example.kek',
+            'wrapped_dek_key_version' => 'v1',
+            'wrapped_dek_metadata' => '{}',
             'created_at' => $now,
             'completed_at' => $now,
-            'retention_until' => '2026-06-16 12:00:00',
+            'retention_until' => '2099-06-16 12:00:00',
         ]);
         $connection->insert('platform_database_backups', [
             'id' => 'platform-backup-1',
@@ -1127,22 +1567,33 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             'database_name' => 'platform-secret-database',
             'object_uri' => 'object://secret-path/platform.dump',
             'object_size_bytes' => 456,
+            'object_sha256' => str_repeat('c', 64),
+            'encryption_algorithm' => 'aes-256-gcm-envelope-v1',
             'wrapped_dek' => 'wrapped-dek-secret',
+            'wrapped_dek_key_name' => 'platform.backup.kek',
+            'wrapped_dek_key_version' => 'v1',
+            'wrapped_dek_metadata' => '{}',
             'created_at' => '2026-05-16 12:05:00',
             'completed_at' => '2026-05-16 12:06:00',
-            'retention_until' => '2026-06-16 12:00:00',
+            'retention_until' => '2099-06-16 12:00:00',
         ]);
         $connection->insert('platform_database_backups', [
             'id' => 'platform-kmpbackup-1',
-            'backup_type' => 'kmpbackup_json',
+            'backup_type' => 'pg_dump',
             'status' => 'completed',
             'connection_name' => 'platform',
             'database_name' => 'platform',
-            'object_uri' => 'platform-20260516.kmpbackup',
+            'object_uri' => 'backup://platform/22222222-2222-4222-8222-222222222222.pgdump.enc.json',
             'object_size_bytes' => 987,
+            'object_sha256' => str_repeat('d', 64),
+            'encryption_algorithm' => 'aes-256-gcm-envelope-v1',
+            'wrapped_dek' => 'wrapped-dek-secret',
+            'wrapped_dek_key_name' => 'platform.backup.kek',
+            'wrapped_dek_key_version' => 'v1',
+            'wrapped_dek_metadata' => '{}',
             'created_at' => '2026-05-16 12:05:00',
             'completed_at' => '2026-05-16 12:06:00',
-            'retention_until' => '2026-06-16 12:00:00',
+            'retention_until' => '2099-06-16 12:00:00',
         ]);
         $connection->insert('platform_schedules', [
             'id' => 'schedule-1',

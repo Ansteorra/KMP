@@ -190,6 +190,7 @@ run_migrations() {
     run_migrate_command "app migrations" bin/cake migrations migrate
     run_migrate_command "app settings update" bin/cake updateDatabase
     run_migrate_command "platform migrations" bin/cake platform_migrate migrate
+    run_migrate_command "platform backup key reconciliation" bin/cake platform backup-keys ensure
     if [[ "${RUN_RECOMMENDATION_MIGRATION:-0}" == "1" ]]; then
         run_migrate_command "award recommendation migration" \
             bin/cake awards migrate_award_recommendations --apply --allow-open-manual-review

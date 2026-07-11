@@ -5,16 +5,17 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Services\Backups\LocalTenantBackupStorage;
+use App\Services\Backups\BackupStorageFactory;
+use App\Services\Backups\JsonTenantBackupRestorer;
 use App\Services\Backups\PgRestoreTenantBackupRestorer;
 use App\Services\Backups\TenantBackupEncryptor;
 use App\Services\Backups\TenantRestoreService;
 use App\Services\Secrets\SecretStoreFactory;
+use App\Services\TenantConnectionManager;
 use Cake\Command\Command;
 use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
-use Cake\Core\Configure;
 use Cake\Datasource\ConnectionManager;
 use RuntimeException;
 
@@ -28,7 +29,7 @@ class TenantRestoreCommand extends Command
     protected function buildOptionParser(ConsoleOptionParser $parser): ConsoleOptionParser
     {
         return parent::buildOptionParser($parser)
-            ->setDescription('Restore an encrypted tenant pg_dump backup.')
+            ->setDescription('Restore an encrypted tenant JSON logical backup.')
             ->addOption('backup', [
                 'help' => 'Tenant backup UUID from tenant_backups.',
                 'required' => true,
@@ -46,22 +47,28 @@ class TenantRestoreCommand extends Command
                 'default' => false,
             ])
             ->addOption('dry-run', [
-                'help' => 'Validate metadata, secrets, decryption, and restore argv without executing pg_restore.',
+                'help' => 'Validate metadata, secrets, decryption, JSON payload, and target without changing data.',
                 'boolean' => true,
                 'default' => false,
+            ])
+            ->addOption('platform-job-id', [
+                'help' => 'Existing Platform Admin job UUID to update.',
             ]);
     }
 
     public function execute(Arguments $args, ConsoleIo $io): int
     {
         try {
-            $service = $this->buildService();
+            $service = $this->buildService($io);
             $result = $service->restoreTenantBackup(
                 (string)$args->getOption('backup'),
                 (string)$args->getOption('mode'),
                 $args->getOption('target-tenant') === null ? null : (string)$args->getOption('target-tenant'),
                 (bool)$args->getOption('confirm-destructive'),
                 (bool)$args->getOption('dry-run'),
+                $args->getOption('platform-job-id') === null
+                    ? null
+                    : (string)$args->getOption('platform-job-id'),
             );
             $io->success(sprintf(
                 'Tenant restore %s: %s backup=%s mode=%s source=%s target=%s job=%s',
@@ -82,25 +89,28 @@ class TenantRestoreCommand extends Command
         }
     }
 
-    private function buildService(): TenantRestoreService
+    private function buildService(ConsoleIo $io): TenantRestoreService
     {
-        $enabled = (bool)Configure::read('TenantBackups.local.enabled', false);
-        $root = (string)Configure::read('TenantBackups.local.path', TMP . 'backups');
-        if (env('KMP_LOCAL_BACKUPS_ENABLED', null) !== null) {
-            $enabled = filter_var(env('KMP_LOCAL_BACKUPS_ENABLED', false), FILTER_VALIDATE_BOOLEAN);
-        }
-        $configuredRoot = env('KMP_LOCAL_BACKUPS_PATH', null);
-        if (is_string($configuredRoot) && $configuredRoot !== '') {
-            $root = $configuredRoot;
-        }
         /** @var \Cake\Database\Connection $platform */
         $platform = ConnectionManager::get('platform');
+        $secretStore = SecretStoreFactory::fromConfig();
+        $tenantConnections = new TenantConnectionManager($secretStore);
+        $migrationRunner = static function () use ($io): void {
+            $exitCode = (new UpdateDatabaseCommand())->run(
+                ['--connection', TenantConnectionManager::CONNECTION_ALIAS, '--no-lock'],
+                $io,
+            );
+            if ($exitCode !== null && $exitCode !== Command::CODE_SUCCESS) {
+                throw new RuntimeException('Tenant migrations failed during JSON restore.');
+            }
+        };
 
         return new TenantRestoreService(
             $platform,
-            SecretStoreFactory::fromConfig(),
-            new LocalTenantBackupStorage($root, $enabled),
+            $secretStore,
+            BackupStorageFactory::tenant(),
             new TenantBackupEncryptor(),
+            new JsonTenantBackupRestorer($tenantConnections, $migrationRunner),
             new PgRestoreTenantBackupRestorer(),
         );
     }

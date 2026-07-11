@@ -322,23 +322,19 @@ class RestoreStatusService
     }
 
     /**
-     * Platform-scoped restore lock cache key.
-     *
-     * @return string
+     * Tenant-scoped restore lock cache key.
      */
     private function lockKey(): string
     {
-        return TenantAwareCache::platformScopedKey(self::LOCK_KEY);
+        return TenantAwareCache::tenantScopedKey(self::LOCK_KEY);
     }
 
     /**
-     * Platform-scoped restore status cache key.
-     *
-     * @return string
+     * Tenant-scoped restore status cache key.
      */
     private function statusKey(): string
     {
-        return TenantAwareCache::platformScopedKey(self::STATUS_KEY);
+        return TenantAwareCache::tenantScopedKey(self::STATUS_KEY);
     }
 
     /**

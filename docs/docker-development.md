@@ -183,13 +183,19 @@ scheduler processes are independently observable and restartable.
 
 | Service | Command | Purpose |
 |----------|---------|---------|
-| `worker` | `bin/cake queue run -q` | Process queued jobs, then restart cleanly via Docker Compose when the configured queue worker runtime ends |
-| `scheduler` | `kmp-scheduler-loop` | Run scheduled maintenance commands on configurable intervals |
+| `worker` | `bin/cake platform schedule due -q` in tenant mode; otherwise `bin/cake queue run -q` | Poll due platform work, including every active tenant's queue, with advisory-lock protection |
+| `scheduler` | `kmp-scheduler-loop` | Dispatch due platform schedules in tenant mode, or legacy maintenance commands in single-database mode |
 
-The scheduler loop runs these commands with conservative local intervals:
+With `KMP_TENANCY_ENABLED=true`, both services safely poll
+`bin/cake platform schedule due`; stored schedule rows own cadence and tenant
+fan-out, and PostgreSQL advisory locks prevent duplicate claims. The
+`tenant-queue-drain` row runs once per minute and bounds each active tenant to
+25 queue jobs or 45 seconds. In single-database mode, the scheduler loop uses
+these conservative legacy intervals:
 
 | Variable | Default seconds | Command |
 |----------|-----------------|---------|
+| `KMP_PLATFORM_SCHEDULE_INTERVAL` | `60` | `bin/cake platform schedule due` in tenant mode |
 | `KMP_WORKFLOW_SCHEDULER_INTERVAL` | `60` | `bin/cake workflow_scheduler` |
 | `KMP_ACTIVE_WINDOW_SYNC_INTERVAL` | `900` | `bin/cake sync_active_window_statuses` |
 | `KMP_MEMBER_WARRANTABLE_SYNC_INTERVAL` | `86400` | `bin/cake sync_member_warrantable_statuses` |
@@ -208,7 +214,10 @@ the old in-container cron path does not duplicate background work. Manual runs
 use the same container-first pattern:
 
 ```bash
-docker compose exec app bin/cake queue run -q
+docker compose exec app bin/cake platform schedule due
+docker compose exec app bin/cake platform schedule run tenant-queue-drain
+# Single-database mode only:
+docker compose exec app bin/cake queue run -q --exit-when-empty
 docker compose exec app bin/cake workflow_scheduler
 docker compose exec app bin/cake sync_active_window_statuses
 docker compose exec app bin/cake sync_member_warrantable_statuses
@@ -249,6 +258,7 @@ The local helper scripts use `app/config/.env` for Docker Compose and the applic
 | `KMP_DEV_TENANT_HOST` | `kmp.localhost` | Host mapped to the local baseline tenant |
 | `XDEBUG_MODE` | `debug,develop` | Runtime Xdebug mode |
 | `KMP_SKIP_CRON` | `true` | Disable legacy cron setup; Compose worker/scheduler services own background work |
+| `KMP_PLATFORM_SCHEDULE_INTERVAL` | `60` | Poll interval for stored platform schedules in tenant mode |
 | `KMP_*_INTERVAL` | See Queue and Scheduled Jobs | Scheduler loop intervals for local background commands |
 | `KMP_RESET_DB_ON_UP` | `true` | Run `dev-reset-db.sh` after the app becomes healthy |
 | `KMP_RESET_DB_ON_UP_ARGS` | `--seed` | Arguments passed to `dev-reset-db.sh` during startup |

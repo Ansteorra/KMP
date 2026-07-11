@@ -5,6 +5,7 @@ namespace App\Services\Platform;
 
 use App\KMP\TenantMetadata;
 use App\Services\TenantConnectionManager;
+use Cake\Database\Driver\Postgres;
 use Cake\Datasource\ConnectionManager;
 use Cake\I18n\DateTime;
 use Cake\Utility\Text;
@@ -117,6 +118,120 @@ class PlatformScheduleRunner
             'failed' => $failed,
             'jobsCreated' => $jobsCreated,
         ];
+    }
+
+    /**
+     * Run schedules that are due, using advisory locks to prevent duplicate dispatch.
+     *
+     * @return array{schedules: int, completed: int, failed: int, jobsCreated: int}
+     */
+    public function runDue(int $limit = 100): array
+    {
+        if ($limit < 1 || $limit > 500) {
+            throw new InvalidArgumentException('Due schedule limit must be between 1 and 500.');
+        }
+        $connection = ConnectionManager::get('platform');
+        $now = $this->now();
+        $rows = $connection->execute(
+            'SELECT name, cron_expression, next_run_at, status, modified_at
+               FROM platform_schedules
+              WHERE enabled = :enabled
+                AND (next_run_at IS NULL OR next_run_at <= :now)
+           ORDER BY COALESCE(next_run_at, created_at) ASC
+              LIMIT :limit',
+            ['enabled' => true, 'now' => $now->format('Y-m-d H:i:s'), 'limit' => $limit],
+            ['limit' => 'integer'],
+        )->fetchAll('assoc');
+        $summary = ['schedules' => 0, 'completed' => 0, 'failed' => 0, 'jobsCreated' => 0];
+
+        foreach ($rows as $row) {
+            $cron = (string)$row['cron_expression'];
+            if (!CronExpression::isValidExpression($cron)) {
+                $connection->update('platform_schedules', [
+                    'status' => 'failed',
+                    'last_error' => 'Invalid cron expression.',
+                    'last_failure_at' => $now,
+                    'modified_at' => $now,
+                ], ['name' => $row['name']]);
+                $summary['failed']++;
+                continue;
+            }
+            if (
+                empty($row['next_run_at'])
+                && !(new CronExpression($cron))->isDue($now->format('Y-m-d H:i:s'))
+            ) {
+                continue;
+            }
+            if (
+                (string)($row['status'] ?? '') === 'running'
+                && !empty($row['modified_at'])
+                && strtotime((string)$row['modified_at']) > $now->getTimestamp() - 15 * 60
+            ) {
+                continue;
+            }
+
+            $name = (string)$row['name'];
+            $lockKey = sprintf('platform-schedule:%s', $name);
+            if (!$this->acquireLock($lockKey)) {
+                continue;
+            }
+
+            try {
+                $result = $this->run($name);
+                $summary['schedules']++;
+                $summary['jobsCreated'] += (int)$result['jobsCreated'];
+                if ((string)$result['status'] === 'completed') {
+                    $summary['completed']++;
+                } elseif ((string)$result['status'] !== 'skipped') {
+                    $summary['failed']++;
+                }
+            } catch (Throwable $exception) {
+                $connection->update('platform_schedules', [
+                    'status' => 'failed',
+                    'last_error' => self::scrubError($exception->getMessage()),
+                    'last_failure_at' => $now,
+                    'modified_at' => $now,
+                ], ['name' => $name]);
+                $summary['schedules']++;
+                $summary['failed']++;
+            } finally {
+                $this->releaseLock($lockKey);
+            }
+        }
+
+        return $summary;
+    }
+
+    /**
+     * Acquire the PostgreSQL advisory lock for a due schedule.
+     */
+    private function acquireLock(string $lockKey): bool
+    {
+        $connection = ConnectionManager::get('platform');
+        if (!$connection->getDriver() instanceof Postgres) {
+            return true;
+        }
+        $lock = $connection->execute(
+            'SELECT pg_try_advisory_lock(hashtext(:lockKey)) AS acquired',
+            ['lockKey' => $lockKey],
+        )->fetch('assoc');
+
+        return is_array($lock) && $this->isTruthy($lock['acquired'] ?? false);
+    }
+
+    /**
+     * Release the PostgreSQL advisory lock for a schedule.
+     */
+    private function releaseLock(string $lockKey): void
+    {
+        $connection = ConnectionManager::get('platform');
+        if (!$connection->getDriver() instanceof Postgres) {
+            return;
+        }
+        $connection->execute(
+            'SELECT pg_advisory_unlock(hashtext(:lockKey))',
+            ['lockKey' => $lockKey],
+        );
     }
 
     /**

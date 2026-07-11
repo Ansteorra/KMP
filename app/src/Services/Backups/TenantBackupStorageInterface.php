@@ -7,11 +7,7 @@ namespace App\Services\Backups;
 
 use App\KMP\TenantMetadata;
 
-interface TenantBackupStorageInterface
+interface TenantBackupStorageInterface extends BackupArchiveStorageInterface
 {
-    public function workPath(string $backupId, string $suffix): string;
-
     public function store(TenantMetadata $tenant, string $backupId, string $encryptedPath): TenantBackupStoredObject;
-
-    public function retrieve(string $objectUri, string $destinationPath): TenantBackupStoredObject;
 }

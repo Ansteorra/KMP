@@ -16,8 +16,9 @@ use Throwable;
 
 class PlatformDatabaseBackupService
 {
-    private const BACKUP_TYPE = 'pg_dump';
-    private const JOB_TYPE = 'platform_database_backup';
+    public const BACKUP_TYPE = 'pg_dump';
+    public const JOB_TYPE = 'platform_database_backup';
+    public const KEK_SECRET_NAME = 'platform.backup.kek';
 
     /**
      * @param array<string, mixed> $platformConfig Platform datasource configuration
@@ -28,22 +29,29 @@ class PlatformDatabaseBackupService
         private readonly SecretStoreInterface $secretStore,
         private readonly PlatformDatabaseBackupDumperInterface $dumper,
         private readonly PlatformDatabaseBackupEncryptor $encryptor,
-        private readonly LocalPlatformDatabaseBackupStorage $storage,
-        private readonly string $kekName = 'platform.backup.kek',
+        private readonly PlatformDatabaseBackupStorageInterface $storage,
+        private readonly string $kekName = self::KEK_SECRET_NAME,
     ) {
     }
 
-    public function backupPlatformDatabase(int $retentionDays = 30): PlatformDatabaseBackupResult
-    {
-        $jobId = Text::uuid();
+    public function backupPlatformDatabase(
+        int $retentionDays = 30,
+        ?string $platformJobId = null,
+    ): PlatformDatabaseBackupResult {
+        if ($retentionDays < 1 || $retentionDays > 365) {
+            throw new RuntimeException('Platform backup retention must be between 1 and 365 days.');
+        }
+
+        $jobId = $platformJobId ?? Text::uuid();
         $backupId = Text::uuid();
         $now = $this->now();
         $databaseName = $this->databaseName();
-        $this->insertJob($jobId, $databaseName, $now);
-        $this->insertBackup($backupId, $jobId, $databaseName, $retentionDays, $now);
+        $this->prepareJob($jobId, $databaseName, $now, $platformJobId !== null);
 
         $rawPath = null;
+        $encryptedPath = null;
         try {
+            $this->insertBackup($backupId, $jobId, $databaseName, $retentionDays, $now);
             $databasePassword = $this->databasePassword();
             $kekVersion = $this->kekVersion($this->kekName);
             $kek = $this->secretStore->get($this->kekName);
@@ -64,7 +72,7 @@ class PlatformDatabaseBackupService
             ], ['id' => $backupId]);
 
             $rawPath = $this->storage->workPath($backupId, '.pgdump');
-            $encryptedPath = $this->storage->workPath($backupId, '.pgdump.enc.json');
+            $encryptedPath = $this->storage->workPath($backupId, '.pgdump.enc');
             $this->dumper->dump($this->platformConfig, $databasePassword, $rawPath);
             $encryption = $this->encryptor->encryptFile(
                 $rawPath,
@@ -113,14 +121,31 @@ class PlatformDatabaseBackupService
             ], ['id' => $backupId]);
             throw new RuntimeException($message, 0, $e);
         } finally {
-            if ($rawPath !== null && is_file($rawPath)) {
-                @unlink($rawPath);
+            foreach ([$rawPath, $encryptedPath] as $path) {
+                if ($path !== null && is_file($path)) {
+                    unlink($path);
+                }
             }
         }
     }
 
-    private function insertJob(string $jobId, string $databaseName, DateTime $now): void
+    private function prepareJob(string $jobId, string $databaseName, DateTime $now, bool $existing): void
     {
+        if ($existing) {
+            $row = $this->platformConnection->execute(
+                'SELECT job_type, status FROM platform_jobs WHERE id = :id LIMIT 1',
+                ['id' => $jobId],
+            )->fetch('assoc');
+            if (!is_array($row) || (string)$row['job_type'] !== self::JOB_TYPE) {
+                throw new RuntimeException('Platform backup job context is invalid.');
+            }
+            if (!in_array((string)$row['status'], ['queued', 'running'], true)) {
+                throw new RuntimeException('Platform backup job is not executable.');
+            }
+
+            return;
+        }
+
         $this->platformConnection->insert('platform_jobs', [
             'id' => $jobId,
             'tenant_id' => null,

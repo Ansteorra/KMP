@@ -120,7 +120,29 @@ return function (RouteBuilder $routes): void {
         $builder->connect('/tenants/{slug}/backups/{backupId}/download', ['controller' => 'Tenants', 'action' => 'downloadBackup'])
             ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?', 'backupId' => '[^/]+'])
             ->setPass(['slug', 'backupId']);
+        $builder
+            ->connect(
+                '/tenants/{slug}/backups/{backupId}/recovery-key',
+                ['controller' => 'Tenants', 'action' => 'downloadBackupRecoveryKey'],
+            )
+            ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?', 'backupId' => '[^/]+'])
+            ->setPass(['slug', 'backupId']);
+        $builder->connect(
+            '/tenants/{slug}/backups/{backupId}/delete',
+            ['controller' => 'Tenants', 'action' => 'deleteBackup'],
+        )
+            ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?', 'backupId' => '[^/]+'])
+            ->setPass(['slug', 'backupId']);
         $builder->connect('/tenants/{slug}/config', ['controller' => 'Tenants', 'action' => 'config'])
+            ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?'])
+            ->setPass(['slug']);
+        $builder->connect('/tenants/{slug}/suspend', ['controller' => 'Tenants', 'action' => 'suspend'])
+            ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?'])
+            ->setPass(['slug']);
+        $builder->connect('/tenants/{slug}/reactivate', ['controller' => 'Tenants', 'action' => 'reactivate'])
+            ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?'])
+            ->setPass(['slug']);
+        $builder->connect('/tenants/{slug}/archive', ['controller' => 'Tenants', 'action' => 'archive'])
             ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?'])
             ->setPass(['slug']);
         $builder->connect('/tenants/{slug}', ['controller' => 'Tenants', 'action' => 'view'])
@@ -128,13 +150,29 @@ return function (RouteBuilder $routes): void {
             ->setPass(['slug']);
         $builder->connect('/health', ['controller' => 'Operations', 'action' => 'health']);
         $builder->connect('/jobs', ['controller' => 'Operations', 'action' => 'jobs']);
+        $builder->connect('/jobs/{jobId}', ['controller' => 'Operations', 'action' => 'job'])
+            ->setPatterns(['jobId' => '[0-9a-fA-F-]{36}'])
+            ->setPass(['jobId']);
+        $builder->connect('/jobs/{jobId}/retry', ['controller' => 'Operations', 'action' => 'retryJob'])
+            ->setPatterns(['jobId' => '[0-9a-fA-F-]{36}'])
+            ->setPass(['jobId']);
         $builder->connect('/schedules', ['controller' => 'Operations', 'action' => 'schedules']);
         $builder->connect('/backups', ['controller' => 'Operations', 'action' => 'backups']);
         $builder->connect('/backups/platform/create', ['controller' => 'Operations', 'action' => 'createPlatformBackup']);
-        $builder->connect('/backups/platform/{backupId}/restore', ['controller' => 'Operations', 'action' => 'restorePlatformBackup'])
+        $builder->connect('/backups/platform/{backupId}/download', ['controller' => 'Operations', 'action' => 'downloadPlatformBackup'])
             ->setPatterns(['backupId' => '[^/]+'])
             ->setPass(['backupId']);
-        $builder->connect('/backups/platform/{backupId}/download', ['controller' => 'Operations', 'action' => 'downloadPlatformBackup'])
+        $builder
+            ->connect(
+                '/backups/platform/{backupId}/recovery-key',
+                ['controller' => 'Operations', 'action' => 'downloadPlatformBackupRecoveryKey'],
+            )
+            ->setPatterns(['backupId' => '[^/]+'])
+            ->setPass(['backupId']);
+        $builder->connect(
+            '/backups/platform/{backupId}/delete',
+            ['controller' => 'Operations', 'action' => 'deletePlatformBackup'],
+        )
             ->setPatterns(['backupId' => '[^/]+'])
             ->setPass(['backupId']);
         $builder->connect('/release', ['controller' => 'Operations', 'action' => 'release']);

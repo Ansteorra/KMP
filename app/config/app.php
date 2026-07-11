@@ -187,6 +187,10 @@ return [
             "retryAttempts" => (int)env("PLATFORM_HEALTH_RETRY_ATTEMPTS", 0),
             "retryDelayMs" => (int)env("PLATFORM_HEALTH_RETRY_DELAY_MS", 0),
         ],
+        "telemetry" => [
+            "enabled" => filter_var(env("PLATFORM_TENANT_TELEMETRY_ENABLED", true), FILTER_VALIDATE_BOOLEAN),
+            "slowRequestMs" => (int)env("PLATFORM_TENANT_SLOW_REQUEST_MS", 1000),
+        ],
         "adminMfa" => [
             "window" => (int)env("PLATFORM_ADMIN_TOTP_WINDOW", 1),
             "period" => (int)env("PLATFORM_ADMIN_TOTP_PERIOD", 30),

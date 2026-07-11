@@ -213,6 +213,43 @@ class PlatformDatabaseBackupServiceTest extends TestCase
         $this->assertSame('failed', $backup['status']);
     }
 
+    public function testBackupReusesQueuedPortalJob(): void
+    {
+        $jobId = '11111111-1111-4111-8111-111111111111';
+        $this->platform()->insert('platform_jobs', [
+            'id' => $jobId,
+            'tenant_id' => null,
+            'requested_by_platform_user_id' => 'platform-admin-1',
+            'job_type' => PlatformDatabaseBackupService::JOB_TYPE,
+            'status' => 'queued',
+            'idempotency_key' => 'portal-platform-backup',
+            'parameters' => '{"retention_days":30}',
+            'log_uri' => null,
+            'last_error' => null,
+            'created_at' => '2026-07-10 00:00:00',
+            'started_at' => null,
+            'finished_at' => null,
+            'modified_at' => null,
+        ]);
+        $service = $this->service(
+            new ArraySecretStore(['platform.backup.kek' => 'backup-kek']),
+            new FakePlatformDatabaseBackupDumper('portal platform backup'),
+            new PlatformDatabaseBackupEncryptor(),
+        );
+
+        $result = $service->backupPlatformDatabase(30, $jobId);
+
+        $this->assertSame($jobId, $result->jobId);
+        $this->assertSame(
+            1,
+            (int)$this->platform()->execute('SELECT COUNT(*) FROM platform_jobs')->fetchColumn(0),
+        );
+        $backupJobId = $this->platform()->execute(
+            'SELECT platform_job_id FROM platform_database_backups',
+        )->fetchColumn(0);
+        $this->assertSame($jobId, $backupJobId);
+    }
+
     private function service(
         ArraySecretStore $secrets,
         PlatformDatabaseBackupDumperInterface $dumper,
@@ -277,7 +314,7 @@ class PlatformDatabaseBackupServiceTest extends TestCase
     private function storedPath(string $backupId): string
     {
         return $this->backupRoot . DIRECTORY_SEPARATOR . 'objects' . DIRECTORY_SEPARATOR . 'platform'
-            . DIRECTORY_SEPARATOR . $backupId . '.pgdump.enc.json';
+            . DIRECTORY_SEPARATOR . $backupId . '.pgdump.enc';
     }
 
     private function platform(): Connection

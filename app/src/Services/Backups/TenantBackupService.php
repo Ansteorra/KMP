@@ -16,8 +16,9 @@ use Throwable;
 
 class TenantBackupService
 {
-    private const BACKUP_TYPE = 'pg_dump';
-    private const JOB_TYPE = 'tenant_backup';
+    public const BACKUP_TYPE = 'json';
+    public const LEGACY_BACKUP_TYPE = 'kmpbackup_json';
+    public const JOB_TYPE = 'tenant_backup';
 
     public function __construct(
         private readonly Connection $platformConnection,
@@ -28,16 +29,24 @@ class TenantBackupService
     ) {
     }
 
-    public function backupTenant(string $slug, int $retentionDays = 30): TenantBackupResult
-    {
+    public function backupTenant(
+        string $slug,
+        int $retentionDays = 30,
+        ?string $platformJobId = null,
+    ): TenantBackupResult {
         $slug = strtolower(trim($slug));
         $this->assertSafeSlug($slug);
-        $jobId = Text::uuid();
+        if ($retentionDays < 1 || $retentionDays > 365) {
+            throw new RuntimeException('Tenant backup retention must be between 1 and 365 days.');
+        }
+
+        $jobId = $platformJobId ?? Text::uuid();
         $backupId = Text::uuid();
         $now = $this->now();
-        $this->insertJob($jobId, null, $slug, $now);
+        $this->prepareJob($jobId, $slug, $now, $platformJobId !== null);
 
         $rawPath = null;
+        $encryptedPath = null;
         try {
             $tenant = $this->findTenant($slug);
             $kekName = sprintf('tenant.%s.kek', $tenant->slug);
@@ -66,8 +75,8 @@ class TenantBackupService
                 'modified_at' => $startedAt,
             ], ['id' => $backupId]);
 
-            $rawPath = $this->storage->workPath($backupId, '.pgdump');
-            $encryptedPath = $this->storage->workPath($backupId, '.pgdump.enc.json');
+            $rawPath = $this->storage->workPath($backupId, '.json.gz');
+            $encryptedPath = $this->storage->workPath($backupId, '.json.gz.enc');
             $this->dumper->dump($tenant, $dbPassword, $rawPath);
             $encryption = $this->encryptor->encryptFile(
                 $rawPath,
@@ -115,17 +124,34 @@ class TenantBackupService
             ], ['id' => $backupId]);
             throw new RuntimeException($message, 0, $e);
         } finally {
-            if ($rawPath !== null && is_file($rawPath)) {
-                @unlink($rawPath);
+            foreach ([$rawPath, $encryptedPath] as $path) {
+                if ($path !== null && is_file($path)) {
+                    unlink($path);
+                }
             }
         }
     }
 
-    private function insertJob(string $jobId, ?string $tenantId, string $slug, DateTime $now): void
+    private function prepareJob(string $jobId, string $slug, DateTime $now, bool $existing): void
     {
+        if ($existing) {
+            $row = $this->platformConnection->execute(
+                'SELECT job_type, status FROM platform_jobs WHERE id = :id LIMIT 1',
+                ['id' => $jobId],
+            )->fetch('assoc');
+            if (!is_array($row) || (string)$row['job_type'] !== self::JOB_TYPE) {
+                throw new RuntimeException('Tenant backup job context is invalid.');
+            }
+            if (!in_array((string)$row['status'], ['queued', 'running'], true)) {
+                throw new RuntimeException('Tenant backup job is not executable.');
+            }
+
+            return;
+        }
+
         $this->platformConnection->insert('platform_jobs', [
             'id' => $jobId,
-            'tenant_id' => $tenantId,
+            'tenant_id' => null,
             'requested_by_platform_user_id' => null,
             'job_type' => self::JOB_TYPE,
             'status' => 'queued',

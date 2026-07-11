@@ -69,6 +69,9 @@ class BackupRestoreStatusController extends Controller {
         if (!this.validateRestoreForm(form)) {
             return
         }
+        const recoveryKeyInput = this.recoveryKeyFileInput(form)
+        const usesRecoveryKey = recoveryKeyInput instanceof HTMLInputElement
+            && recoveryKeyInput.files.length > 0
 
         const confirmMessage = form.dataset.restoreConfirmMessage || 'Restore this backup and replace all current data?'
         if (confirmMessage && !await window.KMP_accessibility.confirm(confirmMessage, {
@@ -78,22 +81,26 @@ class BackupRestoreStatusController extends Controller {
             return
         }
 
-        const restoreKeyPrompt = form.dataset.restoreKeyPrompt || 'Enter the backup encryption key to continue restore:'
-        const restoreKey = await window.KMP_accessibility.prompt(restoreKeyPrompt, {
-            title: 'Backup encryption key',
-            inputLabel: 'Encryption key',
-            inputType: 'password',
-            required: true,
-            confirmLabel: 'Continue restore',
-        })
-        if (restoreKey === null) {
-            return
-        }
-        if (restoreKey.trim() === '') {
-            window.KMP_accessibility.announce('An encryption key is required to restore this backup.', { assertive: true })
-            return
+        let restoreKey = null
+        if (!usesRecoveryKey) {
+            const restoreKeyPrompt = form.dataset.restoreKeyPrompt || 'Enter the backup encryption key to continue restore:'
+            restoreKey = await window.KMP_accessibility.prompt(restoreKeyPrompt, {
+                title: 'Backup encryption key',
+                inputLabel: 'Encryption key',
+                inputType: 'password',
+                required: true,
+                confirmLabel: 'Continue restore',
+            })
+            if (restoreKey === null) {
+                return
+            }
+            if (restoreKey.trim() === '') {
+                window.KMP_accessibility.announce('An encryption key is required to restore this backup.', { assertive: true })
+                return
+            }
         }
 
+        const credentialLabel = usesRecoveryKey ? 'recovery key' : 'encryption key'
         this.reloadScheduled = false
         this.awaitingFreshRunningState = true
         this.restoreRequestInFlight = true
@@ -101,14 +108,14 @@ class BackupRestoreStatusController extends Controller {
             state: 'running',
             badgeLabel: 'validating',
             badgeClass: 'bg-info',
-            message: 'Validating backup file and encryption key...',
+            message: `Validating backup file and ${credentialLabel}...`,
             details: 'Checking the backup before starting restore.',
             panelClass: 'alert-warning',
             showSpinner: true,
             log: [
                 {
                     timestamp: new Date().toISOString(),
-                    message: 'Validating backup file and encryption key.',
+                    message: `Validating backup file and ${credentialLabel}.`,
                 },
             ],
         })
@@ -119,7 +126,11 @@ class BackupRestoreStatusController extends Controller {
         if (fileInput instanceof HTMLInputElement && fileInput.files.length > 0) {
             formData.set(fileInput.name || 'backup_file', fileInput.files[0])
         }
-        formData.set('restore_key', restoreKey.trim())
+        if (usesRecoveryKey) {
+            formData.set(recoveryKeyInput.name || 'recovery_key_file', recoveryKeyInput.files[0])
+        } else {
+            formData.set('restore_key', restoreKey.trim())
+        }
         try {
             const response = await fetch(form.action, {
                 method: 'POST',
@@ -183,6 +194,27 @@ class BackupRestoreStatusController extends Controller {
             return false
         }
 
+        const recoveryKeyInput = this.recoveryKeyFileInput(form)
+        const selectedFilename = fileInput instanceof HTMLInputElement && fileInput.files.length > 0
+            ? fileInput.files[0].name.toLowerCase()
+            : ''
+        const managedArchiveSelected = selectedFilename.endsWith('.json.gz.enc')
+        if (recoveryKeyInput instanceof HTMLInputElement) {
+            recoveryKeyInput.setCustomValidity('')
+            if (managedArchiveSelected && recoveryKeyInput.files.length === 0) {
+                const message = form.dataset.managedKeyRequiredMessage
+                    || 'Choose the matching recovery-key file for this managed backup archive.'
+                recoveryKeyInput.setCustomValidity(message)
+                if (typeof recoveryKeyInput.reportValidity === 'function') {
+                    recoveryKeyInput.reportValidity()
+                }
+                recoveryKeyInput.focus()
+                window.KMP_accessibility.announce(message, { assertive: true })
+
+                return false
+            }
+        }
+
         if (typeof form.checkValidity === 'function' && !form.checkValidity()) {
             if (typeof form.reportValidity === 'function') {
                 form.reportValidity()
@@ -204,6 +236,20 @@ class BackupRestoreStatusController extends Controller {
         }
 
         const fileInput = form.querySelector('input[type="file"][name="backup_file"]')
+
+        return fileInput instanceof HTMLInputElement ? fileInput : null
+    }
+
+    recoveryKeyFileInput(form) {
+        const fileInputId = form.dataset.recoveryKeyInputId
+        if (fileInputId) {
+            const fileInput = document.getElementById(fileInputId)
+            if (fileInput instanceof HTMLInputElement && fileInput.type === 'file') {
+                return fileInput
+            }
+        }
+
+        const fileInput = form.querySelector('input[type="file"][name="recovery_key_file"]')
 
         return fileInput instanceof HTMLInputElement ? fileInput : null
     }

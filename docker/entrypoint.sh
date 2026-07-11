@@ -124,11 +124,11 @@ if [ "${KMP_SKIP_CRON:-false}" != "true" ]; then
         > "$CRON_FILE" || true
     cat >> "$CRON_FILE" <<'CRON'
 */2 * * * * cd /var/www/html && bin/cake queue run -q >> /var/log/cron.log 2>&1
-* * * * * cd /var/www/html && if [ "${KMP_TENANCY_ENABLED:-false}" = "true" ]; then bin/cake platform schedule run workflow-scheduler; else bin/cake workflow_scheduler; fi >> /var/log/cron.log 2>&1
-*/15 * * * * cd /var/www/html && if [ "${KMP_TENANCY_ENABLED:-false}" = "true" ]; then bin/cake platform schedule run active-window-sync; else bin/cake sync_active_window_statuses; fi >> /var/log/cron.log 2>&1
-10 0 * * * cd /var/www/html && if [ "${KMP_TENANCY_ENABLED:-false}" = "true" ]; then bin/cake platform schedule run member-warrantable-sync; else bin/cake sync_member_warrantable_statuses; fi >> /var/log/cron.log 2>&1
-20 0 * * * cd /var/www/html && if [ "${KMP_TENANCY_ENABLED:-false}" = "true" ]; then bin/cake platform schedule run age-up-members; else bin/cake age_up_members; fi >> /var/log/cron.log 2>&1
-0 3 * * * cd /var/www/html && if [ "${KMP_TENANCY_ENABLED:-false}" = "true" ]; then bin/cake platform schedule run backup-check; else bin/cake backup_check; fi >> /var/log/cron.log 2>&1
+* * * * * cd /var/www/html && if [ "${KMP_TENANCY_ENABLED:-false}" = "true" ]; then bin/cake platform schedule due; else bin/cake workflow_scheduler; fi >> /var/log/cron.log 2>&1
+*/15 * * * * cd /var/www/html && if [ "${KMP_TENANCY_ENABLED:-false}" != "true" ]; then bin/cake sync_active_window_statuses; fi >> /var/log/cron.log 2>&1
+10 0 * * * cd /var/www/html && if [ "${KMP_TENANCY_ENABLED:-false}" != "true" ]; then bin/cake sync_member_warrantable_statuses; fi >> /var/log/cron.log 2>&1
+20 0 * * * cd /var/www/html && if [ "${KMP_TENANCY_ENABLED:-false}" != "true" ]; then bin/cake age_up_members; fi >> /var/log/cron.log 2>&1
+0 3 * * * cd /var/www/html && if [ "${KMP_TENANCY_ENABLED:-false}" != "true" ]; then bin/cake backup_check; fi >> /var/log/cron.log 2>&1
 CRON
     crontab "$CRON_FILE"
     rm -f "$CRON_FILE"

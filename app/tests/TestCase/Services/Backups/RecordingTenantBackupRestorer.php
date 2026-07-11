@@ -10,38 +10,39 @@ use App\Services\Secrets\SensitiveString;
 class RecordingTenantBackupRestorer implements TenantBackupRestorerInterface
 {
     /**
-     * @var list<list<string>>
+     * @var list<array{tenant: string, database: string, backupPath: string}>
      */
-    public array $argvCalls = [];
+    public array $validationCalls = [];
 
     /**
      * @var list<array{tenant: string, passwordLength: int, backupPath: string}>
      */
     public array $restoreCalls = [];
 
-    public function buildArgv(TenantMetadata $targetTenant, string $backupPath): array
+    public function validate(TenantMetadata $targetTenant, string $backupPath): void
     {
-        $argv = [
-            'fake-pg-restore',
-            '--host',
-            $targetTenant->dbServer,
-            '--username',
-            $targetTenant->dbRole,
-            '--dbname',
-            $targetTenant->dbName,
-            $backupPath,
+        $this->validationCalls[] = [
+            'tenant' => $targetTenant->slug,
+            'database' => $targetTenant->dbName,
+            'backupPath' => $backupPath,
         ];
-        $this->argvCalls[] = $argv;
-
-        return $argv;
     }
 
-    public function restore(TenantMetadata $targetTenant, SensitiveString $databasePassword, string $backupPath): void
-    {
+    public function restore(
+        TenantMetadata $targetTenant,
+        SensitiveString $databasePassword,
+        string $backupPath,
+        ?callable $progressReporter = null,
+    ): array {
         $this->restoreCalls[] = [
             'tenant' => $targetTenant->slug,
             'passwordLength' => $databasePassword->length(),
             'backupPath' => $backupPath,
         ];
+        if ($progressReporter !== null) {
+            $progressReporter(['phase' => 'completed']);
+        }
+
+        return ['table_count' => 1, 'row_count' => 1];
     }
 }

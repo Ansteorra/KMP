@@ -130,6 +130,18 @@ const getPostgresConfig = () => parsePostgresUrl(getEnvValue('DATABASE_URL')) ??
     database: getEnvValue('DB_DATABASE', 'POSTGRES_DB') || 'KMP_DEV',
 };
 
+const getPlatformPostgresConfig = () => {
+    const application = getPostgresConfig();
+
+    return parsePostgresUrl(getEnvValue('PLATFORM_DATABASE_URL')) ?? {
+        host: getEnvValue('PLATFORM_DB_HOST') || application.host,
+        port: getEnvValue('PLATFORM_DB_PORT') || application.port,
+        user: getEnvValue('PLATFORM_DB_USERNAME') || application.user,
+        password: getEnvValue('PLATFORM_DB_PASSWORD') || application.password,
+        database: getEnvValue('PLATFORM_DB_DATABASE') || `${application.database}_platform`,
+    };
+};
+
 /**
  * Name of the running Docker container hosting the Cake app (for `docker exec`).
  */
@@ -242,6 +254,7 @@ module.exports = {
     getAppContainerName,
     getDbContainerName,
     getMailpitApiUrl,
+    getPlatformPostgresConfig,
     getPostgresConfig,
     getTenantContextOptions,
     getUiTestEnvironment,

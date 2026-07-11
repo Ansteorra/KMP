@@ -11,8 +11,13 @@ use RuntimeException;
 
 class TenantBackupEncryptor
 {
-    public const DATA_ALGORITHM = 'AES-256-GCM';
+    public const DATA_ALGORITHM = BackupStreamCipher::ALGORITHM;
+    public const LEGACY_DATA_ALGORITHM = 'AES-256-GCM';
     private const WRAP_ALGORITHM = 'AES-256-GCM';
+
+    public function __construct(private readonly ?BackupStreamCipher $streamCipher = null)
+    {
+    }
 
     public function encryptFile(
         string $inputPath,
@@ -23,73 +28,30 @@ class TenantBackupEncryptor
         string $kekName,
         string $kekVersion,
     ): TenantBackupEncryptionResult {
-        if (!is_file($inputPath)) {
-            throw new RuntimeException('Plaintext backup file is missing.');
-        }
-        $plaintext = file_get_contents($inputPath);
-        if ($plaintext === false) {
-            throw new RuntimeException('Unable to read plaintext backup file.');
-        }
-
-        $dek = random_bytes(32);
-        $dataIv = random_bytes(12);
-        $dataTag = '';
+        $dek = random_bytes(SODIUM_CRYPTO_SECRETSTREAM_XCHACHA20POLY1305_KEYBYTES);
         $aad = $this->aad($tenant, $backupId);
-        $ciphertext = openssl_encrypt(
-            $plaintext,
-            self::DATA_ALGORITHM,
-            $dek,
-            OPENSSL_RAW_DATA,
-            $dataIv,
-            $dataTag,
-            $aad,
-        );
-        if ($ciphertext === false) {
-            throw new RuntimeException('Unable to encrypt backup bytes.');
+        try {
+            ($this->streamCipher ?? new BackupStreamCipher())->encryptFile(
+                $inputPath,
+                $outputPath,
+                $dek,
+                $aad,
+                [
+                    'scope' => 'tenant',
+                    'tenant_id' => $tenant->id,
+                    'backup_id' => $backupId,
+                ],
+            );
+            [$wrappedDek, $metadata] = $this->wrapDek($dek, $aad, $kek, $kekName, $kekVersion);
+        } finally {
+            sodium_memzero($dek);
         }
-
-        $wrapIv = random_bytes(12);
-        $wrapTag = '';
-        $wrappedDekBytes = openssl_encrypt(
-            $dek,
-            self::WRAP_ALGORITHM,
-            $this->normalizeKek($kek),
-            OPENSSL_RAW_DATA,
-            $wrapIv,
-            $wrapTag,
-            $aad,
-        );
-        if ($wrappedDekBytes === false) {
-            throw new RuntimeException('Unable to wrap backup data-encryption key.');
-        }
-
-        $payload = [
-            'version' => 1,
-            'algorithm' => self::DATA_ALGORITHM,
-            'tenant_id' => $tenant->id,
-            'backup_id' => $backupId,
-            'iv' => base64_encode($dataIv),
-            'tag' => base64_encode($dataTag),
-            'ciphertext' => base64_encode($ciphertext),
-        ];
-        $json = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
-        if (file_put_contents($outputPath, $json, LOCK_EX) === false) {
-            throw new RuntimeException('Unable to write encrypted backup file.');
-        }
-        @chmod($outputPath, 0660);
 
         return new TenantBackupEncryptionResult(
             $outputPath,
             self::DATA_ALGORITHM,
-            base64_encode($wrappedDekBytes),
-            [
-                'wrap_algorithm' => self::WRAP_ALGORITHM,
-                'wrap_iv' => base64_encode($wrapIv),
-                'wrap_tag' => base64_encode($wrapTag),
-                'aad' => base64_encode($aad),
-                'kek_name' => $kekName,
-                'kek_version' => $kekVersion,
-            ],
+            $wrappedDek,
+            $metadata,
         );
     }
 
@@ -104,13 +66,128 @@ class TenantBackupEncryptor
         array $wrappedDekMetadata,
         SensitiveString $kek,
     ): string {
-        $payload = json_decode((string)file_get_contents($encryptedPath), true, 512, JSON_THROW_ON_ERROR);
-        if (!is_array($payload)) {
-            throw new RuntimeException('Encrypted backup payload is invalid.');
+        $outputPath = tempnam(sys_get_temp_dir(), 'kmp-decrypt-');
+        if ($outputPath === false) {
+            throw new RuntimeException('Unable to create backup decryption test file.');
         }
-        $aad = base64_decode((string)$wrappedDekMetadata['aad'], true);
-        $wrapIv = base64_decode((string)$wrappedDekMetadata['wrap_iv'], true);
-        $wrapTag = base64_decode((string)$wrappedDekMetadata['wrap_tag'], true);
+        try {
+            $this->decryptFile($encryptedPath, $outputPath, $wrappedDek, $wrappedDekMetadata, $kek);
+            $plaintext = file_get_contents($outputPath);
+            if ($plaintext === false) {
+                throw new RuntimeException('Unable to read decrypted backup test file.');
+            }
+
+            return $plaintext;
+        } finally {
+            if (is_file($outputPath)) {
+                @unlink($outputPath);
+            }
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $wrappedDekMetadata
+     */
+    public function decryptFile(
+        string $encryptedPath,
+        string $outputPath,
+        string $wrappedDek,
+        array $wrappedDekMetadata,
+        SensitiveString $kek,
+    ): void {
+        [$dek, $aad] = $this->unwrapDek($wrappedDek, $wrappedDekMetadata, $kek);
+        try {
+            $aadParts = explode('|', $aad);
+            if (count($aadParts) !== 3) {
+                throw new RuntimeException('Tenant backup authenticated metadata is invalid.');
+            }
+            $streamed = ($this->streamCipher ?? new BackupStreamCipher())->decryptFile(
+                $encryptedPath,
+                $outputPath,
+                $dek,
+                $aad,
+                [
+                    'scope' => 'tenant',
+                    'tenant_id' => $aadParts[0],
+                    'backup_id' => $aadParts[2],
+                ],
+            );
+            if (!$streamed) {
+                $this->decryptLegacyFile($encryptedPath, $outputPath, $dek, $aad);
+            }
+        } finally {
+            sodium_memzero($dek);
+        }
+    }
+
+    /**
+     * Unwrap the data key for one backup without exposing the reusable tenant KEK.
+     *
+     * @param array<string, mixed> $wrappedDekMetadata Key wrapping metadata
+     */
+    public function exportDataEncryptionKey(
+        string $wrappedDek,
+        array $wrappedDekMetadata,
+        SensitiveString $kek,
+        TenantMetadata $tenant,
+        string $backupId,
+    ): SensitiveString {
+        [$dek, $aad] = $this->unwrapDek($wrappedDek, $wrappedDekMetadata, $kek);
+        if (!hash_equals($this->aad($tenant, $backupId), $aad)) {
+            sodium_memzero($dek);
+            throw new RuntimeException('Tenant backup key metadata does not match the selected backup.');
+        }
+
+        return new SensitiveString($dek);
+    }
+
+    /**
+     * @return array{0: string, 1: array<string, string>}
+     */
+    private function wrapDek(
+        string $dek,
+        string $aad,
+        SensitiveString $kek,
+        string $kekName,
+        string $kekVersion,
+    ): array {
+        $wrapIv = random_bytes(12);
+        $wrapTag = '';
+        $wrappedDek = openssl_encrypt(
+            $dek,
+            self::WRAP_ALGORITHM,
+            $this->normalizeKek($kek),
+            OPENSSL_RAW_DATA,
+            $wrapIv,
+            $wrapTag,
+            $aad,
+        );
+        if ($wrappedDek === false) {
+            throw new RuntimeException('Unable to wrap backup data-encryption key.');
+        }
+
+        return [
+            base64_encode($wrappedDek),
+            [
+                'wrap_algorithm' => self::WRAP_ALGORITHM,
+                'wrap_iv' => base64_encode($wrapIv),
+                'wrap_tag' => base64_encode($wrapTag),
+                'aad' => base64_encode($aad),
+                'kek_name' => $kekName,
+                'kek_version' => $kekVersion,
+            ],
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $metadata
+     * @return array{0: string, 1: string}
+     */
+    private function unwrapDek(string $wrappedDek, array $metadata, SensitiveString $kek): array
+    {
+        $aad = base64_decode((string)($metadata['aad'] ?? ''), true);
+        $wrapIv = base64_decode((string)($metadata['wrap_iv'] ?? ''), true);
+        $wrapTag = base64_decode((string)($metadata['wrap_tag'] ?? ''), true);
         $wrappedDekBytes = base64_decode($wrappedDek, true);
         if ($aad === false || $wrapIv === false || $wrapTag === false || $wrappedDekBytes === false) {
             throw new RuntimeException('Wrapped DEK metadata is invalid.');
@@ -127,16 +204,29 @@ class TenantBackupEncryptor
         if ($dek === false) {
             throw new RuntimeException('Unable to unwrap backup data-encryption key.');
         }
+        if (strlen($dek) !== SODIUM_CRYPTO_SECRETSTREAM_XCHACHA20POLY1305_KEYBYTES) {
+            sodium_memzero($dek);
+            throw new RuntimeException('Unwrapped backup data-encryption key has an invalid length.');
+        }
 
-        $iv = base64_decode((string)$payload['iv'], true);
-        $tag = base64_decode((string)$payload['tag'], true);
-        $ciphertext = base64_decode((string)$payload['ciphertext'], true);
+        return [$dek, $aad];
+    }
+
+    private function decryptLegacyFile(string $encryptedPath, string $outputPath, string $dek, string $aad): void
+    {
+        $payload = json_decode((string)file_get_contents($encryptedPath), true, 512, JSON_THROW_ON_ERROR);
+        if (!is_array($payload) || (int)($payload['version'] ?? 0) !== 1) {
+            throw new RuntimeException('Encrypted backup payload is invalid.');
+        }
+        $iv = base64_decode((string)($payload['iv'] ?? ''), true);
+        $tag = base64_decode((string)($payload['tag'] ?? ''), true);
+        $ciphertext = base64_decode((string)($payload['ciphertext'] ?? ''), true);
         if ($iv === false || $tag === false || $ciphertext === false) {
             throw new RuntimeException('Encrypted backup payload is malformed.');
         }
         $plaintext = openssl_decrypt(
             $ciphertext,
-            self::DATA_ALGORITHM,
+            self::LEGACY_DATA_ALGORITHM,
             $dek,
             OPENSSL_RAW_DATA,
             $iv,
@@ -146,30 +236,10 @@ class TenantBackupEncryptor
         if ($plaintext === false) {
             throw new RuntimeException('Unable to decrypt backup bytes.');
         }
-
-        return $plaintext;
-    }
-
-    /**
-     * Decrypt an encrypted backup payload into a plaintext pg_dump file.
-     *
-     * @param array<string, mixed> $wrappedDekMetadata Wrapped DEK metadata
-     */
-    public function decryptFile(
-        string $encryptedPath,
-        string $outputPath,
-        string $wrappedDek,
-        array $wrappedDekMetadata,
-        SensitiveString $kek,
-    ): void {
-        if ($outputPath === '' || str_contains($outputPath, "\0")) {
-            throw new RuntimeException('Unsafe decrypted backup output path.');
-        }
-        $plaintext = $this->decryptFileForTest($encryptedPath, $wrappedDek, $wrappedDekMetadata, $kek);
         if (file_put_contents($outputPath, $plaintext, LOCK_EX) === false) {
             throw new RuntimeException('Unable to write decrypted backup file.');
         }
-        @chmod($outputPath, 0660);
+        @chmod($outputPath, 0600);
     }
 
     private function normalizeKek(SensitiveString $kek): string

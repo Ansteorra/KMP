@@ -59,6 +59,15 @@ class RunCommand extends Command {
 			'default' => null,
 			'short' => 'r',
 		]);
+		$parser->addOption('max-jobs', [
+			'help' => 'Maximum jobs to attempt before exiting (zero is unlimited)',
+			'default' => '0',
+		]);
+		$parser->addOption('exit-when-empty', [
+			'help' => 'Exit as soon as no due job is available',
+			'boolean' => true,
+			'default' => false,
+		]);
 
 		$parser->addOption('group', [
 			'short' => 'g',

@@ -88,6 +88,23 @@ class TenantRestoreDrillServiceTest extends TestCase
         $this->assertSame('alpha', $result->tenantSlug);
     }
 
+    public function testLegacyPgDumpBackupRemainsEligibleForRestoreDrills(): void
+    {
+        $tenantId = $this->insertTenant('alpha');
+        $backupId = $this->insertBackup(
+            $tenantId,
+            'alpha-legacy',
+            'completed',
+            DateTime::now('UTC')->subHours(1),
+            'pg_dump',
+        );
+        $service = new TenantRestoreDrillService($this->platform(), new RecordingRestoreDrillVerifier());
+
+        $result = $service->planRecentDrill('alpha', 24);
+
+        $this->assertSame($backupId, $result->backupId);
+    }
+
     public function testNoSuccessfulBackupRecordsClearFailedDrillJob(): void
     {
         $tenantId = $this->insertTenant('alpha');
@@ -207,16 +224,22 @@ class TenantRestoreDrillServiceTest extends TestCase
         return $id;
     }
 
-    private function insertBackup(string $tenantId, string $label, string $status, DateTime $completedAt): string
-    {
+    private function insertBackup(
+        string $tenantId,
+        string $label,
+        string $status,
+        DateTime $completedAt,
+        string $backupType = 'json',
+    ): string {
         $id = Text::uuid();
+        $extension = $backupType === 'json' ? '.json.gz.enc' : '.pgdump.enc';
         $this->platform()->insert('tenant_backups', [
             'id' => $id,
             'tenant_id' => $tenantId,
             'platform_job_id' => null,
-            'backup_type' => 'pg_dump',
+            'backup_type' => $backupType,
             'status' => $status,
-            'object_uri' => 'local://' . $label . '/' . $id . '.pgdump.enc.json',
+            'object_uri' => 'local://' . $label . '/' . $id . $extension,
             'object_size_bytes' => 100,
             'object_sha256' => str_repeat('a', 64),
             'encryption_algorithm' => 'aes-256-gcm+x25519-wrap',

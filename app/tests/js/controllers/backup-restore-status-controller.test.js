@@ -328,6 +328,105 @@ describe('BackupRestoreStatusController', () => {
         );
     });
 
+    test('submitRestore requires a recovery key for a managed archive', async () => {
+        const archive = new File(['archive'], 'tenant-backup.json.gz.enc', { type: 'application/octet-stream' });
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.id = 'managed-backup-file-input';
+        Object.defineProperty(fileInput, 'files', {
+            value: [archive],
+            configurable: true,
+        });
+        document.body.appendChild(fileInput);
+
+        const recoveryKeyInput = document.createElement('input');
+        recoveryKeyInput.type = 'file';
+        recoveryKeyInput.id = 'managed-recovery-key-input';
+        Object.defineProperty(recoveryKeyInput, 'files', {
+            value: [],
+            configurable: true,
+        });
+        recoveryKeyInput.focus = jest.fn();
+        recoveryKeyInput.reportValidity = jest.fn(() => false);
+        document.body.appendChild(recoveryKeyInput);
+
+        const form = document.createElement('form');
+        form.dataset.fileInputId = fileInput.id;
+        form.dataset.recoveryKeyInputId = recoveryKeyInput.id;
+        form.dataset.managedKeyRequiredMessage = 'Choose the matching recovery key.';
+        document.body.appendChild(form);
+        global.fetch = jest.fn();
+
+        await controller.submitRestore({
+            preventDefault: jest.fn(),
+            currentTarget: form,
+        });
+
+        expect(recoveryKeyInput.reportValidity).toHaveBeenCalled();
+        expect(recoveryKeyInput.focus).toHaveBeenCalled();
+        expect(window.KMP_accessibility.announce).toHaveBeenCalledWith(
+            'Choose the matching recovery key.',
+            { assertive: true }
+        );
+        expect(window.KMP_accessibility.confirm).not.toHaveBeenCalled();
+        expect(window.KMP_accessibility.prompt).not.toHaveBeenCalled();
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    test('submitRestore sends a managed archive and recovery key without prompting for a passphrase', async () => {
+        const archive = new File(['archive'], 'tenant-backup.json.gz.enc', { type: 'application/octet-stream' });
+        const recoveryKey = new File(['{"format":"key"}'], 'tenant-backup.kmpbackup-key.json', {
+            type: 'application/json',
+        });
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.id = 'managed-backup-file-input';
+        fileInput.name = 'backup_file';
+        Object.defineProperty(fileInput, 'files', {
+            value: [archive],
+            configurable: true,
+        });
+        document.body.appendChild(fileInput);
+
+        const recoveryKeyInput = document.createElement('input');
+        recoveryKeyInput.type = 'file';
+        recoveryKeyInput.id = 'managed-recovery-key-input';
+        recoveryKeyInput.name = 'recovery_key_file';
+        Object.defineProperty(recoveryKeyInput, 'files', {
+            value: [recoveryKey],
+            configurable: true,
+        });
+        document.body.appendChild(recoveryKeyInput);
+
+        const form = document.createElement('form');
+        form.action = '/backups/restore';
+        form.dataset.restoreConfirmMessage = '';
+        form.dataset.fileInputId = fileInput.id;
+        form.dataset.recoveryKeyInputId = recoveryKeyInput.id;
+        document.body.appendChild(form);
+
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: true,
+            text: () => Promise.resolve(JSON.stringify({
+                success: true,
+                message: 'Restore queued.',
+            })),
+        });
+        jest.spyOn(controller, 'pollStatus').mockResolvedValue(undefined);
+        controller.modalInstance = mockModalInstance;
+
+        await controller.submitRestore({
+            preventDefault: jest.fn(),
+            currentTarget: form,
+        });
+
+        const requestBody = global.fetch.mock.calls[0][1].body;
+        expect(requestBody.get('backup_file')).toBe(archive);
+        expect(requestBody.get('recovery_key_file')).toBe(recoveryKey);
+        expect(requestBody.has('restore_key')).toBe(false);
+        expect(window.KMP_accessibility.prompt).not.toHaveBeenCalled();
+    });
+
     test('submitRestore displays server preflight errors and announces them', async () => {
         const form = document.createElement('form');
         form.action = '/backups/restore';

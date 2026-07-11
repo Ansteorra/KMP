@@ -9,14 +9,16 @@ use App\KMP\TenantMetadata;
 use App\Services\Platform\PlatformScheduleRunner;
 use App\Services\Secrets\SecretStoreInterface;
 use Cake\Database\Connection;
+use Cake\Database\Driver\Postgres;
 use Cake\I18n\DateTime;
+use Cake\Log\Log;
 use Cake\Utility\Text;
 use RuntimeException;
 use Throwable;
 
 class TenantRestoreService
 {
-    private const JOB_TYPE = 'tenant_restore';
+    public const JOB_TYPE = 'tenant_restore';
     public const MODE_SAME_TENANT = 'same-tenant';
     public const MODE_CROSS_TENANT = 'cross-tenant';
 
@@ -25,7 +27,8 @@ class TenantRestoreService
         private readonly SecretStoreInterface $secretStore,
         private readonly TenantBackupStorageInterface $storage,
         private readonly TenantBackupEncryptor $encryptor,
-        private readonly TenantBackupRestorerInterface $restorer,
+        private readonly TenantBackupRestorerInterface $jsonRestorer,
+        private readonly ?TenantBackupRestorerInterface $legacyPgDumpRestorer = null,
     ) {
     }
 
@@ -35,6 +38,7 @@ class TenantRestoreService
         ?string $targetTenantSlug,
         bool $confirmDestructive,
         bool $dryRun = false,
+        ?string $platformJobId = null,
     ): TenantRestoreResult {
         $backupId = strtolower(trim($backupId));
         $mode = strtolower(trim($mode));
@@ -54,11 +58,20 @@ class TenantRestoreService
             throw new RuntimeException('Restore requires --confirm-destructive.');
         }
 
-        $jobId = Text::uuid();
+        $jobId = $platformJobId === null ? Text::uuid() : null;
         $encryptedPath = null;
         $plainPath = null;
+        $archiveLocked = false;
 
         try {
+            if ($platformJobId !== null) {
+                $this->assertExistingJob($platformJobId);
+                $jobId = $platformJobId;
+            }
+            if ($jobId === null) {
+                throw new RuntimeException('Restore job identifier was not initialized.');
+            }
+            $archiveLocked = $this->lockBackupArchive($backupId);
             $backup = $this->findCompletedBackup($backupId);
             $sourceTenant = $this->findTenantById((string)$backup['tenant_id']);
             $targetTenant = $mode === self::MODE_SAME_TENANT
@@ -71,9 +84,17 @@ class TenantRestoreService
             $this->assertSafeTenantDatabase($targetTenant, 'target');
             $this->assertCompleteBackup($backup);
             $this->assertObjectUriMatchesSource((string)$backup['object_uri'], $sourceTenant);
-            $this->restorer->buildArgv($targetTenant, $this->storage->workPath($backupId, '.restore-plan.pgdump'));
+            $restorer = $this->restorerFor($backup);
 
-            $this->insertJob($jobId, $targetTenant, $sourceTenant, $backupId, $mode, $dryRun, 'queued');
+            if ($platformJobId === null) {
+                $this->insertJob($jobId, $targetTenant, $sourceTenant, $backupId, $mode, $dryRun, 'queued');
+            } else {
+                $this->platformConnection->update(
+                    'platform_jobs',
+                    ['tenant_id' => $targetTenant->id, 'modified_at' => $this->now()],
+                    ['id' => $jobId],
+                );
+            }
             $kek = $this->secretStore->get((string)$backup['wrapped_dek_key_name']);
             if ($kek === null || $kek->isEmpty()) {
                 throw new RuntimeException('Missing backup KEK secret for tenant restore.');
@@ -93,8 +114,15 @@ class TenantRestoreService
                 'modified_at' => $startedAt,
             ], ['id' => $jobId]);
 
-            $encryptedPath = $this->storage->workPath($backupId, '.restore.pgdump.enc.json');
-            $plainPath = $this->storage->workPath($backupId, '.restore.pgdump');
+            $jsonBackup = (string)$backup['backup_type'] === TenantBackupService::BACKUP_TYPE;
+            $encryptedPath = $this->storage->workPath(
+                $backupId,
+                $jsonBackup ? '.restore.json.gz.enc' : '.restore.pgdump.enc',
+            );
+            $plainPath = $this->storage->workPath(
+                $backupId,
+                $jsonBackup ? '.restore.json.gz' : '.restore.pgdump',
+            );
             $stored = $this->storage->retrieve((string)$backup['object_uri'], $encryptedPath);
             if ((string)$backup['object_sha256'] !== '' && $stored->sha256 !== (string)$backup['object_sha256']) {
                 throw new RuntimeException('Stored tenant backup checksum does not match metadata.');
@@ -110,8 +138,17 @@ class TenantRestoreService
                 $metadata,
                 $kek,
             );
+            $restorer->validate($targetTenant, $plainPath);
             if (!$dryRun) {
-                $this->restorer->restore($targetTenant, $dbPassword, $plainPath);
+                $this->assertTenantStillSuspended($targetTenant->id);
+                $restorer->restore(
+                    $targetTenant,
+                    $dbPassword,
+                    $plainPath,
+                    function (array $progress) use ($jobId): void {
+                        $this->heartbeat($jobId, $progress);
+                    },
+                );
             }
             $finishedAt = $this->now();
             $status = $dryRun ? 'planned' : 'completed';
@@ -131,13 +168,18 @@ class TenantRestoreService
                 $dryRun,
             );
         } catch (Throwable $e) {
-            $this->markJobFailed($jobId, $e);
+            if ($jobId !== null) {
+                $this->markJobFailed($jobId, $e);
+            }
             throw new RuntimeException($this->scrubError($e->getMessage()), 0, $e);
         } finally {
             foreach ([$plainPath, $encryptedPath] as $path) {
                 if ($path !== null && is_file($path)) {
-                    @unlink($path);
+                    unlink($path);
                 }
+            }
+            if ($archiveLocked) {
+                $this->unlockBackupArchive($backupId);
             }
         }
     }
@@ -159,6 +201,31 @@ class TenantRestoreService
         }
 
         return $row;
+    }
+
+    private function lockBackupArchive(string $backupId): bool
+    {
+        if (!$this->platformConnection->getDriver() instanceof Postgres) {
+            return false;
+        }
+        $this->platformConnection->execute(
+            'SELECT pg_advisory_lock(hashtext(:scope))',
+            ['scope' => sprintf('backup-archive:%s', $backupId)],
+        );
+
+        return true;
+    }
+
+    private function unlockBackupArchive(string $backupId): void
+    {
+        try {
+            $this->platformConnection->execute(
+                'SELECT pg_advisory_unlock(hashtext(:scope))',
+                ['scope' => sprintf('backup-archive:%s', $backupId)],
+            );
+        } catch (Throwable $exception) {
+            Log::error(sprintf('Tenant restore archive unlock failed for %s: %s', $backupId, $exception::class));
+        }
     }
 
     private function findTenantById(string $tenantId): TenantMetadata
@@ -189,6 +256,17 @@ class TenantRestoreService
         return TenantMetadata::fromPlatformRow($row);
     }
 
+    private function assertTenantStillSuspended(string $tenantId): void
+    {
+        $status = $this->platformConnection->execute(
+            'SELECT status FROM tenants WHERE id = :tenantId LIMIT 1',
+            ['tenantId' => $tenantId],
+        )->fetchColumn(0);
+        if ($status !== 'suspended') {
+            throw new RuntimeException('Target tenant must remain suspended during a destructive restore.');
+        }
+    }
+
     /**
      * @param array<string, mixed> $backup Backup metadata row
      */
@@ -199,12 +277,48 @@ class TenantRestoreService
                 throw new RuntimeException(sprintf('Tenant backup metadata is incomplete: missing %s.', $field));
             }
         }
-        if ((string)$backup['backup_type'] !== 'pg_dump') {
+        if (!in_array((string)$backup['backup_type'], [TenantBackupService::BACKUP_TYPE, 'pg_dump'], true)) {
             throw new RuntimeException('Unsupported tenant backup type for restore.');
         }
-        if ((string)$backup['encryption_algorithm'] !== TenantBackupEncryptor::DATA_ALGORITHM) {
+        if (
+            !in_array(
+                (string)$backup['encryption_algorithm'],
+                [TenantBackupEncryptor::DATA_ALGORITHM, TenantBackupEncryptor::LEGACY_DATA_ALGORITHM],
+                true,
+            )
+        ) {
             throw new RuntimeException('Unsupported tenant backup encryption algorithm.');
         }
+    }
+
+    /**
+     * Select the logical JSON restorer while retaining compatibility with
+     * encrypted pg_dump archives created before the managed format changed.
+     *
+     * @param array<string, mixed> $backup
+     */
+    private function restorerFor(array $backup): TenantBackupRestorerInterface
+    {
+        if ((string)$backup['backup_type'] === TenantBackupService::BACKUP_TYPE) {
+            return $this->jsonRestorer;
+        }
+        if ((string)$backup['backup_type'] === 'pg_dump' && $this->legacyPgDumpRestorer !== null) {
+            return $this->legacyPgDumpRestorer;
+        }
+
+        throw new RuntimeException('No restorer is available for this tenant backup type.');
+    }
+
+    /**
+     * Keep long logical restores fresh in fleet-health monitoring.
+     *
+     * @param array<string, mixed> $progress
+     */
+    private function heartbeat(string $jobId, array $progress): void
+    {
+        $this->platformConnection->update('platform_jobs', [
+            'modified_at' => $this->now(),
+        ], ['id' => $jobId]);
     }
 
     private function assertObjectUriMatchesSource(string $objectUri, TenantMetadata $sourceTenant): void
@@ -212,6 +326,24 @@ class TenantRestoreService
         $expectedLocalPrefix = 'local://' . $sourceTenant->slug . '/';
         if (str_starts_with($objectUri, 'local://') && !str_starts_with($objectUri, $expectedLocalPrefix)) {
             throw new RuntimeException('Tenant backup object URI does not match source tenant.');
+        }
+        $expectedConfiguredPrefix = 'backup://tenants/' . $sourceTenant->slug . '/';
+        if (str_starts_with($objectUri, 'backup://') && !str_starts_with($objectUri, $expectedConfiguredPrefix)) {
+            throw new RuntimeException('Tenant backup object URI does not match source tenant.');
+        }
+    }
+
+    private function assertExistingJob(string $jobId): void
+    {
+        $row = $this->platformConnection->execute(
+            'SELECT job_type, status FROM platform_jobs WHERE id = :id LIMIT 1',
+            ['id' => $jobId],
+        )->fetch('assoc');
+        if (!is_array($row) || (string)$row['job_type'] !== self::JOB_TYPE) {
+            throw new RuntimeException('Tenant restore job context is invalid.');
+        }
+        if (!in_array((string)$row['status'], ['queued', 'running'], true)) {
+            throw new RuntimeException('Tenant restore job is not executable.');
         }
     }
 
@@ -229,6 +361,7 @@ class TenantRestoreService
             'backup_id' => $backupId,
             'mode' => $mode,
             'dry_run' => $dryRun,
+            'tenant_slug' => $targetTenant->slug,
             'source_tenant_id' => $sourceTenant->id,
             'source_tenant_slug' => $sourceTenant->slug,
             'target_tenant_id' => $targetTenant->id,

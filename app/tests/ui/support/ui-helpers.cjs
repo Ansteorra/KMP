@@ -6,6 +6,7 @@ const {
     getUiTestEnvironment,
     getAppContainerName,
     getDbContainerName,
+    getPlatformPostgresConfig,
     getPostgresConfig,
     shouldUseDockerPhp,
     APP_ROOT,
@@ -130,12 +131,12 @@ const runPhpJson = (script, payload = {}, { timeoutMs = 60000 } = {}) => {
  * assertions and queue-settle polling, not application writes.
  *
  * @param {string} sql
- * @param {{ timeoutMs?: number }} [options]
+ * @param {{ timeoutMs?: number, postgres?: object }} [options]
  * @returns {string} Trimmed psql output (`-t -A`, so bare values).
  */
-const dbQuery = (sql, { timeoutMs = 20000 } = {}) => {
+const dbQuery = (sql, { timeoutMs = 20000, postgres = getPostgresConfig() } = {}) => {
     const useDocker = shouldUseDockerPhp();
-    const pg = getPostgresConfig();
+    const pg = postgres;
     const file = useDocker ? 'docker' : 'psql';
     const psqlArgs = ['-U', pg.user, '-d', pg.database, '-t', '-A', '-c', sql];
     const args = useDocker
@@ -149,6 +150,27 @@ const dbQuery = (sql, { timeoutMs = 20000 } = {}) => {
         timeout: timeoutMs,
         encoding: 'utf8',
     }).trim();
+};
+
+const queuePostgresConfig = (tenantSlug = null) => {
+    if (!tenantSlug) {
+        return getPostgresConfig();
+    }
+    if (!/^[a-z0-9][a-z0-9-]{0,62}$/.test(tenantSlug)) {
+        throw new Error(`Invalid tenant slug for queue lookup: ${tenantSlug}`);
+    }
+
+    const platform = getPlatformPostgresConfig();
+    const escapedSlug = tenantSlug.replace(/'/g, "''");
+    const database = dbQuery(
+        `SELECT db_name FROM tenants WHERE slug = '${escapedSlug}' AND status = 'active' LIMIT 1;`,
+        { postgres: platform },
+    );
+    if (!/^[A-Za-z0-9_-]+$/.test(database)) {
+        throw new Error(`No active tenant queue database found for slug "${tenantSlug}".`);
+    }
+
+    return { ...platform, database };
 };
 
 const clearActivityAuthorizationFixtures = () => {
@@ -199,11 +221,14 @@ const clearActivityAuthorizationFixtures = () => {
 /**
  * Count queue jobs that are pending (enqueued, due now, not yet completed/failed-out).
  *
+ * @param {{ tenantSlug?: string|null }} [options]
  * @returns {number}
  */
-const countPendingQueueJobs = () => {
+const countPendingQueueJobs = ({ tenantSlug = null } = {}) => {
+    const postgres = queuePostgresConfig(tenantSlug);
     const raw = dbQuery(
         "SELECT count(*) FROM queued_jobs WHERE completed IS NULL AND (notbefore IS NULL OR notbefore <= now());",
+        { postgres },
     ).trim();
     if (!/^\d+$/.test(raw)) {
         throw new Error(`countPendingQueueJobs got non-numeric output: ${JSON.stringify(raw).substring(0, 200)}`);
@@ -211,19 +236,25 @@ const countPendingQueueJobs = () => {
     return Number.parseInt(raw, 10);
 };
 
-const drainPendingQueueJobs = () => {
-    if (countPendingQueueJobs() === 0) {
+const drainPendingQueueJobs = ({ tenantSlug = null } = {}) => {
+    if (countPendingQueueJobs({ tenantSlug }) === 0) {
         return;
     }
 
     try {
-        runCakeCommand(['queue', 'run', '-q'], {
-            env: {
-                QUEUE_EXIT_WHEN_NOTHING_TO_DO: '1',
-                QUEUE_MAX_WORKERS: '10',
-            },
-            timeoutMs: 120000,
-        });
+        if (tenantSlug) {
+            runCakeCommand(['platform', 'schedule', 'run', 'tenant-queue-drain', '-q'], {
+                timeoutMs: 120000,
+            });
+        } else {
+            runCakeCommand(['queue', 'run', '-q'], {
+                env: {
+                    QUEUE_EXIT_WHEN_NOTHING_TO_DO: '1',
+                    QUEUE_MAX_WORKERS: '10',
+                },
+                timeoutMs: 120000,
+            });
+        }
     } catch (error) {
         const message = error?.message || String(error);
         if (/Too many workers (running|already)/.test(message)) {
@@ -233,7 +264,11 @@ const drainPendingQueueJobs = () => {
     }
 };
 
-const waitForQueueSettledSync = ({ timeoutMs = 45000, pollMs = 1000 } = {}) => {
+const waitForQueueSettledSync = ({
+    timeoutMs = 45000,
+    pollMs = 1000,
+    tenantSlug = null,
+} = {}) => {
     const startedAt = Date.now();
     let consecutiveEmpty = 0;
     let lastPending = -1;
@@ -241,11 +276,11 @@ const waitForQueueSettledSync = ({ timeoutMs = 45000, pollMs = 1000 } = {}) => {
 
     while (Date.now() - startedAt < timeoutMs) {
         try {
-            lastPending = countPendingQueueJobs();
+            lastPending = countPendingQueueJobs({ tenantSlug });
             lastError = null;
             if (lastPending > 0) {
-                drainPendingQueueJobs();
-                lastPending = countPendingQueueJobs();
+                drainPendingQueueJobs({ tenantSlug });
+                lastPending = countPendingQueueJobs({ tenantSlug });
             }
         } catch (error) {
             lastPending = -1;
@@ -271,6 +306,7 @@ const waitForQueueSettledSync = ({ timeoutMs = 45000, pollMs = 1000 } = {}) => {
         try {
             const rows = dbQuery(
                 "SELECT id, job_task, attempts, failure_message FROM queued_jobs WHERE completed IS NULL ORDER BY created DESC LIMIT 10;",
+                { postgres: queuePostgresConfig(tenantSlug) },
             );
             diagnostics += `\nUncompleted jobs:\n${rows}`;
         } catch (error) {
@@ -293,10 +329,15 @@ const waitForQueueSettledSync = ({ timeoutMs = 45000, pollMs = 1000 } = {}) => {
  * a "no email" negative assertion into a false pass. Pass `throwOnTimeout: false` only
  * for best-effort, non-asserting callers.
  *
- * @param {{ timeoutMs?: number, pollMs?: number, throwOnTimeout?: boolean }} [options]
+ * @param {{ timeoutMs?: number, pollMs?: number, throwOnTimeout?: boolean, tenantSlug?: string|null }} [options]
  * @returns {Promise<boolean>} true if settled; false only when throwOnTimeout is false.
  */
-const waitForQueueSettled = async ({ timeoutMs = 45000, pollMs = 1000, throwOnTimeout = true } = {}) => {
+const waitForQueueSettled = async ({
+    timeoutMs = 45000,
+    pollMs = 1000,
+    throwOnTimeout = true,
+    tenantSlug = null,
+} = {}) => {
     const startedAt = Date.now();
     let consecutiveEmpty = 0;
     let lastPending = -1;
@@ -304,11 +345,11 @@ const waitForQueueSettled = async ({ timeoutMs = 45000, pollMs = 1000, throwOnTi
 
     while (Date.now() - startedAt < timeoutMs) {
         try {
-            lastPending = countPendingQueueJobs();
+            lastPending = countPendingQueueJobs({ tenantSlug });
             lastError = null;
             if (lastPending > 0) {
-                drainPendingQueueJobs();
-                lastPending = countPendingQueueJobs();
+                drainPendingQueueJobs({ tenantSlug });
+                lastPending = countPendingQueueJobs({ tenantSlug });
             }
         } catch (error) {
             lastPending = -1;
@@ -334,6 +375,7 @@ const waitForQueueSettled = async ({ timeoutMs = 45000, pollMs = 1000, throwOnTi
         try {
             const rows = dbQuery(
                 "SELECT id, job_task, attempts, failure_message FROM queued_jobs WHERE completed IS NULL ORDER BY created DESC LIMIT 10;",
+                { postgres: queuePostgresConfig(tenantSlug) },
             );
             diagnostics += `\nUncompleted jobs:\n${rows}`;
         } catch (error) {
@@ -427,9 +469,9 @@ const runCakeCommand = (cakeArgs, { env = {}, timeoutMs = 60000 } = {}) => {
  * When `forceScheduler` is set we dispatch time-based scheduled workflows now via
  * `workflow_scheduler --force` (fast, ~1s); the worker then drains anything it enqueued.
  *
- * @param {{ forceScheduler?: boolean }} [options]
+ * @param {{ forceScheduler?: boolean, tenantSlug?: string|null }} [options]
  */
-const flushWorkflowsAndQueue = ({ forceScheduler = false } = {}) => {
+const flushWorkflowsAndQueue = ({ forceScheduler = false, tenantSlug = null } = {}) => {
     if (forceScheduler) {
         // Deterministic test helper: a scheduler failure must surface, not be swallowed,
         // or scheduled workflows could silently never enqueue and turn negative email
@@ -437,7 +479,7 @@ const flushWorkflowsAndQueue = ({ forceScheduler = false } = {}) => {
         runCakeCommand(['workflow_scheduler', '--force', '-q'], { timeoutMs: 30000 });
     }
 
-    waitForQueueSettledSync();
+    waitForQueueSettledSync({ tenantSlug });
 };
 
 /**

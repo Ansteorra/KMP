@@ -3,9 +3,7 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Services\Backups;
 
-use App\KMP\TenantMetadata;
 use App\Services\Backups\LocalTenantBackupStorage;
-use App\Services\Backups\PgDumpTenantBackupDumper;
 use App\Services\Backups\TenantBackupDumperInterface;
 use App\Services\Backups\TenantBackupEncryptor;
 use App\Services\Backups\TenantBackupService;
@@ -73,7 +71,7 @@ class TenantBackupServiceTest extends TestCase
         $this->assertSame($tenantId, $job['tenant_id']);
         $backup = $this->platform()->execute('SELECT * FROM tenant_backups')->fetch('assoc');
         $this->assertSame('completed', $backup['status']);
-        $this->assertSame('pg_dump', $backup['backup_type']);
+        $this->assertSame(TenantBackupService::BACKUP_TYPE, $backup['backup_type']);
         $this->assertSame($result->objectUri, $backup['object_uri']);
         $this->assertNotEmpty($backup['object_sha256']);
         $this->assertSame(TenantBackupEncryptor::DATA_ALGORITHM, $backup['encryption_algorithm']);
@@ -91,20 +89,6 @@ class TenantBackupServiceTest extends TestCase
             new SensitiveString('backup-kek'),
         );
         $this->assertSame($plaintext, $decrypted);
-    }
-
-    public function testPgDumpArgvRejectsUnsafeIdentifierAndNeverIncludesPassword(): void
-    {
-        $tenant = new TenantMetadata(Text::uuid(), 'demo', 'Demo', 'active', 'db.example.test', 'demo;rm', 'demo_role');
-        $dumper = new PgDumpTenantBackupDumper();
-
-        try {
-            $dumper->dump($tenant, new SensitiveString('super-secret-password'), $this->backupRoot . '/unsafe.dump');
-            $this->fail('Expected unsafe identifier to be rejected.');
-        } catch (RuntimeException $e) {
-            $this->assertStringContainsString('Unsafe tenant database name', $e->getMessage());
-            $this->assertStringNotContainsString('super-secret-password', $e->getMessage());
-        }
     }
 
     public function testUnsafeTenantSlugFailsBeforeMetadataUsesIt(): void
@@ -166,6 +150,47 @@ class TenantBackupServiceTest extends TestCase
         $this->assertSame('failed', $job['status']);
         $this->assertSame('failed', $backup['status']);
         $this->assertSame('Missing backup KEK secret for tenant "demo".', $job['last_error']);
+    }
+
+    public function testBackupReusesQueuedPortalJob(): void
+    {
+        $tenantId = $this->insertTenant('demo', 'demo_db');
+        $jobId = Text::uuid();
+        $this->platform()->insert('platform_jobs', [
+            'id' => $jobId,
+            'tenant_id' => $tenantId,
+            'requested_by_platform_user_id' => 'platform-admin-1',
+            'job_type' => TenantBackupService::JOB_TYPE,
+            'status' => 'queued',
+            'idempotency_key' => 'portal-backup',
+            'parameters' => '{"tenant_slug":"demo"}',
+            'log_uri' => null,
+            'last_error' => null,
+            'created_at' => '2026-07-10 00:00:00',
+            'started_at' => null,
+            'finished_at' => null,
+            'modified_at' => null,
+        ]);
+        $service = $this->service(
+            new ArraySecretStore([
+                'tenant.demo.db.password' => 'db-password',
+                'tenant.demo.kek' => 'backup-kek',
+            ]),
+            new FakeTenantBackupDumper('portal backup'),
+            new TenantBackupEncryptor(),
+        );
+
+        $result = $service->backupTenant('demo', 7, $jobId);
+
+        $this->assertSame($jobId, $result->jobId);
+        $this->assertSame(
+            1,
+            (int)$this->platform()->execute('SELECT COUNT(*) FROM platform_jobs')->fetchColumn(0),
+        );
+        $backupJobId = $this->platform()->execute(
+            'SELECT platform_job_id FROM tenant_backups',
+        )->fetchColumn(0);
+        $this->assertSame($jobId, $backupJobId);
     }
 
     private function service(
@@ -259,7 +284,7 @@ class TenantBackupServiceTest extends TestCase
     private function storedPath(string $slug, string $backupId): string
     {
         return $this->backupRoot . DIRECTORY_SEPARATOR . 'objects' . DIRECTORY_SEPARATOR . $slug
-            . DIRECTORY_SEPARATOR . $backupId . '.pgdump.enc.json';
+            . DIRECTORY_SEPARATOR . $backupId . '.json.gz.enc';
     }
 
     private function platform(): Connection

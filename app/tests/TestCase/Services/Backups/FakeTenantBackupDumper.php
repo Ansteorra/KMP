@@ -21,6 +21,6 @@ class FakeTenantBackupDumper implements TenantBackupDumperInterface
     ): TenantBackupDumpResult {
         file_put_contents($outputPath, $this->plaintext, LOCK_EX);
 
-        return new TenantBackupDumpResult($outputPath, strlen($this->plaintext), ['fake-pg-dump']);
+        return new TenantBackupDumpResult($outputPath, strlen($this->plaintext), ['fake-json-export']);
     }
 }

@@ -74,7 +74,7 @@ Every app image release is:
 - [Managed Platform Data Protection Templates](data-protection-agreement-template.md)
 - [Configuration Reference](configuration.md)
 - [Two-Tenant Staging POC](multi-tenant-poc.md)
-- [Platform Admin v2 and Tenant Trust Surface](platform-admin-v2-trust-surface.md)
+- [Platform Operations and Tenant Trust Surface](platform-admin-v2-trust-surface.md)
 - [Managed Platform Published Trust Documentation Index](trust-docs-index.md)
 - [Managed Platform Launch Readiness Gate](launch-readiness-gate.md)
 - [Managed Platform Penetration Test Scope and Evidence Checklist](penetration-test-scope-checklist.md)

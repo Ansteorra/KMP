@@ -26,13 +26,100 @@ This creates a compressed database dump and stores it locally. The output includ
 
 Platform operators use `/platform-admin/backups` for platform database backups
 and each tenant's **Backups** page under `/platform-admin/tenants/<slug>/backups`
-for tenant-scoped platform operations. These actions use the same encrypted
-JSON `.kmpbackup` archive model as the tenant Backups UI and enqueue audited
-`platform_jobs` instead of running long backup work in the web request.
+for tenant-scoped platform operations. These actions enqueue audited
+`platform_database_backup`, `tenant_backup`, and `tenant_restore` jobs instead
+of running long database work in the web request.
 
-Backup requests capture the target scope, archive format, retention days, and an
-idempotency key. Secret values, object URIs, wrapped keys, and raw job errors are
-not rendered in Platform Admin.
+Managed tenant and platform-metadata backups intentionally use different
+formats:
+
+- Tenant backups use KMP's versioned JSON logical engine. Each archive contains
+  a schema manifest, migration fingerprint, and application table rows while
+  excluding transient queue, session, and backup rows. The JSON is
+  gzip-compressed and stored as an authenticated `.json.gz.enc` stream.
+- Platform metadata backups remain PostgreSQL custom-format dumps stored as
+  authenticated `.pgdump.enc` streams for external disaster recovery.
+
+Both formats use a per-backup data key wrapped by the platform or tenant KEK.
+Object size and SHA-256 are verified on download and before restore. Legacy
+managed tenant `pg_dump` archives remain restorable, but all new tenant backups
+use JSON. Secret values, object URIs, wrapped keys, and raw job errors are not
+rendered in Platform Admin.
+
+Before enabling backups, reconcile encryption keys without printing their
+values:
+
+```bash
+cd app
+bin/cake platform backup-keys ensure
+```
+
+The command creates `platform.backup.kek` and missing `tenant.<slug>.kek`
+entries in the configured writable secret store. It is idempotent and skips
+archived tenants.
+
+### Portable per-backup recovery keys
+
+Platform Admin provides a separate **Download recovery key** action beside each
+current-format tenant or platform archive. This is an intentional two-file
+workflow rather than a combined download:
+
+- The `.kmpbackup-key.json` file contains the raw data-encryption key for one
+  backup, encoded for portability. It does **not** contain
+  `tenant.<slug>.kek`, `platform.backup.kek`, or any other reusable KEK.
+- The package is bound to the backup ID, tenant ID and slug when applicable,
+  archive type, encryption algorithm, byte size, and SHA-256. KMP rejects a
+  different archive or tenant even if both files are otherwise readable.
+- Export requires typed confirmation (`DOWNLOAD KEY <tenant>` or
+  `DOWNLOAD KEY platform`), an operator reason, current TOTP, and a successful
+  immutable audit event. The response is marked `no-store`.
+- The original KEK must still be available when the recovery key is exported.
+  Export and escrow the pair while the platform is healthy; it cannot be
+  reconstructed after both the KEK and wrapped backup key are lost.
+
+Treat the recovery-key file as high-sensitivity secret material. Download the
+archive and key separately, place them in separate access-controlled recovery
+locations, verify custody, and remove browser/download-folder copies. Never put
+the key file in source control, tickets, chat, ordinary document storage, or the
+same unprotected location as its archive.
+
+#### Restore a managed archive from a tenant
+
+The tenant **Backups** page at `/backups` accepts both backup families:
+
+1. For a tenant-created `.kmpbackup`, select the archive and enter its existing
+   passphrase when prompted.
+2. For a Platform Admin `.json.gz.enc` archive, select the archive and its
+   matching `.kmpbackup-key.json` file. KMP skips the passphrase prompt, verifies
+   the active tenant and archive identity, decrypts the managed stream, and
+   stages the normal queued tenant restore.
+3. Confirm the destructive restore and monitor the restore progress surface.
+
+Recovery-key import does not weaken restore authorization or locking. The
+operator must already have tenant backup-restore permission, and the existing
+restore lock, queue, schema validation, and destructive restore behavior still
+apply.
+
+#### Decrypt a platform archive for external disaster recovery
+
+Platform database restoration remains outside the serving web process. On a
+secured recovery host with the encrypted archive and its separately escrowed
+key, create a new plaintext PostgreSQL custom-format dump:
+
+```bash
+cd app
+bin/cake platform backup decrypt \
+  --archive /secure/input/platform-<backup-id>.pgdump.enc \
+  --recovery-key /separate/escrow/platform-<backup-id>.kmpbackup-key.json \
+  --output /secure/work/platform-<backup-id>.pgdump \
+  --confirm WRITE-PLAINTEXT-PLATFORM-BACKUP
+```
+
+The command verifies the package/archive pairing, refuses to overwrite an
+existing output, and writes the plaintext dump with owner-only permissions.
+Inspect it with `pg_restore --list`, restore it through the approved external
+platform-database runbook, then dispose of the plaintext copy according to the
+incident's evidence-retention requirements.
 
 ### Using the VPC Backup Script
 
@@ -128,19 +215,36 @@ gunzip -c backup.sql.gz | docker compose exec -T db mysql -u root -p"$MYSQL_ROOT
 
 ### Managed Platform restore/download guardrails
 
-Platform Admin destructive and sensitive backup actions are guarded before they
-run:
+Platform Admin destructive and sensitive backup actions are guarded before they run:
 
-- Only completed `kmpbackup_json` records with safe `.kmpbackup` object names
-  can be restored or downloaded.
+- Tenant actions accept completed, retained JSON records with scoped
+  `.json.gz.enc` objects and compatible legacy `pg_dump` records with scoped
+  `.pgdump.enc` or `.pgdump.enc.json` objects.
+- Platform metadata downloads accept only completed, retained `pg_dump`
+  records with scoped `.pgdump.enc` objects.
 - Download requires typed confirmation (`DOWNLOAD <tenant>` or
   `DOWNLOAD platform`), a reason, TOTP step-up, and an audit event before the
   encrypted archive is streamed.
-- Restore requires typed confirmation (`RESTORE <tenant>` or
-  `RESTORE platform`), a reason, TOTP step-up, and an audited restore job.
-- Tenant restore requires the tenant to be suspended first.
-- The portal streams encrypted `.kmpbackup` archives only; it never exposes
-  decrypted database dumps.
+- Recovery-key export is a separate guarded action requiring
+  `DOWNLOAD KEY <tenant>` or `DOWNLOAD KEY platform`, a reason, TOTP step-up,
+  and an audit event before the no-store response is returned.
+- Manual archive deletion requires `DELETE BACKUP <tenant>` or
+  `DELETE BACKUP platform`, an operator reason, and TOTP step-up. The encrypted
+  object is removed, while non-sensitive operational metadata is retained with
+  `status = deleted` and the action is written to the platform audit chain.
+- Tenant restore requires typed confirmation (`RESTORE <tenant>`), a reason,
+  TOTP step-up, and an audited restore job.
+- Tenant restore requires the tenant to be suspended through the guarded
+  lifecycle control first. Queueing and execution recheck that state under the
+  same tenant operation lock; reactivation waits until the destructive restore
+  finishes. Reactivate it only after restore verification.
+- Platform database restore is intentionally not executed by the serving web
+  process. Use the external disaster-recovery runbook to replace the platform
+  metadata database.
+- The portal streams only the encrypted `.json.gz.enc` or `.pgdump.enc`
+  archive appropriate to the record. A recovery-key download contains only that
+  archive's data key; the portal never exposes a decrypted payload or reusable
+  tenant/platform KEK.
 
 If a restore must be executed outside the portal, use the corresponding
 break-glass CLI/runbook path and record the same reason, actor, tenant/platform
@@ -148,8 +252,23 @@ scope, and backup ID in the platform audit log.
 
 ## What's Included in a Backup
 
-- Full database dump (all tables, data, and schema)
-- Backup metadata (timestamp, KMP version, database version)
+Managed tenant JSON archives include:
+
+- Versioned format metadata and creation time
+- Application table schema and rows
+- Core and plugin migration fingerprints and migration-log rows
+- Empty schema definitions for transient queue, session, and backup tables
+
+Rows from `queued_jobs`, `queue_processes`, `sessions`, and `backups` are
+intentionally excluded so transient runtime state and session tokens do not
+cross environments. Managed platform metadata archives remain full PostgreSQL
+custom-format dumps.
+
+The current JSON engine materializes the logical payload and compressed archive
+in worker memory during export and restore. Size worker memory for the largest
+tenant, monitor peak memory and job duration during onboarding, and require a
+successful tenant-scoped restore drill before approving large tenants. Do not
+assume the JSON path is bounded-memory.
 
 **Not included**: uploaded documents (if using local storage). For complete disaster recovery, also back up:
 - The `images/uploaded/` directory (local storage), or verify cloud storage replication (Azure/S3)
@@ -168,7 +287,40 @@ Managed multi-tenant regional failover is covered in the [Managed Platform Regio
 
 ## Backup Retention
 
-Manage backup retention manually or via cron:
+Managed-platform retention runs from the `backup-retention` platform schedule
+and can be invoked safely on demand:
+
+```bash
+cd app
+bin/cake platform backups prune --limit 500
+```
+
+Expired objects are deleted from configured storage. Their non-sensitive
+metadata remains with `status = expired`; failed object deletions retain the URI
+for a later retry and make the command fail. Retention uses the same archive
+lock and active-restore rejection as manual deletion, records a fail-closed
+expiration intent before touching storage, and routes current `backup://`,
+historical `local://`, and legacy `.kmpbackup` records through their owning
+storage adapters. Interrupted finalization remains `expiring` and is retried by
+the next retention run.
+
+Operators can remove a superseded archive before retention expiry from the
+Platform Admin backup screen. Download, recovery-key, restore, and delete
+approvals open in a shared modal so backup rows remain compact without weakening
+the typed confirmation, reason, TOTP, or audit requirements.
+
+Deletion records a fail-closed audit intent before touching storage and is
+rejected while a queued or running restore references the archive. Successful
+deletion retains the backup checksum, size, retention history, failure
+diagnostics, and audit records while clearing only the stored object reference.
+
+Legacy `kmpbackup_json` records remain available for guarded download and
+deletion. They do not expose a portable recovery-key export or a managed
+Platform Admin restore action; restore those `.kmpbackup` files through the
+legacy tenant restore workflow with the original application backup key before
+removing the archive.
+
+For archived self-hosted installations, manage retention manually or via cron:
 
 ```bash
 # Keep only the last 30 days of local backups
@@ -243,6 +395,7 @@ bin/cake tenant restore_drill \
 ### Acceptance criteria
 
 - A recent `tenant_backups.status = completed` backup is selected and recorded in `platform_jobs.parameters`.
-- Default runs finish with status `planned` and do not execute `pg_restore`.
+- Default runs finish with status `planned`, verify decryption, JSON structure,
+  and target connectivity, and do not mutate tenant schema or data.
 - No completed backup in the lookback window creates a failed drill job with a clear, redacted error.
 - Command output and stored errors must not include passwords, tokens, wrapped DEKs, or raw secret material.

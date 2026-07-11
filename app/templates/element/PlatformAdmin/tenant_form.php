@@ -9,14 +9,6 @@ declare(strict_types=1);
  * @var array<string, string> $formData
  * @var bool $isEdit
  */
-$statusOptions = [
-    'provisioning' => __('Provisioning'),
-    'suspended' => __('Suspended'),
-    'archived' => __('Archived'),
-];
-if (($tenantForm['status'] ?? '') === 'active') {
-    $statusOptions = ['active' => __('Active')] + $statusOptions;
-}
 ?>
 <section class="card mb-4" aria-labelledby="tenant-registry-heading">
     <div class="card-body">
@@ -38,13 +30,13 @@ if (($tenantForm['status'] ?? '') === 'active') {
             </div>
             <div class="col-12 col-lg-2">
                 <?php if ($isEdit) : ?>
-                    <?= $this->Form->control('status', [
-                        'type' => 'select',
-                        'label' => __('Status'),
-                        'value' => $tenantForm['status'],
-                        'options' => $statusOptions,
-                        'help' => __('Activation is set by the provisioning worker after migrations complete.'),
-                    ]) ?>
+                    <div class="form-group">
+                        <label class="form-label"><?= __('Status') ?></label>
+                        <p class="form-control-plaintext mb-0"><?= h(ucfirst($tenantForm['status'])) ?></p>
+                        <div class="form-text">
+                            <?= __('Use the guarded lifecycle controls on the tenant detail page to change status.') ?>
+                        </div>
+                    </div>
                 <?php else : ?>
                     <?= $this->Form->hidden('status', ['value' => 'provisioning']) ?>
                     <div class="form-group">
@@ -155,6 +147,7 @@ if (($tenantForm['status'] ?? '') === 'active') {
                     'type' => 'select',
                     'label' => __('Email mode'),
                     'value' => $formData['email_mode'],
+                    'disabled' => $isEdit ? [] : ['disabled'],
                     'options' => [
                         'default' => __('Platform default'),
                         'disabled' => __('Disabled'),
@@ -163,6 +156,9 @@ if (($tenantForm['status'] ?? '') === 'active') {
                         'sendgrid' => __('SendGrid'),
                         'resend' => __('Resend'),
                     ],
+                    'help' => $isEdit
+                        ? null
+                        : __('New tenants require email delivery so the initial super user can claim access.'),
                 ]) ?>
             </div>
             <div class="col-12 col-lg-4">

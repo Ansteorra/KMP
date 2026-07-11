@@ -4,8 +4,10 @@ declare(strict_types=1);
 namespace App\Queue\Task;
 
 use App\Command\UpdateDatabaseCommand;
+use App\KMP\TenantContext;
 use App\Services\BackupRestoreRunnerService;
 use App\Services\RestoreStatusService;
+use App\Services\TenantConnectionManager;
 use Cake\Command\Command;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOutput;
@@ -63,12 +65,19 @@ class BackupRestoreTask extends Task
                          */
                         private $callback;
 
+                        /**
+                         * @param callable(string):void $callback Output callback
+                         */
                         public function __construct(callable $callback)
                         {
                             $this->callback = $callback;
-                            parent::__construct('php://memory');
+                            parent::__construct('php://stdout');
                         }
 
+                        /**
+                         * @param string $message Console output
+                         * @return int Bytes written
+                         */
                         protected function _write(string $message): int
                         {
                             ($this->callback)($message);
@@ -78,7 +87,7 @@ class BackupRestoreTask extends Task
                     };
                     $io = new ConsoleIo($output, $output);
                     $io->setInteractive(false);
-                    $exitCode = (new UpdateDatabaseCommand())->run([], $io);
+                    $exitCode = (new UpdateDatabaseCommand())->run($this->migrationCommandArgs(), $io);
                     if ($exitCode !== null && $exitCode !== Command::CODE_SUCCESS) {
                         $this->resetDefaultConnectionAfterMigrationFailure();
                         throw new RuntimeException('Database migrations failed during restore; see restore log.');
@@ -92,6 +101,9 @@ class BackupRestoreTask extends Task
         }
     }
 
+    /**
+     * Roll back and disconnect a tenant connection left dirty by migrations.
+     */
     private function resetDefaultConnectionAfterMigrationFailure(): void
     {
         $connection = ConnectionManager::get('default');
@@ -108,5 +120,19 @@ class BackupRestoreTask extends Task
         } catch (Throwable $e) {
             Log::warning('Unable to disconnect failed restore migration connection: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Use the durable tenant connection instead of the temporary default alias.
+     *
+     * @return list<string>
+     */
+    private function migrationCommandArgs(): array
+    {
+        $connection = TenantContext::tryCurrent() === null
+            ? 'default'
+            : TenantConnectionManager::CONNECTION_ALIAS;
+
+        return ['--connection', $connection, '--no-lock'];
     }
 }

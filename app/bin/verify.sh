@@ -94,9 +94,11 @@ run_check() {
 
 # 1. PHPUnit
 run_check "PHPUnit Tests" '
-    vendor/bin/phpunit --colors=always --testsuite core-unit &&
-    vendor/bin/phpunit --colors=always --testsuite core-feature &&
-    vendor/bin/phpunit --colors=always --testsuite plugins
+    # The Xdebug 512-frame nesting guard can abort Cake integration suites after
+    # hundreds of requests even when the same suite passes in production PHP.
+    XDEBUG_MODE=off vendor/bin/phpunit --colors=always --testsuite core-unit &&
+    XDEBUG_MODE=off vendor/bin/phpunit --colors=always --testsuite core-feature &&
+    XDEBUG_MODE=off vendor/bin/phpunit --colors=always --testsuite plugins
 '
 
 # 2. Skipped-test budget
@@ -111,14 +113,33 @@ run_check "Vite Build" 'npm run dev 2>&1 | tail -10; test "${PIPESTATUS[0]}" -eq
 # 5. PHPCS (pre-existing violations are baselined — only check files we've changed)
 run_check "PHPCS Code Style" '
     # Check only staged/modified files for PHPCS violations
-    CHANGED_PHP=$(cd "$APP_DIR/.." && git diff --name-only --diff-filter=ACMR HEAD -- "app/src/**/*.php" "app/plugins/**/*.php" "app/tests/**/*.php" 2>/dev/null | sed "s|^app/||")
+    ALL_CHANGED_PHP=$(
+        cd "$APP_DIR/.." &&
+        {
+            git diff --name-only --diff-filter=ACMR HEAD -- app/src app/plugins app/tests app/config/PlatformMigrations
+            git ls-files --others --exclude-standard -- app/src app/plugins app/tests app/config/PlatformMigrations
+        } 2>/dev/null |
+            grep "\.php$" |
+            sort -u |
+            sed "s|^app/||"
+    )
+    CHANGED_PHP=$(echo "$ALL_CHANGED_PHP" | grep -v "^plugins/Queue/" || true)
+    CHANGED_QUEUE_PHP=$(echo "$ALL_CHANGED_PHP" | grep "^plugins/Queue/" || true)
     if [ -z "$CHANGED_PHP" ]; then
         echo "No changed PHP files to check"
-        exit 0
+    else
+        echo "Checking changed files: $CHANGED_PHP"
+        echo "$CHANGED_PHP" | xargs vendor/bin/phpcs --colors 2>&1
+        test "${PIPESTATUS[0]}" -eq 0 || exit 1
     fi
-    echo "Checking changed files: $CHANGED_PHP"
-    echo "$CHANGED_PHP" | xargs vendor/bin/phpcs --colors 2>&1
-    test "${PIPESTATUS[0]}" -eq 0
+    if [ -n "$CHANGED_QUEUE_PHP" ]; then
+        # Queue is an embedded upstream plugin with its own PSR2R standard, which is
+        # intentionally not installed into the application dependency graph.
+        echo "Syntax checking changed Queue plugin files: $CHANGED_QUEUE_PHP"
+        while IFS= read -r file; do
+            php -l "$file" >/dev/null || exit 1
+        done <<< "$CHANGED_QUEUE_PHP"
+    fi
 '
 
 # 6. PHPStan Static Analysis (with known baseline errors)

@@ -19,6 +19,7 @@ use Cake\Database\Driver\Sqlite;
 use Cake\Datasource\ConnectionManager;
 use Cake\TestSuite\TestCase;
 use Cake\Utility\Text;
+use ReflectionMethod;
 use RuntimeException;
 
 class TenantMigrateCommandTest extends TestCase
@@ -218,6 +219,17 @@ class TenantMigrateCommandTest extends TestCase
         $this->assertSame(0, (int)$count);
     }
 
+    public function testRuntimeMigrationsDisableSchemaLockWrites(): void
+    {
+        $method = new ReflectionMethod(TenantMigrateCommand::class, 'migrationCommandArgs');
+        $arguments = $method->invoke(new TenantMigrateCommand(), []);
+
+        $this->assertSame(
+            ['migrate', '--connection', 'tenant', '--no-lock'],
+            $arguments,
+        );
+    }
+
     public function testPreMigrationMarkerRunsBeforeMigrationRunner(): void
     {
         $this->insertTenant('alpha', 'active', '20260516000000');
@@ -363,7 +375,7 @@ class TenantMigrateCommandTest extends TestCase
             'backup' => [
                 'backup_id' => 'backup-123',
                 'backup_job_id' => 'job-123',
-                'object_uri' => 'local://tenant/alpha/backup-123.pgdump.enc.json',
+                'object_uri' => 'local://tenant/alpha/backup-123.json.gz.enc',
             ],
             'password' => 'super-secret-password',
             'nested' => ['token' => 'abc123'],
@@ -452,7 +464,7 @@ class TenantMigrateCommandTest extends TestCase
                     'backup' => [
                         'backup_id' => 'backup-alpha',
                         'backup_job_id' => 'backup-job-alpha',
-                        'object_uri' => 'local://tenant/alpha/backup-alpha.pgdump.enc.json',
+                        'object_uri' => 'local://tenant/alpha/backup-alpha.json.gz.enc',
                         'tag' => 'pre-migrate-latest',
                     ],
                 ], $this->metadata);

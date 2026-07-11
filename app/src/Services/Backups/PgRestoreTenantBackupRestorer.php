@@ -11,6 +11,14 @@ use RuntimeException;
 
 class PgRestoreTenantBackupRestorer implements TenantBackupRestorerInterface
 {
+    public function validate(TenantMetadata $targetTenant, string $backupPath): void
+    {
+        $this->buildArgv($targetTenant, $backupPath);
+    }
+
+    /**
+     * @return list<string>
+     */
     public function buildArgv(TenantMetadata $targetTenant, string $backupPath): array
     {
         $this->assertSafeHost($targetTenant->dbServer);
@@ -34,8 +42,12 @@ class PgRestoreTenantBackupRestorer implements TenantBackupRestorerInterface
         ];
     }
 
-    public function restore(TenantMetadata $targetTenant, SensitiveString $databasePassword, string $backupPath): void
-    {
+    public function restore(
+        TenantMetadata $targetTenant,
+        SensitiveString $databasePassword,
+        string $backupPath,
+        ?callable $progressReporter = null,
+    ): array {
         if (!is_file($backupPath)) {
             throw new RuntimeException('Decrypted tenant backup file is missing.');
         }
@@ -66,6 +78,8 @@ class PgRestoreTenantBackupRestorer implements TenantBackupRestorerInterface
                 $this->redactProcessOutput((string)$stderr . "\n" . (string)$stdout),
             ));
         }
+
+        return [];
     }
 
     private function assertSafeIdentifier(string $identifier, string $label): void
