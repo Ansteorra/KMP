@@ -103,7 +103,6 @@ tenants. In single-database/legacy cron mode, the equivalent commands are:
 - `bin/cake sync_active_window_statuses` every 15 minutes
 - `bin/cake sync_member_warrantable_statuses` daily
 - `bin/cake age_up_members` daily
-- `bin/cake backup_check` daily, when enabled by app settings
 
 ### Troubleshooting Container Startup
 

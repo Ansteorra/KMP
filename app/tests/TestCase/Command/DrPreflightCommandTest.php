@@ -153,6 +153,9 @@ class DrPreflightCommandTest extends TestCase
                 object_uri TEXT,
                 completed_at TEXT,
                 created_at TEXT
+            ,
+                recovery_key_exported_at TEXT NULL,
+                recovery_key_exported_by TEXT NULL
             )',
         );
         $connection->execute(

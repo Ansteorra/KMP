@@ -4,23 +4,56 @@ Protect your KMP data with automated and on-demand backups.
 
 [← Back to Deployment Guide](README.md)
 
-## Quick Reference
+## Ownership Model
 
-| Command | Description |
-|---------|-------------|
-| `kmp backup` | Create a backup now |
-| `kmp restore <id>` | Restore from a specific backup |
-| `kmp backup --list` | List available backups |
+Backups are a **platform responsibility** in the hosted SaaS model. One system
+— the managed backup system — creates, schedules, retains, and restores
+backups. The delineation:
+
+| Concern | Owner | Where |
+|---------|-------|-------|
+| Scheduling (cadence) | Platform | Global backup policy + `tenant-backup-fleet` platform schedule |
+| Storage destination | Platform | Configured backup storage (`BackupStorageFactory`) |
+| Retention | Platform | Global backup policy → `retention_until` + `backup-retention` schedule |
+| Restore (same-tenant and cross-tenant) | Platform admins only | Platform Admin guarded restore flow |
+| Legacy `.kmpbackup` import | Platform admins only | Platform Admin **Import Legacy Backup** |
+| On-demand backup request | Tenant admins (`Can Manage Backups`) and platform admins | Tenant `/backups` page; Platform Admin tenant backups page |
+| Download archive + one-time recovery key | Tenant admins (`Can Manage Backups`) and platform admins | Tenant `/backups` page; Platform Admin |
+| Backup status visibility | Tenant admins (read-only) | Tenant `/backups` page |
+
+The **global backup policy** (cadence `daily`/`weekly` + retention days) is
+edited on the Platform Admin **Backups** page. It drives the fleet schedule's
+cron, the default retention for every new backup, and the fleet-health
+staleness thresholds (warning after one cadence window, critical after three).
+
+Tenants no longer schedule their own backups, manage encryption keys, or run
+restores. The legacy `Backup.schedule` / `Backup.retentionDays` app settings
+and the `backup_check` command are removed.
 
 ## Creating Backups
 
-### Using the Management Tool
+### Scheduled fleet backups
+
+The `tenant-backup-fleet` platform schedule runs `tenant_backups_enqueue`
+daily (or weekly, per policy). For each active tenant whose latest completed
+backup is older than the policy cadence, it enqueues an audited managed
+`tenant_backup` job; the `platform-admin-job-runner` schedule executes it.
+Runs are idempotent per tenant per day, and a tenant with another lifecycle
+operation in flight is skipped and retried on the next run.
 
 ```bash
-kmp backup
+# Manual sweep (same thing the schedule runs)
+cd app
+bin/cake tenant_backups_enqueue
 ```
 
-This creates a compressed database dump and stores it locally. The output includes a backup ID for use with `kmp restore`.
+### On-demand tenant backups
+
+Tenant admins with the **Can Manage Backups** permission can request a backup
+from the tenant **Backups** page (`/backups`). The request enqueues the same
+managed job (rate-limited to one per hour) — there is no separate tenant
+backup format or key. The page also shows read-only backup status: latest
+completed backup, effective cadence, and retention.
 
 ### Managed Platform Admin
 
@@ -83,22 +116,39 @@ locations, verify custody, and remove browser/download-folder copies. Never put
 the key file in source control, tickets, chat, ordinary document storage, or the
 same unprotected location as its archive.
 
-#### Restore a managed archive from a tenant
+#### Tenant downloads: two-file model with one-time keys
 
-The tenant **Backups** page at `/backups` accepts both backup families:
+Tenant admins download the encrypted `.json.gz.enc` archive and its
+`.kmpbackup-key.json` recovery key as two separate files from `/backups`.
+The recovery key can be exported **once per backup** from the tenant surface;
+a repeat attempt is refused and directs the tenant to a platform
+administrator (Platform Admin exports remain step-up-guarded and audited, and
+record who exported first). Store the two files in separate protected
+locations.
 
-1. For a tenant-created `.kmpbackup`, select the archive and enter its existing
-   passphrase when prompted.
-2. For a Platform Admin `.json.gz.enc` archive, select the archive and its
-   matching `.kmpbackup-key.json` file. KMP skips the passphrase prompt, verifies
-   the active tenant and archive identity, decrypts the managed stream, and
-   stages the normal queued tenant restore.
-3. Confirm the destructive restore and monitor the restore progress surface.
+#### Restores are platform-only
 
-Recovery-key import does not weaken restore authorization or locking. The
-operator must already have tenant backup-restore permission, and the existing
-restore lock, queue, schema validation, and destructive restore behavior still
-apply.
+Tenants cannot run restores. All tenant restores — same-tenant, cross-tenant,
+and legacy imports — go through Platform Admin:
+
+1. **Same-tenant restore**: suspend the tenant, open its Backups page, and
+   queue the guarded destructive restore (`RESTORE <slug>` + reason + TOTP).
+2. **Cross-tenant restore**: in the same restore modal, pick a different
+   *suspended* target tenant. The typed confirmation becomes
+   `RESTORE <target-slug>`. The backup stays bound to its source tenant; the
+   service re-validates source/target, archive ownership, and target
+   suspension before executing (`tenant restore --mode cross-tenant` under
+   the hood).
+3. **Legacy `.kmpbackup` import**: use **Import Legacy Backup** on the
+   tenant's Backups page (`IMPORT <slug>` + reason + TOTP). Upload the
+   passphrase-encrypted archive (from the retired self-service system or an
+   upstream ansteorra/KMP install) with its original encryption key. KMP
+   decrypts it, re-encrypts it with the tenant's managed envelope keys, and
+   records it as a normal managed backup — restorable through the standard
+   guarded flow, including cross-tenant. Import is non-destructive and does
+   not require the tenant to be suspended; the subsequent restore does.
+   Payload-model differences between upstream releases and this platform are
+   upgraded automatically at restore time.
 
 #### Decrypt a platform archive for external disaster recovery
 
@@ -315,10 +365,16 @@ deletion retains the backup checksum, size, retention history, failure
 diagnostics, and audit records while clearing only the stored object reference.
 
 Legacy `kmpbackup_json` records remain available for guarded download and
-deletion. They do not expose a portable recovery-key export or a managed
-Platform Admin restore action; restore those `.kmpbackup` files through the
-legacy tenant restore workflow with the original application backup key before
-removing the archive.
+deletion. They do not expose a portable recovery-key export or a direct
+restore action; download the `.kmpbackup` file and re-import it through the
+Platform Admin **Import Legacy Backup** flow (with the original application
+backup key) to convert it into a restorable managed backup.
+
+Rows in each tenant's legacy `backups` table (the retired self-service
+system) remain visible read-only on the tenant `/backups` page for download
+with the old passphrase (`Backup.encryptionKey` is retained for this).
+The old reaper is gone, so plan a one-time cleanup and a follow-up migration
+that drops the table once the fleet has converged on managed backups.
 
 For archived self-hosted installations, manage retention manually or via cron:
 

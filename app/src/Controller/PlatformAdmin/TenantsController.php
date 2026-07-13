@@ -5,7 +5,11 @@ namespace App\Controller\PlatformAdmin;
 
 use App\Services\Backups\BackupDeletionService;
 use App\Services\Backups\BackupStorageFactory;
+use App\Services\Backups\JsonTenantBackupDumper;
+use App\Services\Backups\TenantBackupEncryptor;
 use App\Services\Backups\TenantBackupService;
+use App\Services\Backups\TenantRestoreService;
+use App\Services\BackupService;
 use App\Services\Platform\PlatformAdminJobEnqueuer;
 use App\Services\Platform\PlatformAuditService;
 use App\Services\Platform\PlatformFleetHealthService;
@@ -16,17 +20,24 @@ use App\Services\Platform\TenantLifecycleService;
 use App\Services\Secrets\SecretStoreFactory;
 use App\Services\Secrets\SensitiveString;
 use App\Services\Secrets\WritableSecretStoreInterface;
+use App\Services\TenantConnectionManager;
 use Cake\Http\Exception\BadRequestException;
 use Cake\Http\Exception\NotFoundException;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\Utility\Text;
 use InvalidArgumentException;
+use Psr\Http\Message\UploadedFileInterface;
 use RuntimeException;
 use Throwable;
 
 class TenantsController extends PlatformAdminAppController
 {
+    /**
+     * Upper bound for synchronous legacy .kmpbackup imports.
+     */
+    private const MAX_LEGACY_IMPORT_BYTES = 512 * 1024 * 1024;
+
     /**
      * List platform tenants without database or secret metadata.
      *
@@ -242,9 +253,18 @@ class TenantsController extends PlatformAdminAppController
             ],
         )->fetchAll('assoc');
         $backups = $this->tenantBackups((string)$tenant['id']);
+        $restoreTargets = $this->platform()->execute(
+            "SELECT slug, display_name, status
+               FROM tenants
+              WHERE status = 'suspended' OR slug = :slug
+           ORDER BY slug ASC
+              LIMIT 200",
+            ['slug' => (string)$tenant['slug']],
+        )->fetchAll('assoc');
+        $defaultRetentionDays = $this->backupPolicyRetentionDays();
         $nonce = Text::uuid();
 
-        $this->set(compact('tenant', 'jobs', 'backups', 'nonce'));
+        $this->set(compact('tenant', 'jobs', 'backups', 'restoreTargets', 'defaultRetentionDays', 'nonce'));
     }
 
     /**
@@ -261,7 +281,10 @@ class TenantsController extends PlatformAdminAppController
             throw new NotFoundException('Tenant was not found.');
         }
 
-        $retentionDays = max(1, min(365, (int)$this->request->getData('retention_days', 30)));
+        $retentionDays = max(1, min(365, (int)$this->request->getData(
+            'retention_days',
+            $this->backupPolicyRetentionDays(),
+        )));
         $nonce = (string)$this->request->getData('nonce', Text::uuid());
         try {
             $job = $this->jobEnqueuer()->enqueue(
@@ -305,26 +328,129 @@ class TenantsController extends PlatformAdminAppController
         }
 
         try {
-            if ((string)$tenant['status'] !== 'suspended') {
-                throw new BadRequestException('Tenant must be suspended before a platform-admin restore is queued.');
+            $targetSlug = strtolower(trim((string)$this->request->getData('target_tenant_slug', $tenant['slug'])));
+            $crossTenant = $targetSlug !== (string)$tenant['slug'];
+            $target = $crossTenant ? $this->tenantBySlug($targetSlug) : $tenant;
+            if ($target === null) {
+                throw new BadRequestException('Restore target tenant was not found.');
+            }
+            if ((string)$target['status'] !== 'suspended') {
+                throw new BadRequestException(
+                    'The restore target tenant must be suspended before a platform-admin restore is queued.',
+                );
             }
             $backup = $this->tenantBackupById((string)$tenant['id'], $backupId);
             $this->assertUsableBackup($backup);
-            $reason = $this->validateStepUpAction(sprintf('RESTORE %s', $tenant['slug']));
+            $reason = $this->validateStepUpAction(sprintf('RESTORE %s', $target['slug']));
             $nonce = (string)$this->request->getData('nonce', Text::uuid());
+            $parameters = [
+                'tenant_slug' => (string)$target['slug'],
+                'backup_id' => $backupId,
+                'mode' => $crossTenant
+                    ? TenantRestoreService::MODE_CROSS_TENANT
+                    : TenantRestoreService::MODE_SAME_TENANT,
+                'source_tenant_id' => (string)$tenant['id'],
+                'source_tenant_slug' => (string)$tenant['slug'],
+            ];
+            if ($crossTenant) {
+                $parameters['target_tenant_slug'] = (string)$target['slug'];
+            }
             $job = $this->jobEnqueuer()->enqueue(
                 PlatformJobRunner::JOB_TENANT_RESTORE,
-                (string)$tenant['id'],
+                (string)$target['id'],
                 $this->platformAdmin['id'] ?? null,
+                $parameters,
+                sprintf('tenant_restore:%s:%s:%s', $target['slug'], $backupId, $nonce),
+                $reason,
+                $this->auditOptions((string)$target['id']),
+            );
+            $this->Flash->success($crossTenant
+                ? __('Cross-tenant restore into "{0}" has been queued: {1}', $target['slug'], $job['id'])
+                : __('Tenant restore has been queued: {0}', $job['id']));
+        } catch (BadRequestException | RuntimeException $exception) {
+            $this->Flash->error(__($exception->getMessage()));
+        }
+
+        return $this->redirect([
+            'prefix' => 'PlatformAdmin',
+            'controller' => 'Tenants',
+            'action' => 'backups',
+            $tenant['slug'],
+        ]);
+    }
+
+    /**
+     * Import a legacy passphrase-encrypted .kmpbackup archive as a managed backup.
+     *
+     * Accepts archives produced by the retired tenant self-service system and
+     * by upstream (ansteorra/KMP) installs. The archive is decrypted with the
+     * supplied passphrase, re-encrypted with the tenant's envelope keys, and
+     * recorded as a normal managed backup — restorable through the standard
+     * guarded restore flow.
+     *
+     * @param string $slug Tenant slug
+     * @return \Cake\Http\Response|null
+     */
+    public function importLegacyBackup(string $slug)
+    {
+        $this->request->allowMethod(['post']);
+        $tenant = $this->tenantBySlug($slug);
+        if ($tenant === null) {
+            throw new NotFoundException('Tenant was not found.');
+        }
+
+        try {
+            $upload = $this->request->getData('backup_file');
+            if (!$upload instanceof UploadedFileInterface || $upload->getError() !== UPLOAD_ERR_OK) {
+                throw new BadRequestException('Choose a valid legacy backup file to import.');
+            }
+            $size = $upload->getSize();
+            if ($size !== null && $size > self::MAX_LEGACY_IMPORT_BYTES) {
+                throw new BadRequestException('The legacy backup file exceeds the import size limit.');
+            }
+            $passphrase = (string)$this->request->getData('passphrase', '');
+            if ($passphrase === '') {
+                throw new BadRequestException('Enter the encryption key the backup was created with.');
+            }
+            $reason = $this->validateStepUpAction(sprintf('IMPORT %s', $tenant['slug']));
+
+            $stream = $upload->getStream();
+            $stream->rewind();
+            $data = $stream->getContents();
+            if ($data === '' || strlen($data) > self::MAX_LEGACY_IMPORT_BYTES) {
+                throw new BadRequestException('The legacy backup file was empty or exceeds the import size limit.');
+            }
+
+            $backupService = new BackupService();
+            $backupService->validateImportHeader($data, $passphrase);
+            $logicalArchive = $backupService->decryptToLogicalArchive($data, $passphrase);
+            try {
+                $result = $this->tenantBackupService()->importArchiveAsBackup(
+                    (string)$tenant['slug'],
+                    $logicalArchive,
+                    $this->backupPolicyRetentionDays(),
+                    ['original_filename' => mb_substr((string)$upload->getClientFilename(), 0, 160)],
+                );
+            } finally {
+                sodium_memzero($logicalArchive);
+            }
+            $this->auditService()->record(
+                'tenant_backup.legacy_imported',
+                $this->platformAdmin['id'] ?? null,
+                'tenant_backup',
+                $result->backupId,
+                $reason,
                 [
                     'tenant_slug' => (string)$tenant['slug'],
-                    'backup_id' => $backupId,
+                    'original_filename' => (string)$upload->getClientFilename(),
                 ],
-                sprintf('tenant_restore:%s:%s:%s', $tenant['slug'], $backupId, $nonce),
-                $reason,
+                false,
                 $this->auditOptions((string)$tenant['id']),
             );
-            $this->Flash->success(__('Tenant restore has been queued: {0}', $job['id']));
+            $this->Flash->success(__(
+                'Legacy backup imported as managed backup {0}. Restore it through the guarded restore flow.',
+                $result->backupId,
+            ));
         } catch (BadRequestException | RuntimeException $exception) {
             $this->Flash->error(__($exception->getMessage()));
         }
@@ -422,6 +548,19 @@ class TenantsController extends PlatformAdminAppController
             $this->assertUsableBackup($backup, ['json']);
             $reason = $this->validateStepUpAction(sprintf('DOWNLOAD KEY %s', $tenant['slug']));
             $export = $this->exportTenantBackupRecoveryKey($backup, $tenant);
+            $this->platform()->execute(
+                'UPDATE tenant_backups
+                    SET recovery_key_exported_at = COALESCE(recovery_key_exported_at, :now),
+                        recovery_key_exported_by = COALESCE(recovery_key_exported_by, :by),
+                        modified_at = :now
+                  WHERE id = :backupId',
+                [
+                    'now' => DateTime::now('UTC'),
+                    'by' => 'platform:' . (string)($this->platformAdmin['id'] ?? 'unknown'),
+                    'backupId' => $backupId,
+                ],
+                ['now' => 'datetime'],
+            );
             $this->auditService()->record(
                 'tenant_backup.recovery_key_exported',
                 $this->platformAdmin['id'] ?? null,
@@ -553,6 +692,24 @@ class TenantsController extends PlatformAdminAppController
         )->fetch('assoc');
 
         return is_array($row) ? $row : null;
+    }
+
+    /**
+     * Build the managed tenant backup service (same wiring as TenantBackupCommand).
+     *
+     * @return \App\Services\Backups\TenantBackupService
+     */
+    private function tenantBackupService(): TenantBackupService
+    {
+        $secretStore = SecretStoreFactory::fromConfig();
+
+        return new TenantBackupService(
+            $this->platform(),
+            $secretStore,
+            new JsonTenantBackupDumper(new TenantConnectionManager($secretStore)),
+            new TenantBackupEncryptor(),
+            BackupStorageFactory::tenant(),
+        );
     }
 
     /**

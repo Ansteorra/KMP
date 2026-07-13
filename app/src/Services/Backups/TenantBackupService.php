@@ -34,6 +34,70 @@ class TenantBackupService
         int $retentionDays = 30,
         ?string $platformJobId = null,
     ): TenantBackupResult {
+        return $this->runManagedBackup(
+            $slug,
+            $retentionDays,
+            $platformJobId,
+            function (TenantMetadata $tenant, string $rawPath): void {
+                $dbPassword = $this->secretStore->get(sprintf('tenant.%s.db.password', $tenant->slug));
+                if ($dbPassword === null || $dbPassword->isEmpty()) {
+                    throw new RuntimeException(sprintf(
+                        'Missing database password secret for tenant "%s".',
+                        $tenant->slug,
+                    ));
+                }
+                $this->dumper->dump($tenant, $dbPassword, $rawPath);
+            },
+            [],
+        );
+    }
+
+    /**
+     * Record an existing logical archive (e.g. a decrypted legacy .kmpbackup)
+     * as a managed, envelope-encrypted tenant backup.
+     *
+     * The archive becomes a normal `json` backup row, so download, restore,
+     * retention, and recovery-key export all work unchanged.
+     *
+     * @param array<string, mixed> $provenance Extra retention_policy metadata
+     */
+    public function importArchiveAsBackup(
+        string $slug,
+        string $logicalArchive,
+        int $retentionDays,
+        array $provenance = [],
+    ): TenantBackupResult {
+        if ($logicalArchive === '') {
+            throw new RuntimeException('Imported backup archive is empty.');
+        }
+
+        return $this->runManagedBackup(
+            $slug,
+            $retentionDays,
+            null,
+            function (TenantMetadata $tenant, string $rawPath) use ($logicalArchive): void {
+                if (@file_put_contents($rawPath, $logicalArchive) === false) {
+                    throw new RuntimeException('Unable to stage the imported backup archive.');
+                }
+            },
+            ['imported_from' => 'legacy_kmpbackup'] + $provenance,
+        );
+    }
+
+    /**
+     * Shared managed-backup pipeline: job + backup rows, payload production,
+     * envelope encryption, object storage, and status bookkeeping.
+     *
+     * @param callable(\App\KMP\TenantMetadata, string): void $producePayload Writes the raw archive to the given path
+     * @param array<string, mixed> $retentionPolicyExtra Extra retention_policy metadata
+     */
+    private function runManagedBackup(
+        string $slug,
+        int $retentionDays,
+        ?string $platformJobId,
+        callable $producePayload,
+        array $retentionPolicyExtra,
+    ): TenantBackupResult {
         $slug = strtolower(trim($slug));
         $this->assertSafeSlug($slug);
         if ($retentionDays < 1 || $retentionDays > 365) {
@@ -52,12 +116,17 @@ class TenantBackupService
             $kekName = sprintf('tenant.%s.kek', $tenant->slug);
             $kekVersion = $this->kekVersion($kekName);
             $this->platformConnection->update('platform_jobs', ['tenant_id' => $tenant->id], ['id' => $jobId]);
-            $this->insertBackup($backupId, $jobId, $tenant, $kekName, $kekVersion, $retentionDays, $now);
+            $this->insertBackup(
+                $backupId,
+                $jobId,
+                $tenant,
+                $kekName,
+                $kekVersion,
+                $retentionDays,
+                $now,
+                $retentionPolicyExtra,
+            );
 
-            $dbPassword = $this->secretStore->get(sprintf('tenant.%s.db.password', $tenant->slug));
-            if ($dbPassword === null || $dbPassword->isEmpty()) {
-                throw new RuntimeException(sprintf('Missing database password secret for tenant "%s".', $tenant->slug));
-            }
             $kek = $this->secretStore->get($kekName);
             if ($kek === null || $kek->isEmpty()) {
                 throw new RuntimeException(sprintf('Missing backup KEK secret for tenant "%s".', $tenant->slug));
@@ -77,7 +146,7 @@ class TenantBackupService
 
             $rawPath = $this->storage->workPath($backupId, '.json.gz');
             $encryptedPath = $this->storage->workPath($backupId, '.json.gz.enc');
-            $this->dumper->dump($tenant, $dbPassword, $rawPath);
+            $producePayload($tenant, $rawPath);
             $encryption = $this->encryptor->encryptFile(
                 $rawPath,
                 $encryptedPath,
@@ -166,6 +235,9 @@ class TenantBackupService
         ]);
     }
 
+    /**
+     * @param array<string, mixed> $retentionPolicyExtra Extra retention_policy metadata
+     */
     private function insertBackup(
         string $backupId,
         string $jobId,
@@ -174,6 +246,7 @@ class TenantBackupService
         string $kekVersion,
         int $retentionDays,
         DateTime $now,
+        array $retentionPolicyExtra = [],
     ): void {
         $this->platformConnection->insert('tenant_backups', [
             'id' => $backupId,
@@ -191,7 +264,10 @@ class TenantBackupService
             'wrapped_dek_metadata' => null,
             'error_summary' => null,
             'retention_until' => $now->addDays($retentionDays),
-            'retention_policy' => json_encode(['days' => $retentionDays], JSON_UNESCAPED_SLASHES),
+            'retention_policy' => json_encode(
+                ['days' => $retentionDays] + $retentionPolicyExtra,
+                JSON_UNESCAPED_SLASHES,
+            ),
             'created_at' => $now,
             'started_at' => null,
             'completed_at' => null,

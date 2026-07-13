@@ -1387,6 +1387,8 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
                 created_at TEXT NOT NULL,
                 completed_at TEXT NULL,
                 retention_until TEXT NULL,
+                recovery_key_exported_at TEXT NULL,
+                recovery_key_exported_by TEXT NULL,
                 modified_at TEXT NULL
             )',
         );

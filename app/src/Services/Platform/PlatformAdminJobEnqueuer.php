@@ -272,6 +272,9 @@ class PlatformAdminJobEnqueuer
         if ($tenantStatus !== 'suspended') {
             throw new RuntimeException('Tenant must remain suspended before a restore can be queued.');
         }
+        // The restore target ($tenantId) and the backup's owner may differ for
+        // cross-tenant restores; the backup must belong to the declared source.
+        $sourceTenantId = trim((string)($parameters['source_tenant_id'] ?? '')) ?: $tenantId;
         $backup = $this->connection->execute(
             'SELECT tenant_id, backup_type, status
                FROM tenant_backups
@@ -281,7 +284,7 @@ class PlatformAdminJobEnqueuer
         )->fetch('assoc');
         if (
             !is_array($backup)
-            || (string)$backup['tenant_id'] !== $tenantId
+            || (string)$backup['tenant_id'] !== $sourceTenantId
             || (string)$backup['status'] !== 'completed'
             || !in_array((string)$backup['backup_type'], [TenantBackupService::BACKUP_TYPE, 'pg_dump'], true)
         ) {

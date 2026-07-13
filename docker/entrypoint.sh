@@ -128,7 +128,6 @@ if [ "${KMP_SKIP_CRON:-false}" != "true" ]; then
 */15 * * * * cd /var/www/html && if [ "${KMP_TENANCY_ENABLED:-false}" != "true" ]; then bin/cake sync_active_window_statuses; fi >> /var/log/cron.log 2>&1
 10 0 * * * cd /var/www/html && if [ "${KMP_TENANCY_ENABLED:-false}" != "true" ]; then bin/cake sync_member_warrantable_statuses; fi >> /var/log/cron.log 2>&1
 20 0 * * * cd /var/www/html && if [ "${KMP_TENANCY_ENABLED:-false}" != "true" ]; then bin/cake age_up_members; fi >> /var/log/cron.log 2>&1
-0 3 * * * cd /var/www/html && if [ "${KMP_TENANCY_ENABLED:-false}" != "true" ]; then bin/cake backup_check; fi >> /var/log/cron.log 2>&1
 CRON
     crontab "$CRON_FILE"
     rm -f "$CRON_FILE"

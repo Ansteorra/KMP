@@ -355,6 +355,8 @@ class TenantRestoreServiceTest extends TestCase
                 created_at TEXT NOT NULL,
                 started_at TEXT NULL,
                 completed_at TEXT NULL,
+                recovery_key_exported_at TEXT NULL,
+                recovery_key_exported_by TEXT NULL,
                 modified_at TEXT NULL
             )',
         );

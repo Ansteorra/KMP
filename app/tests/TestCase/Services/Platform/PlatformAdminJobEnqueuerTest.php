@@ -54,6 +54,9 @@ class PlatformAdminJobEnqueuerTest extends TestCase
                 tenant_id TEXT NOT NULL,
                 backup_type TEXT NOT NULL,
                 status TEXT NOT NULL
+            ,
+                recovery_key_exported_at TEXT NULL,
+                recovery_key_exported_by TEXT NULL
             )',
         );
         $this->connection->insert('tenant_backups', [

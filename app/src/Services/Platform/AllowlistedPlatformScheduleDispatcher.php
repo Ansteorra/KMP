@@ -4,12 +4,12 @@ declare(strict_types=1);
 namespace App\Services\Platform;
 
 use App\Command\AgeUpMembersCommand;
-use App\Command\BackupCheckCommand;
 use App\Command\PlatformBackupsPruneCommand;
 use App\Command\PlatformJobsRunCommand;
 use App\Command\PlatformMetricsPruneCommand;
 use App\Command\SyncActiveWindowStatusesCommand;
 use App\Command\SyncMemberWarrantableStatusesCommand;
+use App\Command\TenantBackupsEnqueueCommand;
 use App\Command\WorkflowSchedulerCommand;
 use App\KMP\TenantContext;
 use App\KMP\TenantMetadata;
@@ -45,7 +45,7 @@ class AllowlistedPlatformScheduleDispatcher implements PlatformScheduleDispatche
         'sync_active_window_statuses' => SyncActiveWindowStatusesCommand::class,
         'sync_member_warrantable_statuses' => SyncMemberWarrantableStatusesCommand::class,
         'age_up_members' => AgeUpMembersCommand::class,
-        'backup_check' => BackupCheckCommand::class,
+        'tenant_backups_enqueue' => TenantBackupsEnqueueCommand::class,
         'platform_backups_prune' => PlatformBackupsPruneCommand::class,
         'platform_metrics_prune' => PlatformMetricsPruneCommand::class,
     ];

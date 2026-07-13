@@ -3,32 +3,67 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
 
-use App\Controller\BackupsController;
-use App\Queue\Task\BackupRestoreTask;
-use Cake\TestSuite\TestCase;
-use ReflectionClass;
+use App\Test\TestCase\Support\HttpIntegrationTestCase;
 
 /**
+ * Tenant self-service backups surface.
+ *
+ * The Backups page is gated by the "Can Manage Backups" permission (super
+ * users pass via the policy before-hook). Managed listings require the
+ * platform connection; without one the page degrades to the read-only
+ * legacy section.
+ *
  * @covers \App\Controller\BackupsController
  */
-class BackupsControllerTest extends TestCase
+class BackupsControllerTest extends HttpIntegrationTestCase
 {
-    public function testRestoreRunnerIsQueuedForWorker(): void
+    protected function setUp(): void
     {
-        $reflection = new ReflectionClass(BackupsController::class);
-        $controller = $reflection->newInstanceWithoutConstructor();
-        $method = $reflection->getMethod('enqueueRestoreRunner');
-        $method->setAccessible(true);
+        parent::setUp();
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+    }
 
-        $job = $method->invoke($controller, 'abc123', 'restore-123');
+    public function testIndexRendersForSuperUser(): void
+    {
+        $this->authenticateAsSuperUser();
 
-        $this->assertSame(BackupRestoreTask::taskName(), $job->job_task);
-        $this->assertSame('backup_restore', $job->job_group);
-        $this->assertSame('restore-restore-123', $job->reference);
-        $this->assertSame('Restore queued.', $job->status);
-        $this->assertSame([
-            'token' => 'abc123',
-            'restore_id' => 'restore-123',
-        ], $job->data);
+        $this->get('/backups');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Backup Status');
+        // No restore, schedule, or encryption-key management on the tenant surface.
+        $this->assertResponseNotContains('Import Backup File');
+        $this->assertResponseNotContains('Encryption Key');
+        $this->assertResponseNotContains('Scheduled Backups');
+    }
+
+    public function testIndexIsForbiddenWithoutManageBackupsPermission(): void
+    {
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+
+        $this->get('/backups');
+
+        $this->assertRedirectContains('/pages/unauthorized');
+    }
+
+    public function testCreateIsForbiddenWithoutManageBackupsPermission(): void
+    {
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+
+        $this->post('/backups/create');
+
+        $this->assertRedirectContains('/pages/unauthorized');
+    }
+
+    public function testRetiredActionsAreGone(): void
+    {
+        $this->authenticateAsSuperUser();
+
+        $this->post('/backups/restore');
+        $this->assertResponseCode(404);
+
+        $this->post('/backups/settings');
+        $this->assertResponseCode(404);
     }
 }

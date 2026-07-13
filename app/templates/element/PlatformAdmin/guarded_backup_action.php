@@ -15,6 +15,8 @@ declare(strict_types=1);
  * @var string|null $warning
  * @var string|null $tone
  * @var string|null $buttonClass
+ * @var string|null $fieldsHtml Pre-rendered extra form controls shown before the confirmation input
+ * @var bool|null $multipart Render the form with file-upload encoding
  */
 
 $tone = in_array($tone ?? '', ['primary', 'warning', 'danger'], true) ? $tone : 'primary';
@@ -39,11 +41,12 @@ $totpId = $templateId . '-totp';
     <?= h($buttonLabel) ?>
 </button>
 <template id="<?= h($templateId) ?>">
-    <?= $this->Form->create(null, [
+    <?= $this->Form->create(null, array_filter([
         'url' => $url,
         'id' => $formId,
+        'type' => !empty($multipart) ? 'file' : null,
         'data-expected-confirmation' => $confirmation,
-    ]) ?>
+    ], static fn($value) => $value !== null)) ?>
     <?= $this->Form->hidden('nonce', ['id' => $templateId . '-nonce', 'value' => $nonce]) ?>
     <div class="modal-body">
         <p><?= h($description) ?></p>
@@ -52,6 +55,7 @@ $totpId = $templateId . '-totp';
                 <?= h($warning) ?>
             </div>
         <?php endif; ?>
+        <?= $fieldsHtml ?? '' ?>
         <?= $this->Form->control('confirmation', [
             'id' => $confirmationId,
             'label' => __('Type "{0}" to confirm', $confirmation),

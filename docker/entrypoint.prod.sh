@@ -306,13 +306,16 @@ fi
 if [ "${KMP_SKIP_CRON:-false}" != "true" ]; then
     echo "Configuring cron jobs..."
     QUEUE_CRON="*/5 * * * * cd /var/www/html && QUEUE_EXIT_WHEN_NOTHING_TO_DO=true bin/cake queue run -q >> /var/log/cron.log 2>&1"
+    # Managed tenant backups are driven by the platform scheduler
+    # (tenant-backup-fleet schedule); this cron is a tenancy-mode safety net.
     if [ "${KMP_TENANCY_ENABLED:-false}" = "true" ]; then
-        BACKUP_CRON="0 3 * * * cd /var/www/html && bin/cake platform schedule run backup-check >> /var/log/cron.log 2>&1"
+        BACKUP_CRON="30 4 * * * cd /var/www/html && bin/cake platform schedule run tenant-backup-fleet >> /var/log/cron.log 2>&1"
     else
-        BACKUP_CRON="0 3 * * * cd /var/www/html && bin/cake backup_check >> /var/log/cron.log 2>&1"
+        BACKUP_CRON=""
     fi
     IMAGE_CACHE_GC_CRON="15 3 * * * cd /var/www/html && bin/cake image_cache_gc --days \"${KMP_IMAGE_CACHE_GC_DAYS:-7}\" >> /var/log/cron.log 2>&1"
-    (crontab -l 2>/dev/null | grep -v "queue run" | grep -v "backup_check" | grep -v "platform schedule run backup-check" | grep -v "image_cache_gc"; echo "$QUEUE_CRON"; echo "$BACKUP_CRON"; echo "$IMAGE_CACHE_GC_CRON") | crontab -
+    # grep -v backup_check scrubs stale legacy entries from upgraded crontabs.
+    (crontab -l 2>/dev/null | grep -v "queue run" | grep -v "backup_check" | grep -v "platform schedule run backup-check" | grep -v "platform schedule run tenant-backup-fleet" | grep -v "image_cache_gc"; echo "$QUEUE_CRON"; if [ -n "$BACKUP_CRON" ]; then echo "$BACKUP_CRON"; fi; echo "$IMAGE_CACHE_GC_CRON") | crontab -
 
     service cron start
 else

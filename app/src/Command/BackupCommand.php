@@ -14,7 +14,13 @@ use Exception;
 use RuntimeException;
 
 /**
- * CLI backup management: create and restore backups.
+ * CLI backup management: create and restore passphrase-encrypted .kmpbackup files.
+ *
+ * Dev/seed tooling, not production scheduling: production tenant backups are
+ * platform-managed (tenant-backup-fleet schedule + `tenant backup` command).
+ * This command is retained for the Azure nightly-seed flow
+ * (docker/reset-and-seed.sh, deploy/azure/seed/bake-seed.sh) and ad-hoc
+ * single-database work.
  *
  * Usage:
  *   bin/cake backup create --key "my-secret-key"

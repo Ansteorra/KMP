@@ -11,9 +11,23 @@ use App\Services\Backups\TenantBackupService;
  * @var array<string, mixed> $tenant
  * @var list<array<string, mixed>> $jobs
  * @var list<array<string, mixed>> $backups
+ * @var list<array<string, mixed>> $restoreTargets
+ * @var int $defaultRetentionDays
  * @var string $nonce
  */
 $this->assign('title', __('Tenant Backups: {0}', $tenant['slug']));
+
+$restoreTargetOptions = [];
+foreach ($restoreTargets as $target) {
+    $label = (string)($target['display_name'] ?? $target['slug']);
+    if ((string)$target['slug'] === (string)$tenant['slug']) {
+        $label .= ' ' . __('(this tenant)');
+    }
+    if ((string)($target['status'] ?? '') !== 'suspended') {
+        $label .= ' ' . __('(not suspended)');
+    }
+    $restoreTargetOptions[(string)$target['slug']] = $label;
+}
 ?>
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
     <div>
@@ -42,7 +56,7 @@ $this->assign('title', __('Tenant Backups: {0}', $tenant['slug']));
                 <?= $this->Form->control('retention_days', [
                     'type' => 'number',
                     'label' => __('Retention days'),
-                    'value' => 30,
+                    'value' => $defaultRetentionDays,
                     'min' => 1,
                     'max' => 365,
                 ]) ?>
@@ -53,6 +67,48 @@ $this->assign('title', __('Tenant Backups: {0}', $tenant['slug']));
         </div>
         <?= $this->Form->end() ?>
     </div>
+</section>
+
+<?php $importModalId = 'tenant-backup-import-modal'; ?>
+<section class="card mb-4" aria-labelledby="tenant-backup-import-heading" data-controller="guarded-action-modal">
+    <div class="card-body">
+        <h2 id="tenant-backup-import-heading" class="h5"><?= __('Import Legacy Backup') ?></h2>
+        <p class="text-muted">
+            <?= __('Import a passphrase-encrypted .kmpbackup archive (from the retired tenant self-service system or an upstream KMP install). The archive is re-encrypted with this tenant\'s managed keys and recorded as a normal managed backup, ready for the guarded restore flow. Importing does not modify the tenant database.') ?>
+        </p>
+        <?= $this->element('PlatformAdmin/guarded_backup_action', [
+            'modalId' => $importModalId,
+            'templateId' => 'tenant-backup-import',
+            'url' => [
+                'prefix' => 'PlatformAdmin',
+                'controller' => 'Tenants',
+                'action' => 'importLegacyBackup',
+                $tenant['slug'],
+            ],
+            'nonce' => $nonce,
+            'multipart' => true,
+            'buttonLabel' => __('Import legacy backup'),
+            'modalTitle' => __('Import legacy backup'),
+            'description' => __('Upload a legacy .kmpbackup archive and the encryption key it was created with.'),
+            'confirmation' => 'IMPORT ' . $tenant['slug'],
+            'submitLabel' => __('Import backup'),
+            'tone' => 'warning',
+            'fieldsHtml' => $this->Form->control('backup_file', [
+                'type' => 'file',
+                'label' => __('Legacy backup file (.kmpbackup)'),
+                'accept' => '.kmpbackup,.enc,application/octet-stream',
+                'required' => true,
+            ]) . $this->Form->control('passphrase', [
+                'type' => 'password',
+                'label' => __('Backup encryption key'),
+                'required' => true,
+                'autocomplete' => 'off',
+            ]),
+        ]) ?>
+    </div>
+    <?= $this->element('PlatformAdmin/guarded_backup_action_modal', [
+        'modalId' => $importModalId,
+    ]) ?>
 </section>
 
 <section class="card mb-4" aria-labelledby="tenant-backup-jobs-heading">
@@ -185,11 +241,19 @@ $this->assign('title', __('Tenant Backups: {0}', $tenant['slug']));
                                             'nonce' => $nonce,
                                             'buttonLabel' => __('Queue destructive restore'),
                                             'modalTitle' => __('Queue tenant restore'),
-                                            'description' => __('Queue tenant backup {0} to replace the current tenant database.', $backupId),
+                                            'description' => __('Queue tenant backup {0} to replace the selected tenant\'s database. Choose this tenant for a normal restore, or a different suspended tenant for a cross-tenant restore.', $backupId),
                                             'confirmation' => 'RESTORE ' . $tenant['slug'],
                                             'submitLabel' => __('Queue destructive restore'),
-                                            'warning' => __('Restore is destructive. The tenant must be suspended before this request can be queued.'),
+                                            'warning' => __('Restore is destructive. The restore target tenant must be suspended before this request can be queued.'),
                                             'tone' => 'danger',
+                                            'fieldsHtml' => $this->Form->control('target_tenant_slug', [
+                                                'type' => 'select',
+                                                'label' => __('Restore into tenant'),
+                                                'options' => $restoreTargetOptions,
+                                                'value' => $tenant['slug'],
+                                                'id' => 'tenant-backup-' . $domBackupId . '-restore-target',
+                                                'data-confirmation-template' => 'RESTORE {value}',
+                                            ]),
                                         ]) ?>
                                     <?php endif; ?>
                                     <?php if ($canDeleteArchive) : ?>

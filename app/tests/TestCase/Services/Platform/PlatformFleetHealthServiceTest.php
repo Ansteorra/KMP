@@ -133,6 +133,9 @@ class PlatformFleetHealthServiceTest extends TestCase
                 created_at TEXT NOT NULL,
                 completed_at TEXT NULL,
                 retention_until TEXT NULL
+            ,
+                recovery_key_exported_at TEXT NULL,
+                recovery_key_exported_by TEXT NULL
             )',
         );
         $this->connection->execute(

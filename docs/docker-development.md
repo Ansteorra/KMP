@@ -200,7 +200,6 @@ these conservative legacy intervals:
 | `KMP_ACTIVE_WINDOW_SYNC_INTERVAL` | `900` | `bin/cake sync_active_window_statuses` |
 | `KMP_MEMBER_WARRANTABLE_SYNC_INTERVAL` | `86400` | `bin/cake sync_member_warrantable_statuses` |
 | `KMP_AGE_UP_MEMBERS_INTERVAL` | `86400` | `bin/cake age_up_members` |
-| `KMP_BACKUP_CHECK_INTERVAL` | `86400` | `bin/cake backup_check` |
 
 Inspect background output with:
 
@@ -222,7 +221,6 @@ docker compose exec app bin/cake workflow_scheduler
 docker compose exec app bin/cake sync_active_window_statuses
 docker compose exec app bin/cake sync_member_warrantable_statuses
 docker compose exec app bin/cake age_up_members
-docker compose exec app bin/cake backup_check
 ```
 
 ## Configuration

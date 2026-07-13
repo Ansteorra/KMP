@@ -14,6 +14,7 @@ class GuardedActionModalController extends Controller {
         this.boundHandleHidden = this.handleHidden.bind(this)
         this.boundHandleSubmit = this.submit.bind(this)
         this.boundHandleInput = this.clearConfirmationError.bind(this)
+        this.boundHandleChange = this.updateExpectedConfirmation.bind(this)
     }
 
     connect() {
@@ -22,6 +23,7 @@ class GuardedActionModalController extends Controller {
         this.modalTarget.addEventListener("hidden.bs.modal", this.boundHandleHidden)
         this.contentTarget.addEventListener("submit", this.boundHandleSubmit)
         this.contentTarget.addEventListener("input", this.boundHandleInput)
+        this.contentTarget.addEventListener("change", this.boundHandleChange)
     }
 
     disconnect() {
@@ -29,6 +31,7 @@ class GuardedActionModalController extends Controller {
         this.modalTarget.removeEventListener("hidden.bs.modal", this.boundHandleHidden)
         this.contentTarget.removeEventListener("submit", this.boundHandleSubmit)
         this.contentTarget.removeEventListener("input", this.boundHandleInput)
+        this.contentTarget.removeEventListener("change", this.boundHandleChange)
         if (this.clearTimer !== null) {
             window.clearTimeout(this.clearTimer)
             this.clearTimer = null
@@ -81,6 +84,31 @@ class GuardedActionModalController extends Controller {
         const input = event.target
         if (input instanceof HTMLInputElement && input.name === "confirmation") {
             input.setCustomValidity("")
+        }
+    }
+
+    /**
+     * Recompute the expected typed confirmation when a select carrying a
+     * data-confirmation-template (e.g. a restore-target picker) changes.
+     */
+    updateExpectedConfirmation(event) {
+        const source = event.target
+        if (!(source instanceof HTMLSelectElement) || !source.dataset.confirmationTemplate) {
+            return
+        }
+        const form = source.closest("form")
+        if (!(form instanceof HTMLFormElement)) {
+            return
+        }
+        const expected = source.dataset.confirmationTemplate.replaceAll("{value}", source.value)
+        form.dataset.expectedConfirmation = expected
+        const confirmation = form.elements.namedItem("confirmation")
+        if (confirmation instanceof HTMLInputElement) {
+            confirmation.setCustomValidity("")
+            const label = form.querySelector(`label[for="${confirmation.id}"]`)
+            if (label instanceof HTMLElement) {
+                label.textContent = `Type "${expected}" to confirm`
+            }
         }
     }
 

@@ -14,11 +14,16 @@ use Throwable;
  */
 final class PlatformFleetHealthService
 {
+    private int $backupWarningHours = 24;
+    private int $backupCriticalHours = 72;
+
     /**
      * Constructor.
      */
-    public function __construct(private readonly Connection $connection)
-    {
+    public function __construct(
+        private readonly Connection $connection,
+        private readonly ?PlatformBackupPolicyService $backupPolicy = null,
+    ) {
     }
 
     /**
@@ -26,6 +31,7 @@ final class PlatformFleetHealthService
      */
     public function snapshot(DateTimeInterface|string|null $now = null, int $tenantLimit = 500): array
     {
+        $this->loadBackupThresholds();
         $now = $this->dateTime($now);
         $since = $now->modify('-24 hours')->format('Y-m-d H:i:s');
         $tenants = $this->tenantRows(max(1, min(1000, $tenantLimit)));
@@ -221,7 +227,7 @@ final class PlatformFleetHealthService
         $backupFresh = (string)($tenant['status'] ?? '') === 'active'
             && (string)($backup['status'] ?? '') === 'completed'
             && $backupAgeHours !== null
-            && $backupAgeHours <= 24;
+            && $backupAgeHours <= $this->backupWarningHours;
         $riskLevel = 'healthy';
         $attention = [];
         $status = (string)($tenant['status'] ?? '');
@@ -241,9 +247,14 @@ final class PlatformFleetHealthService
             } elseif ((string)($backup['status'] ?? '') !== 'completed') {
                 $riskLevel = 'critical';
                 $attention[] = 'The latest tenant backup did not complete.';
-            } elseif ($backupAgeHours === null || $backupAgeHours > 24) {
-                $riskLevel = $backupAgeHours !== null && $backupAgeHours > 72 ? 'critical' : 'warning';
-                $attention[] = 'The latest tenant backup is older than 24 hours.';
+            } elseif ($backupAgeHours === null || $backupAgeHours > $this->backupWarningHours) {
+                $riskLevel = $backupAgeHours !== null && $backupAgeHours > $this->backupCriticalHours
+                    ? 'critical'
+                    : 'warning';
+                $attention[] = sprintf(
+                    'The latest tenant backup is older than %d hours.',
+                    $this->backupWarningHours,
+                );
             }
             if ($requests >= 20 && $errorRate >= 5) {
                 $riskLevel = $this->higherRisk($riskLevel, $errorRate >= 15 ? 'critical' : 'warning');
@@ -368,6 +379,29 @@ final class PlatformFleetHealthService
 
     /**
      * Return age in whole hours for a database timestamp.
+     */
+
+    /**
+     * Derive backup staleness thresholds from the global backup policy.
+     *
+     * Falls back to the daily defaults when the policy is unreadable
+     * (e.g. platform_settings not yet migrated).
+     */
+    private function loadBackupThresholds(): void
+    {
+        try {
+            $policy = $this->backupPolicy ?? new PlatformBackupPolicyService($this->connection);
+            $this->backupWarningHours = $policy->warningAfterHours();
+            $this->backupCriticalHours = $policy->criticalAfterHours();
+        } catch (Throwable $exception) {
+            Log::warning(sprintf('Backup policy lookup failed: %s', $exception::class));
+            $this->backupWarningHours = 24;
+            $this->backupCriticalHours = 72;
+        }
+    }
+
+    /**
+     * Whole hours between a stored timestamp and now, if parseable.
      */
     private function ageHours(mixed $value, DateTimeImmutable $now): ?int
     {

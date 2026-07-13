@@ -193,6 +193,52 @@ class TenantBackupServiceTest extends TestCase
         $this->assertSame($jobId, $backupJobId);
     }
 
+    public function testImportArchiveAsBackupRecordsManagedBackupWithProvenance(): void
+    {
+        $this->insertTenant('demo', 'demo_db');
+        $archive = gzencode('{"meta":{"version":2}}', 9);
+        $encryptor = new TenantBackupEncryptor();
+        $service = $this->service(
+            new ArraySecretStore(['tenant.demo.kek' => 'backup-kek']),
+            new FakeTenantBackupDumper('never used'),
+            $encryptor,
+        );
+
+        $result = $service->importArchiveAsBackup('demo', (string)$archive, 14, [
+            'original_filename' => 'kmp-backup-legacy.kmpbackup',
+        ]);
+
+        $this->assertSame('completed', $result->status);
+        $backup = $this->platform()->execute('SELECT * FROM tenant_backups')->fetch('assoc');
+        $this->assertSame('completed', $backup['status']);
+        $this->assertSame(TenantBackupService::BACKUP_TYPE, $backup['backup_type']);
+        $policy = json_decode((string)$backup['retention_policy'], true);
+        $this->assertSame(14, $policy['days']);
+        $this->assertSame('legacy_kmpbackup', $policy['imported_from']);
+        $this->assertSame('kmp-backup-legacy.kmpbackup', $policy['original_filename']);
+
+        $decrypted = $encryptor->decryptFileForTest(
+            $this->storedPath('demo', $result->backupId),
+            (string)$backup['wrapped_dek'],
+            json_decode((string)$backup['wrapped_dek_metadata'], true),
+            new SensitiveString('backup-kek'),
+        );
+        $this->assertSame($archive, $decrypted);
+    }
+
+    public function testImportArchiveAsBackupRejectsEmptyArchive(): void
+    {
+        $service = $this->service(
+            new ArraySecretStore([]),
+            new FakeTenantBackupDumper('unused'),
+            new TenantBackupEncryptor(),
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Imported backup archive is empty.');
+        $service->importArchiveAsBackup('demo', '', 14);
+    }
+
     private function service(
         ArraySecretStore $secrets,
         TenantBackupDumperInterface $dumper,
@@ -259,6 +305,8 @@ class TenantBackupServiceTest extends TestCase
                 created_at TEXT NOT NULL,
                 started_at TEXT NULL,
                 completed_at TEXT NULL,
+                recovery_key_exported_at TEXT NULL,
+                recovery_key_exported_by TEXT NULL,
                 modified_at TEXT NULL
             )',
         );

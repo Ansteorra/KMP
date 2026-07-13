@@ -8,7 +8,6 @@ workflow_interval="${KMP_WORKFLOW_SCHEDULER_INTERVAL:-60}"
 active_window_interval="${KMP_ACTIVE_WINDOW_SYNC_INTERVAL:-900}"
 warrantable_interval="${KMP_MEMBER_WARRANTABLE_SYNC_INTERVAL:-86400}"
 age_up_interval="${KMP_AGE_UP_MEMBERS_INTERVAL:-86400}"
-backup_check_interval="${KMP_BACKUP_CHECK_INTERVAL:-86400}"
 platform_schedule_interval="${KMP_PLATFORM_SCHEDULE_INTERVAL:-60}"
 tenancy_enabled="${KMP_TENANCY_ENABLED:-false}"
 
@@ -17,7 +16,6 @@ last_workflow=0
 last_active_window=0
 last_warrantable="$started_at"
 last_age_up="$started_at"
-last_backup_check="$started_at"
 last_platform_schedule=0
 
 run_due() {
@@ -55,7 +53,6 @@ workflow_command="$(schedule_command "workflow-scheduler" "bin/cake workflow_sch
 active_window_command="$(schedule_command "active-window-sync" "bin/cake sync_active_window_statuses")"
 warrantable_command="$(schedule_command "member-warrantable-sync" "bin/cake sync_member_warrantable_statuses")"
 age_up_command="$(schedule_command "age-up-members" "bin/cake age_up_members")"
-backup_check_command="$(schedule_command "backup-check" "bin/cake backup_check")"
 
 echo "KMP scheduler loop started."
 while true; do
@@ -70,7 +67,6 @@ while true; do
         last_active_window="$(run_due "active-window sync" "$active_window_command" "$last_active_window" "$active_window_interval")"
         last_warrantable="$(run_due "member warrantable sync" "$warrantable_command" "$last_warrantable" "$warrantable_interval")"
         last_age_up="$(run_due "age-up members" "$age_up_command" "$last_age_up" "$age_up_interval")"
-        last_backup_check="$(run_due "backup check" "$backup_check_command" "$last_backup_check" "$backup_check_interval")"
     fi
     sleep "$poll_interval"
 done

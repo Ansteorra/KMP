@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Services\Backup\BackupPayloadUpgradeService;
 use Cake\Cache\Cache;
 use Cake\Database\Connection;
 use Cake\Database\Driver\Postgres;
@@ -249,6 +250,17 @@ class BackupService
     }
 
     /**
+     * Decrypt a passphrase-protected backup into its logical archive.
+     *
+     * Used by the platform legacy-import path to convert a `.kmpbackup`
+     * (upstream/self-service format) into a managed envelope-encrypted backup.
+     */
+    public function decryptToLogicalArchive(string $encryptedData, string $encryptionKey): string
+    {
+        return $this->decrypt($encryptedData, $encryptionKey);
+    }
+
+    /**
      * Validate the bounded header of a compressed logical archive.
      */
     private function validateLogicalArchiveHeader(string $compressedData): void
@@ -366,6 +378,8 @@ class BackupService
         $ignoreSchemaMismatch = (bool)(is_array($options) ? ($options['ignoreSchemaMismatch'] ?? false) : false);
 
         $payload = $this->decodeLogicalPayload($compressedData, $progressReporter);
+        $upgrade = (new BackupPayloadUpgradeService())->upgrade($payload, $progressReporter);
+        $payload = $upgrade['payload'];
         $payload = $this->ensureOperationalSchemaTables($payload);
 
         $this->reportSchemaMismatch($payload, $ignoreSchemaMismatch, $progressReporter);
@@ -405,6 +419,7 @@ class BackupService
         ]);
 
         $stats['post_restore'] = $postRestoreStats;
+        $stats['payload_upgrade'] = $upgrade['stats'];
 
         return $stats;
     }

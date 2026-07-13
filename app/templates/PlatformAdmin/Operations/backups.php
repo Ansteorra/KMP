@@ -10,11 +10,52 @@ use App\Services\Backups\TenantBackupService;
  * @var list<array<string, mixed>> $tenantBackups
  * @var list<array<string, mixed>> $platformBackups
  * @var list<array<string, mixed>> $tenants
+ * @var array{cadence: string, retention_days: int}|null $backupPolicy
  * @var string $nonce
  */
 $this->assign('title', __('Platform Backups'));
 ?>
 <h1 class="h2 mb-3"><?= __('Backups') ?></h1>
+<section class="card mb-4" aria-labelledby="backup-policy-heading">
+    <div class="card-body">
+        <h2 id="backup-policy-heading" class="h5"><?= __('Backup Policy') ?></h2>
+        <p class="text-muted">
+            <?= __('One global policy governs every tenant: how often managed backups are taken, how long they are retained, and when fleet health flags a tenant\'s backups as stale. Tenants see this policy read-only.') ?>
+        </p>
+        <?php if ($backupPolicy === null) : ?>
+            <div class="alert alert-warning" role="note">
+                <?= __('The backup policy store is unavailable. Run the platform migrations to create platform_settings.') ?>
+            </div>
+        <?php else : ?>
+            <?= $this->Form->create(null, [
+                'url' => ['prefix' => 'PlatformAdmin', 'controller' => 'Operations', 'action' => 'saveBackupPolicy'],
+            ]) ?>
+            <div class="row g-3 align-items-end">
+                <div class="col-12 col-md-3">
+                    <?= $this->Form->control('cadence', [
+                        'type' => 'select',
+                        'label' => __('Cadence'),
+                        'options' => ['daily' => __('Daily'), 'weekly' => __('Weekly')],
+                        'value' => $backupPolicy['cadence'],
+                    ]) ?>
+                </div>
+                <div class="col-12 col-md-3">
+                    <?= $this->Form->control('retention_days', [
+                        'type' => 'number',
+                        'label' => __('Retention days'),
+                        'value' => $backupPolicy['retention_days'],
+                        'min' => 1,
+                        'max' => 365,
+                    ]) ?>
+                </div>
+                <div class="col-12 col-md-auto">
+                    <?= $this->Form->button(__('Save policy'), ['class' => 'btn btn-primary']) ?>
+                </div>
+            </div>
+            <?= $this->Form->end() ?>
+        <?php endif; ?>
+    </div>
+</section>
 <section class="card mb-4" aria-labelledby="platform-backup-actions-heading">
     <div class="card-body">
         <h2 id="platform-backup-actions-heading" class="h5"><?= __('Platform Database Backup') ?></h2>

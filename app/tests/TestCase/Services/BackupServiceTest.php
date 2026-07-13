@@ -7,6 +7,7 @@ use App\Services\BackupService;
 use Cake\Database\Schema\TableSchema;
 use Cake\Datasource\ConnectionManager;
 use Cake\TestSuite\TestCase;
+use InvalidArgumentException;
 use ReflectionMethod;
 use RuntimeException;
 
@@ -525,6 +526,54 @@ class BackupServiceTest extends TestCase
         $this->expectExceptionMessage('Invalid backup file structure');
 
         $service->importLogicalArchive($compressed);
+    }
+
+    public function testImportLogicalArchiveRunsPayloadUpgradeAfterDecode(): void
+    {
+        ConnectionManager::setConfig('backup_wiring_test', [
+            'className' => 'Cake\Database\Connection',
+            'driver' => 'Cake\Database\Driver\Sqlite',
+            'database' => ':memory:',
+        ]);
+        $service = new BackupService('backup_wiring_test');
+        $json = json_encode([
+            'meta' => ['version' => 2],
+            // Unsupported manifest version stops the import at schema reset,
+            // safely after the payload-upgrade phase has run.
+            'schema' => ['version' => 999, 'tables' => []],
+            'tables' => [],
+        ]);
+        $this->assertNotFalse($json);
+        $compressed = gzencode($json);
+        $this->assertNotFalse($compressed);
+
+        $phases = [];
+        try {
+            $service->importLogicalArchive($compressed, function (array $progress) use (&$phases): void {
+                $phases[] = (string)($progress['phase'] ?? '');
+            });
+            $this->fail('Expected unsupported schema manifest rejection.');
+        } catch (InvalidArgumentException $exception) {
+            $this->assertSame('Backup schema manifest is missing or unsupported.', $exception->getMessage());
+        }
+
+        $this->assertContains('upgrading_backup_payload', $phases);
+    }
+
+    public function testDecryptToLogicalArchiveRoundTripsPassphraseEncryption(): void
+    {
+        $service = new BackupService();
+        $compressed = gzencode('{"meta":{"version":2}}');
+        $this->assertNotFalse($compressed);
+
+        $method = new ReflectionMethod(BackupService::class, 'encrypt');
+        $method->setAccessible(true);
+        $encrypted = $method->invoke($service, $compressed, 'legacy-passphrase');
+
+        $this->assertSame($compressed, $service->decryptToLogicalArchive($encrypted, 'legacy-passphrase'));
+
+        $this->expectException(RuntimeException::class);
+        $service->decryptToLogicalArchive($encrypted, 'wrong-passphrase');
     }
 
     public function testBuildRestoreTableMapIncludesCurrentTablesMissingFromBackup(): void

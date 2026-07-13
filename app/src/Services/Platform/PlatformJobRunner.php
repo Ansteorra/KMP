@@ -199,7 +199,7 @@ class PlatformJobRunner
             '--backup',
             $this->requiredString($parameters, 'backup_id'),
             '--mode',
-            TenantRestoreService::MODE_SAME_TENANT,
+            $this->tenantRestoreMode($parameters),
             '--target-tenant',
             $this->tenantRestoreSlug($parameters),
             '--confirm-destructive',
@@ -211,9 +211,27 @@ class PlatformJobRunner
     /**
      * @param array<string, mixed> $parameters
      */
+    private function tenantRestoreMode(array $parameters): string
+    {
+        $mode = trim((string)($parameters['mode'] ?? TenantRestoreService::MODE_SAME_TENANT));
+        if (
+            !in_array($mode, [
+                TenantRestoreService::MODE_SAME_TENANT,
+                TenantRestoreService::MODE_CROSS_TENANT,
+            ], true)
+        ) {
+            throw new RuntimeException('Platform job parameter "mode" is not a valid restore mode.');
+        }
+
+        return $mode;
+    }
+
+    /**
+     * @param array<string, mixed> $parameters
+     */
     private function tenantRestoreSlug(array $parameters): string
     {
-        $tenantSlug = trim((string)($parameters['tenant_slug'] ?? $parameters['target_tenant_slug'] ?? ''));
+        $tenantSlug = trim((string)($parameters['target_tenant_slug'] ?? $parameters['tenant_slug'] ?? ''));
         if ($tenantSlug === '') {
             throw new RuntimeException('Platform job parameter "tenant_slug" is required.');
         }
@@ -267,7 +285,15 @@ class PlatformJobRunner
      */
     private function retentionDays(array $parameters): int
     {
-        $days = (int)($parameters['retention_days'] ?? 30);
+        $days = $parameters['retention_days'] ?? null;
+        if ($days === null) {
+            try {
+                $days = (new PlatformBackupPolicyService($this->connection()))->retentionDays();
+            } catch (Throwable) {
+                $days = 30;
+            }
+        }
+        $days = (int)$days;
         if ($days < 1 || $days > 365) {
             throw new RuntimeException('Platform job retention_days must be between 1 and 365.');
         }

@@ -9,6 +9,7 @@ use App\Services\Backups\PlatformDatabaseBackupEncryptor;
 use App\Services\Backups\TenantBackupService;
 use App\Services\Platform\PlatformAdminJobEnqueuer;
 use App\Services\Platform\PlatformAuditService;
+use App\Services\Platform\PlatformBackupPolicyService;
 use App\Services\Platform\PlatformHealthService;
 use App\Services\Platform\PlatformJobRunner;
 use App\Services\Platform\ReleaseCompatibilityChecker;
@@ -190,8 +191,50 @@ class OperationsController extends PlatformAdminAppController
         $tenants = $this->safeRows(
             'SELECT slug, display_name, status FROM tenants ORDER BY display_name ASC, slug ASC LIMIT 200',
         );
+        try {
+            $policy = new PlatformBackupPolicyService($this->platform());
+            $backupPolicy = [
+                'cadence' => $policy->cadence(),
+                'retention_days' => $policy->retentionDays(),
+            ];
+        } catch (Throwable) {
+            $backupPolicy = null;
+        }
         $nonce = Text::uuid();
-        $this->set(compact('tenantBackups', 'platformBackups', 'tenants', 'nonce'));
+        $this->set(compact('tenantBackups', 'platformBackups', 'tenants', 'backupPolicy', 'nonce'));
+    }
+
+    /**
+     * Update the global backup policy (cadence + retention).
+     *
+     * @return \Cake\Http\Response|null
+     */
+    public function saveBackupPolicy()
+    {
+        $this->request->allowMethod(['post']);
+        $cadence = (string)$this->request->getData('cadence', PlatformBackupPolicyService::CADENCE_DAILY);
+        $retentionDays = (int)$this->request->getData('retention_days', 30);
+        try {
+            (new PlatformBackupPolicyService($this->platform()))->save($cadence, $retentionDays);
+            $this->auditService()->record(
+                'backup_policy.changed',
+                $this->platformAdmin['id'] ?? null,
+                'platform_settings',
+                'backup',
+                'platform admin backup policy update',
+                ['cadence' => $cadence, 'retention_days' => $retentionDays],
+                false,
+                [
+                    'ipAddress' => $this->request->clientIp(),
+                    'userAgent' => $this->request->getHeaderLine('User-Agent') ?: 'platform-admin',
+                ],
+            );
+            $this->Flash->success(__('Backup policy updated.'));
+        } catch (RuntimeException $exception) {
+            $this->Flash->error(__($exception->getMessage()));
+        }
+
+        return $this->redirect(['prefix' => 'PlatformAdmin', 'controller' => 'Operations', 'action' => 'backups']);
     }
 
     /**
@@ -202,7 +245,10 @@ class OperationsController extends PlatformAdminAppController
     public function createPlatformBackup()
     {
         $this->request->allowMethod(['post']);
-        $retentionDays = max(1, min(365, (int)$this->request->getData('retention_days', 30)));
+        $retentionDays = max(1, min(365, (int)$this->request->getData(
+            'retention_days',
+            $this->backupPolicyRetentionDays(),
+        )));
         $nonce = (string)$this->request->getData('nonce', Text::uuid());
         try {
             $job = (new PlatformAdminJobEnqueuer(

@@ -111,6 +111,9 @@ return function (RouteBuilder $routes): void {
         $builder->connect('/tenants/{slug}/backups', ['controller' => 'Tenants', 'action' => 'backups'])
             ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?'])
             ->setPass(['slug']);
+        $builder->connect('/tenants/{slug}/backups/import', ['controller' => 'Tenants', 'action' => 'importLegacyBackup'])
+            ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?'])
+            ->setPass(['slug']);
         $builder->connect('/tenants/{slug}/backups/create', ['controller' => 'Tenants', 'action' => 'createBackup'])
             ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?'])
             ->setPass(['slug']);
@@ -158,6 +161,7 @@ return function (RouteBuilder $routes): void {
             ->setPass(['jobId']);
         $builder->connect('/schedules', ['controller' => 'Operations', 'action' => 'schedules']);
         $builder->connect('/backups', ['controller' => 'Operations', 'action' => 'backups']);
+        $builder->connect('/backups/policy', ['controller' => 'Operations', 'action' => 'saveBackupPolicy']);
         $builder->connect('/backups/platform/create', ['controller' => 'Operations', 'action' => 'createPlatformBackup']);
         $builder->connect('/backups/platform/{backupId}/download', ['controller' => 'Operations', 'action' => 'downloadPlatformBackup'])
             ->setPatterns(['backupId' => '[^/]+'])
