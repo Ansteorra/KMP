@@ -641,11 +641,48 @@ class AwardsWorkflowActions
                 : null;
             $gatheringId = $gatheringId !== null && $gatheringId > 0 ? $gatheringId : null;
 
-            return $this->bestowalHandoffService->createBestowal($recommendationId, $actorId, $gatheringId);
+            $result = $this->bestowalHandoffService->createBestowal($recommendationId, $actorId, $gatheringId);
+            $this->syncConvertedRecommendationState($result, $actorId);
+
+            return $result;
         } catch (Throwable $e) {
             Log::error('Workflow CreateBestowal failed: ' . $e->getMessage());
 
             return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Advance converted recommendations onto the board after a workflow conversion.
+     *
+     * Manual board transitions manage recommendation states explicitly; the
+     * workflow conversion path has no such step, so without this sync the
+     * recommendation stays in "Submitted" forever.
+     *
+     * @param array<string, mixed> $result Handoff result payload.
+     * @param int $actorId Acting member ID.
+     * @return void
+     */
+    private function syncConvertedRecommendationState(array $result, int $actorId): void
+    {
+        if (!($result['success'] ?? false) || ($result['skipped'] ?? false)) {
+            return;
+        }
+
+        $bestowalIds = [];
+        $singleId = (int)($result['data']['bestowalId'] ?? 0);
+        if ($singleId > 0) {
+            $bestowalIds[] = $singleId;
+        }
+        foreach ((array)($result['data']['bestowalIds'] ?? []) as $bestowalId) {
+            if ((int)$bestowalId > 0) {
+                $bestowalIds[] = (int)$bestowalId;
+            }
+        }
+
+        $syncService = new BestowalRecommendationSyncService();
+        foreach (array_unique($bestowalIds) as $bestowalId) {
+            $syncService->syncFromBestowal($bestowalId, $actorId);
         }
     }
 
@@ -674,7 +711,10 @@ class AwardsWorkflowActions
                 ];
             }
 
-            return $this->bestowalHandoffService->createBestowals($recommendationIds, $actorId, $gatheringId);
+            $result = $this->bestowalHandoffService->createBestowals($recommendationIds, $actorId, $gatheringId);
+            $this->syncConvertedRecommendationState($result, $actorId);
+
+            return $result;
         } catch (Throwable $e) {
             Log::error('Workflow CreateBestowalsForRecommendations failed: ' . $e->getMessage());
 

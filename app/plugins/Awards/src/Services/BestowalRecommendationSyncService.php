@@ -86,6 +86,10 @@ class BestowalRecommendationSyncService
                             $updated = true;
                         }
 
+                        if ($this->syncRecommendationLifecycleFromBestowal($bestowal, $recommendation, $actorId)) {
+                            $updated = true;
+                        }
+
                         if ($updated) {
                             $syncedIds[] = (int)$recommendation->id;
                         }
@@ -189,6 +193,69 @@ class BestowalRecommendationSyncService
         }
 
         $recommendation->given = $targetGiven;
+        $recommendation->modified_by = $actorId;
+        $this->recommendationsTable->saveOrFail(
+            $recommendation,
+            ['systemSync' => true],
+        );
+
+        return true;
+    }
+
+    /**
+     * Advance a linked recommendation's status/state to match the bestowal lifecycle.
+     *
+     * Once a recommendation is converted, the board state lives on the bestowal:
+     * an open bestowal without a gathering means "Scheduling / Need to Schedule",
+     * an open bestowal with a gathering means "To Give / Scheduled", and a given
+     * bestowal means "Closed / Given". Closed recommendations and the manual
+     * "Announced Not Given" board state are never overwritten by an open bestowal.
+     *
+     * @param \Awards\Model\Entity\Bestowal $bestowal Source bestowal.
+     * @param \Awards\Model\Entity\Recommendation $recommendation Linked recommendation to update.
+     * @param int $actorId Actor ID for audit logging.
+     * @return bool True when the recommendation status/state was updated.
+     */
+    public function syncRecommendationLifecycleFromBestowal(
+        Bestowal $bestowal,
+        Recommendation $recommendation,
+        int $actorId,
+    ): bool {
+        $lifecycle = (string)($bestowal->lifecycle_status ?? Bestowal::LIFECYCLE_OPEN);
+        if ($lifecycle === Bestowal::LIFECYCLE_GIVEN) {
+            $targetStatus = 'Closed';
+            $targetState = 'Given';
+        } elseif ($lifecycle === Bestowal::LIFECYCLE_OPEN) {
+            if ((string)$recommendation->status === 'Closed') {
+                return false;
+            }
+            if (
+                (string)$recommendation->status === 'To Give'
+                && (string)$recommendation->state === 'Announced Not Given'
+            ) {
+                return false;
+            }
+            if ($bestowal->gathering_id !== null) {
+                $targetStatus = 'To Give';
+                $targetState = 'Scheduled';
+            } else {
+                $targetStatus = 'Scheduling';
+                $targetState = 'Need to Schedule';
+            }
+        } else {
+            return false;
+        }
+
+        if (
+            (string)$recommendation->status === $targetStatus
+            && (string)$recommendation->state === $targetState
+        ) {
+            return false;
+        }
+
+        $recommendation->status = $targetStatus;
+        $recommendation->state = $targetState;
+        $recommendation->state_date = DateTime::now();
         $recommendation->modified_by = $actorId;
         $this->recommendationsTable->saveOrFail(
             $recommendation,

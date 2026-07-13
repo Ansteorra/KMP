@@ -6,10 +6,13 @@ namespace Awards\Policy;
 use App\KMP\KmpIdentityInterface;
 use App\Model\Entity\ActionItem;
 use App\Model\Entity\BaseEntity;
+use App\Model\Table\WorkflowApprovalsTable;
 use App\Policy\BasePolicy;
 use App\Services\ActionItems\ActionItemAssigneeResolver;
 use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\BestowalTodoTemplateItem;
+use Awards\Model\Entity\RecommendationApprovalRun;
+use Cake\ORM\TableRegistry;
 
 /**
  * Authorization policy for Bestowal entities in the Awards plugin.
@@ -77,7 +80,13 @@ class BestowalPolicy extends BasePolicy
     }
 
     /**
-     * Authorize gathering autocomplete used by single bestowal edit forms.
+     * Authorize gathering autocomplete used by single bestowal edit forms and
+     * the approval Respond modal.
+     *
+     * Besides bestowal editors and court schedulers, a member who is currently
+     * an eligible approver on a pending approval for the recommendation carried
+     * in `approval_context_recommendation_id` may use the lookup — the approval
+     * modal's Bestowal Gathering field is theirs to fill.
      *
      * @param \App\KMP\KmpIdentityInterface $user The authenticated user
      * @param \App\Model\Entity\BaseEntity $entity The bestowal entity
@@ -89,8 +98,53 @@ class BestowalPolicy extends BasePolicy
         BaseEntity $entity,
         ...$optionalArgs,
     ): bool {
-        return $this->canEdit($user, $entity, ...$optionalArgs)
-            || $this->canManageCourtSchedule($user, $entity, ...$optionalArgs);
+        if (
+            $this->canEdit($user, $entity, ...$optionalArgs)
+            || $this->canManageCourtSchedule($user, $entity, ...$optionalArgs)
+        ) {
+            return true;
+        }
+
+        return $this->isPendingApproverForRecommendation(
+            $user,
+            (int)($entity->get('approval_context_recommendation_id') ?? 0),
+        );
+    }
+
+    /**
+     * Whether the member is an eligible approver on a pending approval for a recommendation.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The authenticated user
+     * @param int $recommendationId Recommendation ID from the lookup context
+     * @return bool
+     */
+    protected function isPendingApproverForRecommendation(KmpIdentityInterface $user, int $recommendationId): bool
+    {
+        if ($recommendationId <= 0) {
+            return false;
+        }
+        $memberId = (int)$user->getIdentifier();
+        if ($memberId <= 0) {
+            return false;
+        }
+
+        $instanceIds = TableRegistry::getTableLocator()->get('Awards.RecommendationApprovalRuns')->find()
+            ->select(['workflow_instance_id'])
+            ->where([
+                'recommendation_id' => $recommendationId,
+                'workflow_instance_id IS NOT' => null,
+                'status' => RecommendationApprovalRun::STATUS_IN_PROGRESS,
+            ])
+            ->enableHydration(false)
+            ->all()
+            ->extract('workflow_instance_id')
+            ->map(fn($id): int => (int)$id)
+            ->toList();
+        if ($instanceIds === []) {
+            return false;
+        }
+
+        return WorkflowApprovalsTable::getPendingApprovalWorkflowInstanceIdsForMember($memberId, $instanceIds) !== [];
     }
 
     /**

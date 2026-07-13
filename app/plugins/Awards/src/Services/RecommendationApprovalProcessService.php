@@ -229,6 +229,7 @@ class RecommendationApprovalProcessService
                 (int)$approval->id,
             );
             $this->syncRequiredCount($approval, $config, $approverIds);
+            $this->syncBlockedFlag($approval, $approverIds);
 
             return $approverIds;
         } catch (Throwable $e) {
@@ -279,7 +280,9 @@ class RecommendationApprovalProcessService
             (int)$run->workflow_instance_id,
             $this->approverIds($step, $recommendation),
         );
-        $requiredCount = $this->requiredCount($step, $approverIds);
+        // Never emit a zero required count: a blocked (empty-pool) gate still
+        // needs one approval once the pool self-heals.
+        $requiredCount = max(1, $this->requiredCount($step, $approverIds));
 
         return [
             'runId' => (int)$run->id,
@@ -290,6 +293,7 @@ class RecommendationApprovalProcessService
             'currentStepLabel' => (string)$step->label,
             'approverIds' => $approverIds,
             'requiredCount' => $requiredCount,
+            'blocked' => $approverIds === [],
             'approvalApproverConfig' => $this->approvalApproverConfig(
                 $run,
                 $step,
@@ -409,6 +413,34 @@ class RecommendationApprovalProcessService
     }
 
     /**
+     * Persist (only on transitions) whether a pending gate currently has an empty
+     * approver pool, so admin views can badge blocked approvals without resolving
+     * every pool per row.
+     *
+     * @param \App\Model\Entity\WorkflowApproval $approval Workflow approval.
+     * @param array<int> $approverIds Current approver IDs.
+     * @return void
+     */
+    private function syncBlockedFlag(WorkflowApproval $approval, array $approverIds): void
+    {
+        if (empty($approval->id) || $approval->status !== WorkflowApproval::STATUS_PENDING) {
+            return;
+        }
+        $config = $approval->approver_config ?? [];
+        $blocked = $approverIds === [];
+        if ((bool)($config['blocked_no_approvers'] ?? false) === $blocked) {
+            return;
+        }
+
+        $config['blocked_no_approvers'] = $blocked;
+        $approvalsTable = $this->fetchTable('WorkflowApprovals');
+        $entity = $approvalsTable->get((int)$approval->id);
+        $entity->approver_config = $config;
+        $approvalsTable->saveOrFail($entity);
+        $approval->approver_config = $config;
+    }
+
+    /**
      * Keep dynamic workflow approval counts aligned with the current target pool.
      *
      * @param \App\Model\Entity\WorkflowApproval $approval Workflow approval.
@@ -454,7 +486,15 @@ class RecommendationApprovalProcessService
         $members = $this->resolver->resolveApprovers($step, $recommendation->award);
         $ids = array_values(array_unique(array_map(static fn($member): int => (int)$member->id, $members)));
         if ($ids === []) {
-            throw new RuntimeException('The approval step resolved zero eligible approvers.');
+            // A vacant office/role must not strand the recommendation: the gate is
+            // created with an empty pool and re-resolves dynamically on every
+            // eligibility check, so it self-heals when the office is filled.
+            Log::warning(sprintf(
+                'Approval step "%s" for recommendation %d resolved zero eligible approvers; '
+                . 'gate will remain blocked until an eligible approver exists.',
+                (string)$step->step_key,
+                (int)$recommendation->id,
+            ));
         }
 
         return $ids;
@@ -499,9 +539,11 @@ class RecommendationApprovalProcessService
 
         $eligibleIds = array_values(array_diff($approverIds, array_unique($priorResponderIds)));
         if ($eligibleIds === []) {
-            throw new RuntimeException(
-                'The approval step resolved zero eligible approvers after excluding prior responders.',
-            );
+            Log::warning(sprintf(
+                'Approval pool for workflow instance %d is empty after excluding prior responders; '
+                . 'gate will remain blocked until an eligible approver exists.',
+                $workflowInstanceId,
+            ));
         }
 
         return $eligibleIds;

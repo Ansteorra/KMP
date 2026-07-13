@@ -38,7 +38,7 @@ class BestowalRecommendationSyncServiceTest extends BaseTestCase
         parent::tearDown();
     }
 
-    public function testSyncFromBestowalCopiesGatheringWithoutChangingLegacyState(): void
+    public function testSyncFromBestowalCopiesGatheringAndAdvancesState(): void
     {
         $recommendationId = $this->createRecommendation('Need to Schedule');
         $createResult = $this->creationService->createFromRecommendation(
@@ -65,8 +65,9 @@ class BestowalRecommendationSyncServiceTest extends BaseTestCase
 
         $reloaded = $this->recommendationsTable->get($recommendationId);
         $this->assertSame($gatheringId, $reloaded->gathering_id);
-        $this->assertSame('Need to Schedule', $reloaded->state);
-        $this->assertSame($this->statusForState('Need to Schedule'), $reloaded->status);
+        // A scheduled bestowal advances the linked recommendation onto the board.
+        $this->assertSame('Scheduled', $reloaded->state);
+        $this->assertSame('To Give', (string)$reloaded->status);
     }
 
     public function testSyncFromBestowalClearsGatheringWhenBestowalHasNone(): void
@@ -134,7 +135,7 @@ class BestowalRecommendationSyncServiceTest extends BaseTestCase
         );
     }
 
-    public function testGivenBestowalDoesNotPromoteLinkedRecommendationLegacyState(): void
+    public function testGivenBestowalClosesLinkedRecommendation(): void
     {
         $recommendationId = $this->createRecommendation('Need to Schedule');
         $createResult = $this->creationService->createFromRecommendation(
@@ -154,8 +155,8 @@ class BestowalRecommendationSyncServiceTest extends BaseTestCase
 
         $this->assertTrue($result['success'], $result['error'] ?? json_encode($result));
         $reloaded = $this->recommendationsTable->get($recommendationId);
-        $this->assertSame('Need to Schedule', $reloaded->state);
-        $this->assertSame($this->statusForState('Need to Schedule'), $reloaded->status);
+        $this->assertSame('Given', $reloaded->state);
+        $this->assertSame('Closed', (string)$reloaded->status);
         $this->assertNotNull($reloaded->given);
         $this->assertSame(
             '2026-06-15',

@@ -169,6 +169,9 @@ class ApprovalsGridColumns extends BaseGridColumns
         if (!empty($approverConfig['feedback_response'])) {
             return __('Feedback requested');
         }
+        if (!empty($approverConfig['blocked_no_approvers'])) {
+            return __('Blocked — no eligible approvers');
+        }
 
         return __('Pending ({0}/{1})', $approval->approved_count, $approval->required_count);
     }

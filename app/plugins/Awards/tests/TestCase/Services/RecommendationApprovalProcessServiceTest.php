@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Awards\Test\TestCase\Services;
 
+use App\KMP\GridColumns\ApprovalsGridColumns;
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowExecutionLog;
 use App\Model\Entity\WorkflowInstance;
@@ -216,6 +217,53 @@ class RecommendationApprovalProcessServiceTest extends BaseTestCase
         $this->assertSame(WorkflowApproval::STATUS_PENDING, $approval->status);
     }
 
+    public function testStartProcessWithVacantApproverPoolCreatesBlockedGateThatSelfHeals(): void
+    {
+        AwardsWorkflowProvider::register();
+        $role = $this->createRole();
+        [$recommendation, $instanceId] = $this->buildApprovalScenario([
+            $this->roleStepData('vacant', 'Vacant approval', 1, (int)$role->id),
+        ]);
+
+        // A vacant approver pool must not fail the submission workflow.
+        $result = $this->service->startProcess(
+            ['instanceId' => $instanceId],
+            ['recommendationId' => (int)$recommendation->id],
+        );
+        $this->assertTrue($result->isSuccess(), $result->getError() ?? '');
+        $this->assertSame([], $result->data['approverIds']);
+        $this->assertTrue($result->data['blocked']);
+        $this->assertSame(1, $result->data['requiredCount']);
+
+        $approvalId = $this->createWorkflowApproval(
+            $instanceId,
+            $result->data['approvalApproverConfig'],
+            $result->data['requiredCount'],
+        );
+
+        // Resolution marks the pending gate as blocked for admin surfacing.
+        $approval = $this->getTableLocator()->get('WorkflowApprovals')->get($approvalId);
+        $this->assertSame([], $this->service->resolveConfiguredApproverIds($approval));
+        $approval = $this->getTableLocator()->get('WorkflowApprovals')->get($approvalId);
+        $this->assertTrue((bool)($approval->approver_config['blocked_no_approvers'] ?? false));
+        $this->assertSame(
+            'Blocked — no eligible approvers',
+            ApprovalsGridColumns::getPendingStatusLabel($approval),
+        );
+
+        // Filling the role self-heals the gate: it enters the member's queue
+        // and the blocked flag clears.
+        $this->createMemberRole(self::TEST_MEMBER_AGATHA_ID, (int)$role->id);
+        $manager = new DefaultWorkflowApprovalManager();
+        $pending = $manager->getPendingApprovalsForMember(self::TEST_MEMBER_AGATHA_ID);
+        $this->assertContains(
+            $approvalId,
+            array_map(static fn($pendingApproval): int => (int)$pendingApproval->id, $pending),
+        );
+        $approval = $this->getTableLocator()->get('WorkflowApprovals')->get($approvalId);
+        $this->assertFalse((bool)($approval->approver_config['blocked_no_approvers'] ?? false));
+    }
+
     public function testLaterApprovalStepExcludesPriorResponderEvenWhenTheyStillQualify(): void
     {
         $role = $this->createRole();
@@ -366,7 +414,8 @@ class RecommendationApprovalProcessServiceTest extends BaseTestCase
         $this->assertSame(RecommendationApprovalRun::TERMINAL_REASON_CONSUMED_BY_BESTOWAL, $run->terminal_reason);
         $this->assertSame((int)$bestowal->id, (int)$run->consumed_by_bestowal_id);
         $this->assertSame((int)$award->id, (int)$bestowal->award_id);
-        $this->assertSame('Submitted', $this->freshRecommendationState($recommendationId));
+        // Conversion advances the recommendation onto the board (no gathering yet).
+        $this->assertSame('Need to Schedule', $this->freshRecommendationState($recommendationId));
     }
 
     /**

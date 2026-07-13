@@ -614,7 +614,13 @@ class BestowalsController extends AppController
         ?string $bestowalId = null,
     ): void {
         $this->request->allowMethod(['get']);
+        $recommendationId = $this->request->getQuery('recommendation_id');
+        $recommendationId = is_numeric((string)$recommendationId) ? (int)$recommendationId : null;
+
         $emptyBestowal = $this->Bestowals->newEmptyEntity();
+        // Approval-modal callers are authorized as eligible approvers of the
+        // pending approval for this recommendation; carry it as policy context.
+        $emptyBestowal->set('approval_context_recommendation_id', $recommendationId, ['guard' => false]);
         $this->Authorization->authorize($emptyBestowal, 'gatheringsForBestowalAutoComplete');
         $this->viewBuilder()->setClassName('Ajax');
         $this->viewBuilder()->setTemplate('/Recommendations/gatherings_auto_complete');
@@ -630,8 +636,6 @@ class BestowalsController extends AppController
         $memberIdOverride = $this->request->getQuery('member_id');
         $memberIdOverride = is_numeric((string)$memberIdOverride) ? (int)$memberIdOverride : null;
         $memberPublicId = trim((string)$this->request->getQuery('member_public_id', ''));
-        $recommendationId = $this->request->getQuery('recommendation_id');
-        $recommendationId = is_numeric((string)$recommendationId) ? (int)$recommendationId : null;
         $bulkBestowalIds = $this->parseBulkBestowalIds($this->request->getQuery('bestowal_ids'));
 
         $gatherings = [];
