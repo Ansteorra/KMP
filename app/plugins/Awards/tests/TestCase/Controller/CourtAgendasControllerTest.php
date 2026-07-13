@@ -52,6 +52,32 @@ class CourtAgendasControllerTest extends HttpIntegrationTestCase
     /**
      * @return void
      */
+    public function testGatheringAgendaShowsCourtLanesFromScheduleWithoutImport(): void
+    {
+        $gathering = $this->getTableLocator()->get('Gatherings')
+            ->find()
+            ->select(['id', 'start_date'])
+            ->firstOrFail();
+        $award = $this->getTableLocator()->get('Awards.Awards')
+            ->find()
+            ->select(['id'])
+            ->firstOrFail();
+        $this->createScheduledActivityForAward(
+            (int)$gathering->id,
+            (int)$award->id,
+            $gathering->start_date,
+        );
+
+        $this->get('/awards/court-agendas/gathering/' . $gathering->id);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Court Session');
+        $this->assertResponseNotContains('No court activities are available yet.');
+    }
+
+    /**
+     * @return void
+     */
     public function testPrintAgendaRendersPrinterReadyFormat(): void
     {
         $gathering = $this->getTableLocator()->get('Gatherings')
@@ -182,7 +208,8 @@ class CourtAgendasControllerTest extends HttpIntegrationTestCase
             'gathering_id' => $gatheringId,
             'gathering_activity_id' => $activity->id,
             'start_datetime' => (clone $startDate)->modify('+1 hour'),
-            'has_end_time' => false,
+            'end_datetime' => (clone $startDate)->modify('+2 hours'),
+            'has_end_time' => true,
             'display_title' => 'Court Session',
             'description' => 'Court Session description.',
             'pre_register' => false,

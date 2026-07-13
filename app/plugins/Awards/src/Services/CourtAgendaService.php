@@ -31,6 +31,13 @@ class CourtAgendaService
     private array $awardActivityEligibility = [];
 
     /**
+     * Re-entrancy guard for bestowal-driven agenda placement sync.
+     *
+     * @var bool
+     */
+    private static bool $syncingAgendaPlacement = false;
+
+    /**
      * @param int $gatheringId Gathering ID.
      * @param int|null $actorId Optional actor ID for audit fields.
      * @return \Awards\Model\Entity\CourtAgenda
@@ -146,7 +153,7 @@ class CourtAgendaService
     }
 
     /**
-     * Ensure scheduled gathering activities that can host pending bestowals are represented as court lanes.
+     * Ensure scheduled gathering activities that can present awards are represented as court lanes.
      *
      * @param int $agendaId Agenda ID.
      * @param int|null $actorId Optional actor ID.
@@ -175,7 +182,7 @@ class CourtAgendaService
                 'name' => (string)$activity->display_title,
                 'court_type' => CourtAgendaSegment::TYPE_COURT,
                 'sort_order' => $this->nextSegmentSortOrder($agendaId),
-                'planned_start_time' => $this->activityTimeLabel($activity),
+                'planned_start_time' => $this->plannedStartTimeLabel($activity),
                 'created_by' => $actorId,
                 'modified_by' => $actorId,
             ]));
@@ -183,6 +190,172 @@ class CourtAgendaService
         }
 
         return $created;
+    }
+
+    /**
+     * Mirror a bestowal's court assignment onto its gathering's default agenda in real time.
+     *
+     * Invoked from BestowalsTable::afterSave whenever the gathering or court slot
+     * fields change, so agenda items follow the canonical bestowal fields without a
+     * manual "Refresh Scheduled Bestowals" pass: assignments create or move the
+     * bestowal's agenda item, cleared slots (or gathering moves) remove stale items.
+     * Only PRESENT bestowal items are managed — interjection blocks are untouched,
+     * and this direction never writes bestowal fields or to-dos.
+     *
+     * @param \Awards\Model\Entity\Bestowal $bestowal Saved bestowal.
+     * @param int|null $actorId Actor for audit columns on created rows.
+     * @return void
+     */
+    public function syncAgendaPlacementForBestowal(Bestowal $bestowal, ?int $actorId = null): void
+    {
+        if (self::$syncingAgendaPlacement) {
+            return;
+        }
+
+        self::$syncingAgendaPlacement = true;
+        try {
+            $this->applyAgendaPlacementForBestowal($bestowal, $actorId);
+        } finally {
+            self::$syncingAgendaPlacement = false;
+        }
+    }
+
+    /**
+     * @param \Awards\Model\Entity\Bestowal $bestowal Saved bestowal.
+     * @param int|null $actorId Actor ID.
+     * @return void
+     */
+    private function applyAgendaPlacementForBestowal(Bestowal $bestowal, ?int $actorId): void
+    {
+        $items = $this->fetchTable('Awards.CourtAgendaItems');
+        $gatheringId = $bestowal->gathering_id !== null ? (int)$bestowal->gathering_id : null;
+
+        $existingItems = $items->find()
+            ->contain(['CourtAgendaSegments' => ['CourtAgendas']])
+            ->where([
+                'CourtAgendaItems.bestowal_id' => (int)$bestowal->id,
+                'CourtAgendaItems.role' => CourtAgendaItem::ROLE_PRESENT,
+            ])
+            ->all()
+            ->toList();
+
+        $currentItem = null;
+        foreach ($existingItems as $existing) {
+            $itemGatheringId = (int)$existing->court_agenda_segment->court_agenda->gathering_id;
+            if ($gatheringId === null || $itemGatheringId !== $gatheringId) {
+                $segmentId = (int)$existing->court_agenda_segment_id;
+                $items->deleteOrFail($existing);
+                $this->renumberItems($segmentId);
+                continue;
+            }
+            $currentItem = $existing;
+        }
+
+        if ($gatheringId === null) {
+            return;
+        }
+
+        $targetSegment = $this->resolveSegmentForBestowalSlot($bestowal, $gatheringId, $actorId);
+        if ($targetSegment === null) {
+            if ($currentItem !== null) {
+                $segmentId = (int)$currentItem->court_agenda_segment_id;
+                $items->deleteOrFail($currentItem);
+                $this->renumberItems($segmentId);
+            }
+
+            return;
+        }
+
+        if ($currentItem !== null) {
+            if ((int)$currentItem->court_agenda_segment_id === (int)$targetSegment->id) {
+                return;
+            }
+            $sourceSegmentId = (int)$currentItem->court_agenda_segment_id;
+            $currentItem->court_agenda_segment_id = (int)$targetSegment->id;
+            $currentItem->sort_order = $this->nextItemSortOrder((int)$targetSegment->id);
+            $currentItem->modified_by = $actorId;
+            $items->saveOrFail($currentItem);
+            $this->renumberItems($sourceSegmentId);
+            $this->renumberItems((int)$targetSegment->id);
+
+            return;
+        }
+
+        $estimateSource = $bestowal->award !== null
+            ? $bestowal
+            : $this->fetchTable('Awards.Bestowals')->find()
+                ->where(['Bestowals.id' => (int)$bestowal->id])
+                ->contain(['Awards' => ['Levels']])
+                ->first() ?? $bestowal;
+        $items->saveOrFail($items->newEntity([
+            'court_agenda_segment_id' => (int)$targetSegment->id,
+            'bestowal_id' => (int)$bestowal->id,
+            'item_type' => CourtAgendaItem::TYPE_BESTOWAL,
+            'role' => CourtAgendaItem::ROLE_PRESENT,
+            'sort_order' => $this->nextItemSortOrder((int)$targetSegment->id),
+            'estimated_minutes' => $this->estimateMinutesForBestowal($estimateSource),
+            'duration_locked' => false,
+            'include_reasons' => true,
+            'include_specialties' => true,
+            'created_by' => $actorId,
+            'modified_by' => $actorId,
+        ]));
+    }
+
+    /**
+     * Resolve (creating when needed) the agenda segment matching a bestowal's court slot.
+     *
+     * @param \Awards\Model\Entity\Bestowal $bestowal Saved bestowal.
+     * @param int $gatheringId Bestowal gathering ID.
+     * @param int|null $actorId Actor ID.
+     * @return \Awards\Model\Entity\CourtAgendaSegment|null Null when the bestowal has no valid slot.
+     */
+    private function resolveSegmentForBestowalSlot(
+        Bestowal $bestowal,
+        int $gatheringId,
+        ?int $actorId,
+    ): ?CourtAgendaSegment {
+        $roaming = (bool)$bestowal->roaming_court;
+        $activityId = $bestowal->gathering_scheduled_activity_id !== null
+            ? (int)$bestowal->gathering_scheduled_activity_id
+            : null;
+        if (!$roaming && $activityId === null) {
+            return null;
+        }
+
+        $agenda = $this->getOrCreateDefaultAgenda($gatheringId, $actorId);
+        if ($roaming) {
+            return $this->ensureRoamingSegment((int)$agenda->id, $actorId);
+        }
+
+        $activity = $this->fetchTable('GatheringScheduledActivities')->find()
+            ->where(['id' => $activityId])
+            ->first();
+        if ($activity === null || (int)$activity->gathering_id !== $gatheringId) {
+            return null;
+        }
+
+        $segments = $this->fetchTable('Awards.CourtAgendaSegments');
+        $segment = $segments->find()
+            ->where([
+                'court_agenda_id' => (int)$agenda->id,
+                'gathering_scheduled_activity_id' => $activityId,
+            ])
+            ->first();
+        if ($segment !== null) {
+            return $segment;
+        }
+
+        return $segments->saveOrFail($segments->newEntity([
+            'court_agenda_id' => (int)$agenda->id,
+            'gathering_scheduled_activity_id' => $activityId,
+            'name' => (string)$activity->display_title,
+            'court_type' => CourtAgendaSegment::TYPE_COURT,
+            'sort_order' => $this->nextSegmentSortOrder((int)$agenda->id),
+            'planned_start_time' => $this->plannedStartTimeLabel($activity),
+            'created_by' => $actorId,
+            'modified_by' => $actorId,
+        ]));
     }
 
     /**
@@ -991,28 +1164,15 @@ class CourtAgendaService
     }
 
     /**
+     * Scheduled activities that can host a court: any entry whose activity type can
+     * present awards, plus entries that already have bestowals assigned to them.
+     *
      * @param int $gatheringId Gathering ID.
      * @return array<int, object>
      */
     private function eligibleScheduledActivitiesForGathering(int $gatheringId): array
     {
         $bestowals = $this->fetchTable('Awards.Bestowals');
-        $awardRows = $bestowals->find()
-            ->select(['award_id'])
-            ->where([
-                'Bestowals.gathering_id' => $gatheringId,
-                'Bestowals.award_id IS NOT' => null,
-                'Bestowals.lifecycle_status NOT IN' => [
-                    Bestowal::LIFECYCLE_GIVEN,
-                    Bestowal::LIFECYCLE_CANCELLED,
-                ],
-            ])
-            ->enableHydration(false)
-            ->all();
-        $awardIds = [];
-        foreach ($awardRows as $row) {
-            $awardIds[(int)$row['award_id']] = (int)$row['award_id'];
-        }
 
         $scheduledRows = $bestowals->find()
             ->select(['gathering_scheduled_activity_id'])
@@ -1028,16 +1188,14 @@ class CourtAgendaService
                 (int)$row['gathering_scheduled_activity_id'];
         }
 
+        $activityRows = $this->fetchTable('Awards.AwardGatheringActivities')->find()
+            ->select(['gathering_activity_id'])
+            ->distinct(['gathering_activity_id'])
+            ->enableHydration(false)
+            ->all();
         $activityIds = [];
-        if ($awardIds !== []) {
-            $activityRows = $this->fetchTable('Awards.AwardGatheringActivities')->find()
-                ->select(['gathering_activity_id'])
-                ->where(['award_id IN' => array_values($awardIds)])
-                ->enableHydration(false)
-                ->all();
-            foreach ($activityRows as $row) {
-                $activityIds[(int)$row['gathering_activity_id']] = (int)$row['gathering_activity_id'];
-            }
+        foreach ($activityRows as $row) {
+            $activityIds[(int)$row['gathering_activity_id']] = (int)$row['gathering_activity_id'];
         }
 
         $conditions = ['GatheringScheduledActivities.gathering_id' => $gatheringId];
@@ -1375,6 +1533,21 @@ class CourtAgendaService
     }
 
     /**
+     * Start-only label for the segment planned_start_time column (max 20 chars).
+     *
+     * @param object $activity Scheduled activity.
+     * @return string|null
+     */
+    private function plannedStartTimeLabel(object $activity): ?string
+    {
+        if (empty($activity->start_datetime)) {
+            return null;
+        }
+
+        return $activity->start_datetime->format('D g:i A');
+    }
+
+    /**
      * @param int $agendaId Agenda ID.
      * @param object $bestowal Bestowal entity.
      * @param int|null $actorId Actor ID.
@@ -1412,7 +1585,7 @@ class CourtAgendaService
             'name' => (string)$activity->display_title,
             'court_type' => CourtAgendaSegment::TYPE_COURT,
             'sort_order' => $this->nextSegmentSortOrder($agendaId),
-            'planned_start_time' => $this->activityTimeLabel($activity),
+            'planned_start_time' => $this->plannedStartTimeLabel($activity),
             'created_by' => $actorId,
             'modified_by' => $actorId,
         ]);

@@ -37,6 +37,7 @@ class CourtAgendasController extends AppController
         $user = $this->request->getAttribute('identity');
         $agenda = $agendaService->getOrCreateDefaultAgenda($gatheringIdInt, (int)$user->id);
         $canManage = $user->checkCan('edit', $agenda);
+        $agendaService->ensureEligibleCourtSegments((int)$agenda->id, (int)$user->id);
 
         $viewModel = $agendaService->buildAgendaViewModel((int)$agenda->id);
         $selectedSegmentId = $this->selectedSegmentId(

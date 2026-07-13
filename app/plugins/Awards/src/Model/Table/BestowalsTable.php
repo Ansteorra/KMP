@@ -6,6 +6,7 @@ namespace Awards\Model\Table;
 use App\Model\Table\BaseTable;
 use ArrayObject;
 use Awards\Model\Entity\Bestowal;
+use Awards\Services\CourtAgendaService;
 use Cake\Datasource\EntityInterface;
 use Cake\Event\EventInterface;
 use Cake\ORM\Query\SelectQuery;
@@ -297,6 +298,37 @@ class BestowalsTable extends BaseTable
         } elseif ($entity->gathering_scheduled_activity_id !== null) {
             $entity->roaming_court = false;
         }
+    }
+
+    /**
+     * Keep the gathering's court agenda in sync with the bestowal's court assignment.
+     *
+     * Whenever the gathering or court-slot fields change, the default court agenda
+     * mirrors the assignment in real time (item created, moved, or removed), so the
+     * agenda never needs a manual bestowal sync.
+     *
+     * @param \Cake\Event\EventInterface $event The afterSave event.
+     * @param \Cake\Datasource\EntityInterface $entity The persisted entity.
+     * @param \ArrayObject $options Save operation options.
+     * @return void
+     */
+    public function afterSave($event, $entity, $options): void
+    {
+        parent::afterSave($event, $entity, $options);
+
+        if (!$entity instanceof Bestowal) {
+            return;
+        }
+        if (
+            !$entity->isDirty('gathering_scheduled_activity_id')
+            && !$entity->isDirty('roaming_court')
+            && !$entity->isDirty('gathering_id')
+        ) {
+            return;
+        }
+
+        $actorId = $entity->modified_by !== null ? (int)$entity->modified_by : null;
+        (new CourtAgendaService())->syncAgendaPlacementForBestowal($entity, $actorId);
     }
 
     /**

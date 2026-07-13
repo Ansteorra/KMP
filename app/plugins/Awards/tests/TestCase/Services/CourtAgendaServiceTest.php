@@ -89,7 +89,13 @@ class CourtAgendaServiceTest extends BaseTestCase
             ])
             ->count();
 
-        $this->assertGreaterThanOrEqual(1, $imported);
+        // Real-time agenda sync placed both bestowals when their court slots were
+        // saved, so the manual import finds nothing new to add.
+        $this->assertSame(0, $imported);
+        $placedCount = $this->getTableLocator()->get('Awards.CourtAgendaItems')->find()
+            ->where(['bestowal_id IN' => [(int)$bestowal->id, (int)$secondBestowal->id]])
+            ->count();
+        $this->assertSame(2, $placedCount);
         $this->assertSame((int)$gathering->id, (int)$viewModel['agenda']->gathering_id);
         $this->assertNotEmpty($viewModel['segments']);
         $this->assertGreaterThan(0, $viewModel['totalMinutes']);
@@ -508,6 +514,109 @@ class CourtAgendaServiceTest extends BaseTestCase
     /**
      * @return void
      */
+    public function testEnsureEligibleCourtSegmentsCreatesLanesWithoutBestowals(): void
+    {
+        $gathering = $this->getTableLocator()->get('Gatherings')
+            ->find()
+            ->select(['id', 'start_date', 'end_date'])
+            ->firstOrFail();
+        $award = $this->getTableLocator()->get('Awards.Awards')
+            ->find()
+            ->firstOrFail();
+        $scheduledActivity = $this->createScheduledActivityForAward((int)$gathering->id, (int)$award->id);
+        $agenda = $this->service->getOrCreateDefaultAgenda((int)$gathering->id, self::ADMIN_MEMBER_ID);
+
+        $created = $this->service->ensureEligibleCourtSegments((int)$agenda->id, self::ADMIN_MEMBER_ID);
+
+        $this->assertGreaterThanOrEqual(1, $created);
+        $segment = $this->getTableLocator()->get('Awards.CourtAgendaSegments')
+            ->find()
+            ->where([
+                'court_agenda_id' => $agenda->id,
+                'gathering_scheduled_activity_id' => $scheduledActivity->id,
+            ])
+            ->first();
+        $this->assertNotNull($segment);
+
+        $this->assertNotNull($segment->planned_start_time);
+        $this->assertLessThanOrEqual(20, strlen((string)$segment->planned_start_time));
+
+        $createdAgain = $this->service->ensureEligibleCourtSegments((int)$agenda->id, self::ADMIN_MEMBER_ID);
+        $this->assertSame(0, $createdAgain);
+    }
+
+    /**
+     * @return void
+     */
+    public function testBestowalCourtSlotChangesSyncAgendaInRealTime(): void
+    {
+        $gathering = $this->getTableLocator()->get('Gatherings')
+            ->find()
+            ->select(['id', 'start_date', 'end_date'])
+            ->firstOrFail();
+        $award = $this->getTableLocator()->get('Awards.Awards')
+            ->find()
+            ->contain(['Levels'])
+            ->firstOrFail();
+        $firstActivity = $this->createScheduledActivityForAward((int)$gathering->id, (int)$award->id);
+        $secondActivity = $this->createScheduledActivityForAward((int)$gathering->id, (int)$award->id);
+
+        $bestowals = $this->getTableLocator()->get('Awards.Bestowals');
+        $items = $this->getTableLocator()->get('Awards.CourtAgendaItems');
+        $bestowal = $bestowals->saveOrFail($bestowals->newEntity([
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'award_id' => $award->id,
+            'gathering_id' => $gathering->id,
+            'state' => 'Court Scheduled',
+            'status' => 'Scheduling',
+            'source' => Bestowal::SOURCE_AD_HOC,
+            'stack_rank' => 10,
+        ]));
+
+        $itemFinder = fn() => $items->find()
+            ->contain(['CourtAgendaSegments'])
+            ->where(['CourtAgendaItems.bestowal_id' => (int)$bestowal->id])
+            ->first();
+        $this->assertNull($itemFinder(), 'No agenda item expected before a court slot is assigned.');
+
+        // Assigning a court slot places the bestowal on the agenda without an import.
+        $bestowal->gathering_scheduled_activity_id = (int)$firstActivity->id;
+        $bestowals->saveOrFail($bestowal);
+        $item = $itemFinder();
+        $this->assertNotNull($item, 'Agenda item expected after court slot assignment.');
+        $this->assertSame(
+            (int)$firstActivity->id,
+            (int)$item->court_agenda_segment->gathering_scheduled_activity_id,
+        );
+
+        // Re-assigning to another court activity moves the same agenda item.
+        $bestowal->gathering_scheduled_activity_id = (int)$secondActivity->id;
+        $bestowals->saveOrFail($bestowal);
+        $moved = $itemFinder();
+        $this->assertSame((int)$item->id, (int)$moved->id);
+        $this->assertSame(
+            (int)$secondActivity->id,
+            (int)$moved->court_agenda_segment->gathering_scheduled_activity_id,
+        );
+
+        // Switching to roaming court moves the item into the roaming lane.
+        $bestowal->roaming_court = true;
+        $bestowal->gathering_scheduled_activity_id = null;
+        $bestowals->saveOrFail($bestowal);
+        $roaming = $itemFinder();
+        $this->assertNull($roaming->court_agenda_segment->gathering_scheduled_activity_id);
+        $this->assertSame('Roaming Court', (string)$roaming->court_agenda_segment->name);
+
+        // Clearing the assignment removes the agenda item.
+        $bestowal->roaming_court = false;
+        $bestowal->gathering_scheduled_activity_id = null;
+        $bestowals->saveOrFail($bestowal);
+        $this->assertNull($itemFinder(), 'Agenda item should be removed when the court slot is cleared.');
+    }
+
+    /**
+     * @return void
+     */
     public function testAddSegmentRequiresScheduledActivity(): void
     {
         $gathering = $this->getTableLocator()->get('Gatherings')
@@ -550,7 +659,8 @@ class CourtAgendaServiceTest extends BaseTestCase
             'gathering_id' => $gatheringId,
             'gathering_activity_id' => $activity->id,
             'start_datetime' => (clone $gathering->start_date)->modify('+1 hour'),
-            'has_end_time' => false,
+            'end_datetime' => (clone $gathering->start_date)->modify('+2 hours'),
+            'has_end_time' => true,
             'display_title' => 'Court Session',
             'description' => 'Court Session description.',
             'pre_register' => false,
