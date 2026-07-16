@@ -45,7 +45,7 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
         return $table->saveOrFail($entity);
     }
 
-    private function makeBestowal(): Bestowal
+    private function makeBestowal(array $overrides = []): Bestowal
     {
         $award = TableRegistry::getTableLocator()->get('Awards.Awards')
             ->find()
@@ -53,14 +53,14 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
             ->firstOrFail();
         $bestowals = TableRegistry::getTableLocator()->get('Awards.Bestowals');
 
-        return $bestowals->saveOrFail($bestowals->newEntity([
+        return $bestowals->saveOrFail($bestowals->newEntity(array_merge([
             'member_id' => self::ADMIN_MEMBER_ID,
             'member_sca_name' => 'Todo Recipient',
             'award_id' => $award->id,
             'lifecycle_status' => Bestowal::LIFECYCLE_OPEN,
             'source' => Bestowal::SOURCE_AD_HOC,
             'stack_rank' => 0,
-        ]));
+        ], $overrides)));
     }
 
     /**
@@ -105,6 +105,67 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
 
         $this->assertResponseOk();
         $this->assertResponseContains('Scroll finished');
+    }
+
+    public function testMyTasksGridDataShowsOperationalBestowalDetails(): void
+    {
+        $this->authenticateAsMember(self::ADMIN_MEMBER_ID);
+        $bestowal = $this->makeBestowal([
+            'specialty' => 'Scribal Arts',
+            'reason_summary' => 'Reason detail that should not appear',
+            'noble_notes' => 'Noble note that should not appear',
+        ]);
+        $schedule = $this->makeScheduledCourtForAward((int)$bestowal->award_id);
+        $bestowal->gathering_id = $schedule['gathering']->id;
+        $bestowal->gathering_scheduled_activity_id = $schedule['scheduledActivity']->id;
+        TableRegistry::getTableLocator()->get('Awards.Bestowals')->saveOrFail($bestowal);
+        $this->makeMemberItem(self::ADMIN_MEMBER_ID, [
+            'entity_id' => (int)$bestowal->id,
+        ]);
+
+        $this->get('/action-items/my-tasks-data');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Specializations');
+        $this->assertResponseContains('Scribal Arts');
+        $this->assertResponseContains('Gathering Date');
+        $this->assertResponseContains($schedule['gathering']->start_date->format('Y-m-d'));
+        $this->assertResponseContains('Hosting Group');
+        $this->assertResponseContains('Court Assigned');
+        $this->assertResponseContains('Evening Court');
+        $this->assertResponseContains(
+            '/gatherings/view/' . $schedule['gathering']->public_id . '?tab=gathering-bestowals',
+        );
+        $this->assertResponseNotContains('Reason detail that should not appear');
+        $this->assertResponseNotContains('Noble note that should not appear');
+        $this->assertResponseNotContains('Linked Recommendation');
+
+        $this->configRequest([
+            'headers' => [
+                'Accept' => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ],
+        ]);
+        $this->get('/action-items/mobile-data');
+        $payload = json_decode((string)$this->_response->getBody(), true);
+        $gatheringDetail = collection($payload['groups'][0]['details'] ?? [])
+            ->firstMatch(['label' => 'Gathering']);
+        $this->assertSame(
+            '/gatherings/view/' . $schedule['gathering']->public_id . '?tab=gathering-bestowals',
+            $gatheringDetail['url'] ?? null,
+        );
+    }
+
+    public function testCompleteButtonsDoNotRenderCheckmarkIcons(): void
+    {
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID);
+
+        $this->get('/action-items/my-tasks-data');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('>Complete</button>');
+        $this->assertResponseNotContains('bi-check2');
     }
 
     public function testMyTasksGridDataIncludesProviderCompletionFormMetadata(): void

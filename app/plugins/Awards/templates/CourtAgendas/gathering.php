@@ -13,7 +13,6 @@
 
 $this->extend('/layout/TwitterBootstrap/dashboard');
 
-$title = __('Court Agenda') . ': ' . ($agenda->gathering->name ?? $agenda->name);
 $csrfToken = (string)($this->request->getAttribute('csrfToken') ?? '');
 $blockRoleOptions = [
     'announce' => __('Announcement'),
@@ -43,6 +42,9 @@ $gatheringViewUrl = [
     'action' => 'view',
     $agenda->gathering->public_id ?? $agenda->gathering_id,
 ];
+$gatheringBestowalsUrl = $gatheringViewUrl + [
+    '?' => ['tab' => 'gathering-bestowals'],
+];
 $eligibleForSelected = [];
 if ($selectedSegmentId !== null) {
     foreach ($unscheduledBestowals as $bestowalData) {
@@ -63,7 +65,13 @@ if ($selectedSegmentId !== null) {
     data-court-agenda-board-csrf-token-value="<?= h($csrfToken) ?>">
     <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 align-items-lg-start mb-3">
         <div>
-            <h1 class="h3 mb-1"><?= h($title) ?></h1>
+            <h1 class="h3 mb-1">
+                <?= __('Court Agenda') ?>:
+                <?= $this->Html->link(
+                    $agenda->gathering->name ?? $agenda->name,
+                    $gatheringBestowalsUrl,
+                ) ?>
+            </h1>
             <p class="text-muted mb-0">
                 <?= __(
                     'Build one court at a time. Choose a court activity, place eligible bestowals, '
@@ -74,7 +82,7 @@ if ($selectedSegmentId !== null) {
         <div class="d-flex flex-wrap gap-2">
             <?= $this->Html->link(
                 __('Back to Gathering'),
-                $gatheringViewUrl,
+                $gatheringBestowalsUrl,
                 ['class' => 'btn btn-outline-secondary'],
             ) ?>
             <?= $this->Html->link(

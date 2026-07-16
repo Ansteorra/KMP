@@ -100,7 +100,6 @@ $backupCurrent = is_array($latestBackup)
                     <dt class="col-sm-4"><?= __('Region') ?></dt><dd class="col-sm-8"><?= h($tenant['region'] ?? '') ?></dd>
                     <dt class="col-sm-4"><?= __('Primary Host') ?></dt><dd class="col-sm-8"><?= h($tenant['primary_host'] ?? '') ?></dd>
                     <dt class="col-sm-4"><?= __('Schema') ?></dt><dd class="col-sm-8"><?= h($tenant['schema_version'] ?? '') ?></dd>
-                    <dt class="col-sm-4"><?= __('Queue Limit') ?></dt><dd class="col-sm-8"><?= h((string)($tenant['queue_concurrency_limit'] ?? '')) ?></dd>
                 </dl>
                 <?php if (($tenant['status'] ?? '') === 'active') : ?>
                     <hr>

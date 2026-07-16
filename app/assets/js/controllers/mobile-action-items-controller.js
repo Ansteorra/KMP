@@ -191,7 +191,7 @@ class MobileActionItemsController extends MobileControllerBase {
                 item.classList.remove("todo-item-completing")
             }
             button.disabled = false
-            button.innerHTML = '<i class="bi bi-check-lg me-1" aria-hidden="true"></i>Mark complete'
+            button.textContent = "Mark complete"
         } finally {
             this._submitting = false
         }
@@ -211,6 +211,7 @@ class MobileActionItemsController extends MobileControllerBase {
         const sourceLink = group.url
             ? `<a href="${this._escHtml(group.url)}" class="btn btn-sm btn-outline-primary mb-3" data-turbo-frame="_top"><i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>View Source</a>`
             : ""
+        const details = this._renderGroupDetails(group.details)
 
         return `<section class="card todo-owner-card" data-group-key="${this._escHtml(key)}" aria-labelledby="todo-owner-title-${this._escHtml(key)}">
             <button type="button"
@@ -227,10 +228,29 @@ class MobileActionItemsController extends MobileControllerBase {
                 <span class="todo-owner-chevron"><i class="bi bi-chevron-right" aria-hidden="true"></i></span>
             </button>
             <div class="todo-owner-detail" id="${detailId}" hidden>
+                ${details}
                 ${sourceLink}
                 ${(group.items || []).map(item => this._renderItem(item)).join("")}
             </div>
         </section>`
+    }
+
+    _renderGroupDetails(details) {
+        if (!Array.isArray(details) || details.length === 0) return ""
+
+        const rows = details.map(detail => {
+            const value = this._escHtml(detail.value || "")
+            const renderedValue = detail.url
+                ? `<a href="${this._escHtml(detail.url)}" data-turbo-frame="_top">${value}</a>`
+                : value
+
+            return `
+                <dt class="col-5 pe-2">${this._escHtml(detail.label || "")}</dt>
+                <dd class="col-7 mb-1">${renderedValue}</dd>
+            `
+        }).join("")
+
+        return `<dl class="row g-0 small mb-3">${rows}</dl>`
     }
 
     _renderItem(item) {
@@ -253,7 +273,7 @@ class MobileActionItemsController extends MobileControllerBase {
                         data-action="click->mobile-action-items#completeItem"
                         data-item-id="${item.id}"
                         aria-label="Mark complete: ${this._escHtml(item.title)}">
-                    <i class="bi bi-check-lg me-1" aria-hidden="true"></i>Mark complete
+                    Mark complete
                 </button>
             </div>
         </article>`

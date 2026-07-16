@@ -1385,6 +1385,7 @@ class BestowalsController extends AppController
             }
             if ($this->shouldLoadBestowalDisplayColumn('gathering_name', $visibleColumns)) {
                 $bestowal->gathering_name = $bestowal->gathering->name ?? '';
+                $bestowal->gathering_public_id = $bestowal->gathering->public_id ?? null;
             }
         }
 
@@ -1409,7 +1410,6 @@ class BestowalsController extends AppController
             [
                 'key' => 'bestowal-todo-complete',
                 'label' => __('Mass Complete Check'),
-                'icon' => 'bi-check2-square',
                 'modalTarget' => '#bestowalBulkTodoModal',
             ],
         ];
@@ -1622,9 +1622,8 @@ class BestowalsController extends AppController
     }
 
     /**
-     * Render the compact to-do progress badge with a popover listing each check
-     * and its state. The badge's accessible name conveys the gating progress so
-     * the information is available without opening the popover.
+     * Render the compact open to-do count with a popover listing each check and
+     * its state. The badge's accessible name also conveys required-check progress.
      *
      * @param list<\App\Model\Entity\ActionItem> $items Action items for one bestowal
      * @return string
@@ -1637,11 +1636,15 @@ class BestowalsController extends AppController
 
         $gatingTotal = 0;
         $gatingDone = 0;
+        $openCount = 0;
         $rows = [];
         foreach ($items as $item) {
             $isGating = (bool)$item->is_gating;
             $completed = $item->isCompleted();
             $cancelled = $item->status === ActionItem::STATUS_CANCELLED;
+            if ($item->isOpen()) {
+                $openCount++;
+            }
             if ($isGating) {
                 $gatingTotal++;
                 if ($completed) {
@@ -1669,20 +1672,22 @@ class BestowalsController extends AppController
                 . '</li>';
         }
 
-        $allGatingDone = $gatingTotal === 0 || $gatingDone >= $gatingTotal;
+        $badgeClass = $openCount === 0 ? 'bg-success' : 'bg-warning text-dark';
+        $progressLabel = (string)$openCount;
+        $ariaLabel = __n(
+            'To-Dos: {0} open item',
+            'To-Dos: {0} open items',
+            $openCount,
+            $openCount,
+        );
         if ($gatingTotal === 0) {
-            $badgeClass = 'bg-secondary';
-            $progressLabel = (string)count($items);
-            $ariaLabel = __n(
-                'To-Dos: {0} optional check',
-                'To-Dos: {0} optional checks',
-                count($items),
-                count($items),
-            );
+            $ariaLabel .= '. ' . __('No required checks.');
         } else {
-            $badgeClass = $allGatingDone ? 'bg-success' : 'bg-warning text-dark';
-            $progressLabel = $gatingDone . '/' . $gatingTotal;
-            $ariaLabel = __('To-Do progress: {0} of {1} required checks complete', $gatingDone, $gatingTotal);
+            $ariaLabel .= '. ' . __(
+                'Required checks complete: {0} of {1}.',
+                $gatingDone,
+                $gatingTotal,
+            );
         }
 
         $content = '<ul class="list-unstyled mb-0 small text-start">' . implode('', $rows) . '</ul>';

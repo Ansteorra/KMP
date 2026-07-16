@@ -15,6 +15,11 @@ class PlatformJobsRunCommand extends Command
     private ?PlatformJobRunner $runner;
 
     /**
+     * @var array{claimed: int, completed: int, failed: int}
+     */
+    private array $lastResult = ['claimed' => 0, 'completed' => 0, 'failed' => 0];
+
+    /**
      * Constructor.
      */
     public function __construct(mixed $runner = null)
@@ -48,6 +53,7 @@ class PlatformJobsRunCommand extends Command
      */
     public function execute(Arguments $args, ConsoleIo $io): int
     {
+        $this->lastResult = ['claimed' => 0, 'completed' => 0, 'failed' => 0];
         try {
             $result = $this->getRunner()->run(
                 (int)$args->getOption('limit'),
@@ -62,6 +68,7 @@ class PlatformJobsRunCommand extends Command
 
             return self::CODE_ERROR;
         }
+        $this->lastResult = $result;
 
         $io->out(sprintf(
             'Platform jobs runner claimed %d job(s): %d completed, %d failed.',
@@ -71,6 +78,16 @@ class PlatformJobsRunCommand extends Command
         ));
 
         return $result['failed'] > 0 ? self::CODE_ERROR : self::CODE_SUCCESS;
+    }
+
+    /**
+     * Return the most recent execution summary.
+     *
+     * @return array{claimed: int, completed: int, failed: int}
+     */
+    public function lastResult(): array
+    {
+        return $this->lastResult;
     }
 
     /**

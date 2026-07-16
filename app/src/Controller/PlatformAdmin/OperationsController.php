@@ -12,8 +12,6 @@ use App\Services\Platform\PlatformAuditService;
 use App\Services\Platform\PlatformBackupPolicyService;
 use App\Services\Platform\PlatformHealthService;
 use App\Services\Platform\PlatformJobRunner;
-use App\Services\Platform\ReleaseCompatibilityChecker;
-use App\Services\Platform\ReleaseManifest;
 use Cake\Core\Configure;
 use Cake\Http\Exception\BadRequestException;
 use Cake\Http\Exception\NotFoundException;
@@ -392,23 +390,6 @@ class OperationsController extends PlatformAdminAppController
     }
 
     /**
-     * Show release records and manifest compatibility status.
-     *
-     * @return void
-     */
-    public function release(): void
-    {
-        $releases = $this->safeRows(
-            'SELECT image_tag, git_sha, min_schema, max_schema, status, created_at, modified_at
-               FROM releases
-           ORDER BY created_at DESC
-              LIMIT 25',
-        );
-        $compatibility = $this->compatibility();
-        $this->set(compact('releases', 'compatibility'));
-    }
-
-    /**
      * @param array<string, mixed> $params
      * @return list<array<string, mixed>>
      */
@@ -472,32 +453,5 @@ class OperationsController extends PlatformAdminAppController
         }
 
         return $row;
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function compatibility(): array
-    {
-        try {
-            $manifest = ReleaseManifest::fromFile(ROOT . DS . 'config' . DS . 'release_manifest.json');
-            $tenantRows = $this->platform()->execute(
-                'SELECT slug, schema_version FROM tenants WHERE status = :status ORDER BY slug',
-                ['status' => 'active'],
-            )->fetchAll('assoc');
-            $errors = (new ReleaseCompatibilityChecker())->incompatibleTenants($tenantRows, $manifest);
-
-            return [
-                'available' => true,
-                'appVersion' => $manifest->appVersion,
-                'minTenantSchema' => $manifest->minTenantSchema,
-                'maxTenantSchema' => $manifest->maxTenantSchema,
-                'activeTenantCount' => count($tenantRows),
-                'incompatibleCount' => count($errors),
-                'errors' => $errors,
-            ];
-        } catch (Throwable) {
-            return ['available' => false, 'message' => 'Release manifest compatibility is unavailable.'];
-        }
     }
 }

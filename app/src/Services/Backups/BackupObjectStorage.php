@@ -55,7 +55,9 @@ final class BackupObjectStorage
         try {
             $this->storage->writeStream($objectPath, $stream);
         } finally {
-            fclose($stream);
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
         }
 
         $size = filesize($encryptedPath);

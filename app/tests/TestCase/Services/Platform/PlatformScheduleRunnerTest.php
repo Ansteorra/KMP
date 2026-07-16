@@ -92,11 +92,13 @@ class PlatformScheduleRunnerTest extends TestCase
             'tenant_scope' => PlatformScheduleRunner::SCOPE_ALL_ACTIVE_TENANTS,
         ]);
         $dispatcher = new class implements PlatformScheduleDispatcherInterface {
-            public function dispatch(array $schedule, ?TenantMetadata $tenant): void
+            public function dispatch(array $schedule, ?TenantMetadata $tenant): int
             {
                 if ($tenant?->slug === 'alpha') {
                     throw new RuntimeException('Failed while processing alpha@example.test');
                 }
+
+                return 0;
             }
         };
         $runner = new PlatformScheduleRunner($dispatcher);
@@ -145,9 +147,11 @@ class PlatformScheduleRunnerTest extends TestCase
                 $this->seen =& $seen;
             }
 
-            public function dispatch(array $schedule, ?TenantMetadata $tenant): void
+            public function dispatch(array $schedule, ?TenantMetadata $tenant): int
             {
                 $this->seen[] = TenantContext::slug();
+
+                return 0;
             }
         };
         $connectionManager = new class ($cleanupStates) extends TenantConnectionManager {
@@ -193,7 +197,7 @@ class PlatformScheduleRunnerTest extends TestCase
             'options' => json_encode(['fail_fast' => true], JSON_THROW_ON_ERROR),
         ]);
         $dispatcher = new class implements PlatformScheduleDispatcherInterface {
-            public function dispatch(array $schedule, ?TenantMetadata $tenant): void
+            public function dispatch(array $schedule, ?TenantMetadata $tenant): int
             {
                 throw new RuntimeException('token=super-secret failure');
             }
@@ -275,6 +279,43 @@ class PlatformScheduleRunnerTest extends TestCase
         $this->assertSame('Invalid cron expression.', $schedule['last_error']);
     }
 
+    public function testActivityOnlyScheduleDropsSuccessfulEmptyRun(): void
+    {
+        $this->insertSchedule('activity-only', [
+            'options' => json_encode(['record_empty_runs' => false], JSON_THROW_ON_ERROR),
+        ]);
+
+        $result = (new PlatformScheduleRunner($this->noopDispatcher()))->run('activity-only');
+
+        $this->assertSame('completed', $result['status']);
+        $this->assertSame(0, $result['jobsCreated']);
+        $this->assertSame(
+            0,
+            (int)$this->platform()->execute('SELECT COUNT(*) FROM platform_jobs')->fetchColumn(0),
+        );
+    }
+
+    public function testActivityOnlyScheduleKeepsRunWhenWorkIsPerformed(): void
+    {
+        $this->insertSchedule('activity-only', [
+            'options' => json_encode(['record_empty_runs' => false], JSON_THROW_ON_ERROR),
+        ]);
+        $dispatcher = new class implements PlatformScheduleDispatcherInterface {
+            public function dispatch(array $schedule, ?TenantMetadata $tenant): int
+            {
+                return 2;
+            }
+        };
+
+        $result = (new PlatformScheduleRunner($dispatcher))->run('activity-only');
+
+        $this->assertSame(1, $result['jobsCreated']);
+        $this->assertSame(
+            1,
+            (int)$this->platform()->execute('SELECT COUNT(*) FROM platform_jobs')->fetchColumn(0),
+        );
+    }
+
     private function createPlatformSchema(): void
     {
         $connection = $this->platform();
@@ -289,11 +330,8 @@ class PlatformScheduleRunnerTest extends TestCase
                 db_server TEXT NOT NULL,
                 db_name TEXT NOT NULL,
                 db_role TEXT NOT NULL,
-                key_vault_prefix TEXT,
                 schema_version TEXT,
-                feature_flags TEXT,
                 tenant_config TEXT,
-                queue_concurrency_limit INTEGER,
                 created_at TEXT,
                 activated_at TEXT,
                 suspended_at TEXT,
@@ -379,11 +417,8 @@ class PlatformScheduleRunnerTest extends TestCase
             'db_server' => 'db.example.test',
             'db_name' => $slug . '_db',
             'db_role' => $slug . '_role',
-            'key_vault_prefix' => null,
             'schema_version' => null,
-            'feature_flags' => null,
             'tenant_config' => null,
-            'queue_concurrency_limit' => 5,
             'created_at' => '2026-05-16 00:00:00',
             'activated_at' => null,
             'suspended_at' => null,
@@ -397,8 +432,9 @@ class PlatformScheduleRunnerTest extends TestCase
     private function noopDispatcher(): PlatformScheduleDispatcherInterface
     {
         return new class implements PlatformScheduleDispatcherInterface {
-            public function dispatch(array $schedule, ?TenantMetadata $tenant): void
+            public function dispatch(array $schedule, ?TenantMetadata $tenant): int
             {
+                return 0;
             }
         };
     }

@@ -3,12 +3,14 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Services\Storage\AzureManagedIdentityTokenCredential;
 use Aws\S3\S3Client;
 use AzureOss\FlysystemAzureBlobStorage\AzureBlobStorageAdapter;
 use AzureOss\Storage\Blob\BlobServiceClient;
 use Cake\Core\Configure;
 use Cake\Log\Log;
 use Exception;
+use GuzzleHttp\Psr7\Uri;
 use League\Flysystem\AwsS3V3\AwsS3V3Adapter;
 use League\Flysystem\Filesystem as FlysystemFilesystem;
 use League\Flysystem\FilesystemException;
@@ -163,23 +165,14 @@ class BackupStorageService
 
         if ($this->adapter === 'azure') {
             $azureConfig = $config['azure'] ?? [];
-            $connectionString = $azureConfig['connectionString'] ?? null;
-            $container = $azureConfig['container'] ?? 'documents';
-
-            if (empty($connectionString)) {
-                throw new RuntimeException('Azure backup storage requires a connection string.');
+            if (!$this->azureConfigHasCredential($azureConfig)) {
+                throw new RuntimeException(
+                    'Azure backup storage requires a connection string or managed identity account name.',
+                );
             }
 
             try {
-                $blobServiceClient = BlobServiceClient::fromConnectionString($connectionString);
-                $containerClient = $blobServiceClient->getContainerClient($container);
-                try {
-                    $containerClient->createIfNotExists();
-                } catch (Exception $e) {
-                    Log::warning('Azure backup container ensure step skipped: ' . $e->getMessage());
-                }
-                $adapter = new AzureBlobStorageAdapter($containerClient, 'backups/');
-                $this->filesystem = new FlysystemFilesystem($adapter);
+                $this->filesystem = $this->createAzureFilesystem($azureConfig);
             } catch (Exception $e) {
                 Log::error('Azure backup storage init failed: ' . $e->getMessage());
                 throw new RuntimeException('Azure backup storage initialization failed.', 0, $e);
@@ -218,6 +211,50 @@ class BackupStorageService
         } else {
             $this->initializeLocalAdapter();
         }
+    }
+
+    /**
+     * @param array<string, mixed> $azureConfig Azure storage config
+     */
+    private function azureConfigHasCredential(array $azureConfig): bool
+    {
+        if (!empty($azureConfig['connectionString'])) {
+            return true;
+        }
+
+        return ($azureConfig['authMode'] ?? null) === 'managedIdentity' && !empty($azureConfig['accountName']);
+    }
+
+    /**
+     * Build Azure backup storage using a connection string or managed identity.
+     *
+     * @param array<string, mixed> $azureConfig Azure storage config
+     */
+    protected function createAzureFilesystem(array $azureConfig): FlysystemFilesystem
+    {
+        $connectionString = $azureConfig['connectionString'] ?? null;
+        if (is_string($connectionString) && $connectionString !== '') {
+            $blobServiceClient = BlobServiceClient::fromConnectionString($connectionString);
+        } else {
+            $accountName = (string)($azureConfig['accountName'] ?? '');
+            $clientId = $azureConfig['managedIdentityClientId'] ?? null;
+            $credential = new AzureManagedIdentityTokenCredential(is_string($clientId) ? $clientId : null);
+            $blobServiceClient = new BlobServiceClient(
+                new Uri(sprintf('https://%s.blob.core.windows.net/', $accountName)),
+                $credential,
+            );
+        }
+
+        $container = (string)($azureConfig['container'] ?? 'documents');
+        $containerClient = $blobServiceClient->getContainerClient($container);
+        try {
+            $containerClient->createIfNotExists();
+        } catch (Exception $e) {
+            Log::warning('Azure backup container ensure step skipped: ' . $e->getMessage());
+        }
+        $adapter = new AzureBlobStorageAdapter($containerClient, 'backups/');
+
+        return new FlysystemFilesystem($adapter);
     }
 
     /**

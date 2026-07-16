@@ -177,7 +177,6 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                                     ?>
                                 </div>
                                 <button type="submit" class="btn btn-sm btn-success">
-                                    <i class="bi bi-check-lg me-1" aria-hidden="true"></i>
                                     <?= __('Assign Gathering and Complete') ?>
                                 </button>
                                 <?= $this->Form->end() ?>
@@ -223,7 +222,6 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                                     ?>
                                 </div>
                                 <button type="submit" class="btn btn-sm btn-success">
-                                    <i class="bi bi-check-lg me-1" aria-hidden="true"></i>
                                     <?= __('Assign Court and Complete') ?>
                                 </button>
                                 <?= $this->Form->end() ?>
@@ -233,10 +231,9 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                     <div class="flex-shrink-0">
                         <?php if ($canCompleteDirectly) : ?>
                             <?= $this->Form->postLink(
-                                '<i class="bi bi-check-lg me-1" aria-hidden="true"></i>' . __('Complete'),
+                                __('Complete'),
                                 ['plugin' => null, 'controller' => 'ActionItems', 'action' => 'complete', $item->id],
                                 [
-                                    'escapeTitle' => false,
                                     'class' => 'btn btn-sm btn-success',
                                     'data' => ['current_page' => $currentPageUrl],
                                     'confirm' => __('Mark "{0}" complete?', $item->title),

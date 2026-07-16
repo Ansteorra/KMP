@@ -31,7 +31,7 @@ The workflow-engine release target is a co-located **North Central US** Azure st
 | Service | Baseline SKU/configuration | Notes |
 | --- | --- | --- |
 | Azure Container Apps | Consumption, single replica initially | Queue worker and workflow scheduler should run outside the web container where possible. |
-| Azure Database for PostgreSQL Flexible Server | Small B-series SKU with built-in PgBouncer enabled | Point app database traffic at PgBouncer port `6432`; keep persistent PDO connections disabled. |
+| Azure Database for PostgreSQL Flexible Server | Small B-series SKU for the initial cost-optimized release | Connect directly on port `5432`; built-in PgBouncer requires General Purpose or Memory Optimized compute and is not used by this baseline. |
 | Azure Managed Redis | B0 Balanced, 500 MB | Back `CACHE_ENGINE=redis`, `REDIS_URL`, PHP sessions, tenant host map, restore status, and write-invalidated app caches. |
 
 Minimum production environment settings for this shape:
@@ -39,7 +39,7 @@ Minimum production environment settings for this shape:
 ```bash
 KMP_ENV=production
 KMP_DB_DRIVER=postgres
-DB_PORT=6432
+DB_PORT=5432
 CACHE_ENGINE=redis
 REDIS_URL=rediss://:<password>@<managed-redis-host>:10000/0
 KMP_SESSION_DEFAULTS=cache
@@ -50,7 +50,7 @@ If Redis is requested but unavailable, the application logs a startup warning an
 
 Connection budget guidance:
 
-- PgBouncer transaction pooling should absorb Apache/PHP request concurrency on small Flexible Server SKUs.
+- Keep the Container App replica and Apache worker limits within the B-series database connection budget. Upgrade to General Purpose before enabling built-in PgBouncer on port `6432`.
 - Keep database `persistent` connections disabled for web and queue processes.
 - Size Redis client connections as Apache workers x replicas plus queue/scheduler clients.
 - Rehearse backup restore against the North Central US PostgreSQL instance; the release-day restore is also the region migration.

@@ -5,6 +5,7 @@ namespace App\Services\Platform;
 
 use App\Command\AgeUpMembersCommand;
 use App\Command\PlatformBackupsPruneCommand;
+use App\Command\PlatformJobsPruneCommand;
 use App\Command\PlatformJobsRunCommand;
 use App\Command\PlatformMetricsPruneCommand;
 use App\Command\SyncActiveWindowStatusesCommand;
@@ -47,17 +48,19 @@ class AllowlistedPlatformScheduleDispatcher implements PlatformScheduleDispatche
         'age_up_members' => AgeUpMembersCommand::class,
         'tenant_backups_enqueue' => TenantBackupsEnqueueCommand::class,
         'platform_backups_prune' => PlatformBackupsPruneCommand::class,
+        'platform_jobs_prune' => PlatformJobsPruneCommand::class,
         'platform_metrics_prune' => PlatformMetricsPruneCommand::class,
     ];
 
     /**
      * @inheritDoc
      */
-    public function dispatch(array $schedule, ?TenantMetadata $tenant): void
+    public function dispatch(array $schedule, ?TenantMetadata $tenant): int
     {
         $command = (string)($schedule['command'] ?? '');
-        match ($command) {
-            self::COMMAND_NOOP => null,
+
+        return match ($command) {
+            self::COMMAND_NOOP => 0,
             self::COMMAND_SHARED_QUEUE_FANOUT => $this->dispatchSharedQueue($schedule, $tenant),
             self::COMMAND_RUN_CAKE_COMMAND => $this->runCakeCommand($schedule),
             self::COMMAND_RUN_PLATFORM_JOBS => $this->runPlatformJobs($schedule),
@@ -71,9 +74,9 @@ class AllowlistedPlatformScheduleDispatcher implements PlatformScheduleDispatche
     /**
      * @param array<string, mixed> $schedule Platform schedule row
      * @param \App\KMP\TenantMetadata|null $tenant Tenant target, if any
-     * @return void
+     * @return int Number of queue jobs processed
      */
-    private function dispatchSharedQueue(array $schedule, ?TenantMetadata $tenant): void
+    private function dispatchSharedQueue(array $schedule, ?TenantMetadata $tenant): int
     {
         if ($tenant === null || TenantContext::tryCurrent()?->id !== $tenant->id) {
             throw new RuntimeException('Shared tenant queue processing requires the matching tenant context.');
@@ -97,11 +100,15 @@ class AllowlistedPlatformScheduleDispatcher implements PlatformScheduleDispatche
         );
         $processed = $this->tenantQueueDrainService->drain($maxJobs, $maxRuntime);
 
-        Log::info(sprintf(
-            'Tenant queue drain attempted %d job(s) for tenant %s.',
-            $processed,
-            $tenant->slug,
-        ), ['scope' => ['platform']]);
+        if ($processed > 0) {
+            Log::info(sprintf(
+                'Tenant queue drain processed %d job(s) for tenant %s.',
+                $processed,
+                $tenant->slug,
+            ), ['scope' => ['platform']]);
+        }
+
+        return $processed;
     }
 
     /**
@@ -133,9 +140,9 @@ class AllowlistedPlatformScheduleDispatcher implements PlatformScheduleDispatche
      * Run a small allowlist of tenant-safe legacy commands inside the current tenant scope.
      *
      * @param array<string, mixed> $schedule Platform schedule row
-     * @return void
+     * @return int Number of work items processed or dispatched
      */
-    private function runCakeCommand(array $schedule): void
+    private function runCakeCommand(array $schedule): int
     {
         $payload = (array)($schedule['payload'] ?? []);
         $name = (string)($payload['command'] ?? '');
@@ -154,27 +161,36 @@ class AllowlistedPlatformScheduleDispatcher implements PlatformScheduleDispatche
         if ($result !== Command::CODE_SUCCESS && $result !== null) {
             throw new RuntimeException(sprintf('Cake command "%s" exited with status %d.', $name, $result));
         }
+
+        if ($command instanceof WorkflowSchedulerCommand) {
+            return $command->lastResult()['dispatched'];
+        }
+
+        return 1;
     }
 
     /**
      * Run queued platform-admin jobs from a platform-scoped schedule.
      *
      * @param array<string, mixed> $schedule Platform schedule row
-     * @return void
+     * @return int Number of platform jobs claimed
      */
-    private function runPlatformJobs(array $schedule): void
+    private function runPlatformJobs(array $schedule): int
     {
         $payload = (array)($schedule['payload'] ?? []);
         $limit = max(1, min(100, (int)($payload['limit'] ?? 10)));
         $io = $this->quietIo();
 
-        $result = (new PlatformJobsRunCommand())->execute(
+        $command = new PlatformJobsRunCommand();
+        $result = $command->execute(
             new Arguments([], ['limit' => (string)$limit], []),
             $io,
         );
         if ($result !== Command::CODE_SUCCESS && $result !== null) {
             throw new RuntimeException(sprintf('Platform jobs runner exited with status %d.', $result));
         }
+
+        return $command->lastResult()['claimed'];
     }
 
     /**

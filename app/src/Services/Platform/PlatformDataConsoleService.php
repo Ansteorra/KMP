@@ -29,14 +29,13 @@ final class PlatformDataConsoleService
                 'region',
                 'primary_host',
                 'schema_version',
-                'queue_concurrency_limit',
                 'created_at',
                 'activated_at',
                 'suspended_at',
                 'archived_at',
             ],
             'sql' => 'SELECT id, slug, display_name, status, region, primary_host, schema_version,
-                            queue_concurrency_limit, created_at, activated_at, suspended_at, archived_at
+                            created_at, activated_at, suspended_at, archived_at
                        FROM tenants
                    ORDER BY display_name ASC, slug ASC',
         ],

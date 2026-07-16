@@ -301,6 +301,45 @@ approved. If custom domains are needed for staging, add entries to
 `frontDoorCustomDomains` as objects with `name` and `hostName`; DNS validation
 and certificate issuance remain operational follow-up steps.
 
+## Manual production release environment
+
+[`production.bicepparam`](./production.bicepparam) defines the initial
+cost-optimized North Central US release stack. It adds Azure Managed Redis B0,
+35-day PostgreSQL backup retention with geo-redundant backups, GRS document
+storage, 90-day Key Vault soft delete with purge protection, and the platform
+administration portal on the Container App's default hostname. It intentionally
+does not configure Front Door, custom domains, deployment automation, or
+PgBouncer.
+
+The initial PostgreSQL B1ms server connects on port `5432`. Azure's built-in
+PgBouncer is not available on Burstable compute; move to General Purpose before
+switching application URLs to port `6432`.
+
+The parameter file contains no secrets. Export the required values in the
+operator shell, then validate and deploy manually:
+
+```bash
+az group create -n kmp-production-rg -l northcentralus
+
+az deployment group validate \
+  --resource-group kmp-production-rg \
+  --template-file deploy/azure/main.bicep \
+  --parameters deploy/azure/production.bicepparam
+
+az deployment group create \
+  --resource-group kmp-production-rg \
+  --name "kmp-production-$(date -u +%Y%m%d-%H%M%S)" \
+  --template-file deploy/azure/main.bicep \
+  --parameters deploy/azure/production.bicepparam
+```
+
+For a release rehearsal, build an immutable image tag, restore the encrypted
+nightly application seed with the restore job, migrate or restore the platform
+database, and verify `/health`, `/platform-admin/health`, tenant host routing,
+scheduled jobs, Redis-backed sessions, and backup storage. At cutover, replace
+the rehearsal data through the platform and tenant backup/restore workflow; do
+not rerun the destructive nightly-seed restore job against live data.
+
 ## Common operations
 
 | Task | Command |

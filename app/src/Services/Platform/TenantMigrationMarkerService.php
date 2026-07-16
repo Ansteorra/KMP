@@ -34,12 +34,11 @@ class TenantMigrationMarkerService implements TenantMigrationMarkerServiceInterf
         TenantMetadata $tenant,
         array $options,
         string $migrationJobId,
-        array $releaseMetadata,
     ): TenantMigrationMarkerResult {
         $markerJobId = Text::uuid();
         $now = DateTime::now('UTC');
         $tag = $this->tag($options);
-        $metadata = $this->baseMetadata($tenant, $options, $migrationJobId, $releaseMetadata, $tag, $now);
+        $metadata = $this->baseMetadata($tenant, $options, $migrationJobId, $tag, $now);
         $this->insertMarkerJob($markerJobId, $tenant, $metadata, $now);
 
         try {
@@ -123,14 +122,12 @@ class TenantMigrationMarkerService implements TenantMigrationMarkerServiceInterf
 
     /**
      * @param array<string, mixed> $options
-     * @param array<string, mixed> $releaseMetadata
      * @return array<string, mixed>
      */
     private function baseMetadata(
         TenantMetadata $tenant,
         array $options,
         string $migrationJobId,
-        array $releaseMetadata,
         string $tag,
         DateTime $now,
     ): array {
@@ -141,7 +138,6 @@ class TenantMigrationMarkerService implements TenantMigrationMarkerServiceInterf
             'target_schema_version' => $this->targetSchema($options),
             'migration_job_id' => $migrationJobId,
             'marker_timestamp' => $now->format('Y-m-d H:i:s'),
-            'release' => $releaseMetadata['release_schema_bounds'] ?? null,
             'backup' => null,
             'tag' => $tag,
         ]);

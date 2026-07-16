@@ -122,7 +122,7 @@ $this->KMP->endBlock(); ?>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= __('Cancel') ?></button>
                 <button type="submit" class="btn btn-success" data-todo-target="submit">
-                    <i class="bi bi-check-lg me-1" aria-hidden="true"></i><?= __('Mark Complete') ?>
+                    <?= __('Mark Complete') ?>
                 </button>
             </div>
             <?= $this->Form->end() ?>

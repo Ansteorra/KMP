@@ -683,7 +683,7 @@ class TenantsController extends PlatformAdminAppController
     {
         $row = $this->platform()->execute(
             'SELECT id, slug, display_name, status, region, primary_host, db_server, db_name, db_role,
-                    schema_version, tenant_config, queue_concurrency_limit, created_at, activated_at, suspended_at,
+                    schema_version, tenant_config, created_at, activated_at, suspended_at,
                     archived_at, modified_at
                FROM tenants
               WHERE slug = :slug
@@ -787,9 +787,6 @@ class TenantsController extends PlatformAdminAppController
             'email_smtp_username',
             'email_smtp_password_secret_ref',
             'email_smtp_tls',
-            'features_json',
-            'integration_endpoints_json',
-            'integration_secret_refs_json',
         ];
         $config = [];
         foreach ($fields as $field) {
@@ -814,7 +811,6 @@ class TenantsController extends PlatformAdminAppController
             'db_server' => (string)($this->platform()->config()['host'] ?? 'localhost'),
             'db_name' => '',
             'db_role' => '',
-            'queue_concurrency_limit' => '5',
         ];
     }
 
@@ -834,7 +830,6 @@ class TenantsController extends PlatformAdminAppController
             'db_server' => (string)($tenant['db_server'] ?? ''),
             'db_name' => (string)($tenant['db_name'] ?? ''),
             'db_role' => (string)($tenant['db_role'] ?? ''),
-            'queue_concurrency_limit' => (string)($tenant['queue_concurrency_limit'] ?? '5'),
         ];
     }
 
@@ -881,11 +876,6 @@ class TenantsController extends PlatformAdminAppController
         $this->assertValidIdentifier($dbName, 'database name');
         $this->assertValidIdentifier($dbRole, 'database role');
 
-        $queueLimit = (int)($data['queue_concurrency_limit'] ?? 5);
-        if ($queueLimit < 1 || $queueLimit > 100) {
-            throw new InvalidArgumentException('Queue concurrency limit must be between 1 and 100.');
-        }
-
         return [
             'slug' => $slug,
             'display_name' => $displayName,
@@ -895,7 +885,6 @@ class TenantsController extends PlatformAdminAppController
             'db_server' => $dbServer,
             'db_name' => $dbName,
             'db_role' => $dbRole,
-            'queue_concurrency_limit' => $queueLimit,
         ];
     }
 
@@ -952,9 +941,7 @@ class TenantsController extends PlatformAdminAppController
         $this->ensureTenantSecrets((string)$tenantData['slug']);
         $tenant = $tenantData + [
             'id' => Text::uuid(),
-            'key_vault_prefix' => sprintf('tenant.%s', $tenantData['slug']),
             'schema_version' => null,
-            'feature_flags' => '{}',
             'tenant_config' => $this->encodeConfig($config),
             'created_at' => $now,
             'activated_at' => $tenantData['status'] === 'active' ? $now : null,
@@ -1003,7 +990,6 @@ class TenantsController extends PlatformAdminAppController
                 'db_role' => (string)$tenantData['db_role'],
                 'blob_container' => (string)($config['documents']['blob_container'] ?? 'tenant-' . $tenantData['slug']),
                 'region' => (string)$tenantData['region'],
-                'queue_concurrency_limit' => (int)$tenantData['queue_concurrency_limit'],
                 'tenantConfig' => $config,
                 'status' => 'active',
                 'create_database' => true,

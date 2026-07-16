@@ -25,9 +25,6 @@ class TenantConfigSchema
         'email_smtp_username',
         'email_smtp_password_secret_ref',
         'email_smtp_tls',
-        'features_json',
-        'integration_endpoints_json',
-        'integration_secret_refs_json',
     ];
 
     private const IGNORED_FIELDS = ['_csrfToken', '_Token'];
@@ -81,43 +78,6 @@ class TenantConfigSchema
         }
         if ($email !== []) {
             $config['email'] = $email;
-        }
-
-        $features = $this->decodeJsonMap((string)($data['features_json'] ?? ''), 'Feature flags');
-        foreach ($features as $key => $value) {
-            $this->validateMapKey($key, 'Feature flag');
-            if (!is_bool($value)) {
-                throw new InvalidArgumentException('Feature flag values must be true or false.');
-            }
-        }
-        if ($features !== []) {
-            $config['features'] = $features;
-        }
-
-        $endpoints = $this->decodeJsonMap((string)($data['integration_endpoints_json'] ?? ''), 'Integration endpoints');
-        foreach ($endpoints as $key => $value) {
-            $this->validateMapKey($key, 'Integration endpoint');
-            if (!is_string($value)) {
-                throw new InvalidArgumentException('Integration endpoint values must be URL strings.');
-            }
-            $endpoints[$key] = $this->validateHttpsUrl($value, 'Integration endpoint');
-        }
-        $secretRefs = $this->decodeJsonMap(
-            (string)($data['integration_secret_refs_json'] ?? ''),
-            'Integration secret references',
-        );
-        foreach ($secretRefs as $key => $value) {
-            $this->validateMapKey($key, 'Integration secret reference');
-            if (!is_string($value)) {
-                throw new InvalidArgumentException('Integration secret reference values must be strings.');
-            }
-            $secretRefs[$key] = $this->validateSecretReference($value);
-        }
-        if ($endpoints !== [] || $secretRefs !== []) {
-            $config['integrations'] = array_filter([
-                'endpoints' => $endpoints,
-                'secret_refs' => $secretRefs,
-            ], static fn(array $value): bool => $value !== []);
         }
 
         return $this->sortConfig($config);
@@ -175,9 +135,6 @@ class TenantConfigSchema
             'email_smtp_username' => (string)($safe['email']['username'] ?? ''),
             'email_smtp_password_secret_ref' => (string)($safe['email']['smtp_password_secret_ref'] ?? ''),
             'email_smtp_tls' => !empty($safe['email']['tls']) ? '1' : '0',
-            'features_json' => $this->prettyJson((array)($safe['features'] ?? [])),
-            'integration_endpoints_json' => $this->prettyJson((array)($safe['integrations']['endpoints'] ?? [])),
-            'integration_secret_refs_json' => $this->prettyJson((array)($safe['integrations']['secret_refs'] ?? [])),
         ];
     }
 
@@ -396,35 +353,6 @@ class TenantConfigSchema
     }
 
     /**
-     * @return array<string, mixed>
-     */
-    private function decodeJsonMap(string $json, string $label): array
-    {
-        if (trim($json) === '') {
-            return [];
-        }
-        $decoded = json_decode($json, true);
-        if (!is_array($decoded) || array_is_list($decoded)) {
-            throw new InvalidArgumentException(sprintf('%s must be a JSON object.', $label));
-        }
-
-        return $decoded;
-    }
-
-    /**
-     * Validate a JSON map key used in tenant_config.
-     */
-    private function validateMapKey(string $key, string $label): void
-    {
-        if (!preg_match('/^[A-Za-z][A-Za-z0-9_.:-]{0,63}$/', $key)) {
-            throw new InvalidArgumentException(sprintf('%s keys must be safe identifiers.', $label));
-        }
-        if (preg_match('/(password|secret|token|api[_-]?key)/i', $key)) {
-            throw new InvalidArgumentException(sprintf('%s keys must not contain secret-like names.', $label));
-        }
-    }
-
-    /**
      * Reject inline secrets embedded in otherwise non-secret fields.
      */
     private function rejectInlineSecret(string $value): void
@@ -458,18 +386,6 @@ class TenantConfigSchema
     {
         $documents = isset($config['documents']) && is_array($config['documents']) ? $config['documents'] : [];
         $email = isset($config['email']) && is_array($config['email']) ? $config['email'] : [];
-        $features = isset($config['features']) && is_array($config['features']) ? $config['features'] : [];
-        $integrations = isset($config['integrations']) && is_array($config['integrations'])
-            ? $config['integrations']
-            : [];
-        $endpoints = [];
-        if (isset($integrations['endpoints']) && is_array($integrations['endpoints'])) {
-            $endpoints = $integrations['endpoints'];
-        }
-        $secretRefs = [];
-        if (isset($integrations['secret_refs']) && is_array($integrations['secret_refs'])) {
-            $secretRefs = $integrations['secret_refs'];
-        }
 
         return [
             'documents_blob_container' => $documents['blob_container'] ?? '',
@@ -486,22 +402,6 @@ class TenantConfigSchema
             'email_smtp_username' => $email['username'] ?? '',
             'email_smtp_password_secret_ref' => $email['smtp_password_secret_ref'] ?? '',
             'email_smtp_tls' => !empty($email['tls']) ? '1' : '0',
-            'features_json' => $this->prettyJson($features),
-            'integration_endpoints_json' => $this->prettyJson($endpoints),
-            'integration_secret_refs_json' => $this->prettyJson($secretRefs),
         ];
-    }
-
-    /**
-     * @param array<string, mixed> $value
-     */
-    private function prettyJson(array $value): string
-    {
-        if ($value === []) {
-            return '';
-        }
-        $json = json_encode($value, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-
-        return $json === false ? '' : $json;
     }
 }

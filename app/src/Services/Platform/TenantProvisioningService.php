@@ -130,10 +130,6 @@ class TenantProvisioningService
         ) {
             throw new RuntimeException('Initial tenant super-user email must be a valid email address.');
         }
-        if ($request->queueConcurrencyLimit < 1 || $request->queueConcurrencyLimit > 100) {
-            throw new RuntimeException('Queue concurrency limit must be between 1 and 100.');
-        }
-
         if (!$request->runMigrations && $request->finalStatus === TenantProvisioningRequest::STATUS_ACTIVE) {
             throw new RuntimeException('Cannot set status=active when --skip-migrations is used.');
         }
@@ -228,11 +224,8 @@ class TenantProvisioningService
                 'db_server' => $request->dbServer,
                 'db_name' => $request->dbName,
                 'db_role' => $request->dbRole,
-                'key_vault_prefix' => 'tenant.' . $request->slug,
                 'schema_version' => null,
-                'feature_flags' => '{}',
                 'tenant_config' => $tenantConfig,
-                'queue_concurrency_limit' => $request->queueConcurrencyLimit,
                 'created_at' => $now,
                 'activated_at' => null,
                 'suspended_at' => null,
@@ -262,9 +255,7 @@ class TenantProvisioningService
             'region' => $request->region,
             'primary_host' => $request->host,
             'db_server' => $request->dbServer,
-            'key_vault_prefix' => 'tenant.' . $request->slug,
             'tenant_config' => $tenantConfig,
-            'queue_concurrency_limit' => $request->queueConcurrencyLimit,
             'modified_at' => $now,
         ], ['id' => $tenant['id']]);
 

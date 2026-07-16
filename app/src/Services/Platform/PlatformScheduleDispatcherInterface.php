@@ -12,7 +12,7 @@ interface PlatformScheduleDispatcherInterface
      *
      * @param array<string, mixed> $schedule Platform schedule row
      * @param \App\KMP\TenantMetadata|null $tenant Tenant target, if any
-     * @return void
+     * @return int Number of work items processed or dispatched
      */
-    public function dispatch(array $schedule, ?TenantMetadata $tenant): void;
+    public function dispatch(array $schedule, ?TenantMetadata $tenant): int;
 }

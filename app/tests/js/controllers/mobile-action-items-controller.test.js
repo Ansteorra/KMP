@@ -11,6 +11,17 @@ describe('MobileActionItemsController', () => {
         url: '/awards/bestowals/view/9',
         entityType: 'Awards.Bestowals',
         entityId: 9,
+        details: [
+            { label: 'Specializations', value: 'Scribal Arts' },
+            {
+                label: 'Gathering',
+                value: 'Spring Crown',
+                url: '/gatherings/view/spring-crown?tab=gathering-bestowals',
+            },
+            { label: 'Gathering Date', value: '2026-05-01 to 2026-05-03' },
+            { label: 'Hosting Group', value: 'Barony of Example' },
+            { label: 'Court Assigned', value: 'Evening Court' },
+        ],
         items: [{
             id: 41,
             title: 'Scroll finished',
@@ -88,7 +99,20 @@ describe('MobileActionItemsController', () => {
         expect(summary).toHaveAttribute('aria-controls', 'todo-owner-detail-Awards.Bestowals-9');
         expect(summary).toHaveAccessibleName(/Award Recipient/);
         expect(document.querySelector('[data-mobile-action-items-target="countBadge"]')).toHaveTextContent('1 open');
+        expect(document.querySelector('.todo-owner-detail')).toHaveTextContent('Specializations Scribal Arts');
+        expect(document.querySelector('.todo-owner-detail')).toHaveTextContent('Gathering Date 2026-05-01');
+        expect(document.querySelector('.todo-owner-detail')).toHaveTextContent('Hosting Group Barony of Example');
+        expect(document.querySelector('.todo-owner-detail')).toHaveTextContent('Court Assigned Evening Court');
+        expect(document.querySelector('.todo-owner-detail a')).toHaveAttribute(
+            'href',
+            '/gatherings/view/spring-crown?tab=gathering-bestowals',
+        );
+        expect(document.querySelector('.todo-owner-detail a')).toHaveAttribute('data-turbo-frame', '_top');
+        expect(document.querySelector('.todo-owner-detail')).not.toHaveTextContent('Reason');
+        expect(document.querySelector('.todo-owner-detail')).not.toHaveTextContent('Linked Recommendation');
+        expect(document.querySelector('.todo-owner-detail')).not.toHaveTextContent('Noble Notes');
         expect(document.querySelector('[data-item-id="41"]')).toHaveTextContent('Scroll finished');
+        expect(document.querySelector('[data-item-id="41"] button i')).toBeNull();
     });
 
     test('toggleGroup synchronizes expanded state and detail visibility', () => {

@@ -518,7 +518,6 @@ function registerLocalTenant(
     $tenant = $connection->execute("SELECT * FROM tenants WHERE slug = ?", [$tenantSlug])->fetch("assoc") ?: null;
     $tenantConfig = json_encode([
         "documents" => ["blob_container" => "tenant-" . $tenantSlug],
-        "local_dev" => true,
     ], JSON_UNESCAPED_SLASHES);
     if ($tenantConfig === false) {
         throw new RuntimeException("Unable to encode tenant_config JSON.");
@@ -535,11 +534,8 @@ function registerLocalTenant(
             "db_server" => $dbServer,
             "db_name" => $dbName,
             "db_role" => $dbRole,
-            "key_vault_prefix" => "tenant." . $tenantSlug,
             "schema_version" => null,
-            "feature_flags" => "{}",
             "tenant_config" => $tenantConfig,
-            "queue_concurrency_limit" => 5,
             "created_at" => $now,
             "activated_at" => $now,
             "suspended_at" => null,
@@ -556,7 +552,6 @@ function registerLocalTenant(
             "db_server" => $dbServer,
             "db_name" => $dbName,
             "db_role" => $dbRole,
-            "key_vault_prefix" => "tenant." . $tenantSlug,
             "tenant_config" => $tenantConfig,
             "activated_at" => $tenant["activated_at"] ?: $now,
             "modified_at" => $now,

@@ -8,6 +8,7 @@ use App\KMP\KmpIdentityInterface;
 use App\Model\Entity\ActionItem;
 use App\Services\ActionItems\ActionItemCompletionFormRegistry;
 use App\Services\ActionItems\ActionItemService;
+use Awards\Services\BestowalCourtSlotService;
 use Cake\Http\Response;
 use Cake\Routing\Router;
 use Throwable;
@@ -403,17 +404,54 @@ class ActionItemsController extends AppController
         try {
             $bestowals = $this->fetchTable('Awards.Bestowals')->find()
                 ->where(['Bestowals.id IN' => $ids])
-                ->contain(['Members', 'Awards'])
+                ->contain([
+                    'Members',
+                    'Awards',
+                    'Gatherings' => ['Branches'],
+                    'GatheringScheduledActivities',
+                ])
                 ->all();
 
+            $courtSlotService = new BestowalCourtSlotService();
             $descriptors = [];
             foreach ($bestowals as $bestowal) {
                 $recipient = $bestowal->get('member_sca_name')
                     ?: ($bestowal->member->sca_name ?? __('Recipient'));
                 $award = $bestowal->award->name ?? __('Award');
+                $gathering = $bestowal->gathering ?? null;
+                $courtAssignment = $courtSlotService->formatCourtSlotDisplay($bestowal);
                 $descriptors[(int)$bestowal->id] = [
                     'label' => sprintf('%s — %s', $recipient, $award),
                     'url' => $this->ownerUrl('Awards.Bestowals', (int)$bestowal->id),
+                    'details' => [
+                        [
+                            'label' => __('Specializations'),
+                            'value' => trim((string)($bestowal->specialty ?? '')) ?: __('None'),
+                        ],
+                        [
+                            'label' => __('Gathering'),
+                            'value' => trim((string)($gathering->name ?? '')) ?: __('Not assigned'),
+                            'url' => !empty($gathering->public_id) ? [
+                                'plugin' => null,
+                                'controller' => 'Gatherings',
+                                'action' => 'view',
+                                $gathering->public_id,
+                                '?' => ['tab' => 'gathering-bestowals'],
+                            ] : null,
+                        ],
+                        [
+                            'label' => __('Gathering Date'),
+                            'value' => trim((string)($gathering->date_range ?? '')) ?: __('Not assigned'),
+                        ],
+                        [
+                            'label' => __('Hosting Group'),
+                            'value' => trim((string)($gathering->branch->name ?? '')) ?: __('Not assigned'),
+                        ],
+                        [
+                            'label' => __('Court Assigned'),
+                            'value' => $courtAssignment !== '' ? $courtAssignment : __('Not assigned'),
+                        ],
+                    ],
                 ];
             }
 
@@ -448,16 +486,38 @@ class ActionItemsController extends AppController
     {
         $label = (string)($descriptor['label'] ?? '');
         $url = !empty($descriptor['url']) ? Router::url($descriptor['url']) : null;
+        $details = is_array($descriptor['details'] ?? null) ? $descriptor['details'] : [];
 
         if ($url === null) {
-            return h($label);
+            $html = h($label);
+        } else {
+            $html = sprintf(
+                '<a href="%s" data-turbo-frame="_top">%s</a>',
+                h($url),
+                h($label),
+            );
         }
 
-        return sprintf(
-            '<a href="%s" data-turbo-frame="_top">%s</a>',
-            h($url),
-            h($label),
-        );
+        if ($details === []) {
+            return $html;
+        }
+
+        $html .= '<dl class="row g-0 small mb-0 mt-2">';
+        foreach ($details as $detail) {
+            $detailValue = h((string)($detail['value'] ?? ''));
+            if (!empty($detail['url'])) {
+                $detailValue = sprintf(
+                    '<a href="%s" data-turbo-frame="_top">%s</a>',
+                    h(Router::url($detail['url'])),
+                    $detailValue,
+                );
+            }
+            $html .= '<dt class="col-5 pe-2">' . h((string)($detail['label'] ?? '')) . '</dt>';
+            $html .= '<dd class="col-7 mb-1">' . $detailValue . '</dd>';
+        }
+        $html .= '</dl>';
+
+        return $html;
     }
 
     /**
@@ -527,10 +587,19 @@ class ActionItemsController extends AppController
                     'completionForm' => $completionForm?->toArray(),
                 ];
             }
+            $details = [];
+            foreach (is_array($group['details'] ?? null) ? $group['details'] : [] as $detail) {
+                if (!is_array($detail)) {
+                    continue;
+                }
+                $detail['url'] = !empty($detail['url']) ? Router::url($detail['url']) : null;
+                $details[] = $detail;
+            }
 
             $payload[] = [
                 'label' => (string)$group['label'],
                 'url' => !empty($group['url']) ? Router::url($group['url']) : null,
+                'details' => $details,
                 'entityType' => (string)$group['entityType'],
                 'entityId' => (int)$group['entityId'],
                 'openCount' => count($items),

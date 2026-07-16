@@ -81,7 +81,6 @@ class PlatformJobRunnerTest extends TestCase
                 'db_role' => 'kmp_tenant_acme_role',
                 'blob_container' => 'tenant-acme',
                 'region' => 'us',
-                'queue_concurrency_limit' => 4,
                 'tenantConfig' => [
                     'documents' => ['blob_container' => 'tenant-acme'],
                     'email' => ['mode' => 'disabled'],
@@ -104,7 +103,6 @@ class PlatformJobRunnerTest extends TestCase
         $tenant = $this->connection->execute('SELECT * FROM tenants WHERE slug = ?', ['acme'])->fetch('assoc');
         $this->assertSame('Acme Kingdom', $tenant['display_name']);
         $this->assertSame('provisioning', $tenant['status']);
-        $this->assertSame(4, (int)$tenant['queue_concurrency_limit']);
 
         $job = $this->connection->execute('SELECT * FROM platform_jobs WHERE id = ?', ['job-1'])->fetch('assoc');
         $this->assertSame('completed', $job['status']);
@@ -258,11 +256,8 @@ class PlatformJobRunnerTest extends TestCase
                 db_server TEXT NOT NULL,
                 db_name TEXT NOT NULL UNIQUE,
                 db_role TEXT NOT NULL,
-                key_vault_prefix TEXT,
                 schema_version TEXT,
-                feature_flags TEXT,
                 tenant_config TEXT,
-                queue_concurrency_limit INTEGER NOT NULL,
                 created_at TEXT NOT NULL,
                 activated_at TEXT,
                 suspended_at TEXT,

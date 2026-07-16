@@ -32,6 +32,11 @@ use Throwable;
 class WorkflowSchedulerCommand extends Command
 {
     /**
+     * @var array{dispatched: int, skipped: int, errors: int}
+     */
+    private array $lastResult = ['dispatched' => 0, 'skipped' => 0, 'errors' => 0];
+
+    /**
      * @param \Cake\Console\CommandFactoryInterface|null $factory Command factory
      * @param \App\Services\WorkflowEngine\TriggerDispatcher|null $triggerDispatcher Workflow trigger dispatcher
      */
@@ -88,6 +93,7 @@ class WorkflowSchedulerCommand extends Command
      */
     public function execute(Arguments $args, ConsoleIo $io): int
     {
+        $this->lastResult = ['dispatched' => 0, 'skipped' => 0, 'errors' => 0];
         $dryRun = (bool)$args->getOption('dry-run');
         $force = (bool)$args->getOption('force');
         $now = new DateTime();
@@ -141,6 +147,11 @@ class WorkflowSchedulerCommand extends Command
                 $errors++;
             }
         }
+        $this->lastResult = [
+            'dispatched' => $dispatched,
+            'skipped' => $skipped,
+            'errors' => $errors,
+        ];
 
         $io->out('');
         $io->out(sprintf(
@@ -159,6 +170,16 @@ class WorkflowSchedulerCommand extends Command
         $io->success('Scheduler completed successfully.');
 
         return Command::CODE_SUCCESS;
+    }
+
+    /**
+     * Return the most recent execution summary.
+     *
+     * @return array{dispatched: int, skipped: int, errors: int}
+     */
+    public function lastResult(): array
+    {
+        return $this->lastResult;
     }
 
     /**

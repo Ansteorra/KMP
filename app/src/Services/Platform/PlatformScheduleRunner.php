@@ -85,8 +85,10 @@ class PlatformScheduleRunner
         $lastError = null;
 
         foreach ($targets as $tenant) {
-            $jobsCreated++;
             $result = $this->runTarget($schedule, $tenant);
+            if ($result['jobRecorded']) {
+                $jobsCreated++;
+            }
             if ($result['status'] === 'completed') {
                 $completed++;
             } else {
@@ -348,7 +350,7 @@ class PlatformScheduleRunner
     /**
      * @param array<string, mixed> $schedule Schedule row
      * @param \App\KMP\TenantMetadata|null $tenant Tenant target
-     * @return array{status: string, lastError: string|null}
+     * @return array{status: string, lastError: string|null, jobRecorded: bool}
      */
     private function runTarget(array $schedule, ?TenantMetadata $tenant): array
     {
@@ -372,7 +374,12 @@ class PlatformScheduleRunner
         ]);
 
         try {
-            $this->dispatchTarget($schedule, $tenant);
+            $activityCount = $this->dispatchTarget($schedule, $tenant);
+            if ($activityCount === 0 && !$this->recordEmptyRuns($schedule)) {
+                $connection->delete('platform_jobs', ['id' => $jobId]);
+
+                return ['status' => 'completed', 'lastError' => null, 'jobRecorded' => false];
+            }
             $finishedAt = $this->now();
             $connection->update('platform_jobs', [
                 'status' => 'completed',
@@ -380,7 +387,7 @@ class PlatformScheduleRunner
                 'modified_at' => $finishedAt,
             ], ['id' => $jobId]);
 
-            return ['status' => 'completed', 'lastError' => null];
+            return ['status' => 'completed', 'lastError' => null, 'jobRecorded' => true];
         } catch (Throwable $e) {
             $error = self::scrubError($e->getMessage());
             $finishedAt = $this->now();
@@ -391,30 +398,32 @@ class PlatformScheduleRunner
                 'modified_at' => $finishedAt,
             ], ['id' => $jobId]);
 
-            return ['status' => 'failed', 'lastError' => $error];
+            return ['status' => 'failed', 'lastError' => $error, 'jobRecorded' => true];
         }
     }
 
     /**
      * @param array<string, mixed> $schedule Schedule row
      * @param \App\KMP\TenantMetadata|null $tenant Tenant target
-     * @return void
+     * @return int Number of work items processed or dispatched
      */
-    private function dispatchTarget(array $schedule, ?TenantMetadata $tenant): void
+    private function dispatchTarget(array $schedule, ?TenantMetadata $tenant): int
     {
         $options = (array)($schedule['options'] ?? []);
         if ($tenant !== null && ($options['requires_tenant_connection'] ?? false)) {
             if ($this->tenantConnectionManager === null) {
                 throw new RuntimeException('Tenant connection manager is not configured.');
             }
-            $this->tenantConnectionManager->withTenant($tenant, function () use ($schedule, $tenant): void {
-                $this->getDispatcher()->dispatch($schedule, $tenant);
-            });
 
-            return;
+            return (int)$this->tenantConnectionManager->withTenant(
+                $tenant,
+                function () use ($schedule, $tenant): int {
+                    return $this->getDispatcher()->dispatch($schedule, $tenant);
+                },
+            );
         }
 
-        $this->getDispatcher()->dispatch($schedule, $tenant);
+        return $this->getDispatcher()->dispatch($schedule, $tenant);
     }
 
     /**
@@ -485,6 +494,19 @@ class PlatformScheduleRunner
         $options = (array)($schedule['options'] ?? []);
 
         return $this->isTruthy($options['fail_fast'] ?? false);
+    }
+
+    /**
+     * Whether a successful schedule target with no activity should be retained.
+     *
+     * @param array<string, mixed> $schedule Schedule row
+     */
+    private function recordEmptyRuns(array $schedule): bool
+    {
+        $options = (array)($schedule['options'] ?? []);
+
+        return !array_key_exists('record_empty_runs', $options)
+            || $this->isTruthy($options['record_empty_runs']);
     }
 
     /**

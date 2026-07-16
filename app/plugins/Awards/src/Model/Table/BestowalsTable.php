@@ -332,7 +332,7 @@ class BestowalsTable extends BaseTable
     }
 
     /**
-     * Apply branch-based filtering to a bestowals query via member or award branch.
+     * Apply branch-based filtering to a bestowals query via award branch.
      *
      * @param \Cake\ORM\Query\SelectQuery $query The query to modify.
      * @param array<int> $branchIDs Branch IDs to restrict bestowals to.
@@ -345,13 +345,7 @@ class BestowalsTable extends BaseTable
         }
 
         return $query
-            ->leftJoinWith('Members')
             ->leftJoinWith('Awards')
-            ->where([
-                'OR' => [
-                    'Members.branch_id IN' => $branchIDs,
-                    'Awards.branch_id IN' => $branchIDs,
-                ],
-            ]);
+            ->where(['Awards.branch_id IN' => $branchIDs]);
     }
 }

@@ -3,10 +3,12 @@ declare(strict_types=1);
 
 namespace Awards\Services;
 
+use App\Model\Entity\ActionItem;
 use Awards\KMP\GridColumns\BestowalsGridColumns;
 use Awards\Model\Entity\Bestowal;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\Table;
+use Cake\ORM\TableRegistry;
 
 /**
  * Builds configured ORM queries and grid-processing option arrays for bestowal grids.
@@ -27,10 +29,12 @@ class BestowalQueryService
 
         $baseQuery = $bestowalsTable->find()
             ->leftJoinWith('Gatherings')
-            ->leftJoinWith('Members');
+            ->leftJoinWith('Members')
+            ->leftJoinWith('Awards');
         if ($selectFields !== null) {
             $baseQuery->select($selectFields);
         }
+        $this->selectOpenTodoCount($baseQuery, $visibleColumns);
         $baseQuery->contain($contain);
 
         $systemViews = BestowalsGridColumns::getSystemViews([]);
@@ -71,10 +75,14 @@ class BestowalQueryService
         $selectFields = $this->bestowalSelectFields($visibleColumns);
 
         $baseQuery = $bestowalsTable->find()
+            ->leftJoinWith('Gatherings')
+            ->leftJoinWith('Members')
+            ->leftJoinWith('Awards')
             ->where(['Bestowals.gathering_id' => $gatheringId]);
         if ($selectFields !== null) {
             $baseQuery->select($selectFields);
         }
+        $this->selectOpenTodoCount($baseQuery, $visibleColumns);
         $baseQuery->contain($contain);
 
         $systemViews = BestowalsGridColumns::getSystemViews(['context' => 'gatheringBestowals']);
@@ -155,7 +163,14 @@ class BestowalQueryService
             || $this->shouldLoadColumn('court_slot', $visibleColumns)
         ) {
             $contain['Gatherings'] = function ($query) {
-                return $query->select(['id', 'name', 'start_date', 'end_date', 'cancelled_at']);
+                return $query->select([
+                    'id',
+                    'public_id',
+                    'name',
+                    'start_date',
+                    'end_date',
+                    'cancelled_at',
+                ]);
             };
         }
 
@@ -173,12 +188,24 @@ class BestowalQueryService
         }
 
         $needsAwards = $this->shouldLoadColumn('awards', $visibleColumns);
+        $needsAwardType = $this->shouldLoadColumn('award_type', $visibleColumns);
+        $needsAwardGroup = $this->shouldLoadColumn('award_group', $visibleColumns);
+        $needsAwardRecord = $needsAwards || $needsAwardType || $needsAwardGroup;
         $needsRecommendationReasons = $this->shouldLoadColumn('recommendation_reasons', $visibleColumns);
 
-        if ($needsAwards) {
+        if ($needsAwardRecord) {
             $contain['Awards'] = function ($query) {
-                return $query->select(['id', 'abbreviation', 'name', 'branch_id', 'level_id']);
+                return $query->select([
+                    'id',
+                    'abbreviation',
+                    'name',
+                    'domain_id',
+                    'branch_id',
+                    'level_id',
+                ]);
             };
+        }
+        if ($needsAwards) {
             $contain['Awards.Levels'] = function ($query) {
                 return $query->select(['id', 'name']);
             };
@@ -189,6 +216,16 @@ class BestowalQueryService
                 return $query->select(['id', 'abbreviation', 'branch_id', 'level_id']);
             };
             $contain['PrimaryRecommendation.Awards.Levels'] = function ($query) {
+                return $query->select(['id', 'name']);
+            };
+        }
+        if ($needsAwardType) {
+            $contain['Awards.Domains'] = function ($query) {
+                return $query->select(['id', 'name']);
+            };
+        }
+        if ($needsAwardGroup) {
+            $contain['Awards.Branches'] = function ($query) {
                 return $query->select(['id', 'name']);
             };
         }
@@ -257,5 +294,30 @@ class BestowalQueryService
     private function shouldLoadColumn(string $columnKey, ?array $visibleColumns): bool
     {
         return $visibleColumns === null || in_array($columnKey, $visibleColumns, true);
+    }
+
+    /**
+     * Project the open To-Do count used by the grid badge so that column can be sorted.
+     *
+     * @param \Cake\ORM\Query\SelectQuery $query Bestowals query.
+     * @param array<int,string>|null $visibleColumns Active query columns.
+     * @return void
+     */
+    private function selectOpenTodoCount(SelectQuery $query, ?array $visibleColumns): void
+    {
+        if (!$this->shouldLoadColumn('todos_summary', $visibleColumns)) {
+            return;
+        }
+
+        $actionItems = TableRegistry::getTableLocator()->get('ActionItems');
+        $openTodoCount = $actionItems->find()
+            ->select(['count' => $actionItems->find()->func()->count('*')])
+            ->where([
+                'ActionItems.entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
+                'ActionItems.status' => ActionItem::STATUS_OPEN,
+                'ActionItems.entity_id = Bestowals.id',
+            ]);
+
+        $query->select(['open_todo_count' => $openTodoCount]);
     }
 }

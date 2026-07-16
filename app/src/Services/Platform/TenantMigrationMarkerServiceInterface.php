@@ -11,12 +11,10 @@ interface TenantMigrationMarkerServiceInterface
      * Create a required pre-migration recovery marker before tenant DDL runs.
      *
      * @param array<string, mixed> $options Tenant migration options
-     * @param array<string, mixed> $releaseMetadata Current release/image metadata
      */
     public function createMarker(
         TenantMetadata $tenant,
         array $options,
         string $migrationJobId,
-        array $releaseMetadata,
     ): TenantMigrationMarkerResult;
 }

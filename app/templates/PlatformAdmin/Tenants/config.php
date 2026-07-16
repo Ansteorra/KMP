@@ -34,10 +34,13 @@ $this->assign('title', __('Tenant Config: {0}', $tenant['slug']));
     <?= __('Only non-secret settings are stored in tenant_config. For passwords, API keys, tokens, and client secrets, enter the secret reference name only (for example, tenant.example.email-api-key or keyvault://vault/secret).') ?>
 </div>
 
+<?= $this->element('PlatformAdmin/tenant_config_docs', ['section' => 'overview']) ?>
+
 <?= $this->Form->create(null, ['url' => ['prefix' => 'PlatformAdmin', 'controller' => 'Tenants', 'action' => 'config', $tenant['slug']]]) ?>
 <section class="card mb-4" aria-labelledby="documents-config-heading">
     <div class="card-body">
         <h2 id="documents-config-heading" class="h5"><?= __('Document Storage') ?></h2>
+        <?= $this->element('PlatformAdmin/tenant_config_docs', ['section' => 'documents']) ?>
         <div class="row g-3">
             <div class="col-12 col-lg-6">
                 <?= $this->Form->control('documents_blob_container', [
@@ -60,6 +63,7 @@ $this->assign('title', __('Tenant Config: {0}', $tenant['slug']));
 <section class="card mb-4" aria-labelledby="email-config-heading">
     <div class="card-body">
         <h2 id="email-config-heading" class="h5"><?= __('Email Integration') ?></h2>
+        <?= $this->element('PlatformAdmin/tenant_config_docs', ['section' => 'email']) ?>
         <div class="row g-3">
             <div class="col-12 col-lg-4">
                 <?= $this->Form->control('email_mode', [
@@ -81,12 +85,14 @@ $this->assign('title', __('Tenant Config: {0}', $tenant['slug']));
                 <?= $this->Form->control('email_from_address', [
                     'label' => __('Sender email address'),
                     'value' => $formData['email_from_address'],
+                    'help' => __('Address tenant mail is sent from. Must be a full address with a dotted domain, e.g. noreply@example.org.'),
                 ]) ?>
             </div>
             <div class="col-12 col-lg-4">
                 <?= $this->Form->control('email_from_name', [
                     'label' => __('Sender display name'),
                     'value' => $formData['email_from_name'],
+                    'help' => __('Friendly name shown to recipients, up to 120 characters. Optional.'),
                 ]) ?>
             </div>
             <div class="col-12 col-lg-6">
@@ -121,25 +127,28 @@ $this->assign('title', __('Tenant Config: {0}', $tenant['slug']));
                 <?= $this->Form->control('email_smtp_host', [
                     'label' => __('SMTP host'),
                     'value' => $formData['email_smtp_host'],
+                    'help' => __('Hostname of the SMTP relay. Only used when email mode is SMTP.'),
                 ]) ?>
             </div>
             <div class="col-12 col-lg-2">
                 <?= $this->Form->control('email_smtp_port', [
                     'label' => __('SMTP port'),
                     'value' => $formData['email_smtp_port'],
+                    'help' => __('1-65535; commonly 587 (TLS) or 25.'),
                 ]) ?>
             </div>
             <div class="col-12 col-lg-4">
                 <?= $this->Form->control('email_smtp_username', [
                     'label' => __('SMTP username'),
                     'value' => $formData['email_smtp_username'],
+                    'help' => __('Login user for the relay. Leave blank for unauthenticated relays.'),
                 ]) ?>
             </div>
             <div class="col-12 col-lg-4">
                 <?= $this->Form->control('email_smtp_password_secret_ref', [
                     'label' => __('SMTP password secret reference'),
                     'value' => $formData['email_smtp_password_secret_ref'],
-                    'help' => __('Reference/name only, never the password.'),
+                    'help' => __('Reference/name only, never the password — e.g. env://EMAIL_SMTP_PASSWORD or tenant.example.smtp-password. Leave blank for unauthenticated relays.'),
                 ]) ?>
             </div>
             <div class="col-12 col-lg-2 d-flex align-items-center">
@@ -147,41 +156,6 @@ $this->assign('title', __('Tenant Config: {0}', $tenant['slug']));
                     'type' => 'checkbox',
                     'label' => __('Use SMTP TLS'),
                     'checked' => $formData['email_smtp_tls'] === '1',
-                ]) ?>
-            </div>
-        </div>
-    </div>
-</section>
-
-<section class="card mb-4" aria-labelledby="integrations-config-heading">
-    <div class="card-body">
-        <h2 id="integrations-config-heading" class="h5"><?= __('Feature Flags and Integrations') ?></h2>
-        <div class="row g-3">
-            <div class="col-12 col-lg-4">
-                <?= $this->Form->control('features_json', [
-                    'type' => 'textarea',
-                    'label' => __('Feature flags JSON'),
-                    'value' => $formData['features_json'],
-                    'rows' => 8,
-                    'help' => __('JSON object of safe feature names to true/false.'),
-                ]) ?>
-            </div>
-            <div class="col-12 col-lg-4">
-                <?= $this->Form->control('integration_endpoints_json', [
-                    'type' => 'textarea',
-                    'label' => __('Integration endpoints JSON'),
-                    'value' => $formData['integration_endpoints_json'],
-                    'rows' => 8,
-                    'help' => __('JSON object of safe endpoint names to HTTPS URLs.'),
-                ]) ?>
-            </div>
-            <div class="col-12 col-lg-4">
-                <?= $this->Form->control('integration_secret_refs_json', [
-                    'type' => 'textarea',
-                    'label' => __('Integration secret references JSON'),
-                    'value' => $formData['integration_secret_refs_json'],
-                    'rows' => 8,
-                    'help' => __('JSON object of safe names to secret reference names only.'),
                 ]) ?>
             </div>
         </div>

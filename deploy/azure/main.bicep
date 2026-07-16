@@ -39,6 +39,9 @@ param imageTag string = 'nightly'
 @description('Release channel exposed to the application runtime.')
 param releaseChannel string = 'nightly'
 
+@description('Runtime environment exposed as KMP_ENV.')
+param runtimeEnvironment string = 'nightly'
+
 @description('Postgres admin login name.')
 param postgresAdminUser string = 'kmpadmin'
 
@@ -51,6 +54,41 @@ param postgresDatabaseName string = 'kmp_nightly'
 
 @description('Postgres platform metadata database name. Platform schedules, tenants, jobs, and secret metadata live here.')
 param platformPostgresDatabaseName string = 'kmp_platform'
+
+@description('PostgreSQL Flexible Server compute SKU.')
+param postgresSkuName string = 'Standard_B1ms'
+
+@allowed([
+  'Burstable'
+  'GeneralPurpose'
+  'MemoryOptimized'
+])
+@description('PostgreSQL Flexible Server compute tier.')
+param postgresSkuTier string = 'Burstable'
+
+@minValue(32)
+@description('PostgreSQL storage size in GB.')
+param postgresStorageSizeGB int = 32
+
+@minValue(7)
+@maxValue(35)
+@description('PostgreSQL backup retention in days.')
+param postgresBackupRetentionDays int = 7
+
+@allowed([
+  'Disabled'
+  'Enabled'
+])
+@description('Enable geographically redundant PostgreSQL backups when supported by the region.')
+param postgresGeoRedundantBackup string = 'Disabled'
+
+@allowed([
+  'Disabled'
+  'SameZone'
+  'ZoneRedundant'
+])
+@description('PostgreSQL high-availability mode. Burstable SKUs should use Disabled.')
+param postgresHighAvailabilityMode string = 'Disabled'
 
 @secure()
 @description('CakePHP Security.salt value (generate with `openssl rand -hex 32`).')
@@ -91,6 +129,51 @@ param deployerPrincipalId string
 // =============================================================================
 @description('ACR name. Must be pre-computed by the bootstrap script so that the image can be imported before the rest of the deployment runs.')
 param acrName string
+
+@description('Storage account redundancy SKU for tenant documents.')
+param documentStorageSkuName string = 'Standard_LRS'
+
+@minValue(7)
+@maxValue(365)
+@description('Soft-delete retention for tenant document blobs and containers.')
+param documentStorageDeleteRetentionDays int = 14
+
+@minValue(7)
+@maxValue(90)
+@description('Key Vault soft-delete retention.')
+param keyVaultSoftDeleteRetentionDays int = 7
+
+@description('Enable Key Vault purge protection.')
+param keyVaultPurgeProtection bool = false
+
+@description('Provision Azure Managed Redis for shared caches and sessions.')
+param enableManagedRedis bool = false
+
+@description('Azure Managed Redis SKU.')
+param managedRedisSkuName string = 'Balanced_B0'
+
+@description('Enable Azure Managed Redis data replication.')
+param managedRedisHighAvailability bool = true
+
+@description('Enable host-based tenant resolution.')
+param tenancyEnabled bool = false
+
+@description('Enable the isolated platform administration portal.')
+param platformAdminPortalEnabled bool = false
+
+@description('Comma-separated platform administration hosts. When empty, the Container App default hostname is used.')
+param platformAdminHosts string = ''
+
+@description('Enable the platform data console.')
+param platformDataConsoleEnabled bool = false
+
+@minValue(0)
+@description('Minimum web replicas.')
+param webMinReplicas int = 1
+
+@minValue(1)
+@description('Maximum web replicas.')
+param webMaxReplicas int = 3
 
 @description('Whether to provision Azure Front Door in front of the Container App.')
 param deployFrontDoor bool = false
@@ -169,6 +252,7 @@ var suffix = uniqueString(resourceGroup().id)
 var lawName = '${namePrefix}-law'
 var kvName = take('${namePrefix}-kv-${take(suffix, 6)}', 24)
 var pgName = '${namePrefix}-pg-${take(suffix, 6)}'
+var managedRedisName = take('${namePrefix}-redis-${take(suffix, 6)}', 60)
 var uamiName = '${namePrefix}-id'
 var documentStorageName = '${namePrefix}docs${take(suffix, 6)}'
 var documentContainerPrefix = 'documents'
@@ -242,7 +326,7 @@ resource documentStorage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: documentStorageName
   location: location
   sku: {
-    name: 'Standard_LRS'
+    name: documentStorageSkuName
   }
   kind: 'StorageV2'
   properties: {
@@ -260,11 +344,11 @@ resource documentBlobService 'Microsoft.Storage/storageAccounts/blobServices@202
   properties: {
     deleteRetentionPolicy: {
       enabled: true
-      days: 14
+      days: documentStorageDeleteRetentionDays
     }
     containerDeleteRetentionPolicy: {
       enabled: true
-      days: 14
+      days: documentStorageDeleteRetentionDays
     }
   }
 }
@@ -293,8 +377,8 @@ resource kv 'Microsoft.KeyVault/vaults@2023-07-01' = {
     sku: { family: 'A', name: 'standard' }
     enableRbacAuthorization: true
     enableSoftDelete: true
-    softDeleteRetentionInDays: 7
-    enablePurgeProtection: null
+    softDeleteRetentionInDays: keyVaultSoftDeleteRetentionDays
+    enablePurgeProtection: keyVaultPurgeProtection
     publicNetworkAccess: 'Enabled'
   }
 }
@@ -324,29 +408,29 @@ resource kvSecretsOfficerToDeployer 'Microsoft.Authorization/roleAssignments@202
 }
 
 // =============================================================================
-// Azure Database for PostgreSQL — Flexible Server (B1ms, PG 16)
-// Nightly uses admin credentials directly (no separate app role).
+// Azure Database for PostgreSQL — Flexible Server (PG 16)
+// The baseline uses admin credentials directly (no separate app role).
 // =============================================================================
 resource pg 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' = {
   name: pgName
   location: location
   sku: {
-    name: 'Standard_B1ms'
-    tier: 'Burstable'
+    name: postgresSkuName
+    tier: postgresSkuTier
   }
   properties: {
     version: '16'
     administratorLogin: postgresAdminUser
     administratorLoginPassword: postgresAdminPassword
     storage: {
-      storageSizeGB: 32
+      storageSizeGB: postgresStorageSizeGB
       autoGrow: 'Enabled'
     }
     backup: {
-      backupRetentionDays: 7
-      geoRedundantBackup: 'Disabled'
+      backupRetentionDays: postgresBackupRetentionDays
+      geoRedundantBackup: postgresGeoRedundantBackup
     }
-    highAvailability: { mode: 'Disabled' }
+    highAvailability: { mode: postgresHighAvailabilityMode }
     network: {
       publicNetworkAccess: 'Enabled'
     }
@@ -384,12 +468,43 @@ resource pgPlatformDb 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2024-
 }
 
 // =============================================================================
+// Azure Managed Redis — shared cache and session storage
+// =============================================================================
+resource managedRedis 'Microsoft.Cache/redisEnterprise@2025-07-01' = if (enableManagedRedis) {
+  name: managedRedisName
+  location: location
+  sku: {
+    name: managedRedisSkuName
+  }
+  properties: {
+    encryption: {}
+    highAvailability: managedRedisHighAvailability ? 'Enabled' : 'Disabled'
+    minimumTlsVersion: '1.2'
+    publicNetworkAccess: 'Enabled'
+  }
+}
+
+resource managedRedisDatabase 'Microsoft.Cache/redisEnterprise/databases@2025-07-01' = if (enableManagedRedis) {
+  parent: managedRedis
+  name: 'default'
+  properties: {
+    accessKeysAuthentication: 'Enabled'
+    clientProtocol: 'Encrypted'
+    clusteringPolicy: 'OSSCluster'
+    evictionPolicy: 'AllKeysLRU'
+    modules: []
+    port: 10000
+  }
+}
+
+// =============================================================================
 // Key Vault secrets (after Postgres resource so we can compose DATABASE_URL).
 // DATABASE_URL is stored as a single secret so the container entrypoint can
 // consume it directly via secretRef — no in-container composition needed.
 // =============================================================================
 var databaseUrlValue = 'postgres://${postgresAdminUser}:${postgresAdminPassword}@${pg.properties.fullyQualifiedDomainName}:5432/${postgresDatabaseName}?sslmode=require'
 var platformDatabaseUrlValue = 'postgres://${postgresAdminUser}:${postgresAdminPassword}@${pg.properties.fullyQualifiedDomainName}:5432/${platformPostgresDatabaseName}?sslmode=require'
+var redisUrlValue = enableManagedRedis ? 'rediss://:${managedRedisDatabase.listKeys().primaryKey}@${managedRedis.properties.hostName}:10000/0' : 'unused'
 
 resource secretSecuritySalt 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   parent: kv
@@ -426,6 +541,11 @@ resource secretSmtpPassword 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   name: 'email-smtp-password'
   properties: { value: empty(emailSmtpPassword) ? 'unused' : emailSmtpPassword }
 }
+resource secretRedisUrl 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: kv
+  name: 'redis-url'
+  properties: { value: redisUrlValue }
+}
 
 // =============================================================================
 // Container Apps Environment
@@ -445,6 +565,9 @@ resource acaEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
   }
 }
 
+var defaultWebHost = '${webAppName}.${acaEnv.properties.defaultDomain}'
+var effectivePlatformAdminHosts = empty(platformAdminHosts) ? defaultWebHost : platformAdminHosts
+
 // =============================================================================
 // Common container env for web + jobs
 // =============================================================================
@@ -461,9 +584,19 @@ var commonEnv = [
   { name: 'KMP_SECRETS_DB_MASTER_DRIVER', value: 'env' }
   { name: 'KMP_SECRETS_DB_MASTER_KEY_NAME', value: 'platform.master_kek' }
   { name: 'KMP_SECRET_PLATFORM_MASTER_KEK', secretRef: 'platform-secrets-master-key' }
+  { name: 'KMP_ENV', value: runtimeEnvironment }
+  { name: 'APP_NAME', value: namePrefix }
   { name: 'DEBUG', value: 'false' }
   { name: 'REQUIRE_HTTPS', value: 'true' }
   { name: 'TRUST_PROXY', value: 'true' }
+  { name: 'KMP_TENANCY_ENABLED', value: string(tenancyEnabled) }
+  { name: 'KMP_PLATFORM_ADMIN_PORTAL_ENABLED', value: string(platformAdminPortalEnabled) }
+  { name: 'KMP_PLATFORM_DATA_CONSOLE_ENABLED', value: string(platformDataConsoleEnabled) }
+  { name: 'KMP_PLATFORM_ADMIN_DETAILED_LOGIN_ERRORS', value: 'false' }
+  { name: 'CACHE_ENGINE', value: enableManagedRedis ? 'redis' : 'apcu' }
+  { name: 'REDIS_URL', secretRef: 'redis-url' }
+  { name: 'KMP_SESSION_DEFAULTS', value: enableManagedRedis ? 'cache' : 'php' }
+  { name: 'KMP_SESSION_CACHE_CONFIG', value: 'default' }
   { name: 'EMAIL_DRIVER', value: 'smtp' }
   { name: 'EMAIL_SMTP_HOST', value: emailSmtpHost }
   { name: 'EMAIL_SMTP_PORT', value: string(emailSmtpPort) }
@@ -477,6 +610,11 @@ var commonEnv = [
   { name: 'AZURE_STORAGE_ACCOUNT_NAME', value: documentStorage.name }
   { name: 'AZURE_STORAGE_CONTAINER_PREFIX', value: documentContainerPrefix }
 ]
+
+var webEnv = concat(commonEnv, [
+  { name: 'AZURE_CLIENT_ID', value: uami.properties.clientId }
+  { name: 'KMP_PLATFORM_ADMIN_HOSTS', value: effectivePlatformAdminHosts }
+])
 
 // Secrets (pulled from Key Vault via UAMI)
 var commonSecrets = [
@@ -508,6 +646,11 @@ var commonSecrets = [
   {
     name: 'email-smtp-password'
     keyVaultUrl: secretSmtpPassword.properties.secretUri
+    identity: uami.id
+  }
+  {
+    name: 'redis-url'
+    keyVaultUrl: secretRedisUrl.properties.secretUri
     identity: uami.id
   }
 ]
@@ -553,7 +696,7 @@ resource web 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'web'
           image: fullImage
           resources: { cpu: json('0.5'), memory: '1Gi' }
-          env: commonEnv
+          env: webEnv
           probes: [
             {
               type: 'Liveness'
@@ -573,8 +716,8 @@ resource web 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 1
-        maxReplicas: 3
+        minReplicas: webMinReplicas
+        maxReplicas: webMaxReplicas
         rules: [
           {
             name: 'http'
@@ -852,7 +995,9 @@ resource manualShapeJobs 'Microsoft.App/jobs@2024-03-01' = [for job in manualSha
           name: job.containerName
           image: fullImage
           resources: { cpu: json(job.cpu), memory: job.memory }
-          env: job.env
+          env: concat(job.env, [
+            { name: 'AZURE_CLIENT_ID', value: uami.properties.clientId }
+          ])
           command: job.command
           args: job.args
         }
@@ -895,7 +1040,9 @@ resource scheduledShapeJobs 'Microsoft.App/jobs@2024-03-01' = [for job in schedu
           name: job.containerName
           image: fullImage
           resources: { cpu: json(job.cpu), memory: job.memory }
-          env: job.env
+          env: concat(job.env, [
+            { name: 'AZURE_CLIENT_ID', value: uami.properties.clientId }
+          ])
           command: job.command
           args: job.args
         }
@@ -920,6 +1067,8 @@ output postgresFqdn string = pg.properties.fullyQualifiedDomainName
 output postgresAdminUser string = postgresAdminUser
 output postgresDatabaseName string = postgresDatabaseName
 output platformPostgresDatabaseName string = platformPostgresDatabaseName
+output managedRedisName string = enableManagedRedis ? managedRedis.name : ''
+output managedRedisHostName string = enableManagedRedis ? managedRedis.properties.hostName : ''
 output keyVaultName string = kv.name
 output documentStorageAccountName string = documentStorage.name
 output documentStorageContainerPrefix string = documentContainerPrefix

@@ -103,22 +103,13 @@ declare(strict_types=1);
                         : __('Leave blank on create to use the database-name default.'),
                 ]) ?>
             </div>
-            <div class="col-12 col-lg-2">
-                <?= $this->Form->control('queue_concurrency_limit', [
-                    'type' => 'number',
-                    'label' => __('Queue limit'),
-                    'value' => $tenantForm['queue_concurrency_limit'],
-                    'min' => 1,
-                    'max' => 100,
-                ]) ?>
-            </div>
         </div>
     </div>
 </section>
-
 <section class="card mb-4" aria-labelledby="tenant-storage-heading">
     <div class="card-body">
         <h2 id="tenant-storage-heading" class="h5"><?= __('Document Storage') ?></h2>
+        <?= $this->element('PlatformAdmin/tenant_config_docs', ['section' => 'documents']) ?>
         <div class="row g-3">
             <div class="col-12 col-lg-6">
                 <?= $this->Form->control('documents_blob_container', [
@@ -141,6 +132,7 @@ declare(strict_types=1);
 <section class="card mb-4" aria-labelledby="tenant-email-heading">
     <div class="card-body">
         <h2 id="tenant-email-heading" class="h5"><?= __('Email Delivery') ?></h2>
+        <?= $this->element('PlatformAdmin/tenant_config_docs', ['section' => 'email']) ?>
         <div class="row g-3">
             <div class="col-12 col-lg-4">
                 <?= $this->Form->control('email_mode', [
@@ -229,35 +221,5 @@ declare(strict_types=1);
                 ]) ?>
             </div>
         </div>
-    </div>
-</section>
-
-<section class="card mb-4" aria-labelledby="tenant-integrations-heading">
-    <div class="card-body">
-        <h2 id="tenant-integrations-heading" class="h5"><?= __('Integration References') ?></h2>
-        <div class="alert alert-info" role="note">
-            <?= __('Enter HTTPS endpoint URLs and secret reference names only. Do not paste passwords, API keys, or tokens into tenant configuration.') ?>
-        </div>
-        <div class="row g-3">
-            <div class="col-12 col-lg-6">
-                <?= $this->Form->control('integration_endpoints_json', [
-                    'type' => 'textarea',
-                    'label' => __('Integration endpoints JSON'),
-                    'value' => $formData['integration_endpoints_json'],
-                    'rows' => 6,
-                    'help' => __('JSON object of safe endpoint names to HTTPS URLs.'),
-                ]) ?>
-            </div>
-            <div class="col-12 col-lg-6">
-                <?= $this->Form->control('integration_secret_refs_json', [
-                    'type' => 'textarea',
-                    'label' => __('Integration secret references JSON'),
-                    'value' => $formData['integration_secret_refs_json'],
-                    'rows' => 6,
-                    'help' => __('JSON object of safe names to secret reference names only.'),
-                ]) ?>
-            </div>
-        </div>
-        <?= $this->Form->hidden('features_json', ['value' => $formData['features_json']]) ?>
     </div>
 </section>

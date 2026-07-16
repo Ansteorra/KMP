@@ -204,16 +204,15 @@ class TenantMigrateCommand extends Command
 
         try {
             $this->assertTenantDatabaseConfig($tenant);
-            $releaseMetadata = $this->releaseCompatibilityMetadata();
             $marker = null;
             if (!(bool)($options['skip_pre_migration_marker'] ?? false) && !(bool)($options['dry_run'] ?? false)) {
-                $marker = $this->migrationMarkerService()->createMarker($tenant, $options, $jobId, $releaseMetadata);
+                $marker = $this->migrationMarkerService()->createMarker($tenant, $options, $jobId);
             }
             $result = (bool)($options['marker_only'] ?? false)
                 ? new TenantMigrationResult($tenant->schemaVersion, ['marker_only' => true])
                 : $this->runTenantMigration($tenant, $options, $io);
             $finishedAt = $this->now();
-            $parameters = array_merge($options, $releaseMetadata, [
+            $parameters = array_merge($options, [
                 'tenant_slug' => $tenant->slug,
                 'previous_schema_version' => $tenant->schemaVersion,
                 'pre_migration_marker' => $marker?->metadata,
@@ -519,7 +518,7 @@ class TenantMigrateCommand extends Command
     private function insertJob(string $jobId, TenantMetadata $tenant, array $options): void
     {
         $now = $this->now();
-        $parameters = array_merge($options, $this->releaseCompatibilityMetadata(), [
+        $parameters = array_merge($options, [
             'tenant_slug' => $tenant->slug,
             'previous_schema_version' => $tenant->schemaVersion,
         ]);
@@ -539,33 +538,6 @@ class TenantMigrateCommand extends Command
             'finished_at' => null,
             'modified_at' => $now,
         ]);
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function releaseCompatibilityMetadata(): array
-    {
-        try {
-            $row = $this->platform()->execute(
-                "SELECT image_tag, min_schema, max_schema FROM releases
-                 WHERE status IN ('active', 'current', 'released')
-                 ORDER BY created_at DESC LIMIT 1",
-            )->fetch('assoc');
-        } catch (Throwable) {
-            return ['release_schema_bounds' => null];
-        }
-        if (!is_array($row)) {
-            return ['release_schema_bounds' => null];
-        }
-
-        return [
-            'release_schema_bounds' => [
-                'image_tag' => (string)$row['image_tag'],
-                'min_schema' => (string)$row['min_schema'],
-                'max_schema' => (string)$row['max_schema'],
-            ],
-        ];
     }
 
     /**

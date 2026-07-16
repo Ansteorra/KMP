@@ -17,12 +17,23 @@ class TenantConnectionManager
     public const CONNECTION_ALIAS = 'tenant';
 
     /**
+     * Tenant mail override applier.
+     *
+     * @var \App\Services\TenantMailConfigurator
+     */
+    private readonly TenantMailConfigurator $mailConfigurator;
+
+    /**
      * Constructor.
      *
      * @param \App\Services\Secrets\SecretStoreInterface $secretStore Secret store
+     * @param \App\Services\TenantMailConfigurator|null $mailConfigurator Tenant mail override applier
      */
-    public function __construct(private readonly SecretStoreInterface $secretStore)
-    {
+    public function __construct(
+        private readonly SecretStoreInterface $secretStore,
+        ?TenantMailConfigurator $mailConfigurator = null,
+    ) {
+        $this->mailConfigurator = $mailConfigurator ?? new TenantMailConfigurator($secretStore);
     }
 
     /**
@@ -50,10 +61,12 @@ class TenantConnectionManager
         }
         ConnectionManager::alias(self::CONNECTION_ALIAS, 'default');
         FactoryLocator::add('Table', new TableLocator());
+        $restoreMail = $this->mailConfigurator->apply($tenant);
 
         try {
             return TenantContext::with($tenant, $callback);
         } finally {
+            $restoreMail();
             $this->assertNoOpenTransaction();
             ConnectionManager::dropAlias('default');
             ConnectionManager::drop(self::CONNECTION_ALIAS);

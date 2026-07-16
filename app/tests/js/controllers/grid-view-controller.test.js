@@ -333,6 +333,75 @@ describe('GridViewController', () => {
         expect(params.has('[filters]')).toBe(false);
     });
 
+    test('removeFilter removes numeric state values using the string value from the filter pill', () => {
+        window.history.replaceState({}, '', '/awards/bestowals?filter%5Bawards%5D%5B%5D=10');
+        controller.state = {
+            view: { currentId: 'sys-bestowals-active' },
+            filters: { active: { awards: [10] } },
+            config: { lockedFilters: [] },
+            search: '',
+        };
+        controller.navigate = jest.fn();
+
+        controller.removeFilter({
+            currentTarget: {
+                dataset: { filterColumn: 'awards', filterValue: '10' },
+            },
+        });
+
+        const navigatedUrl = controller.navigate.mock.calls[0][0];
+        const params = new URL(navigatedUrl, window.location.origin).searchParams;
+        expect(params.has('filter[awards][]')).toBe(false);
+        expect(params.get('dirty[filters]')).toBe('1');
+    });
+
+    test('toggleFilter removes numeric state values using the checkbox string value', () => {
+        window.history.replaceState({}, '', '/awards/bestowals?filter%5Bawards%5D%5B%5D=10');
+        controller.state = {
+            view: { currentId: 'sys-bestowals-active' },
+            filters: { active: { awards: [10] } },
+            config: { lockedFilters: [] },
+            search: '',
+        };
+        controller.navigate = jest.fn();
+
+        controller.toggleFilter({
+            currentTarget: {
+                checked: false,
+                value: '10',
+                dataset: { filterColumn: 'awards' },
+            },
+        });
+
+        const navigatedUrl = controller.navigate.mock.calls[0][0];
+        const params = new URL(navigatedUrl, window.location.origin).searchParams;
+        expect(params.has('filter[awards][]')).toBe(false);
+        expect(params.get('dirty[filters]')).toBe('1');
+    });
+
+    test('clearAllFilters removes the final filter before reloading the table frame', () => {
+        window.history.replaceState(
+            {},
+            '',
+            '/awards/bestowals?filter%5Bawards%5D%5B%5D=10&search=test',
+        );
+        controller.state = {
+            view: { currentId: 'sys-bestowals-active' },
+            filters: { active: { awards: ['10'] } },
+            config: { lockedFilters: [] },
+            search: 'test',
+        };
+        controller.navigate = jest.fn();
+
+        controller.clearAllFilters();
+
+        const navigatedUrl = controller.navigate.mock.calls[0][0];
+        const params = new URL(navigatedUrl, window.location.origin).searchParams;
+        expect(params.has('filter[awards][]')).toBe(false);
+        expect(params.has('search')).toBe(false);
+        expect(params.get('dirty[filters]')).toBe('1');
+    });
+
     test('eligible-only bulk action is hidden when no rows match required field', () => {
         document.body.innerHTML = `
             <div data-controller="grid-view">

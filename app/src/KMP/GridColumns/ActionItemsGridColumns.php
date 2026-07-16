@@ -138,7 +138,6 @@ class ActionItemsGridColumns extends BaseGridColumns
                 'key' => 'complete',
                 'type' => 'modal',
                 'label' => 'Complete',
-                'icon' => 'bi-check2',
                 'class' => 'btn btn-sm btn-success',
                 'modalTarget' => '#todoCompleteModal',
                 'statusFilter' => [ActionItem::STATUS_OPEN],

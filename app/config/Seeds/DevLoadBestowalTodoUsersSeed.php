@@ -12,7 +12,7 @@ use Migrations\BaseSeed;
 class DevLoadBestowalTodoUsersSeed extends BaseSeed
 {
     /**
-     * @var list<array{key: string, label: string, office_suffix: string, permission_suffix: string, court_access: bool}>
+     * @var list<array{key: string, label: string, office_suffix: string, permission_suffix: string}>
      */
     private const TODO_AREAS = [
         [
@@ -20,35 +20,30 @@ class DevLoadBestowalTodoUsersSeed extends BaseSeed
             'label' => 'Scroll',
             'office_suffix' => 'Scroll Deputy',
             'permission_suffix' => 'Scroll Management',
-            'court_access' => false,
         ],
         [
             'key' => 'regalia',
             'label' => 'Regalia',
             'office_suffix' => 'Regalia Deputy',
             'permission_suffix' => 'Regalia Management',
-            'court_access' => false,
         ],
         [
             'key' => 'schedule',
             'label' => 'Award Schedule',
             'office_suffix' => 'Award Scheduler',
             'permission_suffix' => 'Award Schedule Management',
-            'court_access' => true,
         ],
         [
             'key' => 'agenda',
             'label' => 'Court Agenda',
             'office_suffix' => 'Court Agenda Deputy',
             'permission_suffix' => 'Court Management',
-            'court_access' => true,
         ],
         [
             'key' => 'reporter',
             'label' => 'Court Reporter',
             'office_suffix' => 'Court Reporter Deputy',
             'permission_suffix' => 'Court Reporter',
-            'court_access' => false,
         ],
     ];
 
@@ -196,6 +191,7 @@ class DevLoadBestowalTodoUsersSeed extends BaseSeed
             throw new RuntimeException('Dev bestowal seed requires an admin member and the Nobility department.');
         }
         $now = DateTime::now();
+        $warrantRosterId = $this->ensureWarrantRoster($adminId, $now);
 
         foreach (self::TIERS as $tier) {
             $branchId = $this->findId('Branches', ['name' => $tier['branch']]);
@@ -209,17 +205,9 @@ class DevLoadBestowalTodoUsersSeed extends BaseSeed
             }
 
             foreach (self::TODO_AREAS as $area) {
-                $permissionNames = [
-                    $tier['permission_prefix'] . ' ' . $area['permission_suffix'],
-                    'Can View Bestowals',
-                ];
-                if ($area['court_access']) {
-                    $permissionNames[] = 'Can Manage Court Schedule';
-                }
-
                 $roleId = $this->ensureRole(
                     $tier['label'] . ' ' . $area['label'] . ' Bestowal Todo',
-                    $permissionNames,
+                    $tier['permission_prefix'] . ' ' . $area['permission_suffix'],
                     $adminId,
                     $now,
                 );
@@ -242,7 +230,7 @@ class DevLoadBestowalTodoUsersSeed extends BaseSeed
                     $now,
                 );
                 $memberRoleId = $this->ensureMemberRole($memberId, $roleId, $branchId, $adminId, $now);
-                $this->ensureOfficer(
+                $officerId = $this->ensureOfficer(
                     $memberId,
                     $branchId,
                     $officeId,
@@ -251,8 +239,18 @@ class DevLoadBestowalTodoUsersSeed extends BaseSeed
                     $adminId,
                     $now,
                 );
+                $this->ensureWarrant(
+                    $memberId,
+                    $memberRoleId,
+                    $officerId,
+                    $warrantRosterId,
+                    $adminId,
+                    $now,
+                );
             }
         }
+
+        $this->ensureManagedAssignmentWarrants($warrantRosterId, $adminId, $now);
     }
 
     /**
@@ -273,12 +271,12 @@ class DevLoadBestowalTodoUsersSeed extends BaseSeed
 
     /**
      * @param string $name Role name.
-     * @param list<string> $permissionNames Permission names to attach.
+     * @param string $permissionName Permission name to attach.
      * @param int $adminId Admin member id.
      * @param \Cake\I18n\DateTime $now Current timestamp.
      * @return int
      */
-    private function ensureRole(string $name, array $permissionNames, int $adminId, DateTime $now): int
+    private function ensureRole(string $name, string $permissionName, int $adminId, DateTime $now): int
     {
         $roles = TableRegistry::getTableLocator()->get('Roles');
         $rolesPermissions = TableRegistry::getTableLocator()->get('RolesPermissions');
@@ -295,38 +293,34 @@ class DevLoadBestowalTodoUsersSeed extends BaseSeed
             $roles->saveOrFail($role);
         }
 
-        foreach ($permissionNames as $permissionName) {
-            $permission = $permissions->find()
-                ->where(['name' => $permissionName])
-                ->first();
-            if ($permission === null) {
-                throw new RuntimeException(sprintf('Missing bestowal todo permission "%s".', $permissionName));
-            }
-            if ($permission->requires_warrant) {
-                $permission = $permissions->patchEntity($permission, [
-                    'requires_warrant' => false,
-                    'modified_by' => $adminId,
-                ]);
-                $permissions->saveOrFail($permission);
-            }
-
-            $exists = $rolesPermissions->find()
-                ->where([
-                    'role_id' => $role->id,
-                    'permission_id' => $permission->id,
-                ])
-                ->first();
-            if ($exists !== null) {
-                continue;
-            }
-
-            $rolesPermissions->saveOrFail($rolesPermissions->newEntity([
-                'role_id' => $role->id,
-                'permission_id' => $permission->id,
-                'created_by' => $adminId,
-                'created' => $now,
-            ]));
+        $permission = $permissions->find()
+            ->where(['name' => $permissionName])
+            ->first();
+        if ($permission === null) {
+            throw new RuntimeException(sprintf('Missing bestowal todo permission "%s".', $permissionName));
         }
+        if (!$permission->requires_warrant) {
+            $permission = $permissions->patchEntity($permission, [
+                'requires_warrant' => true,
+                'modified_by' => $adminId,
+            ]);
+            $permissions->saveOrFail($permission);
+        }
+
+        $managedPermissionIds = $this->findManagedPermissionIds();
+        if ($managedPermissionIds !== []) {
+            $rolesPermissions->deleteAll([
+                'role_id' => (int)$role->id,
+                'permission_id IN' => $managedPermissionIds,
+            ]);
+        }
+
+        $rolesPermissions->saveOrFail($rolesPermissions->newEntity([
+            'role_id' => $role->id,
+            'permission_id' => $permission->id,
+            'created_by' => $adminId,
+            'created' => $now,
+        ]));
 
         return (int)$role->id;
     }
@@ -355,7 +349,7 @@ class DevLoadBestowalTodoUsersSeed extends BaseSeed
         $data = [
             'name' => $name,
             'department_id' => $departmentId,
-            'requires_warrant' => false,
+            'requires_warrant' => true,
             'required_office' => false,
             'can_skip_report' => false,
             'only_one_per_branch' => true,
@@ -483,7 +477,7 @@ class DevLoadBestowalTodoUsersSeed extends BaseSeed
      * @param int $parentOfficeId Parent/deputy office id.
      * @param int $adminId Admin member id.
      * @param \Cake\I18n\DateTime $now Current timestamp.
-     * @return void
+     * @return int
      */
     private function ensureOfficer(
         int $memberId,
@@ -493,7 +487,7 @@ class DevLoadBestowalTodoUsersSeed extends BaseSeed
         int $parentOfficeId,
         int $adminId,
         DateTime $now,
-    ): void {
+    ): int {
         $officers = TableRegistry::getTableLocator()->get('Officers.Officers');
         $members = TableRegistry::getTableLocator()->get('Members');
         $member = $members->get($memberId);
@@ -531,5 +525,180 @@ class DevLoadBestowalTodoUsersSeed extends BaseSeed
             $officer = $officers->patchEntity($officer, $data + ['modified' => $now]);
         }
         $officers->saveOrFail($officer);
+
+        return (int)$officer->id;
+    }
+
+    /**
+     * @param int $adminId Admin member ID.
+     * @param \Cake\I18n\DateTime $now Current timestamp.
+     * @return int
+     */
+    private function ensureWarrantRoster(int $adminId, DateTime $now): int
+    {
+        $rosters = TableRegistry::getTableLocator()->get('WarrantRosters');
+        $roster = $rosters->find()->where(['name' => 'Bestowal To-Do Demo Warrants'])->first();
+        $data = [
+            'name' => 'Bestowal To-Do Demo Warrants',
+            'approvals_required' => 1,
+            'approval_count' => 1,
+            'status' => 'Approved',
+            'created_by' => $adminId,
+        ];
+
+        if ($roster === null) {
+            $roster = $rosters->newEntity($data + ['created' => $now]);
+        } else {
+            $roster = $rosters->patchEntity($roster, $data + ['modified' => $now]);
+        }
+        $rosters->saveOrFail($roster);
+
+        return (int)$roster->id;
+    }
+
+    /**
+     * @param int $memberId Member ID.
+     * @param int $memberRoleId Member role ID.
+     * @param int $officerId Officer ID.
+     * @param int $warrantRosterId Warrant roster ID.
+     * @param int $adminId Admin member ID.
+     * @param \Cake\I18n\DateTime $now Current timestamp.
+     * @return void
+     */
+    private function ensureWarrant(
+        int $memberId,
+        int $memberRoleId,
+        ?int $officerId,
+        int $warrantRosterId,
+        int $adminId,
+        DateTime $now,
+    ): void {
+        $warrants = TableRegistry::getTableLocator()->get('Warrants');
+        $warrant = $warrants->find()
+            ->where([
+                'member_id' => $memberId,
+                'member_role_id' => $memberRoleId,
+                'status' => 'Current',
+                'start_on <=' => $now,
+                'expires_on >' => $now,
+            ])
+            ->first();
+        if ($warrant !== null) {
+            return;
+        }
+
+        $member = TableRegistry::getTableLocator()->get('Members')->get($memberId);
+        $warrant = $warrants->newEmptyEntity();
+        $warrant->set([
+            'name' => sprintf('Bestowal To-Do Demo Warrant: %s', (string)$member->sca_name),
+            'member_id' => $memberId,
+            'warrant_roster_id' => $warrantRosterId,
+            'entity_type' => $officerId === null ? 'Direct Grant' : 'Officers.Officers',
+            'entity_id' => $officerId ?? -1,
+            'member_role_id' => $memberRoleId,
+            'start_on' => $now,
+            'expires_on' => (clone $now)->modify('+2 years'),
+            'approved_date' => $now,
+            'status' => 'Current',
+            'created_by' => $adminId,
+            'created' => $now,
+        ], ['guard' => false]);
+        $warrants->saveOrFail($warrant);
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function findManagedPermissionIds(): array
+    {
+        return TableRegistry::getTableLocator()->get('Permissions')
+            ->find()
+            ->select(['id'])
+            ->where([
+                'OR' => [
+                    [
+                        'name IN' => [
+                            'Can View Bestowals',
+                            'Can Manage Bestowals',
+                            'Can Prepare Scrolls',
+                            'Can Manage Court Schedule',
+                            'Can Administer Bestowals',
+                            'Can Administer Court Agendas',
+                        ],
+                    ],
+                    ['name LIKE' => 'Crown % Management'],
+                    ['name' => 'Crown Court Reporter'],
+                    ['name LIKE' => 'Principality % Management'],
+                    ['name' => 'Principality Court Reporter'],
+                    ['name LIKE' => 'Baronial % Management'],
+                    ['name' => 'Baronial Court Reporter'],
+                ],
+            ])
+            ->all()
+            ->extract('id')
+            ->map(static fn($id): int => (int)$id)
+            ->toList();
+    }
+
+    /**
+     * @param int $warrantRosterId Warrant roster ID.
+     * @param int $adminId Admin member ID.
+     * @param \Cake\I18n\DateTime $now Current timestamp.
+     * @return void
+     */
+    private function ensureManagedAssignmentWarrants(
+        int $warrantRosterId,
+        int $adminId,
+        DateTime $now,
+    ): void {
+        $rolesPermissions = TableRegistry::getTableLocator()->get('RolesPermissions');
+        $managedRoleIds = $rolesPermissions->find()
+            ->select(['role_id'])
+            ->where(['permission_id IN' => $this->findManagedPermissionIds()])
+            ->distinct()
+            ->all()
+            ->extract('role_id')
+            ->map(static fn($id): int => (int)$id)
+            ->toList();
+        if ($managedRoleIds === []) {
+            return;
+        }
+
+        $memberRoles = TableRegistry::getTableLocator()->get('MemberRoles');
+        $officers = TableRegistry::getTableLocator()->get('Officers.Officers');
+        $assignments = $memberRoles->find()
+            ->where([
+                'role_id IN' => $managedRoleIds,
+                'revoker_id IS' => null,
+                'start_on <=' => $now,
+                'OR' => [
+                    'expires_on IS' => null,
+                    'expires_on >' => $now,
+                ],
+            ])
+            ->all();
+
+        foreach ($assignments as $assignment) {
+            $officer = $officers->find()
+                ->select(['id'])
+                ->where([
+                    'granted_member_role_id' => $assignment->id,
+                    'status' => 'Current',
+                    'start_on <=' => $now,
+                    'OR' => [
+                        'expires_on IS' => null,
+                        'expires_on >' => $now,
+                    ],
+                ])
+                ->first();
+            $this->ensureWarrant(
+                (int)$assignment->member_id,
+                (int)$assignment->id,
+                $officer === null ? null : (int)$officer->id,
+                $warrantRosterId,
+                $adminId,
+                $now,
+            );
+        }
     }
 }

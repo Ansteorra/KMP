@@ -446,7 +446,6 @@ class TenantMigrateCommandTest extends TestCase
                 TenantMetadata $tenant,
                 array $options,
                 string $migrationJobId,
-                array $releaseMetadata,
             ): TenantMigrationMarkerResult {
                 $this->events[] = 'marker';
                 if ($this->fail) {
@@ -460,7 +459,6 @@ class TenantMigrateCommandTest extends TestCase
                     'target_schema_version' => $options['target'] ?? 'latest',
                     'migration_job_id' => $migrationJobId,
                     'marker_timestamp' => '2026-05-16 01:00:00',
-                    'release' => $releaseMetadata['release_schema_bounds'] ?? null,
                     'backup' => [
                         'backup_id' => 'backup-alpha',
                         'backup_job_id' => 'backup-job-alpha',
@@ -535,11 +533,8 @@ class TenantMigrateCommandTest extends TestCase
                 db_server TEXT NOT NULL,
                 db_name TEXT NOT NULL,
                 db_role TEXT NOT NULL,
-                key_vault_prefix TEXT,
                 schema_version TEXT,
-                feature_flags TEXT,
                 tenant_config TEXT,
-                queue_concurrency_limit INTEGER,
                 created_at TEXT,
                 activated_at TEXT,
                 suspended_at TEXT,
@@ -582,11 +577,8 @@ class TenantMigrateCommandTest extends TestCase
             'db_server' => 'db.example.test',
             'db_name' => $slug . '_db',
             'db_role' => $slug . '_role',
-            'key_vault_prefix' => null,
             'schema_version' => $schemaVersion,
-            'feature_flags' => null,
             'tenant_config' => null,
-            'queue_concurrency_limit' => 5,
             'created_at' => '2026-05-16 00:00:00',
             'activated_at' => null,
             'suspended_at' => null,

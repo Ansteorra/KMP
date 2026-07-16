@@ -4,8 +4,10 @@ declare(strict_types=1);
 namespace Awards\Test\TestCase\Controller;
 
 use App\Model\Entity\GatheringScheduledActivity;
+use App\Model\Entity\Permission;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Model\Entity\Bestowal;
+use Cake\Cache\Cache;
 use Cake\I18n\DateTime;
 
 /**
@@ -31,7 +33,7 @@ class CourtAgendasControllerTest extends HttpIntegrationTestCase
     {
         $gathering = $this->getTableLocator()->get('Gatherings')
             ->find()
-            ->select(['id'])
+            ->select(['id', 'public_id'])
             ->firstOrFail();
         $this->createBestowalForGathering((int)$gathering->id);
         $this->importBestowalsForGathering((int)$gathering->id);
@@ -44,6 +46,9 @@ class CourtAgendasControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains('Build one court at a time');
         $this->assertResponseContains('data-controller="court-agenda-board"');
         $this->assertResponseContains('Back to Gathering');
+        $this->assertResponseContains(
+            '/gatherings/view/' . $gathering->public_id . '?tab=gathering-bestowals',
+        );
         $this->assertResponseContains('Printer Ready');
         $this->assertResponseContains('Remove from Agenda');
         $this->assertResponseNotContains('No linked scheduled activity');
@@ -73,6 +78,33 @@ class CourtAgendasControllerTest extends HttpIntegrationTestCase
         $this->assertResponseOk();
         $this->assertResponseContains('Court Session');
         $this->assertResponseNotContains('No court activities are available yet.');
+    }
+
+    /**
+     * @return void
+     */
+    public function testScopedCourtManagerCanManageAgendaHostedByAnotherBranch(): void
+    {
+        $gathering = $this->getTableLocator()->get('Gatherings')
+            ->find()
+            ->where(['branch_id IS NOT' => null, 'branch_id !=' => self::KINGDOM_BRANCH_ID])
+            ->firstOrFail();
+        $award = $this->getTableLocator()->get('Awards.Awards')
+            ->find()
+            ->where(['branch_id' => self::KINGDOM_BRANCH_ID])
+            ->firstOrFail();
+        $this->createBestowalForGathering((int)$gathering->id, (int)$award->id);
+        $this->grantCourtAgendaManagement(
+            self::TEST_MEMBER_AGATHA_ID,
+            self::KINGDOM_BRANCH_ID,
+        );
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+
+        $this->get('/awards/court-agendas/gathering/' . $gathering->id);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('draggable="true"');
+        $this->assertResponseContains('Refresh Scheduled Bestowals');
     }
 
     /**
@@ -150,17 +182,20 @@ class CourtAgendasControllerTest extends HttpIntegrationTestCase
      * @param int $gatheringId Gathering ID.
      * @return void
      */
-    private function createBestowalForGathering(int $gatheringId): void
+    private function createBestowalForGathering(int $gatheringId, ?int $awardId = null): void
     {
         $gathering = $this->getTableLocator()->get('Gatherings')
             ->find()
             ->select(['id', 'start_date'])
             ->where(['id' => $gatheringId])
             ->firstOrFail();
-        $award = $this->getTableLocator()->get('Awards.Awards')
+        $awardQuery = $this->getTableLocator()->get('Awards.Awards')
             ->find()
-            ->select(['id'])
-            ->firstOrFail();
+            ->select(['id']);
+        if ($awardId !== null) {
+            $awardQuery->where(['id' => $awardId]);
+        }
+        $award = $awardQuery->firstOrFail();
         $scheduledActivity = $this->createScheduledActivityForAward(
             $gatheringId,
             (int)$award->id,
@@ -179,6 +214,64 @@ class CourtAgendasControllerTest extends HttpIntegrationTestCase
             'stack_rank' => 10,
             'herald_notes' => 'Speak clearly.',
         ]));
+    }
+
+    /**
+     * @param int $memberId Member ID.
+     * @param int $branchId Permission assignment branch ID.
+     * @return void
+     */
+    private function grantCourtAgendaManagement(int $memberId, int $branchId): void
+    {
+        $permissions = $this->getTableLocator()->get('Permissions');
+        $permission = $permissions->saveOrFail($permissions->newEntity([
+            'name' => 'Test Court Agenda Management ' . uniqid(),
+            'require_active_membership' => false,
+            'require_active_background_check' => false,
+            'require_min_age' => 0,
+            'is_system' => false,
+            'is_super_user' => false,
+            'requires_warrant' => false,
+            'scoping_rule' => Permission::SCOPE_BRANCH_ONLY,
+        ]));
+
+        $permissionPolicies = $this->getTableLocator()->get('PermissionPolicies');
+        foreach (['canGathering', 'canEdit'] as $policyMethod) {
+            $permissionPolicies->saveOrFail($permissionPolicies->newEntity([
+                'permission_id' => (int)$permission->id,
+                'policy_class' => 'Awards\\Policy\\CourtAgendaPolicy',
+                'policy_method' => $policyMethod,
+            ]));
+        }
+
+        $roles = $this->getTableLocator()->get('Roles');
+        $role = $roles->saveOrFail($roles->newEntity([
+            'name' => 'Test Court Agenda Manager ' . uniqid(),
+        ]));
+        $connection = $roles->getConnection();
+        $connection->execute(
+            'INSERT INTO roles_permissions (role_id, permission_id, created, created_by)
+             VALUES (?, ?, NOW(), ?)',
+            [(int)$role->id, (int)$permission->id, self::ADMIN_MEMBER_ID],
+        );
+        $connection->execute(
+            'INSERT INTO member_roles
+             (member_id, role_id, branch_id, start_on, expires_on, approver_id, entity_type,
+              created, modified, created_by, modified_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?)',
+            [
+                $memberId,
+                (int)$role->id,
+                $branchId,
+                '2020-01-01 00:00:00',
+                '2100-01-01',
+                self::ADMIN_MEMBER_ID,
+                'Direct Grant',
+                self::ADMIN_MEMBER_ID,
+                self::ADMIN_MEMBER_ID,
+            ],
+        );
+        Cache::clearGroup('security');
     }
 
     /**

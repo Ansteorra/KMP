@@ -99,7 +99,7 @@ $currentPage = Router::url(null, true);
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= __('Cancel') ?></button>
                 <button type="submit" class="btn btn-primary"
                     data-awards-bestowal-bulk-todo-target="submit" disabled>
-                    <i class="bi bi-check-lg me-1" aria-hidden="true"></i><?= __('Complete Check') ?>
+                    <?= __('Complete Check') ?>
                 </button>
             </div>
             <?= $this->Form->end() ?>

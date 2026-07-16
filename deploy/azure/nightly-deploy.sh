@@ -44,6 +44,8 @@
 #   AZURE_SCHED_WEEKLY_JOB_NAME   <unset; skipped if absent>
 #   AZURE_SCHED_NIGHTLY_JOB_NAME  <unset; skipped if absent>
 #   IMAGE_TAG               nightly
+#   BASE_IMAGE              ghcr.io/ansteorra/kmp-base:php84 (used by `deploy-local`)
+#   SKIP_BACKUP_KEY_RECONCILIATION  0 (set to 1 for read-only secret stores)
 #   NIGHTLY_BRANCH          <current git branch>   (used by `build`)
 #   GH_REPO                 jhandel/KMP            (used by `build` / `status`)
 # =============================================================================
@@ -190,7 +192,11 @@ run_migrations() {
     run_migrate_command "app migrations" bin/cake migrations migrate
     run_migrate_command "app settings update" bin/cake updateDatabase
     run_migrate_command "platform migrations" bin/cake platform_migrate migrate
-    run_migrate_command "platform backup key reconciliation" bin/cake platform backup-keys ensure
+    if [[ "${SKIP_BACKUP_KEY_RECONCILIATION:-0}" == "1" ]]; then
+        warn "Skipping platform backup key reconciliation"
+    else
+        run_migrate_command "platform backup key reconciliation" bin/cake platform backup-keys ensure
+    fi
     if [[ "${RUN_RECOMMENDATION_MIGRATION:-0}" == "1" ]]; then
         run_migrate_command "award recommendation migration" \
             bin/cake awards migrate_award_recommendations --apply --allow-open-manual-review

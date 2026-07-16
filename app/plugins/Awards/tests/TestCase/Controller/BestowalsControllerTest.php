@@ -202,6 +202,33 @@ class BestowalsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains(h($secondReason));
     }
 
+    public function testViewLinksGatheringToAwardBestowalsTab(): void
+    {
+        $gathering = $this->getTableLocator()->get('Gatherings')
+            ->find()
+            ->select(['id', 'public_id'])
+            ->firstOrFail();
+        $award = $this->getTableLocator()->get('Awards.Awards')
+            ->find()
+            ->select(['id'])
+            ->firstOrFail();
+        $bestowals = $this->getTableLocator()->get('Awards.Bestowals');
+        $bestowal = $bestowals->saveOrFail($bestowals->newEntity([
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'award_id' => $award->id,
+            'gathering_id' => $gathering->id,
+            'source' => Bestowal::SOURCE_AD_HOC,
+            'stack_rank' => 0,
+        ]));
+
+        $this->get('/awards/bestowals/view/' . $bestowal->id);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains(
+            '/gatherings/view/' . $gathering->public_id . '?tab=gathering-bestowals',
+        );
+    }
+
     /**
      * @return void
      */

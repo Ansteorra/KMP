@@ -129,6 +129,12 @@ link is not a security control.
 
 Tenant and platform database backup requests are queued as audited
 `platform_jobs`; web requests do not run long backup or restore work inline.
+Successful minute-level scheduler and queue polls are retained only when they
+process or dispatch work. Failures are always retained. The daily
+`platform-job-retention` schedule removes completed scheduler runs after 14
+days, other completed operational jobs after 90 days, and failed jobs after
+180 days; related `platform_job_events` are removed by cascade. Operators can
+run the same bounded cleanup manually with `bin/cake platform jobs prune`.
 Platform Admin uses the shared encrypted JSON `.kmpbackup` archive model:
 
 - Create backup requests enqueue a `tenant_backup_json` or

@@ -95,6 +95,7 @@ class BestowalTodoViewTest extends HttpIntegrationTestCase
         $this->assertResponseContains('bi-hourglass-split');
         $this->assertResponseContains('Open task:');
         $this->assertResponseNotContains('bi bi-circle me-1');
+        $this->assertResponseNotContains('bi bi-check-lg me-1');
     }
 
     public function testViewRendersGatheringRequirementForUnbackfilledEventScheduledTodo(): void

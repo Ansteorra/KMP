@@ -98,7 +98,20 @@ echo $this->KMP->startBlock('recordDetails');
     <th scope="row"><?= __('Gathering') ?></th>
     <td>
         <?php if ($bestowal->hasValue('gathering')) : ?>
-            <?= h($bestowal->gathering->name) ?>
+            <?php if ($user->checkCan('view', $bestowal->gathering)) : ?>
+                <?= $this->Html->link(
+                    $bestowal->gathering->name,
+                    [
+                        'plugin' => null,
+                        'controller' => 'Gatherings',
+                        'action' => 'view',
+                        $bestowal->gathering->public_id,
+                        '?' => ['tab' => 'gathering-bestowals'],
+                    ],
+                ) ?>
+            <?php else : ?>
+                <?= h($bestowal->gathering->name) ?>
+            <?php endif; ?>
         <?php endif; ?>
     </td>
 </tr>

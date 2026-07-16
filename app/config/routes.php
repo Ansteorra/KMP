@@ -179,7 +179,6 @@ return function (RouteBuilder $routes): void {
         )
             ->setPatterns(['backupId' => '[^/]+'])
             ->setPass(['backupId']);
-        $builder->connect('/release', ['controller' => 'Operations', 'action' => 'release']);
         $builder->connect('/data-console', ['controller' => 'DataConsole', 'action' => 'index']);
     });
 

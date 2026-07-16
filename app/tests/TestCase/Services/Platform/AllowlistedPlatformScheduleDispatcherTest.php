@@ -22,8 +22,8 @@ class AllowlistedPlatformScheduleDispatcherTest extends TestCase
         $tenant = $this->tenant();
         $dispatcher = new AllowlistedPlatformScheduleDispatcher($service);
 
-        TenantContext::with($tenant, static function () use ($dispatcher, $tenant): void {
-            $dispatcher->dispatch([
+        $processed = TenantContext::with($tenant, static function () use ($dispatcher, $tenant): int {
+            return $dispatcher->dispatch([
                 'command' => 'platform:shared-queue-fanout',
                 'payload' => [
                     'max_jobs' => 9,
@@ -31,6 +31,8 @@ class AllowlistedPlatformScheduleDispatcherTest extends TestCase
                 ],
             ], $tenant);
         });
+
+        $this->assertSame(2, $processed);
     }
 
     public function testSharedQueueFanoutRequiresTenantContext(): void

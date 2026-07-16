@@ -25,7 +25,6 @@ final class TenantProvisioningRequest
         public readonly ?string $dbRole = null,
         public readonly ?string $blobContainer = null,
         public readonly string $region = 'us',
-        public readonly int $queueConcurrencyLimit = 5,
         public readonly array $tenantConfig = [],
         public readonly string $finalStatus = self::STATUS_ACTIVE,
         public readonly bool $createDatabase = false,
@@ -51,7 +50,6 @@ final class TenantProvisioningRequest
             dbRole: self::nullableString($data['dbRole'] ?? $data['db_role'] ?? null),
             blobContainer: self::nullableString($data['blobContainer'] ?? $data['blob_container'] ?? null),
             region: (string)($data['region'] ?? 'us'),
-            queueConcurrencyLimit: (int)($data['queueConcurrencyLimit'] ?? $data['queue_concurrency_limit'] ?? 5),
             tenantConfig: is_array($data['tenantConfig'] ?? null) ? $data['tenantConfig'] : [],
             finalStatus: (string)($data['finalStatus'] ?? $data['status'] ?? self::STATUS_ACTIVE),
             createDatabase: self::boolValue($data['createDatabase'] ?? $data['create_database'] ?? false),
@@ -85,7 +83,6 @@ final class TenantProvisioningRequest
                 ? trim((string)$this->blobContainer)
                 : 'tenant-' . $slug,
             region: strtolower(trim($this->region) !== '' ? trim($this->region) : 'us'),
-            queueConcurrencyLimit: $this->queueConcurrencyLimit,
             tenantConfig: $this->tenantConfig,
             finalStatus: trim($this->finalStatus) !== '' ? trim($this->finalStatus) : self::STATUS_ACTIVE,
             createDatabase: $this->createDatabase,

@@ -596,9 +596,9 @@ class GridViewController extends Controller {
 
             if (activeValues !== undefined) {
                 if (Array.isArray(activeValues)) {
-                    isActive = activeValues.includes(value)
+                    isActive = activeValues.some(activeValue => String(activeValue) === String(value))
                 } else {
-                    isActive = activeValues === value
+                    isActive = String(activeValues) === String(value)
                 }
             }
 
@@ -1145,7 +1145,9 @@ class GridViewController extends Controller {
 
                 // Add checkboxes for each option
                 item.meta.options.forEach(option => {
-                    const isChecked = activeFiltered.includes(option.value)
+                    const isChecked = activeFiltered.some(
+                        activeValue => String(activeValue) === String(option.value)
+                    )
 
                     const formCheck = document.createElement('div')
                     formCheck.className = 'form-check mb-1'
@@ -1712,7 +1714,7 @@ class GridViewController extends Controller {
         // Toggle the value
         const newValues = checkbox.checked
             ? [...currentValues, value]
-            : currentValues.filter(v => v !== value)
+            : currentValues.filter(v => String(v) !== String(value))
 
         // Build URL with updated filter
         const filterParams = { ...this.state.filters.active }
@@ -1753,7 +1755,7 @@ class GridViewController extends Controller {
         if (!Array.isArray(currentValues)) {
             currentValues = [currentValues]
         }
-        const newValues = currentValues.filter(v => v !== value)
+        const newValues = currentValues.filter(v => String(v) !== String(value))
 
         // Build URL with updated filter
         const filterParams = { ...this.state.filters.active }
@@ -1792,29 +1794,15 @@ class GridViewController extends Controller {
             }
         }
 
-        // Build URL with only locked filters preserved
-        let url
-        if (Object.keys(preservedFilters).length > 0) {
-            // Has locked filters - use buildUrlWithFilters to preserve them
-            url = this.buildUrlWithFilters(preservedFilters)
-            const urlObj = new URL(url, window.location.origin)
-            // Clear search
-            urlObj.searchParams.delete('search')
-            // If we're on a view, mark filters as dirty
-            if (this.state.view.currentId) {
-                urlObj.searchParams.set('dirty[filters]', '1')
-            }
-            url = urlObj.pathname + urlObj.search
-        } else {
-            // No locked filters - simple clear
-            const updates = { search: null }
-            // If we're on a view, mark filters as dirty instead of removing view
-            if (this.state.view.currentId) {
-                updates['dirty[filters]'] = '1'
-            }
-            url = this.buildUrl(updates)
+        // Rebuild the URL even when no filters remain so stale filter params
+        // cannot cause the table frame to reload the just-cleared state.
+        const urlObj = new URL(this.buildUrlWithFilters(preservedFilters), window.location.origin)
+        urlObj.searchParams.delete('search')
+        if (this.state.view.currentId) {
+            urlObj.searchParams.set('dirty[filters]', '1')
         }
 
+        const url = urlObj.pathname + urlObj.search
         this.navigate(url)
     }
 

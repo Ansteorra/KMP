@@ -332,7 +332,6 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             'db_server' => 'db.internal',
             'db_name' => '',
             'db_role' => '',
-            'queue_concurrency_limit' => '7',
             'documents_blob_container' => 'documents-newkingdom',
             'documents_blob_prefix' => 'tenants/newkingdom',
             'email_mode' => 'resend',
@@ -340,9 +339,6 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             'email_from_name' => 'New Kingdom',
             'email_endpoint_url' => 'https://api.resend.com/emails',
             'email_api_secret_ref' => 'tenant.newkingdom.email-api-key',
-            'features_json' => '',
-            'integration_endpoints_json' => '{"roster":"https://integrations.newkingdom.test/roster"}',
-            'integration_secret_refs_json' => '{"roster":"tenant.newkingdom.roster-token"}',
             'nonce' => 'newkingdom-provision',
         ]);
 
@@ -352,7 +348,6 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->assertSame('provisioning', $row['status']);
         $this->assertSame('kmp_tenant_newkingdom', $row['db_name']);
         $this->assertSame('kmp_tenant_newkingdom_role', $row['db_role']);
-        $this->assertSame(7, (int)$row['queue_concurrency_limit']);
         $config = json_decode((string)$row['tenant_config'], true);
         $this->assertSame('resend', $config['email']['mode']);
         $this->assertSame('tenant.newkingdom.email-api-key', $config['email']['api_secret_ref']);
@@ -400,13 +395,9 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             'db_server' => 'db.internal',
             'db_name' => '',
             'db_role' => '',
-            'queue_concurrency_limit' => '7',
             'documents_blob_container' => 'documents-newkingdom',
             'documents_blob_prefix' => 'tenants/newkingdom',
             'email_mode' => 'disabled',
-            'features_json' => '',
-            'integration_endpoints_json' => '',
-            'integration_secret_refs_json' => '',
         ]);
 
         $this->assertResponseOk();
@@ -432,13 +423,9 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             'db_server' => 'db.internal',
             'db_name' => '',
             'db_role' => '',
-            'queue_concurrency_limit' => '7',
             'documents_blob_container' => 'documents-newkingdom',
             'documents_blob_prefix' => 'tenants/newkingdom',
             'email_mode' => 'disabled',
-            'features_json' => '',
-            'integration_endpoints_json' => '',
-            'integration_secret_refs_json' => '',
         ]);
 
         $this->assertResponseOk();
@@ -466,13 +453,9 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             'db_server' => 'db-secret-host',
             'db_name' => 'tenant_secret_database',
             'db_role' => 'tenant_secret_role',
-            'queue_concurrency_limit' => '5',
             'documents_blob_container' => 'documents-old',
             'documents_blob_prefix' => 'tenants/old',
             'email_mode' => 'default',
-            'features_json' => '',
-            'integration_endpoints_json' => '',
-            'integration_secret_refs_json' => '',
         ]);
 
         $this->assertRedirectContains('/platform-admin/tenants/example');
@@ -500,7 +483,6 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             'db_server' => 'other-db.internal',
             'db_name' => 'other_tenant_database',
             'db_role' => 'other_tenant_role',
-            'queue_concurrency_limit' => '3',
             'documents_blob_container' => 'documents-updated',
             'documents_blob_prefix' => 'tenants/example-updated',
             'email_mode' => 'smtp',
@@ -511,9 +493,6 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             'email_smtp_username' => 'mailer',
             'email_smtp_password_secret_ref' => 'tenant.example.smtp-password',
             'email_smtp_tls' => '1',
-            'features_json' => '',
-            'integration_endpoints_json' => '',
-            'integration_secret_refs_json' => '',
         ]);
 
         $this->assertRedirectContains('/platform-admin/tenants/example');
@@ -523,7 +502,6 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->assertSame('db-secret-host', $row['db_server']);
         $this->assertSame('tenant_secret_database', $row['db_name']);
         $this->assertSame('tenant_secret_role', $row['db_role']);
-        $this->assertSame(3, (int)$row['queue_concurrency_limit']);
         $config = json_decode((string)$row['tenant_config'], true);
         $this->assertSame('smtp', $config['email']['mode']);
         $this->assertSame('smtp.example.test', $config['email']['host']);
@@ -1020,9 +998,6 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             'email_endpoint_url' => 'https://mail.example.test/send',
             'email_api_secret_ref' => 'tenant.example.email-api-key',
             'email_smtp_password_secret_ref' => 'tenant.example.smtp-password',
-            'features_json' => '{"awards":true,"waivers":false}',
-            'integration_endpoints_json' => '{"roster":"https://integrations.example.test/roster"}',
-            'integration_secret_refs_json' => '{"roster":"tenant.example.roster-token"}',
         ]);
 
         $this->assertRedirectContains('/platform-admin/tenants/example');
@@ -1069,9 +1044,6 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             'email_endpoint_url' => '',
             'email_api_secret_ref' => 'plaintext:new-secret-value',
             'email_smtp_password_secret_ref' => '',
-            'features_json' => '',
-            'integration_endpoints_json' => '',
-            'integration_secret_refs_json' => '',
         ]);
 
         $this->assertResponseOk();
@@ -1096,9 +1068,6 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             'email_endpoint_url' => '',
             'email_api_secret_ref' => '',
             'email_smtp_password_secret_ref' => '',
-            'features_json' => '',
-            'integration_endpoints_json' => '',
-            'integration_secret_refs_json' => '',
         ]);
 
         $this->assertResponseOk();
@@ -1119,9 +1088,6 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             'email_endpoint_url' => '',
             'email_api_secret_ref' => '',
             'email_smtp_password_secret_ref' => '',
-            'features_json' => '',
-            'integration_endpoints_json' => '',
-            'integration_secret_refs_json' => '',
             'rogue_setting' => 'unsafe',
         ]);
 
@@ -1302,11 +1268,8 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
                 db_server TEXT NOT NULL,
                 db_name TEXT NOT NULL,
                 db_role TEXT NOT NULL,
-                key_vault_prefix TEXT NULL,
                 schema_version TEXT NULL,
-                feature_flags TEXT NULL,
                 tenant_config TEXT NULL,
-                queue_concurrency_limit INTEGER NOT NULL,
                 created_at TEXT NOT NULL,
                 activated_at TEXT NULL,
                 suspended_at TEXT NULL,
@@ -1432,18 +1395,6 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             )',
         );
         $connection->execute(
-            'CREATE TABLE releases (
-                id TEXT PRIMARY KEY,
-                image_tag TEXT NOT NULL,
-                git_sha TEXT NULL,
-                min_schema TEXT NOT NULL,
-                max_schema TEXT NOT NULL,
-                status TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                modified_at TEXT NULL
-            )',
-        );
-        $connection->execute(
             'CREATE TABLE IF NOT EXISTS audit_events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 tenant_id TEXT NULL,
@@ -1489,9 +1440,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             'db_server' => 'db-secret-host',
             'db_name' => 'tenant_secret_database',
             'db_role' => 'tenant_secret_role',
-            'key_vault_prefix' => 'secret/key/prefix',
             'schema_version' => '20260516000000',
-            'feature_flags' => '{"secret":"do-not-render"}',
             'tenant_config' => json_encode([
                 'documents' => [
                     'blob_container' => 'documents-old',
@@ -1503,7 +1452,6 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
                 ],
                 'password' => 'super-secret-password',
             ], JSON_UNESCAPED_SLASHES),
-            'queue_concurrency_limit' => 5,
             'created_at' => $now,
             'activated_at' => $now,
             'modified_at' => $now,

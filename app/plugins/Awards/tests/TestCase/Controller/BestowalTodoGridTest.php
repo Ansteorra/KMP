@@ -80,8 +80,8 @@ class BestowalTodoGridTest extends HttpIntegrationTestCase
     }
 
     /**
-     * The main grid renders the to-do progress badge with a popover trigger and
-     * an accessible label conveying the required-check progress.
+     * The main grid renders the count of every open to-do, including optional
+     * items, while retaining required-check progress in its accessible label.
      *
      * @return void
      */
@@ -90,7 +90,8 @@ class BestowalTodoGridTest extends HttpIntegrationTestCase
         $name = 'todo-grid-badge-' . uniqid();
         $bestowal = $this->makeBestowal($name);
         $this->makeTodo((int)$bestowal->id, 'has_scroll', ActionItem::STATUS_COMPLETED);
-        $this->makeTodo((int)$bestowal->id, 'event_scheduled', ActionItem::STATUS_OPEN);
+        $this->makeTodo((int)$bestowal->id, 'event_scheduled', ActionItem::STATUS_OPEN, false);
+        $this->makeTodo((int)$bestowal->id, 'regalia_allotted', ActionItem::STATUS_OPEN, false);
 
         $url = '/awards/bestowals/grid-data?' . http_build_query(['search' => $name]);
         $this->get($url);
@@ -98,7 +99,20 @@ class BestowalTodoGridTest extends HttpIntegrationTestCase
         $this->assertResponseOk();
         $this->assertResponseContains($name);
         $this->assertResponseContains('data-bs-toggle="popover"');
-        $this->assertResponseContains('To-Do progress: 1 of 2 required checks complete');
+        $this->assertResponseContains('To-Dos: 2 open items. Required checks complete: 1 of 1.');
+
+        $dom = new DOMDocument();
+        $previousLibxmlSetting = libxml_use_internal_errors(true);
+        $dom->loadHTML((string)$this->_response->getBody());
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousLibxmlSetting);
+        $xpath = new DOMXPath($dom);
+        $badges = $xpath->query(
+            '//button[@aria-label="To-Dos: 2 open items. Required checks complete: 1 of 1."]/span',
+        );
+        $this->assertNotFalse($badges);
+        $this->assertSame(1, $badges->length);
+        $this->assertSame('2', trim((string)$badges->item(0)?->textContent));
     }
 
     /**
