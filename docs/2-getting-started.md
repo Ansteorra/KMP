@@ -9,7 +9,7 @@ This section guides developers through the process of setting up the Kingdom Man
 
 ## 2.1 Installation
 
-KMP uses Docker Compose as the default local development environment. Your source code stays in the local repository folder, while PHP, Apache, MariaDB, Mailpit, Node, Xdebug, queue workers, and scheduled CakePHP cron jobs run in containers.
+KMP uses Docker Compose as the default local development environment. Your source code stays in the local repository folder, while PHP, Apache, MariaDB, Mailpit, Node, Xdebug, queue processing, and scheduled CakePHP jobs run in containers.
 
 ### Prerequisites
 
@@ -93,10 +93,10 @@ Xdebug is configured for port `9003` with container-to-host callbacks through `h
 
 ### Scheduled Local Jobs
 
-The Docker worker and scheduler services own background work. With tenancy
-enabled they poll `bin/cake platform schedule due`; stored schedules fan out
-workflow, maintenance, backup, platform job, and queue processing to active
-tenants. In single-database/legacy cron mode, the equivalent commands are:
+The Docker scheduler service owns all background work. With tenancy enabled it
+polls `bin/cake platform schedule due`; stored schedules fan out workflow,
+maintenance, backup, platform-job, default-queue, and tenant-queue processing.
+In single-database/legacy cron mode, the equivalent commands are:
 
 - `bin/cake queue run -q` every 2 minutes
 - `bin/cake workflow_scheduler` every minute

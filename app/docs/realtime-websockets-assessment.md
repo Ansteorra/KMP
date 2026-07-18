@@ -67,8 +67,8 @@ valuable even if push is never built.
 
 - **Runtime:** PHP 8.4, Apache prefork, `mod_php`; no PHP-FPM, no async runtime (no Swoole /
   ReactPHP / Ratchet installed). `php-redis` extension **is** in the base image.
-- **Local (docker-compose):** `kmp-app` (Apache, 8080→80), `kmp-worker`, `kmp-scheduler`,
-  PostgreSQL 16, pgAdmin, Mailpit. **No Redis container.**
+- **Local (docker-compose):** `kmp-app` (Apache, 8080→80), `kmp-scheduler`
+  (scheduled work and queues), PostgreSQL 16, pgAdmin, Mailpit. **No Redis container.**
 - **Azure (`deploy/azure/main.bicep`):** Container Apps environment; web app 1→3 replicas,
   ingress `transport: 'auto'` (WebSocket upgrade already passes through), external ingress,
   PostgreSQL Flexible Server, Blob storage, Key Vault, optional Front Door; Container Apps
@@ -188,14 +188,14 @@ fallback instead and needs no new compose service.
       - "8081:80"        # dev only; in prod the hub sits behind ingress/proxy
 ```
 
-`kmp-app`, `kmp-worker`, and `kmp-scheduler` get two env vars:
+`kmp-app` and `kmp-scheduler` get two env vars:
 
 - `MERCURE_PUBLISH_URL=http://kmp-mercure/.well-known/mercure` (server-to-hub publishing)
 - `MERCURE_PUBLIC_URL=http://localhost:8080/.well-known/mercure` (what browsers connect to)
 - `MERCURE_JWT_SECRET` shared with the hub.
 
-The worker/scheduler containers matter: **queue jobs are the natural publishers** for
-progress and notification events, and they already run as separate containers with app code
+The scheduler container matters: **queue jobs are the natural publishers** for
+progress and notification events, and it runs separately from the web container with app code
 and config loaded.
 
 ### 5.2 Same-origin routing (recommended over exposing port 8081)

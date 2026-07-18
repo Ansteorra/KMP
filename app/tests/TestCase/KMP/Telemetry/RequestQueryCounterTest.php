@@ -88,6 +88,35 @@ class RequestQueryCounterTest extends TestCase
                 $this->captured = &$captured;
             }
 
+            public function testSuppressedRequestCountsWithoutDelegatingQueryLogs(): void
+            {
+                $captured = [];
+                $inner = new class ($captured) extends AbstractLogger {
+                    /**
+                     * @var array<int,array<string,mixed>>
+                     */
+                    private array $captured;
+
+                    public function __construct(array &$captured)
+                    {
+                        $this->captured = &$captured;
+                    }
+
+                    public function log($level, string|Stringable $message, array $context = []): void
+                    {
+                        $this->captured[] = ['message' => (string)$message, 'context' => $context];
+                    }
+                };
+                $counter = new RequestQueryCounter($inner);
+                $counter->beginRequest('probe', 'get', 'localhost', '/health', '/health', '', false, true);
+
+                $counter->log(LogLevel::DEBUG, 'SELECT 1', ['query' => $this->makeLoggedQuery(2.0)]);
+
+                $this->assertSame(1, $counter->count());
+                $this->assertEqualsWithDelta(2.0, $counter->totalMs(), 0.001);
+                $this->assertSame([], $captured);
+            }
+
             public function log($level, string|Stringable $message, array $context = []): void
             {
                 $this->captured[] = [

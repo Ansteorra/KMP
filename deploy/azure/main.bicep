@@ -236,11 +236,11 @@ param enableRestoreJob bool = true
 @description('Enable the manual tenant provision job shape. Operators override args when starting it for a specific tenant.')
 param enableProvisionJob bool = true
 
-@description('Enable the scheduled resilience dispatcher for due platform schedules, including tenant queues.')
+@description('Enable the unified scheduled background worker for due schedules, default and tenant queues, and platform jobs.')
 param enableQueueWorkerJob bool = true
 
-@description('Cron for the resilience dispatcher schedule shape.')
-param queueWorkerCron string = '*/5 * * * *'
+@description('Cron for the unified background worker.')
+param queueWorkerCron string = '* * * * *'
 
 @minValue(1)
 @maxValue(10)
@@ -249,11 +249,11 @@ param queueWorkerParallelism int = 1
 
 @minValue(60)
 @maxValue(3600)
-@description('Replica timeout, in seconds, for each queue worker execution.')
-param queueWorkerReplicaTimeoutSeconds int = 600
+@description('Replica timeout, in seconds, for each unified worker execution.')
+param queueWorkerReplicaTimeoutSeconds int = 3600
 
-@description('Enable the hourly platform schedule dispatcher job.')
-param enableScheduleHourlyJob bool = true
+@description('Enable the legacy hourly platform schedule dispatcher job.')
+param enableScheduleHourlyJob bool = false
 
 @description('Cron for the due platform schedule dispatcher.')
 param scheduleHourlyCron string = '* * * * *'
@@ -729,6 +729,8 @@ var commonEnv = concat([
 var webEnv = concat(commonEnv, [
   { name: 'AZURE_CLIENT_ID', value: uami.properties.clientId }
   { name: 'KMP_PLATFORM_ADMIN_HOSTS', value: effectivePlatformAdminHosts }
+  { name: 'KMP_SKIP_CRON', value: 'true' }
+  { name: 'KMP_SKIP_MIGRATIONS', value: 'true' }
 ])
 
 // Secrets (pulled from Key Vault via UAMI)
@@ -826,16 +828,18 @@ resource web 'Microsoft.App/containerApps@2024-03-01' = {
           probes: [
             {
               type: 'Liveness'
-              httpGet: { path: '/health', port: 80 }
+              httpGet: { path: '/livez', port: 80 }
               initialDelaySeconds: 30
-              periodSeconds: 30
+              periodSeconds: 60
+              timeoutSeconds: 2
               failureThreshold: 3
             }
             {
               type: 'Readiness'
               httpGet: { path: '/health', port: 80 }
-              initialDelaySeconds: 10
-              periodSeconds: 10
+              initialDelaySeconds: 30
+              periodSeconds: 60
+              timeoutSeconds: 5
               failureThreshold: 3
             }
           ]
@@ -987,7 +991,11 @@ var manualShapeJobDefinitions = [
     memory: '1Gi'
     env: jobEnvMigrate
     command: [ '/usr/local/bin/docker-entrypoint.sh' ]
-    args: [ '/bin/sh', '-lc', 'bin/cake platform_migrate migrate' ]
+    args: [
+      '/bin/sh'
+      '-lc'
+      'bin/cake migrations migrate && bin/cake updateDatabase && bin/cake platform_migrate migrate'
+    ]
   }
   {
     enabled: enableRestoreJob
@@ -1030,8 +1038,23 @@ var scheduledShapeJobDefinitions = [
     memory: '1Gi'
     env: jobEnvWorker
     command: [ '/usr/local/bin/docker-entrypoint.sh' ]
-    // Advisory locks and next_run_at make this a safe fallback for the minute dispatcher.
-    args: [ 'bin/cake', 'platform', 'schedule', 'due', '-q' ]
+    args: [
+      'bin/cake'
+      'platform'
+      'worker'
+      'run'
+      '--schedule-limit'
+      '100'
+      '--max-jobs'
+      '100'
+      '--max-runtime'
+      '45'
+      '--cycle-budget'
+      '240'
+      '--platform-limit'
+      '1'
+      '--json'
+    ]
   }
   {
     enabled: enableScheduleHourlyJob

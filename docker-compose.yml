@@ -9,8 +9,7 @@
 #
 # Services:
 #   - app: PHP 8.3 + Apache (your code mounted at /var/www/html)
-#   - worker: Queue worker process using the app image
-#   - scheduler: Workflow/scheduled task loop using the app image
+#   - scheduler: Timed work and queue processing using the app image
 #   - db: PostgreSQL with persistent volume
 #   - pgadmin: PostgreSQL administration UI (development only)
 #   - mailpit: Email testing (UI at http://localhost:8025)
@@ -143,30 +142,27 @@ services:
       <<: *app-environment
       KMP_SKIP_CRON: "true"
     healthcheck:
-      test: ["CMD-SHELL", "curl -f -H \"Host: $${KMP_DEV_TENANT_HOST:-kmp.localhost}\" http://localhost/"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD-SHELL", "curl -f http://localhost/livez"]
+      interval: 60s
+      timeout: 2s
       retries: 3
       start_period: 60s
-
-  worker:
-    <<: *app-base
-    container_name: kmp-worker
-    restart: unless-stopped
-    command: ["bin/queue-worker-loop.sh"]
-    environment:
-      <<: *app-environment
-      KMP_SKIP_CRON: "true"
-    stop_grace_period: 45s
 
   scheduler:
     <<: *app-base
     container_name: kmp-scheduler
     restart: unless-stopped
-    command: ["kmp-scheduler-loop"]
+    command: ["sh", "/usr/local/bin/kmp-scheduler-loop-dev"]
+    volumes:
+      - ./app:/var/www/html:cached
+      - ./dev_seed_clean.sql:/var/www/dev_seed_clean.sql:ro
+      - composer-cache:/root/.composer/cache
+      - node-modules:/var/www/html/node_modules
+      - ./docker/scheduler-loop.sh:/usr/local/bin/kmp-scheduler-loop-dev:ro
     environment:
       <<: *app-environment
       KMP_SKIP_CRON: "true"
+      KMP_SKIP_INITIAL_DB_SETUP: "true"
     stop_grace_period: 30s
 
 volumes:

@@ -15,8 +15,7 @@ If `app/config/.env` does not exist yet, `./dev-up.sh` creates it from `app/conf
 | Service | Container | Purpose | Default host access |
 |---------|-----------|---------|---------------------|
 | `app` | `kmp-app` | PHP 8.4, Apache, Composer, Node, Xdebug | http://kmp.localhost:8080 |
-| `worker` | `kmp-worker` | Queue worker using the same app image and database config | Docker logs |
-| `scheduler` | `kmp-scheduler` | Local scheduled-task loop using the same app image and database config | Docker logs |
+| `scheduler` | `kmp-scheduler` | Queue and scheduled-task loop using the same app image and database config | Docker logs |
 | `db` | `kmp-db` | PostgreSQL 16 | `127.0.0.1:5432` |
 | `pgadmin` | `kmp-pgadmin` | PostgreSQL administration UI for local development | http://localhost:5050 |
 | `mailpit` | `kmp-mailpit` | Local email capture | http://localhost:8025, SMTP `127.0.0.1:1025` |
@@ -177,25 +176,28 @@ started safely, leave the existing dumps unchanged and report the blocker.
 
 ## Queue and Scheduled Jobs
 
-Local Docker runs background work in dedicated services instead of cron inside
-the web container. This mirrors the production shape where web, worker, and
-scheduler processes are independently observable and restartable.
+Local Docker runs all background work in one scheduler service instead of cron
+inside the web container. The scheduler is independently observable and
+restartable while the web container remains request-only.
 
 | Service | Command | Purpose |
 |----------|---------|---------|
-| `worker` | `bin/cake platform schedule due -q` in tenant mode; otherwise `bin/cake queue run -q` | Poll due platform work, including every active tenant's queue, with advisory-lock protection |
-| `scheduler` | `kmp-scheduler-loop` | Dispatch due platform schedules in tenant mode, or legacy maintenance commands in single-database mode |
+| `scheduler` | `kmp-scheduler-loop` | Dispatch platform schedules and continuously drain default, tenant, and platform queues |
 
-With `KMP_TENANCY_ENABLED=true`, both services safely poll
-`bin/cake platform schedule due`; stored schedule rows own cadence and tenant
-fan-out, and PostgreSQL advisory locks prevent duplicate claims. The
-`tenant-queue-drain` row runs once per minute and bounds each active tenant to
-25 queue jobs or 45 seconds. In single-database mode, the scheduler loop uses
-these conservative legacy intervals:
+With `KMP_TENANCY_ENABLED=true`, the scheduler runs
+`bin/cake platform worker run` every five seconds. Each cycle dispatches due
+platform schedules, drains up to 100 jobs or 45 seconds from each datasource
+within a 240-second fleet budget, then claims one queued platform job. Tenant
+ordering rotates between cycles and duplicate physical datasources are skipped.
+Queue cycles repeat while work remains instead of waiting for a minute cron tick. In
+single-database mode, the scheduler loop drains the default queue directly and
+uses these conservative legacy intervals:
 
 | Variable | Default seconds | Command |
 |----------|-----------------|---------|
 | `KMP_PLATFORM_SCHEDULE_INTERVAL` | `60` | `bin/cake platform schedule due` in tenant mode |
+| `KMP_QUEUE_DRAIN_INTERVAL` | `5` | Bounded queue cycle |
+| `KMP_SKIP_INITIAL_DB_SETUP` | `true` on `scheduler` | Keep schema initialization owned by the web container |
 | `KMP_WORKFLOW_SCHEDULER_INTERVAL` | `60` | `bin/cake workflow_scheduler` |
 | `KMP_ACTIVE_WINDOW_SYNC_INTERVAL` | `900` | `bin/cake sync_active_window_statuses` |
 | `KMP_MEMBER_WARRANTABLE_SYNC_INTERVAL` | `86400` | `bin/cake sync_member_warrantable_statuses` |
@@ -204,17 +206,15 @@ these conservative legacy intervals:
 Inspect background output with:
 
 ```bash
-docker compose logs -f worker
 docker compose logs -f scheduler
 ```
 
-`KMP_SKIP_CRON=true` is set for the Compose app/worker/scheduler services so
+`KMP_SKIP_CRON=true` is set for the Compose app and scheduler services so
 the old in-container cron path does not duplicate background work. Manual runs
 use the same container-first pattern:
 
 ```bash
-docker compose exec app bin/cake platform schedule due
-docker compose exec app bin/cake platform schedule run tenant-queue-drain
+docker compose exec app bin/cake platform worker run
 # Single-database mode only:
 docker compose exec app bin/cake queue run -q --exit-when-empty
 docker compose exec app bin/cake workflow_scheduler
@@ -275,9 +275,10 @@ docker compose down -v
 ### Wrong worktree is serving locally
 
 Run `./dev-up.sh` from the worktree you want active. It removes existing
-`kmp-app`, `kmp-worker`, `kmp-scheduler`, `kmp-db`, `kmp-pgadmin`, and `kmp-mailpit`
-containers and any running containers publishing the configured app, database,
-pgAdmin, or Mailpit ports before starting the current stack.
+`kmp-app`, the legacy `kmp-worker`, `kmp-scheduler`, `kmp-db`, `kmp-pgadmin`,
+and `kmp-mailpit` containers and any running containers publishing the
+configured app, database, pgAdmin, or Mailpit ports before starting the current
+stack.
 
 ### Database connection issues
 

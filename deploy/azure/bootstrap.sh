@@ -251,7 +251,36 @@ if [[ $SKIP_GH -eq 0 ]]; then
     fi
 fi
 
-# --- 8. Kick the restore job: full schema rebuild + dev seed + password reset
+# --- 8. Apply migrations before the request-only web revision serves traffic
+echo "--- Starting migration job..."
+MIGRATE_EXECUTION="$(az containerapp job start \
+    -g "$AZURE_RESOURCE_GROUP" \
+    -n "$MIGRATE_JOB" \
+    --query name \
+    -o tsv)"
+for attempt in $(seq 1 180); do
+    MIGRATE_STATUS="$(az containerapp job execution show \
+        -g "$AZURE_RESOURCE_GROUP" \
+        --job-name "$MIGRATE_JOB" \
+        -n "$MIGRATE_EXECUTION" \
+        --query properties.status \
+        -o tsv 2>/dev/null || echo Unknown)"
+    echo "    [$attempt/180] migrate status: $MIGRATE_STATUS"
+    case "$MIGRATE_STATUS" in
+        Succeeded) break ;;
+        Failed|Cancelled|Degraded)
+            echo "Error: migration job finished with $MIGRATE_STATUS." >&2
+            exit 1
+            ;;
+    esac
+    if [[ "$attempt" -eq 180 ]]; then
+        echo "Error: migration job timed out after 30 minutes." >&2
+        exit 1
+    fi
+    sleep 10
+done
+
+# --- 9. Kick the restore job: full schema rebuild + dev seed + password reset
 # NOTE: requires /opt/kmp/reset-and-seed.sh to be present in the image. If you
 # bootstrap before the next nightly rebuild, the reset will fail — just run
 # the migrate job instead, and re-run reset after the image catches up.

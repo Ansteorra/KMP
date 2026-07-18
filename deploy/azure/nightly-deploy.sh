@@ -8,11 +8,11 @@
 # What it does mirrors the workflow:
 #   1. (optional) trigger a fresh GHCR build via `gh workflow run nightly.yml`
 #   2. `az acr import` ghcr.io/jhandel/kmp:<tag> into the nightly ACR
-#   3. run the migrate Container Apps Job and wait for Succeeded
-#   4. (optional, --reset) run the reset job to reseed the database
-#   5. update the web Container App image → forces a new revision
-#   6. update the fixed schedule-shape job images
-#   7. poll /health until it returns 200
+#   3. configure and manually canary the unified background worker
+#   4. repair and run the migrate Container Apps Job
+#   5. atomically update the request-only web revision and split probes
+#   6. park legacy scheduler Jobs
+#   7. (optional, --reset) run the reset job to reseed the database
 #
 # Usage:
 #   deploy/azure/nightly-deploy.sh deploy            # deploy current :nightly from GHCR
@@ -170,8 +170,11 @@ patch_job_command() {
     rm -f "$tmp" "$tmp.patch"
 }
 
-restore_migrate_job_noop() {
-    patch_job_command "$MIGRATE_JOB" '["/usr/local/bin/docker-entrypoint.sh"]' '["/bin/true"]'
+restore_migrate_job_default() {
+    patch_job_command \
+        "$MIGRATE_JOB" \
+        '["/usr/local/bin/docker-entrypoint.sh"]' \
+        '["/bin/sh","-lc","bin/cake migrations migrate && bin/cake updateDatabase && bin/cake platform_migrate migrate"]'
 }
 
 run_migrate_command() {
@@ -188,7 +191,7 @@ run_migrate_command() {
 
 run_migrations() {
     ensure_az
-    trap restore_migrate_job_noop EXIT
+    trap restore_migrate_job_default EXIT
     run_migrate_command "app migrations" bin/cake migrations migrate
     run_migrate_command "app settings update" bin/cake updateDatabase
     run_migrate_command "platform migrations" bin/cake platform_migrate migrate
@@ -201,7 +204,7 @@ run_migrations() {
         run_migrate_command "award recommendation migration" \
             bin/cake awards migrate_award_recommendations --apply --allow-open-manual-review
     fi
-    restore_migrate_job_noop
+    restore_migrate_job_default
     trap - EXIT
 }
 
@@ -349,8 +352,36 @@ deploy_image_ref() {
     local image_ref="$1" do_reset="${2:-0}"
     ensure_az
 
-    update_job_image_if_exists "$MIGRATE_JOB" "$image_ref"
-    RUN_RECOMMENDATION_MIGRATION="${RUN_RECOMMENDATION_MIGRATION:-0}" run_migrations
+    local snapshot_dir legacy_args=()
+    snapshot_dir="$(mktemp -d "${TMPDIR:-/tmp}/kmp-aca-pre-cutover.XXXXXX")"
+    for job in "$SYNC_JOB" "$SCHED_HOURLY_JOB" "$SCHED_DAILY_JOB" "$SCHED_WEEKLY_JOB" "$SCHED_NIGHTLY_JOB"; do
+        if [[ -n "$job" ]]; then
+            legacy_args+=(--legacy-job "$job")
+        fi
+    done
+    log "Running ordered unified-worker cutover"
+    bash "$HERE/cutover-unified-worker.sh" \
+        --resource-group "$RG" \
+        --web-app "$WEB" \
+        --migrate-job "$MIGRATE_JOB" \
+        --worker-job "$QUEUE_JOB" \
+        --image "$image_ref" \
+        --snapshot-dir "$snapshot_dir" \
+        "${legacy_args[@]}"
+    ok "rollback definitions captured in $snapshot_dir"
+
+    if [[ "${SKIP_BACKUP_KEY_RECONCILIATION:-0}" != "1" || "${RUN_RECOMMENDATION_MIGRATION:-0}" == "1" ]]; then
+        trap restore_migrate_job_default EXIT
+        if [[ "${SKIP_BACKUP_KEY_RECONCILIATION:-0}" != "1" ]]; then
+            run_migrate_command "platform backup key reconciliation" bin/cake platform backup-keys ensure
+        fi
+        if [[ "${RUN_RECOMMENDATION_MIGRATION:-0}" == "1" ]]; then
+            run_migrate_command "award recommendation migration" \
+                bin/cake awards migrate_award_recommendations --apply --allow-open-manual-review
+        fi
+        restore_migrate_job_default
+        trap - EXIT
+    fi
 
     if [[ "$do_reset" == 1 ]]; then
         warn "FULL RESET — dropping & reseeding DB"
@@ -358,13 +389,7 @@ deploy_image_ref() {
         cmd_reset_passwords
     fi
 
-    log "Updating web Container App image"
-    az containerapp update -g "$RG" -n "$WEB" --image "$image_ref" -o none
-    ok "web image updated"
-
-    for job in "$QUEUE_JOB" "$RESET_JOB" "$SYNC_JOB" "$SCHED_HOURLY_JOB" "$SCHED_DAILY_JOB" "$SCHED_WEEKLY_JOB" "$SCHED_NIGHTLY_JOB"; do
-        update_job_image_if_exists "$job" "$image_ref"
-    done
+    update_job_image_if_exists "$RESET_JOB" "$image_ref"
 
     cmd_verify_tenants
 }

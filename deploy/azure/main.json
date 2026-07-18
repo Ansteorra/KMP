@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.36.1.42791",
-      "templateHash": "10623830554877581167"
+      "templateHash": "460956992927410967"
     }
   },
   "parameters": {
@@ -427,14 +427,14 @@
       "type": "bool",
       "defaultValue": true,
       "metadata": {
-        "description": "Enable the scheduled resilience dispatcher for due platform schedules, including tenant queues."
+        "description": "Enable the unified scheduled background worker for due schedules, default and tenant queues, and platform jobs."
       }
     },
     "queueWorkerCron": {
       "type": "string",
-      "defaultValue": "*/5 * * * *",
+      "defaultValue": "* * * * *",
       "metadata": {
-        "description": "Cron for the resilience dispatcher schedule shape."
+        "description": "Cron for the unified background worker."
       }
     },
     "queueWorkerParallelism": {
@@ -448,18 +448,18 @@
     },
     "queueWorkerReplicaTimeoutSeconds": {
       "type": "int",
-      "defaultValue": 600,
+      "defaultValue": 3600,
       "minValue": 60,
       "maxValue": 3600,
       "metadata": {
-        "description": "Replica timeout, in seconds, for each queue worker execution."
+        "description": "Replica timeout, in seconds, for each unified worker execution."
       }
     },
     "enableScheduleHourlyJob": {
       "type": "bool",
-      "defaultValue": true,
+      "defaultValue": false,
       "metadata": {
-        "description": "Enable the hourly platform schedule dispatcher job."
+        "description": "Enable the legacy hourly platform schedule dispatcher job."
       }
     },
     "scheduleHourlyCron": {
@@ -571,7 +571,7 @@
         "args": [
           "/bin/sh",
           "-lc",
-          "bin/cake platform_migrate migrate"
+          "bin/cake migrations migrate && bin/cake updateDatabase && bin/cake platform_migrate migrate"
         ]
       },
       {
@@ -629,9 +629,19 @@
         "args": [
           "bin/cake",
           "platform",
-          "schedule",
-          "due",
-          "-q"
+          "worker",
+          "run",
+          "--schedule-limit",
+          "100",
+          "--max-jobs",
+          "100",
+          "--max-runtime",
+          "45",
+          "--cycle-budget",
+          "240",
+          "--platform-limit",
+          "1",
+          "--json"
         ]
       },
       {
@@ -1195,16 +1205,17 @@
                 "cpu": "[json('0.5')]",
                 "memory": "1Gi"
               },
-              "env": "[concat(variables('commonEnv'), createArray(createObject('name', 'AZURE_CLIENT_ID', 'value', reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), '2023-01-31').clientId), createObject('name', 'KMP_PLATFORM_ADMIN_HOSTS', 'value', if(empty(parameters('platformAdminHosts')), format('{0}.{1}', variables('webAppName'), reference(resourceId('Microsoft.App/managedEnvironments', variables('acaEnvName')), '2024-10-02-preview').defaultDomain), parameters('platformAdminHosts')))))]",
+              "env": "[concat(variables('commonEnv'), createArray(createObject('name', 'AZURE_CLIENT_ID', 'value', reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), '2023-01-31').clientId), createObject('name', 'KMP_PLATFORM_ADMIN_HOSTS', 'value', if(empty(parameters('platformAdminHosts')), format('{0}.{1}', variables('webAppName'), reference(resourceId('Microsoft.App/managedEnvironments', variables('acaEnvName')), '2024-10-02-preview').defaultDomain), parameters('platformAdminHosts'))), createObject('name', 'KMP_SKIP_CRON', 'value', 'true'), createObject('name', 'KMP_SKIP_MIGRATIONS', 'value', 'true')))]",
               "probes": [
                 {
                   "type": "Liveness",
                   "httpGet": {
-                    "path": "/health",
+                    "path": "/livez",
                     "port": 80
                   },
                   "initialDelaySeconds": 30,
-                  "periodSeconds": 30,
+                  "periodSeconds": 60,
+                  "timeoutSeconds": 2,
                   "failureThreshold": 3
                 },
                 {
@@ -1213,8 +1224,9 @@
                     "path": "/health",
                     "port": 80
                   },
-                  "initialDelaySeconds": 10,
-                  "periodSeconds": 10,
+                  "initialDelaySeconds": 30,
+                  "periodSeconds": 60,
+                  "timeoutSeconds": 5,
                   "failureThreshold": 3
                 }
               ]

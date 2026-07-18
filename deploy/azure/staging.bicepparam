@@ -31,3 +31,16 @@ param deployerPrincipalId = readEnvironmentVariable('AZURE_DEPLOYER_PRINCIPAL_ID
 param deployFrontDoor = true
 param frontDoorSku = 'Standard_AzureFrontDoor'
 param frontDoorCustomDomains = []
+
+param enableContainerJobs = true
+param enableMigrateJob = true
+param enableRestoreJob = true
+param enableProvisionJob = true
+param enableQueueWorkerJob = true
+param queueWorkerCron = '* * * * *'
+param queueWorkerParallelism = 1
+param queueWorkerReplicaTimeoutSeconds = 3600
+param enableScheduleHourlyJob = false
+param enableScheduleDailyJob = false
+param enableScheduleWeeklyJob = false
+param enableScheduleNightlyJob = false

@@ -142,7 +142,16 @@ run_check "PHPCS Code Style" '
     fi
 '
 
-# 6. PHPStan Static Analysis (with known baseline errors)
+# 6. Azure deployment runtime contract
+run_check "Azure Deployment Contract" '
+    if [ -f ../deploy/azure/test-runtime-contract.sh ]; then
+        bash ../deploy/azure/test-runtime-contract.sh
+    else
+        echo "Repository deployment files are not mounted in this application container; checked separately."
+    fi
+'
+
+# 7. PHPStan Static Analysis (with known baseline errors)
 run_check "PHPStan Static Analysis" '
     OUTPUT=$(vendor/bin/phpstan analyse --no-progress --memory-limit=1G 2>&1)
     EXIT_CODE=$?

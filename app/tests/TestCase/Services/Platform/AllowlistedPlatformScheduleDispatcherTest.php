@@ -6,7 +6,7 @@ namespace App\Test\TestCase\Services\Platform;
 use App\KMP\TenantContext;
 use App\KMP\TenantMetadata;
 use App\Services\Platform\AllowlistedPlatformScheduleDispatcher;
-use App\Services\Platform\TenantQueueDrainService;
+use App\Services\Platform\QueueDrainService;
 use Cake\TestSuite\TestCase;
 use RuntimeException;
 
@@ -14,9 +14,9 @@ class AllowlistedPlatformScheduleDispatcherTest extends TestCase
 {
     public function testSharedQueueFanoutDrainsMatchingTenantWithPayloadBounds(): void
     {
-        $service = $this->createMock(TenantQueueDrainService::class);
+        $service = $this->createMock(QueueDrainService::class);
         $service->expects($this->once())
-            ->method('drain')
+            ->method('drainTenant')
             ->with(9, 13)
             ->willReturn(2);
         $tenant = $this->tenant();
@@ -35,10 +35,45 @@ class AllowlistedPlatformScheduleDispatcherTest extends TestCase
         $this->assertSame(2, $processed);
     }
 
+    public function testDefaultQueueDrainsInPlatformScope(): void
+    {
+        $service = $this->createMock(QueueDrainService::class);
+        $service->expects($this->once())
+            ->method('drainDefault')
+            ->with(12, 17)
+            ->willReturn(4);
+        $dispatcher = new AllowlistedPlatformScheduleDispatcher($service);
+
+        $processed = $dispatcher->dispatch([
+            'command' => 'platform:shared-default-queue',
+            'payload' => [
+                'max_jobs' => 12,
+                'max_runtime' => 17,
+            ],
+        ], null);
+
+        $this->assertSame(4, $processed);
+    }
+
+    public function testDefaultQueueRejectsTenantScope(): void
+    {
+        $dispatcher = new AllowlistedPlatformScheduleDispatcher(
+            $this->createStub(QueueDrainService::class),
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('must run in platform scope');
+
+        $dispatcher->dispatch([
+            'command' => 'platform:shared-default-queue',
+            'payload' => [],
+        ], $this->tenant());
+    }
+
     public function testSharedQueueFanoutRequiresTenantContext(): void
     {
         $dispatcher = new AllowlistedPlatformScheduleDispatcher(
-            $this->createStub(TenantQueueDrainService::class),
+            $this->createStub(QueueDrainService::class),
         );
 
         $this->expectException(RuntimeException::class);
@@ -54,7 +89,7 @@ class AllowlistedPlatformScheduleDispatcherTest extends TestCase
     {
         $tenant = $this->tenant();
         $dispatcher = new AllowlistedPlatformScheduleDispatcher(
-            $this->createStub(TenantQueueDrainService::class),
+            $this->createStub(QueueDrainService::class),
         );
 
         $this->expectException(RuntimeException::class);

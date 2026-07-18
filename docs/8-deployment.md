@@ -57,12 +57,16 @@ Connection budget guidance:
 
 Queue and scheduler guidance:
 
-- In multi-tenant mode, run `bin/cake platform schedule due` every minute from a
-  separate Container App Job. The seeded queue schedule binds every active
-  tenant database; a plain `bin/cake queue run` sees only the default database.
+- In multi-tenant mode, use one background worker role. Run
+  `bin/cake platform worker run` every minute to dispatch timed work, drain the
+  default database and every active tenant database, and process queued platform
+  jobs. A plain
+  `bin/cake queue run` sees only the current default database.
 - In single-database mode, prefer a separate Container App or ACA Job for
   `bin/cake queue run -q` and workflow scheduler commands instead of running
   them inside the web container.
+- Set `KMP_SKIP_CRON=true` and `KMP_SKIP_MIGRATIONS=true` on ACA web revisions
+  only after the dedicated migration Job and unified worker canary succeed.
 - If legacy cron must remain co-located with the web container temporarily, the
   production entrypoint uses `QUEUE_EXIT_WHEN_NOTHING_TO_DO=true` every five
   minutes. Tune `QUEUE_SLEEP_TIME`, `QUEUE_GC_PROB`, and
@@ -73,7 +77,15 @@ Image cache guidance:
 
 - Glide processed images are written to `images/cache`.
 - In Azure Container Apps, keep this cache ephemeral unless regeneration cost becomes measurable; do not mount Azure Files just for derived images without a retention policy.
-- Production cron runs `bin/cake image_cache_gc --days "${KMP_IMAGE_CACHE_GC_DAYS:-7}"` at 03:15 to remove stale generated files. Set `KMP_IMAGE_CACHE_GC_DAYS` if the cache needs a longer or shorter retention window.
+- Persistent self-hosted installations run `bin/cake image_cache_gc --days
+  "${KMP_IMAGE_CACHE_GC_DAYS:-7}"` at 03:15. ACA image caches are
+  replica-local ephemeral data and are reclaimed when the replica or revision
+  is replaced, so an ACA Job cannot clean another replica's cache.
+
+ACA health probes use static `/livez` for liveness (60-second period, 2-second
+timeout) and `/health` for PostgreSQL plus shared-cache readiness (60-second
+period, 5-second timeout). When production requests Redis, readiness fails if
+the effective cache or session engine falls back to local process storage.
 
 ### Directory Structure
 

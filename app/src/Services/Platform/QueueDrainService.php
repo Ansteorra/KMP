@@ -15,9 +15,9 @@ use Queue\Queue\Processor;
 use RuntimeException;
 
 /**
- * Runs a bounded queue worker against the active tenant connection.
+ * Runs bounded queue workers against the current default datasource.
  */
-class TenantQueueDrainService
+class QueueDrainService
 {
     public const DEFAULT_MAX_JOBS = 25;
     public const MAX_JOBS = 100;
@@ -42,24 +42,39 @@ class TenantQueueDrainService
     }
 
     /**
-     * Drain due jobs from the active tenant database.
-     *
-     * @return int Number of jobs attempted
+     * Drain due jobs from the application's default datasource.
      */
-    public function drain(
+    public function drainDefault(
         int $maxJobs = self::DEFAULT_MAX_JOBS,
         int $maxRuntimeSeconds = self::DEFAULT_MAX_RUNTIME_SECONDS,
     ): int {
-        $tenant = TenantContext::current();
+        return $this->drain('default', $maxJobs, $maxRuntimeSeconds);
+    }
+
+    /**
+     * Drain due jobs from the active tenant datasource.
+     */
+    public function drainTenant(
+        int $maxJobs = self::DEFAULT_MAX_JOBS,
+        int $maxRuntimeSeconds = self::DEFAULT_MAX_RUNTIME_SECONDS,
+    ): int {
+        return $this->drain('tenant "' . TenantContext::current()->slug . '"', $maxJobs, $maxRuntimeSeconds);
+    }
+
+    /**
+     * Drain the datasource currently aliased as `default`.
+     */
+    private function drain(string $queueName, int $maxJobs, int $maxRuntimeSeconds): int
+    {
         if ($maxJobs < 1 || $maxJobs > self::MAX_JOBS) {
             throw new InvalidArgumentException(sprintf(
-                'Tenant queue max jobs must be between 1 and %d.',
+                'Queue max jobs must be between 1 and %d.',
                 self::MAX_JOBS,
             ));
         }
         if ($maxRuntimeSeconds < 1 || $maxRuntimeSeconds > self::MAX_RUNTIME_SECONDS) {
             throw new InvalidArgumentException(sprintf(
-                'Tenant queue max runtime must be between 1 and %d seconds.',
+                'Queue max runtime must be between 1 and %d seconds.',
                 self::MAX_RUNTIME_SECONDS,
             ));
         }
@@ -73,7 +88,7 @@ class TenantQueueDrainService
             $this->container,
         );
         if (!$processor instanceof Processor) {
-            throw new RuntimeException('Tenant queue processor factory returned an invalid processor.');
+            throw new RuntimeException('Queue processor factory returned an invalid processor.');
         }
 
         $exitCode = $processor->run([
@@ -84,8 +99,8 @@ class TenantQueueDrainService
         ]);
         if ($exitCode !== CommandInterface::CODE_SUCCESS) {
             throw new RuntimeException(sprintf(
-                'Tenant queue worker failed for tenant "%s" with exit code %d.',
-                $tenant->slug,
+                'Queue worker failed for %s datasource with exit code %d.',
+                $queueName,
                 $exitCode,
             ));
         }

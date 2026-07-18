@@ -29,6 +29,17 @@ class TenantAwareSchedulerMappingTest extends TestCase
         $this->assertStringContainsString("'requires_tenant_connection' => true", $migration);
     }
 
+    public function testQueueSchedulesAreConsolidatedIntoFleetWorker(): void
+    {
+        $migration = $this->readAppFile(
+            'config/PlatformMigrations/20260718171500_ConsolidatePlatformQueueExecution.php',
+        );
+
+        $this->assertStringContainsString('platform-admin-job-runner', $migration);
+        $this->assertStringContainsString('tenant-queue-drain', $migration);
+        $this->assertStringContainsString('SET enabled = FALSE', $migration);
+    }
+
     private function readAppFile(string $relativePath): string
     {
         $path = dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . $relativePath;

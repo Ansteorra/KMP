@@ -22,10 +22,10 @@ any developer sees after running `reset_dev_database.sh`.
  GitHub Actions (nightly-deploy-azure.yml)         │  │                        │
   1. OIDC → Azure                                  │  │  ACR <prefix>acr<hash> │
   2. az acr import ghcr→ACR                        └─▶│  └─ kmp:nightly-DATE   │
-  3. run migrate job (wait)                           │                        │
-  4. containerapp update web image                    │  Key Vault             │
-  5. update fixed schedule-shape jobs                 │  ├─ security-salt      │
-  6. smoke /health                                    │  ├─ database-url       │
+  3. configure + canary unified worker                │                        │
+  4. repair + run migrate job (wait)                  │  Key Vault             │
+  5. update request-only web + probes                 │  ├─ security-salt      │
+  6. smoke /livez and /health                         │  ├─ database-url       │
                                                        │  ├─ platform-db-url    │
                                                        │  ├─ platform-secret-key│
                                                        │  ├─ postgres-admin-pwd │
@@ -41,10 +41,10 @@ any developer sees after running `reset_dev_database.sh`.
                                                        │                        │
                                                        │  Container Apps env    │
                                                        │  ├─ <prefix>-web       │
-                                                       │  └─ fixed jobs:        │
+                                                       │  └─ jobs:              │
                                                        │     migrate, restore,  │
-                                                       │     provision, queue,  │
-                                                       │     sched-* dispatch   │
+                                                       │     provision, unified │
+                                                       │     background worker  │
                                                        └────────────────────────┘
 ```
 
@@ -62,24 +62,35 @@ Default job shapes:
   `/opt/kmp/reset-and-seed.sh`.
 - `<prefix>-provision` — manual tenant provision operation shape. The safe
   default prints command help; operators override args for a specific tenant.
-- `<prefix>-queue` — five-minute resilience poll of
-  `bin/cake platform schedule due`. It is safe alongside the minute dispatcher
-  because schedule advisory locks and `next_run_at` prevent duplicate claims.
+- `<prefix>-queue` — the single one-minute background authority. It runs
+  `bin/cake platform worker run`, dispatching due schedules, draining the
+  default and active-tenant Queue datasources, and claiming one bounded
+  platform job.
 - `<prefix>-sched-hourly`, `<prefix>-sched-daily`, `<prefix>-sched-weekly`,
-  `<prefix>-sched-nightly` — scheduled dispatchers that call
-  `bin/cake platform schedule due`. The minute dispatcher is enabled by default;
-  the other shapes remain disabled compatibility options. Stored platform
-  schedule rows own cron expressions, tenant scope (`platform`, all active
-  tenants, or one tenant), and command payloads.
+  `<prefix>-sched-nightly` — disabled compatibility shapes. Existing instances
+  are parked on an annual no-op schedule after a successful cutover. Stored
+  platform schedule rows own cron expressions, tenant scope (`platform`, all
+  active tenants, or one tenant), and command payloads.
 
-The Bicep parameters under **Fixed schedule-shape job controls** enable/disable
-each shape and tune cron/parallelism without embedding secrets. Keep dispatcher
-parallelism at `1` unless the corresponding platform schedules are idempotent.
-PostgreSQL advisory locks prevent two dispatcher replicas from claiming the
-same stored schedule. The seeded `tenant-queue-drain` schedule binds each
-active tenant database and processes at most 25 jobs or 45 seconds per tenant;
-the plain `queue run` command must not be used as the fleet worker because it
-only sees the default datasource.
+The Bicep parameters under **Fixed schedule-shape job controls** tune the unified
+Job without embedding secrets. Keep parallelism and replica completion count at
+`1`. PostgreSQL advisory locks prevent overlapping executions from claiming the
+same stored schedule. Queue and platform-job claims provide the equivalent
+duplicate protection for those lanes. The worker rotates its tenant starting
+point each cycle, enforces a 240-second queue budget, and skips a tenant registry
+entry when it points to the already-processed default physical database.
+The plain `queue run` command must not be used as the fleet worker because it
+only sees the current default datasource. The consolidation migration disables
+the legacy `tenant-queue-drain` and `platform-admin-job-runner` rows, so the
+unified worker must be live before that migration reaches an environment.
+
+The web container sets `KMP_SKIP_CRON=true` and `KMP_SKIP_MIGRATIONS=true`.
+`/livez` is a static liveness file checked every 60 seconds; `/health` is a
+60-second readiness check for PostgreSQL and the required shared Redis
+cache/session backend. Successful probe requests and their SQL are excluded from
+request and OTLP telemetry. ACA image cache files are replica-local ephemeral
+data and are reclaimed with replica/revision replacement; persistent self-hosted
+image caches must retain the documented `image_cache_gc` schedule.
 
 ## One-time bootstrap
 
@@ -171,10 +182,19 @@ via `workflow_run`. That workflow:
 1. Logs in to Azure via OIDC — **no long-lived secrets**
 2. `az acr import` the new nightly image (dual-tags as `nightly` and
    `nightly-YYYY-MM-DD`)
-3. Runs `kmp-migrate` and waits for it to succeed (fails the deploy on
-   migration error — web is left on the previous revision)
-4. `az containerapp update` the web app and each job to the new image
-5. Polls `/health` until 200
+3. Captures the current web and Job definitions as a rollback artifact
+4. Repairs and manually canaries the one-minute unified worker
+5. Repairs `kmp-migrate`, runs it, and requires success
+6. Runs a post-migration worker verification
+7. Atomically updates the web image, skip flags, and split probes
+8. Requires both `/livez` and `/health` to return 200
+9. Parks existing legacy scheduler Jobs on an annual no-op schedule
+
+The same ordered cutover can be run manually with
+`deploy/azure/cutover-unified-worker.sh`. Pass the captured snapshot directory
+to `deploy/azure/rollback-unified-worker.sh` to re-enable the legacy queue
+schedules and restore the prior ACA runtime definitions. It does not
+destructively roll back tenant application data.
 
 You can also trigger it manually from the **Actions** tab → "Nightly / Deploy
 to Azure" → **Run workflow**, optionally overriding the image tag.
@@ -230,8 +250,9 @@ it needs to run specific commands (`bin/cake migrations migrate`,
 `bin/cake updateDatabase`, `bin/cake platform_migrate migrate`,
 `bin/cake platform backup-keys ensure`, and optionally
 `bin/cake awards migrate_award_recommendations --apply --allow-open-manual-review`).
-It restores the job to the no-op command `/usr/local/bin/docker-entrypoint.sh
-/bin/true` afterward so accidental manual starts remain safe.
+It restores the Job to the standard
+`/usr/local/bin/docker-entrypoint.sh /bin/sh -lc "bin/cake platform_migrate
+migrate"` contract afterward, so every deployment repairs migration drift.
 
 Current custom-host smoke checks expect:
 

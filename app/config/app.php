@@ -30,6 +30,7 @@ use Cake\Database\Driver\Mysql;
 use Cake\Database\Driver\Postgres;
 use Cake\Http\Session\CacheSession;
 use Cake\Log\Engine\FileLog;
+use Cake\Mailer\Mailer;
 use Cake\Mailer\Transport\MailTransport;
 use Templating\View\Icon\BootstrapIcon;
 
@@ -205,6 +206,15 @@ return [
         "telemetry" => [
             "enabled" => filter_var(env("PLATFORM_TENANT_TELEMETRY_ENABLED", true), FILTER_VALIDATE_BOOLEAN),
             "slowRequestMs" => (int)env("PLATFORM_TENANT_SLOW_REQUEST_MS", 1000),
+        ],
+        "runtime" => [
+            "cache" => [
+                "requestedEngine" => $requestedCacheEngine,
+                "effectiveEngine" => $cacheEngine,
+            ],
+            "session" => [
+                "defaults" => $sessionDefaults,
+            ],
         ],
         "adminMfa" => [
             "window" => (int)env("PLATFORM_ADMIN_TOTP_WINDOW", 1),
@@ -481,6 +491,11 @@ return [
             /** @var string Header character encoding */
             //'headerCharset' => 'utf-8',
         ],
+    ],
+
+    "Queue" => [
+        // Avoid the incompatible legacy Tools mailer fallback in Queue.Email.
+        "mailerClass" => Mailer::class,
     ],
 
     /** @see docs/2-configuration.md#database-configuration and docs/8.1-environment-setup.md#database-configuration */

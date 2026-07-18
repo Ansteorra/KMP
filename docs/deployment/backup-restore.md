@@ -37,7 +37,7 @@ and the `backup_check` command are removed.
 The `tenant-backup-fleet` platform schedule runs `tenant_backups_enqueue`
 daily (or weekly, per policy). For each active tenant whose latest completed
 backup is older than the policy cadence, it enqueues an audited managed
-`tenant_backup` job; the `platform-admin-job-runner` schedule executes it.
+`tenant_backup` job; the unified `platform worker run` worker executes it.
 Runs are idempotent per tenant per day, and a tenant with another lifecycle
 operation in flight is skipped and retried on the next run.
 

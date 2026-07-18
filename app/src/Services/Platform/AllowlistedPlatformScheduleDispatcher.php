@@ -25,6 +25,7 @@ use RuntimeException;
 class AllowlistedPlatformScheduleDispatcher implements PlatformScheduleDispatcherInterface
 {
     private const COMMAND_NOOP = 'platform:noop';
+    private const COMMAND_SHARED_DEFAULT_QUEUE = 'platform:shared-default-queue';
     private const COMMAND_SHARED_QUEUE_FANOUT = 'platform:shared-queue-fanout';
     private const COMMAND_RUN_CAKE_COMMAND = 'platform:run-cake-command';
     private const COMMAND_RUN_PLATFORM_JOBS = 'platform:run-platform-jobs';
@@ -32,9 +33,9 @@ class AllowlistedPlatformScheduleDispatcher implements PlatformScheduleDispatche
     /**
      * Constructor.
      *
-     * @param \App\Services\Platform\TenantQueueDrainService|null $tenantQueueDrainService Tenant queue worker
+     * @param \App\Services\Platform\QueueDrainService|null $queueDrainService Queue worker
      */
-    public function __construct(private readonly ?TenantQueueDrainService $tenantQueueDrainService = null)
+    public function __construct(private readonly ?QueueDrainService $queueDrainService = null)
     {
     }
 
@@ -61,6 +62,7 @@ class AllowlistedPlatformScheduleDispatcher implements PlatformScheduleDispatche
 
         return match ($command) {
             self::COMMAND_NOOP => 0,
+            self::COMMAND_SHARED_DEFAULT_QUEUE => $this->dispatchDefaultQueue($schedule, $tenant),
             self::COMMAND_SHARED_QUEUE_FANOUT => $this->dispatchSharedQueue($schedule, $tenant),
             self::COMMAND_RUN_CAKE_COMMAND => $this->runCakeCommand($schedule),
             self::COMMAND_RUN_PLATFORM_JOBS => $this->runPlatformJobs($schedule),
@@ -76,29 +78,36 @@ class AllowlistedPlatformScheduleDispatcher implements PlatformScheduleDispatche
      * @param \App\KMP\TenantMetadata|null $tenant Tenant target, if any
      * @return int Number of queue jobs processed
      */
+    private function dispatchDefaultQueue(array $schedule, ?TenantMetadata $tenant): int
+    {
+        if ($tenant !== null) {
+            throw new RuntimeException('Default queue processing must run in platform scope.');
+        }
+        if ($this->queueDrainService === null) {
+            throw new RuntimeException('Default queue processing is not configured in the application container.');
+        }
+
+        [$maxJobs, $maxRuntime] = $this->queueBounds($schedule);
+
+        return $this->queueDrainService->drainDefault($maxJobs, $maxRuntime);
+    }
+
+    /**
+     * @param array<string, mixed> $schedule Platform schedule row
+     * @param \App\KMP\TenantMetadata|null $tenant Tenant target, if any
+     * @return int Number of queue jobs processed
+     */
     private function dispatchSharedQueue(array $schedule, ?TenantMetadata $tenant): int
     {
         if ($tenant === null || TenantContext::tryCurrent()?->id !== $tenant->id) {
             throw new RuntimeException('Shared tenant queue processing requires the matching tenant context.');
         }
-        if ($this->tenantQueueDrainService === null) {
+        if ($this->queueDrainService === null) {
             throw new RuntimeException('Tenant queue processing is not configured in the application container.');
         }
 
-        $payload = (array)($schedule['payload'] ?? []);
-        $maxJobs = $this->boundedPayloadInteger(
-            $payload,
-            'max_jobs',
-            TenantQueueDrainService::DEFAULT_MAX_JOBS,
-            TenantQueueDrainService::MAX_JOBS,
-        );
-        $maxRuntime = $this->boundedPayloadInteger(
-            $payload,
-            'max_runtime',
-            TenantQueueDrainService::DEFAULT_MAX_RUNTIME_SECONDS,
-            TenantQueueDrainService::MAX_RUNTIME_SECONDS,
-        );
-        $processed = $this->tenantQueueDrainService->drain($maxJobs, $maxRuntime);
+        [$maxJobs, $maxRuntime] = $this->queueBounds($schedule);
+        $processed = $this->queueDrainService->drainTenant($maxJobs, $maxRuntime);
 
         if ($processed > 0) {
             Log::info(sprintf(
@@ -109,6 +118,30 @@ class AllowlistedPlatformScheduleDispatcher implements PlatformScheduleDispatche
         }
 
         return $processed;
+    }
+
+    /**
+     * @param array<string, mixed> $schedule Platform schedule row
+     * @return array{0: int, 1: int}
+     */
+    private function queueBounds(array $schedule): array
+    {
+        $payload = (array)($schedule['payload'] ?? []);
+
+        return [
+            $this->boundedPayloadInteger(
+                $payload,
+                'max_jobs',
+                QueueDrainService::DEFAULT_MAX_JOBS,
+                QueueDrainService::MAX_JOBS,
+            ),
+            $this->boundedPayloadInteger(
+                $payload,
+                'max_runtime',
+                QueueDrainService::DEFAULT_MAX_RUNTIME_SECONDS,
+                QueueDrainService::MAX_RUNTIME_SECONDS,
+            ),
+        ];
     }
 
     /**

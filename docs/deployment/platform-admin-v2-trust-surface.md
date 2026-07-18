@@ -65,7 +65,10 @@ source record.
 
 The Platform Admin tenant create flow is an asynchronous control-plane operation. The portal creates the tenant registry row in `provisioning`, stores only secret references and safe tenant configuration, then queues a `platform_jobs` row with `job_type = tenant_provision`. It does not create databases or run migrations inside the HTTP request.
 
-Provisioning is completed by the platform schedule `platform-admin-job-runner`, which dispatches the allowlisted `platform:run-platform-jobs` command. The runner claims queued provisioning jobs, creates or updates the tenant database role/database when permitted, runs tenant migrations, smoke-tests the tenant database, and only then marks the tenant `active`.
+Provisioning is completed by the unified `platform worker run` worker. The
+worker claims queued provisioning jobs, creates or updates the tenant database
+role/database when permitted, runs tenant migrations, smoke-tests the tenant
+database, and only then marks the tenant `active`.
 
 The create form requires an initial tenant super-user email address. Provisioning creates one verified tenant member, a system `Super User` role, a super-user permission that does not require a warrant, and assigns that member to the `Super User` role. No known password, password token, or reset link is stored in the platform job payload; the tenant super user claims the account through the normal tenant Forgot Password flow after the tenant becomes active.
 
@@ -87,11 +90,10 @@ Operators must ensure:
 
 Queue tables live in each tenant database, so a worker bound only to the
 application's default datasource cannot deliver another kingdom's mail or run
-its deferred workflows. The enabled `tenant-queue-drain` platform schedule
-fans out across active tenants, binds each tenant connection and
-`TenantContext`, and runs the queue processor with the application DI
-container. Service-aware tasks therefore resolve the same dependencies as
-normal application commands.
+its deferred workflows. The unified queue worker enumerates active tenants,
+binds each tenant connection and `TenantContext`, and runs the queue processor
+with the application DI container. Service-aware tasks therefore resolve the
+same dependencies as normal application commands.
 
 Each tenant target is isolated and bounded to 25 attempted jobs or 45 seconds
 per schedule run. A tenant failure is recorded on that tenant's platform job

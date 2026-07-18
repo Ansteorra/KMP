@@ -37,6 +37,8 @@ final class RequestQueryCounter extends AbstractLogger
 
     private ?LoggerInterface $inner;
 
+    private bool $suppressDelegation = false;
+
     /**
      * @var array<string, string|bool>
      */
@@ -93,6 +95,7 @@ final class RequestQueryCounter extends AbstractLogger
      * @param string $target Request path and query string, for diagnostics.
      * @param string $turboFrame Turbo Frame header value, or empty string when absent.
      * @param bool $isAjax Whether the request is an XMLHttpRequest.
+     * @param bool $suppressDelegation Whether query logs should remain local to the counter.
      * @return void
      */
     public function beginRequest(
@@ -103,8 +106,10 @@ final class RequestQueryCounter extends AbstractLogger
         string $target,
         string $turboFrame,
         bool $isAjax,
+        bool $suppressDelegation = false,
     ): void {
         $this->reset();
+        $this->suppressDelegation = $suppressDelegation;
         $this->requestContext = [
             'request_id' => $requestId,
             'request_method' => strtoupper($method),
@@ -126,6 +131,7 @@ final class RequestQueryCounter extends AbstractLogger
     {
         $this->requestContext = [];
         self::$currentRequestContext = [];
+        $this->suppressDelegation = false;
     }
 
     /**
@@ -174,7 +180,7 @@ final class RequestQueryCounter extends AbstractLogger
             $this->count++;
         }
 
-        if ($this->inner !== null) {
+        if ($this->inner !== null && !$this->suppressDelegation) {
             $context += $this->requestContext;
             $context['request_query_number'] = $this->count;
             $this->inner->log($level, $this->formatQueryLogMessage($message), $context);

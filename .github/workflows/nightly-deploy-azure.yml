@@ -37,6 +37,12 @@ jobs:
       IMAGE_TAG: ${{ github.event.inputs.image_tag || 'nightly' }}
 
     steps:
+      - name: Check out deployment tooling
+        uses: actions/checkout@v4
+
+      - name: Validate ACA runtime contract
+        run: bash deploy/azure/test-runtime-contract.sh
+
       - name: Azure login (OIDC)
         uses: azure/login@v2
         with:
@@ -62,33 +68,41 @@ jobs:
           echo "IMAGE_REF=${ACR}.azurecr.io/kmp:${DATE_TAG}" >> $GITHUB_ENV
           echo "DATE_TAG=${DATE_TAG}" >> $GITHUB_ENV
 
-      - name: Run migrate job and wait for completion
+      - name: Cut over unified background worker and web runtime
         run: |
           set -euo pipefail
           RG="${{ vars.AZURE_RESOURCE_GROUP }}"
-          JOB="${{ vars.AZURE_MIGRATE_JOB_NAME }}"
+          SNAPSHOT_DIR="$RUNNER_TEMP/kmp-aca-pre-cutover"
+          echo "SNAPSHOT_DIR=$SNAPSHOT_DIR" >> "$GITHUB_ENV"
 
-          # Update the job's image to the new revision BEFORE starting it
-          az containerapp job update -g "$RG" -n "$JOB" --image "$IMAGE_REF" -o none
-
-          EXEC_NAME="$(az containerapp job start -g "$RG" -n "$JOB" --query name -o tsv)"
-          echo "Started execution: $EXEC_NAME"
-
-          # Poll for completion (up to 30 min)
-          for i in $(seq 1 180); do
-            STATUS="$(az containerapp job execution show -g "$RG" --job-name "$JOB" -n "$EXEC_NAME" --query properties.status -o tsv 2>/dev/null || echo Unknown)"
-            echo "[$i/180] migrate status: $STATUS"
-            case "$STATUS" in
-              Succeeded) echo "✅ migrate succeeded"; break ;;
-              Failed|Cancelled|Degraded)
-                echo "❌ migrate finished with $STATUS — dumping logs"
-                az containerapp job execution show -g "$RG" --job-name "$JOB" -n "$EXEC_NAME" -o yaml || true
-                exit 1
-                ;;
-            esac
-            sleep 10
-            if [[ $i -eq 180 ]]; then echo "⏱  migrate timed out after 30 min"; exit 1; fi
+          legacy_args=()
+          for job in \
+            "${{ vars.AZURE_SCHED_HOURLY_JOB_NAME }}" \
+            "${{ vars.AZURE_SCHED_DAILY_JOB_NAME || vars.AZURE_SYNC_JOB_NAME }}" \
+            "${{ vars.AZURE_SCHED_WEEKLY_JOB_NAME }}" \
+            "${{ vars.AZURE_SCHED_NIGHTLY_JOB_NAME }}"; do
+            if [[ -n "$job" ]]; then
+              legacy_args+=(--legacy-job "$job")
+            fi
           done
+
+          bash deploy/azure/cutover-unified-worker.sh \
+            --resource-group "$RG" \
+            --web-app "${{ vars.AZURE_WEB_APP_NAME }}" \
+            --migrate-job "${{ vars.AZURE_MIGRATE_JOB_NAME }}" \
+            --worker-job "${{ vars.AZURE_QUEUE_JOB_NAME }}" \
+            --image "$IMAGE_REF" \
+            --snapshot-dir "$SNAPSHOT_DIR" \
+            "${legacy_args[@]}"
+
+      - name: Preserve pre-cutover ACA definitions
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aca-pre-cutover-${{ github.run_id }}
+          path: ${{ env.SNAPSHOT_DIR }}
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Optional full reset (manual dispatch only)
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.full_reset == 'true' }}
@@ -115,27 +129,13 @@ jobs:
           done
           echo "⏱  restore timed out"; exit 1
 
-      - name: Update web Container App image
-        run: |
-          set -euo pipefail
-          az containerapp update \
-            -g "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            -n "${{ vars.AZURE_WEB_APP_NAME }}" \
-            --image "$IMAGE_REF" \
-            -o none
-
-      - name: Update fixed schedule-shape jobs to new image
+      - name: Update retained manual jobs to new image
         run: |
           set -euo pipefail
           RG="${{ vars.AZURE_RESOURCE_GROUP }}"
           jobs=(
-            "${{ vars.AZURE_QUEUE_JOB_NAME }}"
             "${{ vars.AZURE_RESTORE_JOB_NAME || vars.AZURE_RESET_JOB_NAME }}"
             "${{ vars.AZURE_PROVISION_JOB_NAME }}"
-            "${{ vars.AZURE_SCHED_HOURLY_JOB_NAME }}"
-            "${{ vars.AZURE_SCHED_DAILY_JOB_NAME || vars.AZURE_SYNC_JOB_NAME }}"
-            "${{ vars.AZURE_SCHED_WEEKLY_JOB_NAME }}"
-            "${{ vars.AZURE_SCHED_NIGHTLY_JOB_NAME }}"
           )
           for job in "${jobs[@]}"; do
             if [[ -z "$job" ]]; then
@@ -144,29 +144,6 @@ jobs:
             echo "Updating $job to $IMAGE_REF"
             az containerapp job update -g "$RG" -n "$job" --image "$IMAGE_REF" -o none
           done
-
-      - name: Smoke-check /health
-        run: |
-          set -euo pipefail
-          FQDN="$(az containerapp show \
-            -g "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            -n "${{ vars.AZURE_WEB_APP_NAME }}" \
-            --query properties.configuration.ingress.fqdn -o tsv)"
-
-          echo "Probing https://$FQDN/health"
-          for i in $(seq 1 40); do
-            CODE="$(curl -sS -o /tmp/health.txt -w '%{http_code}' "https://$FQDN/health" || echo 000)"
-            if [[ "$CODE" == "200" ]]; then
-              echo "✅ /health OK"
-              cat /tmp/health.txt
-              exit 0
-            fi
-            echo "[$i/40] /health -> $CODE, waiting..."
-            sleep 15
-          done
-          echo "❌ /health never reached 200"
-          az containerapp logs show -g "${{ vars.AZURE_RESOURCE_GROUP }}" -n "${{ vars.AZURE_WEB_APP_NAME }}" --tail 200 --type console || true
-          exit 1
 
       - name: Summary
         if: always()
