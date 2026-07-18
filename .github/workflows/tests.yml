@@ -26,7 +26,7 @@ jobs:
             image: mariadb:10
             port: 3306
             driver: Cake\Database\Driver\Mysql
-            php_extensions: mbstring, intl, pdo_mysql, gd, apcu, yaml
+            php_extensions: mbstring, intl, pdo_mysql, gd, apcu, grpc, protobuf, yaml
             health_cmd: healthcheck.sh --connect --innodb_initialized
             env:
               MARIADB_ROOT_PASSWORD: root
@@ -35,7 +35,7 @@ jobs:
             image: postgres:16
             port: 5432
             driver: Cake\Database\Driver\Postgres
-            php_extensions: mbstring, intl, pdo_pgsql, gd, apcu, yaml
+            php_extensions: mbstring, intl, pdo_pgsql, gd, apcu, grpc, protobuf, yaml
             health_cmd: pg_isready -U root -d kmp_test
             env:
               POSTGRES_USER: root
@@ -231,7 +231,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: mbstring, intl, pdo_mysql, gd, apcu, yaml
+          extensions: mbstring, intl, pdo_mysql, gd, apcu, grpc, protobuf, yaml
           ini-values: apc.enable_cli=1
           coverage: none
 
@@ -371,7 +371,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: mbstring, intl, pdo_mysql, gd, apcu, yaml
+          extensions: mbstring, intl, pdo_mysql, gd, apcu, grpc, protobuf, yaml
           ini-values: apc.enable_cli=1
           coverage: none
 

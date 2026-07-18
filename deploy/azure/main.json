@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.36.1.42791",
-      "templateHash": "11862150262286113432"
+      "templateHash": "10623830554877581167"
     }
   },
   "parameters": {
@@ -254,11 +254,28 @@
         "description": "Azure Managed Redis SKU."
       }
     },
+    "managedRedisClusteringPolicy": {
+      "type": "string",
+      "defaultValue": "NoCluster",
+      "allowedValues": [
+        "NoCluster"
+      ],
+      "metadata": {
+        "description": "Azure Managed Redis clustering policy. KMP requires NoCluster because CakePHP uses a single-node Redis client."
+      }
+    },
     "managedRedisHighAvailability": {
       "type": "bool",
-      "defaultValue": true,
+      "defaultValue": false,
       "metadata": {
         "description": "Enable Azure Managed Redis data replication."
+      }
+    },
+    "managedRedisPersistentConnections": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Reuse Redis connections across requests handled by the same PHP worker."
       }
     },
     "tenancyEnabled": {
@@ -280,6 +297,54 @@
       "defaultValue": "",
       "metadata": {
         "description": "Comma-separated platform administration hosts. When empty, the Container App default hostname is used."
+      }
+    },
+    "containerAppCustomDomains": {
+      "type": "array",
+      "defaultValue": [],
+      "metadata": {
+        "description": "Optional Container App custom domains. Each item must be { name: string, hostName: string } and have valid CNAME/asuid DNS records."
+      }
+    },
+    "enableApplicationInsights": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Provision a workspace-based Application Insights component and wire it to the application."
+      }
+    },
+    "enableFullApplicationTelemetry": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Enable request, performance, error, and sampled SQL telemetry when Application Insights is enabled."
+      }
+    },
+    "applicationInsightsTransport": {
+      "type": "string",
+      "defaultValue": "otlp",
+      "allowedValues": [
+        "direct",
+        "otlp"
+      ],
+      "metadata": {
+        "description": "Application Insights export transport. Use otlp with the Container Apps managed OpenTelemetry agent."
+      }
+    },
+    "applicationInsightsQuerySampleRate": {
+      "type": "int",
+      "defaultValue": 10,
+      "minValue": 1,
+      "maxValue": 100,
+      "metadata": {
+        "description": "Percentage of SQL query telemetry sent to Application Insights."
+      }
+    },
+    "deployTelemetryWorkbook": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Deploy a copy of the KMP telemetry workbook bound to this environment Application Insights component."
       }
     },
     "platformDataConsoleEnabled": {
@@ -457,11 +522,14 @@
     }
   },
   "variables": {
+    "$fxv#0": "{\"version\":\"Notebook/1.0\",\"items\":[{\"type\":1,\"content\":{\"json\":\"# KMP Telemetry Dashboard\\nHealth, performance, and capacity decisions driven by structured `customDimensions` emitted by the KMP performance middleware (`telemetry_schema_version=1`).\\n\\nUse the filters to scope by **time range**, **kingdom**, and the **projection multiplier** for scaling extrapolations. Methodology and data dictionary: [docs/7.8-performance-sizing.md](https://github.com/ansteorra/KMP/blob/main/docs/7.8-performance-sizing.md).\"},\"name\":\"intro\"},{\"type\":9,\"content\":{\"version\":\"KqlParameterItem/1.0\",\"parameters\":[{\"id\":\"p-time\",\"version\":\"KqlParameterItem/1.0\",\"name\":\"TimeRange\",\"type\":4,\"isRequired\":true,\"value\":{\"durationMs\":86400000},\"typeSettings\":{\"selectableValues\":[{\"durationMs\":3600000},{\"durationMs\":14400000},{\"durationMs\":86400000},{\"durationMs\":259200000},{\"durationMs\":604800000}]}},{\"id\":\"p-kingdom\",\"version\":\"KqlParameterItem/1.0\",\"name\":\"Kingdom\",\"type\":2,\"isRequired\":false,\"multiSelect\":true,\"quote\":\"'\",\"delimiter\":\",\",\"value\":[\"*\"],\"typeSettings\":{\"additionalResourceOptions\":[\"value::all\"],\"selectAllValue\":\"*\",\"showDefault\":false},\"query\":\"union (print kingdom='*'), (traces | where timestamp {TimeRange} | extend kingdom = tostring(customDimensions.kingdom) | where isnotempty(kingdom) | summarize by kingdom) | order by kingdom asc\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\"},{\"id\":\"p-multiplier\",\"version\":\"KqlParameterItem/1.0\",\"name\":\"KingdomMultiplier\",\"label\":\"Project to N kingdoms\",\"type\":1,\"isRequired\":true,\"value\":\"30\"}],\"style\":\"pills\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\"},\"name\":\"parameters\"},{\"type\":1,\"content\":{\"json\":\"## At a glance\"},\"name\":\"h-glance\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"traces | where timestamp {TimeRange} | where tostring(customDimensions.channel) == 'performance' and message startswith '[request_timing]' | extend\\n    duration_ms = todouble(customDimensions.duration_ms),\\n    memory_peak_mb = todouble(customDimensions.memory_peak_mb),\\n    cpu_user_ms = todouble(customDimensions.cpu_user_ms),\\n    cpu_sys_ms = todouble(customDimensions.cpu_sys_ms),\\n    query_count = toint(customDimensions.query_count),\\n    db_total_ms = todouble(customDimensions.db_total_ms),\\n    response_bytes = toint(customDimensions.response_bytes),\\n    status = toint(customDimensions.status),\\n    kingdom = tostring(customDimensions.kingdom),\\n    route_template = tostring(customDimensions.route_template),\\n    method = tostring(customDimensions.method),\\n    host = tostring(customDimensions.host),\\n    path = tostring(customDimensions.path),\\n    app_version = tostring(customDimensions.app_version),\\n    php_version = tostring(customDimensions.php_version),\\n    php_sapi = tostring(customDimensions.php_sapi) | where \\\"*\\\" in ({Kingdom}) or kingdom in ({Kingdom})\\n| summarize Requests = count()\",\"size\":3,\"title\":\"Requests\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\"},\"name\":\"stat-requests\",\"customWidth\":\"25\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"traces | where timestamp {TimeRange} | where tostring(customDimensions.channel) == 'performance' and message startswith '[request_timing]' | extend\\n    duration_ms = todouble(customDimensions.duration_ms),\\n    memory_peak_mb = todouble(customDimensions.memory_peak_mb),\\n    cpu_user_ms = todouble(customDimensions.cpu_user_ms),\\n    cpu_sys_ms = todouble(customDimensions.cpu_sys_ms),\\n    query_count = toint(customDimensions.query_count),\\n    db_total_ms = todouble(customDimensions.db_total_ms),\\n    response_bytes = toint(customDimensions.response_bytes),\\n    status = toint(customDimensions.status),\\n    kingdom = tostring(customDimensions.kingdom),\\n    route_template = tostring(customDimensions.route_template),\\n    method = tostring(customDimensions.method),\\n    host = tostring(customDimensions.host),\\n    path = tostring(customDimensions.path),\\n    app_version = tostring(customDimensions.app_version),\\n    php_version = tostring(customDimensions.php_version),\\n    php_sapi = tostring(customDimensions.php_sapi) | where \\\"*\\\" in ({Kingdom}) or kingdom in ({Kingdom})\\n| summarize ['p95 ms'] = round(percentile(duration_ms, 95), 1)\",\"size\":3,\"title\":\"p95 duration (ms)\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\"},\"name\":\"stat-p95\",\"customWidth\":\"25\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"traces | where timestamp {TimeRange} | where tostring(customDimensions.channel) == 'performance' and message startswith '[request_timing]' | extend\\n    duration_ms = todouble(customDimensions.duration_ms),\\n    memory_peak_mb = todouble(customDimensions.memory_peak_mb),\\n    cpu_user_ms = todouble(customDimensions.cpu_user_ms),\\n    cpu_sys_ms = todouble(customDimensions.cpu_sys_ms),\\n    query_count = toint(customDimensions.query_count),\\n    db_total_ms = todouble(customDimensions.db_total_ms),\\n    response_bytes = toint(customDimensions.response_bytes),\\n    status = toint(customDimensions.status),\\n    kingdom = tostring(customDimensions.kingdom),\\n    route_template = tostring(customDimensions.route_template),\\n    method = tostring(customDimensions.method),\\n    host = tostring(customDimensions.host),\\n    path = tostring(customDimensions.path),\\n    app_version = tostring(customDimensions.app_version),\\n    php_version = tostring(customDimensions.php_version),\\n    php_sapi = tostring(customDimensions.php_sapi) | where \\\"*\\\" in ({Kingdom}) or kingdom in ({Kingdom})\\n| where status >= 400\\n| summarize Errors = count()\",\"size\":3,\"title\":\"Errors (4xx/5xx)\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\"},\"name\":\"stat-errors\",\"customWidth\":\"25\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"traces | where timestamp {TimeRange}\\n| where tostring(customDimensions.channel) == 'telemetry-health'\\n| extend dropped = toint(customDimensions.dropped), failed = toint(customDimensions.failed)\\n| summarize ['Failed+Dropped'] = sum(failed) + sum(dropped)\",\"size\":3,\"title\":\"Exporter dropped\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\"},\"name\":\"stat-exporter\",\"customWidth\":\"25\"},{\"type\":1,\"content\":{\"json\":\"## Operational health\"},\"name\":\"h-health\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"traces | where timestamp {TimeRange}\\n| where severityLevel >= 2\\n| extend channel = tostring(customDimensions.channel)\\n| summarize events = count() by bin(timestamp, 15m), channel\\n| render columnchart\",\"size\":0,\"title\":\"Errors and warnings over time\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\"},\"name\":\"errors-time\",\"customWidth\":\"60\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"traces | where timestamp {TimeRange}\\n| where tostring(customDimensions.channel) == 'telemetry-health'\\n| extend\\n    sent = toint(customDimensions.sent),\\n    failed = toint(customDimensions.failed),\\n    dropped = toint(customDimensions.dropped),\\n    flush_count = toint(customDimensions.flush_count),\\n    flush_total_ms = todouble(customDimensions.flush_total_ms),\\n    source_channel = tostring(customDimensions.source_channel)\\n| summarize\\n    Sent = sum(sent),\\n    Failed = sum(failed),\\n    Dropped = sum(dropped),\\n    Flushes = sum(flush_count),\\n    ['Avg flush ms'] = round(avg(flush_total_ms / iff(flush_count == 0, 1.0, todouble(flush_count))), 2)\\n    by ['Source channel'] = source_channel\\n| order by Sent desc\",\"size\":0,\"title\":\"Telemetry exporter health (per source channel)\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\",\"gridSettings\":{\"formatters\":[]}},\"name\":\"exporter-health\",\"customWidth\":\"40\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"traces | where timestamp {TimeRange}\\n| where severityLevel >= 2\\n| extend\\n    channel = tostring(customDimensions.channel),\\n    kingdom = tostring(customDimensions.kingdom),\\n    route_template = tostring(customDimensions.route_template),\\n    path = tostring(customDimensions.path)\\n| project timestamp, ['Severity'] = severityLevel, channel, kingdom, route_template, path, message\\n| top 50 by timestamp desc\",\"size\":0,\"title\":\"Recent errors and warnings\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\"},\"name\":\"recent-errors\"},{\"type\":1,\"content\":{\"json\":\"## Performance\"},\"name\":\"h-perf\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"traces | where timestamp {TimeRange} | where tostring(customDimensions.channel) == 'performance' and message startswith '[request_timing]' | extend\\n    duration_ms = todouble(customDimensions.duration_ms),\\n    memory_peak_mb = todouble(customDimensions.memory_peak_mb),\\n    cpu_user_ms = todouble(customDimensions.cpu_user_ms),\\n    cpu_sys_ms = todouble(customDimensions.cpu_sys_ms),\\n    query_count = toint(customDimensions.query_count),\\n    db_total_ms = todouble(customDimensions.db_total_ms),\\n    response_bytes = toint(customDimensions.response_bytes),\\n    status = toint(customDimensions.status),\\n    kingdom = tostring(customDimensions.kingdom),\\n    route_template = tostring(customDimensions.route_template),\\n    method = tostring(customDimensions.method),\\n    host = tostring(customDimensions.host),\\n    path = tostring(customDimensions.path),\\n    app_version = tostring(customDimensions.app_version),\\n    php_version = tostring(customDimensions.php_version),\\n    php_sapi = tostring(customDimensions.php_sapi) | where \\\"*\\\" in ({Kingdom}) or kingdom in ({Kingdom})\\n| summarize\\n    p50 = percentile(duration_ms, 50),\\n    p95 = percentile(duration_ms, 95),\\n    p99 = percentile(duration_ms, 99)\\n    by bin(timestamp, 5m)\\n| render timechart\",\"size\":0,\"title\":\"Request latency percentiles (ms)\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\"},\"name\":\"latency\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"traces | where timestamp {TimeRange} | where tostring(customDimensions.channel) == 'performance' and message startswith '[request_timing]' | extend\\n    duration_ms = todouble(customDimensions.duration_ms),\\n    memory_peak_mb = todouble(customDimensions.memory_peak_mb),\\n    cpu_user_ms = todouble(customDimensions.cpu_user_ms),\\n    cpu_sys_ms = todouble(customDimensions.cpu_sys_ms),\\n    query_count = toint(customDimensions.query_count),\\n    db_total_ms = todouble(customDimensions.db_total_ms),\\n    response_bytes = toint(customDimensions.response_bytes),\\n    status = toint(customDimensions.status),\\n    kingdom = tostring(customDimensions.kingdom),\\n    route_template = tostring(customDimensions.route_template),\\n    method = tostring(customDimensions.method),\\n    host = tostring(customDimensions.host),\\n    path = tostring(customDimensions.path),\\n    app_version = tostring(customDimensions.app_version),\\n    php_version = tostring(customDimensions.php_version),\\n    php_sapi = tostring(customDimensions.php_sapi) | where \\\"*\\\" in ({Kingdom}) or kingdom in ({Kingdom})\\n| summarize rpm = count() by bin(timestamp, 1m)\\n| render timechart\",\"size\":0,\"title\":\"Requests per minute\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\"},\"name\":\"rpm\",\"customWidth\":\"50\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"traces | where timestamp {TimeRange} | where tostring(customDimensions.channel) == 'performance' and message startswith '[request_timing]' | extend\\n    duration_ms = todouble(customDimensions.duration_ms),\\n    memory_peak_mb = todouble(customDimensions.memory_peak_mb),\\n    cpu_user_ms = todouble(customDimensions.cpu_user_ms),\\n    cpu_sys_ms = todouble(customDimensions.cpu_sys_ms),\\n    query_count = toint(customDimensions.query_count),\\n    db_total_ms = todouble(customDimensions.db_total_ms),\\n    response_bytes = toint(customDimensions.response_bytes),\\n    status = toint(customDimensions.status),\\n    kingdom = tostring(customDimensions.kingdom),\\n    route_template = tostring(customDimensions.route_template),\\n    method = tostring(customDimensions.method),\\n    host = tostring(customDimensions.host),\\n    path = tostring(customDimensions.path),\\n    app_version = tostring(customDimensions.app_version),\\n    php_version = tostring(customDimensions.php_version),\\n    php_sapi = tostring(customDimensions.php_sapi) | where \\\"*\\\" in ({Kingdom}) or kingdom in ({Kingdom})\\n| extend status_class = strcat(tostring(status / 100), 'xx')\\n| summarize count() by bin(timestamp, 15m), status_class\\n| render columnchart\",\"size\":0,\"title\":\"HTTP status code mix\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\"},\"name\":\"status\",\"customWidth\":\"50\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"traces | where timestamp {TimeRange} | where tostring(customDimensions.channel) == 'performance' and message startswith '[request_timing]' | extend\\n    duration_ms = todouble(customDimensions.duration_ms),\\n    memory_peak_mb = todouble(customDimensions.memory_peak_mb),\\n    cpu_user_ms = todouble(customDimensions.cpu_user_ms),\\n    cpu_sys_ms = todouble(customDimensions.cpu_sys_ms),\\n    query_count = toint(customDimensions.query_count),\\n    db_total_ms = todouble(customDimensions.db_total_ms),\\n    response_bytes = toint(customDimensions.response_bytes),\\n    status = toint(customDimensions.status),\\n    kingdom = tostring(customDimensions.kingdom),\\n    route_template = tostring(customDimensions.route_template),\\n    method = tostring(customDimensions.method),\\n    host = tostring(customDimensions.host),\\n    path = tostring(customDimensions.path),\\n    app_version = tostring(customDimensions.app_version),\\n    php_version = tostring(customDimensions.php_version),\\n    php_sapi = tostring(customDimensions.php_sapi) | where \\\"*\\\" in ({Kingdom}) or kingdom in ({Kingdom})\\n| summarize\\n    ['Requests'] = count(),\\n    ['p50 ms'] = round(percentile(duration_ms, 50), 1),\\n    ['p95 ms'] = round(percentile(duration_ms, 95), 1),\\n    ['p99 ms'] = round(percentile(duration_ms, 99), 1),\\n    ['Avg memory MB'] = round(avg(memory_peak_mb), 1)\\n    by ['Route'] = route_template\\n| top 20 by ['p95 ms'] desc\",\"size\":0,\"title\":\"Top 20 slow routes (p95 by route_template)\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\",\"gridSettings\":{\"formatters\":[]}},\"name\":\"slow-routes\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"traces | where timestamp {TimeRange} | where tostring(customDimensions.channel) == 'performance' and message startswith '[request_timing]' | extend\\n    duration_ms = todouble(customDimensions.duration_ms),\\n    memory_peak_mb = todouble(customDimensions.memory_peak_mb),\\n    cpu_user_ms = todouble(customDimensions.cpu_user_ms),\\n    cpu_sys_ms = todouble(customDimensions.cpu_sys_ms),\\n    query_count = toint(customDimensions.query_count),\\n    db_total_ms = todouble(customDimensions.db_total_ms),\\n    response_bytes = toint(customDimensions.response_bytes),\\n    status = toint(customDimensions.status),\\n    kingdom = tostring(customDimensions.kingdom),\\n    route_template = tostring(customDimensions.route_template),\\n    method = tostring(customDimensions.method),\\n    host = tostring(customDimensions.host),\\n    path = tostring(customDimensions.path),\\n    app_version = tostring(customDimensions.app_version),\\n    php_version = tostring(customDimensions.php_version),\\n    php_sapi = tostring(customDimensions.php_sapi) | where \\\"*\\\" in ({Kingdom}) or kingdom in ({Kingdom})\\n| project timestamp, ['Duration ms'] = duration_ms, ['Route'] = route_template, ['Path'] = path, status, kingdom, host\\n| top 25 by ['Duration ms'] desc\",\"size\":0,\"title\":\"Slowest individual requests (top 25)\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\"},\"name\":\"slowest-events\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"traces | where timestamp {TimeRange} | where tostring(customDimensions.channel) == 'performance' and message startswith '[request_timing]' | extend\\n    duration_ms = todouble(customDimensions.duration_ms),\\n    memory_peak_mb = todouble(customDimensions.memory_peak_mb),\\n    cpu_user_ms = todouble(customDimensions.cpu_user_ms),\\n    cpu_sys_ms = todouble(customDimensions.cpu_sys_ms),\\n    query_count = toint(customDimensions.query_count),\\n    db_total_ms = todouble(customDimensions.db_total_ms),\\n    response_bytes = toint(customDimensions.response_bytes),\\n    status = toint(customDimensions.status),\\n    kingdom = tostring(customDimensions.kingdom),\\n    route_template = tostring(customDimensions.route_template),\\n    method = tostring(customDimensions.method),\\n    host = tostring(customDimensions.host),\\n    path = tostring(customDimensions.path),\\n    app_version = tostring(customDimensions.app_version),\\n    php_version = tostring(customDimensions.php_version),\\n    php_sapi = tostring(customDimensions.php_sapi) | where \\\"*\\\" in ({Kingdom}) or kingdom in ({Kingdom})\\n| summarize count() by ['Memory MB bucket'] = bin(memory_peak_mb, 8)\\n| order by ['Memory MB bucket'] asc\\n| render barchart\",\"size\":0,\"title\":\"Memory peak distribution (MB)\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\"},\"name\":\"memory-dist\",\"customWidth\":\"50\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"traces | where timestamp {TimeRange} | where tostring(customDimensions.channel) == 'performance' and message startswith '[request_timing]' | extend\\n    duration_ms = todouble(customDimensions.duration_ms),\\n    memory_peak_mb = todouble(customDimensions.memory_peak_mb),\\n    cpu_user_ms = todouble(customDimensions.cpu_user_ms),\\n    cpu_sys_ms = todouble(customDimensions.cpu_sys_ms),\\n    query_count = toint(customDimensions.query_count),\\n    db_total_ms = todouble(customDimensions.db_total_ms),\\n    response_bytes = toint(customDimensions.response_bytes),\\n    status = toint(customDimensions.status),\\n    kingdom = tostring(customDimensions.kingdom),\\n    route_template = tostring(customDimensions.route_template),\\n    method = tostring(customDimensions.method),\\n    host = tostring(customDimensions.host),\\n    path = tostring(customDimensions.path),\\n    app_version = tostring(customDimensions.app_version),\\n    php_version = tostring(customDimensions.php_version),\\n    php_sapi = tostring(customDimensions.php_sapi) | where \\\"*\\\" in ({Kingdom}) or kingdom in ({Kingdom})\\n| extend bucket = case(\\n    response_bytes < 1024, '<1 KB',\\n    response_bytes < 10240, '1-10 KB',\\n    response_bytes < 102400, '10-100 KB',\\n    response_bytes < 1048576, '100 KB - 1 MB',\\n    '>1 MB')\\n| summarize Responses = count() by ['Size bucket'] = bucket\\n| order by Responses desc\",\"size\":0,\"title\":\"Response size distribution\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\",\"gridSettings\":{\"formatters\":[]}},\"name\":\"size-dist\",\"customWidth\":\"50\"},{\"type\":1,\"content\":{\"json\":\"## Capacity signals\\n*Where time goes inside each request.* A large gap between wall and CPU time means the request is waiting on the database or external services - scaling app workers will not help; scaling the DB (or caching) will.\"},\"name\":\"h-cap\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"traces | where timestamp {TimeRange} | where tostring(customDimensions.channel) == 'performance' and message startswith '[request_timing]' | extend\\n    duration_ms = todouble(customDimensions.duration_ms),\\n    memory_peak_mb = todouble(customDimensions.memory_peak_mb),\\n    cpu_user_ms = todouble(customDimensions.cpu_user_ms),\\n    cpu_sys_ms = todouble(customDimensions.cpu_sys_ms),\\n    query_count = toint(customDimensions.query_count),\\n    db_total_ms = todouble(customDimensions.db_total_ms),\\n    response_bytes = toint(customDimensions.response_bytes),\\n    status = toint(customDimensions.status),\\n    kingdom = tostring(customDimensions.kingdom),\\n    route_template = tostring(customDimensions.route_template),\\n    method = tostring(customDimensions.method),\\n    host = tostring(customDimensions.host),\\n    path = tostring(customDimensions.path),\\n    app_version = tostring(customDimensions.app_version),\\n    php_version = tostring(customDimensions.php_version),\\n    php_sapi = tostring(customDimensions.php_sapi) | where \\\"*\\\" in ({Kingdom}) or kingdom in ({Kingdom})\\n| summarize\\n    ['Wall p95'] = percentile(duration_ms, 95),\\n    ['CPU p95'] = percentile(cpu_user_ms + cpu_sys_ms, 95)\\n    by bin(timestamp, 5m)\\n| render timechart\",\"size\":0,\"title\":\"CPU vs wall time (p95, ms) - gap signals IO-bound work\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\"},\"name\":\"cpu-vs-wall\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"traces | where timestamp {TimeRange} | where tostring(customDimensions.channel) == 'performance' and message startswith '[request_timing]' | extend\\n    duration_ms = todouble(customDimensions.duration_ms),\\n    memory_peak_mb = todouble(customDimensions.memory_peak_mb),\\n    cpu_user_ms = todouble(customDimensions.cpu_user_ms),\\n    cpu_sys_ms = todouble(customDimensions.cpu_sys_ms),\\n    query_count = toint(customDimensions.query_count),\\n    db_total_ms = todouble(customDimensions.db_total_ms),\\n    response_bytes = toint(customDimensions.response_bytes),\\n    status = toint(customDimensions.status),\\n    kingdom = tostring(customDimensions.kingdom),\\n    route_template = tostring(customDimensions.route_template),\\n    method = tostring(customDimensions.method),\\n    host = tostring(customDimensions.host),\\n    path = tostring(customDimensions.path),\\n    app_version = tostring(customDimensions.app_version),\\n    php_version = tostring(customDimensions.php_version),\\n    php_sapi = tostring(customDimensions.php_sapi) | where \\\"*\\\" in ({Kingdom}) or kingdom in ({Kingdom})\\n| where duration_ms > 0\\n| extend cpu_ratio = (cpu_user_ms + cpu_sys_ms) / duration_ms\\n| summarize\\n    Requests = count(),\\n    ['Avg ratio'] = round(avg(cpu_ratio), 3),\\n    ['p50 ratio'] = round(percentile(cpu_ratio, 50), 3),\\n    ['p95 ratio'] = round(percentile(cpu_ratio, 95), 3)\\n    by ['Route'] = route_template\\n| top 25 by ['Avg ratio'] asc\",\"size\":0,\"title\":\"CPU efficiency (CPU ms / wall ms) - low value = waiting on IO\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\",\"gridSettings\":{\"formatters\":[]}},\"name\":\"cpu-efficiency\",\"customWidth\":\"50\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"traces | where timestamp {TimeRange} | where tostring(customDimensions.channel) == 'performance' and message startswith '[request_timing]' | extend\\n    duration_ms = todouble(customDimensions.duration_ms),\\n    memory_peak_mb = todouble(customDimensions.memory_peak_mb),\\n    cpu_user_ms = todouble(customDimensions.cpu_user_ms),\\n    cpu_sys_ms = todouble(customDimensions.cpu_sys_ms),\\n    query_count = toint(customDimensions.query_count),\\n    db_total_ms = todouble(customDimensions.db_total_ms),\\n    response_bytes = toint(customDimensions.response_bytes),\\n    status = toint(customDimensions.status),\\n    kingdom = tostring(customDimensions.kingdom),\\n    route_template = tostring(customDimensions.route_template),\\n    method = tostring(customDimensions.method),\\n    host = tostring(customDimensions.host),\\n    path = tostring(customDimensions.path),\\n    app_version = tostring(customDimensions.app_version),\\n    php_version = tostring(customDimensions.php_version),\\n    php_sapi = tostring(customDimensions.php_sapi) | where \\\"*\\\" in ({Kingdom}) or kingdom in ({Kingdom})\\n| summarize ['MB out'] = round(sum(response_bytes) / 1048576.0, 2) by bin(timestamp, 5m)\\n| render timechart\",\"size\":0,\"title\":\"Response bandwidth (MB)\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\"},\"name\":\"bandwidth\",\"customWidth\":\"50\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"traces | where timestamp {TimeRange} | where tostring(customDimensions.channel) == 'performance' and message startswith '[request_timing]' | extend\\n    duration_ms = todouble(customDimensions.duration_ms),\\n    memory_peak_mb = todouble(customDimensions.memory_peak_mb),\\n    cpu_user_ms = todouble(customDimensions.cpu_user_ms),\\n    cpu_sys_ms = todouble(customDimensions.cpu_sys_ms),\\n    query_count = toint(customDimensions.query_count),\\n    db_total_ms = todouble(customDimensions.db_total_ms),\\n    response_bytes = toint(customDimensions.response_bytes),\\n    status = toint(customDimensions.status),\\n    kingdom = tostring(customDimensions.kingdom),\\n    route_template = tostring(customDimensions.route_template),\\n    method = tostring(customDimensions.method),\\n    host = tostring(customDimensions.host),\\n    path = tostring(customDimensions.path),\\n    app_version = tostring(customDimensions.app_version),\\n    php_version = tostring(customDimensions.php_version),\\n    php_sapi = tostring(customDimensions.php_sapi) | where \\\"*\\\" in ({Kingdom}) or kingdom in ({Kingdom})\\n| summarize\\n    Requests = count(),\\n    ['Avg queries'] = round(avg(query_count), 1),\\n    ['Max queries'] = max(query_count),\\n    ['p95 db ms'] = round(percentile(db_total_ms, 95), 1),\\n    ['DB / wall %'] = round(avg(db_total_ms) / iff(avg(duration_ms) == 0, 1.0, avg(duration_ms)) * 100, 1)\\n    by ['Route'] = route_template\\n| top 25 by ['p95 db ms'] desc\",\"size\":0,\"title\":\"DB pressure per route (queries and db_total_ms)\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\",\"gridSettings\":{\"formatters\":[]}},\"name\":\"db-pressure\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"traces | where timestamp {TimeRange} | where tostring(customDimensions.channel) == 'performance' and message startswith '[request_timing]' | extend\\n    duration_ms = todouble(customDimensions.duration_ms),\\n    memory_peak_mb = todouble(customDimensions.memory_peak_mb),\\n    cpu_user_ms = todouble(customDimensions.cpu_user_ms),\\n    cpu_sys_ms = todouble(customDimensions.cpu_sys_ms),\\n    query_count = toint(customDimensions.query_count),\\n    db_total_ms = todouble(customDimensions.db_total_ms),\\n    response_bytes = toint(customDimensions.response_bytes),\\n    status = toint(customDimensions.status),\\n    kingdom = tostring(customDimensions.kingdom),\\n    route_template = tostring(customDimensions.route_template),\\n    method = tostring(customDimensions.method),\\n    host = tostring(customDimensions.host),\\n    path = tostring(customDimensions.path),\\n    app_version = tostring(customDimensions.app_version),\\n    php_version = tostring(customDimensions.php_version),\\n    php_sapi = tostring(customDimensions.php_sapi) | where \\\"*\\\" in ({Kingdom}) or kingdom in ({Kingdom})\\n| extend bucket = case(\\n    query_count == 0, '0',\\n    query_count < 5, '1-4',\\n    query_count < 20, '5-19',\\n    query_count < 50, '20-49',\\n    query_count < 100, '50-99',\\n    '>=100')\\n| summarize Requests = count() by ['Queries'] = bucket\\n| order by ['Queries'] asc\",\"size\":0,\"title\":\"Queries per request distribution\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\",\"gridSettings\":{\"formatters\":[]}},\"name\":\"qpr\",\"customWidth\":\"50\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"traces | where timestamp {TimeRange} | where tostring(customDimensions.channel) == 'performance' and message startswith '[request_timing]' | extend\\n    duration_ms = todouble(customDimensions.duration_ms),\\n    memory_peak_mb = todouble(customDimensions.memory_peak_mb),\\n    cpu_user_ms = todouble(customDimensions.cpu_user_ms),\\n    cpu_sys_ms = todouble(customDimensions.cpu_sys_ms),\\n    query_count = toint(customDimensions.query_count),\\n    db_total_ms = todouble(customDimensions.db_total_ms),\\n    response_bytes = toint(customDimensions.response_bytes),\\n    status = toint(customDimensions.status),\\n    kingdom = tostring(customDimensions.kingdom),\\n    route_template = tostring(customDimensions.route_template),\\n    method = tostring(customDimensions.method),\\n    host = tostring(customDimensions.host),\\n    path = tostring(customDimensions.path),\\n    app_version = tostring(customDimensions.app_version),\\n    php_version = tostring(customDimensions.php_version),\\n    php_sapi = tostring(customDimensions.php_sapi) | where \\\"*\\\" in ({Kingdom}) or kingdom in ({Kingdom})\\n| summarize ['p95 MB'] = round(percentile(memory_peak_mb, 95), 1), Requests = count() by ['Route'] = route_template\\n| top 20 by ['p95 MB'] desc\",\"size\":0,\"title\":\"Memory pressure per route (peak MB)\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\",\"gridSettings\":{\"formatters\":[]}},\"name\":\"mem-by-route\",\"customWidth\":\"50\"},{\"type\":1,\"content\":{\"json\":\"## Scaling projection\\n*If today's traffic from one kingdom became `KingdomMultiplier` kingdoms with the same usage pattern.* Use these panels to size Azure/Vercel SKUs and Application Insights daily cap before onboarding new kingdoms.\"},\"name\":\"h-scale\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"traces | where timestamp {TimeRange} | where tostring(customDimensions.channel) == 'performance' and message startswith '[request_timing]' | extend\\n    duration_ms = todouble(customDimensions.duration_ms),\\n    memory_peak_mb = todouble(customDimensions.memory_peak_mb),\\n    cpu_user_ms = todouble(customDimensions.cpu_user_ms),\\n    cpu_sys_ms = todouble(customDimensions.cpu_sys_ms),\\n    query_count = toint(customDimensions.query_count),\\n    db_total_ms = todouble(customDimensions.db_total_ms),\\n    response_bytes = toint(customDimensions.response_bytes),\\n    status = toint(customDimensions.status),\\n    kingdom = tostring(customDimensions.kingdom),\\n    route_template = tostring(customDimensions.route_template),\\n    method = tostring(customDimensions.method),\\n    host = tostring(customDimensions.host),\\n    path = tostring(customDimensions.path),\\n    app_version = tostring(customDimensions.app_version),\\n    php_version = tostring(customDimensions.php_version),\\n    php_sapi = tostring(customDimensions.php_sapi) | where \\\"*\\\" in ({Kingdom}) or kingdom in ({Kingdom})\\n| summarize\\n    Requests = count(),\\n    ['p95 ms'] = round(percentile(duration_ms, 95), 1),\\n    ['Avg memory MB'] = round(avg(memory_peak_mb), 1),\\n    ['Avg queries'] = round(avg(query_count), 1),\\n    ['MB out'] = round(sum(response_bytes) / 1048576.0, 2),\\n    ['Slow (>750ms)'] = countif(duration_ms > 750)\\n    by ['Kingdom'] = kingdom\\n| order by Requests desc\",\"size\":0,\"title\":\"Per-kingdom traffic and performance\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\",\"gridSettings\":{\"formatters\":[]}},\"name\":\"per-kingdom\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"traces | where timestamp {TimeRange} | where tostring(customDimensions.channel) == 'performance' and message startswith '[request_timing]' | extend\\n    duration_ms = todouble(customDimensions.duration_ms),\\n    memory_peak_mb = todouble(customDimensions.memory_peak_mb),\\n    cpu_user_ms = todouble(customDimensions.cpu_user_ms),\\n    cpu_sys_ms = todouble(customDimensions.cpu_sys_ms),\\n    query_count = toint(customDimensions.query_count),\\n    db_total_ms = todouble(customDimensions.db_total_ms),\\n    response_bytes = toint(customDimensions.response_bytes),\\n    status = toint(customDimensions.status),\\n    kingdom = tostring(customDimensions.kingdom),\\n    route_template = tostring(customDimensions.route_template),\\n    method = tostring(customDimensions.method),\\n    host = tostring(customDimensions.host),\\n    path = tostring(customDimensions.path),\\n    app_version = tostring(customDimensions.app_version),\\n    php_version = tostring(customDimensions.php_version),\\n    php_sapi = tostring(customDimensions.php_sapi) | where \\\"*\\\" in ({Kingdom}) or kingdom in ({Kingdom})\\n| summarize\\n    ['Current traces'] = count(),\\n    ['Projected traces'] = count() * toint('{KingdomMultiplier}'),\\n    ['Slow traces (>=750ms)'] = countif(duration_ms >= 750),\\n    ['Projected slow'] = countif(duration_ms >= 750) * toint('{KingdomMultiplier}'),\\n    ['Current MB out'] = round(sum(response_bytes) / 1048576.0, 2),\\n    ['Projected MB out'] = round(sum(response_bytes) / 1048576.0 * toint('{KingdomMultiplier}'), 2)\",\"size\":0,\"title\":\"Trace volume projection at {KingdomMultiplier}x current kingdoms\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\",\"gridSettings\":{\"formatters\":[]}},\"name\":\"proj-volume\",\"customWidth\":\"100\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"traces | where timestamp {TimeRange} | where tostring(customDimensions.channel) == 'performance' and message startswith '[request_timing]' | extend\\n    duration_ms = todouble(customDimensions.duration_ms),\\n    memory_peak_mb = todouble(customDimensions.memory_peak_mb),\\n    cpu_user_ms = todouble(customDimensions.cpu_user_ms),\\n    cpu_sys_ms = todouble(customDimensions.cpu_sys_ms),\\n    query_count = toint(customDimensions.query_count),\\n    db_total_ms = todouble(customDimensions.db_total_ms),\\n    response_bytes = toint(customDimensions.response_bytes),\\n    status = toint(customDimensions.status),\\n    kingdom = tostring(customDimensions.kingdom),\\n    route_template = tostring(customDimensions.route_template),\\n    method = tostring(customDimensions.method),\\n    host = tostring(customDimensions.host),\\n    path = tostring(customDimensions.path),\\n    app_version = tostring(customDimensions.app_version),\\n    php_version = tostring(customDimensions.php_version),\\n    php_sapi = tostring(customDimensions.php_sapi) | where \\\"*\\\" in ({Kingdom}) or kingdom in ({Kingdom})\\n| summarize Requests = count(), ['Total wall ms'] = sum(duration_ms), ['Total db ms'] = sum(db_total_ms) by ['Route'] = route_template\\n| extend\\n    ['Projected requests'] = Requests * toint('{KingdomMultiplier}'),\\n    ['Projected wall sec'] = round((['Total wall ms'] * toint('{KingdomMultiplier}')) / 1000.0, 1),\\n    ['Projected db sec'] = round((['Total db ms'] * toint('{KingdomMultiplier}')) / 1000.0, 1)\\n| project ['Route'], Requests, ['Projected requests'], ['Projected wall sec'], ['Projected db sec']\\n| top 20 by ['Projected wall sec'] desc\",\"size\":0,\"title\":\"Routes contributing most projected load (top 20)\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\",\"gridSettings\":{\"formatters\":[]}},\"name\":\"proj-routes\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"traces | where timestamp {TimeRange}\\n| extend channel = tostring(customDimensions.channel)\\n| summarize Events = count() by ['Channel'] = channel\\n| extend ['Projected at {KingdomMultiplier}x'] = Events * toint('{KingdomMultiplier}')\\n| order by Events desc\",\"size\":0,\"title\":\"Trace ingestion projection by channel (events at {KingdomMultiplier}x)\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\",\"gridSettings\":{\"formatters\":[]}},\"name\":\"proj-telem\"},{\"type\":1,\"content\":{\"json\":\"## Diagnostics\"},\"name\":\"h-diag\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"traces | where timestamp {TimeRange}\\n| where tostring(customDimensions.channel) == 'queries'\\n| project timestamp, message, ['Level'] = tostring(customDimensions.level)\\n| top 25 by timestamp desc\",\"size\":0,\"title\":\"Recent SQL trace samples (redacted)\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\"},\"name\":\"sql-samples\",\"customWidth\":\"100\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"traces | where timestamp {TimeRange} | where tostring(customDimensions.channel) == 'performance' and message startswith '[request_timing]' | extend\\n    duration_ms = todouble(customDimensions.duration_ms),\\n    memory_peak_mb = todouble(customDimensions.memory_peak_mb),\\n    cpu_user_ms = todouble(customDimensions.cpu_user_ms),\\n    cpu_sys_ms = todouble(customDimensions.cpu_sys_ms),\\n    query_count = toint(customDimensions.query_count),\\n    db_total_ms = todouble(customDimensions.db_total_ms),\\n    response_bytes = toint(customDimensions.response_bytes),\\n    status = toint(customDimensions.status),\\n    kingdom = tostring(customDimensions.kingdom),\\n    route_template = tostring(customDimensions.route_template),\\n    method = tostring(customDimensions.method),\\n    host = tostring(customDimensions.host),\\n    path = tostring(customDimensions.path),\\n    app_version = tostring(customDimensions.app_version),\\n    php_version = tostring(customDimensions.php_version),\\n    php_sapi = tostring(customDimensions.php_sapi) | where \\\"*\\\" in ({Kingdom}) or kingdom in ({Kingdom})\\n| summarize ['Last seen'] = max(timestamp), Events = count() by app_version, php_version, php_sapi, ['PHP OS'] = tostring(customDimensions.php_os)\\n| order by ['Last seen'] desc\",\"size\":0,\"title\":\"Runtime fingerprints observed\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\",\"gridSettings\":{\"formatters\":[]}},\"name\":\"fingerprint\",\"customWidth\":\"50\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"traces | where timestamp {TimeRange}\\n| where severityLevel >= 2 and tostring(customDimensions.channel) == 'cli-errors'\\n| project timestamp, ['Level'] = severityLevel, message\\n| top 25 by timestamp desc\",\"size\":0,\"title\":\"Latest CLI errors and warnings\",\"queryType\":0,\"resourceType\":\"microsoft.insights/components\"},\"name\":\"cli-errors\",\"customWidth\":\"50\"}],\"fallbackResourceIds\":[],\"$schema\":\"https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json\"}\n",
     "suffix": "[uniqueString(resourceGroup().id)]",
     "lawName": "[format('{0}-law', parameters('namePrefix'))]",
+    "appInsightsName": "[format('{0}-appi', parameters('namePrefix'))]",
     "kvName": "[take(format('{0}-kv-{1}', parameters('namePrefix'), take(variables('suffix'), 6)), 24)]",
     "pgName": "[format('{0}-pg-{1}', parameters('namePrefix'), take(variables('suffix'), 6))]",
-    "managedRedisName": "[take(format('{0}-redis-{1}', parameters('namePrefix'), take(variables('suffix'), 6)), 60)]",
+    "managedRedisName": "[take(format('{0}-redis-{1}-{2}', parameters('namePrefix'), toLower(parameters('managedRedisClusteringPolicy')), take(variables('suffix'), 6)), 60)]",
+    "managedOpenTelemetryEnabled": "[and(parameters('enableApplicationInsights'), equals(parameters('applicationInsightsTransport'), 'otlp'))]",
     "uamiName": "[format('{0}-id', parameters('namePrefix'))]",
     "documentStorageName": "[format('{0}docs{1}', parameters('namePrefix'), take(variables('suffix'), 6))]",
     "documentContainerPrefix": "documents",
@@ -480,144 +548,9 @@
     "frontDoorOriginGroupName": "[format('{0}-web-og', parameters('namePrefix'))]",
     "frontDoorOriginName": "[format('{0}-aca-origin', parameters('namePrefix'))]",
     "frontDoorRouteName": "[format('{0}-web-route', parameters('namePrefix'))]",
-    "commonEnv": [
-      {
-        "name": "DATABASE_URL",
-        "secretRef": "database-url"
-      },
-      {
-        "name": "PLATFORM_DATABASE_URL",
-        "secretRef": "platform-database-url"
-      },
-      {
-        "name": "SECURITY_SALT",
-        "secretRef": "security-salt"
-      },
-      {
-        "name": "BACKUP_ENCRYPTION_KEY",
-        "secretRef": "backup-encryption-key"
-      },
-      {
-        "name": "KMP_DB_DRIVER",
-        "value": "postgres"
-      },
-      {
-        "name": "KMP_SECRETS_DRIVER",
-        "value": "database"
-      },
-      {
-        "name": "KMP_SECRETS_DB_MASTER_DRIVER",
-        "value": "env"
-      },
-      {
-        "name": "KMP_SECRETS_DB_MASTER_KEY_NAME",
-        "value": "platform.master_kek"
-      },
-      {
-        "name": "KMP_SECRET_PLATFORM_MASTER_KEK",
-        "secretRef": "platform-secrets-master-key"
-      },
-      {
-        "name": "KMP_ENV",
-        "value": "[parameters('runtimeEnvironment')]"
-      },
-      {
-        "name": "APP_NAME",
-        "value": "[parameters('namePrefix')]"
-      },
-      {
-        "name": "DEBUG",
-        "value": "false"
-      },
-      {
-        "name": "REQUIRE_HTTPS",
-        "value": "true"
-      },
-      {
-        "name": "TRUST_PROXY",
-        "value": "true"
-      },
-      {
-        "name": "KMP_TENANCY_ENABLED",
-        "value": "[string(parameters('tenancyEnabled'))]"
-      },
-      {
-        "name": "KMP_PLATFORM_ADMIN_PORTAL_ENABLED",
-        "value": "[string(parameters('platformAdminPortalEnabled'))]"
-      },
-      {
-        "name": "KMP_PLATFORM_DATA_CONSOLE_ENABLED",
-        "value": "[string(parameters('platformDataConsoleEnabled'))]"
-      },
-      {
-        "name": "KMP_PLATFORM_ADMIN_DETAILED_LOGIN_ERRORS",
-        "value": "false"
-      },
-      {
-        "name": "CACHE_ENGINE",
-        "value": "[if(parameters('enableManagedRedis'), 'redis', 'apcu')]"
-      },
-      {
-        "name": "REDIS_URL",
-        "secretRef": "redis-url"
-      },
-      {
-        "name": "KMP_SESSION_DEFAULTS",
-        "value": "[if(parameters('enableManagedRedis'), 'cache', 'php')]"
-      },
-      {
-        "name": "KMP_SESSION_CACHE_CONFIG",
-        "value": "default"
-      },
-      {
-        "name": "EMAIL_DRIVER",
-        "value": "smtp"
-      },
-      {
-        "name": "EMAIL_SMTP_HOST",
-        "value": "[parameters('emailSmtpHost')]"
-      },
-      {
-        "name": "EMAIL_SMTP_PORT",
-        "value": "[string(parameters('emailSmtpPort'))]"
-      },
-      {
-        "name": "EMAIL_SMTP_USERNAME",
-        "value": "[parameters('emailSmtpUsername')]"
-      },
-      {
-        "name": "EMAIL_SMTP_PASSWORD",
-        "secretRef": "email-smtp-password"
-      },
-      {
-        "name": "EMAIL_SMTP_TLS",
-        "value": "[string(parameters('emailSmtpTls'))]"
-      },
-      {
-        "name": "EMAIL_FROM",
-        "value": "[parameters('emailFrom')]"
-      },
-      {
-        "name": "RELEASE_CHANNEL",
-        "value": "[parameters('releaseChannel')]"
-      },
-      {
-        "name": "DOCUMENT_STORAGE_ADAPTER",
-        "value": "azure"
-      },
-      {
-        "name": "AZURE_STORAGE_AUTH_MODE",
-        "value": "managedIdentity"
-      },
-      {
-        "name": "AZURE_STORAGE_ACCOUNT_NAME",
-        "value": "[variables('documentStorageName')]"
-      },
-      {
-        "name": "AZURE_STORAGE_CONTAINER_PREFIX",
-        "value": "[variables('documentContainerPrefix')]"
-      }
-    ],
+    "directApplicationInsightsEnv": "[if(equals(parameters('applicationInsightsTransport'), 'direct'), createArray(createObject('name', 'APPINSIGHTS_CONNECTION_STRING', 'secretRef', 'appinsights-connection-string'), createObject('name', 'APPLICATIONINSIGHTS_CONNECTION_STRING', 'secretRef', 'appinsights-connection-string')), createArray())]",
+    "applicationInsightsEnv": "[if(parameters('enableApplicationInsights'), concat(createArray(createObject('name', 'APPINSIGHTS_TRANSPORT', 'value', parameters('applicationInsightsTransport')), createObject('name', 'APPINSIGHTS_LOG_ENABLED', 'value', 'true'), createObject('name', 'APPINSIGHTS_ERROR_LOG_ENABLED', 'value', 'true'), createObject('name', 'APPINSIGHTS_QUERY_LOG_ENABLED', 'value', string(parameters('enableFullApplicationTelemetry'))), createObject('name', 'APPINSIGHTS_QUERY_SAMPLE_RATE', 'value', string(parameters('applicationInsightsQuerySampleRate'))), createObject('name', 'APPINSIGHTS_CLOUD_ROLE', 'value', parameters('namePrefix')), createObject('name', 'APPLICATIONINSIGHTS_CLOUD_ROLE_NAME', 'value', parameters('namePrefix')), createObject('name', 'PERF_REQUEST_LOG_ENABLED', 'value', string(parameters('enableFullApplicationTelemetry'))), createObject('name', 'PERF_LOG_ALL_REQUESTS', 'value', string(parameters('enableFullApplicationTelemetry'))), createObject('name', 'PERF_DB_QUERY_LOG_ENABLED', 'value', string(parameters('enableFullApplicationTelemetry')))), variables('directApplicationInsightsEnv')), createArray())]",
+    "commonEnv": "[concat(createArray(createObject('name', 'DATABASE_URL', 'secretRef', 'database-url'), createObject('name', 'PLATFORM_DATABASE_URL', 'secretRef', 'platform-database-url'), createObject('name', 'SECURITY_SALT', 'secretRef', 'security-salt'), createObject('name', 'BACKUP_ENCRYPTION_KEY', 'secretRef', 'backup-encryption-key'), createObject('name', 'KMP_DB_DRIVER', 'value', 'postgres'), createObject('name', 'KMP_SECRETS_DRIVER', 'value', 'database'), createObject('name', 'KMP_SECRETS_DB_MASTER_DRIVER', 'value', 'env'), createObject('name', 'KMP_SECRETS_DB_MASTER_KEY_NAME', 'value', 'platform.master_kek'), createObject('name', 'KMP_SECRET_PLATFORM_MASTER_KEK', 'secretRef', 'platform-secrets-master-key'), createObject('name', 'KMP_ENV', 'value', parameters('runtimeEnvironment')), createObject('name', 'APP_NAME', 'value', parameters('namePrefix')), createObject('name', 'DEBUG', 'value', 'false'), createObject('name', 'REQUIRE_HTTPS', 'value', 'true'), createObject('name', 'TRUST_PROXY', 'value', 'true'), createObject('name', 'KMP_TENANCY_ENABLED', 'value', string(parameters('tenancyEnabled'))), createObject('name', 'KMP_PLATFORM_ADMIN_PORTAL_ENABLED', 'value', string(parameters('platformAdminPortalEnabled'))), createObject('name', 'KMP_PLATFORM_DATA_CONSOLE_ENABLED', 'value', string(parameters('platformDataConsoleEnabled'))), createObject('name', 'KMP_PLATFORM_ADMIN_DETAILED_LOGIN_ERRORS', 'value', 'false'), createObject('name', 'CACHE_ENGINE', 'value', if(parameters('enableManagedRedis'), 'redis', 'apcu')), createObject('name', 'REDIS_URL', 'secretRef', 'redis-url'), createObject('name', 'REDIS_PERSISTENT', 'value', string(and(parameters('enableManagedRedis'), parameters('managedRedisPersistentConnections')))), createObject('name', 'KMP_SESSION_DEFAULTS', 'value', if(parameters('enableManagedRedis'), 'cache', 'php')), createObject('name', 'KMP_SESSION_CACHE_CONFIG', 'value', 'default'), createObject('name', 'EMAIL_DRIVER', 'value', 'smtp'), createObject('name', 'EMAIL_SMTP_HOST', 'value', parameters('emailSmtpHost')), createObject('name', 'EMAIL_SMTP_PORT', 'value', string(parameters('emailSmtpPort'))), createObject('name', 'EMAIL_SMTP_USERNAME', 'value', parameters('emailSmtpUsername')), createObject('name', 'EMAIL_SMTP_PASSWORD', 'secretRef', 'email-smtp-password'), createObject('name', 'EMAIL_SMTP_TLS', 'value', string(parameters('emailSmtpTls'))), createObject('name', 'EMAIL_FROM', 'value', parameters('emailFrom')), createObject('name', 'RELEASE_CHANNEL', 'value', parameters('releaseChannel')), createObject('name', 'DOCUMENT_STORAGE_ADAPTER', 'value', 'azure'), createObject('name', 'AZURE_STORAGE_AUTH_MODE', 'value', 'managedIdentity'), createObject('name', 'AZURE_STORAGE_ACCOUNT_NAME', 'value', variables('documentStorageName')), createObject('name', 'AZURE_STORAGE_CONTAINER_PREFIX', 'value', variables('documentContainerPrefix'))), variables('applicationInsightsEnv'))]",
     "fullImage": "[format('{0}:{1}', parameters('imageRepository'), parameters('imageTag'))]",
     "jobEnvWorker": "[concat(variables('commonEnv'), createArray(createObject('name', 'KMP_SKIP_CRON', 'value', 'true'), createObject('name', 'KMP_SKIP_MIGRATIONS', 'value', 'true')))]",
     "jobEnvMigrate": "[concat(variables('commonEnv'), createArray(createObject('name', 'KMP_SKIP_CRON', 'value', 'true')))]",
@@ -803,6 +736,47 @@
         },
         "retentionInDays": 30
       }
+    },
+    {
+      "condition": "[parameters('enableApplicationInsights')]",
+      "type": "Microsoft.Insights/components",
+      "apiVersion": "2020-02-02",
+      "name": "[variables('appInsightsName')]",
+      "location": "[parameters('location')]",
+      "kind": "web",
+      "properties": {
+        "Application_Type": "web",
+        "Flow_Type": "Bluefield",
+        "Request_Source": "rest",
+        "WorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('lawName'))]",
+        "IngestionMode": "LogAnalytics",
+        "publicNetworkAccessForIngestion": "Enabled",
+        "publicNetworkAccessForQuery": "Enabled"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', variables('lawName'))]"
+      ]
+    },
+    {
+      "condition": "[and(parameters('enableApplicationInsights'), parameters('deployTelemetryWorkbook'))]",
+      "type": "Microsoft.Insights/workbooks",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(resourceGroup().id, format('{0}-telemetry-dashboard', parameters('namePrefix')))]",
+      "location": "[parameters('location')]",
+      "kind": "shared",
+      "tags": {
+        "hidden-title": "KMP Production Telemetry Dashboard"
+      },
+      "properties": {
+        "displayName": "KMP Production Telemetry Dashboard",
+        "serializedData": "[variables('$fxv#0')]",
+        "version": "Notebook/1.0",
+        "sourceId": "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]",
+        "category": "performance"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]"
+      ]
     },
     {
       "type": "Microsoft.ContainerRegistry/registries",
@@ -1024,7 +998,7 @@
       "properties": {
         "accessKeysAuthentication": "Enabled",
         "clientProtocol": "Encrypted",
-        "clusteringPolicy": "OSSCluster",
+        "clusteringPolicy": "[parameters('managedRedisClusteringPolicy')]",
         "evictionPolicy": "AllKeysLRU",
         "modules": [],
         "port": 10000
@@ -1126,22 +1100,44 @@
       ]
     },
     {
-      "type": "Microsoft.App/managedEnvironments",
-      "apiVersion": "2024-03-01",
-      "name": "[variables('acaEnvName')]",
-      "location": "[parameters('location')]",
+      "condition": "[parameters('enableApplicationInsights')]",
+      "type": "Microsoft.KeyVault/vaults/secrets",
+      "apiVersion": "2023-07-01",
+      "name": "[format('{0}/{1}', variables('kvName'), 'appinsights-connection-string')]",
       "properties": {
-        "appLogsConfiguration": {
-          "destination": "log-analytics",
-          "logAnalyticsConfiguration": {
-            "customerId": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', variables('lawName')), '2023-09-01').customerId]",
-            "sharedKey": "[listKeys(resourceId('Microsoft.OperationalInsights/workspaces', variables('lawName')), '2023-09-01').primarySharedKey]"
-          }
-        },
-        "zoneRedundant": false
+        "value": "[reference(resourceId('Microsoft.Insights/components', variables('appInsightsName')), '2020-02-02').ConnectionString]"
       },
       "dependsOn": [
+        "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]",
+        "[resourceId('Microsoft.KeyVault/vaults', variables('kvName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/managedEnvironments",
+      "apiVersion": "2024-10-02-preview",
+      "name": "[variables('acaEnvName')]",
+      "location": "[parameters('location')]",
+      "properties": "[union(createObject('appLogsConfiguration', createObject('destination', 'log-analytics', 'logAnalyticsConfiguration', createObject('customerId', reference(resourceId('Microsoft.OperationalInsights/workspaces', variables('lawName')), '2023-09-01').customerId, 'sharedKey', listKeys(resourceId('Microsoft.OperationalInsights/workspaces', variables('lawName')), '2023-09-01').primarySharedKey)), 'zoneRedundant', false()), if(variables('managedOpenTelemetryEnabled'), createObject('appInsightsConfiguration', createObject('connectionString', reference(resourceId('Microsoft.Insights/components', variables('appInsightsName')), '2020-02-02').ConnectionString), 'openTelemetryConfiguration', createObject('logsConfiguration', createObject('destinations', createArray('appInsights')), 'tracesConfiguration', createObject('destinations', createArray('appInsights')))), createObject()))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]",
         "[resourceId('Microsoft.OperationalInsights/workspaces', variables('lawName'))]"
+      ]
+    },
+    {
+      "copy": {
+        "name": "containerAppManagedCertificate",
+        "count": "[length(parameters('containerAppCustomDomains'))]"
+      },
+      "type": "Microsoft.App/managedEnvironments/managedCertificates",
+      "apiVersion": "2024-03-01",
+      "name": "[format('{0}/{1}', variables('acaEnvName'), parameters('containerAppCustomDomains')[copyIndex()].name)]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "subjectName": "[parameters('containerAppCustomDomains')[copyIndex()].hostName]",
+        "domainControlValidation": "CNAME"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/managedEnvironments', variables('acaEnvName'))]"
       ]
     },
     {
@@ -1160,6 +1156,17 @@
         "configuration": {
           "activeRevisionsMode": "Single",
           "ingress": {
+            "copy": [
+              {
+                "name": "customDomains",
+                "count": "[length(parameters('containerAppCustomDomains'))]",
+                "input": {
+                  "name": "[parameters('containerAppCustomDomains')[copyIndex('customDomains')].hostName]",
+                  "bindingType": "SniEnabled",
+                  "certificateId": "[resourceId('Microsoft.App/managedEnvironments/managedCertificates', variables('acaEnvName'), parameters('containerAppCustomDomains')[copyIndex('customDomains')].name)]"
+                }
+              }
+            ],
             "external": true,
             "targetPort": 80,
             "transport": "auto",
@@ -1177,43 +1184,7 @@
               "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
             }
           ],
-          "secrets": [
-            {
-              "name": "database-url",
-              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'database-url'), '2023-07-01').secretUri]",
-              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
-            },
-            {
-              "name": "platform-database-url",
-              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'platform-database-url'), '2023-07-01').secretUri]",
-              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
-            },
-            {
-              "name": "security-salt",
-              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'security-salt'), '2023-07-01').secretUri]",
-              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
-            },
-            {
-              "name": "platform-secrets-master-key",
-              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'platform-secrets-master-key'), '2023-07-01').secretUri]",
-              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
-            },
-            {
-              "name": "backup-encryption-key",
-              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'backup-encryption-key'), '2023-07-01').secretUri]",
-              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
-            },
-            {
-              "name": "email-smtp-password",
-              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'email-smtp-password'), '2023-07-01').secretUri]",
-              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
-            },
-            {
-              "name": "redis-url",
-              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'redis-url'), '2023-07-01').secretUri]",
-              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
-            }
-          ]
+          "secrets": "[concat(createArray(createObject('name', 'database-url', 'keyVaultUrl', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'database-url'), '2023-07-01').secretUri, 'identity', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))), createObject('name', 'platform-database-url', 'keyVaultUrl', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'platform-database-url'), '2023-07-01').secretUri, 'identity', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))), createObject('name', 'security-salt', 'keyVaultUrl', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'security-salt'), '2023-07-01').secretUri, 'identity', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))), createObject('name', 'platform-secrets-master-key', 'keyVaultUrl', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'platform-secrets-master-key'), '2023-07-01').secretUri, 'identity', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))), createObject('name', 'backup-encryption-key', 'keyVaultUrl', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'backup-encryption-key'), '2023-07-01').secretUri, 'identity', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))), createObject('name', 'email-smtp-password', 'keyVaultUrl', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'email-smtp-password'), '2023-07-01').secretUri, 'identity', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))), createObject('name', 'redis-url', 'keyVaultUrl', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'redis-url'), '2023-07-01').secretUri, 'identity', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')))), if(parameters('enableApplicationInsights'), createArray(createObject('name', 'appinsights-connection-string', 'keyVaultUrl', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'appinsights-connection-string'), '2023-07-01').secretUri, 'identity', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')))), createArray()))]"
         },
         "template": {
           "containers": [
@@ -1224,7 +1195,7 @@
                 "cpu": "[json('0.5')]",
                 "memory": "1Gi"
               },
-              "env": "[concat(variables('commonEnv'), createArray(createObject('name', 'AZURE_CLIENT_ID', 'value', reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), '2023-01-31').clientId), createObject('name', 'KMP_PLATFORM_ADMIN_HOSTS', 'value', if(empty(parameters('platformAdminHosts')), format('{0}.{1}', variables('webAppName'), reference(resourceId('Microsoft.App/managedEnvironments', variables('acaEnvName')), '2024-03-01').defaultDomain), parameters('platformAdminHosts')))))]",
+              "env": "[concat(variables('commonEnv'), createArray(createObject('name', 'AZURE_CLIENT_ID', 'value', reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), '2023-01-31').clientId), createObject('name', 'KMP_PLATFORM_ADMIN_HOSTS', 'value', if(empty(parameters('platformAdminHosts')), format('{0}.{1}', variables('webAppName'), reference(resourceId('Microsoft.App/managedEnvironments', variables('acaEnvName')), '2024-10-02-preview').defaultDomain), parameters('platformAdminHosts')))))]",
               "probes": [
                 {
                   "type": "Liveness",
@@ -1269,11 +1240,13 @@
         "[resourceId('Microsoft.App/managedEnvironments', variables('acaEnvName'))]",
         "[resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName'))]",
         "[extensionResourceId(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), 'acrpull'))]",
+        "containerAppManagedCertificate",
         "[extensionResourceId(resourceId('Microsoft.Storage/storageAccounts', variables('documentStorageName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.Storage/storageAccounts', variables('documentStorageName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), 'blob-data-contributor'))]",
         "[resourceId('Microsoft.Storage/storageAccounts', variables('documentStorageName'))]",
         "[extensionResourceId(resourceId('Microsoft.KeyVault/vaults', variables('kvName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.KeyVault/vaults', variables('kvName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), 'secretsuser'))]",
         "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers/databases', variables('pgName'), parameters('postgresDatabaseName'))]",
         "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers/databases', variables('pgName'), parameters('platformPostgresDatabaseName'))]",
+        "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'appinsights-connection-string')]",
         "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'backup-encryption-key')]",
         "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'database-url')]",
         "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'platform-database-url')]",
@@ -1437,43 +1410,7 @@
               "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
             }
           ],
-          "secrets": [
-            {
-              "name": "database-url",
-              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'database-url'), '2023-07-01').secretUri]",
-              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
-            },
-            {
-              "name": "platform-database-url",
-              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'platform-database-url'), '2023-07-01').secretUri]",
-              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
-            },
-            {
-              "name": "security-salt",
-              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'security-salt'), '2023-07-01').secretUri]",
-              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
-            },
-            {
-              "name": "platform-secrets-master-key",
-              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'platform-secrets-master-key'), '2023-07-01').secretUri]",
-              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
-            },
-            {
-              "name": "backup-encryption-key",
-              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'backup-encryption-key'), '2023-07-01').secretUri]",
-              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
-            },
-            {
-              "name": "email-smtp-password",
-              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'email-smtp-password'), '2023-07-01').secretUri]",
-              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
-            },
-            {
-              "name": "redis-url",
-              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'redis-url'), '2023-07-01').secretUri]",
-              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
-            }
-          ]
+          "secrets": "[concat(createArray(createObject('name', 'database-url', 'keyVaultUrl', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'database-url'), '2023-07-01').secretUri, 'identity', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))), createObject('name', 'platform-database-url', 'keyVaultUrl', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'platform-database-url'), '2023-07-01').secretUri, 'identity', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))), createObject('name', 'security-salt', 'keyVaultUrl', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'security-salt'), '2023-07-01').secretUri, 'identity', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))), createObject('name', 'platform-secrets-master-key', 'keyVaultUrl', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'platform-secrets-master-key'), '2023-07-01').secretUri, 'identity', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))), createObject('name', 'backup-encryption-key', 'keyVaultUrl', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'backup-encryption-key'), '2023-07-01').secretUri, 'identity', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))), createObject('name', 'email-smtp-password', 'keyVaultUrl', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'email-smtp-password'), '2023-07-01').secretUri, 'identity', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))), createObject('name', 'redis-url', 'keyVaultUrl', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'redis-url'), '2023-07-01').secretUri, 'identity', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')))), if(parameters('enableApplicationInsights'), createArray(createObject('name', 'appinsights-connection-string', 'keyVaultUrl', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'appinsights-connection-string'), '2023-07-01').secretUri, 'identity', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')))), createArray()))]"
         },
         "template": {
           "containers": [
@@ -1500,6 +1437,7 @@
         "[extensionResourceId(resourceId('Microsoft.KeyVault/vaults', variables('kvName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.KeyVault/vaults', variables('kvName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), 'secretsuser'))]",
         "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers/databases', variables('pgName'), parameters('postgresDatabaseName'))]",
         "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers/databases', variables('pgName'), parameters('platformPostgresDatabaseName'))]",
+        "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'appinsights-connection-string')]",
         "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'backup-encryption-key')]",
         "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'database-url')]",
         "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'platform-database-url')]",
@@ -1543,43 +1481,7 @@
               "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
             }
           ],
-          "secrets": [
-            {
-              "name": "database-url",
-              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'database-url'), '2023-07-01').secretUri]",
-              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
-            },
-            {
-              "name": "platform-database-url",
-              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'platform-database-url'), '2023-07-01').secretUri]",
-              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
-            },
-            {
-              "name": "security-salt",
-              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'security-salt'), '2023-07-01').secretUri]",
-              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
-            },
-            {
-              "name": "platform-secrets-master-key",
-              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'platform-secrets-master-key'), '2023-07-01').secretUri]",
-              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
-            },
-            {
-              "name": "backup-encryption-key",
-              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'backup-encryption-key'), '2023-07-01').secretUri]",
-              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
-            },
-            {
-              "name": "email-smtp-password",
-              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'email-smtp-password'), '2023-07-01').secretUri]",
-              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
-            },
-            {
-              "name": "redis-url",
-              "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'redis-url'), '2023-07-01').secretUri]",
-              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
-            }
-          ]
+          "secrets": "[concat(createArray(createObject('name', 'database-url', 'keyVaultUrl', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'database-url'), '2023-07-01').secretUri, 'identity', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))), createObject('name', 'platform-database-url', 'keyVaultUrl', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'platform-database-url'), '2023-07-01').secretUri, 'identity', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))), createObject('name', 'security-salt', 'keyVaultUrl', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'security-salt'), '2023-07-01').secretUri, 'identity', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))), createObject('name', 'platform-secrets-master-key', 'keyVaultUrl', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'platform-secrets-master-key'), '2023-07-01').secretUri, 'identity', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))), createObject('name', 'backup-encryption-key', 'keyVaultUrl', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'backup-encryption-key'), '2023-07-01').secretUri, 'identity', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))), createObject('name', 'email-smtp-password', 'keyVaultUrl', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'email-smtp-password'), '2023-07-01').secretUri, 'identity', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))), createObject('name', 'redis-url', 'keyVaultUrl', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'redis-url'), '2023-07-01').secretUri, 'identity', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')))), if(parameters('enableApplicationInsights'), createArray(createObject('name', 'appinsights-connection-string', 'keyVaultUrl', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'appinsights-connection-string'), '2023-07-01').secretUri, 'identity', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')))), createArray()))]"
         },
         "template": {
           "containers": [
@@ -1606,6 +1508,7 @@
         "[extensionResourceId(resourceId('Microsoft.KeyVault/vaults', variables('kvName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.KeyVault/vaults', variables('kvName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), 'secretsuser'))]",
         "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers/databases', variables('pgName'), parameters('postgresDatabaseName'))]",
         "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers/databases', variables('pgName'), parameters('platformPostgresDatabaseName'))]",
+        "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'appinsights-connection-string')]",
         "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'backup-encryption-key')]",
         "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'database-url')]",
         "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('kvName'), 'platform-database-url')]",
@@ -1725,6 +1628,14 @@
     "acaEnvName": {
       "type": "string",
       "value": "[variables('acaEnvName')]"
+    },
+    "appInsightsName": {
+      "type": "string",
+      "value": "[if(parameters('enableApplicationInsights'), variables('appInsightsName'), '')]"
+    },
+    "telemetryWorkbookId": {
+      "type": "string",
+      "value": "[if(and(parameters('enableApplicationInsights'), parameters('deployTelemetryWorkbook')), resourceId('Microsoft.Insights/workbooks', guid(resourceGroup().id, format('{0}-telemetry-dashboard', parameters('namePrefix')))), '')]"
     },
     "frontDoorProfileName": {
       "type": "string",

@@ -152,8 +152,17 @@ param enableManagedRedis bool = false
 @description('Azure Managed Redis SKU.')
 param managedRedisSkuName string = 'Balanced_B0'
 
+@allowed([
+  'NoCluster'
+])
+@description('Azure Managed Redis clustering policy. KMP requires NoCluster because CakePHP uses a single-node Redis client.')
+param managedRedisClusteringPolicy string = 'NoCluster'
+
 @description('Enable Azure Managed Redis data replication.')
-param managedRedisHighAvailability bool = true
+param managedRedisHighAvailability bool = false
+
+@description('Reuse Redis connections across requests handled by the same PHP worker.')
+param managedRedisPersistentConnections bool = false
 
 @description('Enable host-based tenant resolution.')
 param tenancyEnabled bool = false
@@ -163,6 +172,30 @@ param platformAdminPortalEnabled bool = false
 
 @description('Comma-separated platform administration hosts. When empty, the Container App default hostname is used.')
 param platformAdminHosts string = ''
+
+@description('Optional Container App custom domains. Each item must be { name: string, hostName: string } and have valid CNAME/asuid DNS records.')
+param containerAppCustomDomains array = []
+
+@description('Provision a workspace-based Application Insights component and wire it to the application.')
+param enableApplicationInsights bool = false
+
+@description('Enable request, performance, error, and sampled SQL telemetry when Application Insights is enabled.')
+param enableFullApplicationTelemetry bool = false
+
+@allowed([
+  'direct'
+  'otlp'
+])
+@description('Application Insights export transport. Use otlp with the Container Apps managed OpenTelemetry agent.')
+param applicationInsightsTransport string = 'otlp'
+
+@minValue(1)
+@maxValue(100)
+@description('Percentage of SQL query telemetry sent to Application Insights.')
+param applicationInsightsQuerySampleRate int = 10
+
+@description('Deploy a copy of the KMP telemetry workbook bound to this environment Application Insights component.')
+param deployTelemetryWorkbook bool = false
 
 @description('Enable the platform data console.')
 param platformDataConsoleEnabled bool = false
@@ -250,9 +283,11 @@ param scheduleDispatcherParallelism int = 1
 
 var suffix = uniqueString(resourceGroup().id)
 var lawName = '${namePrefix}-law'
+var appInsightsName = '${namePrefix}-appi'
 var kvName = take('${namePrefix}-kv-${take(suffix, 6)}', 24)
 var pgName = '${namePrefix}-pg-${take(suffix, 6)}'
-var managedRedisName = take('${namePrefix}-redis-${take(suffix, 6)}', 60)
+var managedRedisName = take('${namePrefix}-redis-${toLower(managedRedisClusteringPolicy)}-${take(suffix, 6)}', 60)
+var managedOpenTelemetryEnabled = enableApplicationInsights && applicationInsightsTransport == 'otlp'
 var uamiName = '${namePrefix}-id'
 var documentStorageName = '${namePrefix}docs${take(suffix, 6)}'
 var documentContainerPrefix = 'documents'
@@ -281,6 +316,37 @@ resource law 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   properties: {
     sku: { name: 'PerGB2018' }
     retentionInDays: 30
+  }
+}
+
+resource appInsights 'Microsoft.Insights/components@2020-02-02' = if (enableApplicationInsights) {
+  name: appInsightsName
+  location: location
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    Flow_Type: 'Bluefield'
+    Request_Source: 'rest'
+    WorkspaceResourceId: law.id
+    IngestionMode: 'LogAnalytics'
+    publicNetworkAccessForIngestion: 'Enabled'
+    publicNetworkAccessForQuery: 'Enabled'
+  }
+}
+
+resource telemetryWorkbook 'Microsoft.Insights/workbooks@2022-04-01' = if (enableApplicationInsights && deployTelemetryWorkbook) {
+  name: guid(resourceGroup().id, '${namePrefix}-telemetry-dashboard')
+  location: location
+  kind: 'shared'
+  tags: {
+    'hidden-title': 'KMP Production Telemetry Dashboard'
+  }
+  properties: {
+    displayName: 'KMP Production Telemetry Dashboard'
+    serializedData: loadTextContent('workbooks/kmp-telemetry-dashboard.json')
+    version: 'Notebook/1.0'
+    sourceId: appInsights.id
+    category: 'performance'
   }
 }
 
@@ -490,7 +556,7 @@ resource managedRedisDatabase 'Microsoft.Cache/redisEnterprise/databases@2025-07
   properties: {
     accessKeysAuthentication: 'Enabled'
     clientProtocol: 'Encrypted'
-    clusteringPolicy: 'OSSCluster'
+    clusteringPolicy: managedRedisClusteringPolicy
     evictionPolicy: 'AllKeysLRU'
     modules: []
     port: 10000
@@ -546,14 +612,19 @@ resource secretRedisUrl 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   name: 'redis-url'
   properties: { value: redisUrlValue }
 }
+resource secretAppInsightsConnectionString 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (enableApplicationInsights) {
+  parent: kv
+  name: 'appinsights-connection-string'
+  properties: { value: appInsights.properties.ConnectionString }
+}
 
 // =============================================================================
 // Container Apps Environment
 // =============================================================================
-resource acaEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
+resource acaEnv 'Microsoft.App/managedEnvironments@2024-10-02-preview' = {
   name: acaEnvName
   location: location
-  properties: {
+  properties: union({
     appLogsConfiguration: {
       destination: 'log-analytics'
       logAnalyticsConfiguration: {
@@ -562,8 +633,34 @@ resource acaEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
       }
     }
     zoneRedundant: false
-  }
+  }, managedOpenTelemetryEnabled ? {
+    appInsightsConfiguration: {
+      connectionString: appInsights.properties.ConnectionString
+    }
+    openTelemetryConfiguration: {
+      logsConfiguration: {
+        destinations: [
+          'appInsights'
+        ]
+      }
+      tracesConfiguration: {
+        destinations: [
+          'appInsights'
+        ]
+      }
+    }
+  } : {})
 }
+
+resource containerAppManagedCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2024-03-01' = [for domain in containerAppCustomDomains: {
+  parent: acaEnv
+  name: domain.name
+  location: location
+  properties: {
+    subjectName: domain.hostName
+    domainControlValidation: 'CNAME'
+  }
+}]
 
 var defaultWebHost = '${webAppName}.${acaEnv.properties.defaultDomain}'
 var effectivePlatformAdminHosts = empty(platformAdminHosts) ? defaultWebHost : platformAdminHosts
@@ -571,7 +668,24 @@ var effectivePlatformAdminHosts = empty(platformAdminHosts) ? defaultWebHost : p
 // =============================================================================
 // Common container env for web + jobs
 // =============================================================================
-var commonEnv = [
+var directApplicationInsightsEnv = applicationInsightsTransport == 'direct' ? [
+  { name: 'APPINSIGHTS_CONNECTION_STRING', secretRef: 'appinsights-connection-string' }
+  { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', secretRef: 'appinsights-connection-string' }
+] : []
+var applicationInsightsEnv = enableApplicationInsights ? concat([
+  { name: 'APPINSIGHTS_TRANSPORT', value: applicationInsightsTransport }
+  { name: 'APPINSIGHTS_LOG_ENABLED', value: 'true' }
+  { name: 'APPINSIGHTS_ERROR_LOG_ENABLED', value: 'true' }
+  { name: 'APPINSIGHTS_QUERY_LOG_ENABLED', value: string(enableFullApplicationTelemetry) }
+  { name: 'APPINSIGHTS_QUERY_SAMPLE_RATE', value: string(applicationInsightsQuerySampleRate) }
+  { name: 'APPINSIGHTS_CLOUD_ROLE', value: namePrefix }
+  { name: 'APPLICATIONINSIGHTS_CLOUD_ROLE_NAME', value: namePrefix }
+  { name: 'PERF_REQUEST_LOG_ENABLED', value: string(enableFullApplicationTelemetry) }
+  { name: 'PERF_LOG_ALL_REQUESTS', value: string(enableFullApplicationTelemetry) }
+  { name: 'PERF_DB_QUERY_LOG_ENABLED', value: string(enableFullApplicationTelemetry) }
+], directApplicationInsightsEnv) : []
+
+var commonEnv = concat([
   // entrypoint.prod.sh parses DATABASE_URL to auto-detect engine + compose
   // config/app_local.php. postgres:// prefix triggers Postgres behaviour
   // (pg_isready probe, sslmode=require honoured by the PDO driver).
@@ -595,6 +709,7 @@ var commonEnv = [
   { name: 'KMP_PLATFORM_ADMIN_DETAILED_LOGIN_ERRORS', value: 'false' }
   { name: 'CACHE_ENGINE', value: enableManagedRedis ? 'redis' : 'apcu' }
   { name: 'REDIS_URL', secretRef: 'redis-url' }
+  { name: 'REDIS_PERSISTENT', value: string(enableManagedRedis && managedRedisPersistentConnections) }
   { name: 'KMP_SESSION_DEFAULTS', value: enableManagedRedis ? 'cache' : 'php' }
   { name: 'KMP_SESSION_CACHE_CONFIG', value: 'default' }
   { name: 'EMAIL_DRIVER', value: 'smtp' }
@@ -609,7 +724,7 @@ var commonEnv = [
   { name: 'AZURE_STORAGE_AUTH_MODE', value: 'managedIdentity' }
   { name: 'AZURE_STORAGE_ACCOUNT_NAME', value: documentStorage.name }
   { name: 'AZURE_STORAGE_CONTAINER_PREFIX', value: documentContainerPrefix }
-]
+], applicationInsightsEnv)
 
 var webEnv = concat(commonEnv, [
   { name: 'AZURE_CLIENT_ID', value: uami.properties.clientId }
@@ -617,7 +732,7 @@ var webEnv = concat(commonEnv, [
 ])
 
 // Secrets (pulled from Key Vault via UAMI)
-var commonSecrets = [
+var commonSecrets = concat([
   {
     name: 'database-url'
     keyVaultUrl: secretDatabaseUrl.properties.secretUri
@@ -653,7 +768,13 @@ var commonSecrets = [
     keyVaultUrl: secretRedisUrl.properties.secretUri
     identity: uami.id
   }
-]
+], enableApplicationInsights ? [
+  {
+    name: 'appinsights-connection-string'
+    keyVaultUrl: secretAppInsightsConnectionString.properties.secretUri
+    identity: uami.id
+  }
+] : [])
 
 var commonRegistries = [
   {
@@ -686,6 +807,11 @@ resource web 'Microsoft.App/containerApps@2024-03-01' = {
         traffic: [
           { latestRevision: true, weight: 100 }
         ]
+        customDomains: [for (domain, i) in containerAppCustomDomains: {
+          name: domain.hostName
+          bindingType: 'SniEnabled'
+          certificateId: containerAppManagedCertificate[i].id
+        }]
       }
       registries: commonRegistries
       secrets: commonSecrets
@@ -1089,5 +1215,7 @@ output scheduleNightlyJobName string = scheduleNightlyJobName
 output syncJobName string = scheduleDailyJobName
 output resetJobName string = restoreJobName
 output acaEnvName string = acaEnv.name
+output appInsightsName string = enableApplicationInsights ? appInsights.name : ''
+output telemetryWorkbookId string = enableApplicationInsights && deployTelemetryWorkbook ? telemetryWorkbook.id : ''
 output frontDoorProfileName string = deployFrontDoor ? frontDoorProfile.name : ''
 output frontDoorEndpointHostName string = deployFrontDoor ? frontDoorEndpoint.properties.hostName : ''

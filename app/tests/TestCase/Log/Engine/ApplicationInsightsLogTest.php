@@ -61,6 +61,38 @@ class ApplicationInsightsLogTest extends TestCase
         ]);
     }
 
+    public function testOtlpTransportPreservesWorkbookTelemetryShape(): void
+    {
+        $records = [];
+        $logger = new ApplicationInsightsLog([
+            'otlpEndpoint' => 'http://otel.test:4317',
+            'otlpEmitter' => function (array $batch) use (&$records): void {
+                array_push($records, ...$batch);
+            },
+            'cloudRole' => 'kmp-test',
+            'channel' => 'performance',
+            'batchSize' => 1,
+        ]);
+
+        $logger->log('warning', 'Slow request {path}', [
+            'scope' => ['app.performance'],
+            'path' => '/approvals',
+            'duration_ms' => 1234.56,
+        ]);
+        $logger->shutdown();
+
+        $this->assertCount(1, $records);
+        $this->assertSame('Slow request /approvals', $records[0]['message']);
+        $this->assertSame('warning', $records[0]['level']);
+        $this->assertSame('performance', $records[0]['attributes']['channel']);
+        $this->assertSame('app.performance', $records[0]['attributes']['scope']);
+        $this->assertSame('1234.56', $records[0]['attributes']['duration_ms']);
+        $this->assertSame(
+            ApplicationInsightsLog::TELEMETRY_SCHEMA_VERSION,
+            $records[0]['attributes']['telemetry_schema_version'],
+        );
+    }
+
     public function testLogBuffersUntilFlush(): void
     {
         $sent = [];

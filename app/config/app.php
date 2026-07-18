@@ -76,7 +76,10 @@ if ($cacheEngine === RedisEngine::class) {
             'password' => ($parsed['pass'] ?? null) ?: env('REDIS_PASSWORD', null),
             'database' => (int)(ltrim($parsed['path'] ?? '/0', '/') ?: '0'),
             'timeout'  => 0,
-            'persistent' => false,
+            'persistent' => filter_var(
+                (string)env('REDIS_PERSISTENT', false),
+                FILTER_VALIDATE_BOOLEAN,
+            ),
             'tls' => ($parsed['scheme'] ?? '') === 'rediss',
         ];
     }
@@ -162,7 +165,14 @@ $sessionHandler = $sessionDefaults === 'cache'
 $dbQueryLogEnabled = filter_var(env('PERF_DB_QUERY_LOG_ENABLED', false), FILTER_VALIDATE_BOOLEAN);
 
 $appInsightsConnectionString = trim((string)env('APPINSIGHTS_CONNECTION_STRING', ''));
-$appInsightsLogEnabled = $appInsightsConnectionString !== '' &&
+$appInsightsTransport = strtolower(trim((string)env('APPINSIGHTS_TRANSPORT', 'direct')));
+$appInsightsOtlpEndpoint = $appInsightsTransport === 'otlp'
+    ? trim((string)env('OTEL_EXPORTER_OTLP_ENDPOINT', ''))
+    : '';
+$appInsightsDestinationConfigured = $appInsightsTransport === 'otlp'
+    ? $appInsightsOtlpEndpoint !== ''
+    : $appInsightsConnectionString !== '';
+$appInsightsLogEnabled = $appInsightsDestinationConfigured &&
     filter_var((string)env('APPINSIGHTS_LOG_ENABLED', false), FILTER_VALIDATE_BOOLEAN);
 $appInsightsErrorLogEnabled = $appInsightsLogEnabled &&
     filter_var((string)env('APPINSIGHTS_ERROR_LOG_ENABLED', true), FILTER_VALIDATE_BOOLEAN);
@@ -174,7 +184,12 @@ $appInsightsLogConfig = [
     'cloudRole' => env('APPINSIGHTS_CLOUD_ROLE', 'kmp'),
     'cloudRoleInstance' => env('APPINSIGHTS_CLOUD_ROLE_INSTANCE', gethostname() ?: ''),
     'timeout' => (float)env('APPINSIGHTS_LOG_TIMEOUT', 2.0),
-    'batchSize' => (int)env('APPINSIGHTS_LOG_BATCH_SIZE', 25),
+    'batchSize' => (int)env(
+        'APPINSIGHTS_LOG_BATCH_SIZE',
+        $appInsightsTransport === 'otlp' ? 512 : 25,
+    ),
+    'otlpEndpoint' => $appInsightsOtlpEndpoint,
+    'otlpTimeout' => (float)env('APPINSIGHTS_OTLP_TIMEOUT', 0.05),
 ];
 
 return [

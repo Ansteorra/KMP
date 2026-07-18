@@ -72,8 +72,8 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
         opcache
 
 # Install PECL extensions
-RUN pecl install apcu yaml xdebug \
-    && docker-php-ext-enable apcu yaml xdebug
+RUN pecl install apcu grpc-1.82.0 protobuf yaml xdebug \
+    && docker-php-ext-enable apcu grpc protobuf yaml xdebug
 
 # Configure PHP
 RUN mv "$PHP_INI_DIR/php.ini-development" "$PHP_INI_DIR/php.ini" \

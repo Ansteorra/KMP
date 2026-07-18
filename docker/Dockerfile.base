@@ -30,11 +30,13 @@ RUN install-php-extensions \
         bcmath \
         bz2 \
         gd \
+        grpc-1.82.0 \
         intl \
         mysqli \
         opcache \
         pdo_mysql \
         pdo_pgsql \
+        protobuf \
         redis \
         zip \
         apcu \

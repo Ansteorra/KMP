@@ -304,11 +304,28 @@ and certificate issuance remain operational follow-up steps.
 ## Manual production release environment
 
 [`production.bicepparam`](./production.bicepparam) defines the initial
-cost-optimized North Central US release stack. It adds Azure Managed Redis B0,
-35-day PostgreSQL backup retention with geo-redundant backups, GRS document
-storage, 90-day Key Vault soft delete with purge protection, and the platform
-administration portal on the Container App's default hostname. It intentionally
-does not configure Front Door, custom domains, deployment automation, or
+cost-optimized North Central US release stack. It adds the smallest Azure
+Managed Redis tier (`Balanced_B0`) with high availability disabled and a
+`NoCluster` database, 35-day PostgreSQL backup retention with geo-redundant
+backups, GRS document storage, 90-day Key Vault soft delete with purge
+protection, and the platform administration portal on the Container App's
+default hostname. KMP requires `NoCluster` because CakePHP's Redis cache engine
+uses a single-node client and cannot follow Redis Cluster slot redirections.
+Production enables persistent Redis connections so each Apache PHP worker can
+reuse its TLS connections across requests. These connections do not keep a
+Container Apps replica active or change scaling; the production minimum replica
+count remains the cost-controlling setting.
+The rehearsal tenant hostname `poc-production.kmpdev.ansteorra.org` is bound
+directly to the Container App with a managed certificate. Production telemetry
+uses a dedicated workspace-based Application Insights component backed by
+`kmpprod-law`, with request, performance, error, and sampled SQL telemetry
+enabled. Application logs are batched in-process and sent over local OTLP/gRPC
+to the Container Apps managed OpenTelemetry agent; the agent performs the
+remote Application Insights delivery, retry, and buffering outside the web
+request. Set `applicationInsightsTransport = 'direct'` only as a rollback path
+for environments that do not have the managed agent enabled. A production copy
+of the KMP Telemetry Dashboard workbook is deployed against that component. The
+profile intentionally does not configure Front Door, deployment automation, or
 PgBouncer.
 
 The initial PostgreSQL B1ms server connects on port `5432`. Azure's built-in

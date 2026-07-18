@@ -42,12 +42,26 @@ param keyVaultPurgeProtection = true
 
 param enableManagedRedis = true
 param managedRedisSkuName = 'Balanced_B0'
-param managedRedisHighAvailability = true
+param managedRedisClusteringPolicy = 'NoCluster'
+param managedRedisHighAvailability = false
+param managedRedisPersistentConnections = true
+
+param enableApplicationInsights = true
+param enableFullApplicationTelemetry = true
+param applicationInsightsTransport = 'otlp'
+param applicationInsightsQuerySampleRate = 10
+param deployTelemetryWorkbook = true
 
 param tenancyEnabled = true
 param platformAdminPortalEnabled = true
 param platformAdminHosts = ''
 param platformDataConsoleEnabled = false
+param containerAppCustomDomains = [
+  {
+    name: 'poc-production.kmpdev.ansteo-kmpprod--260715230107'
+    hostName: 'poc-production.kmpdev.ansteorra.org'
+  }
+]
 
 param webMinReplicas = 1
 param webMaxReplicas = 3
