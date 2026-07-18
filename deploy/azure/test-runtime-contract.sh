@@ -47,6 +47,11 @@ if grep -Fq 'az containerapp job update' "$here/cutover-unified-worker.sh" \
     echo 'Job mutations must use sanitized ARM patches, not the lossy Azure CLI extension.' >&2
     exit 1
 fi
+assert_contains "$here/cutover-unified-worker.sh" '--job-execution-name "$execution"'
+if grep -Fq -- '--job-name "$job"' "$here/cutover-unified-worker.sh"; then
+    echo 'Execution polling uses the wrong Container Apps extension argument names.' >&2
+    exit 1
+fi
 
 bash -n "$here/update-web-runtime.sh"
 bash -n "$here/cutover-unified-worker.sh"

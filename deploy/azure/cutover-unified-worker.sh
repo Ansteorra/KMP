@@ -171,8 +171,8 @@ wait_for_execution() {
     for ((attempt = 1; attempt <= attempts; attempt++)); do
         status="$(az containerapp job execution show \
             --resource-group "$resource_group" \
-            --job-name "$job" \
-            --name "$execution" \
+            --name "$job" \
+            --job-execution-name "$execution" \
             --query properties.status \
             --output tsv 2>/dev/null || echo Unknown)"
         echo "[$attempt/$attempts] $label status: $status"
@@ -181,8 +181,8 @@ wait_for_execution() {
             Failed|Cancelled|Degraded)
                 az containerapp job execution show \
                     --resource-group "$resource_group" \
-                    --job-name "$job" \
-                    --name "$execution" \
+                    --name "$job" \
+                    --job-execution-name "$execution" \
                     --output yaml || true
                 return 1
                 ;;

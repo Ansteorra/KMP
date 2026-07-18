@@ -147,8 +147,8 @@ echo "Started platform migration rollback: $execution"
 for attempt in $(seq 1 180); do
     status="$(az containerapp job execution show \
         --resource-group "$resource_group" \
-        --job-name "$migrate_job" \
-        --name "$execution" \
+        --name "$migrate_job" \
+        --job-execution-name "$execution" \
         --query properties.status \
         --output tsv 2>/dev/null || echo Unknown)"
     case "$status" in
