@@ -42,6 +42,11 @@ if grep -Fq -- '--args /bin/sh' "$here/cutover-unified-worker.sh" \
     echo 'Azure CLI cannot parse shell flags passed through job update --args.' >&2
     exit 1
 fi
+if grep -Fq 'az containerapp job update' "$here/cutover-unified-worker.sh" \
+    || grep -Fq 'az containerapp job update' "$here/rollback-unified-worker.sh"; then
+    echo 'Job mutations must use sanitized ARM patches, not the lossy Azure CLI extension.' >&2
+    exit 1
+fi
 
 bash -n "$here/update-web-runtime.sh"
 bash -n "$here/cutover-unified-worker.sh"

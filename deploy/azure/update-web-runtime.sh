@@ -65,6 +65,7 @@ jq --arg image "$image" --arg container "$container_name" '
         properties: {
             template: (
                 .properties.template
+                | del(.containers[].imageType?)
                 | .containers |= map(
                     if .name == $container then
                         .image = $image

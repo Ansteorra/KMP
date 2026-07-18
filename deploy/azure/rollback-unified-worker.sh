@@ -65,8 +65,16 @@ patch_job_command() {
         --output json > "$current_file"
     resource_id="$(jq -r '.id' "$current_file")"
     jq --argjson command "$command_json" --argjson args "$args_json" '
-        .properties.template.containers[0].command = $command
+        del(.properties.template.containers[].imageType?)
+        | .properties.template.containers[0].command = $command
         | .properties.template.containers[0].args = $args
+        | .properties.template.containers[0].env = (
+            (.properties.template.containers[0].env // [] | map(select(
+                .name != "KMP_SKIP_CRON"
+                and .name != "KMP_SKIP_MIGRATIONS"
+            )))
+            + [{"name": "KMP_SKIP_CRON", "value": "true"}]
+        )
         | {properties: {template: .properties.template}}
     ' "$current_file" > "$patch_file"
     az rest \
@@ -79,61 +87,39 @@ patch_job_command() {
 
 restore_job() {
     local file="$1"
-    local name container image timeout retries parallelism completions cron
-    local command_json args_json
-    local -a cron_args remove_env_args set_env_args
+    local name resource_id patch_file
 
     name="$(jq -r '.name' "$file")"
-    container="$(jq -r '.properties.template.containers[0].name' "$file")"
-    image="$(jq -r '.properties.template.containers[0].image' "$file")"
-    timeout="$(jq -r '.properties.configuration.replicaTimeout' "$file")"
-    retries="$(jq -r '.properties.configuration.replicaRetryLimit' "$file")"
-    parallelism="$(jq -r '.properties.configuration.scheduleTriggerConfig.parallelism // 1' "$file")"
-    completions="$(jq -r '.properties.configuration.scheduleTriggerConfig.replicaCompletionCount // 1' "$file")"
-    cron="$(jq -r '.properties.configuration.scheduleTriggerConfig.cronExpression // empty' "$file")"
-    command_json="$(jq -c '.properties.template.containers[0].command // []' "$file")"
-    args_json="$(jq -c '.properties.template.containers[0].args // []' "$file")"
-
-    cron_args=()
-    if [[ -n "$cron" ]]; then
-        cron_args=(--cron-expression "$cron")
-    fi
-    remove_env_args=()
-    set_env_args=()
-    for env_name in KMP_SKIP_CRON KMP_SKIP_MIGRATIONS; do
-        env_value="$(jq -r --arg name "$env_name" '
-            .properties.template.containers[0].env[]
-            | select(.name == $name)
-            | .value // empty
-        ' "$file")"
-        if [[ -n "$env_value" ]]; then
-            set_env_args+=("${env_name}=${env_value}")
-        else
-            remove_env_args+=("$env_name")
-        fi
-    done
-
-    local -a env_options=()
-    if (( ${#set_env_args[@]} > 0 )); then
-        env_options+=(--set-env-vars "${set_env_args[@]}")
-    fi
-    if (( ${#remove_env_args[@]} > 0 )); then
-        env_options+=(--remove-env-vars "${remove_env_args[@]}")
-    fi
-
-    run az containerapp job update \
-        --resource-group "$resource_group" \
-        --name "$name" \
-        --image "$image" \
-        --container-name "$container" \
-        --replica-timeout "$timeout" \
-        --replica-retry-limit "$retries" \
-        --parallelism "$parallelism" \
-        --replica-completion-count "$completions" \
-        "${cron_args[@]}" \
-        "${env_options[@]}" \
+    resource_id="$(jq -r '.id' "$file")"
+    patch_file="$(mktemp)"
+    jq '
+        {
+            properties: {
+                configuration: (
+                    {
+                        replicaTimeout: .properties.configuration.replicaTimeout,
+                        replicaRetryLimit: .properties.configuration.replicaRetryLimit
+                    }
+                    + if .properties.configuration.triggerType == "Schedule" then {
+                        scheduleTriggerConfig: .properties.configuration.scheduleTriggerConfig
+                      } else {
+                        manualTriggerConfig: .properties.configuration.manualTriggerConfig
+                      }
+                      end
+                ),
+                template: (
+                    .properties.template
+                    | del(.containers[].imageType?)
+                )
+            }
+        }
+    ' "$file" > "$patch_file"
+    run az rest \
+        --method patch \
+        --uri "https://management.azure.com${resource_id}?api-version=2024-03-01" \
+        --body "@$patch_file" \
         --output none
-    patch_job_command "$name" "$command_json" "$args_json"
+    rm -f "$patch_file"
 }
 
 if "$dry_run"; then
@@ -148,18 +134,6 @@ for command in az jq; do
     }
 done
 
-rollback_image="$(az containerapp job show \
-    --resource-group "$resource_group" \
-    --name "$migrate_job" \
-    --query properties.template.containers[0].image \
-    --output tsv)"
-run az containerapp job update \
-    --resource-group "$resource_group" \
-    --name "$migrate_job" \
-    --image "$rollback_image" \
-    --set-env-vars KMP_SKIP_CRON=true \
-    --remove-env-vars KMP_SKIP_MIGRATIONS \
-    --output none
 patch_job_command \
     "$migrate_job" \
     '["/usr/local/bin/docker-entrypoint.sh"]' \
@@ -200,7 +174,14 @@ done
 web_id="$(jq -r '.id' "$snapshot_dir/web.json")"
 web_patch="$(mktemp)"
 trap 'rm -f "$web_patch"' EXIT
-jq '{properties: {template: .properties.template}}' "$snapshot_dir/web.json" > "$web_patch"
+jq '{
+    properties: {
+        template: (
+            .properties.template
+            | del(.containers[].imageType?)
+        )
+    }
+}' "$snapshot_dir/web.json" > "$web_patch"
 run az rest \
     --method patch \
     --uri "https://management.azure.com${web_id}?api-version=2024-03-01" \

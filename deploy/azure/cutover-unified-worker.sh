@@ -68,13 +68,20 @@ run() {
     fi
 }
 
-patch_job_command() {
+patch_job_runtime() {
     local job="$1"
-    local command_json="$2"
-    local args_json="$3"
+    local image_ref="$2"
+    local cron="$3"
+    local timeout="$4"
+    local retries="$5"
+    local parallelism="$6"
+    local completions="$7"
+    local env_mode="$8"
+    local command_json="$9"
+    local args_json="${10}"
 
     if "$dry_run"; then
-        echo "Would patch $job command=$command_json args=$args_json."
+        echo "Would patch $job image=$image_ref cron=${cron:-manual} command=$command_json args=$args_json."
         return
     fi
 
@@ -86,10 +93,60 @@ patch_job_command() {
         --name "$job" \
         --output json > "$current_file"
     resource_id="$(jq -r '.id' "$current_file")"
-    jq --argjson command "$command_json" --argjson args "$args_json" '
-        .properties.template.containers[0].command = $command
-        | .properties.template.containers[0].args = $args
-        | {properties: {template: .properties.template}}
+    jq \
+        --arg image "$image_ref" \
+        --arg cron "$cron" \
+        --arg envMode "$env_mode" \
+        --argjson timeout "$timeout" \
+        --argjson retries "$retries" \
+        --argjson parallelism "$parallelism" \
+        --argjson completions "$completions" \
+        --argjson command "$command_json" \
+        --argjson args "$args_json" '
+        (
+            .properties.template
+            | del(.containers[].imageType?)
+            | .containers[0].image = $image
+            | .containers[0].command = $command
+            | .containers[0].args = $args
+            | .containers[0].env = (
+                (.containers[0].env // [] | map(select(
+                    .name != "KMP_SKIP_CRON"
+                    and .name != "KMP_SKIP_MIGRATIONS"
+                )))
+                + if $envMode == "migrate" then
+                    [{"name": "KMP_SKIP_CRON", "value": "true"}]
+                  else
+                    [
+                        {"name": "KMP_SKIP_CRON", "value": "true"},
+                        {"name": "KMP_SKIP_MIGRATIONS", "value": "true"}
+                    ]
+                  end
+            )
+        ) as $template
+        | {
+            properties: {
+                configuration: (
+                    {
+                        replicaTimeout: $timeout,
+                        replicaRetryLimit: $retries
+                    }
+                    + if $cron == "" then {}
+                      else {
+                        scheduleTriggerConfig: (
+                            (.properties.configuration.scheduleTriggerConfig // {})
+                            + {
+                                cronExpression: $cron,
+                                parallelism: $parallelism,
+                                replicaCompletionCount: $completions
+                            }
+                        )
+                      }
+                      end
+                ),
+                template: $template
+            }
+        }
     ' "$current_file" > "$patch_file"
     az rest \
         --method patch \
@@ -209,41 +266,31 @@ if "$dry_run"; then
     existing_legacy_jobs=("${legacy_jobs[@]}")
 fi
 
-run az containerapp job update \
-    --resource-group "$resource_group" \
-    --name "$worker_job" \
-    --image "$image" \
-    --container-name queue \
-    --cron-expression '0 0 1 1 *' \
-    --replica-timeout 3600 \
-    --replica-retry-limit 1 \
-    --parallelism 1 \
-    --replica-completion-count 1 \
-    --set-env-vars KMP_SKIP_CRON=true KMP_SKIP_MIGRATIONS=true \
-    --output none
-
 # The pre-migration canary may see legacy queue schedule rows. Queue/platform
 # claims keep that one cycle idempotent until the consolidation migration lands.
-patch_job_command \
+patch_job_runtime \
     "$worker_job" \
+    "$image" \
+    '0 0 1 1 *' \
+    3600 \
+    1 \
+    1 \
+    1 \
+    worker \
     '["/usr/local/bin/docker-entrypoint.sh"]' \
     '["/bin/sh","-lc","bin/cake platform worker run --schedule-limit 100 --max-jobs 100 --max-runtime 45 --cycle-budget 240 --platform-limit 1 --json --fail-on-overlap"]'
 
 start_and_wait "$worker_job" 'unified worker canary'
 
-run az containerapp job update \
-    --resource-group "$resource_group" \
-    --name "$migrate_job" \
-    --image "$image" \
-    --container-name migrate \
-    --replica-timeout 1800 \
-    --replica-retry-limit 1 \
-    --set-env-vars KMP_SKIP_CRON=true \
-    --remove-env-vars KMP_SKIP_MIGRATIONS \
-    --output none
-
-patch_job_command \
+patch_job_runtime \
     "$migrate_job" \
+    "$image" \
+    '' \
+    1800 \
+    1 \
+    1 \
+    1 \
+    migrate \
     '["/usr/local/bin/docker-entrypoint.sh"]' \
     '["/bin/sh","-lc","bin/cake migrations migrate && bin/cake updateDatabase && bin/cake platform_migrate migrate"]'
 
@@ -251,16 +298,17 @@ start_and_wait "$migrate_job" 'migration'
 
 start_and_wait "$worker_job" 'post-migration worker verification'
 
-patch_job_command \
+patch_job_runtime \
     "$worker_job" \
+    "$image" \
+    '* * * * *' \
+    3600 \
+    1 \
+    1 \
+    1 \
+    worker \
     '["/usr/local/bin/docker-entrypoint.sh"]' \
     '["/bin/sh","-lc","bin/cake platform worker run --schedule-limit 100 --max-jobs 100 --max-runtime 45 --cycle-budget 240 --platform-limit 1 --json"]'
-
-run az containerapp job update \
-    --resource-group "$resource_group" \
-    --name "$worker_job" \
-    --cron-expression '* * * * *' \
-    --output none
 
 run "$script_dir/update-web-runtime.sh" \
     --resource-group "$resource_group" \
@@ -281,19 +329,15 @@ probe "https://${fqdn}/health" health
 
 for job in "${existing_legacy_jobs[@]}"; do
     [[ -n "$job" ]] || continue
-    run az containerapp job update \
-        --resource-group "$resource_group" \
-        --name "$job" \
-        --image "$image" \
-        --cron-expression '0 0 1 1 *' \
-        --replica-timeout 60 \
-        --replica-retry-limit 0 \
-        --parallelism 1 \
-        --replica-completion-count 1 \
-        --set-env-vars KMP_SKIP_CRON=true KMP_SKIP_MIGRATIONS=true \
-        --output none
-    patch_job_command \
+    patch_job_runtime \
         "$job" \
+        "$image" \
+        '0 0 1 1 *' \
+        60 \
+        0 \
+        1 \
+        1 \
+        worker \
         '["/usr/local/bin/docker-entrypoint.sh"]' \
         '["/bin/true"]'
 done
