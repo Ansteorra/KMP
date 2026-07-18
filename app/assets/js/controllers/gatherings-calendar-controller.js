@@ -44,6 +44,8 @@ class GatheringsCalendarController extends Controller {
         this.modalElement = null
         this.modalInstance = null
         this.turboFrame = null
+        this.attendanceModalElement = null
+        this.attendanceModalInstance = null
     }
 
     /**
@@ -427,6 +429,8 @@ class GatheringsCalendarController extends Controller {
      * @param {Event} event Click event
      */
     async showAttendanceModal(event) {
+        event?.preventDefault?.()
+
         const button = event.currentTarget
         const action = button.dataset.attendanceAction || 'add'
         const gatheringId = button.dataset.gatheringId
@@ -459,9 +463,21 @@ class GatheringsCalendarController extends Controller {
                 </div>
             `
 
-            // Show modal
-            const bsModal = new bootstrap.Modal(attendanceModal)
-            bsModal.show()
+            if (this.attendanceModalElement !== attendanceModal || !this.attendanceModalInstance) {
+                this.attendanceModalElement = attendanceModal
+                this.attendanceModalInstance = new bootstrap.Modal(attendanceModal)
+            }
+
+            const showAttendance = () => {
+                this.attendanceModalInstance?.show()
+            }
+
+            if (this.modalElement?.classList.contains('show') && this.modalInstance) {
+                this.modalElement.addEventListener('hidden.bs.modal', showAttendance, { once: true })
+                this.modalInstance.hide()
+            } else {
+                showAttendance()
+            }
 
             // Fetch the modal content from server
             let url
@@ -781,6 +797,11 @@ class GatheringsCalendarController extends Controller {
 
             if (this.modalInstance) {
                 this.modalInstance.dispose()
+            }
+            if (this.attendanceModalInstance) {
+                this.attendanceModalInstance.dispose()
+                this.attendanceModalInstance = null
+                this.attendanceModalElement = null
             }
         } catch (e) {
             console.warn('Error during disconnect cleanup:', e)

@@ -169,6 +169,17 @@ class GatheringAttendancesController extends AppController
                     ]);
                 }
                 $this->Flash->success(__('Your attendance has been registered.'));
+                $stream = $this->tryGatheringAttendanceGridTurboResponse(
+                    $this->getPageContextUrl(),
+                    (int)$gatheringAttendance->id,
+                    (int)$gatheringAttendance->member_id,
+                );
+                if ($stream !== null) {
+                    return $stream;
+                }
+                if ($this->wantsTurboStreamRequest()) {
+                    return $this->renderTurboFlashOnly();
+                }
             } else {
                 $errors = $gatheringAttendance->getErrors();
                 $errorMessage = 'Unable to register your attendance. Please try again.';
@@ -243,6 +254,9 @@ class GatheringAttendancesController extends AppController
                 if ($stream !== null) {
                     return $stream;
                 }
+                if ($this->wantsTurboStreamRequest()) {
+                    return $this->renderTurboFlashOnly();
+                }
             } else {
                 $errors = $gatheringAttendance->getErrors();
                 if (!empty($errors)) {
@@ -302,6 +316,9 @@ class GatheringAttendancesController extends AppController
             );
             if ($stream !== null) {
                 return $stream;
+            }
+            if ($this->wantsTurboStreamRequest()) {
+                return $this->renderTurboFlashOnly();
             }
         } else {
             $errors = $gatheringAttendance->getErrors();
@@ -730,6 +747,9 @@ class GatheringAttendancesController extends AppController
         });
     }
 
+    /**
+     * Build a Turbo Stream response when the RSVP originated from a supported member grid.
+     */
     private function tryGatheringAttendanceGridTurboResponse(
         ?string $pageContext,
         int $attendanceId,

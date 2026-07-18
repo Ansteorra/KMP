@@ -619,6 +619,32 @@ describe('GatheringsCalendarController', () => {
         expect(content.innerHTML).toContain('Form');
     });
 
+    test('showAttendanceModal hides quick view before showing attendance modal', async () => {
+        setupController();
+        controller.connect();
+        controller.modalElement.classList.add('show');
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: true,
+            text: () => Promise.resolve('<div class="modal-body">Form</div>')
+        });
+
+        const button = document.createElement('button');
+        button.dataset.attendanceAction = 'add';
+        button.dataset.gatheringId = '42';
+
+        await controller.showAttendanceModal({
+            preventDefault: jest.fn(),
+            currentTarget: button
+        });
+
+        const attendanceInstance = window.bootstrap.Modal.mock.results[1].value;
+        expect(controller.modalInstance.hide).toHaveBeenCalled();
+        expect(attendanceInstance.show).not.toHaveBeenCalled();
+
+        controller.modalElement.dispatchEvent(new Event('hidden.bs.modal'));
+        expect(attendanceInstance.show).toHaveBeenCalledTimes(1);
+    });
+
     test('showAttendanceModal uses edit URL with attendanceId', async () => {
         setupController();
         global.fetch = jest.fn().mockResolvedValue({
