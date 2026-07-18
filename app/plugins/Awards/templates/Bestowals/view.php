@@ -6,11 +6,13 @@ use Awards\Services\BestowalCourtSlotService;
 /**
  * @var \App\View\AppView $this
  * @var \Awards\Model\Entity\Bestowal $bestowal
+ * @var array{heraldNotes: bool, crownFields: bool} $protectedFieldAccess
  */
 
 $this->extend('/layout/TwitterBootstrap/view_record');
 
 $memberName = $bestowal->member->sca_name ?? $bestowal->member_sca_name ?? __('Unknown Member');
+$protectedFieldAccess ??= ['heraldNotes' => false, 'crownFields' => false];
 
 echo $this->KMP->startBlock('title');
 echo $this->KMP->getAppSetting('KMP.ShortSiteTitle') . ': ' . __('View Bestowal') . ' - ' . h($memberName);
@@ -130,10 +132,13 @@ if ($courtSlotLabel !== '') :
     <td><?= h((string)$bestowal->specialty) ?></td>
 </tr>
 <?php endif; ?>
+<?php if ($protectedFieldAccess['heraldNotes']) : ?>
 <tr>
     <th scope="row"><?= __('Herald Notes') ?></th>
     <td><?= $this->Text->autoParagraph(h((string)($bestowal->herald_notes ?? ''))) ?></td>
 </tr>
+<?php endif; ?>
+<?php if ($protectedFieldAccess['crownFields']) : ?>
 <tr>
     <th scope="row"><?= __('Noble Notes') ?></th>
     <td><?= $this->Text->autoParagraph(h((string)($bestowal->noble_notes ?? ''))) ?></td>
@@ -193,6 +198,7 @@ if ($courtSlotLabel !== '') :
         <?php endif; ?>
     </td>
 </tr>
+<?php endif; ?>
 <?php
 $this->KMP->endBlock();
 

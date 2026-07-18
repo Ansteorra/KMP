@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Awards\Controller;
 
 use Awards\Model\Entity\CourtAgenda;
+use Awards\Services\BestowalFieldAccessService;
 use Awards\Services\CourtAgendaService;
 use Cake\Http\Exception\BadRequestException;
 use Cake\Http\Response;
@@ -39,7 +40,10 @@ class CourtAgendasController extends AppController
         $canManage = $user->checkCan('edit', $agenda);
         $agendaService->ensureEligibleCourtSegments((int)$agenda->id, (int)$user->id);
 
-        $viewModel = $agendaService->buildAgendaViewModel((int)$agenda->id);
+        $viewModel = (new BestowalFieldAccessService())->redactAgendaViewModel(
+            $agendaService->buildAgendaViewModel((int)$agenda->id),
+            $user,
+        );
         $selectedSegmentId = $this->selectedSegmentId(
             $viewModel['segments'],
             $this->request->getQuery('segment_id'),
@@ -72,7 +76,10 @@ class CourtAgendasController extends AppController
         $agenda = $this->CourtAgendas->get($agendaIdInt, contain: ['Gatherings']);
         $this->Authorization->authorize($agenda, 'printAgenda');
 
-        $viewModel = $agendaService->buildAgendaViewModel($agendaIdInt);
+        $viewModel = (new BestowalFieldAccessService())->redactAgendaViewModel(
+            $agendaService->buildAgendaViewModel($agendaIdInt),
+            $this->request->getAttribute('identity'),
+        );
         $this->set([
             'agenda' => $viewModel['agenda'],
             'segments' => $viewModel['segments'],

@@ -204,7 +204,7 @@ describe('GridViewController', () => {
                         label: 'To-Dos',
                         options: [
                             { value: '__remaining', label: 'Has remaining required checks' },
-                            { value: 'open:has_scroll', label: 'Open: Has scroll' },
+                            { value: 'open:has_scroll', label: 'Open: Scroll Ready' },
                         ],
                     },
                 },

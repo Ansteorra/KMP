@@ -1,6 +1,7 @@
 <?php
 use Awards\Model\Entity\Bestowal;
 
+$protectedFieldAccess ??= ['heraldNotes' => false, 'crownFields' => false];
 $formUrl = $this->Url->build(['plugin' => 'Awards', 'controller' => 'Bestowals', 'action' => 'edit', $bestowal->id]);
 $submitAction = implode(' ', [
     'submit->turbo-modal#submitAsTurboStream',
@@ -342,142 +343,153 @@ $submitAction = implode(' ', [
             'data-awards-bestowal-edit-target' => 'givenDate',
             'container' => ['data-awards-bestowal-edit-target' => 'givenBlock'],
         ]);
-        echo $this->Form->control('noble_notes', [
-            'type' => 'textarea',
-            'label' => __('Noble Notes'),
-            'value' => $bestowal->noble_notes,
-            'data-awards-bestowal-edit-target' => 'nobleNotes',
-        ]);
-        echo $this->Form->control('herald_notes', [
-            'type' => 'textarea',
-            'label' => __('Herald Notes'),
-            'value' => $bestowal->herald_notes,
-            'data-awards-bestowal-edit-target' => 'heraldNotes',
-        ]);
+        if ($protectedFieldAccess['crownFields']) {
+            echo $this->Form->control('noble_notes', [
+                'type' => 'textarea',
+                'label' => __('Noble Notes'),
+                'value' => $bestowal->noble_notes,
+                'data-awards-bestowal-edit-target' => 'nobleNotes',
+            ]);
+        }
+        if ($protectedFieldAccess['heraldNotes']) {
+            echo $this->Form->control('herald_notes', [
+                'type' => 'textarea',
+                'label' => __('Herald Notes'),
+                'value' => $bestowal->herald_notes,
+                'data-awards-bestowal-edit-target' => 'heraldNotes',
+            ]);
+        }
         ?>
             </fieldset>
         </div>
         <div class="col-12">
             <fieldset class="border rounded-3 bg-white shadow-sm p-3">
                 <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                    <i class="bi bi-link-45deg text-info me-1" aria-hidden="true"></i>
-                    <?= __('Recommendation Links & Notes') ?>
+                    <?php if ($protectedFieldAccess['crownFields']) : ?>
+                        <i class="bi bi-link-45deg text-info me-1" aria-hidden="true"></i>
+                        <?= __('Recommendation Links & Notes') ?>
+                    <?php else : ?>
+                        <i class="bi bi-journal-text text-secondary me-1" aria-hidden="true"></i>
+                        <?= __('Update Note') ?>
+                    <?php endif; ?>
                 </legend>
 
-        <?= $this->Form->control('reason_summary', [
-            'type' => 'textarea',
-            'label' => __('Reason Summary'),
-            'value' => $bestowal->reason_summary,
-            'help' => __(
-                'Created from linked recommendation reasons and submitter names. '
-                . 'Update this if court notes need a shorter or edited version.',
-            ),
-            'rows' => 5,
-        ]) ?>
+            <?php if ($protectedFieldAccess['crownFields']) : ?>
+                <?= $this->Form->control('reason_summary', [
+                    'type' => 'textarea',
+                    'label' => __('Reason Summary'),
+                    'value' => $bestowal->reason_summary,
+                    'help' => __(
+                        'Created from linked recommendation reasons and submitter names. '
+                        . 'Update this if court notes need a shorter or edited version.',
+                    ),
+                    'rows' => 5,
+                ]) ?>
 
-        <?php
-        $linkedRecommendations = $bestowal->recommendations ?? [];
-        $linkedRecommendationCount = count($linkedRecommendations);
-        if ($linkedRecommendationCount > 1) : ?>
-            <div class="mb-3" data-awards-bestowal-edit-target="unlinkRecommendationsBlock">
-                <label class="form-label"><?= __('Unlink Recommendations') ?></label>
-                <p class="text-muted small">
-                    <?= __(
-                        'Unlinked recommendations return to their pre-link state '
-                        . '(typically King Approved). At least one recommendation must remain linked.',
-                    ) ?>
-                </p>
-                <?php foreach ($linkedRecommendations as $recommendation) :
-                    $awardLabel = $recommendation->award->abbreviation
-                        ?? $recommendation->award->name
-                        ?? 'Rec #' . $recommendation->id;
-                    ?>
-                    <div class="form-check">
-                        <?= $this->Form->checkbox('unlink_recommendation_ids[]', [
-                            'value' => $recommendation->id,
-                            'hiddenField' => false,
-                            'id' => 'unlink-rec-' . $recommendation->id,
-                            'class' => 'form-check-input',
-                            'data-awards-bestowal-edit-target' => 'unlinkRecommendation',
-                            'data-action' => 'change->awards-bestowal-edit#updateUnlinkAvailability',
-                        ]) ?>
-                        <label class="form-check-label" for="unlink-rec-<?= $recommendation->id ?>">
-                            <?= h($awardLabel) ?> — <?= h($recommendation->state) ?>
-                        </label>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        <?php elseif ($linkedRecommendationCount === 1) :
-            $onlyRecommendation = $linkedRecommendations[0];
-            $awardLabel = $onlyRecommendation->award->abbreviation
-                ?? $onlyRecommendation->award->name
-                ?? 'Rec #' . $onlyRecommendation->id;
-            ?>
-            <div class="mb-3">
-                <label class="form-label"><?= __('Linked Recommendation') ?></label>
-                <p class="form-control-plaintext mb-1">
-                    <?= h($awardLabel) ?> — <?= h($onlyRecommendation->state) ?>
-                </p>
-                <p class="text-muted small mb-0">
-                    <?= __(
-                        'A bestowal must keep at least one linked recommendation. '
-                        . 'Link another recommendation before unlinking this one.',
-                    ) ?>
-                </p>
-            </div>
-            <div class="mb-3 d-none" data-awards-bestowal-edit-target="unlinkRecommendationsBlock">
-                <label class="form-label"><?= __('Unlink Recommendation') ?></label>
-                <div class="form-check">
-                    <?= $this->Form->checkbox('unlink_recommendation_ids[]', [
-                        'value' => $onlyRecommendation->id,
-                        'hiddenField' => false,
-                        'id' => 'unlink-rec-' . $onlyRecommendation->id,
-                        'class' => 'form-check-input',
-                        'disabled' => true,
-                        'data-awards-bestowal-edit-target' => 'unlinkRecommendation',
-                        'data-action' => 'change->awards-bestowal-edit#updateUnlinkAvailability',
-                    ]) ?>
-                    <label class="form-check-label" for="unlink-rec-<?= $onlyRecommendation->id ?>">
-                        <?= h($awardLabel) ?> — <?= h($onlyRecommendation->state) ?>
-                    </label>
-                </div>
-            </div>
-        <?php endif; ?>
-
-        <?php if (!empty($linkableRecommendations)) : ?>
-            <div class="mb-3" data-awards-bestowal-edit-target="linkRecommendationsBlock">
-                <label class="form-label"><?= __('Link Recommendations') ?></label>
                 <?php
-                $linkedIds = array_map(
-                    fn($rec) => (int)$rec->id,
-                    $linkedRecommendations,
-                );
-                foreach ($linkableRecommendations as $recId => $label) :
-                    if (in_array((int)$recId, $linkedIds, true)) {
-                        continue;
-                    }
-                    ?>
-                    <div class="form-check">
-                        <?= $this->Form->checkbox('link_recommendation_ids[]', [
-                            'value' => $recId,
-                            'hiddenField' => false,
-                            'id' => 'link-rec-' . $recId,
-                            'class' => 'form-check-input',
-                            'data-awards-bestowal-edit-target' => 'linkRecommendation',
-                            'data-action' => 'change->awards-bestowal-edit#updateUnlinkAvailability',
-                        ]) ?>
-                        <label class="form-check-label" for="link-rec-<?= $recId ?>">
-                            <?= h($label) ?>
-                        </label>
+                $linkedRecommendations = $bestowal->recommendations ?? [];
+                $linkedRecommendationCount = count($linkedRecommendations);
+                if ($linkedRecommendationCount > 1) : ?>
+                    <div class="mb-3" data-awards-bestowal-edit-target="unlinkRecommendationsBlock">
+                        <label class="form-label"><?= __('Unlink Recommendations') ?></label>
+                        <p class="text-muted small">
+                            <?= __(
+                                'Unlinked recommendations return to their pre-link state '
+                                . '(typically King Approved). At least one recommendation must remain linked.',
+                            ) ?>
+                        </p>
+                        <?php foreach ($linkedRecommendations as $recommendation) :
+                            $awardLabel = $recommendation->award->abbreviation
+                                ?? $recommendation->award->name
+                                ?? 'Rec #' . $recommendation->id;
+                            ?>
+                            <div class="form-check">
+                                <?= $this->Form->checkbox('unlink_recommendation_ids[]', [
+                                    'value' => $recommendation->id,
+                                    'hiddenField' => false,
+                                    'id' => 'unlink-rec-' . $recommendation->id,
+                                    'class' => 'form-check-input',
+                                    'data-awards-bestowal-edit-target' => 'unlinkRecommendation',
+                                    'data-action' => 'change->awards-bestowal-edit#updateUnlinkAvailability',
+                                ]) ?>
+                                <label class="form-check-label" for="unlink-rec-<?= $recommendation->id ?>">
+                                    <?= h($awardLabel) ?> — <?= h($recommendation->state) ?>
+                                </label>
+                            </div>
+                        <?php endforeach; ?>
                     </div>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
+                <?php elseif ($linkedRecommendationCount === 1) :
+                    $onlyRecommendation = $linkedRecommendations[0];
+                    $awardLabel = $onlyRecommendation->award->abbreviation
+                        ?? $onlyRecommendation->award->name
+                        ?? 'Rec #' . $onlyRecommendation->id;
+                    ?>
+                    <div class="mb-3">
+                        <label class="form-label"><?= __('Linked Recommendation') ?></label>
+                        <p class="form-control-plaintext mb-1">
+                            <?= h($awardLabel) ?> — <?= h($onlyRecommendation->state) ?>
+                        </p>
+                        <p class="text-muted small mb-0">
+                            <?= __(
+                                'A bestowal must keep at least one linked recommendation. '
+                                . 'Link another recommendation before unlinking this one.',
+                            ) ?>
+                        </p>
+                    </div>
+                    <div class="mb-3 d-none" data-awards-bestowal-edit-target="unlinkRecommendationsBlock">
+                        <label class="form-label"><?= __('Unlink Recommendation') ?></label>
+                        <div class="form-check">
+                            <?= $this->Form->checkbox('unlink_recommendation_ids[]', [
+                                'value' => $onlyRecommendation->id,
+                                'hiddenField' => false,
+                                'id' => 'unlink-rec-' . $onlyRecommendation->id,
+                                'class' => 'form-check-input',
+                                'disabled' => true,
+                                'data-awards-bestowal-edit-target' => 'unlinkRecommendation',
+                                'data-action' => 'change->awards-bestowal-edit#updateUnlinkAvailability',
+                            ]) ?>
+                            <label class="form-check-label" for="unlink-rec-<?= $onlyRecommendation->id ?>">
+                                <?= h($awardLabel) ?> — <?= h($onlyRecommendation->state) ?>
+                            </label>
+                        </div>
+                    </div>
+                <?php endif; ?>
 
-        <?= $this->Form->control('note', [
-            'type' => 'textarea',
-            'label' => __('Note'),
-        ]) ?>
+                <?php if (!empty($linkableRecommendations)) : ?>
+                    <div class="mb-3" data-awards-bestowal-edit-target="linkRecommendationsBlock">
+                        <label class="form-label"><?= __('Link Recommendations') ?></label>
+                        <?php
+                        $linkedIds = array_map(
+                            fn($rec) => (int)$rec->id,
+                            $linkedRecommendations,
+                        );
+                        foreach ($linkableRecommendations as $recId => $label) :
+                            if (in_array((int)$recId, $linkedIds, true)) {
+                                continue;
+                            }
+                            ?>
+                            <div class="form-check">
+                                <?= $this->Form->checkbox('link_recommendation_ids[]', [
+                                    'value' => $recId,
+                                    'hiddenField' => false,
+                                    'id' => 'link-rec-' . $recId,
+                                    'class' => 'form-check-input',
+                                    'data-awards-bestowal-edit-target' => 'linkRecommendation',
+                                    'data-action' => 'change->awards-bestowal-edit#updateUnlinkAvailability',
+                                ]) ?>
+                                <label class="form-check-label" for="link-rec-<?= $recId ?>">
+                                    <?= h($label) ?>
+                                </label>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            <?php endif; ?>
+
+            <?= $this->Form->control('note', [
+                'type' => 'textarea',
+                'label' => __('Note'),
+            ]) ?>
             </fieldset>
         </div>
         </div>

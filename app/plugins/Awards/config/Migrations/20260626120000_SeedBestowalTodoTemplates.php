@@ -58,14 +58,14 @@ class SeedBestowalTodoTemplates extends BaseMigration
     private const ITEMS = [
         [
             'key' => 'has_scroll',
-            'label' => 'Has Scroll',
+            'label' => 'Scroll Ready',
             'permission_suffix' => 'Scroll Management',
             'is_gating' => false,
             'sort' => 10,
         ],
         [
             'key' => 'regalia_allotted',
-            'label' => 'Regalia Allotted For',
+            'label' => 'Insignia Ready',
             'permission_suffix' => 'Regalia Management',
             'is_gating' => false,
             'sort' => 20,

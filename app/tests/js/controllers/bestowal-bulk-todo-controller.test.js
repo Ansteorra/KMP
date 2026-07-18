@@ -113,7 +113,7 @@ describe('AwardsBestowalBulkTodo', () => {
 
     test('applySelection populates ids, summary, and check options', () => {
         controller.applySelection(['3', '4', '4'], [
-            { id: '3', options: [{ key: 'has_scroll', label: 'Has Scroll' }] },
+            { id: '3', options: [{ key: 'has_scroll', label: 'Scroll Ready' }] },
             { id: '4', options: [{ key: 'event_scheduled', label: 'Event Scheduled', requiresGathering: true }] },
         ]);
         expect(ids.value).toBe('3,4');
@@ -125,7 +125,7 @@ describe('AwardsBestowalBulkTodo', () => {
 
     test('applySelection uses singular copy for one bestowal', () => {
         controller.applySelection(['3'], [
-            { id: '3', options: [{ key: 'has_scroll', label: 'Has Scroll' }] },
+            { id: '3', options: [{ key: 'has_scroll', label: 'Scroll Ready' }] },
         ]);
         expect(summary.textContent).toContain('1 selected bestowal');
         checkSelect.value = 'has_scroll';
@@ -192,7 +192,7 @@ describe('AwardsBestowalBulkTodo', () => {
     test('switching away from a gathering-required check hides and disables the gathering field', () => {
         controller.applySelection(['3'], [
             { id: '3', options: [{ key: 'event_scheduled', label: 'Event Scheduled', requiresGathering: true }] },
-            { id: '3', options: [{ key: 'has_scroll', label: 'Has Scroll' }] },
+            { id: '3', options: [{ key: 'has_scroll', label: 'Scroll Ready' }] },
         ]);
 
         checkSelect.value = 'event_scheduled';

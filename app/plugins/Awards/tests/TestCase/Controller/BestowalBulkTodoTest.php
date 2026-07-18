@@ -67,7 +67,7 @@ class BestowalBulkTodoTest extends HttpIntegrationTestCase
         return $table->saveOrFail($table->newEntity(array_merge([
             'entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
             'entity_id' => $bestowalId,
-            'title' => 'Has scroll',
+            'title' => 'Scroll Ready',
             'assignee_type' => ActionItem::ASSIGNEE_TYPE_MEMBER,
             'assignee_config' => ['member_id' => $assigneeMemberId],
             'branch_id' => self::KINGDOM_BRANCH_ID,
@@ -115,7 +115,7 @@ class BestowalBulkTodoTest extends HttpIntegrationTestCase
         $this->get('/awards/bestowals/bestowal-todos/' . $bestowal->id);
 
         $this->assertResponseOk();
-        $this->assertResponseContains('Has scroll');
+        $this->assertResponseContains('Scroll Ready');
         $this->assertResponseContains('bestowalTodosQuick');
         $this->assertResponseContains('Complete');
     }

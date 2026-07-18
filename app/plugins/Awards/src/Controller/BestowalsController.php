@@ -17,6 +17,7 @@ use Awards\Model\Entity\BestowalTodoTemplateItem;
 use Awards\Services\BestowalCancellationService;
 use Awards\Services\BestowalCourtSlotService;
 use Awards\Services\BestowalCreationService;
+use Awards\Services\BestowalFieldAccessService;
 use Awards\Services\BestowalFinalizationService;
 use Awards\Services\BestowalFormService;
 use Awards\Services\BestowalGatheringLookupService;
@@ -24,6 +25,7 @@ use Awards\Services\BestowalQueryService;
 use Awards\Services\BestowalUpdateService;
 use Cake\Datasource\Exception\RecordNotFoundException;
 use Cake\Http\Exception\BadRequestException;
+use Cake\Http\Exception\ForbiddenException;
 use Cake\Http\Exception\NotFoundException;
 use Cake\Http\Response;
 use Cake\I18n\DateTime;
@@ -45,12 +47,15 @@ class BestowalsController extends AppController
     use DataverseGridTrait;
     use WorkflowDispatchTrait;
 
+    private BestowalFieldAccessService $fieldAccessService;
+
     /**
      * @return void
      */
     public function initialize(): void
     {
         parent::initialize();
+        $this->fieldAccessService = new BestowalFieldAccessService();
     }
 
     /**
@@ -67,6 +72,7 @@ class BestowalsController extends AppController
         if ($user->checkCan('edit', $emptyBestowal)) {
             $formService = new BestowalFormService();
             $adHocFormData = $formService->prepareAdHocFormData($user);
+            $adHocFormData['protectedFieldAccess'] = $this->fieldAccessService->accessFor($user, $emptyBestowal);
             $this->set(compact('adHocFormData'));
         }
 
@@ -87,6 +93,11 @@ class BestowalsController extends AppController
 
         $user = $this->request->getAttribute('identity');
         $canViewHidden = $user->checkCan('ViewHidden', $emptyBestowal);
+        $protectedAccess = $this->fieldAccessService->accessFor($user, $emptyBestowal);
+        $previousProtectedVisibility = BestowalsGridColumns::setProtectedFieldVisibility(
+            $protectedAccess['heraldNotes'],
+            $protectedAccess['crownFields'],
+        );
 
         $systemViews = BestowalsGridColumns::getSystemViews([]);
         $queryContext = $this->resolveDataverseGridQueryContext([
@@ -111,6 +122,10 @@ class BestowalsController extends AppController
 
         if (!empty($result['isCsvExport'])) {
             $exportData = $this->prepareBestowalsForDisplay($result['query']->all(), $result['visibleColumns'], false);
+            BestowalsGridColumns::setProtectedFieldVisibility(
+                $previousProtectedVisibility['heraldNotes'],
+                $previousProtectedVisibility['crownFields'],
+            );
 
             return $this->handleCsvExport($result, $csvExportService, 'bestowals', 'Awards.Bestowals', $exportData);
         }
@@ -119,6 +134,10 @@ class BestowalsController extends AppController
         $this->prepareBestowalsForDisplay($bestowals, $result['visibleColumns']);
 
         $this->setGridViewVariables($bestowals, $result, 'bestowals-grid', 'bestowals-grid-table');
+        BestowalsGridColumns::setProtectedFieldVisibility(
+            $previousProtectedVisibility['heraldNotes'],
+            $previousProtectedVisibility['crownFields'],
+        );
 
         return null;
     }
@@ -150,6 +169,11 @@ class BestowalsController extends AppController
 
         $this->Authorization->authorize($bestowal, 'gatheringBestowalsGridData');
         $canViewHidden = $user->checkCan('ViewHidden', $bestowal);
+        $protectedAccess = $this->fieldAccessService->accessFor($user, $bestowal);
+        $previousProtectedVisibility = BestowalsGridColumns::setProtectedFieldVisibility(
+            $protectedAccess['heraldNotes'],
+            $protectedAccess['crownFields'],
+        );
 
         $systemViews = BestowalsGridColumns::getSystemViews(['context' => 'gatheringBestowals']);
         $queryContext = $this->resolveDataverseGridQueryContext([
@@ -174,6 +198,10 @@ class BestowalsController extends AppController
 
         if (!empty($result['isCsvExport'])) {
             $exportData = $this->prepareBestowalsForDisplay($result['query']->all(), $result['visibleColumns'], false);
+            BestowalsGridColumns::setProtectedFieldVisibility(
+                $previousProtectedVisibility['heraldNotes'],
+                $previousProtectedVisibility['crownFields'],
+            );
 
             return $this->handleCsvExport(
                 $result,
@@ -235,6 +263,10 @@ class BestowalsController extends AppController
             $this->viewBuilder()->setTemplatePath('element');
             $this->viewBuilder()->setTemplate('dv_grid_content');
         }
+        BestowalsGridColumns::setProtectedFieldVisibility(
+            $previousProtectedVisibility['heraldNotes'],
+            $previousProtectedVisibility['crownFields'],
+        );
 
         return null;
     }
@@ -258,6 +290,7 @@ class BestowalsController extends AppController
         $this->Authorization->authorize($bestowal, 'view');
 
         $user = $this->request->getAttribute('identity');
+        $protectedFieldAccess = $this->fieldAccessService->redact($bestowal, $user);
         $memberId = (int)$user->getIdentifier();
         $todoContext = $this->buildBestowalTodoContext(
             $bestowal,
@@ -266,7 +299,7 @@ class BestowalsController extends AppController
             $user->isSuperUser(),
         );
 
-        $this->set(compact('bestowal'));
+        $this->set(compact('bestowal', 'protectedFieldAccess'));
         $this->set($todoContext);
 
         return null;
@@ -490,6 +523,14 @@ class BestowalsController extends AppController
             $this->Authorization->authorize($bestowal, 'edit');
 
             $user = $this->request->getAttribute('identity');
+            $deniedFields = $this->fieldAccessService->deniedMutationFields(
+                $this->request->getData(),
+                $user,
+                $bestowal,
+            );
+            if ($deniedFields !== []) {
+                throw new ForbiddenException(__('You are not authorized to update protected bestowal fields.'));
+            }
             $result = $this->dispatchBestowalMutation(
                 $triggerDispatcher,
                 'awards-bestowal-update',
@@ -557,11 +598,16 @@ class BestowalsController extends AppController
                 'Recommendations' => ['Awards', 'Awards.Levels'],
             ]);
             $this->Authorization->authorize($bestowal, 'turboEditForm');
-            $this->set($formService->prepareEditFormData(
+            $user = $this->request->getAttribute('identity');
+            $protectedFieldAccess = $this->fieldAccessService->accessFor($user, $bestowal);
+            $formData = $formService->prepareEditFormData(
                 $this->Bestowals,
                 $bestowal,
-                $this->request->getAttribute('identity'),
-            ));
+                $user,
+                $protectedFieldAccess['crownFields'],
+            );
+            $this->fieldAccessService->redact($bestowal, $user);
+            $this->set($formData + compact('protectedFieldAccess'));
 
             return null;
         } catch (RecordNotFoundException) {
@@ -1290,6 +1336,17 @@ class BestowalsController extends AppController
         $this->Authorization->authorize($emptyBestowal, 'adHoc');
 
         $data = $this->request->getData();
+        $awardId = $data['awardId'] ?? $data['award_id'] ?? null;
+        if (is_numeric((string)$awardId) && (int)$awardId > 0) {
+            $emptyBestowal->award_id = (int)$awardId;
+            $emptyBestowal->award = TableRegistry::getTableLocator()
+                ->get('Awards.Awards')
+                ->get((int)$awardId);
+        }
+        $deniedFields = $this->fieldAccessService->deniedMutationFields($data, $user, $emptyBestowal);
+        if ($deniedFields !== []) {
+            throw new ForbiddenException(__('You are not authorized to set protected bestowal fields.'));
+        }
         $result = $this->dispatchBestowalMutation(
             $triggerDispatcher,
             'awards-bestowal-ad-hoc',
@@ -1387,6 +1444,7 @@ class BestowalsController extends AppController
                 $bestowal->gathering_name = $bestowal->gathering->name ?? '';
                 $bestowal->gathering_public_id = $bestowal->gathering->public_id ?? null;
             }
+            $this->fieldAccessService->redact($bestowal, $this->request->getAttribute('identity'));
         }
 
         return $bestowals;
@@ -2125,6 +2183,11 @@ class BestowalsController extends AppController
             $user = $this->request->getAttribute('identity');
             $canViewHidden = $user->checkCan('ViewHidden', $emptyBestowal);
             $canEdit = $user->checkCan('edit', $emptyBestowal);
+            $protectedAccess = $this->fieldAccessService->accessFor($user, $emptyBestowal);
+            $previousProtectedVisibility = BestowalsGridColumns::setProtectedFieldVisibility(
+                $protectedAccess['heraldNotes'],
+                $protectedAccess['crownFields'],
+            );
 
             if ($syncContext['contextKey'] === 'gathering') {
                 $systemViews = BestowalsGridColumns::getSystemViews(['context' => 'gatheringBestowals']);
@@ -2178,6 +2241,11 @@ class BestowalsController extends AppController
                 $bestowals = [];
             }
             if ($bestowals === []) {
+                BestowalsGridColumns::setProtectedFieldVisibility(
+                    $previousProtectedVisibility['heraldNotes'],
+                    $previousProtectedVisibility['crownFields'],
+                );
+
                 return [
                     'action' => 'remove',
                     'rowDomId' => $rowDomId,
@@ -2211,6 +2279,11 @@ class BestowalsController extends AppController
                 'rowDomIdPrefix' => preg_replace('/-table$/', '', $tableFrameId),
                 'showActionsColumn' => $enableColumnPicker || $rowActions !== [],
             ]);
+
+            BestowalsGridColumns::setProtectedFieldVisibility(
+                $previousProtectedVisibility['heraldNotes'],
+                $previousProtectedVisibility['crownFields'],
+            );
 
             return [
                 'action' => 'replace',

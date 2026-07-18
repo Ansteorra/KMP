@@ -55,10 +55,15 @@ class BestowalFormService
      * @param \Cake\ORM\Table $bestowalsTable Bestowals table.
      * @param \Awards\Model\Entity\Bestowal $bestowal Loaded bestowal entity.
      * @param \App\Model\Entity\Member|array|null $member Current user for timezone-aware labels.
+     * @param bool $includeRecommendationLinks Whether Crown-only recommendation link data should be loaded.
      * @return array<string, mixed>
      */
-    public function prepareEditFormData(Table $bestowalsTable, Bestowal $bestowal, $member = null): array
-    {
+    public function prepareEditFormData(
+        Table $bestowalsTable,
+        Bestowal $bestowal,
+        $member = null,
+        bool $includeRecommendationLinks = true,
+    ): array {
         $futureOnly = (string)($bestowal->lifecycle_status ?? Bestowal::LIFECYCLE_OPEN)
             !== Bestowal::LIFECYCLE_GIVEN;
         $statusList = [];
@@ -103,10 +108,9 @@ class BestowalFormService
                 '#' => 'nav-schedule',
             ];
         }
-        $linkableRecommendations = $this->findLinkableRecommendations(
-            $bestowalsTable,
-            $bestowal,
-        );
+        $linkableRecommendations = $includeRecommendationLinks
+            ? $this->findLinkableRecommendations($bestowalsTable, $bestowal)
+            : [];
         $statusMap = $this->buildStatusMap();
         $awardsTable = TableRegistry::getTableLocator()->get('Awards.Awards');
         $awardsDomains = $awardsTable->Domains->find('list', limit: 200)->all();

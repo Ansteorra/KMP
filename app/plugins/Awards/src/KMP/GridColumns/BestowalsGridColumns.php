@@ -16,12 +16,33 @@ use Cake\ORM\TableRegistry;
  */
 class BestowalsGridColumns extends BaseGridColumns
 {
+    protected static bool $includeHeraldNotes = false;
+
+    protected static bool $includeCrownFields = false;
+
+    /**
+     * Set protected-column visibility for the current request.
+     *
+     * @return array{heraldNotes: bool, crownFields: bool} Previous visibility.
+     */
+    public static function setProtectedFieldVisibility(bool $heraldNotes, bool $crownFields): array
+    {
+        $previous = [
+            'heraldNotes' => static::$includeHeraldNotes,
+            'crownFields' => static::$includeCrownFields,
+        ];
+        static::$includeHeraldNotes = $heraldNotes || $crownFields;
+        static::$includeCrownFields = $crownFields;
+
+        return $previous;
+    }
+
     /**
      * @return array<string, array<string, mixed>>
      */
     public static function getRowActions(): array
     {
-        return [
+        $columns = [
             'view' => [
                 'key' => 'view',
                 'type' => 'link',
@@ -69,6 +90,8 @@ class BestowalsGridColumns extends BaseGridColumns
                 ],
             ],
         ];
+
+        return $columns;
     }
 
     /**
@@ -76,7 +99,7 @@ class BestowalsGridColumns extends BaseGridColumns
      */
     public static function getColumns(): array
     {
-        return [
+        $columns = [
             'id' => [
                 'key' => 'id',
                 'label' => 'ID',
@@ -316,6 +339,15 @@ class BestowalsGridColumns extends BaseGridColumns
                 'alignment' => 'left',
             ],
         ];
+
+        if (!static::$includeHeraldNotes) {
+            unset($columns['herald_notes_preview']);
+        }
+        if (!static::$includeCrownFields) {
+            unset($columns['recommendation_reasons']);
+        }
+
+        return $columns;
     }
 
     /**
@@ -331,9 +363,13 @@ class BestowalsGridColumns extends BaseGridColumns
             'lifecycle_status',
             'todos_summary',
             'court_slot',
-            'herald_notes_preview',
-            'recommendation_reasons',
         ];
+        if (static::$includeHeraldNotes) {
+            $gatheringColumns[] = 'herald_notes_preview';
+        }
+        if (static::$includeCrownFields) {
+            $gatheringColumns[] = 'recommendation_reasons';
+        }
 
         if ($context === 'gatheringBestowals') {
             return [
@@ -360,7 +396,7 @@ class BestowalsGridColumns extends BaseGridColumns
                     'filters' => [
                         ['field' => 'lifecycle_status', 'operator' => 'eq', 'value' => Bestowal::LIFECYCLE_OPEN],
                     ],
-                    'columns' => array_merge($gatheringColumns, ['gathering_name', 'source']),
+                    'columns' => array_merge($gatheringColumns, ['gathering_name']),
                 ],
             ],
             'sys-bestowals-all' => [
@@ -370,7 +406,7 @@ class BestowalsGridColumns extends BaseGridColumns
                 'canManage' => false,
                 'config' => [
                     'filters' => [],
-                    'columns' => array_merge($gatheringColumns, ['gathering_name', 'source']),
+                    'columns' => array_merge($gatheringColumns, ['gathering_name']),
                 ],
             ],
             'sys-bestowals-completed' => [
@@ -382,7 +418,7 @@ class BestowalsGridColumns extends BaseGridColumns
                     'filters' => [
                         ['field' => 'lifecycle_status', 'operator' => 'eq', 'value' => Bestowal::LIFECYCLE_GIVEN],
                     ],
-                    'columns' => array_merge($gatheringColumns, ['gathering_name', 'source', 'created']),
+                    'columns' => array_merge($gatheringColumns, ['gathering_name', 'created']),
                 ],
             ],
             'sys-bestowals-cancelled' => [
@@ -394,7 +430,7 @@ class BestowalsGridColumns extends BaseGridColumns
                     'filters' => [
                         ['field' => 'lifecycle_status', 'operator' => 'eq', 'value' => Bestowal::LIFECYCLE_CANCELLED],
                     ],
-                    'columns' => array_merge($gatheringColumns, ['gathering_name', 'source', 'created']),
+                    'columns' => array_merge($gatheringColumns, ['gathering_name', 'created']),
                 ],
             ],
         ];
@@ -408,7 +444,7 @@ class BestowalsGridColumns extends BaseGridColumns
      * Because different awards can carry different to-do templates (e.g. kingdom vs
      * baronial), the options combine path-agnostic states ("remaining" / "complete")
      * with per-check options keyed on the shared template item key, so a single
-     * "Open: Has scroll" filter matches that check across every path that defines it.
+     * "Open: Scroll Ready" filter matches that check across every path that defines it.
      *
      * @return list<array{value: string, label: string}>
      */

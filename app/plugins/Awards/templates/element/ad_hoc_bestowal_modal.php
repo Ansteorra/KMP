@@ -12,6 +12,8 @@ use Awards\Model\Entity\Bestowal;
 
 $modalId = $modalId ?? 'adHocBestowalModal';
 $formData = $adHocFormData ?? [];
+$protectedFieldAccess = $formData['protectedFieldAccess']
+    ?? ['heraldNotes' => false, 'crownFields' => false];
 $bestowal = $formData['bestowal'] ?? new Bestowal([
     'lifecycle_status' => Bestowal::LIFECYCLE_OPEN,
     'stack_rank' => 0,
@@ -342,6 +344,7 @@ $submitAction = implode(' ', [
                                         ]) ?>
                                     </div>
 
+                                    <?php if ($protectedFieldAccess['crownFields']) : ?>
                                     <div class="col-12 col-lg-6">
                                         <?= $this->Form->control('noble_notes', [
                                             'type' => 'textarea',
@@ -350,7 +353,9 @@ $submitAction = implode(' ', [
                                             'data-awards-bestowal-edit-target' => 'nobleNotes',
                                         ]) ?>
                                     </div>
+                                    <?php endif; ?>
 
+                                    <?php if ($protectedFieldAccess['heraldNotes']) : ?>
                                     <div class="col-12 col-lg-6">
                                         <?= $this->Form->control('herald_notes', [
                                             'type' => 'textarea',
@@ -359,6 +364,7 @@ $submitAction = implode(' ', [
                                             'data-awards-bestowal-edit-target' => 'heraldNotes',
                                         ]) ?>
                                     </div>
+                                    <?php endif; ?>
                                 </div>
                             </fieldset>
                         </div>

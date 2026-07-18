@@ -310,6 +310,22 @@ class BestowalPolicy extends BasePolicy
     }
 
     /**
+     * Check whether the user may access herald notes.
+     */
+    public function canAccessHeraldNotes(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        return $this->_hasPolicy($user, __FUNCTION__, $entity);
+    }
+
+    /**
+     * Check whether the user may access Crown-only bestowal fields.
+     */
+    public function canAccessCrownFields(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        return $this->_hasPolicy($user, __FUNCTION__, $entity);
+    }
+
+    /**
      * Whether the action item carries, or defaults to, the bestowal gathering requirement.
      *
      * @param \App\Model\Entity\ActionItem $item Action item

@@ -190,7 +190,8 @@ class BestowalQueryService
         $needsAwards = $this->shouldLoadColumn('awards', $visibleColumns);
         $needsAwardType = $this->shouldLoadColumn('award_type', $visibleColumns);
         $needsAwardGroup = $this->shouldLoadColumn('award_group', $visibleColumns);
-        $needsAwardRecord = $needsAwards || $needsAwardType || $needsAwardGroup;
+        $needsHeraldNotes = $this->shouldLoadColumn('herald_notes_preview', $visibleColumns);
+        $needsAwardRecord = $needsAwards || $needsAwardType || $needsAwardGroup || $needsHeraldNotes;
         $needsRecommendationReasons = $this->shouldLoadColumn('recommendation_reasons', $visibleColumns);
 
         if ($needsAwardRecord) {

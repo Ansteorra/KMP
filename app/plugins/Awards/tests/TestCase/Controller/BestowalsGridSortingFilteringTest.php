@@ -50,6 +50,48 @@ class BestowalsGridSortingFilteringTest extends HttpIntegrationTestCase
         );
     }
 
+    public function testSystemViewsKeepSourceAvailableButHiddenByDefault(): void
+    {
+        $columns = BestowalsGridColumns::getColumns();
+        $views = BestowalsGridColumns::getSystemViews();
+
+        $this->assertArrayHasKey('source', $columns);
+        $this->assertFalse($columns['source']['defaultVisible']);
+        foreach ($views as $view) {
+            $this->assertNotContains('source', $view['config']['columns']);
+        }
+    }
+
+    public function testProtectedColumnsAreAvailableOnlyForAuthorizedFieldSets(): void
+    {
+        $original = BestowalsGridColumns::setProtectedFieldVisibility(false, false);
+
+        try {
+            $columns = BestowalsGridColumns::getColumns();
+            $this->assertArrayNotHasKey('herald_notes_preview', $columns);
+            $this->assertArrayNotHasKey('recommendation_reasons', $columns);
+
+            BestowalsGridColumns::setProtectedFieldVisibility(true, false);
+            $columns = BestowalsGridColumns::getColumns();
+            $this->assertArrayHasKey('herald_notes_preview', $columns);
+            $this->assertArrayNotHasKey('recommendation_reasons', $columns);
+
+            BestowalsGridColumns::setProtectedFieldVisibility(false, true);
+            $columns = BestowalsGridColumns::getColumns();
+            $this->assertArrayHasKey('herald_notes_preview', $columns);
+            $this->assertArrayHasKey('recommendation_reasons', $columns);
+            foreach (BestowalsGridColumns::getSystemViews() as $view) {
+                $this->assertContains('herald_notes_preview', $view['config']['columns']);
+                $this->assertContains('recommendation_reasons', $view['config']['columns']);
+            }
+        } finally {
+            BestowalsGridColumns::setProtectedFieldVisibility(
+                $original['heraldNotes'],
+                $original['crownFields'],
+            );
+        }
+    }
+
     public function testRelationFiltersAndSortsUseJoinedGridFields(): void
     {
         $prefix = 'bestowal-grid-fields-' . uniqid();

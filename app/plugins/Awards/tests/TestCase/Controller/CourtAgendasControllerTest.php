@@ -105,6 +105,7 @@ class CourtAgendasControllerTest extends HttpIntegrationTestCase
         $this->assertResponseOk();
         $this->assertResponseContains('draggable="true"');
         $this->assertResponseContains('Refresh Scheduled Bestowals');
+        $this->assertResponseNotContains('Noble court secret.');
     }
 
     /**
@@ -125,6 +126,27 @@ class CourtAgendasControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains('<table>');
         $this->assertResponseContains('Projected court runtime');
         $this->assertResponseContains('Print Agenda');
+    }
+
+    public function testCourtManagerPrintAgendaShowsHeraldNotesButHidesCrownFields(): void
+    {
+        $gathering = $this->getTableLocator()->get('Gatherings')
+            ->find()
+            ->select(['id'])
+            ->firstOrFail();
+        $this->createBestowalForGathering((int)$gathering->id);
+        $agenda = $this->importBestowalsForGathering((int)$gathering->id);
+        $this->grantCourtAgendaManagement(
+            self::TEST_MEMBER_AGATHA_ID,
+            self::KINGDOM_BRANCH_ID,
+        );
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+
+        $this->get('/awards/court-agendas/print-agenda/' . $agenda->id);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Speak clearly.');
+        $this->assertResponseNotContains('Noble court secret.');
     }
 
     /**
@@ -213,6 +235,7 @@ class CourtAgendasControllerTest extends HttpIntegrationTestCase
             'source' => Bestowal::SOURCE_AD_HOC,
             'stack_rank' => 10,
             'herald_notes' => 'Speak clearly.',
+            'noble_notes' => 'Noble court secret.',
         ]));
     }
 
@@ -236,13 +259,18 @@ class CourtAgendasControllerTest extends HttpIntegrationTestCase
         ]));
 
         $permissionPolicies = $this->getTableLocator()->get('PermissionPolicies');
-        foreach (['canGathering', 'canEdit'] as $policyMethod) {
+        foreach (['canGathering', 'canEdit', 'canPrintAgenda'] as $policyMethod) {
             $permissionPolicies->saveOrFail($permissionPolicies->newEntity([
                 'permission_id' => (int)$permission->id,
                 'policy_class' => 'Awards\\Policy\\CourtAgendaPolicy',
                 'policy_method' => $policyMethod,
             ]));
         }
+        $permissionPolicies->saveOrFail($permissionPolicies->newEntity([
+            'permission_id' => (int)$permission->id,
+            'policy_class' => 'Awards\\Policy\\BestowalPolicy',
+            'policy_method' => 'canAccessHeraldNotes',
+        ]));
 
         $roles = $this->getTableLocator()->get('Roles');
         $role = $roles->saveOrFail($roles->newEntity([
