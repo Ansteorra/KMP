@@ -4,7 +4,9 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Model\Entity;
 
 use App\Model\Entity\Member;
+use App\Services\Cache\TenantAwareCache;
 use App\Test\TestCase\BaseTestCase;
+use Cake\Cache\Cache;
 use Cake\I18n\Date;
 use Cake\I18n\DateTime;
 use InvalidArgumentException;
@@ -283,5 +285,56 @@ class MemberTest extends BaseTestCase
         $member->ageUpReview();
         $this->assertEquals(Member::STATUS_DEACTIVATED, $member->status);
         $this->assertEquals(13, $member->parent_id, 'Deactivated should not be modified');
+    }
+
+    public function testPermissionLookupsAreMemoizedOnMemberEntity(): void
+    {
+        $memberId = 990001;
+        $cacheKey = TenantAwareCache::tenantScopedKey('member_permissions' . $memberId);
+        $initialPermissions = [
+            101 => (object)['id' => 101, 'is_super_user' => false],
+        ];
+        $replacementPermissions = [
+            202 => (object)['id' => 202, 'is_super_user' => false],
+        ];
+
+        try {
+            Cache::write($cacheKey, $initialPermissions, 'member_permissions');
+            $member = new Member();
+            $member->id = $memberId;
+            $loadedPermissions = $member->getPermissions();
+
+            Cache::write($cacheKey, $replacementPermissions, 'member_permissions');
+
+            $this->assertSame($loadedPermissions, $member->getPermissions());
+            $this->assertSame([101], $member->getPermissionIDs());
+            $this->assertSame([101], $member->getPermissionIDs());
+
+            $newMember = new Member();
+            $newMember->id = $memberId;
+            $this->assertSame([202], $newMember->getPermissionIDs());
+        } finally {
+            Cache::delete($cacheKey, 'member_permissions');
+        }
+    }
+
+    public function testPolicyLookupsAreMemoizedByBranchFilter(): void
+    {
+        $members = $this->getTableLocator()->get('Members');
+        $member = $members->get(self::TEST_MEMBER_DEVON_ID);
+        $branchIds = [
+            self::TEST_BRANCH_CENTRAL_REGION_ID,
+            self::TEST_BRANCH_SOUTHERN_REGION_ID,
+        ];
+
+        $first = $member->getPolicies($branchIds);
+        $second = $member->getPolicies(array_reverse($branchIds));
+        $differentFilter = $member->getPolicies([self::TEST_BRANCH_CENTRAL_REGION_ID]);
+        $unfiltered = $member->getPolicies();
+
+        $this->assertNotEmpty($first);
+        $this->assertSame($first, $second);
+        $this->assertNotSame($first, $differentFilter);
+        $this->assertNotSame($first, $unfiltered);
     }
 }

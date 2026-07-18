@@ -66,6 +66,16 @@ class Member extends BaseEntity implements
     protected ?array $_permissionIDs = null;
 
     /**
+     * @var array|null Request-cached unfiltered policies
+     */
+    protected ?array $_policies = null;
+
+    /**
+     * @var array<string, array> Request-cached branch-filtered policies
+     */
+    protected array $_branchPolicies = [];
+
+    /**
      * @var \Cake\I18n\DateTime|null Last permissions update
      */
     protected ?DateTime $_last_permissions_update = null;
@@ -462,9 +472,11 @@ class Member extends BaseEntity implements
      */
     public function getPermissions(): array
     {
-        $permissions = PermissionsLoader::getPermissions($this->id);
+        if ($this->_permissions === null) {
+            $this->_permissions = PermissionsLoader::getPermissions($this->id);
+        }
 
-        return $permissions;
+        return $this->_permissions;
     }
 
     /**
@@ -474,9 +486,11 @@ class Member extends BaseEntity implements
      */
     public function getPermissionIDs(): array
     {
-        $permissionIDs = Hash::extract(PermissionsLoader::getPermissions($this->id), '{n}.id');
+        if ($this->_permissionIDs === null) {
+            $this->_permissionIDs = Hash::extract($this->getPermissions(), '{n}.id');
+        }
 
-        return $permissionIDs;
+        return $this->_permissionIDs;
     }
 
     /**
@@ -487,15 +501,22 @@ class Member extends BaseEntity implements
      */
     public function getPolicies(?array $branchIds = null): array
     {
-        if ($branchIds == null || empty($branchIds)) {
-            $policies = PermissionsLoader::getPolicies($this->id);
+        if ($branchIds === null || $branchIds === []) {
+            if ($this->_policies === null) {
+                $this->_policies = PermissionsLoader::getPolicies($this->id);
+            }
 
-            return $policies;
-        } else {
-            $policies = PermissionsLoader::getPolicies($this->id, $branchIds);
-
-            return $policies;
+            return $this->_policies;
         }
+
+        $normalizedBranchIds = array_values(array_unique(array_map('intval', $branchIds)));
+        sort($normalizedBranchIds);
+        $cacheKey = implode(',', $normalizedBranchIds);
+        if (!array_key_exists($cacheKey, $this->_branchPolicies)) {
+            $this->_branchPolicies[$cacheKey] = PermissionsLoader::getPolicies($this->id, $normalizedBranchIds);
+        }
+
+        return $this->_branchPolicies[$cacheKey];
     }
 
     /**
