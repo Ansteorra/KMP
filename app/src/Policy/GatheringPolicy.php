@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Policy;
@@ -100,6 +99,19 @@ class GatheringPolicy extends BasePolicy
         $userId = $user->getIdentifier();
 
         return $createdBy !== null && $userId !== null && (int)$createdBy === (int)$userId;
+    }
+
+    /**
+     * Check if user can edit an activity description on a gathering.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user
+     * @param \App\Model\Entity\BaseEntity $entity The gathering entity
+     * @param mixed ...$optionalArgs Optional arguments
+     * @return bool
+     */
+    public function canEditActivityDescription(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        return $this->canEdit($user, $entity, ...$optionalArgs);
     }
 
     /**

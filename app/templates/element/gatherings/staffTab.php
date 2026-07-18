@@ -259,11 +259,11 @@ foreach ($gathering->gathering_staff as $staff) {
 <?php if ($user->checkCan('edit', $gathering)) : ?>
     <div class="modal fade" id="addStaffModal" tabindex="-1" aria-labelledby="addStaffModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
-            <div class="modal-content">
-                <?= $this->Form->create(null, [
-                    'url' => ['controller' => 'GatheringStaff', 'action' => 'add', $gathering->id],
-                    'id' => 'addStaffForm'
-                ]) ?>
+            <?= $this->Form->create(null, [
+                'url' => ['controller' => 'GatheringStaff', 'action' => 'add', $gathering->id],
+                'id' => 'addStaffForm',
+                'class' => 'modal-content',
+            ]) ?>
                 <div class="modal-header">
                     <h5 class="modal-title" id="addStaffModalLabel">
                         <i class="bi bi-person-plus"></i> <?= __('Add Staff Member') ?>
@@ -394,19 +394,18 @@ foreach ($gathering->gathering_staff as $staff) {
                         <i class="bi bi-plus-circle"></i> <?= __('Add Staff Member') ?>
                     </button>
                 </div>
-                <?= $this->Form->end() ?>
-            </div>
+            <?= $this->Form->end() ?>
         </div>
     </div>
 
     <!-- Edit Staff Modal -->
     <div class="modal fade" id="editStaffModal" tabindex="-1" aria-labelledby="editStaffModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
-            <div class="modal-content">
-                <?= $this->Form->create(null, [
-                    'url' => ['controller' => 'GatheringStaff', 'action' => 'edit', 'XXX'],
-                    'id' => 'editStaffForm'
-                ]) ?>
+            <?= $this->Form->create(null, [
+                'url' => ['controller' => 'GatheringStaff', 'action' => 'edit', 'XXX'],
+                'id' => 'editStaffForm',
+                'class' => 'modal-content',
+            ]) ?>
                 <div class="modal-header">
                     <h5 class="modal-title" id="editStaffModalLabel">
                         <i class="bi bi-pencil"></i> <?= __('Edit Staff Member') ?>
@@ -506,8 +505,7 @@ foreach ($gathering->gathering_staff as $staff) {
                         <i class="bi bi-check-circle"></i> <?= __('Save Changes') ?>
                     </button>
                 </div>
-                <?= $this->Form->end() ?>
-            </div>
+            <?= $this->Form->end() ?>
         </div>
     </div>
 

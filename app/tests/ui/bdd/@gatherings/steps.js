@@ -317,6 +317,9 @@ When('I add the gatherings lifecycle staff member', async ({ page }) => {
 
     const modal = page.locator('#addStaffModal');
     await expect(modal).toBeVisible({ timeout: 15000 });
+    await expect(modal.locator('.modal-dialog > form.modal-content')).toHaveCount(1);
+    await expect(modal.locator('form.modal-content > .modal-body')).toHaveCSS('overflow-y', 'auto');
+    await expect(modal.locator('form.modal-content > .modal-footer')).toBeVisible();
 
     const comboBox = modal.locator('[data-controller="ac"]').first();
     await selectMemberAutocomplete(page, comboBox, data.managerName);

@@ -172,6 +172,22 @@ class GatheringPolicyTest extends BaseTestCase
         $this->assertSame($editResult, $uncancelResult, 'canUncancel should delegate to canEdit');
     }
 
+    public function testEditActivityDescriptionDelegatesToEdit(): void
+    {
+        $gathering = $this->getGathering();
+        $user = $this->createSchedulePolicyUser(1234, 'canEdit', (int)$gathering->branch_id);
+
+        $this->assertTrue($this->policy->canEditActivityDescription($user, $gathering));
+    }
+
+    public function testNonPrivilegedUserCannotEditActivityDescription(): void
+    {
+        $agatha = $this->loadMember(self::TEST_MEMBER_AGATHA_ID);
+        $gathering = $this->getGathering();
+
+        $this->assertFalse($this->policy->canEditActivityDescription($agatha, $gathering));
+    }
+
     public function testDedicatedPolicyCanCreateScheduledActivity(): void
     {
         $gathering = $this->getGathering();
