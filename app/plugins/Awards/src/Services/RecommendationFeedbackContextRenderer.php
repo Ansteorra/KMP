@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Awards\Services;
@@ -61,14 +62,18 @@ class RecommendationFeedbackContextRenderer implements ApprovalContextRendererIn
                 ];
             }
         } else {
-            $fields[] = ['label' => __('Submitted By'), 'value' => $primary['requesterScaName'] ?? __('Unknown')];
+            //$fields[] = ['label' => __('Submitted By'), 'value' => $primary['requesterScaName'] ?? __('Unknown')];
             $fields[] = ['label' => __('Branch'), 'value' => $primary['branchName'] ?? __('Unknown')];
             $fields[] = ['label' => __('Award'), 'value' => $this->awardLabel($primary)];
-            $fields[] = ['label' => __('Reason'), 'value' => $primary['reason'] ?? ''];
-
-            if (!empty($primary['gatherings'])) {
-                $fields[] = ['label' => __('Gatherings'), 'value' => implode(', ', (array)$primary['gatherings'])];
+            if (!empty($primary['specialty'])) {
+                $fields[] = ['label' => __('Specialty'), 'value' => $primary['specialty'] ?? ''];
             }
+
+            //$fields[] = ['label' => __('Reason'), 'value' => $primary['reason'] ?? ''];
+
+            //if (!empty($primary['gatherings'])) {
+            //    $fields[] = ['label' => __('Gatherings'), 'value' => implode(', ', (array)$primary['gatherings'])];
+            //}
         }
         if ($request->message) {
             $fields[] = ['label' => __('Requester Message'), 'value' => $request->message];
