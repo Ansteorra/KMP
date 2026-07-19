@@ -384,9 +384,6 @@ class BackupService
 
         $this->reportSchemaMismatch($payload, $ignoreSchemaMismatch, $progressReporter);
 
-        $this->reportProgress($progressReporter, 'resetting_schema', 'Resetting database schema to backup structure.');
-        (new DatabaseSchemaResetService())->reset($payload['schema'], $progressReporter);
-
         $stats = $this->importPayloadRows($payload, $progressReporter);
         $compatibilityPayload = $payload;
         $compatibilityPayload['tables'] = array_fill_keys(array_keys($payload['tables']), []);
@@ -394,8 +391,9 @@ class BackupService
 
         if ($migrationRunner !== null) {
             $this->reportProgress($progressReporter, 'migrating', 'Applying application migrations.');
+            $this->clearApplicationCachesForRestore();
             $migrationRunner();
-            $this->clearApplicationCachesAfterRestore();
+            $this->clearApplicationCachesForRestore();
             $this->reportProgress($progressReporter, 'migrated', 'Application migrations completed.', [
                 'table_count' => $stats['table_count'],
                 'tables_processed' => $stats['table_count'],
@@ -409,7 +407,7 @@ class BackupService
             $compatibilityPayload,
             $progressReporter,
         );
-        $this->clearApplicationCachesAfterRestore();
+        $this->clearApplicationCachesForRestore();
         $this->reportProgress($progressReporter, 'completed', 'Restore transaction committed.', [
             'table_count' => $stats['table_count'],
             'tables_processed' => $stats['table_count'],
@@ -499,7 +497,7 @@ class BackupService
     }
 
     /**
-     * @param array{tables: array<string, mixed>} $payload
+     * @param array{schema: array<string, mixed>, tables: array<string, mixed>} $payload
      * @param callable(array<string, mixed>):void|null $progressReporter
      * @return array{table_count: int, row_count: int}
      */
@@ -514,27 +512,49 @@ class BackupService
         }
 
         $connection = $this->connection();
-        $schemaCollection = $connection->getSchemaCollection();
-        $tablesToRestore = $this->buildRestoreTableMap($tablesToRestore, $schemaCollection->listTables());
-        $legacyPayloadTables = array_values(array_diff(array_keys($payload['tables']), array_keys($tablesToRestore)));
-        $tableCount = count($tablesToRestore);
         $driver = $connection->getDriver();
         $isPostgres = $driver instanceof Postgres;
+        $tableCount = count($tablesToRestore);
         $totalRows = 0;
         $processedTables = 0;
         $notValidatedConstraintCount = 0;
 
-        $this->reportProgress($progressReporter, 'preparing', 'Preparing database restore transaction.', [
-            'table_count' => $tableCount,
-            'tables_processed' => 0,
-            'rows_processed' => 0,
-            'tables_from_backup' => count($payload['tables']),
-            'tables_cleared' => count(array_diff(array_keys($tablesToRestore), array_keys($payload['tables']))),
-            'legacy_tables_available' => count($legacyPayloadTables),
-        ]);
+        if (!$isPostgres) {
+            $this->reportProgress(
+                $progressReporter,
+                'resetting_schema',
+                'Resetting database schema to backup structure.',
+            );
+            (new DatabaseSchemaResetService())->reset($payload['schema'], $progressReporter);
+        }
 
         $connection->begin();
         try {
+            if ($isPostgres) {
+                $this->reportProgress(
+                    $progressReporter,
+                    'resetting_schema',
+                    'Resetting database schema to backup structure.',
+                );
+                (new DatabaseSchemaResetService())->reset($payload['schema'], $progressReporter);
+            }
+
+            $schemaCollection = $connection->getSchemaCollection();
+            $tablesToRestore = $this->buildRestoreTableMap($tablesToRestore, $schemaCollection->listTables());
+            $legacyPayloadTables = array_values(
+                array_diff(array_keys($payload['tables']), array_keys($tablesToRestore)),
+            );
+            $tableCount = count($tablesToRestore);
+
+            $this->reportProgress($progressReporter, 'preparing', 'Preparing database restore transaction.', [
+                'table_count' => $tableCount,
+                'tables_processed' => 0,
+                'rows_processed' => 0,
+                'tables_from_backup' => count($payload['tables']),
+                'tables_cleared' => count(array_diff(array_keys($tablesToRestore), array_keys($payload['tables']))),
+                'legacy_tables_available' => count($legacyPayloadTables),
+            ]);
+
             if ($isPostgres) {
                 // Managed Postgres blocks session_replication_role and DISABLE TRIGGER ALL.
                 // Drop FK constraints transactionally, restore data, then re-add constraints.
@@ -550,7 +570,6 @@ class BackupService
                 );
                 $droppedForeignKeys = $this->dropPostgresForeignKeys(
                     $connection,
-                    $schemaCollection,
                     $driver,
                     array_keys($tablesToRestore),
                 );
@@ -578,7 +597,7 @@ class BackupService
                         'rows_processed' => $totalRows,
                     ]);
 
-                    $tableSchema = $schemaCollection->describe($tableName);
+                    $tableSchema = $schemaCollection->describe($tableName, ['forceRefresh' => true]);
                     $quotedTable = $driver->quoteIdentifier($tableName);
                     // Use transactional TRUNCATE on Postgres to avoid long-running DELETEs on large tables.
                     // CASCADE is required because FK constraints may reference this table.
@@ -696,7 +715,7 @@ class BackupService
                         'rows_processed' => $totalRows,
                     ]);
 
-                    $tableSchema = $schemaCollection->describe($tableName);
+                    $tableSchema = $schemaCollection->describe($tableName, ['forceRefresh' => true]);
                     $quotedTable = $driver->quoteIdentifier($tableName);
                     $connection->execute("DELETE FROM {$quotedTable}");
 
@@ -782,7 +801,7 @@ class BackupService
                 'row_count' => $totalRows,
                 'rows_processed' => $totalRows,
             ]);
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             $connection->rollback();
             try {
                 if (!$isPostgres) {
@@ -910,35 +929,53 @@ class BackupService
      */
     private function dropPostgresForeignKeys(
         $connection,
-        $schemaCollection,
         $driver,
         array $tableNames,
     ): array {
+        if ($tableNames === []) {
+            return [];
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($tableNames), '?'));
+        $sql = <<<SQL
+SELECT t.relname AS table_name,
+       c.conname AS constraint_name,
+       pg_get_constraintdef(c.oid) AS definition
+FROM pg_catalog.pg_constraint c
+INNER JOIN pg_catalog.pg_class t ON t.oid = c.conrelid
+INNER JOIN pg_catalog.pg_namespace n ON n.oid = t.relnamespace
+WHERE c.contype = 'f'
+  AND t.relname IN ({$placeholders})
+  AND n.nspname = ANY(current_schemas(false))
+ORDER BY t.relname, c.conname
+SQL;
+        $rows = $connection->execute($sql, array_values($tableNames))->fetchAll('assoc') ?: [];
         $dropped = [];
 
-        foreach ($tableNames as $tableName) {
-            $schema = $schemaCollection->describe($tableName);
-            foreach ($schema->constraints() as $constraintName) {
-                $constraint = $schema->getConstraint($constraintName);
-                if (($constraint['type'] ?? '') !== 'foreign') {
-                    continue;
-                }
-
-                $definition = $this->fetchPostgresForeignKeyDefinition($connection, $tableName, $constraintName);
-                if ($definition === null) {
-                    continue;
-                }
-
-                $quotedTable = $driver->quoteIdentifier($tableName);
-                $quotedConstraint = $driver->quoteIdentifier($constraintName);
-                $connection->execute("ALTER TABLE {$quotedTable} DROP CONSTRAINT {$quotedConstraint}");
-
-                $dropped[] = [
-                    'table' => $tableName,
-                    'name' => $constraintName,
-                    'definition' => $definition,
-                ];
+        foreach ($rows as $row) {
+            $tableName = $row['table_name'] ?? null;
+            $constraintName = $row['constraint_name'] ?? null;
+            $definition = $row['definition'] ?? null;
+            if (
+                !is_string($tableName)
+                || $tableName === ''
+                || !is_string($constraintName)
+                || $constraintName === ''
+                || !is_string($definition)
+                || $definition === ''
+            ) {
+                throw new RuntimeException('PostgreSQL returned incomplete foreign key metadata.');
             }
+
+            $quotedTable = $driver->quoteIdentifier($tableName);
+            $quotedConstraint = $driver->quoteIdentifier($constraintName);
+            $connection->execute("ALTER TABLE {$quotedTable} DROP CONSTRAINT {$quotedConstraint}");
+
+            $dropped[] = [
+                'table' => $tableName,
+                'name' => $constraintName,
+                'definition' => $definition,
+            ];
         }
 
         return $dropped;
@@ -995,41 +1032,6 @@ class BackupService
         }
 
         return $notValidatedConstraintCount;
-    }
-
-    /**
-     * Fetch postgres foreign key definition.
-     *
-     * @param mixed $connection
-     * @param string $tableName
-     * @param string $constraintName
-     * @return ?string
-     */
-    private function fetchPostgresForeignKeyDefinition($connection, string $tableName, string $constraintName): ?string
-    {
-        $sql = <<<'SQL'
-SELECT pg_get_constraintdef(c.oid) AS definition
-FROM pg_catalog.pg_constraint c
-INNER JOIN pg_catalog.pg_class t ON t.oid = c.conrelid
-INNER JOIN pg_catalog.pg_namespace n ON n.oid = t.relnamespace
-WHERE c.contype = 'f'
-  AND t.relname = ?
-  AND c.conname = ?
-  AND n.nspname = ANY(current_schemas(false))
-LIMIT 1
-SQL;
-
-        $row = $connection->execute($sql, [$tableName, $constraintName])->fetch('assoc');
-        if (!is_array($row)) {
-            return null;
-        }
-
-        $definition = $row['definition'] ?? null;
-        if (!is_string($definition) || $definition === '') {
-            return null;
-        }
-
-        return $definition;
     }
 
     /**
@@ -1178,9 +1180,9 @@ SQL;
     }
 
     /**
-     * Clear Cake cache pools after successful restore so runtime state matches DB.
+     * Clear Cake cache pools around restore so schema and runtime state match DB.
      */
-    private function clearApplicationCachesAfterRestore(): void
+    private function clearApplicationCachesForRestore(): void
     {
         foreach (Cache::configured() as $cacheConfig) {
             if (in_array($cacheConfig, ['restore_status', '_cake_core_', '_cake_routes_'], true)) {

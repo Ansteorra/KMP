@@ -420,6 +420,78 @@ class BackupServiceTest extends TestCase
         );
     }
 
+    public function testDropPostgresForeignKeysUsesCatalogMetadata(): void
+    {
+        $service = new BackupService();
+        $connection = new class {
+            /**
+             * @var array<int, array{sql: string, params: array<int, string>}>
+             */
+            public array $queries = [];
+
+            /**
+             * @param array<int, string> $params
+             */
+            public function execute(string $sql, array $params = []): object
+            {
+                $this->queries[] = ['sql' => $sql, 'params' => $params];
+                if (str_contains($sql, 'FROM pg_catalog.pg_constraint')) {
+                    return new class {
+                        /**
+                         * @return array<int, array<string, string>>
+                         */
+                        public function fetchAll(string $mode): array
+                        {
+                            return [
+                                [
+                                    'table_name' => 'activities_activities',
+                                    'constraint_name' => 'activities_activities_ibfk_1',
+                                    'definition' => 'FOREIGN KEY (activity_group_id) '
+                                        . 'REFERENCES activities_activity_groups(id)',
+                                ],
+                            ];
+                        }
+                    };
+                }
+
+                return new class {
+                };
+            }
+        };
+        $driver = new class {
+            public function quoteIdentifier(string $identifier): string
+            {
+                return "\"{$identifier}\"";
+            }
+        };
+
+        $method = new ReflectionMethod(BackupService::class, 'dropPostgresForeignKeys');
+        $method->setAccessible(true);
+        $dropped = $method->invoke(
+            $service,
+            $connection,
+            $driver,
+            ['activities_activities', 'activities_activity_groups'],
+        );
+
+        $this->assertSame(
+            ['activities_activities', 'activities_activity_groups'],
+            $connection->queries[0]['params'],
+        );
+        $this->assertStringContainsString('t.relname IN (?, ?)', $connection->queries[0]['sql']);
+        $this->assertSame(
+            'ALTER TABLE "activities_activities" DROP CONSTRAINT "activities_activities_ibfk_1"',
+            $connection->queries[1]['sql'],
+        );
+        $this->assertSame([
+            [
+                'table' => 'activities_activities',
+                'name' => 'activities_activities_ibfk_1',
+                'definition' => 'FOREIGN KEY (activity_group_id) REFERENCES activities_activity_groups(id)',
+            ],
+        ], $dropped);
+    }
+
     public function testRestorePostgresForeignKeysRethrowsConstraintAddFailures(): void
     {
         $service = new BackupService();
