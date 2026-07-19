@@ -3,8 +3,125 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: 201943f7e8106aac7dba3090b60252ee73a53a37 -->
-<!-- LAST_SYNCED_DATE: 2026-06-13 -->
+<!-- LAST_SYNCED_COMMIT: cbc9f158d0a207164922511adc0963c1aaa717ac -->
+<!-- LAST_SYNCED_DATE: 2026-07-19 -->
+
+## July 2026
+
+### Public Kingdom Calendar and Easier Event Discovery
+
+Members and visitors can now use a polished public kingdom calendar to find published gatherings, understand event details, and follow royal progress without signing in.
+
+- Kingdom staff control which gatherings appear publicly through dedicated publishing permissions
+- Royal progress RSVPs are highlighted while preserving the office and branch represented at the time
+- Activity filters make it easy to find courts, circles, martial activities, and other event features
+- Event websites, pre-registration links, closing dates, and multi-day durations are easier to find
+- Administrators can theme the calendar through app settings without changing application code
+- Cleaner cards, progressive details, stronger date contrast, and responsive layouts improve mobile scanning
+
+📅 July 19, 2026 · `New Feature`
+
+---
+
+### Approval Triage and Bulk Decisions
+
+Members and officers can process approvals more efficiently with clearer context, a personal triage board, and bulk actions for related requests.
+
+- A personal Kanban-style board organizes approvals by working status
+- Searchable request titles and inline recommendation details provide context before opening a request
+- Authorized users can select and respond to multiple approvals of the same type at once
+- Validation prevents incompatible approval types from being combined accidentally
+- Responsive approval screens keep triage and bulk actions usable on mobile devices
+
+📅 July 19, 2026 · `Improvement`
+
+---
+
+### Court and Bestowal Planning
+
+Award planning now connects recommendation decisions, gathering schedules, bestowal tasks, and court agendas with fewer manual handoffs.
+
+- Court schedule managers can maintain the activities they create without receiving full gathering-edit access
+- Ranked gathering suggestions are shared across approval responses, bulk scheduling, and bestowal to-do completion
+- Heralds can assign one gathering to multiple bestowal tasks in a single operation
+- Court agendas rebuild from the live gathering schedule so timing and lane changes appear immediately
+- Feedback and approval screens show clearer branch, award, and specialty context
+
+📅 July 19, 2026 · `Improvement`
+
+---
+
+### Protected Crown and Herald Bestowal Details
+
+Sensitive bestowal information is now limited to the roles that need it, with the same protections applied across forms, grids, exports, details, and court preparation.
+
+- Crown users can access Herald Notes, Noble Notes, Reason Summary, and Linked Recommendations
+- Crown Court Management users can access Herald Notes without receiving the other Crown-only fields
+- Other bestowal viewers no longer receive protected field values
+- Source is removed from default bestowal views to reduce unnecessary exposure
+- Permission mappings and protected to-do labels remain intact through upgrades and restores
+
+📅 July 19, 2026 · `Security`
+
+---
+
+### More Reliable Workflows and Waiver Closures
+
+Approval, recommendation, and waiver workflows now recover more safely from retries, concurrent workers, and temporarily vacant offices.
+
+- Workflow execution prevents duplicate scheduling and conflicting updates across concurrent workers
+- Recommendations with no eligible approver remain visibly blocked instead of completing silently
+- Recommendation status follows the bestowal lifecycle from submission through scheduling and completion
+- Recommendation-to-bestowal tasks preserve required follow-up work and gathering assignments
+- The waiver closure workflow is activated for both new and upgraded installations
+
+📅 July 19, 2026 · `Improvement`
+
+---
+
+### Safer Backup and Restore Administration
+
+Backup policy and disaster-recovery operations are now coordinated from the platform while tenants retain appropriate self-service access.
+
+- Platform administrators can manage backup policy, scheduling, retention, and restores across tenants
+- Tenant administrators retain authorized backup viewing, requests, and downloads
+- Recovery-key export tracking improves accountability for protected backup access
+- Compatibility checks and maintenance mode guard destructive restore operations
+- PostgreSQL restores now replace schema and data atomically while respecting discovered foreign-key dependencies
+- Cache and migration metadata are refreshed after restoration to prevent stale schema behavior
+
+📅 July 19, 2026 · `Improvement`
+
+---
+
+### Faster, Private Profile Photos
+
+Profile photos now load as compact, self-healing thumbnails instead of repeatedly transferring full-size originals through the application.
+
+- Existing photos automatically gain optimized thumbnails on first use with no manual migration
+- New and legacy images are resized safely with orientation and transparency handling
+- Private browser caching, versioned URLs, and conditional requests reduce repeat downloads
+- Profile-photo and mobile-card image endpoints require authentication
+- Shared document reads reuse initialized tenant storage connections for faster waiver previews and downloads
+
+📅 July 19, 2026 · `Improvement`
+
+---
+
+### Production Performance and Operational Visibility
+
+KMP's production runtime now provides stronger performance visibility and more reliable background processing without changing day-to-day user workflows.
+
+- Structured request and database telemetry helps administrators identify slow pages and capacity needs
+- Sensitive values are removed from exported diagnostic data
+- Request-level permission reuse reduces repeated authorization work
+- A unified background worker coordinates schedules, queues, and platform jobs with overlap protection
+- Separate liveness and readiness checks make deployments and recovery safer
+- Redis, telemetry transport, and deployment cutovers were tuned to reduce page latency and release risk
+
+📅 July 19, 2026 · `Improvement`
+
+---
 
 ## June 2026
 
