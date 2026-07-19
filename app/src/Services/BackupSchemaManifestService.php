@@ -12,6 +12,7 @@ class BackupSchemaManifestService
 {
     /**
      * @param array<int, string> $excludedTables
+     * @param string $connectionName CakePHP connection name to describe.
      * @return array<string, mixed>
      */
     public function export(array $excludedTables = [], string $connectionName = 'default'): array
