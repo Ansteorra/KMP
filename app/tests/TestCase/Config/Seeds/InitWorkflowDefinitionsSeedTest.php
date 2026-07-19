@@ -118,6 +118,10 @@ class InitWorkflowDefinitionsSeedTest extends BaseTestCase
                 $workflowMetaBySlug[$slug]['trigger_config']['event'],
                 sprintf('Dual-path dispatch slug "%s" should seed the event its controller dispatches.', $slug),
             );
+            $this->assertTrue(
+                $workflowMetaBySlug[$slug]['is_active'] ?? false,
+                sprintf('Dual-path dispatch slug "%s" must be active after seeding.', $slug),
+            );
         }
     }
 

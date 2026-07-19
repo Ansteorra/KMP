@@ -271,6 +271,7 @@ class InitWorkflowDefinitionsSeed extends BaseSeed
                 'entity_type' => 'Waivers',
                 'json_file' => 'waiver-closure.json',
                 'execution_mode' => 'ephemeral',
+                'is_active' => true,
             ],
         ];
     }
