@@ -3,8 +3,10 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
 
+use App\Services\DocumentService;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Cake\Cache\Cache;
+use Cake\Core\Configure;
 use Cake\I18n\FrozenTime;
 
 /**
@@ -122,6 +124,98 @@ class MembersControllerTest extends HttpIntegrationTestCase
         $this->get('/members/view-mobile-card/legacy-token-value');
 
         $this->assertRedirectContains('/members/login');
+    }
+
+    public function testProfilePhotoRequiresAuthenticatedSession(): void
+    {
+        $this->logout();
+
+        $this->get('/members/profile-photo/' . self::ADMIN_MEMBER_ID);
+
+        $this->assertRedirectContains('/members/login');
+    }
+
+    public function testMobileCardPhotoRequiresAuthenticatedSession(): void
+    {
+        $this->logout();
+
+        $this->get('/members/mobile-card-photo');
+
+        $this->assertRedirectContains('/members/login');
+    }
+
+    public function testProfilePhotoReturnsPrivateCacheHeadersAndSupportsConditionalRequest(): void
+    {
+        if (!extension_loaded('gd')) {
+            $this->markTestSkipped('GD extension is required for thumbnail generation');
+        }
+
+        $config = Configure::read('Documents.storage', []);
+        $basePath = $config['local']['path'] ?? WWW_ROOT . '../images/uploaded/';
+        $relativePath = 'test-profile-thumbnails/controller-' . uniqid() . '.jpg';
+        $sourcePath = $basePath . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
+        if (!is_dir(dirname($sourcePath))) {
+            mkdir(dirname($sourcePath), 0755, true);
+        }
+
+        $sourceImage = imagecreatetruecolor(1200, 800);
+        $color = imagecolorallocate($sourceImage, 20, 90, 160);
+        imagefill($sourceImage, 0, 0, $color);
+        imagejpeg($sourceImage, $sourcePath, 95);
+        imagedestroy($sourceImage);
+
+        $documents = $this->getTableLocator()->get('Documents');
+        $document = $documents->newEntity([
+            'entity_type' => 'Members.ProfilePhoto',
+            'entity_id' => self::ADMIN_MEMBER_ID,
+            'uploaded_by' => self::ADMIN_MEMBER_ID,
+            'original_filename' => 'profile.jpg',
+            'stored_filename' => basename($relativePath),
+            'file_path' => $relativePath,
+            'mime_type' => 'image/jpeg',
+            'file_size' => filesize($sourcePath),
+            'checksum' => hash_file('sha256', $sourcePath),
+            'storage_adapter' => 'local',
+        ]);
+        $document = $documents->saveOrFail($document);
+        $members = $this->getTableLocator()->get('Members');
+        $member = $members->get(self::ADMIN_MEMBER_ID);
+        $member->profile_photo_document_id = $document->id;
+        $members->saveOrFail($member);
+
+        $documentService = new DocumentService();
+        $thumbnailPath = $basePath . DIRECTORY_SEPARATOR . str_replace(
+            '/',
+            DIRECTORY_SEPARATOR,
+            $documentService->getImageThumbnailPath($document),
+        );
+
+        try {
+            $this->get('/members/view/' . self::ADMIN_MEMBER_ID);
+            $this->assertResponseOk();
+            $this->assertResponseContains(
+                '/members/profile-photo/' . self::ADMIN_MEMBER_ID . '?v=' . $document->id,
+            );
+
+            $this->get('/members/profile-photo/' . self::ADMIN_MEMBER_ID);
+            $this->assertResponseOk();
+            $this->assertHeaderContains('Cache-Control', 'private');
+            $this->assertHeader('X-Content-Type-Options', 'nosniff');
+            $etag = $this->_response->getHeaderLine('ETag');
+            $this->assertNotSame('', $etag);
+
+            $this->configRequest(['headers' => ['If-None-Match' => $etag]]);
+            $this->get('/members/profile-photo/' . self::ADMIN_MEMBER_ID);
+            $this->assertResponseCode(304);
+            $this->assertHeader('ETag', $etag);
+        } finally {
+            if (file_exists($sourcePath)) {
+                unlink($sourcePath);
+            }
+            if (file_exists($thumbnailPath)) {
+                unlink($thumbnailPath);
+            }
+        }
     }
 
     /**

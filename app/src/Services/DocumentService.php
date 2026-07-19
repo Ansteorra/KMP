@@ -15,6 +15,7 @@ use Cake\Http\Response;
 use Cake\Log\Log;
 use Cake\ORM\Locator\LocatorAwareTrait;
 use Exception;
+use GdImage;
 use GuzzleHttp\Psr7\Uri;
 use Laminas\Diactoros\Stream;
 use Laminas\Diactoros\UploadedFile;
@@ -41,6 +42,16 @@ class DocumentService
      */
     private const STORAGE_BASE_PATH = 'images/uploaded/';
 
+    public const IMAGE_THUMBNAIL_VERSION = 1;
+
+    private const IMAGE_THUMBNAIL_MAX_DIMENSION = 440;
+
+    private const IMAGE_THUMBNAIL_JPEG_QUALITY = 82;
+
+    private const IMAGE_THUMBNAIL_MAX_SOURCE_BYTES = 20_000_000;
+
+    private const IMAGE_THUMBNAIL_MAX_SOURCE_PIXELS = 25_000_000;
+
     /**
      * Flysystem filesystem instance
      *
@@ -61,6 +72,11 @@ class DocumentService
      * @var string|null
      */
     private ?string $localBasePath = null;
+
+    /**
+     * @var array<string, mixed>|null
+     */
+    private ?array $azureConfig = null;
 
     /**
      * Documents table instance
@@ -104,6 +120,7 @@ class DocumentService
             }
 
             try {
+                $this->azureConfig = $azureConfig;
                 $this->filesystem = $this->createAzureFilesystem($azureConfig);
                 Log::info('Initialized Azure Blob Storage adapter', [
                     'container' => $azureConfig['container'] ?? 'documents',
@@ -254,6 +271,30 @@ class DocumentService
      */
     private function getFilesystemForAdapter(string $adapterType): ?FlysystemFilesystem
     {
+        if ($adapterType === $this->adapter) {
+            if ($adapterType === 'azure') {
+                $azureConfig = (new TenantDocumentStorageConfigResolver())->resolveAzureConfig();
+                if ($azureConfig !== $this->azureConfig) {
+                    if (!$this->azureConfigHasCredential($azureConfig)) {
+                        Log::error('Azure storage credentials not configured for document retrieval');
+
+                        return null;
+                    }
+
+                    try {
+                        $this->azureConfig = $azureConfig;
+                        $this->filesystem = $this->createAzureFilesystem($azureConfig);
+                    } catch (Exception $e) {
+                        Log::error('Failed to refresh tenant Azure filesystem: ' . $e->getMessage());
+
+                        return null;
+                    }
+                }
+            }
+
+            return $this->filesystem;
+        }
+
         if ($adapterType === 'azure') {
             $azureConfig = (new TenantDocumentStorageConfigResolver())->resolveAzureConfig();
 
@@ -366,8 +407,10 @@ class DocumentService
      * @param array<string, mixed> $azureConfig Azure storage config
      * @return \League\Flysystem\Filesystem
      */
-    private function createAzureFilesystem(array $azureConfig): FlysystemFilesystem
-    {
+    private function createAzureFilesystem(
+        array $azureConfig,
+        bool $ensureContainerExists = false,
+    ): FlysystemFilesystem {
         $container = (string)($azureConfig['container'] ?? 'documents');
         $prefix = (string)($azureConfig['prefix'] ?? '');
         $connectionString = $azureConfig['connectionString'] ?? null;
@@ -385,10 +428,30 @@ class DocumentService
         }
 
         $containerClient = $blobServiceClient->getContainerClient($container);
-        $containerClient->createIfNotExists();
+        if ($ensureContainerExists) {
+            $containerClient->createIfNotExists();
+        }
         $adapter = new AzureBlobStorageAdapter($containerClient, $prefix);
 
         return new FlysystemFilesystem($adapter);
+    }
+
+    /**
+     * Ensure write-time infrastructure exists without adding provisioning calls to reads.
+     */
+    private function ensureFilesystemReadyForWrite(): void
+    {
+        if ($this->adapter !== 'azure') {
+            return;
+        }
+
+        $azureConfig = (new TenantDocumentStorageConfigResolver())->resolveAzureConfig();
+        if (!$this->azureConfigHasCredential($azureConfig)) {
+            throw new RuntimeException('Azure storage credentials not configured for document write');
+        }
+
+        $this->azureConfig = $azureConfig;
+        $this->filesystem = $this->createAzureFilesystem($azureConfig, true);
     }
 
     /**
@@ -465,6 +528,7 @@ class DocumentService
      * @param string $subDirectory Optional subdirectory within storage base (e.g., 'waiver-templates')
      * @param array $allowedExtensions Optional array of allowed file extensions (default: ['pdf'])
      * @param string|null $previewTempPath Optional path to a temporary JPEG preview to store alongside the document
+     * @param string|null $verifiedMimeType Server-verified MIME type, when available
      * @return \App\Services\ServiceResult Success with document ID, or failure with error message
      */
     public function createDocument(
@@ -476,6 +540,7 @@ class DocumentService
         string $subDirectory = '',
         array $allowedExtensions = ['pdf'],
         ?string $previewTempPath = null,
+        ?string $verifiedMimeType = null,
     ): ServiceResult {
         // Validate file upload
         if ($file->getSize() === 0 || $file->getError() !== UPLOAD_ERR_OK) {
@@ -582,6 +647,7 @@ class DocumentService
 
         // Store file using Flysystem
         try {
+            $this->ensureFilesystemReadyForWrite();
             $this->filesystem->write($relativePath, $fileContents);
         } catch (Exception $e) {
             Log::error('Failed to store file');
@@ -609,7 +675,7 @@ class DocumentService
             'original_filename' => $originalName,
             'stored_filename' => $storedFilename,
             'file_path' => $relativePath,
-            'mime_type' => $file->getClientMediaType() ?: 'application/octet-stream',
+            'mime_type' => $verifiedMimeType ?: $file->getClientMediaType() ?: 'application/octet-stream',
             'file_size' => $file->getSize(),
             'checksum' => $checksum,
             'storage_adapter' => $this->adapter,
@@ -697,27 +763,6 @@ class DocumentService
             return null;
         }
 
-        // Check if file exists
-        try {
-            if (!$filesystem->fileExists($document->file_path)) {
-                Log::error('Document file not found', [
-                    'document_id' => $document->id,
-                    'file_path' => $document->file_path,
-                    'adapter' => $documentAdapter,
-                ]);
-
-                return null;
-            }
-        } catch (Exception $e) {
-            Log::error('Error checking file existence: ' . $e->getMessage(), [
-                'document_id' => $document->id,
-                'file_path' => $document->file_path,
-                'adapter' => $documentAdapter,
-            ]);
-
-            return null;
-        }
-
         // Use original filename if no custom name provided
         if ($downloadName === null) {
             $downloadName = $document->original_filename;
@@ -797,27 +842,6 @@ class DocumentService
             return null;
         }
 
-        // Check if file exists
-        try {
-            if (!$filesystem->fileExists($document->file_path)) {
-                Log::error('Document file not found for inline retrieval', [
-                    'document_id' => $document->id,
-                    'file_path' => $document->file_path,
-                    'adapter' => $documentAdapter,
-                ]);
-
-                return null;
-            }
-        } catch (Exception $e) {
-            Log::error('Error checking file existence for inline retrieval: ' . $e->getMessage(), [
-                'document_id' => $document->id,
-                'file_path' => $document->file_path,
-                'adapter' => $documentAdapter,
-            ]);
-
-            return null;
-        }
-
         // Use original filename if no custom name provided
         if ($inlineName === null) {
             $inlineName = $document->original_filename;
@@ -882,6 +906,423 @@ class DocumentService
     }
 
     /**
+     * Return a cached thumbnail, generating it from the original image when needed.
+     *
+     * @param \App\Model\Entity\Document $document Source image document
+     * @param string|null $inlineName Optional response filename
+     * @return \Cake\Http\Response|null Thumbnail or original image response
+     */
+    public function getImageThumbnailInlineResponse(
+        Document $document,
+        ?string $inlineName = null,
+    ): ?Response {
+        $documentAdapter = $document->storage_adapter ?? 'local';
+        $filesystem = $this->getFilesystemForAdapter($documentAdapter);
+        if ($filesystem === null) {
+            Log::error('Failed to initialize filesystem for image thumbnail retrieval', [
+                'document_id' => $document->id,
+                'storage_adapter' => $documentAdapter,
+            ]);
+
+            return null;
+        }
+
+        $thumbnailPath = $this->getImageThumbnailPath($document);
+        $inlineName = str_replace(
+            ["\r", "\n", '"'],
+            '',
+            (string)($inlineName ?? $document->original_filename),
+        );
+
+        try {
+            $thumbnailContents = $filesystem->read($thumbnailPath);
+
+            return $this->createInlineStringResponse(
+                $thumbnailContents,
+                'image/jpeg',
+                $inlineName,
+            );
+        } catch (Exception) {
+            // A missing derived image is expected until the first authenticated request heals it.
+        }
+
+        try {
+            $originalContents = $filesystem->read($document->file_path);
+        } catch (Exception $e) {
+            Log::error('Failed to read source image for thumbnail', [
+                'document_id' => $document->id,
+                'file_path' => $document->file_path,
+                'adapter' => $documentAdapter,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+
+        $thumbnailContents = $this->createImageThumbnail($originalContents);
+        if ($thumbnailContents === null) {
+            Log::warning('Profile image could not be safely thumbnailed; serving original', [
+                'document_id' => $document->id,
+                'file_path' => $document->file_path,
+            ]);
+            $imageInfo = getimagesizefromstring($originalContents);
+            $mimeType = is_array($imageInfo)
+                ? ($imageInfo['mime'] ?? null)
+                : null;
+
+            return $this->createInlineStringResponse(
+                $originalContents,
+                is_string($mimeType) ? $mimeType : ($document->mime_type ?: 'application/octet-stream'),
+                $inlineName,
+            );
+        }
+
+        try {
+            $filesystem->write($thumbnailPath, $thumbnailContents);
+            Log::info('Generated image thumbnail', [
+                'document_id' => $document->id,
+                'thumbnail_path' => $thumbnailPath,
+                'source_bytes' => strlen($originalContents),
+                'thumbnail_bytes' => strlen($thumbnailContents),
+            ]);
+        } catch (Exception $e) {
+            Log::warning('Generated image thumbnail could not be persisted', [
+                'document_id' => $document->id,
+                'thumbnail_path' => $thumbnailPath,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $this->createInlineStringResponse(
+            $thumbnailContents,
+            'image/jpeg',
+            $inlineName,
+        );
+    }
+
+    /**
+     * Build the deterministic path for the current image-thumbnail algorithm.
+     */
+    public function getImageThumbnailPath(Document $document): string
+    {
+        $sourcePath = $this->sanitizePath((string)$document->file_path);
+        $directory = dirname($sourcePath);
+        $filename = pathinfo($sourcePath, PATHINFO_FILENAME);
+        $sourceVersion = (string)($document->checksum ?: hash(
+            'sha256',
+            implode('|', [
+                (string)$document->id,
+                $sourcePath,
+                (string)$document->file_size,
+                (string)$document->modified,
+            ]),
+        ));
+        $thumbnailFilename = sprintf(
+            '%s-%s-v%d-%d.jpg',
+            $filename,
+            substr($sourceVersion, 0, 16),
+            self::IMAGE_THUMBNAIL_VERSION,
+            self::IMAGE_THUMBNAIL_MAX_DIMENSION,
+        );
+        $prefix = $directory === '.' ? '' : $directory . '/';
+
+        return $prefix . 'profile-thumbnails/' . $thumbnailFilename;
+    }
+
+    /**
+     * Build a strong ETag tied to both the source image and thumbnail algorithm.
+     */
+    public function getImageThumbnailEtag(Document $document): string
+    {
+        return '"' . hash(
+            'sha256',
+            self::IMAGE_THUMBNAIL_VERSION . '|' . $this->getImageThumbnailPath($document),
+        ) . '"';
+    }
+
+    /**
+     * Create a bounded JPEG thumbnail from an encoded source image.
+     */
+    private function createImageThumbnail(string $sourceContents): ?string
+    {
+        if (strlen($sourceContents) > self::IMAGE_THUMBNAIL_MAX_SOURCE_BYTES) {
+            return null;
+        }
+
+        $imageInfo = getimagesizefromstring($sourceContents);
+        if ($imageInfo === false) {
+            return null;
+        }
+
+        [$sourceWidth, $sourceHeight] = $imageInfo;
+        if (
+            $sourceWidth <= 0
+            || $sourceHeight <= 0
+            || $sourceWidth > intdiv(self::IMAGE_THUMBNAIL_MAX_SOURCE_PIXELS, $sourceHeight)
+        ) {
+            return null;
+        }
+
+        $sourceImage = imagecreatefromstring($sourceContents);
+        if (!$sourceImage instanceof GdImage) {
+            return null;
+        }
+        $sourceImage = $this->applyExifOrientation(
+            $sourceImage,
+            $sourceContents,
+            $imageInfo[2] ?? null,
+        );
+        $sourceWidth = imagesx($sourceImage);
+        $sourceHeight = imagesy($sourceImage);
+
+        $scale = min(
+            1,
+            self::IMAGE_THUMBNAIL_MAX_DIMENSION / max($sourceWidth, $sourceHeight),
+        );
+        $thumbnailWidth = max(1, (int)round($sourceWidth * $scale));
+        $thumbnailHeight = max(1, (int)round($sourceHeight * $scale));
+        $thumbnailImage = imagecreatetruecolor($thumbnailWidth, $thumbnailHeight);
+        if (!$thumbnailImage instanceof GdImage) {
+            imagedestroy($sourceImage);
+
+            return null;
+        }
+
+        $background = imagecolorallocate($thumbnailImage, 255, 255, 255);
+        imagefill($thumbnailImage, 0, 0, $background);
+        $resampled = imagecopyresampled(
+            $thumbnailImage,
+            $sourceImage,
+            0,
+            0,
+            0,
+            0,
+            $thumbnailWidth,
+            $thumbnailHeight,
+            $sourceWidth,
+            $sourceHeight,
+        );
+        imagedestroy($sourceImage);
+        if (!$resampled) {
+            imagedestroy($thumbnailImage);
+
+            return null;
+        }
+
+        ob_start();
+        $written = imagejpeg(
+            $thumbnailImage,
+            null,
+            self::IMAGE_THUMBNAIL_JPEG_QUALITY,
+        );
+        $thumbnailContents = ob_get_clean();
+        imagedestroy($thumbnailImage);
+
+        return $written && is_string($thumbnailContents)
+            ? $thumbnailContents
+            : null;
+    }
+
+    /**
+     * Apply common camera-orientation metadata before resampling a JPEG.
+     */
+    private function applyExifOrientation(
+        GdImage $image,
+        string $sourceContents,
+        ?int $imageType,
+    ): GdImage {
+        if ($imageType !== IMAGETYPE_JPEG) {
+            return $image;
+        }
+
+        $orientation = $this->readJpegExifOrientation($sourceContents);
+        $flip = match ($orientation) {
+            2, 5, 7 => IMG_FLIP_HORIZONTAL,
+            4 => IMG_FLIP_VERTICAL,
+            default => null,
+        };
+        if ($flip !== null) {
+            imageflip($image, $flip);
+        }
+
+        $rotation = match ($orientation) {
+            3 => 180,
+            5, 8 => 90,
+            6, 7 => -90,
+            default => null,
+        };
+        if ($rotation === null) {
+            return $image;
+        }
+
+        $rotatedImage = imagerotate($image, $rotation, 0);
+        if (!$rotatedImage instanceof GdImage) {
+            return $image;
+        }
+
+        imagedestroy($image);
+
+        return $rotatedImage;
+    }
+
+    /**
+     * Read the TIFF orientation tag from a JPEG APP1 segment without ext-exif.
+     */
+    private function readJpegExifOrientation(string $jpeg): int
+    {
+        $length = strlen($jpeg);
+        if ($length < 4 || substr($jpeg, 0, 2) !== "\xFF\xD8") {
+            return 1;
+        }
+
+        $offset = 2;
+        while ($offset + 4 <= $length) {
+            if (ord($jpeg[$offset]) !== 0xFF) {
+                break;
+            }
+            while ($offset < $length && ord($jpeg[$offset]) === 0xFF) {
+                $offset++;
+            }
+            if ($offset >= $length) {
+                break;
+            }
+
+            $marker = ord($jpeg[$offset++]);
+            if ($marker === 0xDA || $marker === 0xD9) {
+                break;
+            }
+            if ($marker === 0x01 || ($marker >= 0xD0 && $marker <= 0xD7)) {
+                continue;
+            }
+
+            $segmentLength = $this->readUnsignedShort($jpeg, $offset, false);
+            if ($segmentLength === null || $segmentLength < 2 || $offset + $segmentLength > $length) {
+                break;
+            }
+
+            $segmentStart = $offset + 2;
+            $segmentDataLength = $segmentLength - 2;
+            if (
+                $marker === 0xE1
+                && $segmentDataLength >= 14
+                && substr($jpeg, $segmentStart, 6) === "Exif\0\0"
+            ) {
+                return $this->readTiffOrientation(
+                    $jpeg,
+                    $segmentStart + 6,
+                    $segmentDataLength - 6,
+                );
+            }
+
+            $offset += $segmentLength;
+        }
+
+        return 1;
+    }
+
+    /**
+     * Read an EXIF orientation tag from a bounded TIFF block.
+     */
+    private function readTiffOrientation(string $data, int $start, int $length): int
+    {
+        if ($length < 14) {
+            return 1;
+        }
+
+        $byteOrder = substr($data, $start, 2);
+        if ($byteOrder !== 'II' && $byteOrder !== 'MM') {
+            return 1;
+        }
+        $littleEndian = $byteOrder === 'II';
+        if ($this->readUnsignedShort($data, $start + 2, $littleEndian) !== 42) {
+            return 1;
+        }
+
+        $ifdOffset = $this->readUnsignedLong($data, $start + 4, $littleEndian);
+        if ($ifdOffset === null) {
+            return 1;
+        }
+        $ifdStart = $start + $ifdOffset;
+        $end = $start + $length;
+        if ($ifdStart < $start || $ifdStart + 2 > $end) {
+            return 1;
+        }
+
+        $entryCount = $this->readUnsignedShort($data, $ifdStart, $littleEndian);
+        if ($entryCount === null) {
+            return 1;
+        }
+
+        for ($entryIndex = 0; $entryIndex < $entryCount; $entryIndex++) {
+            $entryOffset = $ifdStart + 2 + ($entryIndex * 12);
+            if ($entryOffset + 12 > $end) {
+                break;
+            }
+
+            $tag = $this->readUnsignedShort($data, $entryOffset, $littleEndian);
+            $type = $this->readUnsignedShort($data, $entryOffset + 2, $littleEndian);
+            if ($tag !== 0x0112 || $type !== 3) {
+                continue;
+            }
+
+            $orientation = $this->readUnsignedShort($data, $entryOffset + 8, $littleEndian);
+
+            return $orientation !== null && $orientation >= 1 && $orientation <= 8
+                ? $orientation
+                : 1;
+        }
+
+        return 1;
+    }
+
+    /**
+     * Read a two-byte unsigned integer using the TIFF byte order.
+     */
+    private function readUnsignedShort(string $data, int $offset, bool $littleEndian): ?int
+    {
+        if ($offset < 0 || $offset + 2 > strlen($data)) {
+            return null;
+        }
+
+        $value = unpack($littleEndian ? 'vvalue' : 'nvalue', substr($data, $offset, 2));
+
+        return is_array($value) ? (int)$value['value'] : null;
+    }
+
+    /**
+     * Read a four-byte unsigned integer using the TIFF byte order.
+     */
+    private function readUnsignedLong(string $data, int $offset, bool $littleEndian): ?int
+    {
+        if ($offset < 0 || $offset + 4 > strlen($data)) {
+            return null;
+        }
+
+        $value = unpack($littleEndian ? 'Vvalue' : 'Nvalue', substr($data, $offset, 4));
+
+        return is_array($value) ? (int)$value['value'] : null;
+    }
+
+    /**
+     * Create an inline response for in-memory file contents.
+     */
+    private function createInlineStringResponse(
+        string $contents,
+        string $mimeType,
+        string $inlineName,
+    ): Response {
+        $encodedFilename = rawurlencode($inlineName);
+
+        return (new Response())
+            ->withStringBody($contents)
+            ->withType($mimeType)
+            ->withHeader(
+                'Content-Disposition',
+                "inline; filename=\"{$inlineName}\"; filename*=UTF-8''{$encodedFilename}",
+            );
+    }
+
+    /**
      * Get an inline preview response for a document's generated JPEG preview.
      *
      * @param \App\Model\Entity\Document $document Document entity with stored file path
@@ -907,27 +1348,6 @@ class DocumentService
         }
 
         $sanitizedPreviewPath = $this->sanitizePath($previewPath);
-
-        try {
-            if (!$filesystem->fileExists($sanitizedPreviewPath)) {
-                Log::notice('Document preview not found', [
-                    'document_id' => $document->id,
-                    'preview_path' => $sanitizedPreviewPath,
-                    'adapter' => $documentAdapter,
-                ]);
-
-                return null;
-            }
-        } catch (Exception $e) {
-            Log::error('Error checking preview existence', [
-                'document_id' => $document->id,
-                'preview_path' => $sanitizedPreviewPath,
-                'adapter' => $documentAdapter,
-                'error' => $e->getMessage(),
-            ]);
-
-            return null;
-        }
 
         if ($documentAdapter === 'local') {
             $config = Configure::read('Documents.storage', []);
@@ -1041,6 +1461,25 @@ class DocumentService
                             'file_path' => $document->file_path,
                             'adapter' => $documentAdapter,
                         ]);
+                    }
+
+                    if (
+                        $document->entity_type === 'Members.ProfilePhoto'
+                        || str_starts_with((string)$document->mime_type, 'image/')
+                    ) {
+                        $thumbnailPath = $this->getImageThumbnailPath($document);
+                        try {
+                            if ($filesystem->fileExists($thumbnailPath)) {
+                                $filesystem->delete($thumbnailPath);
+                            }
+                        } catch (Exception $e) {
+                            Log::debug('Failed to delete image thumbnail during document cleanup', [
+                                'document_id' => $documentId,
+                                'thumbnail_path' => $thumbnailPath,
+                                'adapter' => $documentAdapter,
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
                     }
 
                     $previewPath = null;

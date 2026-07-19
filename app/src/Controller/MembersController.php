@@ -72,6 +72,8 @@ class MembersController extends AppController
     /** Session key for deferred quick-login PIN setup. */
     private const QUICK_LOGIN_SETUP_SESSION_KEY = 'QuickLoginSetup';
 
+    private const PROFILE_PHOTO_CACHE_CONTROL = 'private, max-age=3600, must-revalidate';
+
     /**
      * Request-scoped flag to instruct login UI to clear stale quick-login config.
      */
@@ -352,7 +354,7 @@ class MembersController extends AppController
 
         // Use unified trait for grid processing (system views mode)
         $result = $this->processDataverseGrid([
-            'gridKey' => "Members.roles",
+            'gridKey' => 'Members.roles',
             'gridColumnsClass' => MemberRolesGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'MemberRoles',
@@ -422,7 +424,7 @@ class MembersController extends AppController
 
         // Use unified trait for grid processing (system views mode)
         $result = $this->processDataverseGrid([
-            'gridKey' => "Members.gatherings",
+            'gridKey' => 'Members.gatherings',
             'gridColumnsClass' => GatheringAttendancesGridColumns::class,
             'baseQuery' => $this->fetchTable('GatheringAttendances')
                 ->find()
@@ -1436,12 +1438,7 @@ class MembersController extends AppController
             throw new NotFoundException();
         }
 
-        $response = $profileService->getProfilePhotoResponse($member, 'member_profile_photo_');
-        if ($response === null) {
-            throw new NotFoundException();
-        }
-
-        return $response;
+        return $this->serveProfilePhoto($profileService, $member, 'member_profile_photo_');
     }
 
     /**
@@ -1475,12 +1472,59 @@ class MembersController extends AppController
             throw new NotFoundException();
         }
 
-        $response = $profileService->getProfilePhotoResponse($member, 'member_mobile_card_photo_');
+        return $this->serveProfilePhoto($profileService, $member, 'member_mobile_card_photo_');
+    }
+
+    /**
+     * Serve a cached profile-photo thumbnail after action-level authorization.
+     */
+    private function serveProfilePhoto(
+        MemberProfileService $profileService,
+        Member $member,
+        string $filenamePrefix,
+    ): Response {
+        $etag = $profileService->getProfilePhotoEtag($member);
+        if ($this->requestEtagMatches($etag)) {
+            return $this->withProfilePhotoCacheHeaders(
+                (new Response())->withStatus(304),
+                $etag,
+            );
+        }
+
+        $response = $profileService->getProfilePhotoResponse($member, $filenamePrefix);
         if ($response === null) {
             throw new NotFoundException();
         }
 
-        return $response;
+        return $this->withProfilePhotoCacheHeaders($response, $etag);
+    }
+
+    /**
+     * Check If-None-Match using weak comparison semantics.
+     */
+    private function requestEtagMatches(string $etag): bool
+    {
+        $requestEtags = explode(',', $this->request->getHeaderLine('If-None-Match'));
+        foreach ($requestEtags as $requestEtag) {
+            $requestEtag = trim($requestEtag);
+            if ($requestEtag === '*' || $requestEtag === $etag || $requestEtag === 'W/' . $etag) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Apply private browser caching and content hardening headers.
+     */
+    private function withProfilePhotoCacheHeaders(Response $response, string $etag): Response
+    {
+        return $response
+            ->withHeader('Cache-Control', self::PROFILE_PHOTO_CACHE_CONTROL)
+            ->withHeader('ETag', $etag)
+            ->withHeader('Vary', 'Cookie')
+            ->withHeader('X-Content-Type-Options', 'nosniff');
     }
 
     /**
@@ -1690,6 +1734,7 @@ class MembersController extends AppController
                 'controller' => 'Members',
                 'action' => 'profilePhoto',
                 $member->id,
+                '?' => ['v' => (int)$member->profile_photo_document_id],
             ], true);
         } else {
             $member->profile_photo_url = null;
@@ -1751,6 +1796,7 @@ class MembersController extends AppController
             $member->profile_photo_url = Router::url([
                 'controller' => 'Members',
                 'action' => 'mobileCardPhoto',
+                '?' => ['v' => (int)$member->profile_photo_document_id],
             ], true);
         } else {
             $member->profile_photo_url = null;

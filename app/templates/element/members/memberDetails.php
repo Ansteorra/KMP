@@ -13,7 +13,12 @@ $canEditProfilePhoto = $user && method_exists($user, 'checkCan') && (
 );
 $piiHiddenText = __('Hidden (requires View PII permission)');
 $profilePhotoUrl = !empty($member->profile_photo_document_id)
-    ? $this->Url->build(['controller' => 'Members', 'action' => 'profilePhoto', $member->id])
+    ? $this->Url->build([
+        'controller' => 'Members',
+        'action' => 'profilePhoto',
+        $member->id,
+        '?' => ['v' => (int)$member->profile_photo_document_id],
+    ])
     : null;
 $hasProfilePhoto = $profilePhotoUrl !== null;
 $photoRowspan = 5;

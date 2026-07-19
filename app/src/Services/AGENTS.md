@@ -18,6 +18,7 @@ Own reusable business workflows, side effects, integrations, registries, workflo
 - Do not hide failures in broad catches or success-shaped fallbacks.
 - Services assume authorization has already been enforced unless the service is specifically an authorization helper.
 - Tenant-aware data must use tenant-safe cache keys and context handling.
+- Document reads must not provision remote containers. Derived image variants use deterministic, versioned paths and bounded lazy generation after controller authorization.
 
 ## Work Guidance
 
