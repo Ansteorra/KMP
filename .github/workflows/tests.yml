@@ -291,6 +291,9 @@ jobs:
       - name: Start Docker test services
         run: |
           echo "127.0.0.1 kmp.localhost kmp2.localhost" | sudo tee -a /etc/hosts
+          for volume in kmp-pg-data kmp-composer-cache kmp-node-modules kmp-pgadmin-data; do
+            docker volume create "$volume" >/dev/null
+          done
           docker compose --env-file app/config/.env up -d --no-build app scheduler mailpit
 
       - name: Install Playwright browser
@@ -393,6 +396,9 @@ jobs:
       - name: Start Docker test services
         run: |
           echo "127.0.0.1 kmp.localhost kmp2.localhost" | sudo tee -a /etc/hosts
+          for volume in kmp-pg-data kmp-composer-cache kmp-node-modules kmp-pgadmin-data; do
+            docker volume create "$volume" >/dev/null
+          done
           docker compose --env-file app/config/.env up -d --no-build app scheduler mailpit
 
       - name: Install Playwright browser
