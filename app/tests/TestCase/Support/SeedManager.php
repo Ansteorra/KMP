@@ -137,10 +137,12 @@ final class SeedManager
             throw new RuntimeException(sprintf('Unable to read PostgreSQL seed file at %s', $seedPath));
         }
 
+        $conn = ConnectionManager::get($connection);
+        $sql = self::filterPostgresSequenceResets($conn, $sql);
+
         preg_match_all('/INSERT\s+INTO\s+"([^"]+)"/i', $sql, $matches);
         $seededTables = array_values(array_unique($matches[1] ?? []));
         if ($seededTables !== []) {
-            $conn = ConnectionManager::get($connection);
             $quotedTables = array_map(
                 static fn(string $table): string => '"' . str_replace('"', '""', $table) . '"',
                 $seededTables,
@@ -154,16 +156,41 @@ final class SeedManager
             return;
         }
 
-        $conn = ConnectionManager::get($connection);
         $conn->getDriver()->exec($sql);
         self::seedPostgresWorkflowDefinitions($conn);
     }
 
     /**
+     * Remove sequence resets for legacy seed tables absent from fresh migrations.
+     *
+     * @param \Cake\Database\Connection $conn Test database connection.
+     * @param string $sql PostgreSQL seed SQL.
+     * @return string
+     */
+    private static function filterPostgresSequenceResets(Connection $conn, string $sql): string
+    {
+        $rows = $conn->execute(
+            'SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = current_schema()',
+        )->fetchAll('assoc');
+        $existingTables = array_fill_keys(array_column($rows, 'tablename'), true);
+
+        $filteredSql = preg_replace_callback(
+            "/^SELECT setval\\(pg_get_serial_sequence\\('([^']+)', '[^']+'\\), .*;\\R?/m",
+            static fn(array $matches): string => isset($existingTables[$matches[1]]) ? $matches[0] : '',
+            $sql,
+        );
+        if ($filteredSql === null) {
+            throw new RuntimeException('Unable to filter PostgreSQL seed sequence resets.');
+        }
+
+        return $filteredSql;
+    }
+
+    /**
      * Seed configuration data that normally comes from data-bearing migrations.
      *
-     * PostgreSQL tests import a current schema dump, so those migrations do not
-     * execute again. Keep their configuration seed data available explicitly.
+     * The PostgreSQL data-only seed can omit configuration-bearing rows.
+     * Keep their configuration seed data available explicitly.
      *
      * @param \Cake\Database\Connection $conn Test database connection.
      * @return void

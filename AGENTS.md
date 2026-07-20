@@ -40,6 +40,7 @@ Deliver small, correct, verified changes that match the existing CakePHP 5, Stim
 | `app/plugins` | First-party plugins |
 | `app/tests` | PHPUnit, Jest, and Playwright tests |
 | `.github/skills/wcag-accessibility` | WCAG 2.2 Level AA accessibility review and implementation skill |
+| `.github/skills/release-deploy` | Gated POC and production release workflow, including shared changelog and GitHub Release notes |
 | `app/bin/verify.sh` | Full local verification script |
 
 ## Current stack
@@ -82,6 +83,19 @@ Run these from `app/` unless noted.
 | PHPStan | `vendor/bin/phpstan analyse --no-progress` |
 
 `bin/verify.sh` checks PHPUnit, Jest, Vite, changed PHP files with PHPCS, and PHPStan.
+
+## Release phrase contracts
+
+- **"Push to dev"** means fast-forward the official `dev` branch to the selected
+  official `main` commit, monitor the gated image build and POC deployment, and
+  verify POC. It never changes production.
+- **"Do a release"** means update `app/CHANGELOG.md` before POC testing, use that
+  release section verbatim for the GitHub Release notes, validate the exact
+  changelog-bearing commit in POC, publish a stable `v*` release for that commit,
+  wait for production approval, and verify the production rollout.
+- Invoke `.github/skills/release-deploy` for either phrase. Never release a
+  different commit from the one validated in POC, and never bypass failed gates
+  or the production environment approval.
 
 ## Do not do these
 

@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Waivers\Services;
 
+use App\KMP\CaseInsensitiveQuery;
 use App\KMP\StaticHelpers;
 use App\KMP\TimezoneHelper;
 use Cake\I18n\Date;
@@ -311,12 +312,12 @@ class WaiverDashboardService
             ->where([
                 'GatheringWaivers.deleted IS' => null,
                 'OR' => [
-                    'Gatherings.name LIKE' => '%' . $searchTerm . '%',
-                    'Branches.name LIKE' => '%' . $searchTerm . '%',
-                    'CreatedByMembers.sca_name LIKE' => '%' . $searchTerm . '%',
-                    'CreatedByMembers.first_name LIKE' => '%' . $searchTerm . '%',
-                    'CreatedByMembers.last_name LIKE' => '%' . $searchTerm . '%',
-                    'WaiverTypes.name LIKE' => '%' . $searchTerm . '%',
+                    CaseInsensitiveQuery::contains('Gatherings.name', $searchTerm),
+                    CaseInsensitiveQuery::contains('Branches.name', $searchTerm),
+                    CaseInsensitiveQuery::contains('CreatedByMembers.sca_name', $searchTerm),
+                    CaseInsensitiveQuery::contains('CreatedByMembers.first_name', $searchTerm),
+                    CaseInsensitiveQuery::contains('CreatedByMembers.last_name', $searchTerm),
+                    CaseInsensitiveQuery::contains('WaiverTypes.name', $searchTerm),
                 ],
             ])
             ->innerJoinWith('Gatherings.Branches', function ($q) use ($branchIds) {

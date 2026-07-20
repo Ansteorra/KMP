@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Identifier;
 
+use App\KMP\CaseInsensitiveQuery;
 use App\Model\Entity\Member;
 use ArrayAccess;
 use Authentication\Identifier\PasswordIdentifier;
@@ -89,7 +90,7 @@ class KMPBruteForcePasswordIdentifier extends PasswordIdentifier
         $MembersTable = TableRegistry::getTableLocator()->get('Members');
         $user = $MembersTable
             ->find($finder)
-            ->where(['email_address' => $username])
+            ->where(CaseInsensitiveQuery::equals('email_address', (string)$username))
             ->first();
 
         return $user;

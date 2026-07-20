@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Awards\Controller;
 
 use App\Controller\DataverseGridTrait;
+use App\KMP\CaseInsensitiveQuery;
 use App\Services\CsvExportService;
 use Awards\KMP\GridColumns\ApprovalProcessesGridColumns;
 use Awards\Model\Entity\ApprovalProcessStep;
@@ -335,7 +336,7 @@ class ApprovalProcessesController extends AppController
             ->limit(20);
 
         if ($q !== '') {
-            $members->where(['Members.sca_name ILIKE' => '%' . $q . '%']);
+            $members->where(CaseInsensitiveQuery::contains('Members.sca_name', $q));
         }
 
         $this->set(compact('members', 'q'));

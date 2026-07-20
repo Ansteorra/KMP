@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\KMP\CaseInsensitiveQuery;
 use App\KMP\GridColumns\RolesGridColumns;
 use App\Model\Entity\Permission;
 use App\Services\CsvExportService;
@@ -510,7 +511,7 @@ class RolesController extends AppController
         $q = $this->request->getQuery('q');
         $query = $this->Roles
             ->find('all')
-            ->where(['name LIKE' => "%$q%"])
+            ->where(CaseInsensitiveQuery::contains('name', (string)$q))
             ->select(['id', 'name'])
             ->limit(50);
         $this->set(compact('query', 'q'));

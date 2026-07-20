@@ -5,16 +5,16 @@
 # Creates (idempotent):
 #   - Resource group
 #   - Azure AD app + federated credential for GitHub Actions OIDC
-#   - Imports ghcr.io/jhandel/kmp:nightly into a freshly-provisioned ACR
+#   - Imports ghcr.io/ansteorra/kmp:nightly into a freshly-provisioned ACR
 #   - Runs `az deployment group create` with deploy/azure/main.bicep
 #   - Writes the AAD client ID + all Azure context back into nightly.env
-#   - (optionally) pushes GitHub repo secrets with `gh secret set`
+#   - (optionally) configures GitHub POC environment variables with `gh`
 #
 # Usage:
 #   cd deploy/azure
 #   ./bootstrap.sh                          # full bootstrap
-#   ./bootstrap.sh --skip-gh-secrets        # don't call gh secret set
-#   ./bootstrap.sh --github-repo owner/repo # override repo for `gh secret set`
+#   ./bootstrap.sh --skip-gh-secrets        # don't configure GitHub
+#   ./bootstrap.sh --github-repo owner/repo # override the GitHub repository
 #
 # Requirements:
 #   - `az` logged in (`az login`) as an account with Owner/Contributor + User
@@ -37,7 +37,7 @@ set -a; source "$ENV_FILE"; set +a
 
 # --- args
 SKIP_GH=0
-GITHUB_REPO="jhandel/KMP"
+GITHUB_REPO="Ansteorra/KMP"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --skip-gh-secrets) SKIP_GH=1; shift ;;
@@ -121,10 +121,10 @@ az deployment group create \
     --parameters acrName="$ACR_NAME" location="$AZURE_REGION" \
     -o none
 
-echo "    importing ghcr.io/jhandel/kmp:nightly into ACR..."
+echo "    importing ghcr.io/ansteorra/kmp:nightly into ACR..."
 az acr import \
     --name "$ACR_NAME" \
-    --source "ghcr.io/jhandel/kmp:nightly" \
+    --source "ghcr.io/ansteorra/kmp:nightly" \
     --image "kmp:nightly" \
     --force
 
@@ -164,6 +164,7 @@ jqget() { python3 -c "import json,sys;print(json.load(open('$OUT_FILE'))['$1']['
 WEB_FQDN="$(jqget webAppFqdn)"
 ACR_LOGIN_SERVER="$(jqget acrLoginServer)"
 POSTGRES_FQDN="$(jqget postgresFqdn)"
+POSTGRES_SERVER_NAME="$(jqget postgresServerName)"
 KV_NAME="$(jqget keyVaultName)"
 MIGRATE_JOB="$(jqget migrateJobName)"
 QUEUE_JOB="$(jqget queueJobName)"
@@ -176,7 +177,7 @@ SCHED_NIGHTLY_JOB="$(jqget scheduleNightlyJobName)"
 WEB_APP="$(jqget webAppName)"
 
 # --- 5. AAD app + federated credential for GitHub OIDC
-AAD_APP_NAME="kmp-nightly-github-oidc"
+AAD_APP_NAME="kmp-poc-github-oidc"
 echo "--- Ensuring AAD app '$AAD_APP_NAME' and federated credential..."
 APP_ID="$(az ad app list --display-name "$AAD_APP_NAME" --query '[0].appId' -o tsv 2>/dev/null || true)"
 if [[ -z "$APP_ID" ]]; then
@@ -201,11 +202,8 @@ az role assignment create \
     --scope "$RG_ID" \
     -o none 2>/dev/null || true
 
-# Federated credential for push / schedule / workflow_run on default branch
-for subject in \
-    "repo:${GITHUB_REPO}:ref:refs/heads/main" \
-    "repo:${GITHUB_REPO}:ref:refs/heads/feature/workflow-engine" \
-    "repo:${GITHUB_REPO}:environment:nightly"; do
+# Federated credential is scoped to the GitHub POC environment.
+for subject in "repo:${GITHUB_REPO}:environment:poc"; do
     cred_name="gh-$(echo "$subject" | tr ':/' '--')"
     cred_name="${cred_name:0:120}"
     exists="$(az ad app federated-credential list --id "$APP_ID" --query "[?name=='$cred_name'] | length(@)" -o tsv 2>/dev/null || echo 0)"
@@ -225,33 +223,41 @@ else
         "$APP_ID" "$ACR_LOGIN_SERVER" "$WEB_FQDN" >> "$ENV_FILE"
 fi
 
-# --- 7. Push secrets to GitHub (optional)
+# --- 7. Configure the GitHub POC environment (optional)
 if [[ $SKIP_GH -eq 0 ]]; then
     if command -v gh >/dev/null; then
-        echo "--- Setting GitHub repo secrets on $GITHUB_REPO..."
-        gh secret set AZURE_CLIENT_ID --body "$APP_ID" --repo "$GITHUB_REPO"
-        gh secret set AZURE_TENANT_ID --body "$AZURE_TENANT_ID" --repo "$GITHUB_REPO"
-        gh secret set AZURE_SUBSCRIPTION_ID --body "$AZURE_SUBSCRIPTION_ID" --repo "$GITHUB_REPO"
-        gh variable set AZURE_RESOURCE_GROUP --body "$AZURE_RESOURCE_GROUP" --repo "$GITHUB_REPO"
-        gh variable set AZURE_ACR_NAME --body "$ACR_NAME" --repo "$GITHUB_REPO"
-        gh variable set AZURE_WEB_APP_NAME --body "$WEB_APP" --repo "$GITHUB_REPO"
-        gh variable set AZURE_MIGRATE_JOB_NAME --body "$MIGRATE_JOB" --repo "$GITHUB_REPO"
-        gh variable set AZURE_QUEUE_JOB_NAME --body "$QUEUE_JOB" --repo "$GITHUB_REPO"
-        gh variable set AZURE_RESTORE_JOB_NAME --body "$RESTORE_JOB" --repo "$GITHUB_REPO"
-        gh variable set AZURE_PROVISION_JOB_NAME --body "$PROVISION_JOB" --repo "$GITHUB_REPO"
-        gh variable set AZURE_SCHED_HOURLY_JOB_NAME --body "$SCHED_HOURLY_JOB" --repo "$GITHUB_REPO"
-        gh variable set AZURE_SCHED_DAILY_JOB_NAME --body "$SCHED_DAILY_JOB" --repo "$GITHUB_REPO"
-        gh variable set AZURE_SCHED_WEEKLY_JOB_NAME --body "$SCHED_WEEKLY_JOB" --repo "$GITHUB_REPO"
-        gh variable set AZURE_SCHED_NIGHTLY_JOB_NAME --body "$SCHED_NIGHTLY_JOB" --repo "$GITHUB_REPO"
+        echo "--- Setting GitHub POC environment variables on $GITHUB_REPO..."
+        gh api --method PUT "repos/$GITHUB_REPO/environments/poc" >/dev/null
+        gh variable set AZURE_CLIENT_ID --body "$APP_ID" --env poc --repo "$GITHUB_REPO"
+        gh variable set AZURE_TENANT_ID --body "$AZURE_TENANT_ID" --env poc --repo "$GITHUB_REPO"
+        gh variable set AZURE_SUBSCRIPTION_ID --body "$AZURE_SUBSCRIPTION_ID" --env poc --repo "$GITHUB_REPO"
+        gh variable set AZURE_RESOURCE_GROUP --body "$AZURE_RESOURCE_GROUP" --env poc --repo "$GITHUB_REPO"
+        gh variable set AZURE_ACR_NAME --body "$ACR_NAME" --env poc --repo "$GITHUB_REPO"
+        gh variable set AZURE_POSTGRES_SERVER_NAME --body "$POSTGRES_SERVER_NAME" --env poc --repo "$GITHUB_REPO"
+        gh variable set AZURE_WEB_APP_NAME --body "$WEB_APP" --env poc --repo "$GITHUB_REPO"
+        gh variable set AZURE_MIGRATE_JOB_NAME --body "$MIGRATE_JOB" --env poc --repo "$GITHUB_REPO"
+        gh variable set AZURE_QUEUE_JOB_NAME --body "$QUEUE_JOB" --env poc --repo "$GITHUB_REPO"
+        gh variable set AZURE_RESTORE_JOB_NAME --body "$RESTORE_JOB" --env poc --repo "$GITHUB_REPO"
+        gh variable set AZURE_PROVISION_JOB_NAME --body "$PROVISION_JOB" --env poc --repo "$GITHUB_REPO"
+        gh variable set AZURE_SCHED_HOURLY_JOB_NAME --body "$SCHED_HOURLY_JOB" --env poc --repo "$GITHUB_REPO"
+        gh variable set AZURE_SCHED_DAILY_JOB_NAME --body "$SCHED_DAILY_JOB" --env poc --repo "$GITHUB_REPO"
+        gh variable set AZURE_SCHED_WEEKLY_JOB_NAME --body "$SCHED_WEEKLY_JOB" --env poc --repo "$GITHUB_REPO"
+        gh variable set AZURE_SCHED_NIGHTLY_JOB_NAME --body "$SCHED_NIGHTLY_JOB" --env poc --repo "$GITHUB_REPO"
         # Backward-compatible names for older workflows.
-        gh variable set AZURE_SYNC_JOB_NAME --body "$SCHED_DAILY_JOB" --repo "$GITHUB_REPO"
-        gh variable set AZURE_RESET_JOB_NAME --body "$RESTORE_JOB" --repo "$GITHUB_REPO"
+        gh variable set AZURE_SYNC_JOB_NAME --body "$SCHED_DAILY_JOB" --env poc --repo "$GITHUB_REPO"
+        gh variable set AZURE_RESET_JOB_NAME --body "$RESTORE_JOB" --env poc --repo "$GITHUB_REPO"
     else
         echo "    gh CLI not found; install it and re-run with secrets unchanged."
     fi
 fi
 
-# --- 8. Apply migrations before the request-only web revision serves traffic
+# --- 8. Allow extensions required by PostgreSQL migrations
+"$HERE/ensure-postgres-extension.sh" \
+    --resource-group "$AZURE_RESOURCE_GROUP" \
+    --server-name "$POSTGRES_SERVER_NAME" \
+    --extension CITEXT
+
+# --- 9. Apply migrations before the request-only web revision serves traffic
 echo "--- Starting migration job..."
 MIGRATE_EXECUTION="$(az containerapp job start \
     -g "$AZURE_RESOURCE_GROUP" \
@@ -280,7 +286,7 @@ for attempt in $(seq 1 180); do
     sleep 10
 done
 
-# --- 9. Kick the restore job: full schema rebuild + dev seed + password reset
+# --- 10. Kick the restore job: full schema rebuild + dev seed + password reset
 # NOTE: requires /opt/kmp/reset-and-seed.sh to be present in the image. If you
 # bootstrap before the next nightly rebuild, the reset will fail — just run
 # the migrate job instead, and re-run reset after the image catches up.

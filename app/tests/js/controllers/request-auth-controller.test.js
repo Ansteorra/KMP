@@ -84,6 +84,31 @@ describe('ActivitiesRequestAuthorization', () => {
         expect(controller.approversTarget.disabled).toBe(false);
     });
 
+    test('getApprovers does not fetch without an activity ID', () => {
+        global.fetch = jest.fn();
+        controller.activityTarget.value = '';
+        controller.approversTarget.disabled = false;
+        controller.submitBtnTarget.disabled = false;
+
+        controller.getApprovers({});
+
+        expect(global.fetch).not.toHaveBeenCalled();
+        expect(controller.approversTarget.disabled).toBe(true);
+        expect(controller.submitBtnTarget.disabled).toBe(true);
+    });
+
+    test('getApprovers does not fetch without a member ID', () => {
+        global.fetch = jest.fn();
+        controller.activityTarget.value = '5';
+        controller.memberIdTarget.value = '';
+
+        controller.getApprovers({});
+
+        expect(global.fetch).not.toHaveBeenCalled();
+        expect(controller.approversTarget.disabled).toBe(true);
+        expect(controller.submitBtnTarget.disabled).toBe(true);
+    });
+
     test('getApprovers preserves enabled submit for an already selected valid approver', async () => {
         let resolveApprovers;
         global.fetch = jest.fn(() => Promise.resolve({
@@ -108,6 +133,30 @@ describe('ActivitiesRequestAuthorization', () => {
         expect(controller.approversTarget.options.length).toBe(2);
         expect(controller.approversTarget.value).toBe('2');
         expect(controller.submitBtnTarget.disabled).toBe(false);
+    });
+
+    test('getApprovers ignores a stale response after the activity is cleared', async () => {
+        let resolveApprovers;
+        global.fetch = jest.fn(() => Promise.resolve({
+            ok: true,
+            json: () => new Promise((resolve) => {
+                resolveApprovers = resolve;
+            })
+        }));
+
+        controller.activityTarget.value = '5';
+        controller.memberIdTarget.value = '100';
+        controller.getApprovers({});
+        await new Promise(r => setTimeout(r, 0));
+
+        controller.activityTarget.value = '';
+        controller.getApprovers({});
+        resolveApprovers([{ id: 5, sca_name: 'Sir Stale' }]);
+        await new Promise(r => setTimeout(r, 0));
+
+        expect(controller.approversTarget.disabled).toBe(true);
+        expect(controller.submitBtnTarget.disabled).toBe(true);
+        expect(controller.approversTarget.value).toBe('');
     });
 
     test('getApprovers auto-selects when single approver', async () => {

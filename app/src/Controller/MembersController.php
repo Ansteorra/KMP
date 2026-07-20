@@ -5,6 +5,7 @@ namespace App\Controller;
 
 use App\Form\ResetPasswordForm;
 use App\Identifier\KMPBruteForcePasswordIdentifier;
+use App\KMP\CaseInsensitiveQuery;
 use App\KMP\GridColumns\GatheringAttendancesGridColumns;
 use App\KMP\GridColumns\MemberRolesGridColumns;
 use App\KMP\GridColumns\MembersGridColumns;
@@ -556,22 +557,22 @@ class MembersController extends AppController
             }
             $query = $query->where([
                 'OR' => [
-                    ['Members.membership_number LIKE' => '%' . $search . '%'],
-                    ['Members.sca_name LIKE' => '%' . $search . '%'],
-                    ['Members.sca_name LIKE' => '%' . $nsearch . '%'],
-                    ['Members.sca_name LIKE' => '%' . $usearch . '%'],
-                    ['Members.first_name LIKE' => '%' . $search . '%'],
-                    ['Members.last_name LIKE' => '%' . $search . '%'],
-                    ['Members.email_address LIKE' => '%' . $search . '%'],
-                    ['Branches.name LIKE' => '%' . $search . '%'],
-                    ['Members.first_name LIKE' => '%' . $nsearch . '%'],
-                    ['Members.last_name LIKE' => '%' . $nsearch . '%'],
-                    ['Members.email_address LIKE' => '%' . $nsearch . '%'],
-                    ['Branches.name LIKE' => '%' . $nsearch . '%'],
-                    ['Members.first_name LIKE' => '%' . $usearch . '%'],
-                    ['Members.last_name LIKE' => '%' . $usearch . '%'],
-                    ['Members.email_address LIKE' => '%' . $usearch . '%'],
-                    ['Branches.name LIKE' => '%' . $usearch . '%'],
+                    CaseInsensitiveQuery::contains('Members.membership_number', $search),
+                    CaseInsensitiveQuery::contains('Members.sca_name', $search),
+                    CaseInsensitiveQuery::contains('Members.sca_name', $nsearch),
+                    CaseInsensitiveQuery::contains('Members.sca_name', $usearch),
+                    CaseInsensitiveQuery::contains('Members.first_name', $search),
+                    CaseInsensitiveQuery::contains('Members.last_name', $search),
+                    CaseInsensitiveQuery::contains('Members.email_address', $search),
+                    CaseInsensitiveQuery::contains('Branches.name', $search),
+                    CaseInsensitiveQuery::contains('Members.first_name', $nsearch),
+                    CaseInsensitiveQuery::contains('Members.last_name', $nsearch),
+                    CaseInsensitiveQuery::contains('Members.email_address', $nsearch),
+                    CaseInsensitiveQuery::contains('Branches.name', $nsearch),
+                    CaseInsensitiveQuery::contains('Members.first_name', $usearch),
+                    CaseInsensitiveQuery::contains('Members.last_name', $usearch),
+                    CaseInsensitiveQuery::contains('Members.email_address', $usearch),
+                    CaseInsensitiveQuery::contains('Branches.name', $usearch),
                 ],
             ]);
         }
@@ -2322,7 +2323,7 @@ class MembersController extends AppController
         }
 
         $member = $this->Members->find()
-            ->where(['Members.email_address' => $emailAddress])
+            ->where(CaseInsensitiveQuery::equals('Members.email_address', $emailAddress))
             ->first();
         if ($member === null) {
             $this->flagQuickLoginOutOfSync($emailAddress);

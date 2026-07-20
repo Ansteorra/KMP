@@ -21,6 +21,7 @@ use App\Application;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Cake\Core\Configure;
 use Cake\Error\Middleware\ErrorHandlerMiddleware;
+use Cake\Http\Exception\MissingControllerException;
 use Cake\Http\MiddlewareQueue;
 use Cake\Http\Response;
 use Cake\Http\ServerRequest;
@@ -54,6 +55,14 @@ class ApplicationTest extends HttpIntegrationTestCase
         $this->assertTrue(
             $plugins->has('Migrations'),
             'plugins has Migrations?',
+        );
+    }
+
+    public function testMissingControllerExceptionsAreExcludedFromErrorLogs(): void
+    {
+        $this->assertContains(
+            MissingControllerException::class,
+            Configure::read('Error.skipLog'),
         );
     }
 

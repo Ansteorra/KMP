@@ -335,13 +335,13 @@ class GridViewConfig
                     $conditions[$field . ' <='] = $value;
                     break;
                 case 'contains':
-                    $conditions[$field . ' LIKE'] = '%' . $value . '%';
+                    $conditions += CaseInsensitiveQuery::contains($field, (string)$value);
                     break;
                 case 'startsWith':
-                    $conditions[$field . ' LIKE'] = $value . '%';
+                    $conditions += CaseInsensitiveQuery::startsWith($field, (string)$value);
                     break;
                 case 'endsWith':
-                    $conditions[$field . ' LIKE'] = '%' . $value;
+                    $conditions += CaseInsensitiveQuery::endsWith($field, (string)$value);
                     break;
                 case 'in':
                     $conditions[$field . ' IN'] = is_array($value) ? $value : [$value];
@@ -558,9 +558,17 @@ class GridViewConfig
         // Build condition based on operator
         switch ($operator) {
             case 'eq':
+                if (self::isFreeTextColumn($columnMeta, $value)) {
+                    return CaseInsensitiveQuery::equals($qualifiedField, (string)$value);
+                }
+
                 return [$qualifiedField => $value];
 
             case 'neq':
+                if (self::isFreeTextColumn($columnMeta, $value)) {
+                    return CaseInsensitiveQuery::notEquals($qualifiedField, (string)$value);
+                }
+
                 return [$qualifiedField . ' !=' => $value];
 
             case 'gt':
@@ -576,13 +584,13 @@ class GridViewConfig
                 return [$qualifiedField . ' <=' => $value];
 
             case 'contains':
-                return [$qualifiedField . ' LIKE' => '%' . $value . '%'];
+                return CaseInsensitiveQuery::contains($qualifiedField, (string)$value);
 
             case 'startsWith':
-                return [$qualifiedField . ' LIKE' => $value . '%'];
+                return CaseInsensitiveQuery::startsWith($qualifiedField, (string)$value);
 
             case 'endsWith':
-                return [$qualifiedField . ' LIKE' => '%' . $value];
+                return CaseInsensitiveQuery::endsWith($qualifiedField, (string)$value);
 
             case 'in':
                 return [$qualifiedField . ' IN' => is_array($value) ? $value : [$value]];
@@ -613,6 +621,23 @@ class GridViewConfig
             default:
                 return [];
         }
+    }
+
+    /**
+     * @param array<string, mixed>|null $columnMeta Column metadata.
+     * @param mixed $value Filter value.
+     */
+    private static function isFreeTextColumn(?array $columnMeta, mixed $value): bool
+    {
+        if (!is_string($value) || $columnMeta === null) {
+            return false;
+        }
+
+        if (array_key_exists('filterType', $columnMeta)) {
+            return in_array($columnMeta['filterType'], ['string', 'text'], true);
+        }
+
+        return in_array($columnMeta['type'] ?? null, ['string', 'text'], true);
     }
 
     /**

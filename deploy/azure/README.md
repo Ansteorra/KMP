@@ -1,10 +1,18 @@
 # KMP Azure Deployment
 
-The nightly KMP environment runs on **Azure Container Apps + Jobs**, backed by
+The POC KMP environment runs on **Azure Container Apps + Jobs**, backed by
 **Azure Database for PostgreSQL Flexible Server**, with the Docker image
 mirrored nightly from GHCR into an **Azure Container Registry**. Every
 resource is defined in [`main.bicep`](./main.bicep); nothing is clicked in the
 portal.
+
+PostgreSQL migrations use the `CITEXT` extension for selected human-facing
+columns that historically inherited case-insensitive behavior from MySQL.
+Fresh and existing environments run `ensure-postgres-extension.sh` after Azure
+login and before the migration job. The helper updates the server-level
+`azure.extensions` configuration while preserving any other allowlisted
+extensions. Do not run migrations that create or use `citext` before this
+allowlist step succeeds.
 
 Seed data lives in [`seed/nightly-seed.kmpbackup`](./seed/) — an
 engine-agnostic, AES-256-GCM-encrypted backup produced by
@@ -17,7 +25,7 @@ any developer sees after running `reset_dev_database.sh`.
 
 ```
  GitHub Actions (nightly.yml)                         ┌────────────────────────┐
- └── builds & pushes ghcr.io/jhandel/kmp:nightly ──┐  │  Azure resource group  │
+ └── builds dev → ghcr.io/ansteorra/kmp:dev-SHA ───┐ │  Azure resource group  │
                                                     │  │  kmp-nightly-rg        │
  GitHub Actions (nightly-deploy-azure.yml)         │  │                        │
   1. OIDC → Azure                                  │  │  ACR <prefix>acr<hash> │
@@ -62,7 +70,7 @@ Default job shapes:
   `/opt/kmp/reset-and-seed.sh`.
 - `<prefix>-provision` — manual tenant provision operation shape. The safe
   default prints command help; operators override args for a specific tenant.
-- `<prefix>-queue` — the single one-minute background authority. It runs
+- `<prefix>-queue` — the single three-minute background authority. It runs
   `bin/cake platform worker run`, dispatching due schedules, draining the
   default and active-tenant Queue datasources, and claiming one bounded
   platform job.
@@ -99,7 +107,7 @@ Everything below is idempotent; rerun safely.
 ### Prerequisites
 - `az` CLI logged in as an account with **Owner** (or Contributor + User
   Access Administrator) on the subscription
-- `gh` CLI authenticated (for setting repo secrets)
+- `gh` CLI authenticated (for configuring the GitHub POC environment)
 - You are in the repo root.
 - `deploy/azure/seed/nightly-seed.kmpbackup` exists in the repo (bake one
   via `deploy/azure/seed/bake-seed.sh` if this is the first time — see
@@ -129,15 +137,16 @@ cd deploy/azure
 This will:
 1. Register required Azure resource providers (already done in your sub).
 2. Create the resource group.
-3. Provision the ACR and `az acr import` the current `ghcr.io/jhandel/kmp:nightly`.
+3. Provision the ACR and `az acr import` the current
+   `ghcr.io/ansteorra/kmp:nightly`.
 4. Deploy all infrastructure from `main.bicep`.
-5. Create an AAD app `kmp-nightly-github-oidc` with a federated credential for
-   GitHub (`jhandel/KMP` on `main`, `feature/workflow-engine`, and environment
-   `nightly`).
+5. Create an AAD app `kmp-poc-github-oidc` with a federated credential scoped
+   to the `Ansteorra/KMP` `poc` environment.
 6. Assign the AAD app **Contributor** on the resource group.
-7. Push `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` as repo
-   secrets and infrastructure names as repo variables via `gh`.
-8. Start the `kmp-migrate` job to apply base migrations.
+7. Push the OIDC and infrastructure names as non-secret `poc` environment
+   variables via `gh`.
+8. Ensure `CITEXT` is present in the PostgreSQL extension allowlist.
+9. Start the `kmp-migrate` job to apply base migrations.
 
 Skip `gh` integration with `./bootstrap.sh --skip-gh-secrets`.
 
@@ -162,9 +171,8 @@ az containerapp job start -g "$RG" -n "${AZURE_NAME_PREFIX}-reset"
 az containerapp logs show -g "$RG" -n "${AZURE_NAME_PREFIX}-reset" --container reset --tail 200 --follow
 ```
 
-The reset job can also be triggered from GitHub Actions by running
-**Nightly / Deploy to Azure** via `workflow_dispatch` with
-`full_reset = true`.
+The reset job remains an explicit operator action and is not part of the
+automatic POC deployment workflow.
 
 ### 4. Verify
 
@@ -174,14 +182,16 @@ WEB=$(az containerapp show -g kmp-nightly-rg -n kmpnightly-web \
 curl -sv "https://$WEB/health"
 ```
 
-## Nightly re-deploys
+## POC deployments
 
-Every successful run of `nightly.yml` triggers `nightly-deploy-azure.yml`
-via `workflow_run`. That workflow:
+Every successful `dev` branch image build triggers
+`nightly-deploy-azure.yml` via `workflow_run`. Scheduled `main` builds still
+publish the `nightly` channel but do not deploy it automatically. The POC
+workflow:
 
 1. Logs in to Azure via OIDC — **no long-lived secrets**
-2. `az acr import` the new nightly image (dual-tags as `nightly` and
-   `nightly-YYYY-MM-DD`)
+2. Imports the immutable `dev-SHA` image from the official Ansteorra GHCR
+   package into the POC ACR
 3. Captures the current web and Job definitions as a rollback artifact
 4. Repairs and manually canaries the one-minute unified worker
 5. Repairs `kmp-migrate`, runs it, and requires success
@@ -196,8 +206,8 @@ to `deploy/azure/rollback-unified-worker.sh` to re-enable the legacy queue
 schedules and restore the prior ACA runtime definitions. It does not
 destructively roll back tenant application data.
 
-You can also trigger it manually from the **Actions** tab → "Nightly / Deploy
-to Azure" → **Run workflow**, optionally overriding the image tag.
+You can also trigger it manually from the **Actions** tab → "POC / Deploy to
+Azure" → **Run workflow**, optionally overriding the image tag.
 
 ## Ad-hoc nightly deploys from your workstation
 
@@ -322,7 +332,7 @@ approved. If custom domains are needed for staging, add entries to
 `frontDoorCustomDomains` as objects with `name` and `hostName`; DNS validation
 and certificate issuance remain operational follow-up steps.
 
-## Manual production release environment
+## Production release environment
 
 [`production.bicepparam`](./production.bicepparam) defines the initial
 cost-optimized North Central US release stack. It adds the smallest Azure
@@ -346,8 +356,7 @@ remote Application Insights delivery, retry, and buffering outside the web
 request. Set `applicationInsightsTransport = 'direct'` only as a rollback path
 for environments that do not have the managed agent enabled. A production copy
 of the KMP Telemetry Dashboard workbook is deployed against that component. The
-profile intentionally does not configure Front Door, deployment automation, or
-PgBouncer.
+profile intentionally does not configure Front Door or PgBouncer.
 
 The initial PostgreSQL B1ms server connects on port `5432`. Azure's built-in
 PgBouncer is not available on Burstable compute; move to General Purpose before
@@ -377,6 +386,29 @@ database, and verify `/health`, `/platform-admin/health`, tenant host routing,
 scheduled jobs, Redis-backed sessions, and backup storage. At cutover, replace
 the rehearsal data through the platform and tenant backup/restore workflow; do
 not rerun the destructive nightly-seed restore job against live data.
+
+Production deployment is automated from published, non-prerelease GitHub
+releases. `release.yml` builds and smoke-tests the image, addresses it by digest,
+then pauses at the protected `production` environment for approval. Approval
+promotes that exact digest into the production ACR and runs the same ordered
+worker canary, migrations, web cutover, health probes, and retained-job alignment
+used by POC. Production is never deployed from a mutable channel tag.
+
+Configure the repository environments and their resource-group-scoped OIDC
+identities idempotently:
+
+```bash
+AZURE_SUBSCRIPTION_ID=<subscription-id> \
+AZURE_TENANT_ID=<tenant-id> \
+PRODUCTION_REVIEWER=<github-login> \
+env -u GH_TOKEN bash deploy/azure/configure-github-cd.sh
+```
+
+The script creates separate `kmp-poc-github-oidc` and
+`kmp-production-github-oidc` Entra applications. POC trusts only the
+`Ansteorra/KMP` `poc` environment and deploys from `dev`; production trusts only
+the `production` environment, accepts `v*` release tags, and requires the
+configured reviewer.
 
 ## Common operations
 
@@ -421,8 +453,8 @@ Managed-platform residency boundaries, retention defaults, breach-notification o
 - **GitHub → Azure auth is OIDC.** No client secret exists. If the repo is
   deleted/transferred, revoke by deleting the federated credential on the
   AAD app.
-- **Blast radius.** The AAD app is scoped **Contributor on the resource
-  group only** — it cannot touch anything outside `kmp-nightly-rg`.
+- **Blast radius.** Separate POC and production AAD apps are scoped
+  **Contributor** only on their respective resource groups.
 
 ## File map
 
@@ -430,21 +462,22 @@ Managed-platform residency boundaries, retention defaults, breach-notification o
   web + 8 fixed schedule-shape jobs, optional Front Door, role assignments)
 - `staging.bicepparam` — Phase 0 staging parameter file; reads secrets from
   environment variables and enables Front Door
-- `bootstrap.sh` — one-time provisioning + GitHub secrets wiring
+- `bootstrap.sh` — one-time POC provisioning + GitHub environment wiring
+- `configure-github-cd.sh` — idempotent Ansteorra GitHub environment, OIDC,
+  and Azure RBAC configuration
+- `ensure-postgres-extension.sh` — preserves the PostgreSQL extension allowlist
+  while adding an extension required by migrations
 - `seed/` — encrypted seed backup + bake helper; see `seed/README.md`
 - `nightly.env.example` — settings template (copy to `nightly.env`)
 - `../../docker/reset-and-seed.sh` — in-container reset script invoked by
   the restore job (engine-agnostic, restores from `seed/nightly-seed.kmpbackup`)
-- `../../.github/workflows/nightly-deploy-azure.yml` — automated re-deploy
-  on every green nightly image
+- `../../.github/workflows/azure-deploy.yml` — reusable ordered ACA deployment
+- `../../.github/workflows/nightly-deploy-azure.yml` — automated POC deployment
+  for each green `dev` image
 
 ## Known limitations / future work
 
-- Nightly builds from `feature/workflow-engine`: `nightly.yml` currently
-  builds on `schedule` (always default branch = `main`) and `push` to `main`.
-  If you want nightly builds of `feature/workflow-engine` while that branch
-  is active, add another trigger or a dispatch with `ref` to nightly.yml.
-  The deploy workflow already accepts runs from either branch.
+- The `dev` branch must exist before automatic POC deployment can begin.
 - Custom domain: the Container App has the default
   `*.azurecontainerapps.io` FQDN. To add `nightly.ansteorra.org`, attach a
   managed certificate + CNAME — one day of additional work.

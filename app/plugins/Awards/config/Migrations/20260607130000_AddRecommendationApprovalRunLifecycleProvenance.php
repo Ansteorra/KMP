@@ -23,19 +23,16 @@ class AddRecommendationApprovalRunLifecycleProvenance extends BaseMigration
             ->addColumn('consumed_by_bestowal_id', 'integer', [
                 'default' => null,
                 'null' => true,
-                'signed' => false,
                 'after' => 'terminal_reason',
             ])
             ->addColumn('superseded_by_bestowal_id', 'integer', [
                 'default' => null,
                 'null' => true,
-                'signed' => false,
                 'after' => 'consumed_by_bestowal_id',
             ])
             ->addColumn('rehydrated_from_run_id', 'integer', [
                 'default' => null,
                 'null' => true,
-                'signed' => false,
                 'after' => 'superseded_by_bestowal_id',
             ])
             ->addForeignKey(

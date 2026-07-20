@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\KMP\CaseInsensitiveQuery;
 use App\KMP\GridColumns\PermissionsGridColumns;
 use App\KMP\PermissionsLoader;
 use App\Services\CsvExportService;
@@ -833,7 +834,7 @@ class PermissionsController extends AppController
         $q = $this->request->getQuery('q');
         $query = $this->Permissions
             ->find('all')
-            ->where(['name LIKE' => "%$q%"])
+            ->where(CaseInsensitiveQuery::contains('name', (string)$q))
             ->select(['id', 'name'])
             ->limit(50);
         $this->set(compact('query', 'q'));

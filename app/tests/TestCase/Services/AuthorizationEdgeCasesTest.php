@@ -193,6 +193,20 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
 
         $this->assertGreaterThan(0, $expiredCount, 'Bryce should have expired/deactivated warrants');
 
+        $currentWarrant = $this->Warrants->find()
+            ->where([
+                'member_id' => self::TEST_MEMBER_BRYCE_ID,
+                'status' => 'Current',
+            ])
+            ->first();
+        $this->assertNotNull($currentWarrant, 'Bryce should have a current warrant fixture');
+        $this->Warrants->updateAll(
+            [
+                'start_on' => DateTime::now()->subDays(1),
+                'expires_on' => DateTime::now()->addDays(1),
+            ],
+            ['id' => $currentWarrant->id],
+        );
         $currentCount = $this->Warrants->find()
             ->where([
                 'member_id' => self::TEST_MEMBER_BRYCE_ID,

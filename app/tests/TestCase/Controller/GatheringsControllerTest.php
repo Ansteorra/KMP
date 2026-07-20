@@ -972,10 +972,16 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->get('/events');
 
         $this->assertResponseOk();
-        // Exactly one activity chip is styled as a circle (the flagged one)
-        $this->assertSame(
-            1,
-            substr_count((string)$this->_response->getBody(), 'kc-activity-chip-circle'),
+        $body = (string)$this->_response->getBody();
+        $this->assertMatchesRegularExpression(
+            '/<span class="kc-activity-chip kc-activity-chip-circle">\s*'
+            . '<i class="bi bi-record-circle" aria-hidden="true"><\/i>\s*'
+            . 'Order of the Laurel\s*<\/span>/',
+            $body,
+        );
+        $this->assertMatchesRegularExpression(
+            '/<span class="kc-activity-chip">\s*Drum Circle\s*<\/span>/',
+            $body,
         );
     }
 

@@ -240,7 +240,7 @@ param enableProvisionJob bool = true
 param enableQueueWorkerJob bool = true
 
 @description('Cron for the unified background worker.')
-param queueWorkerCron string = '* * * * *'
+param queueWorkerCron string = '*/3 * * * *'
 
 @minValue(1)
 @maxValue(10)
@@ -1213,6 +1213,7 @@ resource scheduledShapeJobs 'Microsoft.App/jobs@2024-03-01' = [for job in schedu
 output acrLoginServer string = acr.properties.loginServer
 output acrName string = acr.name
 output postgresFqdn string = pg.properties.fullyQualifiedDomainName
+output postgresServerName string = pg.name
 output postgresAdminUser string = postgresAdminUser
 output postgresDatabaseName string = postgresDatabaseName
 output platformPostgresDatabaseName string = platformPostgresDatabaseName

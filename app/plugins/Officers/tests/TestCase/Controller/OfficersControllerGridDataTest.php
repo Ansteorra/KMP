@@ -34,4 +34,20 @@ class OfficersControllerGridDataTest extends HttpIntegrationTestCase
 
         $this->assertResponseOk();
     }
+
+    public function testApiExportsOfficerWithoutExpirationDate(): void
+    {
+        $officers = TableRegistry::getTableLocator()->get('Officers.Officers');
+        $officer = $officers->find()
+            ->contain(['Members'])
+            ->firstOrFail();
+        $officers->updateAll(['expires_on' => null], ['id' => $officer->id]);
+
+        $this->get('/officers/officers/api');
+
+        $this->assertResponseOk();
+        $this->assertHeaderContains('Content-Disposition', 'officers-');
+        $this->assertResponseContains('Office,Name,email,Branch,Department,Start,End');
+        $this->assertResponseContains($officer->member->sca_name);
+    }
 }

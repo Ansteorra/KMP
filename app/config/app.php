@@ -425,7 +425,7 @@ return [
         "errorLevel" => E_ALL & ~E_USER_DEPRECATED,
 
         /** @var array<string> Exception classes to skip for logging */
-        "skipLog" => [],
+        "skipLog" => [\Cake\Http\Exception\MissingControllerException::class],
 
         /** @var bool Whether to log exceptions */
         "log" => true,

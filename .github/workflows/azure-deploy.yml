@@ -1,0 +1,223 @@
+name: Azure / Deploy Container Apps
+
+on:
+  workflow_call:
+    inputs:
+      environment_name:
+        description: GitHub environment that owns the Azure configuration
+        required: true
+        type: string
+      source_image:
+        description: Immutable or channel-qualified GHCR image reference
+        required: true
+        type: string
+      target_tag:
+        description: Tag to create in the environment ACR
+        required: true
+        type: string
+      checkout_ref:
+        description: Trusted ref containing the deployment tooling
+        required: false
+        default: main
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+  packages: read
+
+jobs:
+  deploy:
+    name: Deploy to ${{ inputs.environment_name }}
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment_name }}
+      url: ${{ steps.endpoint.outputs.url }}
+    concurrency:
+      group: azure-${{ inputs.environment_name }}-deploy
+      cancel-in-progress: false
+    env:
+      SOURCE_IMAGE: ${{ inputs.source_image }}
+      TARGET_TAG: ${{ inputs.target_tag }}
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      AZURE_ACR_NAME: ${{ vars.AZURE_ACR_NAME }}
+      AZURE_POSTGRES_SERVER_NAME: ${{ vars.AZURE_POSTGRES_SERVER_NAME }}
+      AZURE_WEB_APP_NAME: ${{ vars.AZURE_WEB_APP_NAME }}
+      AZURE_MIGRATE_JOB_NAME: ${{ vars.AZURE_MIGRATE_JOB_NAME }}
+      AZURE_QUEUE_JOB_NAME: ${{ vars.AZURE_QUEUE_JOB_NAME }}
+      AZURE_RESTORE_JOB_NAME: ${{ vars.AZURE_RESTORE_JOB_NAME }}
+      AZURE_PROVISION_JOB_NAME: ${{ vars.AZURE_PROVISION_JOB_NAME }}
+      AZURE_SCHED_HOURLY_JOB_NAME: ${{ vars.AZURE_SCHED_HOURLY_JOB_NAME }}
+      AZURE_SCHED_DAILY_JOB_NAME: ${{ vars.AZURE_SCHED_DAILY_JOB_NAME }}
+      AZURE_SCHED_WEEKLY_JOB_NAME: ${{ vars.AZURE_SCHED_WEEKLY_JOB_NAME }}
+      AZURE_SCHED_NIGHTLY_JOB_NAME: ${{ vars.AZURE_SCHED_NIGHTLY_JOB_NAME }}
+
+    steps:
+      - name: Check out trusted deployment tooling
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.checkout_ref }}
+
+      - name: Validate deployment inputs
+        env:
+          DEPLOY_ENVIRONMENT: ${{ inputs.environment_name }}
+        run: |
+          set -euo pipefail
+          for name in \
+            AZURE_CLIENT_ID \
+            AZURE_TENANT_ID \
+            AZURE_SUBSCRIPTION_ID \
+            AZURE_RESOURCE_GROUP \
+            AZURE_ACR_NAME \
+            AZURE_POSTGRES_SERVER_NAME \
+            AZURE_WEB_APP_NAME \
+            AZURE_MIGRATE_JOB_NAME \
+            AZURE_QUEUE_JOB_NAME; do
+            if [[ -z "${!name}" ]]; then
+              echo "Missing required $DEPLOY_ENVIRONMENT environment variable: $name" >&2
+              exit 64
+            fi
+          done
+          if [[ ! "$TARGET_TAG" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]; then
+            echo "Invalid ACR target tag: $TARGET_TAG" >&2
+            exit 64
+          fi
+          bash deploy/azure/test-runtime-contract.sh
+
+      - name: Azure login with GitHub OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Allow PostgreSQL case-insensitive text extension
+        run: |
+          bash deploy/azure/ensure-postgres-extension.sh \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --server-name "$AZURE_POSTGRES_SERVER_NAME" \
+            --extension CITEXT
+
+      - name: Import the tested image into ACR
+        env:
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          az acr import \
+            --name "$AZURE_ACR_NAME" \
+            --source "$SOURCE_IMAGE" \
+            --image "kmp:$TARGET_TAG" \
+            --username "$GHCR_USERNAME" \
+            --password "$GHCR_TOKEN" \
+            --force \
+            --only-show-errors
+
+          ACR_LOGIN_SERVER="$(az acr show \
+            --name "$AZURE_ACR_NAME" \
+            --query loginServer \
+            --output tsv)"
+          IMAGE_REF="${ACR_LOGIN_SERVER}/kmp:${TARGET_TAG}"
+          echo "IMAGE_REF=$IMAGE_REF" >> "$GITHUB_ENV"
+
+          if [[ "$SOURCE_IMAGE" == *@sha256:* ]]; then
+            SOURCE_DIGEST="${SOURCE_IMAGE##*@}"
+            IMPORTED_DIGEST="$(az acr manifest show-metadata \
+              --registry "$AZURE_ACR_NAME" \
+              --name "kmp:$TARGET_TAG" \
+              --query digest \
+              --output tsv)"
+            if [[ "$IMPORTED_DIGEST" != "$SOURCE_DIGEST" ]]; then
+              echo "Imported digest $IMPORTED_DIGEST does not match $SOURCE_DIGEST" >&2
+              exit 1
+            fi
+          fi
+
+      - name: Cut over worker, migrations, and web
+        env:
+          SNAPSHOT_DIR: ${{ runner.temp }}/kmp-aca-pre-cutover
+        run: |
+          set -euo pipefail
+          legacy_args=()
+          for job in \
+            "$AZURE_SCHED_HOURLY_JOB_NAME" \
+            "$AZURE_SCHED_DAILY_JOB_NAME" \
+            "$AZURE_SCHED_WEEKLY_JOB_NAME" \
+            "$AZURE_SCHED_NIGHTLY_JOB_NAME"; do
+            if [[ -n "$job" ]]; then
+              legacy_args+=(--legacy-job "$job")
+            fi
+          done
+
+          bash deploy/azure/cutover-unified-worker.sh \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --web-app "$AZURE_WEB_APP_NAME" \
+            --migrate-job "$AZURE_MIGRATE_JOB_NAME" \
+            --worker-job "$AZURE_QUEUE_JOB_NAME" \
+            --image "$IMAGE_REF" \
+            --snapshot-dir "$SNAPSHOT_DIR" \
+            "${legacy_args[@]}"
+
+      - name: Align retained manual jobs
+        run: |
+          set -euo pipefail
+          for job in "$AZURE_RESTORE_JOB_NAME" "$AZURE_PROVISION_JOB_NAME"; do
+            if [[ -z "$job" ]]; then
+              continue
+            fi
+            if az containerapp job show \
+              --resource-group "$AZURE_RESOURCE_GROUP" \
+              --name "$job" \
+              --output none 2>/dev/null; then
+              az containerapp job update \
+                --resource-group "$AZURE_RESOURCE_GROUP" \
+                --name "$job" \
+                --image "$IMAGE_REF" \
+                --only-show-errors \
+                --output none
+            else
+              echo "Optional retained job does not exist: $job"
+            fi
+          done
+
+      - name: Resolve deployed endpoint
+        id: endpoint
+        if: always()
+        run: |
+          FQDN="$(az containerapp show \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_WEB_APP_NAME" \
+            --query properties.configuration.ingress.fqdn \
+            --output tsv 2>/dev/null || true)"
+          if [[ -n "$FQDN" ]]; then
+            echo "url=https://$FQDN" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Preserve pre-cutover definitions
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aca-pre-cutover-${{ inputs.environment_name }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/kmp-aca-pre-cutover
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Deployment summary
+        if: always()
+        env:
+          DEPLOY_ENVIRONMENT: ${{ inputs.environment_name }}
+          DEPLOYED_URL: ${{ steps.endpoint.outputs.url || 'unavailable' }}
+          DEPLOY_STATUS: ${{ job.status }}
+        run: |
+          {
+            echo "## Azure deployment"
+            echo ""
+            echo "- Environment: \`$DEPLOY_ENVIRONMENT\`"
+            echo "- Source: \`$SOURCE_IMAGE\`"
+            echo "- Image: \`${IMAGE_REF:-not imported}\`"
+            echo "- URL: $DEPLOYED_URL"
+            echo "- Status: \`$DEPLOY_STATUS\`"
+          } >> "$GITHUB_STEP_SUMMARY"

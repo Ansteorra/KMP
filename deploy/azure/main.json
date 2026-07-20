@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.36.1.42791",
-      "templateHash": "460956992927410967"
+      "templateHash": "1424919296148911865"
     }
   },
   "parameters": {
@@ -432,7 +432,7 @@
     },
     "queueWorkerCron": {
       "type": "string",
-      "defaultValue": "* * * * *",
+      "defaultValue": "*/3 * * * *",
       "metadata": {
         "description": "Cron for the unified background worker."
       }
@@ -1544,6 +1544,10 @@
     "postgresFqdn": {
       "type": "string",
       "value": "[reference(resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('pgName')), '2024-08-01').fullyQualifiedDomainName]"
+    },
+    "postgresServerName": {
+      "type": "string",
+      "value": "[variables('pgName')]"
     },
     "postgresAdminUser": {
       "type": "string",

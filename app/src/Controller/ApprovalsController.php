@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\KMP\CaseInsensitiveQuery;
 use App\KMP\GridColumns\ApprovalsGridColumns;
 use App\KMP\TimezoneHelper;
 use App\KMP\WorkflowApprovalDecisionOptions;
@@ -1777,7 +1778,7 @@ class ApprovalsController extends AppController
                 ->orderBy(['Branches.name', 'Members.sca_name']);
 
             if ($q !== '') {
-                $query->where(['Members.sca_name LIKE' => "%{$q}%"]);
+                $query->where(CaseInsensitiveQuery::contains('Members.sca_name', $q));
             }
 
             foreach ($query->all() as $member) {
