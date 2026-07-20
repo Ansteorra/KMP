@@ -202,8 +202,8 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
         $this->assertNotNull($currentWarrant, 'Bryce should have a current warrant fixture');
         $this->Warrants->updateAll(
             [
-                'start_on' => DateTime::now()->subDay(),
-                'expires_on' => DateTime::now()->addDay(),
+                'start_on' => DateTime::now()->subDays(1),
+                'expires_on' => DateTime::now()->addDays(1),
             ],
             ['id' => $currentWarrant->id],
         );
