@@ -179,6 +179,7 @@ jq '{
         template: (
             .properties.template
             | del(.containers[].imageType?)
+            | del(.scale.cooldownPeriod?, .scale.pollingInterval?)
         )
     }
 }' "$snapshot_dir/web.json" > "$web_patch"

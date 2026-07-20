@@ -41,6 +41,8 @@ assert_contains "$here/configure-github-cd.sh" 'AZURE_POSTGRES_RESOURCE_GROUP'
 assert_contains "$here/configure-github-cd.sh" 'AZURE_POSTGRES_SERVER_NAME'
 assert_contains "$here/configure-github-cd.sh" 'Microsoft.DBforPostgreSQL/flexibleServers/configurations/read'
 assert_contains "$here/configure-github-cd.sh" 'Microsoft.DBforPostgreSQL/flexibleServers/configurations/write'
+assert_contains "$here/update-web-runtime.sh" 'del(.scale.cooldownPeriod?, .scale.pollingInterval?)'
+assert_contains "$here/rollback-unified-worker.sh" 'del(.scale.cooldownPeriod?, .scale.pollingInterval?)'
 assert_contains "$here/cutover-unified-worker.sh" '--fail-on-overlap'
 assert_contains "$here/cutover-unified-worker.sh" "0 0 1 1 *"
 assert_contains "$here/cutover-unified-worker.sh" "*/3 * * * *"
