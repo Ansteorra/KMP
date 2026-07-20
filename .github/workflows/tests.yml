@@ -2,8 +2,9 @@ name: Quality Gates
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main]
   pull_request:
+  workflow_call:
 
 concurrency:
   group: quality-gates-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}

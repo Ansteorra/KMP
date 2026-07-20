@@ -6,7 +6,7 @@ How to keep your KMP deployment up to date and recover from failed updates.
 
 ## How Updates Work
 
-KMP uses pre-built Docker images published to `ghcr.io/jhandel/kmp`. Updating is:
+KMP uses pre-built Docker images published to `ghcr.io/ansteorra/kmp`. Updating is:
 
 1. **Pull** the new image
 2. **Restart** the container(s)
@@ -51,7 +51,7 @@ The status command shows your current version and whether an update is available
 |---------|-----------|-----------|----------|
 | `release` | `latest` | Stable | Production (default) |
 | `beta` | `beta` | Pre-release | Testing upcoming features |
-| `dev` | `dev` | Development | Latest from `main` branch |
+| `dev` | `dev` | Development | Latest gated build from the `dev` branch |
 | `nightly` | `nightly` | Nightly | Bleeding edge |
 
 Switch channels:
@@ -59,6 +59,41 @@ Switch channels:
 ```bash
 kmp update --channel beta
 ```
+
+## Managed Azure Release Procedure
+
+The official Azure environments use gated GitHub Actions workflows and immutable
+image digests.
+
+### Release to POC
+
+1. Merge the approved pull request into `main`.
+2. Fast-forward the official `dev` branch to the exact `main` commit selected for
+   release and push `dev`.
+3. Wait for `Nightly / Dev Docker Image` to complete. It runs the full quality
+   gates before building the image; a failed gate prevents image creation and POC
+   deployment.
+4. Wait for `POC / Deploy to Azure` to import the image digest, run the worker
+   canary and migrations, cut over the web revision, and align retained jobs.
+5. Validate POC health, tenant login, worker/queue processing, and the release's
+   changed user journeys before promoting the commit.
+
+### Release to Production
+
+1. Create and publish a non-prerelease GitHub Release with a `v*` tag, targeting
+   the exact commit validated in POC.
+2. Wait for `Release Docker Image` to rerun the full quality gates against the
+   tag, build the release image, and verify its health.
+3. Review the pending `production` environment deployment and approve it.
+4. The deployment imports the exact tested digest into production ACR, verifies
+   the digest, runs the worker canary and migrations, cuts over the web revision,
+   and aligns retained jobs.
+5. Confirm production readiness, tenant hosts, login, queue processing, and the
+   active Container Apps image digest.
+
+Do not create a production release from a commit that differs from the POC-tested
+commit. Prereleases and published tags that do not start with `v` cannot promote
+to the production Azure environment.
 
 ## Manual Updates by Platform
 
@@ -75,7 +110,7 @@ In-app web-triggered updates for Docker/VPC are currently disabled; use `kmp upd
 ### Fly.io
 
 ```bash
-fly deploy --image ghcr.io/jhandel/kmp:latest
+fly deploy --image ghcr.io/ansteorra/kmp:latest
 ```
 
 ### Railway
@@ -128,7 +163,7 @@ KMP_IMAGE_TAG=v1.2.3 docker compose up -d
 
 ```bash
 # Deploy a specific version
-fly deploy --image ghcr.io/jhandel/kmp:v1.2.3
+fly deploy --image ghcr.io/ansteorra/kmp:v1.2.3
 ```
 
 ## Best Practices

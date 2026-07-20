@@ -13,6 +13,7 @@ concurrency:
 
 permissions:
   contents: read
+  checks: write
   packages: write
 
 env:
@@ -21,9 +22,14 @@ env:
   BASE_IMAGE: ghcr.io/ansteorra/kmp-base:php84
 
 jobs:
+  quality-gates:
+    name: Quality gates
+    uses: ./.github/workflows/tests.yml
+
   # Check if the pre-compiled base image exists. If not, build it first.
   # This handles first-run bootstrap automatically.
   ensure-base:
+    needs: quality-gates
     runs-on: ubuntu-latest
     outputs:
       base-exists: ${{ steps.check.outputs.exists }}
@@ -78,9 +84,13 @@ jobs:
           cache-to: type=gha,mode=max,scope=kmp-base
 
   build-and-push:
-    needs: [ensure-base, build-base]
+    needs: [quality-gates, ensure-base, build-base]
     # Run whether build-base was skipped (base exists) or completed (just built)
-    if: always() && (needs.ensure-base.result == 'success') && (needs.build-base.result == 'success' || needs.build-base.result == 'skipped')
+    if: >-
+      always()
+      && needs.quality-gates.result == 'success'
+      && needs.ensure-base.result == 'success'
+      && (needs.build-base.result == 'success' || needs.build-base.result == 'skipped')
     runs-on: ubuntu-latest
     outputs:
       image-tag: ${{ steps.tags.outputs.primary }}

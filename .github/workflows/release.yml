@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  checks: write
   id-token: write
   packages: write
 
@@ -15,9 +16,14 @@ env:
   BASE_IMAGE: ghcr.io/ansteorra/kmp-base:php84
 
 jobs:
+  quality-gates:
+    name: Quality gates
+    uses: ./.github/workflows/tests.yml
+
   # Ensure the pre-compiled PHP base image exists (build it if not).
   # First-run bootstrap: this takes ~60-90 min but only happens once.
   ensure-base:
+    needs: quality-gates
     runs-on: ubuntu-latest
     outputs:
       base-exists: ${{ steps.check.outputs.exists }}
@@ -72,8 +78,12 @@ jobs:
           cache-to: type=gha,mode=max,scope=kmp-base
 
   build-and-push:
-    needs: [ensure-base, build-base]
-    if: always() && (needs.ensure-base.result == 'success') && (needs.build-base.result == 'success' || needs.build-base.result == 'skipped')
+    needs: [quality-gates, ensure-base, build-base]
+    if: >-
+      always()
+      && needs.quality-gates.result == 'success'
+      && needs.ensure-base.result == 'success'
+      && (needs.build-base.result == 'success' || needs.build-base.result == 'skipped')
     runs-on: ubuntu-latest
     outputs:
       digest: ${{ steps.build.outputs.digest }}
@@ -241,7 +251,7 @@ jobs:
   prepare-production-deploy:
     name: Prepare production promotion
     needs: [build-and-push, smoke-test]
-    if: ${{ github.event.release.prerelease == false }}
+    if: ${{ github.event.release.prerelease == false && startsWith(github.event.release.tag_name, 'v') }}
     runs-on: ubuntu-latest
     outputs:
       source_image: ${{ steps.image.outputs.source_image }}
