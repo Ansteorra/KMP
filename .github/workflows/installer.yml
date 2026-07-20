@@ -51,12 +51,12 @@ jobs:
 
             **macOS/Linux:**
             ```bash
-            curl -fsSL https://raw.githubusercontent.com/jhandel/KMP/main/installer/scripts/install.sh | bash
+            curl -fsSL https://raw.githubusercontent.com/Ansteorra/KMP/main/installer/scripts/install.sh | bash
             ```
 
             **Windows (PowerShell):**
             ```powershell
-            irm https://raw.githubusercontent.com/jhandel/KMP/main/installer/scripts/install.ps1 | iex
+            irm https://raw.githubusercontent.com/Ansteorra/KMP/main/installer/scripts/install.ps1 | iex
             ```
 
             ### Manual Download

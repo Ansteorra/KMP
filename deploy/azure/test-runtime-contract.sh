@@ -4,7 +4,8 @@ set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$here/../.." && pwd)"
 bicep="$here/main.bicep"
-workflow="$repo_root/.github/workflows/nightly-deploy-azure.yml"
+workflow="$repo_root/.github/workflows/azure-deploy.yml"
+poc_workflow="$repo_root/.github/workflows/nightly-deploy-azure.yml"
 scheduler="$repo_root/docker/scheduler-loop.sh"
 
 assert_contains() {
@@ -28,7 +29,8 @@ assert_contains "$bicep" "'worker'"
 assert_contains "$bicep" "'--cycle-budget'"
 assert_contains "$bicep" 'bin/cake migrations migrate && bin/cake updateDatabase && bin/cake platform_migrate migrate'
 assert_contains "$workflow" 'cutover-unified-worker.sh'
-assert_contains "$workflow" 'Preserve pre-cutover ACA definitions'
+assert_contains "$workflow" 'Preserve pre-cutover definitions'
+assert_contains "$poc_workflow" 'uses: ./.github/workflows/azure-deploy.yml'
 assert_contains "$here/cutover-unified-worker.sh" '--fail-on-overlap'
 assert_contains "$here/cutover-unified-worker.sh" "0 0 1 1 *"
 assert_contains "$scheduler" 'bin/cake platform worker run'

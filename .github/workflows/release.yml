@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
   packages: write
 
 env:
@@ -236,3 +237,32 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: kmp-image-digest.txt
+
+  prepare-production-deploy:
+    name: Prepare production promotion
+    needs: [build-and-push, smoke-test]
+    if: ${{ github.event.release.prerelease == false }}
+    runs-on: ubuntu-latest
+    outputs:
+      source_image: ${{ steps.image.outputs.source_image }}
+      target_tag: ${{ steps.image.outputs.target_tag }}
+    steps:
+      - name: Resolve immutable release image
+        id: image
+        run: |
+          set -euo pipefail
+          RELEASE_TAG="${{ github.event.release.tag_name }}"
+          SAFE_TAG="$(printf '%s' "$RELEASE_TAG" | tr -c 'A-Za-z0-9_.-' '-')"
+          echo "source_image=ghcr.io/ansteorra/kmp@${{ needs.build-and-push.outputs.digest }}" >> "$GITHUB_OUTPUT"
+          echo "target_tag=release-${SAFE_TAG}" >> "$GITHUB_OUTPUT"
+
+  deploy-production:
+    name: Deploy production
+    needs: prepare-production-deploy
+    uses: ./.github/workflows/azure-deploy.yml
+    with:
+      environment_name: production
+      source_image: ${{ needs.prepare-production-deploy.outputs.source_image }}
+      target_tag: ${{ needs.prepare-production-deploy.outputs.target_tag }}
+      checkout_ref: ${{ github.event.release.tag_name }}
+    secrets: inherit

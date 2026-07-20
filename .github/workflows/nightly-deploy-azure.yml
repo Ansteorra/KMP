@@ -1,161 +1,58 @@
-name: Nightly / Deploy to Azure
+name: POC / Deploy to Azure
 
-# Fires when the nightly image build finishes successfully, and on manual dispatch.
 on:
   workflow_run:
     workflows: ["Nightly / Dev Docker Image"]
     types: [completed]
-    branches: [main, feature/workflow-engine]
+    branches: [dev]
   workflow_dispatch:
     inputs:
       image_tag:
-        description: 'Image tag to deploy (default: nightly)'
+        description: GHCR tag to deploy
         required: false
-        default: 'nightly'
-      full_reset:
-        description: 'Drop & reseed the database (destroys all data, resets passwords to TestPassword)'
-        type: boolean
-        required: false
-        default: false
+        default: dev
 
 permissions:
-  id-token: write        # OIDC to Azure
   contents: read
-  packages: read         # pull from ghcr.io
+  id-token: write
+  packages: read
 
 concurrency:
-  group: azure-nightly-deploy
+  group: azure-poc-dispatch
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    # When triggered by workflow_run, only proceed on success.
+  prepare:
+    name: Resolve POC image
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
-    environment: nightly
-    env:
-      IMAGE_TAG: ${{ github.event.inputs.image_tag || 'nightly' }}
-
+    outputs:
+      source_image: ${{ steps.image.outputs.source_image }}
+      target_tag: ${{ steps.image.outputs.target_tag }}
     steps:
-      - name: Check out deployment tooling
-        uses: actions/checkout@v4
-
-      - name: Validate ACA runtime contract
-        run: bash deploy/azure/test-runtime-contract.sh
-
-      - name: Azure login (OIDC)
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Import nightly image from GHCR into ACR
+      - name: Resolve immutable source and target tags
+        id: image
         run: |
           set -euo pipefail
-          ACR="${{ vars.AZURE_ACR_NAME }}"
-          TAG="${IMAGE_TAG}"
-          DATE_TAG="nightly-$(date -u +%Y-%m-%d)"
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            SHA="${{ github.event.workflow_run.head_sha }}"
+            SOURCE_TAG="dev-${SHA:0:7}"
+            TARGET_TAG="poc-${SHA:0:12}"
+          else
+            SOURCE_TAG="${{ github.event.inputs.image_tag || 'dev' }}"
+            SAFE_TAG="$(printf '%s' "$SOURCE_TAG" | tr -c 'A-Za-z0-9_.-' '-')"
+            TARGET_TAG="poc-${SAFE_TAG}-${GITHUB_RUN_ID}"
+          fi
+          echo "source_image=ghcr.io/ansteorra/kmp:${SOURCE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "target_tag=$TARGET_TAG" >> "$GITHUB_OUTPUT"
 
-          echo "Importing ghcr.io/jhandel/kmp:${TAG} -> ${ACR}.azurecr.io/kmp:${TAG}"
-          az acr import \
-            --name "$ACR" \
-            --source "ghcr.io/jhandel/kmp:${TAG}" \
-            --image "kmp:${TAG}" \
-            --image "kmp:${DATE_TAG}" \
-            --force
-
-          echo "IMAGE_REF=${ACR}.azurecr.io/kmp:${DATE_TAG}" >> $GITHUB_ENV
-          echo "DATE_TAG=${DATE_TAG}" >> $GITHUB_ENV
-
-      - name: Cut over unified background worker and web runtime
-        run: |
-          set -euo pipefail
-          RG="${{ vars.AZURE_RESOURCE_GROUP }}"
-          SNAPSHOT_DIR="$RUNNER_TEMP/kmp-aca-pre-cutover"
-          echo "SNAPSHOT_DIR=$SNAPSHOT_DIR" >> "$GITHUB_ENV"
-
-          legacy_args=()
-          for job in \
-            "${{ vars.AZURE_SCHED_HOURLY_JOB_NAME }}" \
-            "${{ vars.AZURE_SCHED_DAILY_JOB_NAME || vars.AZURE_SYNC_JOB_NAME }}" \
-            "${{ vars.AZURE_SCHED_WEEKLY_JOB_NAME }}" \
-            "${{ vars.AZURE_SCHED_NIGHTLY_JOB_NAME }}"; do
-            if [[ -n "$job" ]]; then
-              legacy_args+=(--legacy-job "$job")
-            fi
-          done
-
-          bash deploy/azure/cutover-unified-worker.sh \
-            --resource-group "$RG" \
-            --web-app "${{ vars.AZURE_WEB_APP_NAME }}" \
-            --migrate-job "${{ vars.AZURE_MIGRATE_JOB_NAME }}" \
-            --worker-job "${{ vars.AZURE_QUEUE_JOB_NAME }}" \
-            --image "$IMAGE_REF" \
-            --snapshot-dir "$SNAPSHOT_DIR" \
-            "${legacy_args[@]}"
-
-      - name: Preserve pre-cutover ACA definitions
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: aca-pre-cutover-${{ github.run_id }}
-          path: ${{ env.SNAPSHOT_DIR }}
-          if-no-files-found: warn
-          retention-days: 14
-
-      - name: Optional full reset (manual dispatch only)
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.full_reset == 'true' }}
-        run: |
-          set -euo pipefail
-          RG="${{ vars.AZURE_RESOURCE_GROUP }}"
-          JOB="${{ vars.AZURE_RESTORE_JOB_NAME || vars.AZURE_RESET_JOB_NAME }}"
-          echo "⚠️  FULL RESTORE requested — dropping schema + reloading the encrypted seed backup"
-          az containerapp job update -g "$RG" -n "$JOB" --image "$IMAGE_REF" -o none
-          EXEC_NAME="$(az containerapp job start -g "$RG" -n "$JOB" --query name -o tsv)"
-          echo "Started restore execution: $EXEC_NAME"
-          for i in $(seq 1 180); do
-            STATUS="$(az containerapp job execution show -g "$RG" --job-name "$JOB" -n "$EXEC_NAME" --query properties.status -o tsv 2>/dev/null || echo Unknown)"
-            echo "[$i/180] restore status: $STATUS"
-            case "$STATUS" in
-              Succeeded) echo "✅ restore succeeded (passwords = TestPassword)"; exit 0 ;;
-              Failed|Cancelled|Degraded)
-                echo "❌ restore finished with $STATUS"
-                az containerapp job execution show -g "$RG" --job-name "$JOB" -n "$EXEC_NAME" -o yaml || true
-                exit 1
-                ;;
-            esac
-            sleep 10
-          done
-          echo "⏱  restore timed out"; exit 1
-
-      - name: Update retained manual jobs to new image
-        run: |
-          set -euo pipefail
-          RG="${{ vars.AZURE_RESOURCE_GROUP }}"
-          jobs=(
-            "${{ vars.AZURE_RESTORE_JOB_NAME || vars.AZURE_RESET_JOB_NAME }}"
-            "${{ vars.AZURE_PROVISION_JOB_NAME }}"
-          )
-          for job in "${jobs[@]}"; do
-            if [[ -z "$job" ]]; then
-              continue
-            fi
-            echo "Updating $job to $IMAGE_REF"
-            az containerapp job update -g "$RG" -n "$job" --image "$IMAGE_REF" -o none
-          done
-
-      - name: Summary
-        if: always()
-        run: |
-          FQDN="$(az containerapp show \
-            -g "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            -n "${{ vars.AZURE_WEB_APP_NAME }}" \
-            --query properties.configuration.ingress.fqdn -o tsv 2>/dev/null || echo unknown)"
-          {
-            echo "## Nightly deploy to Azure"
-            echo ""
-            echo "- Image: \`$IMAGE_REF\`"
-            echo "- Web: https://$FQDN"
-            echo "- Status: ${{ job.status }}"
-          } >> "$GITHUB_STEP_SUMMARY"
+  deploy:
+    name: Deploy POC
+    needs: prepare
+    uses: ./.github/workflows/azure-deploy.yml
+    with:
+      environment_name: poc
+      source_image: ${{ needs.prepare.outputs.source_image }}
+      target_tag: ${{ needs.prepare.outputs.target_tag }}
+      checkout_ref: main
+    secrets: inherit
