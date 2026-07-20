@@ -16,10 +16,10 @@ Own cloud deployment templates, environment examples, bootstrap scripts, CI/CD d
 - Keep deployment templates parameterized and compatible with app configuration expectations.
 - Deployment scripts must be safe to run repeatedly or clearly document non-idempotent behavior.
 - Update docs when changing operational prerequisites, resource shape, backup/restore behavior, or deployment commands.
-- GitHub Actions uses separate resource-group-scoped OIDC identities for `poc` and `production`; do not add client secrets.
+- GitHub Actions uses separate resource-group-scoped OIDC identities for `poc` and `production`; do not add client secrets. Cross-resource-group PostgreSQL access must use the configuration-only custom role scoped to the specific Flexible Server.
 - A successful `dev` image build deploys automatically to POC. Published non-prerelease `v*` releases require `production` environment approval before exact-digest promotion.
 - Both environments must use `.github/workflows/azure-deploy.yml` and the ordered unified-worker cutover rather than duplicating migration or web-update logic.
-- PostgreSQL extensions required by application migrations must be allowlisted through `azure.extensions` before the migration job starts; preserve existing allowlisted extensions when adding one.
+- PostgreSQL extensions required by application migrations must be allowlisted through `azure.extensions` before the migration job starts; preserve existing allowlisted extensions when adding one, and use the PostgreSQL-specific resource group when the database server is shared across environment resource groups.
 
 ## Work Guidance
 
