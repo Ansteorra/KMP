@@ -192,6 +192,16 @@ class AwardsWorkflowProvider
                 ],
             ],
             [
+                'event' => 'Awards.BestowalTransitionRequested',
+                'label' => 'Bestowal Transition Requested',
+                'description' => 'When a workflow should transition a bestowal and its linked recommendations',
+                'payloadSchema' => [
+                    'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID'],
+                    'targetState' => ['type' => 'string', 'label' => 'Target State'],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ],
+            ],
+            [
                 'event' => 'Awards.BestowalCreated',
                 'label' => 'Bestowal Created',
                 'description' => 'When a new bestowal is created from recommendations or ad-hoc entry',

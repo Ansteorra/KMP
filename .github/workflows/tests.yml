@@ -66,6 +66,12 @@ jobs:
           ini-values: apc.enable_cli=1
           coverage: none
 
+      - name: Setup Node.js
+        if: matrix.database.type == 'mysql'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
       - name: Create test .env
         run: |
           printf "%s\n" \
@@ -124,6 +130,20 @@ jobs:
 
       - name: Install Composer dependencies
         run: cd app && composer install --no-interaction --prefer-dist
+
+      - name: Build frontend assets
+        if: matrix.database.type == 'mysql'
+        run: |
+          cd app
+          npm install --no-audit --no-fund
+          npm run dev
+
+      - name: Prepare CI runtime
+        run: chmod 0755 app/tmp
+
+      - name: Create default database (MariaDB)
+        if: matrix.database.type == 'mysql'
+        run: mysql -h 127.0.0.1 -P 3306 -u root -proot -e "CREATE DATABASE IF NOT EXISTS kmp;"
 
       - name: Create default database (Postgres)
         if: matrix.database.type == 'postgres'
@@ -299,6 +319,9 @@ jobs:
       - name: Install Composer dependencies
         run: cd app && composer install --no-interaction --prefer-dist
 
+      - name: Prepare CI runtime
+        run: chmod 0755 app/tmp
+
       - name: Install Node dependencies
         run: cd app && npm install --no-audit --no-fund
 
@@ -440,6 +463,9 @@ jobs:
 
       - name: Install Composer dependencies
         run: cd app && composer install --no-interaction --prefer-dist
+
+      - name: Prepare CI runtime
+        run: chmod 0755 app/tmp
 
       - name: Install Node dependencies
         run: cd app && npm install --no-audit --no-fund
