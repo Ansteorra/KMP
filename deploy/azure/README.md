@@ -6,6 +6,14 @@ mirrored nightly from GHCR into an **Azure Container Registry**. Every
 resource is defined in [`main.bicep`](./main.bicep); nothing is clicked in the
 portal.
 
+PostgreSQL migrations use the `CITEXT` extension for selected human-facing
+columns that historically inherited case-insensitive behavior from MySQL.
+Fresh and existing environments run `ensure-postgres-extension.sh` after Azure
+login and before the migration job. The helper updates the server-level
+`azure.extensions` configuration while preserving any other allowlisted
+extensions. Do not run migrations that create or use `citext` before this
+allowlist step succeeds.
+
 Seed data lives in [`seed/nightly-seed.kmpbackup`](./seed/) — an
 engine-agnostic, AES-256-GCM-encrypted backup produced by
 `seed/bake-seed.sh` from a known-good local dev environment. The in-container
@@ -137,7 +145,8 @@ This will:
 6. Assign the AAD app **Contributor** on the resource group.
 7. Push the OIDC and infrastructure names as non-secret `poc` environment
    variables via `gh`.
-8. Start the `kmp-migrate` job to apply base migrations.
+8. Ensure `CITEXT` is present in the PostgreSQL extension allowlist.
+9. Start the `kmp-migrate` job to apply base migrations.
 
 Skip `gh` integration with `./bootstrap.sh --skip-gh-secrets`.
 
@@ -456,6 +465,8 @@ Managed-platform residency boundaries, retention defaults, breach-notification o
 - `bootstrap.sh` — one-time POC provisioning + GitHub environment wiring
 - `configure-github-cd.sh` — idempotent Ansteorra GitHub environment, OIDC,
   and Azure RBAC configuration
+- `ensure-postgres-extension.sh` — preserves the PostgreSQL extension allowlist
+  while adding an extension required by migrations
 - `seed/` — encrypted seed backup + bake helper; see `seed/README.md`
 - `nightly.env.example` — settings template (copy to `nightly.env`)
 - `../../docker/reset-and-seed.sh` — in-container reset script invoked by

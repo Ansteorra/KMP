@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\KMP\CaseInsensitiveQuery;
 use App\KMP\DataverseGridQueryContext;
 use App\KMP\GridViewConfig;
 use App\KMP\StaticHelpers;
@@ -893,7 +894,7 @@ trait DataverseGridTrait
             return [$field => (int)$searchTerm];
         }
 
-        return [$field . ' LIKE' => '%' . $searchTerm . '%'];
+        return CaseInsensitiveQuery::contains($field, $searchTerm);
     }
 
     /**

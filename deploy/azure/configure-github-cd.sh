@@ -205,6 +205,23 @@ set_variable() {
     fi
 }
 
+discover_postgres_server() {
+    local resource_group="$1"
+    local servers server_count
+
+    servers="$(az postgres flexible-server list \
+        --resource-group "$resource_group" \
+        --query '[].name' \
+        --output tsv)"
+    server_count="$(awk 'NF { count++ } END { print count + 0 }' <<< "$servers")"
+    if [[ "$server_count" -ne 1 ]]; then
+        echo "Expected exactly one PostgreSQL Flexible Server in $resource_group; found $server_count." >&2
+        return 1
+    fi
+
+    printf '%s\n' "$servers"
+}
+
 configure_environment() {
     local environment="$1"
     local app_id="$2"
@@ -217,12 +234,16 @@ configure_environment() {
     local provision_job="$9"
     local hourly_job="${10}"
     local daily_job="${11}"
+    local postgres_server
+
+    postgres_server="$(discover_postgres_server "$resource_group")"
 
     set_variable "$environment" AZURE_CLIENT_ID "$app_id"
     set_variable "$environment" AZURE_TENANT_ID "$TENANT_ID"
     set_variable "$environment" AZURE_SUBSCRIPTION_ID "$SUBSCRIPTION_ID"
     set_variable "$environment" AZURE_RESOURCE_GROUP "$resource_group"
     set_variable "$environment" AZURE_ACR_NAME "$acr_name"
+    set_variable "$environment" AZURE_POSTGRES_SERVER_NAME "$postgres_server"
     set_variable "$environment" AZURE_WEB_APP_NAME "$web_app"
     set_variable "$environment" AZURE_MIGRATE_JOB_NAME "$migrate_job"
     set_variable "$environment" AZURE_QUEUE_JOB_NAME "$queue_job"

@@ -198,6 +198,7 @@ class AwardsWorkflowProvider
                 'payloadSchema' => [
                     'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID'],
                     'targetState' => ['type' => 'string', 'label' => 'Target State'],
+                    'data' => ['type' => 'object', 'label' => 'Transition Data'],
                     'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
                 ],
             ],

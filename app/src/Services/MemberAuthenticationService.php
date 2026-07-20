@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Form\ResetPasswordForm;
+use App\KMP\CaseInsensitiveQuery;
 use App\KMP\StaticHelpers;
 use App\Model\Entity\Member;
 use Authentication\Authenticator\Result;
@@ -99,7 +100,7 @@ class MemberAuthenticationService
     {
         $member = $this->Members
             ->find()
-            ->where(['email_address' => $emailAddress])
+            ->where(CaseInsensitiveQuery::equals('email_address', $emailAddress))
             ->first();
 
         if (!$member) {

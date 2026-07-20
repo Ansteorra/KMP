@@ -14,7 +14,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
   packages: read
 
 concurrency:
@@ -32,14 +31,18 @@ jobs:
     steps:
       - name: Resolve immutable source and target tags
         id: image
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          IMAGE_TAG: ${{ github.event.inputs.image_tag || 'dev' }}
+          WORKFLOW_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
-          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
-            SHA="${{ github.event.workflow_run.head_sha }}"
+          if [[ "$EVENT_NAME" == "workflow_run" ]]; then
+            SHA="$WORKFLOW_RUN_HEAD_SHA"
             SOURCE_TAG="dev-${SHA:0:7}"
             TARGET_TAG="poc-${SHA:0:12}"
           else
-            SOURCE_TAG="${{ github.event.inputs.image_tag || 'dev' }}"
+            SOURCE_TAG="$IMAGE_TAG"
             SAFE_TAG="$(printf '%s' "$SOURCE_TAG" | tr -c 'A-Za-z0-9_.-' '-')"
             TARGET_TAG="poc-${SAFE_TAG}-${GITHUB_RUN_ID}"
           fi
@@ -49,10 +52,13 @@ jobs:
   deploy:
     name: Deploy POC
     needs: prepare
+    permissions:
+      contents: read
+      id-token: write
+      packages: read
     uses: ./.github/workflows/azure-deploy.yml
     with:
       environment_name: poc
       source_image: ${{ needs.prepare.outputs.source_image }}
       target_tag: ${{ needs.prepare.outputs.target_tag }}
       checkout_ref: main
-    secrets: inherit

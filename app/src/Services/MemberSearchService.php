@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\KMP\CaseInsensitiveQuery;
 use App\Model\Entity\Member;
 use Cake\ORM\Locator\LocatorAwareTrait;
 use Cake\ORM\Query\SelectQuery;
@@ -72,13 +73,13 @@ class MemberSearchService
         int $limit = 10,
         array $fields = ['id', 'sca_name'],
     ): SelectQuery {
-        $patterns = array_values(array_unique(array_map(
-            static fn(?string $term): string => '%' . mb_strtolower((string)$term) . '%',
+        $terms = array_values(array_unique(array_map(
+            static fn(?string $term): string => (string)$term,
             [$q, $nq, $uq],
         )));
         $conditions = array_map(
-            static fn(string $pattern): array => ['LOWER(sca_name) LIKE' => $pattern],
-            $patterns,
+            static fn(string $term): array => CaseInsensitiveQuery::contains('sca_name', $term),
+            $terms,
         );
 
         return $this->Members
@@ -101,7 +102,7 @@ class MemberSearchService
     {
         $count = $this->Members
             ->find('all')
-            ->where(['email_address' => $email])
+            ->where(CaseInsensitiveQuery::equals('email_address', (string)$email))
             ->count();
 
         return $count > 0;

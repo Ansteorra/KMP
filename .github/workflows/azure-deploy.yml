@@ -44,6 +44,7 @@ jobs:
       AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
       AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
       AZURE_ACR_NAME: ${{ vars.AZURE_ACR_NAME }}
+      AZURE_POSTGRES_SERVER_NAME: ${{ vars.AZURE_POSTGRES_SERVER_NAME }}
       AZURE_WEB_APP_NAME: ${{ vars.AZURE_WEB_APP_NAME }}
       AZURE_MIGRATE_JOB_NAME: ${{ vars.AZURE_MIGRATE_JOB_NAME }}
       AZURE_QUEUE_JOB_NAME: ${{ vars.AZURE_QUEUE_JOB_NAME }}
@@ -53,7 +54,6 @@ jobs:
       AZURE_SCHED_DAILY_JOB_NAME: ${{ vars.AZURE_SCHED_DAILY_JOB_NAME }}
       AZURE_SCHED_WEEKLY_JOB_NAME: ${{ vars.AZURE_SCHED_WEEKLY_JOB_NAME }}
       AZURE_SCHED_NIGHTLY_JOB_NAME: ${{ vars.AZURE_SCHED_NIGHTLY_JOB_NAME }}
-      SNAPSHOT_DIR: ${{ runner.temp }}/kmp-aca-pre-cutover
 
     steps:
       - name: Check out trusted deployment tooling
@@ -62,6 +62,8 @@ jobs:
           ref: ${{ inputs.checkout_ref }}
 
       - name: Validate deployment inputs
+        env:
+          DEPLOY_ENVIRONMENT: ${{ inputs.environment_name }}
         run: |
           set -euo pipefail
           for name in \
@@ -70,11 +72,12 @@ jobs:
             AZURE_SUBSCRIPTION_ID \
             AZURE_RESOURCE_GROUP \
             AZURE_ACR_NAME \
+            AZURE_POSTGRES_SERVER_NAME \
             AZURE_WEB_APP_NAME \
             AZURE_MIGRATE_JOB_NAME \
             AZURE_QUEUE_JOB_NAME; do
             if [[ -z "${!name}" ]]; then
-              echo "Missing required ${{ inputs.environment_name }} environment variable: $name" >&2
+              echo "Missing required $DEPLOY_ENVIRONMENT environment variable: $name" >&2
               exit 64
             fi
           done
@@ -90,6 +93,13 @@ jobs:
           client-id: ${{ env.AZURE_CLIENT_ID }}
           tenant-id: ${{ env.AZURE_TENANT_ID }}
           subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Allow PostgreSQL case-insensitive text extension
+        run: |
+          bash deploy/azure/ensure-postgres-extension.sh \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --server-name "$AZURE_POSTGRES_SERVER_NAME" \
+            --extension CITEXT
 
       - name: Import the tested image into ACR
         env:
@@ -127,6 +137,8 @@ jobs:
           fi
 
       - name: Cut over worker, migrations, and web
+        env:
+          SNAPSHOT_DIR: ${{ runner.temp }}/kmp-aca-pre-cutover
         run: |
           set -euo pipefail
           legacy_args=()
@@ -189,19 +201,23 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: aca-pre-cutover-${{ inputs.environment_name }}-${{ github.run_id }}
-          path: ${{ env.SNAPSHOT_DIR }}
+          path: ${{ runner.temp }}/kmp-aca-pre-cutover
           if-no-files-found: warn
           retention-days: 30
 
       - name: Deployment summary
         if: always()
+        env:
+          DEPLOY_ENVIRONMENT: ${{ inputs.environment_name }}
+          DEPLOYED_URL: ${{ steps.endpoint.outputs.url || 'unavailable' }}
+          DEPLOY_STATUS: ${{ job.status }}
         run: |
           {
             echo "## Azure deployment"
             echo ""
-            echo "- Environment: \`${{ inputs.environment_name }}\`"
+            echo "- Environment: \`$DEPLOY_ENVIRONMENT\`"
             echo "- Source: \`$SOURCE_IMAGE\`"
             echo "- Image: \`${IMAGE_REF:-not imported}\`"
-            echo "- URL: ${{ steps.endpoint.outputs.url || 'unavailable' }}"
-            echo "- Status: \`${{ job.status }}\`"
+            echo "- URL: $DEPLOYED_URL"
+            echo "- Status: \`$DEPLOY_STATUS\`"
           } >> "$GITHUB_STEP_SUMMARY"

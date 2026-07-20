@@ -164,6 +164,7 @@ jqget() { python3 -c "import json,sys;print(json.load(open('$OUT_FILE'))['$1']['
 WEB_FQDN="$(jqget webAppFqdn)"
 ACR_LOGIN_SERVER="$(jqget acrLoginServer)"
 POSTGRES_FQDN="$(jqget postgresFqdn)"
+POSTGRES_SERVER_NAME="$(jqget postgresServerName)"
 KV_NAME="$(jqget keyVaultName)"
 MIGRATE_JOB="$(jqget migrateJobName)"
 QUEUE_JOB="$(jqget queueJobName)"
@@ -232,6 +233,7 @@ if [[ $SKIP_GH -eq 0 ]]; then
         gh variable set AZURE_SUBSCRIPTION_ID --body "$AZURE_SUBSCRIPTION_ID" --env poc --repo "$GITHUB_REPO"
         gh variable set AZURE_RESOURCE_GROUP --body "$AZURE_RESOURCE_GROUP" --env poc --repo "$GITHUB_REPO"
         gh variable set AZURE_ACR_NAME --body "$ACR_NAME" --env poc --repo "$GITHUB_REPO"
+        gh variable set AZURE_POSTGRES_SERVER_NAME --body "$POSTGRES_SERVER_NAME" --env poc --repo "$GITHUB_REPO"
         gh variable set AZURE_WEB_APP_NAME --body "$WEB_APP" --env poc --repo "$GITHUB_REPO"
         gh variable set AZURE_MIGRATE_JOB_NAME --body "$MIGRATE_JOB" --env poc --repo "$GITHUB_REPO"
         gh variable set AZURE_QUEUE_JOB_NAME --body "$QUEUE_JOB" --env poc --repo "$GITHUB_REPO"
@@ -249,7 +251,13 @@ if [[ $SKIP_GH -eq 0 ]]; then
     fi
 fi
 
-# --- 8. Apply migrations before the request-only web revision serves traffic
+# --- 8. Allow extensions required by PostgreSQL migrations
+"$HERE/ensure-postgres-extension.sh" \
+    --resource-group "$AZURE_RESOURCE_GROUP" \
+    --server-name "$POSTGRES_SERVER_NAME" \
+    --extension CITEXT
+
+# --- 9. Apply migrations before the request-only web revision serves traffic
 echo "--- Starting migration job..."
 MIGRATE_EXECUTION="$(az containerapp job start \
     -g "$AZURE_RESOURCE_GROUP" \
@@ -278,7 +286,7 @@ for attempt in $(seq 1 180); do
     sleep 10
 done
 
-# --- 9. Kick the restore job: full schema rebuild + dev seed + password reset
+# --- 10. Kick the restore job: full schema rebuild + dev seed + password reset
 # NOTE: requires /opt/kmp/reset-and-seed.sh to be present in the image. If you
 # bootstrap before the next nightly rebuild, the reset will fail — just run
 # the migrate job instead, and re-run reset after the image catches up.

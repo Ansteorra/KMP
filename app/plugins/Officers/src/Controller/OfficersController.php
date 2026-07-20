@@ -7,6 +7,7 @@ namespace Officers\Controller;
 use App\Controller\DataverseGridTrait;
 use App\Controller\WorkflowDispatchTrait;
 use App\KMP\DataverseGridQueryContext;
+use App\KMP\CaseInsensitiveQuery;
 use App\KMP\GridRowDomId;
 use Cake\Http\Response;
 use Cake\ORM\TableRegistry;
@@ -340,7 +341,11 @@ class OfficersController extends AppController
             ->find('all')
             ->where([
                 'status <>' => Member::STATUS_DEACTIVATED,
-                'OR' => [['sca_name LIKE' => "%$q%"], ['sca_name LIKE' => "%$nq%"], ['sca_name LIKE' => "%$uq%"]],
+                'OR' => [
+                    CaseInsensitiveQuery::contains('sca_name', (string)$q),
+                    CaseInsensitiveQuery::contains('sca_name', (string)$nq),
+                    CaseInsensitiveQuery::contains('sca_name', (string)$uq),
+                ],
             ])
             ->select(['id', 'sca_name', 'warrantable', 'status'])
             ->limit(50);

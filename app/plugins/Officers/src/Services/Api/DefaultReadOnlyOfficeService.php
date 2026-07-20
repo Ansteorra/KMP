@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Officers\Services\Api;
 
+use App\KMP\CaseInsensitiveQuery;
 use App\KMP\KmpIdentityInterface;
 use Cake\Http\Exception\ForbiddenException;
 use Cake\ORM\TableRegistry;
@@ -32,8 +33,10 @@ class DefaultReadOnlyOfficeService implements ReadOnlyOfficeServiceInterface
             $query->where(['Offices.requires_warrant' => filter_var($filters['requires_warrant'], FILTER_VALIDATE_BOOLEAN)]);
         }
         if (!empty($filters['search'])) {
-            $search = '%' . trim((string)$filters['search']) . '%';
-            $query->where(['Offices.name LIKE' => $search]);
+            $query->where(CaseInsensitiveQuery::contains(
+                'Offices.name',
+                (string)$filters['search'],
+            ));
         }
 
         $total = (clone $query)->count();
