@@ -164,6 +164,16 @@ if (!empty($failed)) {
 '
 }
 
+normalize_local_secret_file_permissions() {
+    "${COMPOSE[@]}" exec -T app sh -lc '
+secrets_file="${KMP_SECRETS_FILE:-/var/www/html/config/secrets.local.json}"
+if [ -f "$secrets_file" ]; then
+    chown www-data:www-data "$secrets_file"
+    chmod 0600 "$secrets_file"
+fi
+'
+}
+
 trap restart_background_services EXIT
 if [ ${#BACKGROUND_SERVICES_TO_RESTART[@]} -gt 0 ]; then
     echo "[pre] Pausing background services during database reset: ${BACKGROUND_SERVICES_TO_RESTART[*]}"
@@ -711,6 +721,9 @@ ConnectionManager::get("platform")->update("tenants", [
         --tenant "$SECOND_TENANT_SLUG" \
         --skip-pre-migration-marker
 fi
+
+echo "[post] Aligning local secret file ownership with the web runtime..."
+normalize_local_secret_file_permissions
 
 if [ "$DB_DRIVER" = "postgres" ] || [ "$DB_DRIVER" = "pgsql" ]; then
     echo "[6/7] Resetting all baseline tenant member passwords to TestPassword..."
