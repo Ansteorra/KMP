@@ -21,7 +21,38 @@ use ReflectionMethod;
  */
 class BackupRestoreCompatibilityServiceTest extends BaseTestCase
 {
+    private static bool $createdLegacyWarrantRosterApprovalsTable = false;
+
     private BackupRestoreCompatibilityService $service;
+
+    public static function setUpBeforeClass(): void
+    {
+        parent::setUpBeforeClass();
+
+        $connection = ConnectionManager::get('test');
+        if (in_array('warrant_roster_approvals', $connection->getSchemaCollection()->listTables(), true)) {
+            return;
+        }
+
+        $connection->execute(
+            'CREATE TABLE warrant_roster_approvals (
+                warrant_roster_id INTEGER NOT NULL,
+                approver_id INTEGER NOT NULL,
+                approved_on TIMESTAMP NULL
+            )',
+        );
+        self::$createdLegacyWarrantRosterApprovalsTable = true;
+    }
+
+    public static function tearDownAfterClass(): void
+    {
+        if (self::$createdLegacyWarrantRosterApprovalsTable) {
+            ConnectionManager::get('test')->execute('DROP TABLE warrant_roster_approvals');
+            self::$createdLegacyWarrantRosterApprovalsTable = false;
+        }
+
+        parent::tearDownAfterClass();
+    }
 
     protected function setUp(): void
     {

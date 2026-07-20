@@ -242,6 +242,8 @@ jobs:
       - name: Create test .env
         run: |
           printf "%s\n" \
+            "export KMP_ENV='ci'" \
+            "export PLAYWRIGHT_USE_DOCKER_PHP='0'" \
             "export MYSQL_HOST='127.0.0.1'" \
             "export MYSQL_USERNAME='root'" \
             "export MYSQL_PASSWORD='root'" \
@@ -382,6 +384,8 @@ jobs:
       - name: Create test .env
         run: |
           printf "%s\n" \
+            "export KMP_ENV='ci'" \
+            "export PLAYWRIGHT_USE_DOCKER_PHP='0'" \
             "export MYSQL_HOST='127.0.0.1'" \
             "export MYSQL_USERNAME='root'" \
             "export MYSQL_PASSWORD='root'" \
