@@ -233,6 +233,7 @@ if [[ $SKIP_GH -eq 0 ]]; then
         gh variable set AZURE_SUBSCRIPTION_ID --body "$AZURE_SUBSCRIPTION_ID" --env poc --repo "$GITHUB_REPO"
         gh variable set AZURE_RESOURCE_GROUP --body "$AZURE_RESOURCE_GROUP" --env poc --repo "$GITHUB_REPO"
         gh variable set AZURE_ACR_NAME --body "$ACR_NAME" --env poc --repo "$GITHUB_REPO"
+        gh variable set AZURE_POSTGRES_RESOURCE_GROUP --body "$AZURE_RESOURCE_GROUP" --env poc --repo "$GITHUB_REPO"
         gh variable set AZURE_POSTGRES_SERVER_NAME --body "$POSTGRES_SERVER_NAME" --env poc --repo "$GITHUB_REPO"
         gh variable set AZURE_WEB_APP_NAME --body "$WEB_APP" --env poc --repo "$GITHUB_REPO"
         gh variable set AZURE_MIGRATE_JOB_NAME --body "$MIGRATE_JOB" --env poc --repo "$GITHUB_REPO"

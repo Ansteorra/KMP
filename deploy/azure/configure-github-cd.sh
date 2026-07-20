@@ -182,6 +182,73 @@ ensure_environment() {
     fi
 }
 
+ensure_postgres_configuration_role() {
+    local role_name='KMP PostgreSQL Extension Configuration Operator'
+    local subscription_scope="/subscriptions/$SUBSCRIPTION_ID"
+    local role_parameters
+
+    if [[ "$(az role definition list \
+        --name "$role_name" \
+        --query 'length(@)' \
+        --output tsv)" == "0" ]]; then
+        role_parameters="$(jq -c -n \
+            --arg name "$role_name" \
+            --arg scope "$subscription_scope" \
+            '{
+                Name: $name,
+                IsCustom: true,
+                Description: "Read and update PostgreSQL Flexible Server configuration values required by KMP deployments.",
+                Actions: [
+                    "Microsoft.DBforPostgreSQL/flexibleServers/read",
+                    "Microsoft.DBforPostgreSQL/flexibleServers/configurations/read",
+                    "Microsoft.DBforPostgreSQL/flexibleServers/configurations/write"
+                ],
+                NotActions: [],
+                DataActions: [],
+                NotDataActions: [],
+                AssignableScopes: [$scope]
+            }')"
+        az role definition create \
+            --role-definition "$role_parameters" \
+            --output none
+    fi
+
+    printf '%s\n' "$role_name"
+}
+
+ensure_postgres_access() {
+    local app_id="$1"
+    local resource_group="$2"
+    local server_name="$3"
+    local sp_object_id server_id role_name
+
+    role_name="$(ensure_postgres_configuration_role)"
+
+    sp_object_id="$(az ad sp list \
+        --filter "appId eq '$app_id'" \
+        --query '[0].id' \
+        --output tsv)"
+    server_id="$(az postgres flexible-server show \
+        --resource-group "$resource_group" \
+        --name "$server_name" \
+        --query id \
+        --output tsv)"
+
+    if [[ "$(az role assignment list \
+        --assignee "$sp_object_id" \
+        --scope "$server_id" \
+        --role "$role_name" \
+        --query 'length(@)' \
+        --output tsv)" == "0" ]]; then
+        az role assignment create \
+            --assignee-object-id "$sp_object_id" \
+            --assignee-principal-type ServicePrincipal \
+            --role "$role_name" \
+            --scope "$server_id" \
+            --output none
+    fi
+}
+
 set_variable() {
     local environment="$1"
     local name="$2"
@@ -234,15 +301,18 @@ configure_environment() {
     local provision_job="$9"
     local hourly_job="${10}"
     local daily_job="${11}"
+    local postgres_resource_group="${12:-$resource_group}"
     local postgres_server
 
-    postgres_server="$(discover_postgres_server "$resource_group")"
+    postgres_server="$(discover_postgres_server "$postgres_resource_group")"
+    ensure_postgres_access "$app_id" "$postgres_resource_group" "$postgres_server"
 
     set_variable "$environment" AZURE_CLIENT_ID "$app_id"
     set_variable "$environment" AZURE_TENANT_ID "$TENANT_ID"
     set_variable "$environment" AZURE_SUBSCRIPTION_ID "$SUBSCRIPTION_ID"
     set_variable "$environment" AZURE_RESOURCE_GROUP "$resource_group"
     set_variable "$environment" AZURE_ACR_NAME "$acr_name"
+    set_variable "$environment" AZURE_POSTGRES_RESOURCE_GROUP "$postgres_resource_group"
     set_variable "$environment" AZURE_POSTGRES_SERVER_NAME "$postgres_server"
     set_variable "$environment" AZURE_WEB_APP_NAME "$web_app"
     set_variable "$environment" AZURE_MIGRATE_JOB_NAME "$migrate_job"
@@ -277,7 +347,8 @@ configure_environment \
     kmpnightly-reset \
     '' \
     '' \
-    kmpnightly-sync
+    kmpnightly-sync \
+    kmp-production-rg
 
 configure_environment \
     production \
@@ -290,6 +361,7 @@ configure_environment \
     kmpprod-restore \
     kmpprod-provision \
     kmpprod-sched-hourly \
-    ''
+    '' \
+    kmp-production-rg
 
 echo "Configured GitHub OIDC deployment environments for $REPOSITORY."

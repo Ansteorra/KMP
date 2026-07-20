@@ -44,6 +44,7 @@ jobs:
       AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
       AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
       AZURE_ACR_NAME: ${{ vars.AZURE_ACR_NAME }}
+      AZURE_POSTGRES_RESOURCE_GROUP: ${{ vars.AZURE_POSTGRES_RESOURCE_GROUP }}
       AZURE_POSTGRES_SERVER_NAME: ${{ vars.AZURE_POSTGRES_SERVER_NAME }}
       AZURE_WEB_APP_NAME: ${{ vars.AZURE_WEB_APP_NAME }}
       AZURE_MIGRATE_JOB_NAME: ${{ vars.AZURE_MIGRATE_JOB_NAME }}
@@ -72,6 +73,7 @@ jobs:
             AZURE_SUBSCRIPTION_ID \
             AZURE_RESOURCE_GROUP \
             AZURE_ACR_NAME \
+            AZURE_POSTGRES_RESOURCE_GROUP \
             AZURE_POSTGRES_SERVER_NAME \
             AZURE_WEB_APP_NAME \
             AZURE_MIGRATE_JOB_NAME \
@@ -97,7 +99,7 @@ jobs:
       - name: Allow PostgreSQL case-insensitive text extension
         run: |
           bash deploy/azure/ensure-postgres-extension.sh \
-            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --resource-group "$AZURE_POSTGRES_RESOURCE_GROUP" \
             --server-name "$AZURE_POSTGRES_SERVER_NAME" \
             --extension CITEXT
 

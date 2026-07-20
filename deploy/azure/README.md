@@ -143,8 +143,13 @@ This will:
 5. Create an AAD app `kmp-poc-github-oidc` with a federated credential scoped
    to the `Ansteorra/KMP` `poc` environment.
 6. Assign the AAD app **Contributor** on the resource group.
-7. Push the OIDC and infrastructure names as non-secret `poc` environment
-   variables via `gh`.
+   When PostgreSQL is hosted elsewhere, assign a custom configuration-only role
+   on that specific Flexible Server so deployment can preserve and update
+   `azure.extensions` without broader access to its resource group.
+7. Push the OIDC, infrastructure names, and PostgreSQL resource group/server
+   names as non-secret `poc` environment variables via `gh`. The PostgreSQL
+   resource group may differ from the Container Apps resource group when an
+   existing server hosts isolated POC databases.
 8. Ensure `CITEXT` is present in the PostgreSQL extension allowlist.
 9. Start the `kmp-migrate` job to apply base migrations.
 

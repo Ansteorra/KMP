@@ -31,11 +31,16 @@ assert_contains "$bicep" "'--cycle-budget'"
 assert_contains "$bicep" 'bin/cake migrations migrate && bin/cake updateDatabase && bin/cake platform_migrate migrate'
 assert_contains "$workflow" 'cutover-unified-worker.sh'
 assert_contains "$workflow" 'Preserve pre-cutover definitions'
+assert_contains "$workflow" 'AZURE_POSTGRES_RESOURCE_GROUP'
 assert_contains "$workflow" 'AZURE_POSTGRES_SERVER_NAME'
 assert_contains "$workflow" 'ensure-postgres-extension.sh'
 assert_contains "$poc_workflow" 'uses: ./.github/workflows/azure-deploy.yml'
 assert_contains "$here/bootstrap.sh" 'ensure-postgres-extension.sh'
+assert_contains "$here/bootstrap.sh" 'AZURE_POSTGRES_RESOURCE_GROUP'
+assert_contains "$here/configure-github-cd.sh" 'AZURE_POSTGRES_RESOURCE_GROUP'
 assert_contains "$here/configure-github-cd.sh" 'AZURE_POSTGRES_SERVER_NAME'
+assert_contains "$here/configure-github-cd.sh" 'Microsoft.DBforPostgreSQL/flexibleServers/configurations/read'
+assert_contains "$here/configure-github-cd.sh" 'Microsoft.DBforPostgreSQL/flexibleServers/configurations/write'
 assert_contains "$here/cutover-unified-worker.sh" '--fail-on-overlap'
 assert_contains "$here/cutover-unified-worker.sh" "0 0 1 1 *"
 assert_contains "$here/cutover-unified-worker.sh" "*/3 * * * *"
