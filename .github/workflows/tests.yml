@@ -239,6 +239,9 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Create test .env
         run: |
           printf "%s\n" \
@@ -277,10 +280,20 @@ jobs:
       - name: Build frontend assets
         run: cd app && npm run dev
 
-      - name: Start Docker test environment
+      - name: Build Docker test image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.app
+          load: true
+          tags: kmp-app:dev
+          cache-from: type=gha,scope=kmp-playwright-app
+          cache-to: type=gha,mode=max,scope=kmp-playwright-app
+
+      - name: Start Docker test services
         run: |
           echo "127.0.0.1 kmp.localhost kmp2.localhost" | sudo tee -a /etc/hosts
-          bash dev-up.sh
+          docker compose --env-file app/config/.env up -d --no-build app scheduler mailpit
 
       - name: Install Playwright browser
         run: cd app && npx playwright install --with-deps chromium
@@ -297,12 +310,17 @@ jobs:
             app/tests/ui-reports
             app/tests/ui-results
 
+      - name: Show Docker logs
+        if: failure()
+        run: docker compose --env-file app/config/.env logs --no-color --tail=200 app scheduler db
+
       - name: Stop Docker test environment
         if: always()
         run: docker compose --env-file app/config/.env down
 
   playwright-journey:
     name: Playwright journey
+    needs: playwright-smoke
     runs-on: ubuntu-latest
     env:
       PLAYWRIGHT_BASE_URL: http://kmp.localhost:8080
@@ -326,6 +344,9 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Create test .env
         run: |
           printf "%s\n" \
@@ -364,10 +385,20 @@ jobs:
       - name: Build frontend assets
         run: cd app && npm run dev
 
-      - name: Start Docker test environment
+      - name: Build Docker test image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.app
+          load: true
+          tags: kmp-app:dev
+          cache-from: type=gha,scope=kmp-playwright-app
+          cache-to: type=gha,mode=max,scope=kmp-playwright-app
+
+      - name: Start Docker test services
         run: |
           echo "127.0.0.1 kmp.localhost kmp2.localhost" | sudo tee -a /etc/hosts
-          bash dev-up.sh
+          docker compose --env-file app/config/.env up -d --no-build app scheduler mailpit
 
       - name: Install Playwright browser
         run: cd app && npx playwright install --with-deps chromium
@@ -383,6 +414,10 @@ jobs:
           path: |
             app/tests/ui-reports
             app/tests/ui-results
+
+      - name: Show Docker logs
+        if: failure()
+        run: docker compose --env-file app/config/.env logs --no-color --tail=200 app scheduler db
 
       - name: Stop Docker test environment
         if: always()
