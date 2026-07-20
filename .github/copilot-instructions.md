@@ -270,3 +270,16 @@ Do not run `phpcbf` across the whole codebase. The PHPCS config intentionally ex
 - Update docs when changing behavior, public commands, plugin setup, or developer workflow.
 - For documentation-only edits, a full app verification run is usually unnecessary; at minimum inspect the diff for formatting and accuracy.
 - For code edits, run targeted tests first and the broader verification command when practical.
+
+## Release operations
+
+- Invoke `.github/skills/release-deploy` when the user says "push to dev",
+  "do a release", or asks to release or promote KMP.
+- "Push to dev" is POC-only: fast-forward official `dev` from the selected
+  official `main` commit, then monitor and verify the gated POC deployment.
+- "Do a release" must update `app/CHANGELOG.md` before POC testing. The new KMP
+  version section is the canonical release body and must also be used for the
+  GitHub Release notes.
+- Production releases must use a stable `v*` GitHub Release targeting the exact
+  changelog-bearing commit validated in POC. Never bypass quality gates, digest
+  checks, or the GitHub production environment approval.

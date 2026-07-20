@@ -95,6 +95,21 @@ Do not create a production release from a commit that differs from the POC-teste
 commit. Prereleases and published tags that do not start with `v` cannot promote
 to the production Azure environment.
 
+### Agent shorthand
+
+Repository agents treat these requests as complete operational instructions:
+
+- **"Push to dev"** performs the POC procedure only and verifies the resulting
+  deployment. It does not change production.
+- **"Do a release"** first updates the user-facing `app/CHANGELOG.md`, validates
+  that exact changelog-bearing commit in POC, publishes a stable `v*` GitHub
+  Release using the same changelog section as its release notes, waits for
+  production approval, and verifies the rollout.
+
+The in-app changelog and GitHub Release must share one canonical set of
+user-facing notes. Updating notes after POC validation changes the release
+candidate and requires another POC deployment.
+
 ## Manual Updates by Platform
 
 ### Docker / VPC
