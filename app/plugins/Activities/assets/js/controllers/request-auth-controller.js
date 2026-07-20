@@ -15,12 +15,29 @@ class ActivitiesRequestAuthorization extends Controller {
 
     /** Fetch approvers from API for selected activity and member. */
     getApprovers(event) {
+        const requestId = (this.approversRequestId ?? 0) + 1;
+        this.approversRequestId = requestId;
         this.setComboBoxValue(this.approversTarget, "");
         let activityId = this.getComboBoxValue(this.activityTarget);
-        let url = this.urlValue + "/" + activityId + "/" + this.memberIdTarget.value;
+        let memberId = this.memberIdTarget.value;
+        if (!activityId || !memberId) {
+            this.setComboBoxDisabled(this.approversTarget, true);
+            this.submitBtnTarget.disabled = true;
+            return;
+        }
+
+        let url = this.urlValue + "/" + activityId + "/" + memberId;
         fetch(url, this.optionsForFetch())
             .then(response => response.json())
             .then(data => {
+                if (
+                    requestId !== this.approversRequestId
+                    || activityId !== this.getComboBoxValue(this.activityTarget)
+                    || memberId !== this.memberIdTarget.value
+                ) {
+                    return;
+                }
+
                 let list = [];
                 data.forEach((item) => {
                     list.push({
@@ -37,6 +54,10 @@ class ActivitiesRequestAuthorization extends Controller {
                     this.checkReadyToSubmit();
                 }
             });
+    }
+
+    disconnect() {
+        this.approversRequestId = (this.approversRequestId ?? 0) + 1;
     }
 
     /** Disable approvers dropdown on initial connection. */

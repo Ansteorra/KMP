@@ -89,6 +89,13 @@ class CsvExportServiceTest extends BaseTestCase
         $this->assertEquals('', $body);
     }
 
+    public function testOutputCsvWritesExplicitHeadersForEmptyData(): void
+    {
+        $response = $this->service->outputCsv([], 'empty.csv', ['name', 'email']);
+
+        $this->assertSame("name,email\n", (string)$response->getBody());
+    }
+
     public function testOutputCsvHandlesMissingKeys(): void
     {
         $data = [

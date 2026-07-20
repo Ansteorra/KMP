@@ -1,0 +1,6 @@
+# KMP is an internal portal. Only explicitly public event pages may be indexed.
+User-agent: *
+Disallow: /
+Allow: /events$
+Allow: /events?
+Allow: /gatherings/public-landing/

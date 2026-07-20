@@ -641,16 +641,13 @@ class OfficersController extends AppController
      *
      * Supports filtering by status and expiration timeframe via query parameters.
      *
-     * @return void Outputs CSV file directly
+     * @param \App\Services\CsvExportService $csvExportService CSV export service
+     * @return \Cake\Http\Response CSV download response
      */
-    public function api()
+    public function api(CsvExportService $csvExportService): Response
     {
         $this->Authorization->skipAuthorization();
         $this->autoRender = false;
-
-        header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename=officers-' . date('Y-m-d-h-i-s') . '.csv');
-        $output = fopen('php://output', 'w');
 
         $status = $this->request->getQuery('status');
         $endsIn = $this->request->getQuery('endsIn');
@@ -668,37 +665,34 @@ class OfficersController extends AppController
             $officers = $officers->where(function ($exp, $q) use ($endDate) {
                 return $exp->or_([
                     $exp->isNull('Officers.expires_on'),
-                    ['Officers.expires_on >=' => DateTime::now(), 'Officers.expires_on <=' => $endDate]
+                    ['Officers.expires_on >=' => DateTime::now(), 'Officers.expires_on <=' => $endDate],
                 ]);
             });
         }
-        fputcsv($output, ['Office', 'Name', 'email', 'Branch', 'Department', 'Start', 'End']);
 
-        $officers = $officers->toArray();
-
-        if (count($officers) > 0) {
-            foreach ($officers as $officer) {
-                //DateTime::createFromFormat('yyyy-mm-dd hh:mm:ss', $officer['start_on']);
-                $memberData = $officer['member']->publicData();
-                $officeName = $officer['office']['name'];
-                if ($officer['deputy_description'] != null && $officer['deputy_description'] != '') {
-                    $officeName = $officeName . ' (' . $officer['deputy_description'] . ')';
-                }
-                $officer_row = [
-                    $officeName,
-                    $memberData['sca_name'],
-                    $officer['email_address'],
-                    $officer['branch']['name'],
-                    $officer['office']['department']['name'],
-                    $officer['start_on']->i18nFormat('MM-dd-yyyy'),
-                    $officer['expires_on']->i18nFormat('MM-dd-yyyy'),
-
-                ];
-
-                fputcsv($output, $officer_row);
+        $rows = [];
+        foreach ($officers as $officer) {
+            $memberData = $officer->member->publicData();
+            $officeName = $officer->office->name;
+            if ($officer->deputy_description !== null && $officer->deputy_description !== '') {
+                $officeName .= ' (' . $officer->deputy_description . ')';
             }
+            $rows[] = [
+                'Office' => $officeName,
+                'Name' => $memberData['sca_name'],
+                'email' => $officer->email_address,
+                'Branch' => $officer->branch->name,
+                'Department' => $officer->office->department->name,
+                'Start' => $officer->start_on?->i18nFormat('MM-dd-yyyy') ?? '',
+                'End' => $officer->expires_on?->i18nFormat('MM-dd-yyyy') ?? '',
+            ];
         }
-        //return ($officers);
+
+        return $csvExportService->outputCsv(
+            $rows,
+            'officers-' . date('Y-m-d-H-i-s') . '.csv',
+            ['Office', 'Name', 'email', 'Branch', 'Department', 'Start', 'End'],
+        );
     }
 
     /**
