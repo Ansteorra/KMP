@@ -63,6 +63,7 @@ class BackupRestoreCompatibilityServiceTest extends BaseTestCase
     public function testBaselineRestoreReplaysDefaultAwardApprovalProcessSeeds(): void
     {
         $connection = ConnectionManager::get('default');
+        $this->ensureBaselineApprovalOfficeFixtures($connection);
         $names = [
             'Single Approver - Crown',
             'Single Approver - Local',
@@ -274,6 +275,7 @@ class BackupRestoreCompatibilityServiceTest extends BaseTestCase
 
         try {
             $this->invokePrivate('syncWorkflowDefinitions', [$connection]);
+            $this->clearWarrantRosterWorkflowFixtures($connection);
             $rosterName = 'Restore Compatibility Warrant Roster ' . uniqid('', true);
             $connection->insert('warrant_rosters', [
                 'name' => $rosterName,
@@ -343,6 +345,50 @@ class BackupRestoreCompatibilityServiceTest extends BaseTestCase
                 $connection->execute('DROP TABLE warrant_roster_approvals');
             }
         }
+    }
+
+    private function ensureBaselineApprovalOfficeFixtures(Connection $connection): void
+    {
+        $fixtures = [
+            'Deleted: Landed Nobility' => 'Landed Nobility',
+            'Principality Sovereign' => 'Principality Coronet',
+        ];
+        foreach ($fixtures as $sourceName => $targetName) {
+            $connection->execute(
+                'UPDATE officers_offices SET deleted = NULL WHERE name = ?',
+                [$targetName],
+            );
+            $exists = (int)$connection->execute(
+                'SELECT COUNT(*) FROM officers_offices WHERE name = ? AND deleted IS NULL',
+                [$targetName],
+            )->fetchColumn(0);
+            if ($exists === 0) {
+                $connection->execute(
+                    'UPDATE officers_offices SET name = ?, deleted = NULL WHERE name = ?',
+                    [$targetName, $sourceName],
+                );
+            }
+        }
+    }
+
+    private function clearWarrantRosterWorkflowFixtures(Connection $connection): void
+    {
+        $instanceIds = "SELECT id FROM workflow_instances WHERE entity_type = 'WarrantRosters'";
+        $approvalIds = "SELECT id FROM workflow_approvals WHERE workflow_instance_id IN ({$instanceIds})";
+
+        // Approvals must be removed before execution logs because their log foreign key is NO_ACTION.
+        $connection->execute(
+            "DELETE FROM workflow_approval_responses WHERE workflow_approval_id IN ({$approvalIds})",
+        );
+        $connection->execute(
+            "DELETE FROM workflow_approvals WHERE workflow_instance_id IN ({$instanceIds})",
+        );
+        $connection->execute(
+            "DELETE FROM workflow_execution_logs WHERE workflow_instance_id IN ({$instanceIds})",
+        );
+        $connection->execute(
+            "DELETE FROM workflow_instances WHERE entity_type = 'WarrantRosters'",
+        );
     }
 
     public function testWarrantRosterEntityRewriteRefreshesActiveUniquenessKey(): void

@@ -76,6 +76,8 @@ jobs:
         run: |
           printf "%s\n" \
             "export KMP_ENV='ci'" \
+            "export CACHE_ENGINE='apcu'" \
+            "export KMP_SESSION_DEFAULTS='php'" \
             "export MYSQL_USERNAME='root'" \
             "export MYSQL_PASSWORD='root'" \
             "export MYSQL_DB_NAME='kmp'" \
@@ -263,6 +265,8 @@ jobs:
         run: |
           printf "%s\n" \
             "export KMP_ENV='ci'" \
+            "export CACHE_ENGINE='apcu'" \
+            "export KMP_SESSION_DEFAULTS='php'" \
             "export PLAYWRIGHT_USE_DOCKER_PHP='0'" \
             "export MYSQL_HOST='127.0.0.1'" \
             "export MYSQL_USERNAME='root'" \
@@ -408,6 +412,8 @@ jobs:
         run: |
           printf "%s\n" \
             "export KMP_ENV='ci'" \
+            "export CACHE_ENGINE='apcu'" \
+            "export KMP_SESSION_DEFAULTS='php'" \
             "export PLAYWRIGHT_USE_DOCKER_PHP='0'" \
             "export MYSQL_HOST='127.0.0.1'" \
             "export MYSQL_USERNAME='root'" \
