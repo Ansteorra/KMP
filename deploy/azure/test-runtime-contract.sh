@@ -18,7 +18,7 @@ assert_contains() {
     fi
 }
 
-assert_contains "$bicep" "param queueWorkerCron string = '* * * * *'"
+assert_contains "$bicep" "param queueWorkerCron string = '*/3 * * * *'"
 assert_contains "$bicep" 'param queueWorkerReplicaTimeoutSeconds int = 3600'
 assert_contains "$bicep" 'param enableScheduleHourlyJob bool = false'
 assert_contains "$bicep" "{ name: 'KMP_SKIP_CRON', value: 'true' }"
@@ -33,6 +33,7 @@ assert_contains "$workflow" 'Preserve pre-cutover definitions'
 assert_contains "$poc_workflow" 'uses: ./.github/workflows/azure-deploy.yml'
 assert_contains "$here/cutover-unified-worker.sh" '--fail-on-overlap'
 assert_contains "$here/cutover-unified-worker.sh" "0 0 1 1 *"
+assert_contains "$here/cutover-unified-worker.sh" "*/3 * * * *"
 assert_contains "$scheduler" 'bin/cake platform worker run'
 if grep -Fq 'bin/cake platform schedule due' "$scheduler" \
     || grep -Fq 'bin/cake platform queues run' "$scheduler"; then

@@ -240,7 +240,7 @@ param enableProvisionJob bool = true
 param enableQueueWorkerJob bool = true
 
 @description('Cron for the unified background worker.')
-param queueWorkerCron string = '* * * * *'
+param queueWorkerCron string = '*/3 * * * *'
 
 @minValue(1)
 @maxValue(10)

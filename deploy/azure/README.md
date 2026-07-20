@@ -62,7 +62,7 @@ Default job shapes:
   `/opt/kmp/reset-and-seed.sh`.
 - `<prefix>-provision` — manual tenant provision operation shape. The safe
   default prints command help; operators override args for a specific tenant.
-- `<prefix>-queue` — the single one-minute background authority. It runs
+- `<prefix>-queue` — the single three-minute background authority. It runs
   `bin/cake platform worker run`, dispatching due schedules, draining the
   default and active-tenant Queue datasources, and claiming one bounded
   platform job.

@@ -301,7 +301,7 @@ start_and_wait "$worker_job" 'post-migration worker verification'
 patch_job_runtime \
     "$worker_job" \
     "$image" \
-    '* * * * *' \
+    '*/3 * * * *' \
     3600 \
     1 \
     1 \
